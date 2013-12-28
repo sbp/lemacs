@@ -1,0 +1,16 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:29:41 1991
+;;; from file /wg1/emacs-base/lisp/rmailmsc.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'set-rmail-inbox-list #[(file-name) "ŠÀ Á‰«ŒÄÅÆÇÈ#ÉQ!«¯Á\n~ˆebˆËÌ!ˆÍÎÁÏ#ˆÐyˆÑÒ!«‡`Óyˆ`|ˆÕ˜¬‡Ö×±ˆ)+À Ù!‡" [rmail-parse-file-inboxes nil standard-output names y-or-n-p "Replace " mapconcat identity ", " "? " buffer-read-only search-forward "\n" re-search-backward "^Mail" t 0 looking-at "Mail:" 1 file-name "" "Mail: " "\n" rmail-inbox-list rmail-show-message rmail-current-message] 7 "\
+Set the inbox list of the current RMAIL file to FILE-NAME.
+This may be a list of file names separated by commas.
+If FILE-NAME is empty, remove any inbox list." "sSet mailbox list to (comma-separated list of filenames): "])

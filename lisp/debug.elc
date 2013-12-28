@@ -1,0 +1,74 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:11:54 1991
+;;; from file /wg1/emacs-base/lisp/debug.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar debug-function-list nil "\
+List of functions currently set for debug on entry.")
+(byte-code "ÀÀ‡" [debug debugger] 1)
+(fset 'debug #[(&rest debugger-args) "ÀÁ!ˆÂÃ Â‰ÄÆÇ!)pÂ‰‰	\nÑŠÒ‹ˆ*\n.	‡" [message "Entering debugger..." nil match-data fundamental-mode default-major-mode generate-new-buffer "*Backtrace*" cursor-in-echo-area executing-macro debugger-step-after-exit debugger-old-buffer debugger-buffer debug-on-quit debug-on-error debugger-match-data debugger-value ((byte-code "À	!ˆÂ!‡" [kill-buffer debugger-buffer store-match-data debugger-match-data] 2)) ((byte-code "À	!ˆÂ ˆpÃÄÈ ˆ+ebˆÉ ˆ`ÊË!ˆÌyˆ`|ˆÍ ˆ@Ï>«›Ğcˆ@Ñ=«îÒÓÃ\"ˆÔÌ!ˆÕcˆÖyˆªİ@×=«ØcˆA@Úp\"ˆÛcˆÔÌ!ˆÜcˆÖyˆª¸@İ=«ŞcˆÚA@p\"ˆÛcˆª¡@Ã=«…ßcˆª•Ú@à=«…Aª‚p\"ˆÛcˆáâ!ˆÃàÃ#$áâ!ˆå ˆ+à‡" [pop-to-buffer debugger-buffer erase-buffer t 50 print-length print-escape-newlines standard-output backtrace debugger-mode search-forward "\n  debug(" 1 debugger-reenable debugger-args (lambda debug) "Entering:\n" debug backtrace-debug 4 delete-char 42 0 exit "Return value: " debugger-value prin1 10 32 error "Signalling: " "Beginning evaluation of function call form:\n" nil message "" buffer-read-only inhibit-trace recursive-edit] 3)) debug-on-next-call] 9 "\
+Enter debugger.  Returns if user says \"continue\".
+Arguments are mainly for use when this is called
+ from the internals of the evaluator.
+You may call with no args, or you may
+ pass nil as the first arg and any other args you like.
+ In that case, the list of args after the first will 
+ be printed into the backtrace buffer."])
+(fset 'debugger-step-through #[nil "ÀÂÃ!ˆÄ ‡" [t debugger-step-after-exit message "Proceding, will debug on next eval or call." exit-recursive-edit] 2 "\
+Proceed, stepping through subexpressions of this expression.
+Enter another debugger on next entry to eval, apply or funcall." nil])
+(fset 'debugger-continue #[nil "ÀÁ!ˆÂ ‡" [message "Continuing." exit-recursive-edit] 2 "\
+Continue, evaluating this expression without stopping." nil])
+(fset 'debugger-return-value #[(val) "ÂÃÄ\"ˆÅ	!ˆÆ ‡" [val debugger-value princ "Returning " t prin1 exit-recursive-edit] 3 "\
+Continue, specifying value to return.
+This is only useful when the value returned from the debugger
+will be used, such as in a debug on exit from a frame." "XReturn value (evaluated): "])
+(fset 'debugger-jump #[nil "Á\\Â ˆ)‰«’@Å@@KÆ#MˆA‰¬n)ÇÈ!ˆÉ ‡" [debugger-frame-offset 2 debugger-frame debug-function-list list debug-on-entry-1 nil message "Continuing through this frame" exit-recursive-edit] 6 "\
+Continue to exit from this frame, with all debug-on-entry suspended." nil])
+(fset 'debugger-reenable #[nil "‰­	@K:¬…Â	@!ˆ	@Ã	@	@KÄ#Mˆ	A‰¬cÅ)‡" [debug-function-list list debug-convert-byte-code debug-on-entry-1 t nil] 6])
+(fset 'debugger-frame-number #[nil "ŠÀyˆ`Àebˆ``Ã\\{Äš¬‰``Ã\\{Åš«ˆÆÇ!ˆÈÉ!ˆÉyˆÊuˆgËU«†ÈÉ!ˆª„ÈÊ!ˆÉyˆ`\nX«…	Tªa	+‡" [0 count opoint 6 "Signal" "Return" search-forward ":" forward-sexp 1 2 40] 3 "\
+Return number of frames in backtrace before the one point points at."])
+(defconst debugger-frame-offset 8 "\
+")
+(fset 'debugger-frame #[nil "ÀyˆÁ Ã\n\\Å\"ˆ)gÆU«‹ÇÉÊ!ˆËcˆ)ÀyˆÇ‡" [0 debugger-frame-number level backtrace-debug debugger-frame-offset t 32 nil buffer-read-only delete-char 1 42] 3 "\
+Request entry to debugger when this frame exits.
+Applies to the frame whose line point is on in the backtrace." nil])
+(fset 'debugger-frame-clear #[nil "ÀyˆÁ Ã\n\\Å\"ˆ)gÆU«‹ÅÈÉ!ˆÊcˆ)ÀyˆÅ‡" [0 debugger-frame-number level backtrace-debug debugger-frame-offset nil 42 buffer-read-only delete-char 1 32] 3 "\
+Do not enter to debugger when this frame exits.
+Applies to the frame whose line point is on in the backtrace." nil])
+(byte-code "ÀÁMˆÂÃ!¬‚Ä¬ÓÅÇ È!ˆÉÊË#ˆÉÌÍ#ˆÉÎÏ#ˆÉĞÑ#ˆÉÒÓ#ˆÉÔÕ#ˆÉÖ×#ˆÉØÙ#ˆÉÚÛ#ˆÉÜİ#ˆÉŞÀ#ˆÉßà#ˆ)áâãä#‡" [debugger-eval-expression #[(exp) "ŠÀ	!¬‚p	qˆÂ!)‡" [buffer-name debugger-old-buffer eval-expression exp] 2 nil "xEval: "] boundp debugger-mode-map nil 32 loop make-keymap suppress-keymap define-key "-" negative-argument "b" debugger-frame "c" debugger-continue "j" debugger-jump "r" debugger-return-value "u" debugger-frame-clear "d" debugger-step-through "l" debugger-list-functions "h" describe-mode "q" top-level "e" " " next-line put debugger-mode mode-class special] 4)
+(fset 'debugger-mode #[nil "À ˆÁÃÅÇ!ˆÉ\n!‡" [kill-all-local-variables debugger-mode major-mode "Debugger" mode-name t truncate-lines set-syntax-table emacs-lisp-mode-syntax-table use-local-map debugger-mode-map] 2 "\
+Mode for backtrace buffers, selected in debugger.
+\\<debugger-mode-map>
+A line starts with `*' if exiting that frame will call the debugger.
+Type \\[debugger-frame] or \\[debugger-frame-clear] to set or remove the `*'.
+
+When in debugger due to frame being exited,
+use the \\[debugger-return-value] command to override the value
+being returned from that frame.
+
+Use \\[debug-on-entry] and \\[cancel-debug-on-entry] to control
+which functions will enter the debugger when called.
+
+Complete list of commands:
+\\{debugger-mode-map}"])
+(fset 'debug-on-entry #[(function) "À ˆÁ\nK!«…ÃÄ\n\"ˆ\nK:¬„Å\n!ˆ\nK:¬…ÃÆ\n\"ˆ\nÇ\n‰KÈ#Mˆ\n	>¬†\n	B	\n‡" [debugger-reenable subrp function error "Function %s is a primitive" debug-convert-byte-code "Definition of %s is not a list" debug-on-entry-1 t debug-function-list] 5 "\
+Request FUNCTION to invoke debugger each time it is called.
+If the user continues, FUNCTION's execution proceeds.
+Works by modifying the definition of FUNCTION,
+which must be written in Lisp, not predefined.
+Use \\[cancel-debug-on-entry] to cancel the effect of this command.
+Redefining FUNCTION also does that." "aDebug on entry (to function): "])
+(fset 'cancel-debug-on-entry #[(&optional function) "À ˆ	«—	Â˜¬’	Ã	‰KÄ#MˆÅ	\"	‡ÇÈ!ˆÉÊ\"‡" [debugger-reenable function "" debug-on-entry-1 nil delq debug-function-list message "Cancelling debug-on-entry for all functions" mapcar cancel-debug-on-entry] 5 "\
+Undo effect of \\[debug-on-entry] on FUNCTION.
+If argument is nil or an empty string, cancel for all functions." "aCancel debug on entry (to function): "])
+(byte-code "ÀÁMˆÂÃM‡" [debug-convert-byte-code #[(function) "K‰:?­¹Â	Ã\"ÅA@Æ8Ç8FCÉ›«ŠÊÉ8DBË8«ˆË8BÌ@BBM*)‡" [function defn append nil contents byte-code 2 3 body 5 interactive 4 lambda] 6] debug-on-entry-1 #[(function defn flag) "À	!«…ÂÃ\"‡	@Å=«ˆÆ	A#‡	@È=¬…ÂÉ\"ˆÊ‰	AA@;«“Í	›	@	A@	AA@Eª	AA	@	A@D@Îš=«ƒ	ª“«‰ÏB¤ª†A¤*‡" [subrp defn error "%s is a built-in function" function macro debug-on-entry-1 flag lambda "%s not user-defined Lisp function" nil prec tail 3 (debug 'debug) (debug 'debug)] 4]] 2)
+(fset 'debugger-list-functions #[nil "À	¬…ÂÃ!ªŸÂÄ!ˆ	‰«Æ@!ˆÇ ˆA‰¬r)ÂÈ!ˆÂÉ!‘‡" ["*Help*" debug-function-list princ "No debug-on-entry functions now\n" "Functions set to debug on entry:\n\n" list prin1 terpri "Note: if you have redefined a function, then it may no longer\n" "be set to debug on entry, even if it is in the list."] 4 "\
+Display a list of all the functions now set to debug on entry." nil])

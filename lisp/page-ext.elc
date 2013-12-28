@@ -1,0 +1,121 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:27:34 1991
+;;; from file /wg1/emacs-base/lisp/page-ext.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(global-unset-key "")
+(defvar ctl-x-ctl-p-map (make-sparse-keymap) "\
+Keymap for subcommands of C-x C-p, which are for page handling.")
+(byte-code "À	ÂÃ#ˆÃMˆÀÅÆ#ˆÀÂÇ#ˆÀÈÉ#ˆÀÊË#ˆÀÌÍ#ˆÀÎÏ#ˆÀĞÑ#ˆÀÒÓ#ˆÀÔÕ#‡" [define-key ctl-x-map "" ctl-x-ctl-p-prefix ctl-x-ctl-p-map "" next-page previous-page "" add-new-page "" mark-page "" search-pages "s" sort-pages-buffer "" set-page-delimiter "" pages-directory "d" pages-directory-for-addresses] 4)
+(fset 'next-page #[(&optional count) "¬‚Á~ˆÂV«“m¬ÃÅÆ#¬ƒdbˆS‰ªiÂW«™o¬–ÇÅÆ#«†Â”bˆªƒebˆT‰ªcÈ ˆebˆÉÂ!‡" [count 1 0 re-search-forward page-delimiter nil t re-search-backward narrow-to-page recenter] 5 "\
+Move to the next page bounded by the page-delimiter variable.
+With arg (prefix if interactive), move that many pages." "p"])
+(fset 'previous-page #[(&optional count) "¬‚ÁÂ[!‡" [count 1 next-page] 2 "\
+Move to the previous page bounded by the page-delimiter variable.
+With arg (prefix if interactive), move that many pages." "p"])
+(fset 'add-new-page #[(header-line) "~ˆÀÁ\n\"cˆÃy‡" [format "\n\n%s\n\n" header-line -1] 3 "\
+Insert new page at point; prompt for header line.
+Page begins with a `^L' as the page-delimiter.  
+Point is left in the body of page." "sHeader line: "])
+(defvar pages-last-search nil "\
+Value of last regexp searched for.  Initially, nil.")
+(fset 'search-pages #[(regexp) "Áš«„\nª‚~ˆÃ!ˆÄ ‡" [regexp "" pages-last-search re-search-forward narrow-to-page] 2 "\
+Search for REGEXP, starting from point, and narrow to page it is in." (byte-code "ÀÁÂ®Ä\"!C‡" [read-string format "Search for `%s' (end with RET): " pages-last-search "regexp"] 4)])
+(autoload 'sort-subr "sort" "\
+Primary function for sorting." t nil)
+(fset 'sort-pages-in-region #[(reverse beg end) "Œ	}ˆebˆÂÄÅ#)‡" [beg end sort-subr reverse #[nil "À	ÂÃ#ˆÄÂw‡" [re-search-forward page-delimiter nil t " 	\n"] 4] #[nil "À	ÂÃ#«„Ä”b‡db‡" [re-search-forward page-delimiter nil t 0] 4]] 4 "\
+Sort pages in region alphabetically.  Prefix arg means reverse order.  
+
+Called from a program, there are three arguments:
+REVERSE (non-nil means reverse order), BEG and END (region to sort)." "P\nr"])
+(fset 'sort-pages-buffer #[(&optional reverse) "¬‚Á~ˆedÄ\n#*‡" [reverse nil end beginning sort-pages-in-region] 4 "\
+Sort pages alphabetically in buffer.  Prefix arg means reverse order. 
+(Non-nil arg if not interactive.)" "P"])
+(defvar pages-directory-buffer-narrowing-p nil "\
+*If non-nil, `pages-directory-goto' narrows pages buffer to entry.")
+(defvar pages-directory-previous-regexp nil "\
+Value of previous regexp used by `pages-directory'.
+(This regular expression may be used to select only those pages that
+contain matches to the regexp.)")
+(defvar pages-buffer nil "\
+The buffer for which the pages-directory function creates the directory.")
+(defvar pages-directory-prefix "*Directory for:" "\
+Prefix of name of temporary buffer for pages-directory.")
+(defvar pages-pos-list nil "\
+List containing the positions of the pages in the pages-buffer.")
+(defvar pages-directory-map nil "\
+Keymap for the pages-directory-buffer.")
+(byte-code "¬‰Á ÂÃÄ#ˆÁ‡" [pages-directory-map make-sparse-keymap define-key "" pages-directory-goto] 4)
+(fset 'set-page-delimiter #[(regexp reset-p) "ÀÁ!ˆÀÂ!ˆ	®\n¬„ª‚	t­„ÅÆ\n\"‡" [make-local-variable original-page-delimiter page-delimiter reset-p regexp message "The value of `page-delimiter' is now: %s"] 3 "\
+Set buffer local value of page-delimiter to REGEXP.
+Called interactively with a prefix argument, reset page-delimiter to
+its original value.
+
+In a program, non-nil second arg causes first arg to be ignored and
+resets the page-delimiter to the original value." (byte-code "«„	ÂD‡ÃÄ\"ÂD‡" [current-prefix-arg original-page-delimiter nil read-string "Set page-delimiter to regexp: " page-delimiter] 3)])
+(fset 'pages-directory #[(pages-list-all-headers-p count-lines-p &optional regexp) "Áš«„\nª‚t«†ÃÄÅ \"ˆpÇÅ ÇRÈ`É\nŠqˆĞ ˆÑÒ±ˆÔ)«´ŠebˆŒŠ×ÔÙ#)«ŠÉ”ÈU«„É•bˆÚ ˆÛ!ˆ)×ÔÙ#«‡Û!ˆªq)ªµŠebˆŒÚ ˆŠ×ÔÙ#)«…Û!ˆ)×ÔÙ#«•ŒÚ ˆŠ×ÔÙ#)«…Û!ˆ)ªc)qˆŸt­ŠÃİGÅ!#‘ˆŞ!ˆßÉ!ˆ\nÉU«ƒÈª‚\ny-‡" [regexp "" pages-directory-previous-regexp message "Creating directory for: %s " buffer-name pages-directory-prefix " " 1 0 pages-buffer-original-page pages-buffer-original-position linenum pages-directory-buffer buffer standard-output pages-directory-mode "==== Pages Directory: use `C-c C-c' to go to page under cursor. ====" 10 pages-buffer nil pages-pos-list pages-list-all-headers-p re-search-forward page-delimiter t narrow-to-page pages-copy-header-and-position count-lines-p "%d matching lines in: %s" pop-to-buffer sit-for] 6 "\
+Display a directory of the page headers in a temporary buffer.
+A header is the first non-blank line after the page-delimiter.
+
+You may move point to one of the lines in the temporary buffer,
+then use C-c C-c to go to the same line in the pages buffer.
+
+In interactive use:
+
+    1. With no prefix arg, display all headers.
+
+    2. With prefix arg, display the headers of only those pages that
+       contain matches to a regular expression for which you are
+       prompted.
+
+    3. With numeric prefix arg, for every page, print the number of
+       lines within each page.
+
+    4. With negative numeric prefix arg, for only those pages that
+       match a regular expression, print the number of lines within
+       each page.
+
+When called from a program, non-nil first arg means list all headers;
+non-nil second arg means print numbers of lines in each page; if first
+arg is nil, optional third arg is regular expression.
+
+If the buffer is narrowed, the pages-directory command creates a
+directory for only the accessible portion of the buffer." (byte-code "¬…ÁÂ‰E‡<«Â‰ÃÄÅ®Ç\"!E‡È!ÉV«…Á‰ÂE‡È!ÉW­ÂÁÃÄÅ®Ç\"!E‡" [current-prefix-arg t nil read-string format "Select according to `%s' (end with RET): " pages-directory-previous-regexp "regexp" prefix-numeric-value 0] 6)])
+(fset 'pages-copy-header-and-position #[(count-lines-p) "À‰«‹ŠŒÄ ˆÅed\"*`X«…TŠÈÀwˆÉ ‰`À“ˆ`ŠÀˆ`)\nqˆ\nBÎ\n#ˆ*«‹ŠĞyˆÑÒ	\"cˆ)Ó ˆ)Ôy*‡" [nil line-count position count-lines-p narrow-to-page count-lines pages-buffer-original-position pages-buffer-original-page " 	\n" make-marker end start standard-output pages-pos-list insert-buffer-substring buffer 0 format "%3d: " terpri 1] 5 "\
+Copy page header and its position to the Pages Directory.
+Only arg non-nil, count lines in page and insert before header.
+Used by `pages-directory' function."])
+(fset 'pages-directory-mode #[nil "À ˆÁ\n!ˆÃÅÇÈ!ˆÇÉ!ˆÇÊ!‡" [kill-all-local-variables use-local-map pages-directory-map pages-directory-mode major-mode "Pages-Directory" mode-name make-local-variable pages-buffer pages-pos-list pages-directory-buffer-narrowing-p] 2 "\
+Mode for handling the pages-directory-buffer.
+
+Move point to one of the lines in this buffer,
+then use \\[pages-directory-goto] to go
+to the same line in the pages buffer."])
+(fset 'pages-directory-goto #[nil "«…Á!¬ˆÂÂÄÅ!ˆÆyˆÇe`\"S‰8	m\nÍ!ˆ~ˆ\n«…dbˆª†Î	!bˆ­‚Ï ,‡" [pages-buffer buffer-name nil pages-pos-list error "Buffer in which pages were found is deleted." 0 count-lines pages-number pos end-of-directory-p pages-directory-buffer-narrowing-p narrowing-p pop-to-buffer marker-position narrow-to-page] 4 "\
+Go to the corresponding line in the pages buffer." nil])
+(defvar pages-addresses-file-name "~/addresses" "\
+*Standard name for file of addresses. Entries separated by page-delimiter.
+Used by `pages-directory-for-addresses' function.")
+(defvar pages-directory-for-addresses-narrowing-p t "\
+*If non-nil, `pages-directory-goto' narrows addresses buffer to entry.")
+(fset 'pages-directory-for-addresses #[(&optional filename) "t«ˆÀÁ\n®\"ˆÄ\n®!«±ÅÆ\n®!!qˆ~ˆÇÈÉ‰#ˆÊ ˆÍ ˆŠebˆ`ŠÉˆ`)|ˆÎcˆÏÉ!)‡ĞÑ!‡" [message "Creating directory for: %s " filename pages-addresses-file-name file-exists-p find-file-noselect expand-file-name pages-directory t nil pages-directory-address-mode pages-directory-for-addresses-narrowing-p pages-directory-buffer-narrowing-p delete-other-windows "=== Address List Directory: use `C-c C-c' to go to page under cursor. ===" set-buffer-modified-p error "No addresses file found!"] 4 "\
+Find addresses file and display its directory.
+By default, create and display directory of   pages-addresses-file-name.
+Optional argument is FILENAME.  In interactive use, with prefix
+argument, prompt for filename and provide completion.
+
+Move point to one of the lines in the displayed directory,
+then use C-c C-c to go to the same line in the addresses buffer." (byte-code "­„ÁÂ\"C‡" [current-prefix-arg read-file-name "Filename: " pages-addresses-file-name] 3)])
+(fset 'pages-directory-address-mode #[nil "À	!ˆÂÄÆÇ!ˆÆÈ!ˆÆÉ!‡" [use-local-map pages-directory-map pages-directory-address-mode major-mode "Addresses Directory" mode-name make-local-variable pages-buffer pages-pos-list pages-directory-buffer-narrowing-p] 2 "\
+Mode for handling the Addresses Directory buffer.
+
+Move point to one of the lines in this buffer,
+then use \\[pages-directory-goto] to go
+to the same line in the pages buffer."])

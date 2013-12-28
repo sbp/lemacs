@@ -1,0 +1,16 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:20:47 1991
+;;; from file /wg1/emacs-base/lisp/hanoi.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'hanoi-topos #[(row col) "À	!ˆÂyˆu‡" [goto-line row 0 col] 2])
+(fset 'hanoi #[(nrings) "ÁX«„ÂÃ!ˆÄ‰‰ÅÆ !ÇÆ !	\nË\\SÌ_Í\\Y«‡V¬¢Ğ ˆÅÆ !‰Y«ŒÇÆ !‰V¬ˆÂÑ#ˆÌ¥\nÒ\nÓ\"ÁU¬…\nT\nÔZV«…ÔZª	*	ZÓZ\n	B\nÔ_	B\nÕ_	BÖÄ\"ÁÁW«¦ÜÄİ‰Ô\\\\Ş\\\"İ‰Ô\\\\ß\"#IˆT‰ªV)àá!ˆÄ\"ãp!ˆä ˆÁ	W«‘TåßS\"ˆæcˆªh)åçS\"ˆÓ((ÌW«´é(\n_\"ˆ(Ë\\(	W«–TêÓ!ˆëcˆìÓ!ˆíÓ!ˆªc)ªF)ÁÄ.‰W«¸ZÓZH‰.Á	ZIˆéA@ZZ\"ˆï.ğÄ#ˆ‰AS¡ˆT‰ªD*ğ\"ñÁ!ˆòS$ˆebˆóô!ˆğ\"õö !ˆñÁ!.\n‡" [nrings 0 error "Negative number of rings" nil window-height selected-window window-width fly-row floor-row pole-spacing 2 6 7 w h delete-other-windows "Screen is too small (need at least %dx%d)" logand 1 3 5 make-vector rings pole-3 pole-2 pole-1 i vector make-string 48 32 switch-to-buffer "*Hanoi*" buffer-read-only buffer-disable-undo erase-buffer insert-char 10 61 n hanoi-topos next-line 124 delete-char backward-char ring hanoi-draw-ring t sit-for hanoi0 message "Done" set-buffer-modified-p buffer-modified-p] 10 "\
+Towers of Hanoi diversion.  Argument is number of rings." (byte-code "¬ƒÁªƒÂ!C‡" [current-prefix-arg 3 prefix-numeric-value] 2)])
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [hanoi0 #[(n from to work) "À «†ÁÂÃC\"‡ÅW®ÆS	$ˆÊ	#ˆÆS	$‡" [input-pending-p signal quit "I can tell you've had enough" n 0 hanoi0 from work to hanoi-move-ring] 5] hanoi-move-ring #[(n from to) "	HÂ‰ÅH@	ZÇZ@	ZÇZA	\nÍ\"ˆV«œÏÂĞ#ˆÑÇ!ˆÏĞÂ#ˆÒÅ!ˆS‰ª_‰AT¡ˆ\nš¬Ä\nV«›ÇˆÓÔ!ˆÅyˆÕ‰±ˆÒÅ!ˆTTªW\nW«PÅyˆÖÔ!ˆÇˆÕ‰±ˆÒÅ!ˆSSª5Í\n\"ˆ	W« ÏÂV#ˆ×Ç!ˆÏĞÂ#ˆÒÅ!ˆT‰ª[Å	Iˆ‰AS¡.‡" [rings n nil buffer-read-only ring 0 from 1 to dst-row dst-col col row hanoi-topos fly-row hanoi-draw-ring t previous-line sit-for delete-backward-char 2 32 delete-char next-line] 6] hanoi-draw-ring #[(ring f1 f2) "Š«…	ÂHªƒ	ÃH‰GÆ!ˆcˆ­ÈÂ\\Ã¥!ˆÆÂ!ˆÉc+‡" [f1 ring 1 2 string len delete-char f2 backward-char 124] 4]] 2)

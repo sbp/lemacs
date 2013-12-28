@@ -1,0 +1,34 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:36:53 1991
+;;; from file /wg1/emacs-base/lisp/vms-patch.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'create-file-buffer #[(filename) "ÀÁ\n!—!‡" [generate-new-buffer file-name-nondirectory filename] 3 "\
+Create a suitably named buffer for visiting FILENAME, and return it.
+FILENAME (sans directory) is used unchanged if that name is free;
+otherwise a string <2> or <3> or ... is appended to get an unused name."])
+(fset 'make-legal-file-name #[(fn) "À	!ÂÃ	GÂW«Ü	H‰È=«‘«ˆ	ÉIˆª¾Êª¹ËY«…ÌX¬¯ÍY«…ÎX¬¥ÏY«…ÐX¬›Ñ=¬–É=¬‘Ò=«†ÃV¬†	ÉIˆT‰ª ,	‡" [copy-sequence fn nil 0 chr len indx dot 46 95 t 97 122 65 90 48 57 36 45] 5])
+(fset 'make-auto-save-file-name #[nil "«ŠÁ!ÂÃ!ÄR‡ÅÆÇÈ !ÄQ!‡" [buffer-file-name file-name-directory "_$" file-name-nondirectory "$" expand-file-name "_$_" make-legal-file-name buffer-name] 4 "\
+Return file name to use for auto-saves of current buffer.
+Does not consider auto-save-visited-file-name; that is checked
+before calling this function.
+This is a separate function so your .emacs file or site-init.el can redefine it.
+See also auto-save-file-name-p."])
+(fset 'auto-save-file-name-p #[(filename) "ÀÁ\n\"‡" [string-match "^_\\$.*\\$" filename] 3 "\
+Return t if FILENAME can be yielded by make-auto-save-file-name.
+FILENAME should lack slashes.
+This is a separate function so your .emacs file or site-init.el can redefine it."])
+(fset 'vms-suspend-resume-hook #[nil "ÀÁÂ\"‰­ƒÄ!)‡" [vms-system-info "LOGICAL" "EMACS_FILE_NAME" file find-file] 4 "\
+When resuming suspended Emacs, check for file to be found.
+If the logical name `EMACS_FILE_NAME' is defined, `find-file' that file."])
+(byte-code "ÀÀ‡" [vms-suspend-resume-hook suspend-resume-hook] 1)
+(fset 'vms-suspend-hook #[nil "ÀÁÂ\"«„ÃÄ!ˆÅ‡" [vms-system-info "LOGICAL" "DONT_SUSPEND_EMACS" error "Can't suspend this emacs" nil] 3 "\
+Don't allow suspending if logical name `DONT_SUSPEND_EMACS' is defined."])
+(byte-code "ÀÂÃMˆÄÀ‡" [vms-suspend-hook suspend-hook vms-read-directory #[(dirname switches buffer) "ŠqˆÁÂÄR\"ˆebˆÆÇ!«ˆÈuˆÉ ˆªseb)‡" [buffer subprocess-command-to-buffer "DIRECTORY " switches " " dirname search-forward " \n" -1 delete-horizontal-space] 5] "/SIZE/DATE/OWNER/WIDTH=(FILENAME=32,SIZE=5)" dired-listing-switches] 2)

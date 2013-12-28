@@ -1,0 +1,414 @@
+Info file: gnus,    -*-Text-*-
+produced by texinfo-format-buffer
+from file: gnus.texinfo
+
+
+
+This file documents GNUS, the GNU Emacs newsreader.
+
+Copyright (C) 1989 Fujitsu Laboratories LTD.
+Copyright (C) 1990 Masanobu UMEDA.
+
+Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided also that the
+sections entitled "Distribution" and "GNUS General Public License"
+are included exactly as in the original, and provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that the sections entitled "Distribution" and "GNUS General
+Public License" may be included in a translation approved by the author
+instead of in the original English.
+
+
+
+File: gnus  Node: Program Index, Prev: Variable Index, Up: Top, Next: Concept Index
+
+Program Index
+*************
+
+* Menu:
+
+* gnus.el: Compilation.
+* gnus.el: Files of GNUS.
+* gnus.el: Preloading.
+* gnusmail.el: Compilation.
+* gnusmail.el: Files of GNUS.
+* gnusmisc.el: Compilation.
+* gnusmisc.el: Files of GNUS.
+* gnuspost.el: Compilation.
+* gnuspost.el: Files of GNUS.
+* gnus.texinfo: Files of GNUS.
+* gnus.texinfo: Texinfo Manual.
+* inews: Hooks.
+* inews: Spool Variables.
+* inews: Spool Variables.
+* ls: Directory Variables.
+* make: Compilation.
+* make: Files of GNUS.
+* Makefile: Files of GNUS.
+* MH: NNTP Server.
+* MH: Private Directory.
+* MH: Saving Articles.
+* MH: Variables.
+* MH: Variables.
+* mh-e: Followup and Reply.
+* mh-e: Variables.
+* mh-e: Variables.
+* mhspool.el: Compilation.
+* mhspool.el: Files of GNUS.
+* nkf: SX/A Emacs.
+* nnspool.el: Compilation.
+* nnspool.el: Files of GNUS.
+* nntp.el: Compilation.
+* nntp.el: Files of GNUS.
+* rcvstore: Variables.
+* rn: Introduction.
+* rn: Moving Among Articles.
+* rn: Variables.
+* rrn: Introduction.
+* tcp.c: Compilation.
+* tcp.c: Compilation.
+* tcp.c: Files of GNUS.
+* tcp.c: NNTP Variables.
+* tcp.el: Compilation.
+* tcp.el: Files of GNUS.
+
+
+File: gnus  Node: Concept Index, Prev: Program Index, Up: Top
+
+Concept Index
+*************
+
+* Menu:
+
+* active file: Maintenance.
+* active file: Maintenance.
+* active file: Private Directory.
+* active file: Spool Variables.
+* add newsgroups: Maintenance.
+* add newsgroups: Startup File.
+* add newsgroups: Variables.
+* Article buffer: Article Buffer.
+* article marks: Hooks.
+* article marks: Marking Articles.
+* Article Mode: Article Buffer.
+* autoload: Autoloading.
+* batch kill processing: Background Kills.
+* bogus newsgroups: Maintenance.
+* break into pages: Scrolling.
+* break into pages: Scrolling.
+* break into pages: Variables.
+* break into pages: Variables.
+* brief help message: Article Commands.
+* brief help message: Other Newsgroup Commands.
+* brief help message: Other Subject Commands.
+* buffers of GNUS: Buffers of GNUS.
+* bug report: Reporting Bugs.
+* byte-compilation: Compilation.
+* caesar messages: Scrolling.
+* caesar messages: Scrolling.
+* cancel article: Followup and Reply.
+* cancel article: Followup and Reply.
+* cancel article: Followup and Reply.
+* case of text: Hooks.
+* case of text: Making a KILL File.
+* catch up: Exiting Newsgroup.
+* catch up: Exiting Newsgroup.
+* catch up: Maintenance.
+* catch up: Marking Articles.
+* catch up: Marking Articles.
+* catch up: Marking Articles.
+* catch up: Marking Articles.
+* change the order of newsgroups: Maintenance.
+* compilation of lisp files: Compilation.
+* configure windows: Buffers of GNUS.
+* configure windows: Scrolling.
+* configure windows: Variables.
+* conversation threads: Hooks.
+* conversation threads: Thread-based Reading.
+* conversation threads: Variables.
+* conversation threads: Variables.
+* conversation threads: Variables.
+* conversation threads: Variables.
+* conversation threads: Variables.
+* conversation threads: Variables.
+* create Info file: Texinfo Manual.
+* cross-references: Hooks.
+* cross-references: Maintenance.
+* cross-references: Variables.
+* current time: Hooks.
+* deadlock: NNTP Problems.
+* delete newsgroups: Maintenance.
+* digest articles: Digest Articles.
+* digest articles: Hooks.
+* digest articles: Hooks.
+* digest articles: Hooks.
+* digest separator: Digest Articles.
+* digest separator: Variables.
+* digest summary: Digest Articles.
+* digest summary: Variables.
+* disable cross-references: Hooks.
+* display current time: Hooks.
+* distribution: Variables.
+* domain: Domain.
+* domain: Variables.
+* edit global KILL file: Editing KILL Files.
+* edit global KILL file: Other Newsgroup Commands.
+* edit global KILL file: Other Subject Commands.
+* edit local KILL file: Editing KILL Files.
+* edit local KILL file: Other Newsgroup Commands.
+* edit local KILL file: Other Subject Commands.
+* Emacs-Lisp Mode: Editing KILL Files.
+* encrypted articles: Scrolling.
+* encrypted articles: Scrolling.
+* entire screen: Variables.
+* EUC: NEmacs2.
+* EUC: NEmacs2.
+* EUC: SX/A Emacs.
+* example of a KILL file: Example of a KILL File.
+* FCC field: Variables.
+* files of GNUS: Files of GNUS.
+* followup to article: Followup and Reply.
+* followup to article: Variables.
+* Followup-To field: Variables.
+* From field: GENERICFROM.
+* From field: Variables.
+* full name of user: Variables.
+* full window: Variables.
+* GENERICFROM: GENERICFROM.
+* GENERICFROM: Variables.
+* GENERICPATH: GENERICPATH.
+* GENERICPATH: Variables.
+* global KILL file: What KILL Files Do.
+* gnu.emacs.gnus: Reporting Bugs.
+* GNUS buffers: Buffers of GNUS.
+* GNUS files: Files of GNUS.
+* GNUS major modes: Buffers of GNUS.
+* GNUS version number: Other Newsgroup Commands.
+* GNUS version number: Other Subject Commands.
+* GNUS windows: Buffers of GNUS.
+* Group Mode: Newsgroup Buffer.
+* hang up: NNTP Problems.
+* help briefly: Article Commands.
+* help briefly: Other Newsgroup Commands.
+* help briefly: Other Subject Commands.
+* history file: Spool Variables.
+* how to install GNUS: Installation.
+* incomplete digest articles: Digest Articles.
+* incomplete digest articles: Hooks.
+* indentation: Variables.
+* Info: Article Commands.
+* Info: Editing KILL Files.
+* Info: Other Newsgroup Commands.
+* Info: Other Subject Commands.
+* Info: Texinfo Manual.
+* Info: Texinfo Manual.
+* Info: Variables.
+* info-gnus: Reporting Bugs.
+* info-gnus-english: Distribution.
+* info-gnus-english: Reporting Bugs.
+* install GNUS: Installation.
+* install Info file: Texinfo Manual.
+* invoke GNUS: Getting Started.
+* Japanese: Kanji Handling.
+* JIS: NEmacs2.
+* JIS: SX/A Emacs.
+* kanji handling: Kanji Handling.
+* KILL file examples: Example of a KILL File.
+* KILL file: Hooks.
+* KILL file: KILL File.
+* KILL file: Variables.
+* kill newsgroups: Maintenance.
+* kill newsgroups: Maintenance.
+* kill newsgroups: Startup File.
+* kill newsgroups: Variables.
+* KILL-File Mode: Editing KILL Files.
+* large newsgroup: Marking Articles.
+* large newsgroup: NNTP Problems.
+* large newsgroup: NNTP Variables.
+* large newsgroup: NNTP Variables.
+* large newsgroup: Selecting a Newsgroup.
+* large newsgroup: Variables.
+* local KILL file: What KILL Files Do.
+* local news spool: Local News Spool.
+* local news spool: NEmacs2.
+* local news spool: NNTP Service.
+* local news spool: Spool Variables.
+* login name: Variables.
+* mail: Followup and Reply.
+* Mail Mode: Followup and Reply.
+* Mail Mode: Variables.
+* Mail Mode: Variables.
+* mail: Variables.
+* mail: Variables.
+* mail: Variables.
+* mailing list: Reporting Bugs.
+* major modes of GNUS: Buffers of GNUS.
+* mark articles: Hooks.
+* mark articles: Marking Articles.
+* MH folder: Private Directory.
+* MH folder: Saving Articles.
+* MH folder: Variables.
+* MH folder: Variables.
+* MH: Followup and Reply.
+* MH: Variables.
+* MH: Variables.
+* mh-e: Followup and Reply.
+* mh-e letter Mode: Followup and Reply.
+* mh-e letter Mode: Variables.
+* mh-e letter Mode: Variables.
+* mh-e: Variables.
+* mh-e: Variables.
+* NEmacs 2.1: NEmacs2.
+* NEmacs 3.0: NEmacs3.
+* new newsgroups: Maintenance.
+* new newsgroups: Startup File.
+* new newsgroups: Variables.
+* News Mode: Followup and Reply.
+* Newsgroup buffer: Newsgroup Buffer.
+* .newsrc: Hooks.
+* .newsrc: Maintenance.
+* .newsrc: Maintenance.
+* .newsrc: Maintenance.
+* .newsrc: Startup File.
+* .newsrc: Variables.
+* .newsrc.el: Startup File.
+* NNTP: Introduction.
+* NNTP: NNTP Problems.
+* NNTP: NNTP Variables.
+* NNTP server: Hooks.
+* NNTP server: NNTP Server.
+* NNTP server: Variables.
+* NNTP service: NNTP Service.
+* NNTP service: Variables.
+* options -n in startup file: Maintenance.
+* options -n in startup file: Startup File.
+* order of newsgroups: Maintenance.
+* .organization: Domain.
+* organization: Domain.
+* organization: Variables.
+* packet overflow: NNTP Problems.
+* page break: Scrolling.
+* page break: Scrolling.
+* page break: Variables.
+* page break: Variables.
+* Path field: GENERICPATH.
+* Path field: Variables.
+* post article: Followup and Reply.
+* post article: Hooks.
+* post article: Variables.
+* preload GNUS: Preloading.
+* print Texinfo manual: Texinfo Manual.
+* private directory: Directory Variables.
+* private directory: NNTP Server.
+* private directory: Private Directory.
+* private directory: Variables.
+* quick startup file: Startup File.
+* read all articles: Selecting a Newsgroup.
+* read Info file: Article Commands.
+* read Info file: Editing KILL Files.
+* read Info file: Other Newsgroup Commands.
+* read Info file: Other Subject Commands.
+* read Info file: Texinfo Manual.
+* read newsgroup: Selecting a Newsgroup.
+* refer to articles: Referencing Articles.
+* refernece trees: Thread-based Reading.
+* reply to article: Followup and Reply.
+* reply to article: Variables.
+* reply to article: Variables.
+* report a bug: Reporting Bugs.
+* restrict newsgroups: Browsing Newsgroups.
+* restrict newsgroups: Browsing Newsgroups.
+* Rmail: Digest Articles.
+* Rmail: Digest Articles.
+* Rmail file: Saving Articles.
+* Rmail file: Variables.
+* Rmail: Hooks.
+* Rmail: Hooks.
+* Rmail: Hooks.
+* Rmail: Variables.
+* rot 13/47: Scrolling.
+* rot 13/47: Scrolling.
+* run GNUS: Getting Started.
+* save articles: Saving Articles.
+* save articles: Variables.
+* save articles: Variables.
+* save articles: Variables.
+* save articles: Variables.
+* save startup file: Exiting GNUS.
+* search for articles: Searching Articles.
+* select all articles: Selecting a Newsgroup.
+* select error: NNTP Problems.
+* select error: NNTP Problems.
+* select error: NNTP Variables.
+* select newsgroup: Selecting a Newsgroup.
+* server specific startup file: Startup File.
+* .signature: Variables.
+* signature: Variables.
+* simplify subjects: Hooks.
+* SJIS: NEmacs2.
+* sort headers: Hooks.
+* sort headers: Sorting Headers.
+* startup file: Hooks.
+* startup file: Maintenance.
+* startup file: Maintenance.
+* startup file: Maintenance.
+* startup file: Startup File.
+* startup file: Variables.
+* Subject buffer: Subject Buffer.
+* Subject Mode: Subject Buffer.
+* Subject Mode: Variables.
+* subscribe newsgroups: Maintenance.
+* subscribe newsgroups: Maintenance.
+* subscribe newsgroups: Startup File.
+* subscribe newsgroups: Variables.
+* summary of digest: Digest Articles.
+* summary of digest: Variables.
+* SX/A Emacs: SX/A Emacs.
+* TCP/IP: Compilation.
+* TeX: Texinfo Manual.
+* Texinfo: Texinfo Manual.
+* threads: Hooks.
+* threads: Thread-based Reading.
+* threads: Variables.
+* threads: Variables.
+* threads: Variables.
+* threads: Variables.
+* threads: Variables.
+* threads: Variables.
+* truncation of lines: Browsing Headers.
+* Unix mailbox: Saving Articles.
+* Unix mailbox: Variables.
+* Unix mailbox: Variables.
+* Unix mailbox: Variables.
+* unsubscribe newsgroups: Maintenance.
+* unsubscribe newsgroups: Maintenance.
+* unsubscribe newsgroups: Startup File.
+* unsubscribe newsgroups: Variables.
+* update startup file: Exiting GNUS.
+* user full name: Variables.
+* /usr/lib/news/active: Spool Variables.
+* /usr/lib/news/history: Spool Variables.
+* /usr/lib/news/organization: Domain.
+* /usr/lib/news/organization: Domain.
+* version number of GNUS: Other Newsgroup Commands.
+* version number of GNUS: Other Subject Commands.
+* window configuration: Buffers of GNUS.
+* window configuration: Scrolling.
+* window configuration: Variables.
+* window configuration: Variables.
+* windows of GNUS: Buffers of GNUS.
+* Xref field: Hooks.
+* Xref field: Maintenance.
+* Xref field: Variables.
+* yank newsgroups: Maintenance.
+* yank newsgroups: Maintenance.
+
+

@@ -1,0 +1,27 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:24:22 1991
+;;; from file /wg1/emacs-base/lisp/lpr.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar lpr-command (byte-code "Á=«‚Â‡Ã‡" [system-type usg-unix-v "lp" "lpr"] 2) "\
+Shell command for printing a file")
+(fset 'lpr-buffer #[nil "Àed	Â$‡" [print-region-1 lpr-switches nil] 5 "\
+Print buffer contents as with Unix command `lpr'.
+`lpr-switches' is a list of extra switches (strings) to pass to lpr." nil])
+(fset 'print-buffer #[nil "Àed	Â$‡" [print-region-1 lpr-switches t] 5 "\
+Print buffer contents as with Unix command `lpr -p'.
+`lpr-switches' is a list of extra switches (strings) to pass to lpr." nil])
+(fset 'lpr-region #[(start end) "À	\nÄ$‡" [print-region-1 start end lpr-switches nil] 5 "\
+Print region contents as with Unix command `lpr'.
+`lpr-switches' is a list of extra switches (strings) to pass to lpr." "r"])
+(fset 'print-region #[(start end) "À	\nÄ$‡" [print-region-1 start end lpr-switches t] 5 "\
+Print region contents as with Unix command `lpr -p'.
+`lpr-switches' is a list of extra switches (strings) to pass to lpr." "r"])
+(byte-code "ÀÁMˆÂÃM‡" [print-region-1 #[(start end switches page-headers) "À ÁP\nŠÅÆ!ˆ\nÇU¬ŠÈ ˆÉed\"ˆ\n«Ì=«‘È ˆÍĞÑ‰Ò&ˆª†ÓBÕÍÒ‰‰¯×=­…ØÙF¤¤\"ˆÅÚ!+‡" [buffer-name " Emacs buffer" tab-width width name message "Spooling..." 8 print-region-new-buffer untabify page-headers system-type usg-unix-v call-process-region start end "pr" t nil "-p" switches apply lpr-command berkeley-unix "-J" "-T" "Spooling...done"] 8] print-region-new-buffer #[nil "À Á˜®œpÃÁ!qˆ~ˆÄ ˆÅ\n#ˆed‰)‡" [buffer-name " *spool temp*" oldbuf get-buffer-create erase-buffer insert-buffer-substring start end] 4]] 2)

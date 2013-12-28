@@ -1,0 +1,17 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:26:06 1991
+;;; from file /wg1/emacs-base/lisp/misc.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'copy-from-above-command #[(&optional arg) "iÀÁŠÅyˆÆÇ!ˆÈÀxˆÉ!ˆ\n«†Ë\n!ªdiW«œhÌU«“ÍiZ^Î\"‰iZ^Zª„ÆÇ!ˆ\n`ŠÀˆ`)`\\^{P)\nc+‡" [nil "" string n cc 0 backward-char 1 " 	\n" move-to-column arg prefix-numeric-value 9 make-string 32] 5 "\
+Copy characters from previous nonblank line, starting just above point.
+Copy ARG characters, but not past the end of that line.
+If no argument given, copy the entire rest of the line.
+The characters copied are inserted in the buffer before point." "P"])

@@ -1,0 +1,10 @@
+Mar 20 15:19:54  Energize started up.
+Mar 20 15:19:56 Forked tool 24126, command: /cadillac1/code/bin.sun4/toolstat
+ -cadillac 00000000,00000000
+Mar 20 15:21:09 Forked tool 24137, command: /cadillac1/code/bin.sun4/debugger
+ -context 0a000003,00000000 cemacs
+Mar 20 15:31:51 Terminating client (text_tool)
+Mar 20 15:33:45 stdio_tool: program terminated with code 0
+Mar 20 15:33:47 Terminating client (text_tool)
+Mar 20 19:07:41  Energize exited
+

@@ -1,0 +1,459 @@
+;;; compiled by jwz@thalidomide on Thu Feb 20 19:34:24 1992
+;;; from file /u/jwz/emacs19/lisp/simple.el
+;;; emacs version 19.60 Lucid.
+;;; bytecomp version 2.04; 5-feb-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'open-line #[(arg) "n­‚o?‰«ƒÁuˆ\nÃV«‘ŠÄcˆ«ƒcˆ)\nS‰ªk­‚Æu)‡" [flag -1 arg 0 10 fill-prefix 1] 3 "\
+Insert a newline and leave point before it.  If there is a fill
+prefix, inserts the fill prefix after the newline that it inserts.
+With arg, inserts that many newlines." "*p"])
+(fset 'split-line #[nil "ÀÁwˆi`ÄcˆÅÆ\"ˆ\nb*‡" [" 	" nil pos col 10 indent-to 0] 3 "\
+Split current line, moving portion beyond point vertically down." "*"])
+(fset 'quoted-insert #[(arg) "À \nÃV­‰	cˆ\nS‰ªs)‡" [read-quoted-char char arg 0] 3 "\
+Read next input character and insert it.
+Useful for inserting control characters.
+You may also type up to 3 octal digits, to insert a character with that code" "*p"])
+(fset 'delete-indentation #[(&optional arg) "Àyˆ	«ƒÂyˆhÃ=­‡``S|ˆÄ ‡" [0 arg 1 10 fixup-whitespace] 2 "\
+Join this line to previous and fix up whitespace at join.
+With argument, join this line to following line." "*P"])
+(fset 'fixup-whitespace #[nil "ŠÀ ˆÁÂ!®ˆŠÃuˆÁÄ!)?­‚Åc)‡" [delete-horizontal-space looking-at "^\\|\\s)" -1 "$\\|\\s(\\|\\s'" 32] 2 "\
+Fixup white space between objects around point.
+Leave one space or none, according to the context." "*"])
+(fset 'delete-horizontal-space #[nil "ÀÁxˆ`ÀÁwˆ`|‡" [" 	" nil] 3 "\
+Delete all spaces and tabs around point." "*"])
+(fset 'just-one-space #[nil "ÀÁxˆgÂU«…ÃuˆªƒÂcˆ`ÀÁwˆ`|‡" [" 	" nil 32 1] 3 "\
+Delete all spaces and tabs around point, leaving one space." "*"])
+(fset 'delete-blank-lines #[nil "À‰ŠÃyˆÄÅ!‰­ÄÆ!?­Šo®‡ÇyˆÄÅ!?)\n«šÃyˆ	«ƒÈyˆ`ÉÊÀË#«†Èyˆ`ªe|ˆ\n­	?­˜ŠÀˆÈyˆ`ÌÊÀË#«†Ãyˆ`ªd|)*‡" [nil singleblank thisblank 0 looking-at "[ 	]*$" "[ 	]*\n[ 	]*$" -1 1 re-search-backward "[^ 	\n]" t re-search-forward] 6 "\
+On blank line, delete all surrounding blank lines, leaving just one.
+On isolated blank line, delete that one.
+On nonblank line, delete all blank lines that follow it." "*"])
+(fset 'back-to-indentation #[nil "ÀyˆÁÂw‡" [0 " 	" nil] 2 "\
+Move point to the first non-whitespace character on this line." nil])
+(fset 'newline-and-indent #[nil "`ÀÁxˆ`|ˆÂcˆÃ ‡" [" 	" nil 10 indent-according-to-mode] 3 "\
+Insert a newline, then indent according to major mode.
+Indentation is done using the current indent-line-function.
+In programming language modes, this is the same as TAB.
+In some text modes, where TAB inserts a tab, this indents to the
+specified left-margin column." "*"])
+(fset 'reindent-then-newline-and-indent #[nil "Š`ÀÁxˆ`|ˆÂ ˆ)ÃcˆÂ ‡" [" 	" nil indent-according-to-mode 10] 3 "\
+Reindent current line, insert newline, then indent the new line.
+Indentation of both lines is done according to the current major mode,
+which means that the current value of indent-line-function is called.
+In programming language modes, this is the same as TAB.
+In some text modes, where TAB inserts a tab, this indents to the
+specified left-margin column." "*"])
+(byte-code "ÀÁMˆÂÃM‡" [kill-forward-chars #[(arg) "<«ƒ@Á=«‚ÂÃ``\\\"‡" [arg - -1 kill-region] 4] kill-backward-chars #[(arg) "<«ƒ@Á=«‚ÂÃ``Z\"‡" [arg - -1 kill-region] 4]] 2)
+(fset 'backward-delete-char-untabify #[(arg &optional killp) "Š	ÂV«¤o¬¡hÃU«“iÅuˆiZÆÇ\"ˆÈÉ!ˆ)Åuˆ	S‰ªX*Ê\"ˆ­Šl?­†ŠÆÇ\")‡" [arg count 0 9 col -1 insert-char 32 delete-char 1 delete-backward-char killp overwrite-mode] 4 "\
+Delete characters backward, changing tabs into spaces.
+Delete ARG chars, and kill (save in kill ring) if KILLP is non-nil.
+Interactively, ARG is the prefix arg (default 1)
+and KILLP is t if prefix arg is was specified." "*p\nP"])
+(fset 'zap-to-char #[(arg char) "À`ÁÂ!Ä‰$ˆ`\"‡" [kill-region search-forward char-to-string char nil arg] 7 "\
+Kill up to and including ARG'th occurrence of CHAR.
+Goes backward if ARG is negative; error if CHAR not found." "*p\ncZap to char: "])
+(fset 'beginning-of-buffer #[(&optional arg) "À ˆ	«œÂ ÃV«ŠÄ	!Â Å¥_ªÂ Ä	!_Å\\Å¥ªebˆÆ	­‚Èy‡" [push-mark arg buffer-size 10000 prefix-numeric-value 10 t zmacs-region-stays 1] 3 "\
+Move point to the beginning of the buffer; leave mark at previous position.
+With arg N, put point N/10 of the way from the true beginning.
+Don't use this in Lisp programs!
+(goto-char (point-min)) is faster and avoids clobbering the mark." "P"])
+(byte-code "ÀÁ!¬‚ÂÂ‡" [boundp dont-redisplay-when-moving-within-window nil] 2)
+(fset 'end-of-buffer #[(&optional arg) "À ˆÁÃd!?«Æ TÆ ÇV«ŠÈ!Æ É¥_ªˆÆ È!_É¥Zªdbˆ«„Êyª†­ƒËÌ!)‡" [push-mark t zmacs-region-stays pos-visible-in-window-p scroll-to-end arg buffer-size 10000 prefix-numeric-value 10 1 recenter -3] 4 "\
+Move point to the end of the buffer; leave mark at previous position.
+With arg N, put point N/10 of the way from the true end.
+Don't use this in Lisp programs!
+(goto-char (point-max)) is faster and avoids clobbering the mark." "P"])
+(fset 'mark-whole-buffer #[nil "À`!ˆÀd!ˆebˆÁ ‡" [push-mark zmacs-activate-region] 2 "\
+Put point at beginning and mark at end of buffer." nil])
+(fset 'eval-current-buffer #[nil "Àp!‡" [eval-buffer] 2 "\
+Evaluate the current buffer as Lisp code.
+Programs can pass argument PRINTFLAG which controls printing of output:
+nil means discard it; anything else is stream for print." nil])
+(byte-code "ÀÁMˆÂÃM‡" [count-words-buffer #[(b) "Š®p‰qˆÂÃÄed\"\"*‡" [b buf message "Buffer has %d words" count-words-region] 6 nil "b"] count-words-region #[(debut fin) "ŠÀ\nbˆ`W«‰Äv«w	TªrÅÆ	\"*‡" [0 cnt debut fin 1 message "Region has %d words"] 3 nil "r"]] 2)
+(fset 'count-lines-region #[(start end) "ÀÁÂ\"\"Å‡" [message "Region has %d lines" count-lines start end t zmacs-region-stays] 5 "\
+Print number of lines in the region." "r"])
+(fset 'count-lines-buffer #[(b) "Š®p‰qˆÂÃÄed\"\"*Å‡" [b buf message "Buffer has %d lines" count-lines t zmacs-region-stays] 6 nil "b"])
+(fset 'what-line #[nil "Œ~ˆŠÀyˆÁÂÃÄ`\"T\"*Å‡" [0 message "Line %d" count-lines 1 t zmacs-region-stays] 5 "\
+Print the current line number (in the buffer) of point." nil])
+(fset 'count-lines #[(start end) "ŠŒ	}ˆebˆ\nÃ=«¢ÄÆÇÈÃÉ$«†É\\ªrÆÇÈÃÊ$«†Ê\\ªr)ª†Ë Ë yZ*‡" [start end selective-display t 0 done re-search-forward "[\n]" nil 40 1 buffer-size] 5 "\
+Return number of lines between START and END.
+This is usually the number of newlines between them,
+but will be one more if START is not equal to END
+and the greater of them is not at the start of a line."])
+(fset 'what-cursor-position #[nil "ged`Ä ‰ÆV«Ç¥S\\È¥É]¥ªŒÊ¥SÈ_\\É]¥Ì ÍU«ƒÎª…ÏĞÌ \"i\nU«©	ÉU«†\nTU¬ÓÔ	\n&ª½ÓÕ&ª¯	ÉU«†\nTU¬”ÓÖ×!	\n&\nªÓØ×!&.Ù‡" [char beg end pos buffer-size total 50000 200 100 1 2 percent window-hscroll 0 "" format " Hscroll=%d" hscroll col message "point=%d of %d(%d%%) <%d - %d>  column %d %s" "point=%d of %d(%d%%)  column %d %s" "Char: %s (0%o)  point=%d of %d(%d%%) <%d - %d>  column %d %s" single-key-description "Char: %s (0%o)  point=%d of %d(%d%%)  column %d %s" t zmacs-region-stays] 12 "\
+Print info on cursor position (on screen and within buffer)." nil])
+(fset 'fundamental-mode #[nil "À ‡" [kill-all-local-variables] 1 "\
+Major mode not specialized for anything in particular.
+Other major modes are defined by comparison with this one." nil])
+(put 'eval-expression 'disabled t)
+(fset 'eval-expression #[(expression) "À	!\nBÃ\n@Ä\"‡" [eval expression values prin1 t] 3 "\
+Evaluate EXPRESSION and print value in minibuffer.
+Value is also consed on to front of variable  values  's value." "xEval: "])
+(fset 'edit-and-eval-command #[(prompt command) "À	Â!\"‰@š¬„BÅ!)‡" [read-minibuffer prompt prin1-to-string command command-history eval] 5 "\
+Prompting with PROMPT, let user edit COMMAND and eval result.
+COMMAND is a Lisp expression.  Let user edit that expression in
+the minibuffer, then read and evaluate the result."])
+(byte-code "ÀÁ!¬„Â!Ä	ÅÆ#ˆÄ	ÇÈ#‡" [boundp repeat-complex-command-map copy-keymap minibuffer-local-map define-key "p" previous-complex-command "n" next-complex-command] 4)
+(fset 'repeat-complex-command #[(repeat-complex-command-arg) "S	8ÂÃ‰«šÇÈÉ!\nÂ$‰	@š¬„	BË!ª‚Ì +‡" [repeat-complex-command-arg command-history t nil newcmd repeat-complex-command-flag elt read-from-minibuffer "Redo: " prin1-to-string repeat-complex-command-map eval ding] 6 "\
+Edit and re-evaluate last complex command, or ARGth from last.
+A complex command is one which used the minibuffer.
+The command is placed in the minibuffer as a Lisp form for editing.
+The result is executed, repeating the command as changed.
+If the command has been changed or is not the most recent previous command
+it is added to the front of the command history.
+Whilst editing the command, the following commands are available:
+\\{repeat-complex-command-map}" "p"])
+(fset 'next-complex-command #[(n) "À	\nZ]G^	U«Å	ÀU«ƒÆªÇ!ªÈ ˆÉ	S8!cˆeb)‡" [1 repeat-complex-command-arg n command-history narg error "No following item in command history" "No preceding item in command history" erase-buffer prin1-to-string] 3 "\
+Inserts the next element of `command-history' into the minibuffer." "p"])
+(fset 'previous-complex-command #[(n) "«…Á\n[!‡ÃÄ!‡" [repeat-complex-command-flag next-complex-command n repeat-complex-command 1] 2 "\
+Inserts the previous element of `command-history' into the minibuffer." "p"])
+(fset 'goto-line #[(arg) "Œ~ˆÀbˆ	Â=«ŠÃÄÅÆS$ª„Sy)‡" [1 selective-display t re-search-forward "[\n]" nil end arg] 5 "\
+Goto line ARG, counting from line 1 at beginning of buffer." "NGoto line: "])
+(fset 'advertised-undo 'undo)
+(fset 'undo #[(&optional arg) "À ÂÃ!ˆÅ=¬‡Æ ˆÇÈ!ˆÅ	Ç\n®È!ˆ	­‡À ?­‚Ë )‡" [buffer-modified-p modified message "Undo!" last-command undo undo-start undo-more 1 this-command arg delete-auto-save-file-if-necessary] 2 "\
+Undo some previous changes.
+Repeat this command to undo more changes.
+A numeric argument serves as a repeat count." "*p"])
+(fset 'undo-start #[nil "Á=«„ÂÃ!ˆ‰‡" [buffer-undo-list t error "No undo information in this buffer" pending-undo-list] 2 "\
+Move undo-pointer to front of undo records.
+The next call to undo-more will undo the most recently made change."])
+(fset 'undo-more #[(count) "¬„ÁÂ!ˆÃ\"‰‡" [pending-undo-list error "No further undo information" primitive-undo count] 3 "\
+Undo back N undo-boundaries beyond what was already undone recently.
+Call undo-start to get ready to undo recent changes,
+then call undo-more one or more times to undo them."])
+(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÂÀ‡" [boundp last-shell-command "" last-shell-command-on-region] 2)
+(fset 'shell-command #[(command &optional flag) "«•Á ˆÂ ˆÃÅÆÅÇ&ˆÉÆ!‡Ê ÌÍÎ\"«ÚÏĞ!ÅÕ‰”OÖ!‰«×Ø!«‡Ù!ˆª„ÚÛ!ˆŠqˆÜ ˆİ!ˆŞßÇ%à!âã\"ˆäå\",ª‡æ``Å$*‡" [flag barf-if-buffer-read-only push-mark call-process shell-file-name nil t "-c" command exchange-point-and-mark match-data data ((store-match-data data)) string-match "[ 	]*&[ 	]*$" get-buffer-create "*shell-command*" default-directory proc directory buffer 0 get-buffer-process yes-or-no-p "A command is running.  Kill it? " kill-process error "Shell command in progress" erase-buffer display-buffer start-process "Shell" (": %s") mode-line-process set-process-sentinel shell-command-sentinel set-process-filter shell-command-filter shell-command-on-region] 8 "\
+Execute string COMMAND in inferior shell; display output, if any.
+If COMMAND ends in ampersand, execute it asynchronously.
+ 
+Optional second arg non-nil (prefix arg, if interactive)
+means insert output in current buffer after point (leave mark after it).
+This cannot be done asynchronously." (byte-code "ÀÁ\n\"D‡" [read-string "Shell command: " last-shell-command current-prefix-arg] 3)])
+(byte-code "ÀÁMˆÂÃM‡" [shell-command-sentinel #[(process signal) "À	!Â>­œÃÄÅ	!AA@ÇÈO#ˆŠÉ	!qˆÊ)Ì	!‡" [process-status process (exit signal) message "%s: %s." process-command signal 0 -1 process-buffer nil mode-line-process delete-process] 6] shell-command-filter #[(proc string) "pÁ\n!ÄÆ!È!	Êqˆ`dbˆË!.‡" [obuf process-buffer proc buffer nil opoint get-buffer-window window window-start pos ((byte-code "À	\n\"ˆbˆq‡" [set-window-start window pos opoint obuf] 3)) insert-before-markers string] 2]] 2)
+(fset 'shell-command-on-region #[(start end command &optional flag interactive) "«²	­„`Â W	«ƒÄ ˆÅÉ‰ÊË&ˆÍÎ!«„ÏÎ!ˆ	­†­ƒĞÉ!)‡ÑÎ!ŠqˆÓ ˆ)p=«†ÔÔÅÊÊË&ˆŠqˆÕ ÖU«ƒÖª„×ed\")‰ÖU«‰ÙÚ!ˆÏÎ!ª¡ÔU«”ÙÛŠqˆebˆ`Êˆ`{)\"ª‡Üİ!Ô\"*‡" [flag interactive mark swap push-mark call-process-region start end shell-file-name t nil "-c" command get-buffer "*Shell Command Output*" kill-buffer exchange-point-and-mark get-buffer-create buffer erase-buffer 1 buffer-size 0 count-lines lines message "(Shell command completed with no output)" "%s" set-window-start display-buffer] 10 "\
+Execute string COMMAND in inferior shell with region as input.
+Normally display output (if any) in temp buffer `*Shell Command Output*';
+Prefix arg means replace the region with it.
+Noninteractive args are START, END, COMMAND, FLAG.
+Noninteractively FLAG means insert output in place of text from START to END,
+and put point at the end, but don't alter the mark.
+
+If the output is one line, it is displayed in the echo area,
+but it is nonetheless available in buffer `*Shell Command Output*'
+even though that buffer is not automatically displayed.  If there is no output
+or output is inserted in the current buffer then `*Shell Command Output*' is
+deleted." (byte-code "`À ^`À ]ÁÂ\"Å!¯‡" [mark read-string "Shell command on region: " last-shell-command-on-region current-prefix-arg prefix-numeric-value] 6)])
+(fset 'universal-argument #[nil "À\nÄ Æ!š«†	À_ªsÇ	È#+‡" [4 c-u last-command-event start-char allocate-event event next-command-event prefix-arg-internal nil] 4 "\
+Begin a numeric argument for the following command.
+Digits or minus sign following this command make up the numeric argument.
+If no digits or minus sign follow, this command by itself provides 4 as argument.
+Used more than once, this command multiplies the argument by 4 each time." nil])
+(fset 'prefix-arg-internal #[(event c-u value) "ÀÂÃÆ!«…È!	§«	ÊW«‡Ë	[		Ì=«…ËÃ	Í=«™[ÃÏ!ˆÆ!«jÈ!‰ªc§«²ĞY«­ÑX«¨	§«„	ªÊÒ_ĞZ\\	ÃÏ!ˆÆ!«RÈ!‰ªK«…Cª‘	§«†	_ª†ËU­Ì‰*‡" [t zmacs-region-stays 1 nil char sign key-press-event-p event event-key value 0 -1 - 45 c-u next-command-event 48 57 10 prefix-arg unread-command-event] 4])
+(fset 'digit-argument #[(arg) "À	Â#‡" [prefix-arg-internal last-command-event nil arg] 4 "\
+Part of the numeric argument for the next command." "P"])
+(fset 'negative-argument #[(arg) "ÀÁÂÃ \"Ä#‡" [prefix-arg-internal character-to-event 45 allocate-event nil arg] 4 "\
+Begin a negative numeric argument for the next command." "P"])
+(fset 'forward-to-indentation #[(arg) "yˆÁÂw‡" [arg " 	" nil] 2 "\
+Move forward ARG lines and position at first nonblank character." "p"])
+(fset 'backward-to-indentation #[(arg) "[yˆÁÂw‡" [arg " 	" nil] 2 "\
+Move backward ARG lines and position at first nonblank character." "p"])
+(fset 'kill-line #[(&optional arg) "À`	«‡Â	!yˆª•m«…ÃÄÅ\"ˆÆÇ!«…ÈyˆªƒÅˆ`\"‡" [kill-region arg prefix-numeric-value signal end-of-buffer nil looking-at "[ 	]*$" 1] 5 "\
+Kill the rest of the current line; if no nonblanks there, kill thru newline.
+With prefix argument, kill that many lines from point.
+Negative arguments kill lines backward.
+
+When calling from a program, nil means \"no arg\",
+a number counts as a prefix arg." "*P"])
+(defvar kill-ring nil "\
+List of killed text sequences.")
+(defconst kill-ring-max 30 "\
+*Maximum length of kill ring before oldest elements are thrown away.")
+(defvar kill-ring-yank-pointer nil "\
+The tail of the kill ring whose car is the last thing yanked.")
+(fset 'kill-append #[(string before-p) "	«†\n@Pª„@\nP ‡" [kill-ring before-p string] 3])
+(fset 'kill-region #[(beg end &optional verbose) "«‹ÁÂ]^Z\"ˆÅ\"ˆ|‡" [verbose message "Killing %d characters" beg end copy-region-as-kill] 5 "\
+Kill between point and mark.
+The text is deleted but saved in the kill ring.
+The command \\[yank] can retrieve it from there.
+(If you want to kill and then yank immediately, use \\[copy-region-as-kill].)
+
+This is the primitive for programs to kill text (as opposed to deleting it).
+Supply two arguments, character numbers indicating the stretch of text
+ to be killed.
+Any command that calls this function is a \"kill command\".
+If the previous command was also a kill command,
+the text killed this time appends to the text killed last time
+to make one entry in the kill ring." "*r\np"])
+(defvar kill-hooks nil "\
+If non-nil, this should be a function or functions of one argument which
+are called with the string most recently added to the kill ring.  You can use
+this to, for example, make the most recent kill become the X Clipboard
+selection.")
+(fset 'copy-region-as-kill #[(beg end) "Á=«‹Â{W\"ˆª•{B‰GV«ˆS›Ç¡ˆ	‰\n:«‡\n¢Ë=«…\nC\n\n«\n@@!ˆ\nA‰\n¬q)ÁÇ‡" [last-command kill-region kill-append beg end kill-ring kill-ring-max nil kill-ring-yank-pointer kill-hooks rest lambda this-command] 5 "\
+Save the region as if killed, but don't kill it." "r"])
+(fset 'kill-ring-save #[(beg end) "À	\n\"ˆŠ`\nU«ƒ	ª\nbˆÃ`!­ƒÄÅ!)‡" [copy-region-as-kill beg end pos-visible-in-window-p sit-for 1] 3 "\
+Save the region as if killed, but don't kill it." "r"])
+(fset 'append-next-kill #[nil "t«†ÀÂÃ!‡À‰‡" [kill-region this-command message "If the next command is a kill, it will append" last-command] 2 "\
+Cause following command, if kill, to append to previous kill." nil])
+(fset 'rotate-yank-pointer #[(arg) "G‰ÂU«…ÃÄ!ª	GZ\\	¦›‰)‡" [kill-ring length 0 error "Kill ring is empty" arg kill-ring-yank-pointer] 4 "\
+Rotate the yanking point in the kill ring." "p"])
+(fset 'yank-pop #[(arg) "Á=¬„ÂÃ!ˆÁ`ÅÆ!W`ÅÆ!|ˆÈ	!ˆÊ`!ˆ@cˆ­ƒÌÆ!)‡" [last-command yank error "Previous command was not a yank" this-command mark t before rotate-yank-pointer arg set-mark kill-ring-yank-pointer exchange-point-and-mark] 3 "\
+Replace just-yanked stretch of killed-text with a different stretch.
+This command is allowed only immediately after a  yank  or a  yank-pop.
+At such a time, the region contains a stretch of reinserted
+previously-killed text.  yank-pop  deletes that text and inserts in its
+place a different stretch of killed text.
+
+With no argument, the previous kill is inserted.
+With argument n, the n'th previous kill is inserted.
+If n is negative, this is a more recent kill.
+
+The sequence of kills wraps around, so that after the oldest one
+comes the newest one." "*p"])
+(fset 'yank #[(&optional arg) "À	<«ƒÂªŠ	Ã=«ƒÄª‚	S!ˆÅ`!ˆ@cˆ	:­ƒÇÈ!‡" [rotate-yank-pointer arg 0 - -1 push-mark kill-ring-yank-pointer exchange-point-and-mark t] 3 "\
+Reinsert the last stretch of killed text.
+More precisely, reinsert the stretch of killed text most recently
+killed OR yanked.
+With just C-U as argument, same but put point in front (and mark at end).
+With argument n, reinsert the nth most recently killed stretch of killed
+text.
+See also the command \\[yank-pop]." "*P"])
+(fset 'insert-buffer #[(buffer) "À	!¬„Â	!Ã‰‰ŠŠ	qˆed)Ç	#ˆ`)È!+‡" [bufferp buffer get-buffer nil newmark end start insert-buffer-substring push-mark] 4 "\
+Insert after point the contents of BUFFER.
+Puts mark after the inserted text.
+BUFFER may be a buffer or a buffer name." (byte-code "ÀÁÂ Ã#C‡" [read-buffer "Insert buffer: " other-buffer t] 4)])
+(fset 'append-to-buffer #[(buffer start end) "pŠÁ\n!qˆÃ#*‡" [oldbuf get-buffer-create buffer insert-buffer-substring start end] 4 "\
+Append to specified buffer the text of the region.
+It is inserted into that buffer before its point.
+
+When calling from a program, give three arguments:
+a buffer or the name of one, and two character numbers
+specifying the portion of the current buffer to be copied." "BAppend to buffer: \nr"])
+(fset 'prepend-to-buffer #[(buffer start end) "pŠÁ\n!qˆŠÃ#+‡" [oldbuf get-buffer-create buffer insert-buffer-substring start end] 4 "\
+Prepend to specified buffer the text of the region.
+It is inserted into that buffer after its point.
+
+When calling from a program, give three arguments:
+a buffer or the name of one, and two character numbers
+specifying the portion of the current buffer to be copied." "BPrepend to buffer: \nr"])
+(fset 'copy-to-buffer #[(buffer start end) "pŠÁ\n!qˆÃ ˆŠÄ#+‡" [oldbuf get-buffer-create buffer erase-buffer insert-buffer-substring start end] 4 "\
+Copy to specified buffer the text of the region.
+It is inserted into that buffer, replacing existing text there.
+
+When calling from a program, give three arguments:
+a buffer or the name of one, and two character numbers
+specifying the portion of the current buffer to be copied." "BCopy to buffer: \nr"])
+(fset 'mark #[(&optional inactive-p) "À	!‰­ƒÃ\n!)‡" [mark-marker inactive-p m marker-position] 3 "\
+Return this buffer's mark value as integer, or nil if no mark.
+
+If `zmacs-regions' is true, then this returns nil unless the region is
+currently in the active (hilighted) state.  With an argument of t, this
+returns the mark (if there is one) regardless of the active-region state.
+You should *generally* not use the mark unless the region is active, if
+the user has expressed a preference for the active-region model.
+
+If you are using this in an editing command, you are most likely making
+a mistake; see the documentation of `set-mark'."])
+(fset 'set-mark #[(pos) "ÀÁ!\np“‡" [mark-marker t pos] 3 "\
+Set this buffer's mark to POS.  Don't use this function!
+That is to say, don't use this function unless you want
+the user to see that the mark has moved, and you want the previous
+mark position to be lost.
+
+Normally, when a new mark is set, the old one should go on the stack.
+This is why most applications should use push-mark, not set-mark.
+
+Novice emacs-lisp programmers often try to use the mark for the wrong
+purposes.  The mark saves a location for the user's convenience.
+Most editing commands should not alter the mark.
+To remember a location for internal use in the Lisp program,
+store it in a Lisp variable.  Example:
+
+   (let ((beg (point))) (forward-line 1) (delete-region beg (point)))."])
+(defvar mark-ring nil "\
+The list of saved former marks of the current buffer,
+most recent first.")
+(make-variable-buffer-local 'mark-ring)
+(defconst mark-ring-max 16 "\
+*Maximum size of mark ring.  Start discarding off end if gets this big.")
+(fset 'set-mark-command #[(arg) "¬†Á ˆÂ ‡ÃÄ!¬„ÅÆ!‡ÃÄ!bˆÇ ‡" [arg push-mark zmacs-activate-region mark t error "No mark set in this buffer" pop-mark] 2 "\
+Set mark at where point is, or jump to mark.
+With no prefix argument, set mark, and push previous mark on mark ring.
+With argument, jump to mark, and pop into mark off the mark ring.
+
+Novice emacs-lisp programmers often try to use the mark for the wrong
+purposes.  See the documentation of `set-mark' for more information." "P"])
+(fset 'push-mark #[(&optional location nomsg) "À «ÁÂÃ!!B‰GV«›@Æ‰“ˆS›Æ¡ˆÇ®`!ˆ	¬\n¬ŠË ÌV¬„ÍÎ!ˆÆ‡" [mark copy-marker mark-marker t mark-ring mark-ring-max nil set-mark location nomsg executing-macro minibuffer-depth 0 message "Mark set"] 4 "\
+Set mark at LOCATION (point, by default) and push old mark on mark ring.
+Displays \"Mark set\" unless the optional second arg NOMSG is non-nil.
+
+Novice emacs-lisp programmers often try to use the mark for the wrong
+purposes.  See the documentation of `set-mark' for more information."])
+(fset 'pop-mark #[nil "­ ÁÂÃ!!C¤Ä@!ˆ@Å‰“ˆÆÃ!¬ƒÇ ˆA‰‡" [mark-ring copy-marker mark-marker t set-mark nil mark ding] 4 "\
+Pop off mark ring into the buffer's actual mark.
+Does not set point.  Does nothing if mark ring is empty."])
+(fset 'exchange-dot-and-mark 'exchange-point-and-mark)
+(fset 'exchange-point-and-mark #[(&optional dont-activate-region) "ÀÁ!‰¬„ÃÄ!ˆÅ`!ˆ\nbˆ¬ƒÇ ˆ)È‡" [mark t omark error "No mark set in this buffer" set-mark dont-activate-region zmacs-activate-region nil] 3 "\
+Put the mark where point is now, and point where the mark is now." nil])
+(fset 'next-line #[(arg) "ÁU«`Áyˆ\n`U¬…hÃ=¬…Ãcˆª‡\nbˆÄ!ˆ)ª„Ä!ˆÅ‡" [arg 1 opoint 10 line-move nil] 2 "\
+Move cursor vertically down ARG lines.
+If there is no character in the target line exactly under the current column,
+the cursor is positioned after the character in that line which spans this
+column, or at the end of the line if it is not long enough.
+If there is no line in the buffer after this one,
+a newline character is inserted to create a line
+and the cursor moves to that line.
+
+The command \\[set-goal-column] can be used to create
+a semipermanent goal column to which this command always moves.
+Then it does not try to move vertically.  This goal column is stored
+in `goal-column', which is nil when there is none.
+
+If you are thinking of using this in a Lisp program, consider
+using `forward-line' instead.  It is usually easier to use
+and more reliable (no dependence on goal column, etc.)." "p"])
+(fset 'previous-line #[(arg) "À	[!ˆÂ‡" [line-move arg nil] 2 "\
+Move cursor vertically up ARG lines.
+If there is no character in the target line exactly over the current column,
+the cursor is positioned after the character in that line which spans this
+column, or at the end of the line if it is not long enough.
+
+The command \\[set-goal-column] can be used to create
+a semipermanent goal column to which this command always moves.
+Then it does not try to move vertically.
+
+If you are thinking of using this in a Lisp program, consider using
+`forward-line' with negative argument instead..  It is usually easier
+to use and more reliable (no dependence on goal column, etc.)." "p"])
+(defconst track-eol nil "\
+*Non-nil means vertical motion starting at end of line keeps to ends of lines.
+This means moving to the end of each line moved onto.")
+(byte-code "ÀÁÂ!¬‚ÃÄÂÅÆ#ˆÂ!‡" [make-variable-buffer-local boundp goal-column nil put variable-documentation "*Semipermanent goal column for vertical motion, as set by \\[set-goal-column], or nil."] 5)
+(defvar temporary-goal-column 0 "\
+Current goal column for vertical motion.
+It is the column where point was at the start of current run of vertical motion commands.")
+(fset 'line-move #[(arg) "Á=¬Â=¬‹«†l«ƒÄªi¨¬†yˆª­ÈV«’ÉÊ!ˆËuˆÊyˆS‰ªjÈW«ÉË!ˆÈyˆT‰ªmÌ®!ˆÎĞ‡" [last-command next-line previous-line track-eol 9999 temporary-goal-column selective-display arg 0 vertical-motion 1 -1 move-to-column goal-column t zmacs-region-stays nil] 3])
+(fset 'set-goal-column #[(arg) "«ˆÁÃÄ!ˆª‰iÃÅÆ!\n\"ˆÇÁ‡" [arg nil goal-column message "No goal column" substitute-command-keys "Goal column %d (use \\[set-goal-column] with an arg to unset it)" t zmacs-region-stays] 3 "\
+Set the current horizontal position as a goal for \\[next-line] and \\[previous-line].
+Those commands will move to this position in the line moved to
+rather than trying to keep the same horizontal position.
+With a non-nil argument, clears out the goal column
+so that \\[next-line] and \\[previous-line] resume vertical motion." "P"])
+(fset 'transpose-chars #[(arg) "¬†l«ƒÁuˆÂÃÄ!\"‡" [arg -1 transpose-subr forward-char prefix-numeric-value] 4 "\
+Interchange characters around point, moving forward one character.
+With prefix arg ARG, effect is to take character before point
+and drag it forward past ARG other characters (backward if ARG negative).
+If no argument and at end of line, the previous two chars are exchanged." "*P"])
+(fset 'transpose-words #[(arg) "ÀÁ\n\"‡" [transpose-subr forward-word arg] 3 "\
+Interchange words around point, leaving point at end of them.
+With prefix arg ARG, effect is to take word before or around point
+and drag it forward past ARG other words (backward if ARG negative).
+If ARG is zero, the words around or after point and around or after mark
+are interchanged." "*p"])
+(fset 'transpose-sexps #[(arg) "ÀÁ\n\"‡" [transpose-subr forward-sexp arg] 3 "\
+Like \\[transpose-words] but applies to sexps.
+Does not work on a sexp that point is in the middle of
+if it is a list or string." "*p"])
+(fset 'transpose-lines #[(arg) "ÀÁ\n\"‡" [transpose-subr #[(arg) "ÁU«ŒÂˆm«ƒÃ ‡Áu‡y‡" [arg 1 nil newline] 2] arg] 3 "\
+Exchange current line and previous line, leaving point after both.
+With argument ARG, takes previous line and moves it past ARG lines.
+With argument 0, interchanges line point is in with line mark is in." "*p"])
+(byte-code "ÀÁMˆÂÃM‡" [transpose-subr #[(mover arg) "À‰‰‰ÆU«ªŠÈ!ˆ`É!ˆ`ÊË!bˆÈ!ˆ`É!ˆ`Ì ˆ)ÍË!ˆÆV«¨É!ˆ`È!ˆ`È!ˆ`É!ˆ`Ì ˆ	bˆS‰ªTÆW­¥É!ˆ`É!ˆ`È!ˆ`È!ˆ`Ì ˆT‰ªW,‡" [nil end2 start2 end1 start1 arg 0 mover 1 -1 mark t transpose-subr-1 exchange-point-and-mark] 5] transpose-subr-1 #[nil "	^\n]V«„ÄÅ!ˆ\n{	{	|ˆbˆcˆ\nW«ƒ\nª‰\nGGZ\\bˆÈG!ˆc*‡" [end1 end2 start1 start2 error "Don't have two things to transpose" word2 word1 delete-char] 3]] 2)
+(defconst comment-column 32 "\
+*Column to indent right-margin comments to.
+Setting this variable automatically makes it local to the current buffer.")
+(make-variable-buffer-local 'comment-column)
+(defconst comment-start nil "\
+*String to insert to start a new comment, or nil if no comment syntax defined.")
+(defconst comment-start-skip nil "\
+*Regexp to match the start of a comment plus everything up to its body.
+If there are any \\(...\\) pairs, the comment delimiter text is held to begin
+at the place matched by the close of the first pair.")
+(defconst comment-end "" "\
+*String to insert to end a new comment.
+Should be an empty string if comments are terminated by end-of-line.")
+(defconst comment-indent-hook '(lambda nil comment-column) "\
+Function to compute desired indentation for a comment.
+This function is called with no args with point at the beginning of
+the comment's starting delimiter.")
+(fset 'indent-for-comment #[nil "Àyˆ	¬„ÂÃ!‡ŠÄˆ`)ÄÄÄÉ\nË#«˜Ì Í•«†Í•bˆªŠÎÀ”xˆÏÀ”xˆ`i ‰U«†bˆªÎÄxˆ`|ˆjˆ«‹bˆÄ‰“ªˆ	cˆŠc),‡" [0 comment-start error "No comment syntax defined" nil eolpos cpos indent begpos re-search-forward comment-start-skip move point-marker 1 " 	" "^ 	" comment-indent-hook comment-end] 4 "\
+Indent this line's comment to comment column, or insert an empty comment." "*"])
+(fset 'set-comment-column #[(arg) "Á=«„ÂÃ!‡«¢ŠÄyˆÅ!ˆÄyˆÇ!ˆÄ”bˆiÉÊ\"ˆ)Ë ‡iÉÊ\"‡" [arg - kill-comment nil 0 re-search-backward comment-start-skip re-search-forward comment-column message "Comment column set to %d" indent-for-comment] 3 "\
+Set the comment column based on point.
+With no arg, set the comment column to the current column.
+With just minus as arg, kill any comment on this line.
+With any other arg, set comment column to indentation of the previous comment
+ and then align or create a comment on this line at that column." "P"])
+(fset 'kill-comment #[(arg) "¬„ÁÂ!ˆÃ!Å‰ÈV­ÌŠÅˆ`ÈyˆÉ\n™«‘ËÌ\n!Í#ˆÎÅwˆ`ÈyˆËÏ#«‘È”bˆÎÅxˆĞ`\"ˆÑ ˆ)«ƒÒyˆS‰ª0*‡" [comment-start-skip error "No comment syntax defined" prefix-numeric-value arg nil endc count 0 "" comment-end re-search-forward regexp-quote move " 	" t kill-region indent-according-to-mode 1] 5 "\
+Kill the comment on this line, if any.
+With argument, kill comments on that many lines starting with this one." "*P"])
+(fset 'backward-word #[(arg) "[v‡" [arg] 1 "\
+Move backward until encountering the end of a word.
+With argument, do this that many times.
+In programs, it is faster to call forward-word with negative arg." "p"])
+(fset 'mark-word #[(arg) "ÀŠ	vˆ`)!ˆÂ ‡" [push-mark arg zmacs-activate-region] 2 "\
+Set mark arg words away from point." "p"])
+(fset 'kill-word #[(arg) "À`	vˆ`\"‡" [kill-region arg] 3 "\
+Kill characters forward until encountering the end of a word.
+With argument, do this that many times." "*p"])
+(fset 'backward-kill-word #[(arg) "À	[!‡" [kill-word arg] 2 "\
+Kill characters backward until encountering the end of a word.
+With argument, do this that many times." "*p"])
+(defconst fill-prefix nil "\
+*String for filling to insert at front of new line, or nil for none.
+Setting this variable automatically makes it local to the current buffer.")
+(make-variable-buffer-local 'fill-prefix)
+(defconst auto-fill-inhibit-regexp nil "\
+*Regexp to match lines which should not be auto-filled.")
+(fset 'do-auto-fill #[nil "À\n«ŠŠÃyˆÄ\n!)®Ò	?­ÎiV­É`ŠÇT!ˆÈÀxˆn«‡ÉÊË#ˆÌÀxˆ`*Šbˆn)¬œŠÌÀxˆ`U)«…Î ˆªŠbˆÎ ˆ)ª‚Ë)ª.)‡" [nil give-up auto-fill-inhibit-regexp 0 looking-at fill-column opoint move-to-column "^ 	\n" re-search-forward "[ 	]" t " 	" fill-point indent-new-comment-line] 4])
+(defconst comment-multi-line nil "\
+*Non-nil means \\[indent-new-comment-line] should continue same comment
+on new line, with no new terminator or starter.")
+(fset 'indent-new-comment-line #[nil "À‰ÃÀxˆ`ÃÀwˆ`|ˆÄcˆŠ«À`ÇyˆÈÉ#)«±Ê”l«o¬›ÀÊyˆ`ÇyˆÈÉ#)«†Ê”ª_bˆi`Ê•{))\n«È\n	«¡Ïš¬›¬ŒÇuˆcˆÑuˆª‹G\\Ïl¬ƒÏÄcˆÇuˆÒ ˆŠÀˆÓÑ!,ª‹«…cª‚Õ *‡" [nil comstart comcol " 	" 10 comment-start-skip opoint -1 re-search-forward t 0 win comment-end comment-start comment-column "" comment-multi-line 1 indent-for-comment delete-char fill-prefix indent-according-to-mode] 4 "\
+Break line at point and indent, continuing comment if presently within one.
+The body of the continued comment is indented under the previous comment line." "*"])
+(fset 'auto-fill-mode #[(&optional arg) "¬„	?ª…Â!ÃV­Ä‰ÅÆ !ˆ‡" [arg auto-fill-function prefix-numeric-value 0 do-auto-fill set-buffer-modified-p buffer-modified-p] 3 "\
+Toggle auto-fill mode.
+With arg, turn auto-fill mode on if and only if arg is positive.
+In auto-fill mode, inserting a space at a column beyond  fill-column
+automatically breaks the line at a previous space." "P"])
+(fset 'turn-on-auto-fill #[nil "ÀÁ!‡" [auto-fill-mode 1] 2 "\
+Unconditionally turn on Auto Fill mode."])
+(fset 'set-fill-column #[(arg) "¨«ƒªiÂÄÅ	\"‡" [arg fill-column t zmacs-region-stays message "fill-column set to %d"] 3 "\
+Set fill-column to current column, or to argument if given.
+fill-column's value is separate for each buffer." "P"])
+(fset 'set-selective-display #[(arg) "Á=«„ÂÃ!ˆ­ƒÅ!ÆÇ ÈÇ !\"ˆÉÊÁ\"ˆËÁ\"ˆÉÌÁ\"‡" [selective-display t error "selective-display already in use for marked lines" arg prefix-numeric-value set-window-start selected-window window-start princ "selective-display set to " prin1 "."] 4 "\
+Set selective-display to ARG; clear it if no arg.
+When selective-display is a number > 0,
+lines whose indentation is >= selective-display are not displayed.
+selective-display's value is separate for each buffer." "P"])
+(fset 'overwrite-mode #[(arg) "¬„	?ª…Â!ÃVÄÅ !‡" [arg overwrite-mode prefix-numeric-value 0 set-buffer-modified-p buffer-modified-p] 2 "\
+Toggle overwrite mode.
+With arg, turn overwrite mode on iff arg is positive.
+In overwrite mode, printing characters typed in replace existing text
+on a one-for-one basis, rather than pushing it to the right." "P"])
+(defvar blink-matching-paren t "\
+*Non-nil means show matching open-paren when close-paren is inserted.")
+(defconst blink-matching-paren-distance 4000 "\
+*If non-nil, is maximum distance to search for matching open-paren
+when close-paren is inserted.")
+(fset 'blink-matching-open #[nil "`eTV…œ `ÀZfzÁU?…œ \n…œ `ÄÄŠŒ«‰e`Z]}ˆÄÈÉˆ)«™fzÊU¬’SfËÌÍ fHÎ\"Ï\"U?«‚Ä«³bˆĞ «…ÑÒ!ª¸bˆÓÔŠÕÄxˆn)¬‰Öyˆ`T{ªÒuˆ×ÄwˆÄˆ`{\"ª‘«…ÓØ!ªˆ?­ƒÓÙ!,‡" [2 92 blink-matching-paren oldpos nil blinkpos mismatch blink-matching-paren-distance (byte-code "À	Â\"À‡" [scan-sexps oldpos -1 blinkpos] 3) ((error)) 36 logand lsh syntax-table -8 255 pos-visible-in-window-p sit-for 1 message "Matches %s" " 	" 0 "\n 	" "Mismatched parentheses" "Unmatched parenthesis"] 5 "\
+Move cursor momentarily to the beginning of the sexp before point."])
+(byte-code "ÀÀ‡" [blink-matching-open blink-paren-function] 1)
+(fset 'keyboard-quit #[nil "ÀÁÂ\"‡" [signal quit nil] 3 "\
+Signal a  quit  condition." nil])
+(define-key global-map "" 'keyboard-quit)
+(fset 'set-variable #[(var val) "	L‡" [var val] 2 "\
+Set VARIABLE to VALUE.  VALUE is a Lisp object.
+When using this interactively, supply a Lisp expression for VALUE.
+If you want VALUE to be a string, you must surround it with doublequotes." (byte-code "ÀÁ!ÃÅ\nÇÈÉ\n\"!+D‡" [read-variable "Set variable: " var (funcall myhelp) minibuffer-help-form #[nil "ÀÁ\n!ˆÃÄ!ˆÃÅ\nÆ\"ÇÈO!ˆÉ\n!«ÊÃÌ!ˆÁ\nJ!ˆ)È‘‡" ["*Help*" prin1 var princ "\nDocumentation:\n" documentation-property variable-documentation 1 nil boundp 20 print-length "\n\nCurrent value: "] 5] myhelp eval-minibuffer format "Set %s to value: "] 5)])
+(byte-code "ÀÁÂÃ#ˆÄÆÁ#ˆÄÇÈ#ˆÄ	ÊË#ˆÄ	ÌÍ#ˆÄ	ÎÏ#ˆÄÎÑ#ˆÄ	ÒÓ#ˆÄÔÕ#ˆÄÖ×#ˆÄØÙ#ˆÄÎÚ#ˆÄÛÜ#ˆÄİŞ#ˆÄßà#ˆÄßá#ˆÄâã#ˆÄâä#ˆÄåæ#ˆÄ	çè#ˆÄéê#ˆÄëì#ˆÄ	íî#ˆï0ïñX«’Äò0!ó#ˆ0T‰0ªj)Äôõ#ˆÄ	ö÷#ˆÄ	øù#ˆÄÇú#ˆÄøû#ˆÄ	üı#ˆÄşÿ#ˆÄ@ A #ˆÄ	B C #ˆÄD E #ˆÄ	F G #ˆÄ	H I #ˆÄF J #ˆÄ	K L #ˆÄM N #ˆÄK O #ˆÄK P #ˆÄQ R #ˆÄS T #ˆÄÊT #ˆÄQ U #ˆÄV W #ˆÄX Y #ˆÄZ [ #ˆÄV \\ #ˆÄ] ^ #ˆÄ_ ` #ˆÄa b #ˆÄc d #ˆÄe f #ˆÄg h #ˆÄÖ×#ˆi j  M‡" [put narrow-to-region disabled t define-key ctl-x-map "n" "w" widen global-map "\n" newline-and-indent "" newline "" open-line esc-map split-line "" quoted-insert "^" delete-indentation "\\" delete-horizontal-space "m" back-to-indentation delete-blank-lines " " just-one-space "z" zap-to-char "=" count-lines-region what-cursor-position "" eval-expression repeat-complex-command "u" advertised-undo "" undo "!" shell-command "|" shell-command-on-region "" universal-argument 48 i 57 char-to-string digit-argument "-" negative-argument "" kill-line "" kill-region kill-ring-save append-next-kill "" yank "y" yank-pop "a" append-to-buffer " " set-mark-command "" exchange-point-and-mark "" next-line "" previous-line set-goal-column "" transpose-chars "t" transpose-words transpose-sexps transpose-lines ";" indent-for-comment "j" indent-new-comment-line set-comment-column "f" set-fill-column "$" set-selective-display "@" mark-word forward-word "b" backward-word "d" kill-word "" backward-kill-word "<" beginning-of-buffer ">" end-of-buffer "h" mark-whole-buffer mode-specific-command-prefix make-sparse-keymap] 5)
+(defconst mode-specific-map (symbol-function 'mode-specific-command-prefix) "\
+Keymap for characters following C-c.")
+(define-key global-map "" 'mode-specific-command-prefix)

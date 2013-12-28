@@ -1,0 +1,104 @@
+;;; compiled by jwz@thalidomide on Wed Oct  2 14:55:53 1991
+;;; from file /wg1/emacs-base/lisp/subr.el
+;;; emacs version 19.84.
+;;; bytecomp version 2.02 beta; 11-sep-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'one-window-p #[(&optional arg) "À ÁÀ \n­Â\"=‡" [selected-window next-window arg] 4 "\
+Returns non-nil if there is only one window.
+Optional arg NOMINI non-nil means don't count the minibuffer
+even if it is active."])
+(fset 'walk-windows #[(proc &optional minibuf all-screens) "À ‰Ã\n#\n!ˆ\n	=?­‚ªm*‡" [selected-window walk-windows-start walk-windows-current next-window minibuf all-screens proc] 5 "\
+Cycle through all visible windows, calling PROC for each one.
+PROC is called with a window as argument.
+Optional second arg MINIBUF t means count the minibuffer window
+even if not active.  If MINIBUF is neither t nor nil it means
+not to count the minibuffer even if it is active.
+Optional third arg ALL-SCREENS t means include all windows in all screens;
+otherwise cycle within the selected screen."])
+(fset 'read-quoted-char #[(&optional prompt) "À‰ÁÅW«ßÀUÁ«†ÉÊ\"ˆË «ƒÁ*\n«[Í\nX«¢\nÎX«Ï_\nÍZ\\T«BÉĞÑ\n#‰!ˆª4ÀV«ŒÒ\nÓ \"Õ‰ª$\nÕ‰ªÖ×\"+‡" [0 nil char code count 3 help-form inhibit-quit prompt message "%s-" read-char quit-flag 48 55 8 format "%s %c" character-to-event allocate-event unread-command-event 259 logand 255] 6 "\
+Like `read-char', except that if the first character read is an octal
+digit, we read up to two more octal digits and return the character
+represented by the octal number consisting of those digits.
+Optional argument PROMPT specifies a string to use to prompt the user."])
+(fset 'error #[(&rest args) "ÀÁÂÃ\"C\"ˆªu" [signal error apply format args] 5 "\
+Signal an error, making error message by passing all args to `format'."])
+(byte-code "ÀÁMˆÂÀÃÄ#‡" [undefined #[nil "À ‡" [ding] 1 nil nil] put suppress-keymap t] 4)
+(fset 'suppress-keymap #[(map &optional nodigits) "ÀÀÂX«™ÃÅ	!\"Æ=«‰ÇÅ	!É#ˆ	T‰ªc)\n®¥ËÇÍÎ#ˆÏÏĞX­’ÇÅ!Ñ#ˆT‰ªj)‡" [0 i 127 lookup-key global-map char-to-string self-insert-command define-key map undefined nodigits nil loop "-" negative-argument 48 57 digit-argument] 5 "\
+Make MAP override all normally self-inserting keys to be undefined.
+Normally, as an exception, digits and minus-sign are set to make prefix args,
+but optional second arg NODIGITS non-nil treats them like other chars."])
+(fset 'substitute-key-definition #[(olddef newdef keymap) "À	Â\"‡" [map-keymap keymap #[(key binding) "	=­…Â#‡" [binding olddef define-key keymap key newdef] 4]] 3 "\
+Replace OLDDEF with NEWDEF for any keys in KEYMAP now defined as OLDDEF.
+In other words, OLDDEF is replaced with NEWDEF where ever it appears.
+Prefix keymaps reached from KEYMAP are not checked recursively;
+perhaps they ought to be."])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕMˆÖ×MˆØÙMˆÚÛMˆÜİMˆŞßMˆàáMˆâãMˆäåMˆæçMˆèéMˆêëMˆìíMˆîïMˆğñM‡" [ignore (lambda (&rest ignore)) make-syntax-table copy-syntax-table dot point dot-marker point-marker dot-min point-min dot-max point-max window-dot window-point set-window-dot set-window-point read-input read-string send-string process-send-string send-region process-send-region show-buffer set-window-buffer buffer-flush-undo buffer-disable-undo string= string-equal string< string-lessp mod % move-marker set-marker eql eq not null numberp integerp rplaca setcar rplacd setcdr beep ding indent-to-column indent-to backward-delete-char delete-backward-char] 2)
+(defvar global-map nil "\
+Default global keymap mapping Emacs keyboard input into commands.
+The value is a keymap which is usually (but not necessarily) Emacs's
+global map.")
+(defvar ctl-x-map nil "\
+Default keymap for C-x commands.
+The normal global definition of the character C-x indirects to this keymap.")
+(defvar esc-map nil "\
+Default keymap for ESC (meta) commands.
+The normal global definition of the character ESC indirects to this keymap.")
+(defvar mouse-map nil "\
+Keymap for mouse commands from the X window system.")
+(fset 'run-hooks #[(&rest hooklist) "­¬@Â	!«œ	J«˜	J‰<«@Ä=¬‡ÅÆ\"ˆªƒ ˆ))A‰¬UÇ‡" [hooklist sym boundp value lambda mapcar funcall nil] 4 "\
+Takes hook names and runs each one in turn.  Major mode functions use this.
+Each argument should be a symbol, a hook variable.
+These symbols are processed in the order specified.
+If a hook symbol has a non-nil value, that value may be a function
+or a list of functions to be called to run the hook.
+If the value is a function, it is called with no arguments.
+If it is a list, the elements are called, in order, with no arguments."])
+(defconst run-hooks 'run-hooks "\
+Variable by which C primitives find the function `run-hooks'.
+Don't change it.")
+(fset 'add-hook #[(hook-var function) "À	!¬„	ÂLˆ	J<«‡	J@Ã=«†	‰JCLˆ	J?­†		JBL‡" [boundp hook-var nil lambda function] 3 "\
+Add a function to a hook.
+First argument HOOK-VAR (a symbol) is the name of a hook, second
+argument FUNCTION is the function to add.
+Returns nil if FUNCTION was already present in HOOK-VAR, else new
+value of HOOK-VAR." "SAdd to hook-var (symbol): \naAdd which function to %s? "])
+(fset 'momentary-string-display #[(string pos &optional exit-char message) "¬‚ÁÂÃ ÂÉŠ\nbˆÂË!ˆ`)Í®ÎÏ!\"ˆĞÑ !Ó!=®…‰.‡" [exit-char 32 nil buffer-modified-p buffer-file-name insert-end name modified buffer-read-only ((byte-code "«†Š	|ˆ)\nÄ!‡" [insert-end pos name buffer-file-name set-buffer-modified-p modified] 2)) pos insert-before-markers string message "Type %s to continue editing." single-key-description next-command-event allocate-event event event-to-character unread-command-event] 4 "\
+Momentarily display STRING in the buffer at POS.
+Display remains until next character is typed.
+If the char is EXIT-CHAR (optional third arg, default is SPC) it is swallowed;
+otherwise it is then available as input (as a command if nothing else).
+Display MESSAGE (optional fourth arg) in the echo area.
+If MESSAGE is nil, instructions to type EXIT-CHAR are displayed there."])
+(fset 'start-process-shell-command #[(name buffer &rest args) "Á=«ˆÂÃ$‡ÃÈÉÊËÌ#P%‡" [system-type vax-vms apply start-process name buffer args shell-file-name "-c" "exec " mapconcat identity " "] 10 "\
+Start a program in a subprocess.  Return the process object for it.
+Args are NAME BUFFER COMMAND &rest COMMAND-ARGS.
+NAME is name for process.  It is modified if necessary to make it unique.
+BUFFER is the buffer or (buffer-name) to associate with the process.
+ Process output goes at end of that buffer, unless you specify
+ an output stream or filter function to handle the output.
+ BUFFER may be also nil, meaning that this process is not associated
+ with any buffer
+Third arg is command name, the name of a shell command.
+Remaining arguments are the arguments for the command.
+Wildcards and redirection are handle as usual in the shell."])
+(fset 'eval-after-load #[(file form) "À	\n\"¬…	C\nBÀ	\n\"C¤ˆ‡" [assoc file after-load-alist form] 3 "\
+Arrange that, if FILE is ever loaded, FORM will be run at that time.
+This makes or adds to an entry on `after-load-alist'.
+FILE should be the name of a library, with no directory name."])
+(fset 'eval-next-after-load #[(file) "À	Â \"‡" [eval-after-load file read] 3 "\
+Read the following input sexp, and run it whenever FILE is loaded.
+This makes or adds to an entry on `after-load-alist'.
+FILE should be the name of a library, with no directory name."])
+(fset 'user-original-login-name #[nil "ÀÁ!®‡ÀÂ!®‚Ã ‡" [getenv "LOGNAME" "USER" user-login-name] 2 "\
+Return user's login name from original login.
+This tries to remain unaffected by `su', by looking in environment variables."])
+(fset 'force-mode-line-update #[(&optional all) "«†ŠÁ qˆ)ÂÃ !‡" [all other-buffer set-buffer-modified-p buffer-modified-p] 2 "\
+Force the mode-line of the current buffer to be redisplayed.
+With optional non-nil ALL then force then force redisplay of all mode-lines."])

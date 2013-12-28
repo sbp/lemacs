@@ -1,0 +1,44 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:12:50 1991
+;;; from file /wg1/emacs-base/lisp/diff.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar diff-switches nil "\
+*A list of switches to pass to the diff program.")
+(defvar diff-search-pattern "^\\([0-9]\\|\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\)" "\
+Regular expression that delineates difference regions in diffs.")
+(byte-code "ÀÁ!¬±Â Ã	!ˆÄ	ÅÆ#ˆÄ	ÇÈ#ˆÄ	ÉÊ#ˆÄ	ËÌ#ˆÄ	ÍÎ#ˆÄ	ÏĞ#ˆÄ	ÑÒ#ˆÀ‡" [boundp diff-mode-map make-keymap suppress-keymap define-key "?" describe-mode "." diff-beginning-of-diff " " scroll-up "" scroll-down "n" diff-next-difference "p" diff-previous-difference "j" diff-show-difference] 4)
+(fset 'diff #[(old new) "ÀÁ\n#ˆÄ\n!Ä!ÅÉÊ!ˆŠqˆÌ ˆÍÎÏÅĞÅÑ\nD\"&)‘ˆÉqˆebˆ«–@Ò˜«‡Óyˆe`|ˆA‰¬j*Ô ˆÖ˜«…À×!c‡`ØyˆÙÅ\"ˆÛ”b}ˆÜ‰‡" [message "Comparing files %s %s..." new old expand-file-name nil diff-switches sw buffer-read-only "*Diff Output*" buffer-disable-undo standard-output erase-buffer apply call-process "diff" t append "-c" 2 diff-mode diff-total-differences "0" "There are no differences." 1 re-search-forward diff-search-pattern 0 "1" diff-current-difference] 12 "\
+Find and display the differences between OLD and NEW files.
+Interactively you are prompted with the current buffer's file name for NEW
+and what appears to be it's backup for OLD." (byte-code "À‰ÃÄ ‰«’Å	!«ÆÇÈ	!ÉQÀ	Ê$ª†ÆËÀ‰Ê$‰Ì	!‰«”Å\n!«ÆÍÈ\n!ÉQÎ\n!\nÊ$ªˆÆÏÎ	!ÀÊ$‰D!*‡" [nil newf oldf reverse buffer-file-name file-exists-p read-file-name "Diff new file: (" file-name-nondirectory ") " t "Diff new file: " file-newest-backup "Diff original file: (" file-name-directory "Diff original file: "] 8)])
+(fset 'diff-mode #[nil "À	!ˆÂÄÆÈ	ÊÌÍ!ˆÌÎ!ÏĞ !L‡" [use-local-map diff-mode-map t buffer-read-only diff-mode major-mode "Diff" mode-name "--- " mode-line-modified (" " diff-current-difference "/" diff-total-differences) mode-line-process make-local-variable diff-current-difference diff-total-differences int-to-string diff-count-differences] 3 "\
+Diff Mode is used by \\[diff] for perusing the output from the diff program.
+All normal editing commands are turned off.  Instead, these are available:
+\\<diff-mode-map>
+\\[diff-beginning-of-diff]	Move point to start of this difference.
+\\[scroll-up]	Scroll to next screen of this difference.
+\\[scroll-down]	Scroll to previous screen of this difference.
+\\[diff-next-difference]	Move to Next Difference.
+\\[diff-previous-difference]	Move to Previous Difference.
+\\[diff-show-difference]	Jump to difference specified by numeric position.
+" nil])
+(fset 'diff-next-difference #[(n) "ÁW«…Â[!‡ÁU?­ÈebˆÃyˆ~ˆÄÆÇ$«¥Á”bÃyˆÄÆÇ#«„Á”bˆ`}ˆÉÊ!\\!)ª‘ÌÆ\"ˆ`d}ˆÍÎ!ˆeb‡" [n 0 diff-previous-difference 1 re-search-forward diff-search-pattern nil move start int-to-string string-to-int diff-current-difference re-search-backward message "No following differences." diff-total-differences] 5 "\
+In diff-mode go the the beginning of the next difference as delimited
+by diff-search-pattern." "p"])
+(fset 'diff-previous-difference #[(n) "ÁW«…Â[!‡ÁU?­°ebˆ~ˆÃÅÆ$«ŒÇÈ	!Z!	ª‡ÊË!ˆÌ	`ÍyˆÎÅ\"ˆÁ”b}ˆeb‡" [n 0 diff-next-difference re-search-backward diff-search-pattern nil move int-to-string string-to-int diff-current-difference message "No previous differences." "1" 1 re-search-forward] 5 "\
+In diff-mode go the the beginning of the previous difference as delimited
+by diff-search-pattern." "p"])
+(fset 'diff-show-difference #[(n) "À	!\nU¬ŠÄU¬…Å!¬„ebª–\nW«‡Æ\nZ!ªŠ\nV­…Ç\nZ!)‡" [string-to-int diff-current-difference cur n 0 natnump diff-previous-difference diff-next-difference] 3 "\
+Show difference number N (prefix argument)." "p"])
+(fset 'diff-beginning-of-diff #[nil "eb‡" [] 1 "\
+Goto beginning of current difference." nil])
+(fset 'diff-count-differences #[nil "ÀÁ!ˆŠŒ~ˆebˆÂÄÆÇ#«…TªtÀÈ\"ˆ+‡" [message "Counting differences..." 0 cnt re-search-forward diff-search-pattern nil t "Counting differences...done (%d)"] 4 "\
+Count number of differences in the current buffer."])

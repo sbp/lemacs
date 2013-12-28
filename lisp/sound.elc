@@ -1,0 +1,17 @@
+;;; compiled by jwz@thalidomide on Mon Mar  9 21:57:28 1992
+;;; from file /u/jwz/emacs19/lisp/sound.el
+;;; emacs version 19.71 Lucid.
+;;; bytecomp version 2.04; 5-feb-92.
+;;; optimization is on; compiled with emacs18 compatibility.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defun load-sound-file (filename sound-name &optional volume) "\
+Read in an audio-file and add it to the sound-alist." (interactive "fSound file name: \nSSymbol to name this sound: \nnVolume (0 for default): ") (byte-code "9¬„ÁÂ!ˆ«ˆ¨¬„ÁÄ!ˆÅ‰ÈŽŠÉÊ!‰qˆË ˆÌ!ˆÎ Ë ˆ*ž‰«ŠÑÒ!\")Ó«ŒÔ=¬‡Eª„B!B*‡" [sound-name error "sound-name not a symbol" volume "volume not an integer or nil" nil data buf ((byte-code "«„Á!ˆÁ‡" [buf kill-buffer] 2)) get-buffer-create " *sound-tmp*" erase-buffer insert-file-contents filename buffer-string sound-alist old delq copy-sequence purecopy 0] 5))
+(defun load-default-sounds nil "\
+Load and install some sound files as beep-types.
+This only works if you're on display 0 of a Sun SparcStation." (interactive) (byte-code "ÀÁ!ˆÂÆÇÈ\"ˆÆÉÊ\"ˆÆËÌÍ#ˆÆÎÏÐ#ˆ)ÑÒ\"ÀÓ!ˆÔÂÊ\"‡" [message "Loading sounds..." nil sound-alist exec-directory default-directory load-sound-file "sounds/drum-beep.au" drum "sounds/quiet-beep.au" quiet "sounds/bass-snap.au" bass 80 "sounds/whip.au" whip 70 append ((default bass) (undefined-key drum) (undefined-click drum) (command-error bass) (no-completion whip) (y-or-n-p quiet) (yes-or-no-p quiet) (isearch-failed quiet) (isearch-quit bass) (auto-save-error whip 100)) "Loading sounds...done" beep] 4))

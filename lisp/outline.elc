@@ -1,0 +1,133 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:27:26 1991
+;;; from file /wg1/emacs-base/lisp/outline.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar outline-regexp "[*]+" "\
+*Regular expression to match the beginning of a heading.
+Any line whose beginning matches this regexp is considered to start a heading.
+The recommended way to set this is with a Local Variables: list
+in the file it applies to.  See also outline-heading-end-regexp.")
+(defvar outline-heading-end-regexp "[\n^M]" "\
+*Regular expression to match the end of a heading line.
+You can assume that point is at the beginning of a heading
+when this regexp is searched for.  The heading ends at the end of the match.
+The recommended way to set this is with a Local Variables: list
+in the file it applies to.")
+(defvar outline-mode-map nil "\
+")
+(byte-code "¬µÁ \n¤ÃÄÅ#ˆÃÆÇ#ˆÃÈÉ#ˆÃÊË#ˆÃÌÍ#ˆÃÎÏ#ˆÃĞÑ#ˆÃÒÓ#ˆÁ‡" [outline-mode-map make-sparse-keymap text-mode-map define-key "" outline-next-visible-heading "" outline-previous-visible-heading "	" show-children "" show-subtree "" hide-subtree "" outline-up-heading "" outline-forward-same-level "" outline-backward-same-level] 4)
+(defvar outline-minor-mode nil "\
+Non-nil if using Outline mode as a minor mode of some other mode.")
+(byte-code "À	ÂC\"À‡" [append minor-mode-alist (outline-minor-mode " Outl")] 3)
+(fset 'outline-mode #[nil "À ˆÁÃ!ˆÅÇÉÊË\"ˆ\nÍ!ˆÏĞ!ˆÑÓRÏÔ!ˆÏÕ!ˆÑÓRÖ×Ø\"‡" [kill-all-local-variables t selective-display use-local-map outline-mode-map "Outline" mode-name outline-mode major-mode define-abbrev-table text-mode-abbrev-table nil local-abbrev-table set-syntax-table text-mode-syntax-table make-local-variable paragraph-start "\\|^\\(" outline-regexp "\\)" auto-fill-inhibit-regexp paragraph-separate run-hooks text-mode-hook outline-mode-hook] 4 "\
+Set major mode for editing outlines with selective display.
+Headings are lines which start with asterisks: one for major headings,
+two for subheadings, etc.  Lines not starting with asterisks are body lines. 
+
+Body text or subheadings under a heading can be made temporarily
+invisible, or visible again.  Invisible lines are attached to the end 
+of the heading, so they move with it, if the line is killed and yanked
+back.  A heading with text hidden under it is marked with an ellipsis (...).
+
+Commands:
+C-c C-n   outline-next-visible-heading      move by visible headings
+C-c C-p   outline-previous-visible-heading
+C-c C-f   outline-forward-same-level        similar but skip subheadings
+C-c C-b   outline-backward-same-level
+C-c C-u   outline-up-heading		    move from subheading to heading
+
+Meta-x hide-body	make all text invisible (not headings).
+Meta-x show-all		make everything in buffer visible.
+
+The remaining commands are used when point is on a heading line.
+They apply to some of the body or subheadings of that heading.
+C-c C-h   hide-subtree	make body and subheadings invisible.
+C-c C-s   show-subtree	make body and subheadings visible.
+C-c C-i   show-children	make direct subheadings visible.
+		 No effect on body, or subheadings 2 or more levels down.
+		 With arg N, affects subheadings N levels down.
+M-x hide-entry	   make immediately following body invisible.
+M-x show-entry	   make it visible.
+M-x hide-leaves	   make body under heading and under its subheadings invisible.
+		     The subheadings remain visible.
+M-x show-branches  make all subheadings at all levels visible.
+
+The variable outline-regexp can be changed to control what is a heading.
+A line is a heading if outline-regexp matches something at the
+beginning of the line.  The longer the match, the deeper the level.
+
+Turning on outline mode calls the value of text-mode-hook and then of
+outline-mode-hook, if they are non-nil." nil])
+(fset 'outline-minor-mode #[(arg) "¬„	?ª…Â!ÃV‰«³ÄÆÇ!ˆÈ É!\nË\nÌÍÌ\"#ˆÏ\n!ˆ)ÆĞ!ˆÑÆÒ!ˆÓÔÕ!‡ÖÏ!‡" [arg outline-minor-mode prefix-numeric-value 0 t selective-display make-local-variable outline-old-map current-local-map copy-keymap new-map define-key "" lookup-key outline-mode-map use-local-map outline-regexp "[ 	]*/\\*" outline-heading-end-regexp "\\*/[^\n]*[\n]" run-hooks outline-minor-mode-hook nil] 7 nil "P"])
+(fset 'outline-level #[nil "ŠÀ	!ˆŠÂ•bˆi*‡" [looking-at outline-regexp 0] 2 "\
+Return the depth to which a statement is nested in the outline.
+Point must be at the beginning of a header line.
+This is actually the column-number of the end of what outline-regexp matches."])
+(fset 'outline-next-preface #[nil "ÀÁ\nÃQÄÅ#«„Æ”bˆhÇ>­‚Èu‡" [re-search-forward "[\n]\\(" outline-regexp "\\)" nil move 0 (10 13) -1] 4 "\
+Skip forward to just before the next heading line."])
+(fset 'outline-next-heading #[nil "ÀÁ\nÃQÄÅ#­„Æ”Tb‡" [re-search-forward "[\n]\\(" outline-regexp "\\)" nil move 0] 4 "\
+Move to the next (possibly invisible) heading line." nil])
+(fset 'outline-back-to-heading #[nil "ÀyˆÁ ®ˆÂÃÅQÆÇ#‡" [0 outline-on-heading-p re-search-backward "^\\(" outline-regexp "\\)" nil move] 4 "\
+Move to previous (possibly invisible) heading line,
+or to beginning of this line if it is a heading line."])
+(fset 'outline-on-heading-p #[nil "ŠÀyˆhÁ=­ƒÂ!)‡" [0 10 looking-at outline-regexp] 2 "\
+Return T if point is on a header line."])
+(fset 'outline-end-of-heading #[nil "À	ÂÃ#­‚Äu‡" [re-search-forward outline-heading-end-regexp nil move -1] 4])
+(fset 'outline-next-visible-heading #[(arg) "ÁW«…ÁyˆªƒÂˆÃÄÆQÂ‰$ˆÁyˆÂ‡" [arg 0 nil re-search-forward "^\\(" outline-regexp "\\)"] 5 "\
+Move to the next visible heading line.
+With argument, repeats or can move backward if negative.
+A heading line is one that starts with a `*' (or that outline-regexp matches)." "p"])
+(fset 'outline-previous-visible-heading #[(arg) "À	[!‡" [outline-next-visible-heading arg] 2 "\
+Move to the previous heading line.
+With argument, repeats or can move forward if negative.
+A heading line is one that starts with a `*' (or that outline-regexp matches)." "p"])
+(fset 'outline-flag-region #[(from to flag) "À ÂÃÇU«ƒÈªÇ$*‡" [buffer-modified-p modp ((set-buffer-modified-p modp)) subst-char-in-region from to flag 10 13] 5 "\
+Hides or shows lines from FROM to TO, according to FLAG.
+If FLAG is `\\n' (newline character) then text is shown,
+while if FLAG is `\\^M' (control-M) the text is hidden."])
+(fset 'hide-entry #[nil "À ˆÁ ˆŠÂ`Ã ˆ`Ä#)‡" [outline-back-to-heading outline-end-of-heading outline-flag-region outline-next-preface 13] 4 "\
+Hide the body directly following this heading." nil])
+(fset 'show-entry #[nil "ŠÀ`Á ˆ`Â#)‡" [outline-flag-region outline-next-preface 10] 4 "\
+Show the body directly following this heading." nil])
+(fset 'hide-body #[nil "Àed\"‡" [hide-region-body] 3 "\
+Hide all of buffer except headings." nil])
+(fset 'hide-region-body #[(start end) "ŠŒ	}ˆebˆÂ «ƒÃ ˆm?­œÄ`Å ˆ`Æ#ˆm¬pÇÈ!«ƒÉªÊuˆÃ ˆª`*‡" [start end outline-on-heading-p outline-end-of-heading outline-flag-region outline-next-preface 13 looking-at "[\n][\n]" 2 1] 4 "\
+Hide all body lines in the region, but not headings."])
+(fset 'show-all #[nil "ÀedÁ#‡" [outline-flag-region 10] 4 "\
+Show all of the text in the buffer." nil])
+(fset 'hide-subtree #[nil "ÀÁ!‡" [outline-flag-subtree 13] 2 "\
+Hide everything after this heading at deeper levels." nil])
+(fset 'hide-leaves #[nil "À ˆÁ ˆÂ`Ã ˆ`\"‡" [outline-back-to-heading outline-end-of-heading hide-region-body outline-end-of-subtree] 3 "\
+Hide all body after this heading at deeper levels." nil])
+(fset 'show-subtree #[nil "ÀÁ!‡" [outline-flag-subtree 10] 2 "\
+Show everything after this heading at deeper levels." nil])
+(byte-code "ÀÁMˆÂÃM‡" [outline-flag-subtree #[(flag) "ŠÀ ˆÁ ˆÂ`Ã ˆ`#)‡" [outline-back-to-heading outline-end-of-heading outline-flag-region outline-end-of-subtree flag] 4] outline-end-of-subtree #[nil "À ˆ`ÁÂ m¬¬†Â V«‡ÆÇ ˆªmÈuˆhÉ>­‚Èu+‡" [outline-back-to-heading t outline-level level first opoint nil outline-next-heading -1 (10 13)] 3]] 2)
+(fset 'show-branches #[nil "ÀÁ!‡" [show-children 1000] 2 "\
+Show all subheadings of this heading, but not their bodies." nil])
+(fset 'show-children #[(&optional level) "«…Á!ª‘ŠÂyˆÃ Å ˆÆÃ Z]*ŠŒÂyˆÃ \\`Ç ˆ`T}ˆebˆm?­§Å ˆm?­ Ã X«oŠÈŠÉuˆhÊ>«ƒÉuˆ`)Ë ˆ`Ì#ˆ)ªU*‡" [level prefix-numeric-value 0 outline-level start-level outline-next-heading 1 outline-end-of-subtree outline-flag-region -1 (10 13) outline-end-of-heading 10] 4 "\
+Show all direct subheadings of this heading.
+Prefix arg LEVEL is how many levels below the current level should be shown.
+Default is enough to cause the following heading to appear." "P"])
+(fset 'outline-up-heading #[(arg) "À ˆÁ Â=«„ÃÄ!ˆÁ ÂV­¡ÆV­œo?­˜Á Á W¬†ÈÂ!ˆªsÂZ)ªY‡" [outline-back-to-heading outline-level 1 error "" arg 0 present-level outline-previous-visible-heading] 2 "\
+Move to the heading line of which the present line is a subheading.
+With argument, move up ARG levels." "p"])
+(fset 'outline-forward-same-level #[(arg) "À ˆ	ÂV­™ŠÃ )‰«ˆbˆ	Sª†ÂÅÆ!ˆ)ªb‡" [outline-back-to-heading arg 0 outline-get-next-sibling point-to-move-to error ""] 3 "\
+Move forward to the ARG'th subheading from here of the same level as the
+present one. It stops at the first and last subheadings of a superior heading." "p"])
+(fset 'outline-get-next-sibling #[nil "À ÂÃ!ˆÀ 	V«‰m¬†ÂÃ!ˆªqÀ 	W?­`)‡" [outline-level level outline-next-visible-heading 1] 2 "\
+Position the point at the next heading of the same level, 
+and return that position or nil if it cannot be found."])
+(fset 'outline-backward-same-level #[(arg) "À ˆ	ÂV­™ŠÃ )‰«ˆbˆ	Sª†ÂÅÆ!ˆ)ªb‡" [outline-back-to-heading arg 0 outline-get-last-sibling point-to-move-to error ""] 3 "\
+Move backward to the ARG'th subheading from here of the same level as the
+present one. It stops at the first and last subheadings of a superior heading." "p"])
+(fset 'outline-get-last-sibling #[nil "À ÂÃ!ˆÀ 	V«‰o¬†ÂÃ!ˆªqÀ 	W?­`)‡" [outline-level level outline-previous-visible-heading 1] 2 "\
+Position the point at the previous heading of the same level, 
+and return that position or nil if it cannot be found."])

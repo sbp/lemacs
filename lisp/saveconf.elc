@@ -1,0 +1,63 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:30:28 1991
+;;; from file /wg1/emacs-base/lisp/saveconf.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'saveconf)
+(defconst save-context-version "Norma Jean" "\
+A unique string which is placed at the beginning of every saved context
+file.  If the string at the beginning of the context file doesn't match the
+value of this variable the `recover-context' command will ignore the file's
+contents.")
+(defvar auto-save-and-recover-context nil "\
+*If non-nil the `save-context' command will always be run before Emacs is
+exited.  Also upon Emacs startup, if this variable is non-nil and Emacs is
+passed no command line arguments, `recover-context' will be run.")
+(defvar save-buffer-context nil "\
+*If non-nil the `save-context' command will save the context
+of buffers that are visiting files, as well as the contexts of buffers
+that have windows.")
+(defvar save-context-predicate #[(w) "ÀÁ\n!!­‰ÃÄÀÁ\n!!\"?‡" [buffer-file-name window-buffer w string-match "^\\(/usr\\)?/tmp/"] 5] "\
+*Value is a predicate function which determines which windows' contexts
+are saved.  When the `save-context' command is invoked, this function will
+be called once for each existing Emacs window.  The function should accept
+one argument which will be a window object, and should return non-nil if
+the window's context should be saved.")
+(byte-code "ÀÁ!¬…ÁÂKMˆÃÄÅÇEEÀ‡" [fboundp just-kill-emacs kill-emacs let ((starting-up (not command-line-processed))) prog1 top-level (and starting-up auto-save-and-recover-context (null (cdr command-line-args)) (recover-context))] 5)
+(fset 'kill-emacs #[(&optional query) "«†	¬ƒÂ ˆÃ!‡" [auto-save-and-recover-context purify-flag save-context just-kill-emacs query] 2 "\
+End this Emacs session.
+Prefix ARG or optional first ARG non-nil means exit with no questions asked,
+even if there are unsaved buffers.  If Emacs is running non-interactively
+and ARG is an integer, then Emacs exits with ARG as its exit code.
+
+If the variable `auto-save-and-restore-context' is non-nil,
+the function save-context will be called first." "P"])
+(fset 'save-context #[nil "ÀÁÂ‡" [error-data (byte-code "À‰‰Ä ÅÆ QÇ	!¬“ÇÄ !«‡ÈÉ	\"ˆª†ÈÊÄ \"ˆËÌ!‰qˆÍ ˆÎÀ!ˆÏĞÑ \"ˆ`«†ÏÓÔ \"ˆÕ!«©qˆÀ×cˆ\nbˆ×cˆebˆØ\"ˆÚcˆÎÀ!ˆÛed	ÀÜ%ˆª…İŞßˆà!+‡" [nil save-file-name mark context-buffer original-working-directory ".emacs_" user-login-name file-writable-p error "context is write-protected, %s" "can't access directory, %s" get-buffer-create " *Context Info*" erase-buffer set-buffer-modified-p mapcar #[(w) "	!­™ÂÃÄ	!!\"ˆÆÇ\"ˆÂÈ	!\"ˆÆÉ\"‡" [save-context-predicate w prin1 buffer-file-name window-buffer context-buffer princ " " window-point "\n"] 4] window-list save-buffer-context #[(b) "qˆ	­“Â	\"ˆÄÅ\"ˆÂ`\"ˆÄÆ\"‡" [b buffer-file-name prin1 context-buffer princ " " "\n"] 3] buffer-list buffer-modified-p buffer-offer-save "nil\n" prin1 save-context-version "\n\n" write-region quiet data (delete-file save-file-name) ((error)) kill-buffer] 7) ((error))] 3 "\
+Save context of all Emacs windows (files visited and position of point).
+The information goes into a file called .emacs_<username> in the directory
+where the Emacs session was started.  The context can be recovered with the
+`recover-context' command, provided you are in the same directory where
+the context was saved.
+
+If the variable `save-buffer-context' is non-nil, the context of all buffers
+visiting files will be saved as well.
+
+Window sizes and shapes are not saved, since these may not be recoverable
+on terminals with a different number of rows and columns." nil])
+(fset 'recover-context #[nil "ÀÁÂ‡" [error-data (byte-code "À‰‰Ä ÅÆ QÇ	!¬…ÈÉ	\"ˆÊË!‰qˆÌ ˆÍ	À\"ˆÎÀ!ˆÏ ĞU«…ÈÑ	\"ˆÒ\n!‰š¬…ÈÔ\"ˆÒ\n!‰«›ÕÖ !ˆ× «ƒØ ˆÙÚ!ˆÛ!ˆÒ\n!bˆª^Ò\n!‰«ŒÜ!qˆÒ\n!bˆªmİŞ!ˆß\n!ˆ+à‡" [nil recover-file-name context-buffer sexpr original-working-directory ".emacs_" user-login-name file-readable-p error "can't access context, %s" get-buffer-create " *Recovered Context*" erase-buffer insert-file-contents set-buffer-modified-p buffer-size 0 "context file is empty, %s" read save-context-version "version string incorrect, %s" select-window get-largest-window buffer-file-name split-window other-window 1 find-file find-file-noselect bury-buffer "*scratch*" kill-buffer t] 4) ((error))] 3 "\
+Recover an Emacs context saved by `save-context' command.
+Files that were visible in windows when the context was saved are visited and
+point is set in each window to what is was when the context was saved." nil])
+(fset 'original-working-directory #[nil "ŠÀÁ!qˆ\n)‡" [get-buffer-create "*scratch*" default-directory] 2])
+(fset 'window-list #[(&optional mini) "ÀÁÂ !\"‰ÅB‰À\"‰=¬“ÅB¡À\"‰ªi,‡" [next-window previous-window selected-window mini first-window nil windows current-cons w] 4 "\
+Returns a list of Lisp window objects for all Emacs windows.
+Optional first arg MINIBUF t means include the minibuffer window
+in the list, even if it is not active.  If MINIBUF is neither t
+nor nil it means to not count the minibuffer window even if it is active."])

@@ -1,0 +1,16 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:24:36 1991
+;;; from file /wg1/emacs-base/lisp/makesum.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'make-command-summary #[nil "ÀÁ!ˆÂ‹ˆÃŠqˆÇ ˆÈÉ!ˆebˆ`Êyˆ`|ˆËÌÍÎ#«†ÏĞ!ˆªsebˆËÑÍÎ#«†ÏÒ!ˆªsebˆËÓÍÎ#«†ÏÔ!ˆªsebˆËÕÍÎ#«†ÏÖ!ˆªsebˆË×ÍÎ#«†ÏØ!ˆªsebˆÙÚÍÎ#«™ÛuˆÜİ±ˆËŞÍÎ#«‰`Ûyˆ`|ˆªpebˆßà áâOã±ˆ`äyˆ`|ˆÊyˆm¬™`%ÙæÍÎ#¬ƒdbˆç%`\"ˆÊyˆ)ªdeb*‘ˆÀè!‡" [message "Making command summary..." ((describe-bindings)) "*Summary*" mode-name cur-mode standard-output erase-buffer insert-buffer-substring "*Help*" 1 search-forward "         " nil t replace-match "  " "-@ " "-SP" "  .. ~ " "SP .. ~" "C-?" "DEL" "C-i" "TAB" re-search-forward "^Local Bindings:" -1 " for " " Mode" "??\n" "Emacs command summary, " current-time-string 0 10 ".\n" 2 beg "^$" double-column "Making command summary...done"] 5 "\
+Make a summary of current key bindings in the buffer *Summary*.
+Previous contents of that buffer are killed first." nil])
+(fset 'double-column #[(start end) "À‰‰‰‰d	ZÈ		\"‰ÊX¬ÊTË¥	bˆŠyˆW«›T`ŠÀˆ`){‰B`Êyˆ`|ˆª_)Ÿ‰«“ÀˆÌjˆ@cˆÊyˆA‰¬md\nZb.‡" [nil end from-end nlines lines line cnt half count-lines start 1 2 41] 8 nil "r"])

@@ -1,0 +1,91 @@
+;;; compiled by jwz@thalidomide on Thu Feb 20 19:33:30 1992
+;;; from file /u/jwz/emacs19/lisp/lisp.el
+;;; emacs version 19.60 Lucid.
+;;; bytecomp version 2.04; 5-feb-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar defun-prompt-regexp nil "\
+Non-nil => regexp to ignore, before the `(' that starts a defun.")
+(fset 'forward-sexp #[(&optional arg) "¬‚ÁÂ`\"®ƒÃ!bˆÄÆW­‚Ç ‡" [arg 1 scan-sexps buffer-end t zmacs-region-stays 0 backward-prefix-chars] 3 "\
+Move forward across one balanced expression (sexp).
+With argument, do it that many times.
+Negative arg -N means move backward across N balanced expressions." "p"])
+(fset 'backward-sexp #[(&optional arg) "¬‚ÁÂÄ[!‡" [arg 1 t zmacs-region-stays forward-sexp] 2 "\
+Move backward across one balanced expression (sexp).
+With argument, do it that many times.
+Negative arg -N means move forward across N balanced expressions." "p"])
+(fset 'mark-sexp #[(arg) "ÀŠÁ\n!ˆ`)!ˆÃ ‡" [push-mark forward-sexp arg zmacs-activate-region] 3 "\
+Set mark ARG sexps from point.
+The place mark goes is the same place \\[forward-sexp] would move to
+with the same argument." "p"])
+(fset 'forward-list #[(&optional arg) "¬‚ÁÂÄ`Å#®ƒÆ!b‡" [arg 1 t zmacs-region-stays scan-lists 0 buffer-end] 4 "\
+Move forward across one balanced group of parentheses.
+With argument, do it that many times.
+Negative arg -N means move backward across N groups of parentheses." "p"])
+(fset 'backward-list #[(&optional arg) "¬‚ÁÂÄ[!‡" [arg 1 t zmacs-region-stays forward-list] 2 "\
+Move backward across one balanced group of parentheses.
+With argument, do it that many times.
+Negative arg -N means move forward across N groups of parentheses." "p"])
+(fset 'down-list #[(arg) "À\nÃV«ƒÄªÅ\nÃU?­•Ç`Å#®ƒÈ\n!bˆ\nZ‰ªf)‡" [t zmacs-region-stays arg 0 1 -1 inc scan-lists buffer-end] 5 "\
+Move forward down one level of parentheses.
+With argument, do this that many times.
+A negative argument means move backward but still go down a level.
+In Lisp programs, an argument is required." "p"])
+(fset 'backward-up-list #[(arg) "À	[!‡" [up-list arg] 2 "\
+Move backward out of one level of parentheses.
+With argument, do this that many times.
+A negative argument means move forward but still to a less deep spot.
+In Lisp programs, an argument is required." "p"])
+(fset 'up-list #[(arg) "À\nÃV«ƒÄªÅ\nÃU?­•Ç`Ä#®ƒÈ\n!bˆ\nZ‰ªf)‡" [t zmacs-region-stays arg 0 1 -1 inc scan-lists buffer-end] 5 "\
+Move forward out of one level of parentheses.
+With argument, do this that many times.
+A negative argument means move backward but still to a less deep spot.
+In Lisp programs, an argument is required." "p"])
+(fset 'kill-sexp #[(arg) "`Á\n!ˆÃ`\")‡" [opoint forward-sexp arg kill-region] 3 "\
+Kill the sexp (balanced expression) following the cursor.
+With argument, kill that many sexps after the cursor.
+Negative arg -N means kill N sexps before the cursor." "p"])
+(fset 'backward-kill-sexp #[(arg) "À	[!‡" [kill-sexp arg] 2 "\
+Kill the sexp (balanced expression) preceding the cursor.
+With argument, kill that many sexps before the cursor.
+Negative arg -N means kill N sexps after the cursor." "p"])
+(fset 'beginning-of-defun #[(&optional arg) "À\n«ˆ\nÃW«ƒÄuˆÅ«ˆÇÈÉRªÊËÌ\n®Ä$­„ÃyˆÀ‡" [t zmacs-region-stays arg 0 1 re-search-backward defun-prompt-regexp "^\\s(\\|" "\\(" "\\)\\s(" "^\\s(" nil move] 5 "\
+Move backward to the beginning of a defun.
+With argument, do it that many times.  Negative arg -N
+means move forward to Nth following beginning of defun.
+Returns t unless search stops due to beginning or end of buffer.
+
+Normally a defun starts when there is an char with open-parenthesis
+syntax at the beginning of a line.  If `defun-prompt-regexp' is
+non-nil, then a string which matches that regexp may precede the
+open-parenthesis." "p"])
+(fset 'buffer-end #[(arg) "ÁV«‚d‡e‡" [arg 0] 2])
+(fset 'end-of-defun #[(&optional arg) "À\n«…\nÃU«‚ÄÀ\nÃV«¿`dW«º`Æ«ˆÄuˆÉÄ!¬Šo¬ƒÊuˆÉÊ!ˆÆËÄ!ˆÌÆwˆÍÎ!«ƒÄyˆ`X¬S*\nS‰ª=\nÃW­µ`ÉÄ!ˆÏÄ!ˆÄyˆ`Y«šÉĞ!«’ËÄ!ˆÌÆwˆÍÑ!«ˆÄyˆªƒebˆ)\nT‰ªG)‡" [t zmacs-region-stays arg 0 1 first nil npos pos beginning-of-defun -1 forward-list " 	" looking-at "\\s<\\|\n" forward-sexp 2 "[;\n]"] 3 "\
+Move forward to next end of defun.  With argument, do it that many times.
+Negative argument -N means move back to Nth preceding end of defun.
+
+An end of a defun occurs right after the close-parenthesis that matches
+the open-parenthesis that starts a defun; see `beginning-of-defun'." "p"])
+(fset 'mark-defun #[nil "À`!ˆÁ ˆÀ`!ˆÂ ˆÃÄ`ÅZÆ#ˆÇ ‡" [push-mark end-of-defun beginning-of-defun re-search-backward "^\n" 1 t zmacs-activate-region] 4 "\
+Put mark at end of this defun, point at beginning.
+The defun marked is the one that contains point or follows point." nil])
+(fset 'insert-parentheses #[(arg) "«„ÁÂwˆhzÃ>«ƒÄcˆÅcˆŠ«†ÆÇ!!ˆÈcˆgzÉ>­‚Äc)‡" [arg " 	" nil (119 95 41) " " 40 forward-sexp prefix-numeric-value 41 (119 95 40)] 3 "\
+Put parentheses around next ARG sexps.  Leave point after open-paren.
+No argument is equivalent to zero: just insert () and leave point between." "P"])
+(fset 'move-past-close-and-reindent #[nil "ÀÁ!ˆÂuˆŠ`Ä ˆ`U*«…Å ˆªoÁuˆÆ ‡" [up-list 1 -1 before-paren back-to-indentation delete-indentation newline-and-indent] 2 "\
+Move past next `)', delete indentation before it, then indent after it." nil])
+(fset 'lisp-complete-symbol #[nil "`Á ÃŠ«„Å!ˆÆÇ!ˆgzÈU«…Çuˆªu`*‰	{\n	SfË=«ƒÌªÍÏ\n#‰Ò=®í¬ŠÓÔ\n\"ˆÕ ªß\n˜¬Š	|ˆcªÎÓÖ!ˆ×\n#Ì=¬­Ù« ÌÛ@!!«‡@ÜDªƒ@BA‰¬`Ÿ)İŞ!‘ˆ)Óßà\".‡" [end syntax-table buffer-syntax ((set-syntax-table buffer-syntax)) lisp-mode-syntax-table set-syntax-table backward-sexp 1 39 beg pattern 40 fboundp #[(sym) "À	!®ˆÂ	!®ƒÃ	!‡" [boundp sym fboundp symbol-plist] 2] predicate try-completion obarray completion t message "Can't find completion for \"%s\"" ding "Making completion list..." all-completions list nil new intern " <f>" "*Help*" display-completion-list "Making completion list...%s" "done"] 5 "\
+Perform completion on Lisp symbol preceding point.
+That symbol is compared against the symbols that exist
+and any additional characters determined by what is there
+are inserted.
+If the symbol starts just after an open-parenthesis,
+only symbols with function definitions are considered.
+Otherwise, all symbols with function definitions, values
+or properties are considered." nil])

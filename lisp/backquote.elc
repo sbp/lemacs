@@ -1,0 +1,68 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:06:27 1991
+;;; from file /wg1/emacs-base/lisp/backquote.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'backquote)
+(fset 'bq-push '(macro . #[(v l) "À	Â	EE‡" [setq l cons v] 5 "\
+Pushes evaluated first form onto second unevaluated object
+a list-value atom"]))
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [bq-caar (macro . #[(l) "À‰	DD‡" [car l] 3]) bq-cadr (macro . #[(l) "ÀÁ\nDD‡" [car cdr l] 3]) bq-cdar (macro . #[(l) "ÀÁ\nDD‡" [cdr car l] 3])] 2)
+(defconst backquote-unquote '(\,) "\
+*A list of all objects that stimulate unquoting in `.  Memq test.")
+(defconst backquote-splice '(\,@) "\
+*A list of all objects that stimulate splicing in `.  Memq test.")
+(fset '\` '(macro . #[(form) "À	!‡" [bq-make-maker form] 2 "\
+(` FORM)  is a macro that expands to code to construct FORM.
+Note that this is very slow in interpreted code, but fast if you compile.
+FORM is one or more nested lists, which are `almost quoted':
+They are copied recursively, with non-lists used unchanged in the copy.
+ (` a b) == (list 'a 'b)  constructs a new list with two elements, `a' and `b'.
+ (` a (b c)) == (list 'a (list 'b 'c))  constructs two nested new lists.
+
+However, certain special lists are not copied.  They specify substitution.
+Lists that look like (, EXP) are evaluated and the result is substituted.
+ (` a (, (+ x 5))) == (list 'a (+ x 5))
+
+Elements of the form (,@ EXP) are evaluated and then all the elements
+of the result are substituted.  This result must be a list; it may
+be `nil'.
+
+As an example, a simple macro `push' could be written:
+   (defmacro push (v l)
+        (` (setq (, l) (cons (,@ (list v l))))))
+or as
+   (defmacro push (v l)
+        (` (setq (, l) (cons (, v) (, l)))))
+
+LIMITATIONS: \"dotted lists\" are not allowed in FORM.
+The ultimate cdr of each list scanned by ` must be `nil'.
+(This does not apply to constants inside expressions to be substituted.)
+
+Substitution elements are not allowed as the cdr
+of a cons cell.  For example, (` (A . (, B))) does not work.
+Instead, write (` (A (,@ B))).
+
+You cannot construct vectors, only lists.  Vectors are treated as
+constants.
+
+BEWARE BEWARE BEWARE
+Inclusion of (,ATOM) rather than (, ATOM)
+or of (,@ATOM) rather than (,@ ATOM)
+will result in errors that will show up very late."]))
+(fset 'bq-make-maker #[(form) "ÀÁ‰ÀÆÇÈ	!\"ˆ\n­\nÊ=«…\nDª“GËU«Š\nžA@!ªƒ\nB,‡" [nil 0 state ec qc tailmaker mapcar bq-iterative-list-builder reverse form quote 1 bq-singles] 4 "\
+Given one argument, a `mostly quoted' object, produces a maker.
+See backquote.el for details"])
+(byte-code "ÀÂÃMˆÄÅMˆÆÇM‡" [('bq-quotecar (append car) (list bq-make-list) (cons bq-id)) bq-singles bq-id (lambda (x) x) bq-quotecar #[(x) "À	@D‡" [quote x] 2] bq-make-list #[(x) "À	B‡" [list x] 2]] 2)
+(fset 'bq-iterative-list-builder #[(form) ":¬ˆ	\nžA@!‡@>«Š	žA@A@!‡@>«‹	žA@A@!‡Ç!‰<«“@É=«Œ	\nžA@A@!ªˆ	žA@!)‡" [form state bq-quotefns backquote-unquote bq-evalfns backquote-splice bq-splicefns bq-make-maker newform quote] 3 "\
+Called by bq-make-maker.  Adds a new item form to tailmaker, 
+changing state if need be, so tailmaker and state constitute a recipie
+for making the list so far."])
+(byte-code "ÀÂÄÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆÐÑMˆÒÓMˆÔÕMˆÖ×MˆØÙMˆÚÛMˆÜÝMˆÞßMˆàáMˆâãM‡" [((nil bq-splicenil) (append bq-spliceappend) (list bq-splicelist) 'bq-splicequote (cons bq-splicecons)) bq-splicefns ((nil bq-evalnil) (append bq-evalappend) (list bq-evallist) 'bq-evalquote (cons bq-evalcons)) bq-evalfns ((nil bq-quotenil) (append bq-quoteappend) (list bq-quotelist) 'bq-quotequote (cons bq-quotecons)) bq-quotefns bq-quotecons #[(form) "@<«–@@Á=«Á\n@A@DDA@DªŒÃÁ\nD@EA@DÄ‰‡" [tailmaker quote form list append state] 3] bq-quotequote #[(form) "	B‰‡" [form tailmaker] 2] bq-quotelist #[(form) "À	D\nB‰‡" [quote form tailmaker] 2] bq-quoteappend #[(form) "<«—@<«’@@Á=«‹@A\n@A@B ‡Á\nCDB‰‡" [tailmaker quote form] 3] bq-quotenil #[(form) "CÂ‰‡" [form tailmaker quote state] 2] bq-evalcons #[(form) "À	\n@E\nA@DÃ‰‡" [list form tailmaker append state] 3] bq-evalquote #[(form) "GÁW«Œ\nÃÄ\"BÅ‰‡Å\nDÇDDÈ‰‡" [tailmaker 3 form mapcar #[(x) "À	D‡" [quote x] 2] list state quote append] 4] bq-evallist #[(form) "	B‰‡" [form tailmaker] 2] bq-evalappend #[(form) "<«•@<«@@Á=«‰@\n@AB¡‡GÃU«ˆ\nBÄ‰‡Á\nDB‰‡" [tailmaker list form 1 cons state] 3] bq-evalnil #[(form) "CÂ‰‡" [form tailmaker list state] 2] bq-splicecons #[(form) "Á\n@\nA@EDÃ‰‡" [form cons tailmaker append state] 4] bq-splicequote #[(form) "Á\nDDÃ‰‡" [form quote tailmaker append state] 3] bq-splicelist #[(form) "Á\nBDÃ‰‡" [form list tailmaker append state] 3] bq-spliceappend #[(form) "	B‰‡" [form tailmaker] 2] bq-splicenil #[(form) "À\nC‰‡" [append state form tailmaker] 2]] 2)

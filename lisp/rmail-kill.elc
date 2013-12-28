@@ -1,0 +1,33 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:29:05 1991
+;;; from file /wg1/emacs-base/lisp/rmail-kill.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÂÀ‡" [rmail-maybe-execute-message rmail-message-filter ((lambda nil (define-key rmail-mode-map "e" 'rmail-extract-rejected-message) (define-key rmail-mode-map "b" 'rmail-beginning-of-message) (define-key rmail-mode-map "K" 'rmail-execute-messages))) rmail-mode-hook] 1)
+(defvar rmail-usual-suspects '(("subject" . "Smithsonian Astronomical Observatory") ("subject" . "MGR, Bellcore window manager, Part")) "\
+An alist used to kill rmail messages based on regex matches to different fields.
+The car of each entry is the name of a mail header, the cdr is a pattern.
+Case is not significant.)
+
+See also the documentation for rmail-maybe-execute-message and
+rmail-execute-messages.")
+(byte-code "ÀÀÂM‡" [maybe-book-some-suspects kill-emacs-hook #[nil "À‹‡" [((byte-code "ÀÁ!ˆebˆÂÃ!ˆÄÅ!ˆÆÅ!ˆŠÈp!)š?­§ÉÊ!ˆË ˆÌÍ\"ˆÎÏ!ˆĞÑ!­‘ÒqˆÓÅ!ˆÔÕÒ!\"ˆÖ ‡" [find-file "~/.emacs" re-search-forward "^(defvar rmail-usual-suspects$" down-list 1 backward-char rmail-usual-suspects read switch-to-buffer-other-window "SUSPECTS" erase-buffer mapcar #[(x) "À	p\"‡" [print x] 3] set-buffer-modified-p nil y-or-n-p "Save the usual suspects? " ".emacs" kill-sexp prin1 get-buffer save-buffer] 4))] 1]] 2)
+(fset 'rmail-maybe-execute-message #[(&optional suspects dont-move) "¬‚	­³Â@AÃ@@!®Ä\"«Å!¬—ÇÈ\"ˆ	«…Ê ˆªƒË ˆÌ‰ªRA‰¬NÌ‡" [suspects rmail-usual-suspects string-match mail-fetch-field "$^" rmail-message-deleted-p rmail-current-message message "Deleted message %d" dont-move rmail-delete-message rmail-delete-forward nil] 5 "\
+Kill the current message if it matches an entry in SUSPECTS.
+SUSPECTS is alist of the form of rmail-usual-suspects (which see).
+If the current message contains a mail header that matches pattern,
+it is deleted.
+
+This function can be used as a rmail-message-filter (which see)."])
+(fset 'rmail-execute-messages #[(round-up-the-usual-suspects) "Á‰«…ª¶ÇÈÉ\"\nËÌ\n!!®ÍÏĞ\n#Ò\"\nBCÔÕ!«‡Ö\",\n¬•×Ø\"ˆ;«…Ù‰ªpÚÛ!‰«kÜ!ˆİ!«„ÚÛ!ˆİ!­ƒŞÛ!+‡" [rmail-current-message nil cuffed-all-suspects alleged-perpetrator scene-of-the-crime round-up-the-usual-suspects rmail-usual-suspects rmail-get-current-header "Kill what field? (default Subject) " "Subject" weapon regexp-quote mail-fetch-field "some regex" default-description format "Kill messages having a \"%s\" field matching? (default %s) " most-wanted-notice read-string-with-default suspect-description y-or-n-p "Add it to rmail-usual-suspects? " append rmail-maybe-execute-message dont-move t rmail-next-undeleted-message 1 rmail-show-message rmail-message-deleted-p rmail-previous-undeleted-message] 5 "\
+Kill some rmail messages based on regex matches to a kill-alist.
+With a prefix arg, use rmail-usual-suspects as the kill-alist, otherwise
+prompt for a field name." "P"])
+(byte-code "ÀÁMˆÂÃM‡" [rmail-get-current-header #[(prompt default) "ŠÀˆ`ÂyˆÃÄ	Å#«‡Æ”Æ•{ª†Ç	\"*‡" [nil end 0 re-search-forward "^\\([^ 	]*\\):" t 1 read-string-with-default prompt default] 4] read-string-with-default #[(prompt default) "À	!‰Ã˜«ƒª\n)‡" [read-string prompt s "" default] 3]] 2)

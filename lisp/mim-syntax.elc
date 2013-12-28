@@ -1,0 +1,19 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:26:05 1991
+;;; from file /wg1/emacs-base/lisp/mim-syntax.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(require 'mim-mode)
+(fset 'slow-syntax-check-mim #[nil "ÀÁ!ˆdÂ‰‰‰‰Šebˆ¬äÉÊË#«Üh‰ÌU«‡ÂÍÎˆªfÏU«‡ÂĞÑˆªYzÒU«©«ÓÔÕ HÖ\"×\"U¬…`‰ª<@‰­ƒSfAª)«†B`ª)¬ˆ¬…ÀØ!ªÀ«´bˆÌš«…ÙÚ!ª¯¬‰ÙÛÜ!\"ª£ÙİŠ`SSbˆ`Âˆ`^{)Ü!#ª‰bˆÙŞÜ!\".‡" [message "checking syntax..." nil last-point whoops last-bracket current point-stack stop re-search-forward "\\s(\\|\\s)\\|\"\\|[\\]" t 34 (byte-code "ÀÁ!ˆÂÂ‡" [re-search-forward "[^\\]\"" nil current] 2) ((error (byte-code "`Á‡" [whoops nil] 1))) 92 (forward-char 1) ((error)) 41 logand lsh syntax-table -8 127 "Syntax correct" error "Unterminated string" "Extraneous %s" char-to-string "Mismatched %s with %s" "Unmatched %s"] 7 "\
+Check Mim syntax slowly.
+Points out the context of the error, if the syntax is incorrect." nil])
+(fset 'fast-syntax-check-mim #[nil "ŠebˆÀm¬ŒÂ`dÃ#‰@Ãš¬q	@Ãš«…ÄÅ!ªƒÆÇ!*‡" [nil state parse-partial-sexp 0 message "Syntax correct" error "Syntax incorrect"] 4 "\
+Checks Mim syntax quickly.
+Answers correct or incorrect, cannot point out the error context." nil])

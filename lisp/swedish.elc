@@ -1,0 +1,29 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:32:53 1991
+;;; from file /wg1/emacs-base/lisp/swedish.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(require 'iso-syntax)
+(defvar swedish-re "[ 	\n]\\(och\\|att\\|en\\|{r\\|\\[R\\|p}\\|P\\]\\|som\\|det\\|av\\|den\\|f|r\\|F\\\\R\\)[ 	\n.,?!:;'\")}]" "\
+Regular expression for common Swedish words.")
+(defvar swascii-to-8859-trans (byte-code "ÀÁÂ\"ÃÁW«‹‰IˆT‰ªqÆÇIˆÈÉIˆÊËIˆÌÍIˆÎÏIˆÐÑIˆÒÓIˆÔÕIˆÖ×Iˆ*‡" [make-string 256 32 0 i string 91 196 93 197 92 214 94 220 123 228 125 229 96 233 124 246 126 252] 4) "\
+Trans table from SWASCII to 8859.")
+(fset 'swascii-to-8859-buffer #[nil "ÀÂed#)‡" [nil buffer-read-only translate-region swascii-to-8859-trans] 4 "\
+Convert characters in buffer from Swedish/Finnish-ascii to ISO 8859/1.
+Works even on read-only buffers.  `$' and `@' are not converted." nil])
+(fset 'swascii-to-8859-buffer-maybe #[nil "ÀÂÄÀ#­‚Å )‡" [t case-fold-search re-search-forward swedish-re nil swascii-to-8859-buffer] 4 "\
+Call swascii-to-8859-buffer if the buffer looks like Swedish-ascii.
+Leaves point just after the word that looks Swedish." nil])
+(byte-code "ÀÂÃ!¬‚ÄÅÆ\"Ä‡" [swascii-to-8859-buffer-maybe rmail-show-message-hook boundp news-group-hook-alist nil append (("^swnet." . swascii-to-8859-buffer-maybe))] 3)
+(defvar 8859-to-swascii-trans (byte-code "ÀÁÂ\"ÃÁW«‹‰IˆT‰ªqÆÇIˆÈÉIˆÊËIˆÌÍIˆÎÏIˆÐÑIˆÒÓIˆÔÕIˆÖ×IˆØÙIˆÚÛIˆ*‡" [make-string 256 32 0 i string 164 36 196 91 197 93 201 64 214 92 220 94 228 123 229 125 233 96 246 124 252 126] 4) "\
+8859 to SWASCII trans table.")
+(fset '8859-to-swascii-buffer #[nil "Àed	#‡" [translate-region 8859-to-swascii-trans] 4 "\
+Convert characters in buffer from ISO 8859/1 to Swedish/Finnish-ascii." "*"])
+(byte-code "ÀÀÃÄ!‡" [8859-to-swascii-buffer mail-send-hook news-inews-hook provide swedish] 2)

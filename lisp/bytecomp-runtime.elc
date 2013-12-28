@@ -1,0 +1,57 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:01:23 1991
+;;; from file /wg1/emacs-base/lisp/bytecomp-runtime.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!¬ˆÁÂMˆÁÃMˆÄÅMˆÆÄÇÈ#‡" [fboundp make-byte-code (lambda (arglist bytestring constants stackdepth doc) (list 'lambda arglist doc (list 'byte-code bytestring constants stackdepth))) #[(arglist bytestring constants stackdepth &optional doc &rest interactive) "À	D\n­‚\nC¤­ˆÃ@­BC¤ÄFC¤‡" [lambda arglist doc interactive byte-code bytestring constants stackdepth] 5 "For compatibility with Emacs19 ``.elc'' files."] inline progn put lisp-indent-hook 0] 4)
+(fset 'proclaim-inline '(macro . #[(&rest fns) "ÀÁÂ\"B‡" [eval-and-compile mapcar #[(x) "ÁNÂ>¬…ÃÄ\"ˆÅÆDÇÈF‡" [x byte-optimizer (nil byte-compile-inline-expand) error "%s already has a byte-optimizer, can't make it inline" put quote 'byte-optimizer 'byte-compile-inline-expand] 4] fns] 4 "\
+Cause the named functions to be open-coded when called from compiled code.
+They will only be compiled open-coded when byte-compile-optimize is true."]))
+(fset 'proclaim-notinline '(macro . #[(&rest fns) "ÀÁÂ\"B‡" [eval-and-compile mapcar #[(x) "ÁNÂ=«†ÃÁÄ#ˆÅÆÇÈDÉEÊEÃËÄFE‡" [x byte-optimizer byte-compile-inline-expand put nil if eq get quote 'byte-optimizer 'byte-compile-inline-expand 'byte-optimizer] 6] fns] 4 "\
+Cause the named functions to no longer be open-coded."]))
+(fset 'defsubst '(macro . #[(name arglist &rest body) "ÀÁ\nBBBÅ\nDE‡" [prog1 defun name arglist body proclaim-inline] 5 "\
+Same syntax as defun, but the defined function will always be open-coded,
+so long as byte-compile-optimize is true."]))
+(fset 'make-obsolete #[(fn new) "ÁN‰Ã=«ˆÄN ˆªŽÆÄ\nB#ˆÆÁÃ#ˆ)‡" [fn byte-compile handler byte-compile-obsolete byte-obsolete-info new put] 6 "\
+Make the byte-compiler warn that FUNCTION is obsolete and NEW should be
+used instead.  If NEW is a string, that is the `use instead' message." "aMake function obsolete: \nxObsoletion replacement: "])
+(put 'dont-compile 'lisp-indent-hook 0)
+(fset 'dont-compile '(macro . #[(&rest body) "ÀÁ\nA«…Ã\nBª‚\n@DD‡" [eval quote body progn] 4 "\
+Like progn, but the body will always run interpreted (not compiled)."]))
+(put 'eval-when-compile 'lisp-indent-hook 0)
+(fset 'eval-when-compile '(macro . #[(&rest body) "À	B‡" [progn body] 2 "\
+Like progn, but evaluates the body at compile-time.  The result of the
+body appears to the compiler as a quoted constant."]))
+(put 'eval-and-compile 'lisp-indent-hook 0)
+(fset 'eval-and-compile '(macro . #[(&rest body) "À	B‡" [progn body] 2 "\
+Like progn, but evaluates the body at compile-time as well as at load-time."]))
+(put 'byte-compiler-options 'lisp-indent-hook 0)
+(defmacro byte-compiler-options (&rest args) "\
+Set some compilation-parameters for this file.  This will affect only the
+file in which it appears; this does nothing when evaluated, and when loaded
+from a .el file.
+
+Each argument to this macro must be a list of a key and a value.
+
+  Keys:		  Values:		Corresponding variable:
+
+  verbose	  t, nil		byte-compile-verbose
+  optimize	  t, nil, source, byte	byte-compile-optimize
+  warnings	  list of warnings	byte-compile-warnings
+		      Legal elements: (callargs redefine free-vars unresolved)
+  file-format	  emacs18, emacs19	byte-compile-emacs18-compatibility
+  new-bytecodes	  t, nil		byte-compile-generate-emacs19-bytecodes
+
+For example, this might appear at the top of a source file:
+
+    (byte-compiler-options
+      (optimize t)
+      (warnings (- free-vars))		; Don't warn about free variables
+      (file-format emacs19))" nil)

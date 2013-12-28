@@ -1,0 +1,503 @@
+;;; compiled by jwz@thalidomide on Tue Jul 30 20:56:16 1991
+;;; from file /u/jwz/emacs19/lisp/cl.el
+;;; emacs version 19.56.
+;;; bytecomp version 2.0 beta; 28-jul-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÁ!‡" [provide cl require] 2)
+(fset 'psetq '(macro . #[(&rest pairs) "GÁ‰‰‰‰‰‰É¦ÊU¬„ËÌ!ˆÁ‰«ª@‰9¬ˆËÏĞ!\"ˆBA@BAA‰¬V*Á‰‰«@Ó ‰DBBA‰¬c+Ÿ«–@@BBAAªf*Ö×BÁF.‡" [pairs nil i assignments newsyms bindings forms symbols nforms 2 0 error "Odd number of arguments to `psetq'" var ptr "`psetq' expected a symbol, found '%s'." prin1-to-string newsym form gensym ptr2 ptr1 let setq] 8 "\
+(psetq {VARIABLE VALUE}...): In parallel, set each VARIABLE to its VALUE.
+All the VALUEs are evaluated, and then all the VARIABLEs are set.
+Aside from order of evaluation, this is the same as `setq'."]))
+(fset 'pair-with-newsyms #[(oldforms) "Á‰Å!¬šÆ ‰@DB\nB)A‰)ªaÉŸ\nŸ\"+‡" [oldforms nil newsyms bindings ptr endp gentemp newsym G$$_0 values] 4 "\
+PAIR-WITH-NEWSYMS OLDFORMS
+The top-level components of the list oldforms are paired with fresh
+symbols, the pairings list and the newsyms list are returned."])
+(fset 'zip-lists #[(evens odds) "\n	@@ÆÈ	!¬›È!¬–BB	AA	@@ª`Ÿ-‡" [evens p0 odds p1 even odd nil result endp] 3 "\
+Merge two lists EVENS and ODDS, taking elts from each list alternatingly.
+EVENS and ODDS are two lists.  ZIP-LISTS constructs a new list, whose
+even numbered elements (0,2,...) come from EVENS and whose odd
+numbered elements (1,3,...) come from ODDS. 
+The construction stops when the shorter list is exhausted."])
+(fset 'unzip-list #[(list) "‰@Ã	!ÅÅÈ	!¬™\nBBÉ	!‰@Ã	!ªbÊŸŸ\"-‡" [list ptr this cadr next nil evens odds endp cddr values] 4 "\
+Extract even and odd elements of LIST into two separate lists.
+The argument LIST is separated in two strands, the even and the odd
+numbered elements.  Numbering starts with 0, so the first element
+belongs in EVENS. No check is made that there is an even number of
+elements to start with."])
+(fset 'reassemble-argslists #[(argslists) "ÀÁÂÃ\"\"ÆÉ\nÉY¬’ÂË\"B\nÌ\\‰\nªiŸ,‡" [apply min mapcar length argslists minlen nil result T$$_0 0 i #[(sublist) "	œ‡" [sublist i] 2] 1] 6 "\
+(reassemble-argslists ARGSLISTS).
+ARGSLISTS is a list of sequences.  Return a list of lists, the first
+sublist being all the entries coming from ELT 0 of the original
+sublists, the next those coming from ELT 1 and so on, until the
+shortest list is exhausted."])
+(fset 'build-klist #[(argslist acceptable) "<«†ÁG!¬„ÂÃ!ˆ<«†ÅÆ\"¬„ÂÇ!ˆÈ	Ê ‰Ì!Lˆ	«†Í!ªÏ	JCÍ!)‰A@@ÅÆ\"¬ˆÂÓÔ!\"ˆÕ\"‰@ÈÈÛ!¬Ü\"‰«‡BA‰@ª].‡" [argslist evenp error "Odd number of keyword-args" acceptable every keywordp "Second arg should be a list of keywords" nil *mvalues-count* gensym it unzip-list copy-sequence *mvalues-values* 1 T$$_1 forms keywords "Expected keywords, found `%s'" prin1-to-string pairlis auxlist ptr this auxval alist endp assoc] 5 "\
+Decode a keyword argument list ARGSLIST for keywords in ACCEPTABLE.
+ARGSLIST is a list, presumably the &rest argument of a call, whose
+even numbered elements must be keywords.
+ACCEPTABLE is a list of keywords, the only ones that are truly acceptable.
+The result is an alist containing the arguments named by the keywords
+in ACCEPTABLE, or nil if something failed."])
+(fset 'duplicate-symbols-p #[(list) "ÀÁ <«†ÅÆ\"¬„ÇÈ!ˆÉÊ\"ˆÉË\"ˆÉÌ\"ˆ*‡" [nil gensym propname duplicates list every symbolp error "A list of symbols is needed" mapcar #[(x) "À	\nÃ#‡" [put x propname 0] 4] #[(x) "À	\n	\nNT#‡" [put x propname] 5] #[(x) "	NÂV­…B‰‡" [x propname 1 duplicates] 2]] 3 "\
+Find all symbols appearing more than once in LIST.
+Return a list of all such duplicates; `nil' if there are no duplicates."])
+(fset 'defkeyword '(macro . #[(x &optional docstring) "9«‡ÁÂDE‡ÃÄÅ!\"‡" [x defconst quote error "`%s' is not a symbol" prin1-to-string] 4 "\
+Make symbol X a keyword (symbol whose value is itself).
+Optional second argument is a documentation string for it."]))
+(fset 'keywordp #[(sym) "9«ÁÂ!ÃHÄ\"«„‰L‡Å‡" [sym char-equal symbol-name 0 58 nil] 3 "\
+Return `t' if SYM is a keyword."])
+(fset 'keyword-of #[(sym) "À	!«‚	‡	9«ÂÃÄ	!P!‰‰L)‡ÆÇÈ	!\"‡" [keywordp sym intern ":" symbol-name newsym error "Expected a symbol, not `%s'" prin1-to-string] 5 "\
+Return a keyword that is naturally associated with symbol SYM.
+If SYM is keyword, the value is SYM.
+Otherwise it is a keyword whose name is `:' followed by SYM's name."])
+(defvar *gentemp-index* 0 "\
+Integer used by gentemp to produce new names.")
+(defvar *gentemp-prefix* "T$$_" "\
+Names generated by gentemp begin with this string by default.")
+(fset 'gentemp #[(&optional prefix oblist) "¬‚	\n¬‚Ä‰¬šPÈ\\É\n\"¬kÊ\n\"‰«f*‡" [prefix *gentemp-prefix* oblist obarray nil newname newsymbol *gentemp-index* 1 intern-soft intern] 4 "\
+Generate a fresh interned symbol.
+There are 2 optional arguments, PREFIX and OBLIST.  PREFIX is the
+string that begins the new name, OBLIST is the obarray used to search for
+old names.  The defaults are just right, YOU SHOULD NEVER NEED THESE
+ARGUMENTS IN YOUR OWN CODE."])
+(defvar *gensym-index* 0 "\
+Integer used by gensym to produce new names.")
+(defvar *gensym-prefix* "G$$_" "\
+Names generated by gensym begin with this string by default.")
+(fset 'gensym #[(&optional prefix) "¬‚	ÂÃ¬—PÇ\\È!¬mÉ!‰«i*‡" [prefix *gensym-prefix* nil "" newname newsymbol *gensym-index* 1 intern-soft make-symbol] 3 "\
+Generate a fresh uninterned symbol.
+There is an  optional argument, PREFIX.  PREFIX is the
+string that begins the new name. Most people take just the default,
+except when debugging needs suggest otherwise."])
+(byte-code "ÀÁÂÃ#ˆÀÄÂÃ#ˆÀÅÂÃ#ˆÀÆÂÃ#‡" [put case lisp-indent-function 1 ecase when unless] 4)
+(fset 'when '(macro . #[(condition &rest body) "ÀÁÂDÄ$‡" [list* if not condition nil body] 5 "\
+(when CONDITION . BODY) => evaluate BODY if CONDITION is true."]))
+(fset 'unless '(macro . #[(condition &rest body) "ÀÁ\nÃ$‡" [list* if condition nil body] 5 "\
+(unless CONDITION . BODY) => evaluate BODY if CONDITION is false."]))
+(fset 'case '(macro . #[(expr &rest cases) "À Â	\"Å	DCÇÈŸ\"E*‡" [gentemp newsym case-clausify cases clauses let expr list* cond] 5 "\
+(case EXPR . CASES) => evals EXPR, chooses from CASES on that value.
+EXPR   -> any form
+CASES  -> list of clauses, non empty
+CLAUSE -> HEAD . BODY
+HEAD   -> t             = catch all, must be last clause
+       -> otherwise     = same as t
+       -> nil           = illegal
+       -> atom          = activated if (eql  EXPR HEAD)
+       -> list of atoms = activated if (member EXPR HEAD)
+BODY   -> list of forms, implicit PROGN is built around it.
+EXPR is evaluated only once."]))
+(fset 'ecase '(macro . #[(expr &rest cases) "À Â	\"Å!Æ=«„ÇÈ!ˆÆÇÉÊDÌ	DFDBÍ	DCÎÏŸ\"E*‡" [gentemp newsym case-clausify cases clauses caar t error "No clause-head should be `t' or `otherwise' for `ecase'" "ecase on %s = %s failed to take any branch." quote expr prin1-to-string let list* cond] 6 "\
+(ecase EXPR . CASES) => like `case', but error if no case fits.
+`t'-clauses are not allowed."]))
+(fset 'case-clausify #[(cases newsym) "A@ÄÆ	!¬ğ@A‰¬‰ÉÊË!\"ˆªĞÌ=¬†Í=«’Æ\n!¬„ÉÎ!ˆÌBBª²:¬ÏÑDEBBª<«ÒÑDEBBªˆÉÓË!\"ˆ*	A\nA	@ª,‡" [cases currentpos nextpos curclause nil result endp body head error "Case clauses cannot have null heads: `%s'" prin1-to-string t otherwise "Clause with `t' or `otherwise' head must be last" eql newsym quote cl-member "Don't know how to parse case clause `%s'."] 5 "\
+CASE-CLAUSIFY CASES NEWSYM => clauses for a 'cond'
+Converts the CASES of a [e]case macro into cond clauses to be
+evaluated inside a let that binds NEWSYM.  Returns the clauses in
+reverse order."])
+(byte-code "ÀÁÂÃ#ˆÀÄÂÃ#ˆÀÅÂÆ#ˆÀÇÂÆ#ˆÀÈÂÆ#ˆÀÉÂÆ#‡" [put do lisp-indent-function 2 do* dolist 1 dotimes do-symbols do-all-symbols] 4)
+(fset 'do '(macro . #[(stepforms endforms &rest body) "À	!«„Â!ˆÄ	!Å	!@A	Ê	ËÌDÍ\"BBÍ!,BBB‡" [check-do-stepforms stepforms check-do-endforms endforms extract-do-inits extract-do-steps endbody endcond steplist initlist let while not append body] 7 "\
+(do STEPFORMS ENDFORMS . BODY): Iterate BODY, stepping some local variables.
+STEPFORMS must be a list of symbols or lists.  In the second case, the
+lists must start with a symbol and contain up to two more forms. In
+the STEPFORMS, a symbol is the same as a (symbol).  The other 2 forms
+are the initial value (def. NIL) and the form to step (def. itself).
+The values used by initialization and stepping are computed in parallel.
+The ENDFORMS are a list (CONDITION . ENDBODY).  If the CONDITION
+evaluates to true in any iteration, ENDBODY is evaluated and the last
+form in it is returned.
+The BODY (which may be empty) is evaluated at every iteration, with
+the symbols of the STEPFORMS bound to the initial or stepped values."]))
+(fset 'do* '(macro . #[(stepforms endforms &rest body) "À	!«„Â!ˆÄ	!Å	!@A	Ê	ËÌDÍ\"BBÍ!,BBB‡" [check-do-stepforms stepforms check-do-endforms endforms extract-do-inits extract-do*-steps endbody endcond steplist initlist let* while not append body] 7 "\
+`do*' is to `do' as `let*' is to `let'.
+STEPFORMS must be a list of symbols or lists.  In the second case, the
+lists must start with a symbol and contain up to two more forms. In
+the STEPFORMS, a symbol is the same as a (symbol).  The other 2 forms
+are the initial value (def. NIL) and the form to step (def. itself).
+Initializations and steppings are done in the sequence they are written.
+The ENDFORMS are a list (CONDITION . ENDBODY).  If the CONDITION
+evaluates to true in any iteration, ENDBODY is evaluated and the last
+form in it is returned.
+The BODY (which may be empty) is evaluated at every iteration, with
+the symbols of the STEPFORMS bound to the initial or stepped values."]))
+(fset 'check-do-stepforms #[(forms) "<¬‡ÁÂÃ!\"‡ÄÅ\"‡" [forms error "Init/Step form for do[*] should be a list, not `%s'" prin1-to-string mapcar #[(entry) "9¬<«@9«ˆGÁW«‚Â‡ÃÄÅ!\"‡" [entry 4 t error "Init/Step must be symbol or (symbol [init [step]]), not `%s'" prin1-to-string] 4]] 4 "\
+True if FORMS is a valid stepforms for the do[*] macro (q.v.)"])
+(fset 'check-do-endforms #[(forms) "<«‚Á‡ÂÃÄ!\"‡" [forms t error "Termination form for do macro should be a list, not `%s'" prin1-to-string] 4 "\
+True if FORMS is a valid endforms for the do[*] macro (q.v.)"])
+(fset 'extract-do-inits #[(forms) "ÀÁ\n\"‡" [mapcar #[(entry) "9«„ÁD‡<­†@Â!D‡" [entry nil cadr] 3] forms] 3 "\
+Returns a list of the initializations (for do) in FORMS
+-a stepforms, see the do macro-. Forms is assumed syntactically valid."])
+(fset 'extract-do-steps #[(forms) "ÀÁ\n!BC‡" [psetq select-stepping-forms forms] 3 "\
+EXTRACT-DO-STEPS FORMS => an s-expr
+FORMS is the stepforms part of a DO macro (q.v.).  This function
+constructs an s-expression that does the stepping at the end of an
+iteration."])
+(fset 'extract-do*-steps #[(forms) "ÀÁ\n!BC‡" [setq select-stepping-forms forms] 3 "\
+EXTRACT-DO*-STEPS FORMS => an s-expr
+FORMS is the stepforms part of a DO* macro (q.v.).  This function
+constructs an s-expression that does the stepping at the end of an
+iteration."])
+(fset 'select-stepping-forms #[(forms) "À	À«@‰<«\nGÅU«ŠÆÇ\n!\n@D\"A‰¬cŸ+‡" [nil forms entry ptr result 3 append caddr] 4 "\
+Separate only the forms that cause stepping."])
+(fset 'dolist '(macro . #[(stepform &rest body) "<¬‰ÁÂÃ!\"ˆªœ@9¬ŠÁÄÃ@!\"ˆªGÅV«‡ÁÆÃ!\"ˆ@È!	Ê!ÌÍÎÏCBBD	EÑÒDCEE+‡" [stepform error "Stepform for `dolist' should be (VAR LIST [RESULT]), not `%s'" prin1-to-string "First component of stepform should be a symbol, not `%s'" 3 "Too many components in stepform `%s'" var cadr listform caddr resultform progn mapcar function lambda body let nil] 6 "\
+(dolist (VAR LIST [RESULTFORM]) . BODY): do BODY for each elt of LIST.
+The RESULTFORM defaults to nil.  The VAR is bound to successive
+elements of the value of LIST and remains bound (to the nil value) when the
+RESULTFORM is evaluated."]))
+(fset 'dotimes '(macro . #[(stepform &rest body) "<¬‰ÁÂÃ!\"ˆªœ@9¬ŠÁÄÃ@!\"ˆªGÅV«‡ÁÆÃ!\"ˆ@È!	Ê!Ì Î	DCÏĞÑÒÓEECÔED$E,‡" [stepform error "Stepform for `dotimes' should be (VAR COUNT [RESULT]), not `%s'" prin1-to-string "First component of stepform should be a symbol, not `%s'" 3 "Too many components in stepform `%s'" var cadr countform caddr resultform gentemp newsym let* list* do* 0 + 1 >= body] 9 "\
+(dotimes (VAR COUNTFORM [RESULTFORM]) .  BODY): Repeat BODY, counting in VAR.
+The COUNTFORM should return a positive integer.  The VAR is bound to
+successive integers from 0 to COUNTFORM-1 and the BODY is repeated for
+each of them.  At the end, the RESULTFORM is evaluated and its value
+returned. During this last evaluation, the VAR is still bound, and its
+value is the number of times the iteration occurred. An omitted RESULTFORM
+defaults to nil."]))
+(fset 'do-symbols '(macro . #[(stepform &rest body) "<¬‰ÁÂÃ!\"ˆªœ@9¬ŠÁÄÃ@!\"ˆªGÅV«‡ÁÆÃ!\"ˆ@È!	Ê!ÌÍÎÏCBBD	EÑÒDCEE+‡" [stepform error "Stepform for `do-symbols' should be (VAR OBARRAY [RESULT]), not `%s'" prin1-to-string "First component of stepform should be a symbol, not `%s'" 3 "Too many components in stepform `%s'" var cadr oblist caddr resultform progn mapatoms function lambda body let nil] 6 "\
+(do_symbols (VAR [OBARRAY [RESULTFORM]]) . BODY)
+The VAR is bound to each of the symbols in OBARRAY (def. obarray) and
+the BODY is repeatedly performed for each of those bindings. At the
+end, RESULTFORM (def. nil) is evaluated and its value returned.
+During this last evaluation, the VAR is still bound and its value is nil.
+See also the function `mapatoms'."]))
+(fset 'do-all-symbols '(macro . #[(stepform &rest body) "ÀÁ\n@ÃÄ\n!E#‡" [list* do-symbols stepform obarray cadr body] 6 "\
+(do-all-symbols (VAR [RESULTFORM]) . BODY)
+Is the same as (do-symbols (VAR obarray RESULTFORM) . BODY)."]))
+(fset 'loop '(macro . #[(&rest body) "<¬„ÁÂ!‡ÃÄ\"ˆÅÆBB‡" [body error "Body of `loop' should be a list of lists or nil" mapcar #[(component) "<?­ƒÁÂ!‡" [component error "Components of `loop' should be lists"] 2] while t] 3 "\
+(loop . BODY) repeats BODY indefinitely and does not return.
+Normally BODY uses `throw' or `signal' to cause an exit.
+The forms in BODY should be lists, as non-lists are reserved for new features."]))
+(fset 'first #[(x) "@‡" [x] 1 "\
+Synonym for `car'"])
+(fset 'second #[(x) "A@‡" [x] 1 "\
+Return the second element of the list LIST."])
+(fset 'third #[(x) "À	8‡" [2 x] 2 "\
+Return the third element of the list LIST."])
+(fset 'fourth #[(x) "À	8‡" [3 x] 2 "\
+Return the fourth element of the list LIST."])
+(fset 'fifth #[(x) "À	8‡" [4 x] 2 "\
+Return the fifth element of the list LIST."])
+(fset 'sixth #[(x) "À	8‡" [5 x] 2 "\
+Return the sixth element of the list LIST."])
+(fset 'seventh #[(x) "À	8‡" [6 x] 2 "\
+Return the seventh element of the list LIST."])
+(fset 'eighth #[(x) "À	8‡" [7 x] 2 "\
+Return the eighth element of the list LIST."])
+(fset 'ninth #[(x) "À	8‡" [8 x] 2 "\
+Return the ninth element of the list LIST."])
+(fset 'tenth #[(x) "À	8‡" [9 x] 2 "\
+Return the tenth element of the list LIST."])
+(fset 'rest #[(x) "A‡" [x] 1 "\
+Synonym for `cdr'"])
+(fset 'endp #[(x) "<«ƒ?‡ÁÂÃ!\"‡" [x error "endp received a non-cons, non-null argument `%s'" prin1-to-string] 4 "\
+t if X is nil, nil if X is a cons; error otherwise."])
+(fset 'last #[(x) "<¬„ÁÂ!ˆ‰AÅ!¬AA‰*ªk*‡" [x error "Arg to `last' must be a list" next-cons current-cons endp G$$_1 G$$_2] 3 "\
+Returns the last link in the list LIST."])
+(fset 'list-length #[(x) "À	‰Â¬ÂÇ!«„Èª¨ÇA!«ŠÉ\\Èª˜=«ÀV«‡ÂÈª†Ê\\Ë!A‰*ª;,‡" [0 x nil ready slow fast n endp t 1 2 cddr G$$_3 G$$_4] 5 "\
+Returns the length of a non-circular list, or `nil' for a circular one."])
+(fset 'cl-member #[(item list) "Á‰¬•Å!¬@=«„ÇAªh\n+‡" [list nil result done ptr endp item t] 3 "\
+Look for ITEM in LIST; return first link in LIST whose car is `eql' to ITEM."])
+(fset 'butlast #[(list &optional n) "¬‚ÁÂÂ!›!‡" [n 1 reverse list] 4 "\
+Return a new list like LIST but sans the last N elements.
+N defaults to 1.  If the list doesn't have N elements, nil is returned."])
+(fset 'list* #[(arg &rest others) "¬‚	‡	BÃ\n!Å\n!Å!@¡ˆ+‡" [others arg allargs butlast front last back] 2 "\
+Return a new list containing the first arguments consed onto the last arg.
+Thus, (list* 1 2 3 '(a b)) returns (1 2 3 a b)."])
+(fset 'adjoin #[(item list) "À	\n\"«‚\n‡	\nB‡" [cl-member item list] 3 "\
+Return a list which contains ITEM but is otherwise like LIST.
+If ITEM occurs in LIST, the value is LIST.  Otherwise it is (cons ITEM LIST).
+When comparing ITEM against elements, `eql' is used."])
+(fset 'ldiff #[(list sublist) "À	Ä\n!¬“\n=¬\n@B\nA‰)ªhÇ!*‡" [nil list curcons result endp sublist G$$_5 reverse] 3 "\
+Return a new list like LIST but sans SUBLIST.
+SUBLIST must be one of the links in LIST; otherwise the value is LIST itself."])
+(fset 'caar #[(X) "@@‡" [X] 1 "\
+Return the car of the car of X."])
+(fset 'cadr #[(X) "A@‡" [X] 1 "\
+Return the car of the cdr of X."])
+(fset 'cdar #[(X) "@A‡" [X] 1 "\
+Return the cdr of the car of X."])
+(fset 'cddr #[(X) "AA‡" [X] 1 "\
+Return the cdr of the cdr of X."])
+(fset 'caaar #[(X) "@@@‡" [X] 1 "\
+Return the car of the car of the car of X."])
+(fset 'caadr #[(X) "A@@‡" [X] 1 "\
+Return the car of the car of the cdr of X."])
+(fset 'cadar #[(X) "@A@‡" [X] 1 "\
+Return the car of the cdr of the car of X."])
+(fset 'cdaar #[(X) "@@A‡" [X] 1 "\
+Return the cdr of the car of the car of X."])
+(fset 'caddr #[(X) "AA@‡" [X] 1 "\
+Return the car of the cdr of the cdr of X."])
+(fset 'cdadr #[(X) "A@A‡" [X] 1 "\
+Return the cdr of the car of the cdr of X."])
+(fset 'cddar #[(X) "@AA‡" [X] 1 "\
+Return the cdr of the cdr of the car of X."])
+(fset 'cdddr #[(X) "AAA‡" [X] 1 "\
+Return the cdr of the cdr of the cdr of X."])
+(fset 'caaaar #[(X) "@@@@‡" [X] 1 "\
+Return the car of the car of the car of the car of X."])
+(fset 'caaadr #[(X) "A@@@‡" [X] 1 "\
+Return the car of the car of the car of the cdr of X."])
+(fset 'caadar #[(X) "@A@@‡" [X] 1 "\
+Return the car of the car of the cdr of the car of X."])
+(fset 'cadaar #[(X) "@@A@‡" [X] 1 "\
+Return the car of the cdr of the car of the car of X."])
+(fset 'cdaaar #[(X) "@@@A‡" [X] 1 "\
+Return the cdr of the car of the car of the car of X."])
+(fset 'caaddr #[(X) "AA@@‡" [X] 1 "\
+Return the car of the car of the cdr of the cdr of X."])
+(fset 'cadadr #[(X) "A@A@‡" [X] 1 "\
+Return the car of the cdr of the car of the cdr of X."])
+(fset 'cdaadr #[(X) "A@@A‡" [X] 1 "\
+Return the cdr of the car of the car of the cdr of X."])
+(fset 'caddar #[(X) "@AA@‡" [X] 1 "\
+Return the car of the cdr of the cdr of the car of X."])
+(fset 'cdadar #[(X) "@A@A‡" [X] 1 "\
+Return the cdr of the car of the cdr of the car of X."])
+(fset 'cddaar #[(X) "@@AA‡" [X] 1 "\
+Return the cdr of the cdr of the car of the car of X."])
+(fset 'cadddr #[(X) "AAA@‡" [X] 1 "\
+Return the car of the cdr of the cdr of the cdr of X."])
+(fset 'cddadr #[(X) "A@AA‡" [X] 1 "\
+Return the cdr of the cdr of the car of the cdr of X."])
+(fset 'cdaddr #[(X) "AA@A‡" [X] 1 "\
+Return the cdr of the car of the cdr of the cdr of X."])
+(fset 'cdddar #[(X) "@AAA‡" [X] 1 "\
+Return the cdr of the cdr of the cdr of the car of X."])
+(fset 'cddddr #[(X) "AAAA‡" [X] 1 "\
+Return the cdr of the cdr of the cdr of the cdr of X."])
+(fset 'setnth #[(n list newval) "	›\n ‡" [n list newval] 2 "\
+Set (nth N LIST) to NEWVAL.  Returns NEWVAL."])
+(fset 'setnthcdr #[(n list newval) "ÁW«…ÂÃ\"‡ÁU«Œ@ ˆA¡ˆ‡ÆZ›¡‡" [n 0 error "N must be 0 or greater, not %d" list newval 1] 3 "\
+SETNTHCDR N LIST NEWVAL => NEWVAL
+As a side effect, sets the Nth cdr of LIST to NEWVAL."])
+(fset 'acons #[(key item alist) "	B\nB‡" [key item alist] 2 "\
+Return a new alist with KEY paired with ITEM; otherwise like ALIST.
+Does not copy ALIST."])
+(fset 'pairlis #[(keys data &optional alist) "G	GU¬„ÂÃ!ˆ	@@	Ê!¬šË	#	AA@@ªa	-‡" [keys data error "Keys and data should be the same length" kptr dptr key item alist result endp acons] 4 "\
+Return a new alist with each elt of KEYS paired with an elt of DATA;
+optional 3rd arg ALIST is nconc'd at the end.  KEYS and DATA must
+have the same length."])
+(byte-code "ÀÁÂÃÄÅÆÇÈÉ	Ê\nËÀ‡" [:test :test-not :key :predicate :start :end :start1 :start2 :end1 :end2 :count :from-end] 1)
+(fset 'some #[(pred seq &rest moreseqs) "ÀÁ\n\"!ÅÅÅ‰	@\n¬£Ë	!¬Ì\n\"‰«‡Î	A‰	@\nªY.‡" [reassemble-argslists list* seq moreseqs args nil ready result applyval remaining current endp apply pred t] 5 "\
+Test PREDICATE on each element of SEQUENCE; is it ever non-nil?
+Extra args are additional sequences; PREDICATE gets one arg from each
+sequence and we advance down all the sequences together in lock-step.
+A sequence means either a list or a vector."])
+(fset 'every #[(pred seq &rest moreseqs) "ÀÁ\n\"!ÅÇÅ	‰\n@¬¢Ì\n!¬œÍ\"‰	¬†ÇÅ\nA‰\n@ªZ.‡" [reassemble-argslists list* seq moreseqs args nil ready t result applyval remaining current endp apply pred] 5 "\
+Test PREDICATE on each element of SEQUENCE; is it always non-nil?
+Extra args are additional sequences; PREDICATE gets one arg from each
+sequence and we advance down all the sequences together in lock-step.
+A sequence means either a list or a vector."])
+(fset 'notany #[(pred seq &rest moreseqs) "ÀÁ\n\"!ÅÇÅ	‰\n@¬¢Ì\n!¬œÍ\"‰	«†ÇÅ\nA‰\n@ªZ.‡" [reassemble-argslists list* seq moreseqs args nil ready t result applyval remaining current endp apply pred] 5 "\
+Test PREDICATE on each element of SEQUENCE; is it always nil?
+Extra args are additional sequences; PREDICATE gets one arg from each
+sequence and we advance down all the sequences together in lock-step.
+A sequence means either a list or a vector."])
+(fset 'notevery #[(pred seq &rest moreseqs) "ÀÁ\n\"!ÅÅÅ‰	@\n¬¢Ë	!¬œÌ\n\"‰¬†ÎÎ	A‰	@\nªZ.‡" [reassemble-argslists list* seq moreseqs args nil ready result applyval remaining current endp apply pred t] 5 "\
+Test PREDICATE on each element of SEQUENCE; is it sometimes nil?
+Extra args are additional sequences; PREDICATE gets one arg from each
+sequence and we advance down all the sequences together in lock-step.
+A sequence means either a list or a vector."])
+(fset 'setelt #[(seq n newval) "G\nÃW¬…\n	Y«‡ÄÅ\n	#ª<«ˆÆ\n#ª’È!«‡\nIª†ÄÉÊ!\")‡" [seq l n 0 error "N(%d) should be between 0 and %d" setnth newval arrayp "SEQ should be a sequence, not `%s'" prin1-to-string] 4 "\
+In SEQUENCE, set the Nth element to NEWVAL.  Returns NEWVAL.
+A sequence means either a list or a vector."])
+(fset 'extract-from-klist #[(key klist &optional default) "À	\n\"A‰®)‡" [assoc key klist retrieved default] 4 "\
+EXTRACT-FROM-KLIST KEY KLIST [DEFAULT] => value of KEY or DEFAULT
+Extract value associated with KEY in KLIST (return DEFAULT if nil)."])
+(fset 'add-to-klist #[(key item klist) "À	\n#‰‡" [acons key item klist] 4 "\
+ADD-TO-KLIST KEY ITEM KLIST => new KLIST
+Add association (KEY . ITEM) to KLIST."])
+(fset 'elt-satisfies-test-p #[(item elt klist) "À	\n\"À\n\"À\nÅ#‰«Œ	\n!\"ª—«	\n!\"?ª†ËÌÍ\n!\"+‡" [extract-from-klist :test klist :test-not :key identity keyfn test-not test item elt error "Neither :test nor :test-not in `%s'" prin1-to-string] 7 "\
+ELT-SATISFIES-TEST-P ITEM ELT KLIST => t or nil
+KLIST encodes a keyword-arguments test, as in CH. 14 of CLtL.
+True if the given ITEM and ELT satisfy the test."])
+(fset 'elt-satisfies-if-p #[(item klist) "À	\n\"ÀÄ\"‰!\"*‡" [extract-from-klist :predicate klist :key identity keyfn predicate item elt] 5 "\
+ELT-SATISFIES-IF-P ITEM KLIST => t or nil
+True if an -if style function was called and ITEM satisfies the
+predicate under :predicate in KLIST."])
+(fset 'elt-satisfies-if-not-p #[(item klist) "À	\n\"ÀÄ\"‰!\"*?‡" [extract-from-klist :predicate klist :key identity keyfn predicate item elt] 5 "\
+ELT-SATISFIES-IF-NOT-P ITEM KLIST => t or nil
+KLIST encodes a keyword-arguments test, as in CH. 14 of CLtL.
+True if an -if-not style function was called and ITEM does not satisfy
+the predicate under :predicate in KLIST."])
+(fset 'elts-match-under-klist-p #[(e1 e2 klist) "À	\n\"À\n\"À\nÅ#‰«	!\n!\"ªš«	!\n!\"?ª†ËÌÍ\n!\"+‡" [extract-from-klist :test klist :test-not :key identity keyfn test-not test e1 e2 error "Neither :test nor :test-not in `%s'" prin1-to-string] 7 "\
+ELTS-MATCH-UNDER-KLIST-P E1 E2 KLIST => t or nil
+KLIST encodes a keyword-arguments test, as in CH. 14 of CLtL.
+True if elements E1 and E2 match under the tests encoded in KLIST."])
+(byte-code "ÀÁÂÃ#ˆÀÄÂÃ#ˆÀÅÂÆ#ˆÀÇÂÈ#ˆÀÉÂÈ#‡" [put multiple-value-bind lisp-indent-function 2 multiple-value-setq multiple-value-list nil multiple-value-call 1 multiple-value-prog1] 4)
+(defvar *mvalues-values* nil "\
+Most recently returned multiple-values")
+(defvar *mvalues-count* nil "\
+Count of multiple-values returned, or nil if the mechanism was not used")
+(fset 'values #[(&rest val-forms) "‰G	@‡" [val-forms *mvalues-values* *mvalues-count*] 2 "\
+Produce multiple values (zero or more).  Each arg is one value.
+See also `multiple-value-bind', which is one way to examine the
+multiple values produced by a form.  If the containing form or caller
+does not check specially to see multiple values, it will see only
+the first value."])
+(fset 'values-list #[(&optional val-forms) "<¬‡ÁÂÃ!\"ˆ‰G@‡" [val-forms error "Argument to values-list must be a list, not `%s'" prin1-to-string *mvalues-values* *mvalues-count*] 5 "\
+Produce multiple values (zero or mode).  Each element of LIST is one value.
+This is equivalent to (apply 'values LIST)."])
+(fset 'multiple-value-list '(macro . #[(form) "ÀÁÂÃEÄÅÆDCÇÅEÉÂÊËDÀÁÂÌEÁËÍÎÅDDEÊËDFFFE‡" [progn setq *mvalues-count* nil let it (gensym) set form if copy-sequence *mvalues-values* 1 list symbol-value] 15 "\
+Execute FORM and return a list of all the (multiple) values FORM produces.
+See `values' and `multiple-value-bind'."]))
+(fset 'multiple-value-call '(macro . #[(function &rest args) "À À ÃÄÅ!DÆ	ÇDCÈ\nÉ\nD	EË	Ì	ÍÅ\nDDEEEEE*‡" [gentemp result arg apply function eval let* nil dolist quote args setq append multiple-value-list] 13 "\
+Call FUNCTION on all the values produced by the remaining arguments.
+(multiple-value-call '+ (values 1 2) (values 3 4)) is 10."]))
+(fset 'multiple-value-bind '(macro . #[(vars form &rest body) "À Â	\"ÅÆ	ÇDDB	#*‡" [gentemp vals mv-bind-clausify vars clauses list* let* multiple-value-list form body] 5 "\
+Bind VARS to the (multiple) values produced by FORM, then do BODY.
+VARS is a list of variables; each is bound to one of FORM's values.
+If FORM doesn't make enough values, the extra variables are bound to nil.
+(Ordinary forms produce only one value; to produce more, use `values'.)
+Extra values are ignored.
+BODY (zero or more forms) is executed with the variables bound,
+then the bindings are unwound."]))
+(fset 'multiple-value-setq '(macro . #[(vars form) "À Â	\"Å	ÆDDCÈÉÊ\"BE*‡" [gentemp vals mv-bind-clausify vars clauses let* multiple-value-list form setq apply append] 6 "\
+Set VARS to the (multiple) values produced by FORM.
+VARS is a list of variables; each is set to one of FORM's values.
+If FORM doesn't make enough values, the extra variables are set to nil.
+(Ordinary forms produce only one value; to produce more, use `values'.)
+Extra values are ignored."]))
+(fset 'multiple-value-prog1 '(macro . #[(form &rest body) "À Â	ÃDDCÅÇ	DC\")BB‡" [gentemp heldvalues let* multiple-value-list form append body values-list] 6 "\
+Evaluate FORM, then BODY, then produce the same values FORM produced.
+Thus, (multiple-value-prog1 (values 1 2) (foobar)) produces values 1 and 2.
+This is like `prog1' except that `prog1' would produce only one value,
+which would be the first of FORM's values."]))
+(fset 'mv-bind-clausify #[(vars vals) "<«†ÁÂ\"«‡ÃÄÅ!\"ˆGÇ	ÊÊ	Y¬™8ÌEDBÎ\\‰ªb,‡" [vars notevery symbolp error "Expected a list of symbols, not `%s'" prin1-to-string nvars nil clauses T$$_2 0 n nth vals 1] 5 "\
+MV-BIND-CLAUSIFY VARS VALS => Auxiliary list
+Forms a list of pairs `(,(nth i vars) (nth i vals)) for i from 0 to
+the length of VARS (a list of symbols).  VALS is just a fresh symbol."])
+(fset 'plusp #[(number) "ÁV‡" [number 0] 2 "\
+True if NUMBER is strictly greater than zero."])
+(fset 'minusp #[(number) "ÁW‡" [number 0] 2 "\
+True if NUMBER is strictly less than zero."])
+(fset 'oddp #[(number) "Á¦ÂU?‡" [number 2 0] 2 "\
+True if INTEGER is not divisible by 2."])
+(fset 'evenp #[(number) "Á¦ÂU‡" [number 2 0] 2 "\
+True if INTEGER is divisible by 2."])
+(fset 'abs #[(number) "ÁW«ƒ[‡‡" [number 0] 2 "\
+Return the absolute value of NUMBER."])
+(fset 'signum #[(number) "ÁW«‚Â‡ÁV«‚Ã‡Á‡" [number 0 -1 1] 2 "\
+Return -1, 0 or 1 according to the sign of NUMBER."])
+(fset 'gcd #[(&rest integers) "G‰ÂU«„Â‚ 	ÃU«†Ä@!ªø	ÅV«ÆÇ‰@A@\"AAB\"ªã@A@_ÂU«„ÈÉ!ˆÄ@!\nÄA@!\n]\n^ÂÂĞÂ¬¦¥¦‰ÂU«‰Óª`ªV.)‡" [integers howmany 0 1 abs 2 apply gcd error "A zero argument is invalid for `gcd'" absa absb dd ds q r nil done result t] 6 "\
+Return the greatest common divisor of all the arguments.
+The arguments must be integers.  With no arguments, value is zero."])
+(fset 'lcm #[(integer &rest more) "G	@ÂA‰ÈU«†É!ª¨ÊV«ŒËÌ‰\"B\"ª–_‰ÈU«ƒÈª‰É!Í\"¥-‡" [more integer nil yetmore prod b a howmany 0 abs 1 apply lcm gcd] 6 "\
+Return the least common multiple of all the arguments.
+The arguments must be integers and there must be at least one of them."])
+(fset 'isqrt #[(number) "À	!«…ÂÃ	\"‡	ÄU«‚Ä‡ÅÄÈ		¬ 	¥\\Ê¥‰U®‡Å\\U	ª\\‰_	V«†ÅZª‚+‡" [minusp number error "Argument to `isqrt' (%d) must not be negative" 0 1 approx new nil done 2] 4 "\
+Return the integer square root of NUMBER.
+NUMBER must not be negative.  Result is largest integer less than or
+equal to the real square root of the argument."])
+(fset 'floor #[(number &optional divisor) "¬‰	§«…Â	Ã\"‡ÄÆ ‰È	\"Lˆ«†É\n!ªŒËJC\nÉ\n!)Í8A@@ÃU«†ÂÃ‰\"ª®Ñ!«ˆÂ\"ª ÃU«ˆÂ[Ã\"ª’Ë\\[Â	_Z\"),‡" [divisor number values 0 nil *mvalues-count* gensym it safe-idiv copy-sequence *mvalues-values* 1 T$$_3 2 s r q plusp] 6 "\
+Divide DIVIDEND by DIVISOR, rounding toward minus infinity.
+DIVISOR defaults to 1.  The remainder is produced as a second value."])
+(fset 'ceiling #[(number &optional divisor) "¬‰	§«…Â	Ã\"‡ÄÆ ‰È	\"Lˆ«†É\n!ªŒËJC\nÉ\n!)Í8A@@ÃU«†ÂÃ‰\"ª¨Ñ!«ˆÂ\"ªšÃU¬Ë\\	_ZÂ\",‡" [divisor number values 0 nil *mvalues-count* gensym it safe-idiv copy-sequence *mvalues-values* 1 T$$_4 2 s r q minusp] 5 "\
+Divide DIVIDEND by DIVISOR, rounding toward plus infinity.
+DIVISOR defaults to 1.  The remainder is produced as a second value."])
+(fset 'truncate #[(number &optional divisor) "¬‰	§«…Â	Ã\"‡ÄÆ ‰È	\"Lˆ«†É\n!ªŒËJC\nÉ\n!)Í8A@@ÃU«†ÂÃ‰\"ª§Ñ!«ˆÂ\"ª™ÃU¬[	_ZÂ\",‡" [divisor number values 0 nil *mvalues-count* gensym it safe-idiv copy-sequence *mvalues-values* 1 T$$_5 2 s r q plusp] 5 "\
+Divide DIVIDEND by DIVISOR, rounding toward zero.
+DIVISOR defaults to 1.  The remainder is produced as a second value."])
+(fset 'round #[(number &optional divisor) "¬‰	§«…Â	Ã\"‡ÄÆ ‰È	\"Lˆ«†É\n!ªŒËJC\nÉ\n!)Í8A@@Ñ!Ñ!ZV«ˆË\\ª“U«ŒÓ!«†Ë\\_	_ZÂ\"-‡" [divisor number values 0 nil *mvalues-count* gensym it safe-idiv copy-sequence *mvalues-values* 1 T$$_6 2 s r q abs other-r oddp] 5 "\
+Divide DIVIDEND by DIVISOR, rounding to nearest integer.
+DIVISOR defaults to 1.  The remainder is produced as a second value."])
+(fset 'mod #[(number divisor) "ÀÂ ‰Ä\"Lˆ	«†Ç!ª‹ÉJCÇ!)‰\nA@\n@+‡" [nil *mvalues-count* gensym it floor number divisor copy-sequence *mvalues-values* 1 T$$_7 r q] 5 "\
+Return remainder of X by Y (rounding quotient toward minus infinity).
+That is, the remainder goes with the quotient produced by `floor'."])
+(fset 'rem #[(number divisor) "ÀÂ ‰Ä\"Lˆ	«†Ç!ª‹ÉJCÇ!)‰\nA@\n@+‡" [nil *mvalues-count* gensym it truncate number divisor copy-sequence *mvalues-values* 1 T$$_8 r q] 5 "\
+Return remainder of X by Y (rounding quotient toward zero).
+That is, the remainder goes with the quotient produced by `truncate'."])
+(fset 'safe-idiv #[(a b) "§«„	§¬„ÂÃ!ˆ	ÄU«…ÂÅ\"ˆÆ!Æ	!¥	Ê!Ê	!_	_	_ZÍ	#-‡" [a b error "Arguments to `safe-idiv' must be numbers" 0 "Cannot divide %d by zero" abs absa absb q signum s r values] 4 "\
+SAFE-IDIV A B => Q R S
+Q=|A|/|B|, R is the rest, S is the sign of A/B."])
+(byte-code "ÀÁÀ‡" [:setf-update-fn :setf-update-doc] 1)
+(fset 'setf '(macro . #[(&rest pairs) "G‰Â¦ÃU¬†ÄÅ!‚	ÃU«„Æ‚	ÂV«¼Ç‰@	Ê!ÆÍ!¬Î	EBÏ!‰@	Ê!ª]Ÿ,B‚@	Ê!ÆÆ	9«‰Ò	E‚	<ƒ	@‰ƒ9ƒN‰ƒ:«‡@Ô=¬£9««Õ!«¥K×!®Š:­…@Ô=)«Ø	AC\"BªËÆÚ ‰ÜØ	AC\"!Lˆ«†İ!ªßJCİ!)‰ A@! @\"ã\"!BE+ª‡Ääå	!\",)‡" [pairs nforms 2 0 error "Odd number of arguments to `setf'" nil progn args place cadr value result endp setf cddr head updatefn setq :setf-update-fn lambda fboundp defn subrp append *mvalues-count* gensym it pair-with-newsyms copy-sequence *mvalues-values* 1 T$$_9 newsyms bindings let "No `setf' update-function for `%s'" prin1-to-string] 6 "\
+Generalized `setq' that can set things other than variable values.
+A use of `setf' looks like (setf {PLACE VALUE}...).
+The behavior of (setf PLACE VALUE) is to access the generalized variable
+at PLACE and store VALUE there.  It returns VALUE.  If there is more
+than one PLACE and VALUE, each PLACE is set from its VALUE before
+the next PLACE is evaluated."]))
+(fset 'defsetf '(macro . #[(accessfn updatefn &optional docstring) "9¬‡ÁÂÃ!\"ˆÄÅÆDÇÆDFÅÆDÉ\nFE‡" [accessfn error "First argument of `defsetf' must be a symbol, not `%s'" prin1-to-string progn put quote ':setf-update-fn updatefn ':setf-update-doc docstring] 6 "\
+Define how `setf' works on a certain kind of generalized variable.
+A use of `defsetf' looks like (defsetf ACCESSFN UPDATEFN [DOCSTRING]).
+ACCESSFN is a symbol.  UPDATEFN is a function or macro which takes
+one more argument than ACCESSFN does.  DEFSETF defines the translation
+of (SETF (ACCESFN . ARGS) NEWVAL) to be a form like (UPDATEFN ARGS... NEWVAL).
+The function UPDATEFN must return its last arg, after performing the
+updating called for."]))
+(byte-code "ÀÁÂÃ#ˆÀÁÄÅ#ˆÀÆÂÇ#ˆÀÆÄÈ#ˆÀÉÂÊ#ˆÀÉÄË#ˆÀÌÂÍ#ˆÀÌÄÎ#ˆÀÏÂĞ#ˆÀÏÄÑ#ˆÀÒÂÓ#ˆÀÒÄÔ#ˆÀÕÂÖ#ˆÀÕÄ×#ˆÀØÂÙ#ˆÀØÄÚ#ˆÀÛÂÜ#ˆÀÛÄİ#ˆÀŞÂß#ˆÀŞÄà#ˆÀáÂâ#ˆÀáÄã#ˆÀäÂå#ˆÀäÄæ#ˆÀçÂè#ˆÀçÄé#ˆÀêÂë#ˆÀêÄì#ˆÀíÂî#ˆÀíÄï#ˆÀğÂñ#ˆÀğÄò#ˆÀóÂô#ˆÀóÄõ#ˆÀöÂ÷#ˆÀöÄø#ˆÀùÂú#ˆÀùÄû#ˆÀüÂı#ˆÀüÄş#ˆÀÿÂ@ #ˆÀÿÄA #ˆÀB ÂC #ˆÀB ÄD #ˆÀE ÂF #ˆÀE ÄG #ˆÀH ÂI #ˆÀH ÄJ #ˆÀK ÂL #ˆÀK ÄM #ˆÀN ÂO #ˆÀN ÄP #ˆÀQ ÂR #ˆÀQ ÄS #ˆÀT ÂU #ˆÀT ÄV #ˆÀW ÂX #ˆÀW ÄY #ˆÀZ Â[ #ˆÀZ Ä\\ #ˆÀ] Â^ #ˆÀ] Ä_ #ˆÀ` Âa #ˆÀ` Äb #ˆÀc Âd #ˆÀc Äe #ˆÀf Âg #ˆÀf Äh #ˆÀi Âj #ˆÀi Äk #ˆÀl Âm #ˆÀl Än #ˆÀo Âp #ˆÀo Äq #ˆÀr Âs #ˆÀr Ät #ˆÀu Âv #ˆÀu Äw #ˆÀx Ây #ˆÀx Äz #ˆÀ{ Â| #ˆÀ{ Ä} #ˆÀ~ Â #ˆÀ~ Ä€ #ˆÀ Â‚ #ˆÀ Äƒ #ˆÀ„ Â… #ˆÀ„ Ä† #ˆÀ‡ Âˆ #ˆÀ‡ Ä‰ #ˆÀŠ Â‹ #ˆÀŠ ÄŒ #ˆÀ ÂÀ#ˆÀ Ä #ˆÀ Â #ˆÀ Ä‘ #ˆÀ’ Â“ #ˆÀ’ Ä” #ˆÀ• Â– #ˆÀ• Ä— #‡" [put apply :setf-update-fn (lambda (&rest args) (let* ((fnform (car args)) (applyargs (append (apply 'list* (butlast (cdr args))) (last args))) (newupdater nil)) (cond ((and (symbolp fnform) (setq newupdater (get fnform :setf-update-fn))) (apply newupdater applyargs)) (t (error "Can't `setf' to `%s'" (prin1-to-string fnform)))))) :setf-update-doc "`apply' is a special case for `setf'" aref aset "`setf' inversion for `aref'" nth setnth "`setf' inversion for `nth'" nthcdr setnthcdr "`setf' inversion for `nthcdr'" elt setelt "`setf' inversion for `elt'" first (lambda (list val) (setnth 0 list val)) "`setf' inversion for `first'" second (lambda (list val) (setnth 1 list val)) "`setf' inversion for `second'" third (lambda (list val) (setnth 2 list val)) "`setf' inversion for `third'" fourth (lambda (list val) (setnth 3 list val)) "`setf' inversion for `fourth'" fifth (lambda (list val) (setnth 4 list val)) "`setf' inversion for `fifth'" sixth (lambda (list val) (setnth 5 list val)) "`setf' inversion for `sixth'" seventh (lambda (list val) (setnth 6 list val)) "`setf' inversion for `seventh'" eighth (lambda (list val) (setnth 7 list val)) "`setf' inversion for `eighth'" ninth (lambda (list val) (setnth 8 list val)) "`setf' inversion for `ninth'" tenth (lambda (list val) (setnth 9 list val)) "`setf' inversion for `tenth'" rest (lambda (list val) (setcdr list val)) "`setf' inversion for `rest'" car setcar "Replace the car of a cons" cdr setcdr "Replace the cdr of a cons" caar (lambda (list val) (setcar (nth 0 list) val)) "`setf' inversion for `caar'" cadr (lambda (list val) (setcar (cdr list) val)) "`setf' inversion for `cadr'" cdar (lambda (list val) (setcdr (car list) val)) "`setf' inversion for `cdar'" cddr (lambda (list val) (setcdr (cdr list) val)) "`setf' inversion for `cddr'" caaar (lambda (list val) (setcar (caar list) val)) "`setf' inversion for `caaar'" caadr (lambda (list val) (setcar (cadr list) val)) "`setf' inversion for `caadr'" cadar (lambda (list val) (setcar (cdar list) val)) "`setf' inversion for `cadar'" cdaar (lambda (list val) (setcdr (caar list) val)) "`setf' inversion for `cdaar'" caddr (lambda (list val) (setcar (cddr list) val)) "`setf' inversion for `caddr'" cdadr (lambda (list val) (setcdr (cadr list) val)) "`setf' inversion for `cdadr'" cddar (lambda (list val) (setcdr (cdar list) val)) "`setf' inversion for `cddar'" cdddr (lambda (list val) (setcdr (cddr list) val)) "`setf' inversion for `cdddr'" caaaar (lambda (list val) (setcar (caaar list) val)) "`setf' inversion for `caaaar'" caaadr (lambda (list val) (setcar (caadr list) val)) "`setf' inversion for `caaadr'" caadar (lambda (list val) (setcar (cadar list) val)) "`setf' inversion for `caadar'" cadaar (lambda (list val) (setcar (cdaar list) val)) "`setf' inversion for `cadaar'" cdaaar (lambda (list val) (setcdr (caar list) val)) "`setf' inversion for `cdaaar'" caaddr (lambda (list val) (setcar (caddr list) val)) "`setf' inversion for `caaddr'" cadadr (lambda (list val) (setcar (cdadr list) val)) "`setf' inversion for `cadadr'" cdaadr (lambda (list val) (setcdr (caadr list) val)) "`setf' inversion for `cdaadr'" caddar (lambda (list val) (setcar (cddar list) val)) "`setf' inversion for `caddar'" cdadar (lambda (list val) (setcdr (cadar list) val)) "`setf' inversion for `cdadar'" cddaar (lambda (list val) (setcdr (cdaar list) val)) "`setf' inversion for `cddaar'" cadddr (lambda (list val) (setcar (cdddr list) val)) "`setf' inversion for `cadddr'" cddadr (lambda (list val) (setcdr (cdadr list) val)) "`setf' inversion for `cddadr'" cdaddr (lambda (list val) (setcdr (caddr list) val)) "`setf' inversion for `cdaddr'" cdddar (lambda (list val) (setcdr (cddar list) val)) "`setf' inversion for `cdddar'" cddddr (lambda (list val) (setcdr (cddr list) val)) "`setf' inversion for `cddddr'" get "`setf' inversion for `get' is `put'" symbol-function fset "`setf' inversion for `symbol-function' is `fset'" symbol-plist setplist "`setf' inversion for `symbol-plist' is `setplist'" symbol-value set "`setf' inversion for `symbol-value' is `set'"] 4)
+(fset 'incf '(macro . #[(ref &optional delta) "¬‚ÁÂÄEE‡" [delta 1 setf ref +] 5 "\
+(incf REF [DELTA]) -> increment the g.v. REF by DELTA (default 1)"]))
+(fset 'decf '(macro . #[(ref &optional delta) "¬‚ÁÂÄEE‡" [delta 1 setf ref -] 5 "\
+(decf REF [DELTA]) -> decrement the g.v. REF by DELTA (default 1)"]))
+(fset 'push '(macro . #[(item ref) "À	Â	EE‡" [setf ref cons item] 5 "\
+(push ITEM REF) -> cons ITEM at the head of the g.v. REF (a list)"]))
+(fset 'pushnew '(macro . #[(item ref) "À	Â	EE‡" [setf ref adjoin item] 5 "\
+(pushnew ITEM REF): adjoin ITEM at the head of the g.v. REF (a list)"]))
+(fset 'pop '(macro . #[(ref) "À Â	DCÄÅ	DÆÇ	DEEE)‡" [gensym listname let ref prog1 car setf cdr] 8 "\
+(pop REF) -> (prog1 (car REF) (setf REF (cdr REF)))"]))
+(fset 'psetf '(macro . #[(&rest pairs) "À	G!¬„ÂÃ!ˆÄÆ ‰È	!Lˆ«†É\n!ªŒËJC\nÉ\n!)‰A@@ÄÆ ‰Ï!Lˆ«†É\n!ªŒËJC\nÉ\n!)‰A@@ÓÔÕ\"BÄF.‡" [evenp pairs error "Odd number of arguments to `psetf'" nil *mvalues-count* gensym it unzip-list copy-sequence *mvalues-values* 1 T$$_10 forms places pair-with-newsyms T$$_11 newsyms bindings let setf zip-lists] 7 "\
+(psetf {PLACE VALUE}...): Set several generalized variables in parallel.
+All the VALUEs are computed, and then all the PLACEs are stored as in `setf'.
+See also `psetq', `shiftf' and `rotatef'."]))
+(fset 'shiftf '(macro . #[(&rest forms) "GÁV¬„ÂÃ!ˆÄ!Å!@È	Ê ‰Ì!Lˆ	«†Í!ªÁ	JCÍ!)‰A@@ÒÓÔÕAC\"\"B@F-‡" [forms 1 error "`shiftf' needs more than one argument" butlast last newvalue places nil *mvalues-count* gensym it pair-with-newsyms copy-sequence *mvalues-values* T$$_12 newsyms bindings let setf zip-lists append] 9 "\
+(shiftf PLACE1 PLACE2... NEWVALUE): set PLACE1 to PLACE2, PLACE2 to PLACE3...
+Each PLACE is set to the old value of the following PLACE,
+and the last PLACE is set to the value NEWVALUE."]))
+(fset 'rotatef '(macro . #[(&rest places) "¬‚Á‡ÁÃ ‰Å!Lˆ\n«†Æ!ª‹ÈJCÆ!)‰	A@\n	@ÌÍÎÏ\nA\n@C\"\"BÁF+‡" [places nil *mvalues-count* gensym it pair-with-newsyms copy-sequence *mvalues-values* 1 T$$_13 newsyms bindings let setf zip-lists append] 9 "\
+(rotatef PLACE...) sets each PLACE to the old value of the following PLACE.
+The last PLACE is set to the old value of the first PLACE.
+Thus, the values rotate through the PLACEs."]))
+(byte-code "ÀÁÂÃÄÅÆÇÈÉ	Ê\nËÌÀ‡" [:include :named :conc-name :copier :predicate :print-function :type :initial-offset :structure-doc :structure-slotsn :structure-slots :structure-indices :structure-initforms] 1)
+(fset 'defstruct '(macro . #[(&rest args) "ÀÂ ‰Ä!Lˆ	«†Æ!ª‹ÈJCÆ!)	Ê	8Ì	8Î	8Ğ	8	A@	@ÀÂ ‰Ô#Lˆ	«†Æ!ª‹ÈJCÆ!)Ö8Ê8Ì8Î8Ğ8A@@§«ŞV«—\\ß\"ß\"ŞV¬ˆàáâ!\"ˆã!‰$«ˆàåâ$!\"ˆ)æ\"À‰‰‰‰‰'()*+,íîD/FíîD0FíîD1îDFíîD2îDFíîD3îô!DF¯,õîDö÷øÅDùîDÅEEDEõîDö÷úCûúDEDEõîDö÷üCışüDÿ@ üŞEîDEA B üDTEFEDEE+ÀÂ ‰C %Lˆ	«†Æ!ª‹ÈJCÆ!)DĞD8*DA@(D@))E F G B\"BC'H ,+¤*¤)¤(¤'¤.B‡" [nil *mvalues-count* gensym it parse$defstruct$args args copy-sequence *mvalues-values* 1 T$$_14 5 initlist 4 slots 3 slotsn 2 docstring options name parse$defstruct$options T$$_15 6 moreinits moreslots moreslotsn predicate copier constructor conc-name 0 append error "%s needs at least one slot" prin1-to-string duplicate-symbols-p dups "`%s' are duplicates" simplify$inits returned alterators accessors keywords functions properties put quote :structure-doc :structure-slotsn :structure-slots :structure-initforms :structure-indices extract$indices fset function lambda &rest make$structure$instance struct copy-vector thing and vectorp eq elt = length build$accessors$for T$$_16 vector mapcar #[(x) "À	D‡" [quote x] 2] progn] 14 "\
+(defstruct NAME [DOC-STRING] . SLOTS)  define NAME as structure type.
+NAME must be a symbol, the name of the new structure.  It could also
+be a list (NAME . OPTIONS), but not all options are supported currently.
+As of Dec. 1986, this is supporting :conc-name, :copier and :predicate
+completely, :include arguably completely and :constructor only to
+change the name of the default constructor.  No BOA constructors allowed.
+The DOC-STRING is established as the 'structure-doc' property of NAME.
+The SLOTS are one or more of the following:
+SYMBOL -- meaning the SYMBOL is the name of a SLOT of NAME
+list of SYMBOL and VALUE -- meaning that VALUE is the initial value of
+the slot.
+`defstruct' defines functions `make-NAME', `NAME-p', `copy-NAME' for the
+structure, and functions with the same name as the slots to access
+them.  `setf' of the accessors sets their values."]))
+(fset 'parse$defstruct$args #[(args) "À‰ÁÀÂÀ‰	\n@9«Š\n@	ÀªŸ\n@<«•Ë\n!9«Ë\n!	Ì\n!ª„ÍÎ!ˆ\nA‰@;«Š@AÀĞ ‰Ò!Lˆ«†Ó!ªÕJCÓ!)×8A@@Ø	&.‡" [nil "" 0 initlist slots slotsn slotargs docstring options name args caar cdar error "First arg to `defstruct' must be symbol or (symbol ...)" *mvalues-count* gensym it process$slots copy-sequence *mvalues-values* 1 T$$_17 2 values] 8 "\
+PARSE$DEFSTRUCT$ARGS ARGS => NAME OPTIONS DOCSTRING SLOTSN SLOTS INITLIST
+NAME=symbol, OPTIONS=list of, DOCSTRING=string, SLOTSN=count of slots,
+SLOTS=list of their names, INITLIST=alist (keyword . initform)."])
+(fset 'process$slots #[(slots) "GÁ‰‰@Ç!¬Í9«BÈÉ!Á\n#ª¯<«¢@9«œ@Ê!‰BÈÉ!\n#*ªˆÍÎÏ!\"ˆA‰@ª.*ĞŸ\nŸ#+‡" [slots nil initlist slotslist slotsn ptr this endp acons keyword-of cadr form name error "Slot should be symbol or (symbol ...), not `%s'" prin1-to-string values] 5 "\
+PROCESS$SLOTS SLOTS => SLOTSN SLOTSLIST INITLIST
+Converts a list of symbols or lists of symbol and form into the last 3
+values returned by PARSE$DEFSTRUCT$ARGS."])
+(fset 'parse$defstruct$options #[(name options slots) "À	!‰ÃPÅÆ\nP!ÅÈ\nP!	Å\nÊP!ÌÎÎÎÎÎÎÎÎ×Ø\"ˆÚ	&.‡" [symbol-name name namestring "-" conc-name intern "make-" const "copy-" copier "-p" pred 0 moreslotsn nil moreslots moreinits option-head option-second option-rest these-slotsn these-slots these-inits mapcar #[(option) "À	!«	‰Ã=®†ÄÅÆ	!\")‡	<ƒbÀ	@‰!ƒbÈ	!		AA\n‰Ì=«	;«„	ª	¬ƒÍª‡ÄÎÆ	!\"‰‚`Ğ=«™	9«ˆ\n¬„	ª†ÄÅÆ	!\"‰‚`Ò=«™	9«ˆ\n¬„	ª†ÄÅÆ	!\"‰‚`Ô=«™	9«ˆ\n¬„	ª†ÄÅÆ	!\"‰‚`Ö=ƒS	9¬ˆÄ×Æ	!\"ˆ	N	N	N§«†ŞV¬ˆÄßÆ	!\"ˆà!â ‰#ä\n!Lˆ!«†å&!ªç!#JC&å&!)(é(8*(A@+(@‰,ŞV«íî+\"ˆï*\"0\\0ï1\"1ï2\"‰2,ªóô\"®†ÄÅÆ	!\")‡ÄÅÆ	!\"‡" [keywordp option T$$_18 :named error "Can't recognize option `%s'" prin1-to-string option-head second option-second option-rest T$$_19 :conc-name "" "`%s' is invalid as `conc-name'" conc-name :copier copier :constructor const :predicate pred :include "Arg to `:include' should be a symbol, not `%s'" :structure-slotsn these-slotsn :structure-slots these-slots :structure-initforms these-inits 0 "`%s' is not a valid structure" nil *mvalues-count* gensym it process$slots copy-sequence *mvalues-values* 1 T$$_20 2 xtra-inits xtra-slots xtra-slotsn mapcar #[(xslot) "	>?­‰ÂÃÄ!Ä!#‡" [xslot these-slots error "`%s' is not a slot of `%s'" prin1-to-string option-second] 5] append moreslotsn moreslots moreinits cl-member (:print-function :type :initial-offset)] 5] options values] 9 "\
+PARSE$DEFSTRUCT$OPTIONS NAME OPTIONS SLOTS => CONC-NAME CONST COPIER PRED
+Returns at least those 4 values (a string and 3 symbols, to name the necessary
+functions),  might return also things discovered by actually
+inspecting the options, namely MORESLOTSN MORESLOTS MOREINITS, as can
+be created by :include, and perhaps a list of BOACONSTRUCTORS."])
+(fset 'simplify$inits #[(slots initlist) "À‰ÃÄ\"ˆ\nŸ*‡" [nil key result mapcar #[(slot) "À	!Ã\nÄ\n\"A#‰‡" [keyword-of slot key acons assoc initlist result] 5] slots] 3 "\
+SIMPLIFY$INITS SLOTS INITLIST => new INITLIST
+Removes from INITLIST - an ALIST - any shadowed bindings."])
+(fset 'extract$indices #[(initlist) "ÀÁÄÅ\"ˆÀŸ+‡" [nil 0 index result mapcar #[(entry) "À	@\n#\nÄ\\‰‡" [acons entry index result 1] 4] initlist entry] 3 "\
+EXTRACT$INDICES INITLIST => indices list
+Kludge.  From a list of pairs (keyword . form) build a list of pairs
+of the form (keyword . position in list from 0).  Useful to precompute
+some of the work of MAKE$STRUCTURE$INSTANCE."])
+(fset 'build$accessors$for #[(name conc-name predicate slots slotsn) "ÀÁ‰‰ÂY¬öÉ\nË8!P!ÍÎDÏĞÑCÒÑDÔÑTEDÕÖ×ØÑDØÎDDFDEEDEBÚĞÑÛDÒÑDÜÑTÛFDÕÖİØÑDØÎDDFDEEEBŞß8!DBT‰ )ªáŸŸŸ#-‡" [0 nil "" canonic keywords alterators accessors i slotsn intern conc-name symbol-name slots fset quote function lambda object cond predicate aref t error "`%s' not a %s." prin1-to-string name defsetf newval aset "`%s' not a `%s'" defkeyword keyword-of G$$_6 values] 15 "\
+BUILD$ACCESSORS$FOR NAME PREDICATE SLOTS SLOTSN  => FSETS DEFSETFS KWDS
+Generate the code for accesors and defsetfs of a structure called
+NAME, whose slots are SLOTS.  Also, establishes the keywords for the
+slots names."])
+(fset 'make$structure$instance #[(name args) "9¬‡ÁÂÃ!\"ˆNNNÇ‰	\n§«†ÍV¬‡ÁÎÃ!\"ˆÏG!¬ˆÁÑÃ!\"ˆÇÓ ‰Õ!Lˆ«†Ö!ªØJCÖ!)‰A@@Üİ\"¬ˆÁŞÃ!\"ˆßà\"ˆá‰\"@#Ç$å\"!¬”æ#D$B$\"A‰\"@#ªf$Ÿ+Ö!#	\n\"ç\"!(Ç$å\"!¬›éê(	\"A!$B$\"A\"ç\"!(ª_$Ÿ+ëìB\".‡" [name error "`%s' is not a possible name for a structure" prin1-to-string :structure-initforms :structure-slotsn :structure-indices nil initializers initalist indices slotsn initforms 0 "`%s' is not a defined structure" evenp args "Slot initializers `%s' not of even length" *mvalues-count* gensym it unzip-list copy-sequence *mvalues-values* 1 T$$_21 specvals speckwds every keywordp "All of the names in `%s' should be keywords" mapcar #[(kwd) "À	\n\"A§?­ŠÃÄÅ	!Å!#‡" [assoc kwd indices error "`%s' is not a valid slot name for %s" prin1-to-string name] 5] pairlis ptr val result endp quote caar key eval assoc apply vector] 6 "\
+MAKE$STRUCTURE$INSTANCE NAME ARGS => new struct NAME
+A struct of type NAME is created, some slots might be initialized
+according to ARGS (the &rest argument of MAKE-name)."])

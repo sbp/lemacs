@@ -1,0 +1,42 @@
+;;; compiled by jwz@thalidomide on Wed Sep  4 17:57:36 1991
+;;; from file /wg1/emacs-base/lisp/ehelp.el
+;;; emacs version 19.74.
+;;; bytecomp version 2.01 beta; 27-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÃ!‡" [require electric provide ehelp] 2)
+(defvar electric-help-map nil "\
+Keymap defining commands available whilst scrolling
+through a buffer in electric-help-mode")
+(byte-code "ÀÁÂÃ#ˆ¬úÅ ÇÇÉW«“ÊËÌ\"Á#ˆT‰ªi)ÊÍ!Ï!#ˆÊÍ!Ñ#ˆÊÒÑ#ˆÊÓÔ#ˆÊÕÖ#ˆÊ×Ø#ˆÊÙØ#ˆÊÚÛ#ˆÊÜİ#ˆÊŞİ#ˆÊßà#ˆ)À‡" [put electric-help-undefined suppress-keymap t electric-help-map make-keymap map 0 i 128 define-key make-string 1 char-to-string meta-prefix-char copy-keymap help-char electric-help-help "?" " " scroll-up "" scroll-down "." beginning-of-buffer "<" ">" end-of-buffer "q" electric-help-exit "Q" "r" electric-help-retain] 6)
+(fset 'electric-help-mode #[nil "ÀÂÄÆÈ	!‡" [t buffer-read-only "Help" mode-name help major-mode (" Help:  %b") mode-line-buffer-identification use-local-map electric-help-map] 2 "\
+with-electric-help temporarily places its buffer in this mode
+(On exit from with-electric-help, the buffer is put in default-major-mode)"])
+(fset 'with-electric-help #[(thunk &optional buffer noerase) "À	®Â!ÃÄ!ÅÈ‹ˆ«ºÄÅ	\nË	!ˆÌÍ !ÎœZ‰	ÎV«…Ï	!ˆĞÍ ÑœÄ#ˆÒÍ Óœ\"ˆÔœb*ª‡Õ	!ˆÖ	!*‡" [get-buffer-create buffer "*Help*" one-window-p t nil two one ((byte-code "Š«†ÁÂ !bˆÃÅ!ˆ)ÇŠqˆÈ ˆÉ\n¬ƒÌ ˆ) ¬“qˆÏÉ!ˆebˆ«…ĞÂ !ˆ)qˆÑÒ!ˆÓ ‰¢Õ=«“Ö×Â !ÁÂ !ØÂ !`$ªƒÉ*É‡" [one window-start selected-window t pop-up-windows pop-to-buffer buffer ((byte-code "ÀÁ!ˆ\nqˆÃÃÅÆ‡" [message "" buffer nil buffer-read-only (byte-code "®Á ‡" [default-major-mode fundamental-mode] 1) ((error))] 3)) electric-help-mode nil buffer-read-only noerase erase-buffer standard-output thunk set-buffer-modified-p shrink-window-if-larger-than-buffer run-hooks electric-help-mode-hook electric-help-command-loop two retain vector window-height window-hscroll] 6)) tem pop-up-windows pop-to-buffer window-height selected-window 0 shrink-window set-window-start 1 set-window-hscroll 2 3 replace-buffer-in-windows bury-buffer] 5 "\
+Arguments are THUNK &optional BUFFER NOERASE.
+BUFFER defaults to \"*Help*\"
+THUNK is a function of no arguments which is called to initialise
+ the contents of BUFFER.  BUFFER will be erased before THUNK is called unless
+ NOERASE is non-nil.  THUNK will be called with  standard-output  bound to
+ the buffer specified by BUFFER
+
+After THUNK has been called, this function \"electrically\" pops up a window
+in which BUFFER is displayed and allows the user to scroll through that buffer
+in electric-help-mode.
+When the user exits (with electric-help-exit, or otherwise) the help
+buffer's window disappears (ie we use save-window-excursion)
+BUFFER is put into default-major-mode (or fundamental-mode) when we exit"])
+(fset 'electric-help-command-loop #[nil "ÀÁ‡" [exit (byte-code "Àd!«™ÁÂ!ˆÃÄÅ !‰!Ç=«ˆÈÉÊË\"ˆÈ‰‰‰ÌÍ!Î=­“ÌÏ!Ğ=­ŒÌÑ!Ò=­…ÌÓ!Ò=ÙÊÚË#-‡" [pos-visible-in-window-p message "<<< Press Space to bury the help buffer >>>" event-to-character next-command-event allocate-event unread-command-event 32 nil throw exit t key-binding " " scroll-up "" scroll-down "Q" electric-help-exit "q" standard neither both down up Electric-command-loop #[nil "Àe!Àd!‰«“	««ƒÄªÄ®ÁÆÇ!‰ªº\n«’«ƒÈª±	®­ÆÊ!‰	ª¥	«’«ƒËªœ®˜ÆÍ!‰ª«ƒÎªŠ®†ÆĞ!‰*‡" [pos-visible-in-window-p max min standard "Press Q to exit " neither substitute-command-keys "Press \\[scroll-up] to exit " "Press SPC to scroll, Q to exit " up "Press \\[scroll-up] to scroll; \\[electric-help-exit] to exit " "Press DEL to scroll back, Q to exit " down "Press \\[scroll-down] to scroll back, \\[scroll-up] to exit " "Press SPC to scroll, DEL to scroll back, Q to exit " both "Press \\[scroll-up] to scroll, \\[scroll-down] to scroll back, \\[electric-help-exit] to exit "] 4]] 6)] 2])
+(fset 'electric-help-exit #[nil "ÀÁÂ\"‡" [throw exit t] 3 "\
+>>>Doc" nil])
+(fset 'electric-help-retain #[nil "ÀÁÂ\"‡" [throw exit (retain)] 3 "\
+Exit electric-help, retaining the current window/buffer conifiguration.
+(The *Help* buffer will not be selected, but \\[switch-to-buffer-other-window] RET
+will select it.)" nil])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕMˆÖ×!¬ƒØ¬ÁÙ!ÜİÆ#ˆÜŞÈ#ˆÜßÊ#ˆÜàÌ#ˆÜáÎ#ˆÜâĞ#ˆÜãÒ#ˆäMˆ)Ø‡" [electric-help-undefined #[nil "ÀÁÂÃÄ Å#ÆÇ!È=«ƒÇªƒÉÊ!#‡" [error "%s is undefined -- Press %s to exit" mapconcat single-key-description this-command-keys " " key-binding "Q" electric-help-exit substitute-command-keys "\\[electric-help-exit]"] 6 nil nil] electric-help-help #[nil "ÀÁ!Â=«”ÀÃ!Ä=«ÀÅ!Æ=«†ÇÈ!ˆª‹ÇÉ!ˆÇÊËÌ!\"ˆÍÎ!‡" [key-binding "Q" electric-help-exit " " scroll-up "" scroll-down message "SPC scrolls forward, DEL scrolls back, Q exits and burys help buffer" "Help..." "%s" substitute-command-keys "\\[scroll-up] scrolls forward, \\[scroll-down] scrolls back, \\[electric-help-exit] exits." sit-for 2] 4 nil nil] electric-helpify #[(fun) "ÀÂ‹­…ÃÄ	Å#)‡" ["*Help*" name ((byte-code "ÀKÂ!Å!«‡Ç!¬‚ÈÉÊËÌÍ!!\"ˆ«‰ŠqˆÏĞ!ˆ)ÀÑMˆÒ!ˆÂ!­—ÇÂ!!­?®ŒÂ!=?®„Å!?,‡" [print-help-return-message p get-buffer name b buffer-modified-p m get-buffer-window nil ((byte-code "À	Mˆ\n«Ã\n!«‰Š\nqˆÄ!ˆ)À‡" [print-help-return-message p b buffer-name set-buffer-modified-p m] 2)) message "%s..." capitalize symbol-name fun set-buffer-modified-p t ignore call-interactively] 5)) with-electric-help ignore t] 4] electric-describe-key #[nil "ÀÁ!‡" [electric-helpify describe-key] 2 nil nil] electric-describe-mode #[nil "ÀÁ!‡" [electric-helpify describe-mode] 2 nil nil] electric-view-lossage #[nil "ÀÁ!‡" [electric-helpify view-lossage] 2 nil nil] electric-describe-function #[nil "ÀÁ!‡" [electric-helpify describe-function] 2 nil nil] electric-describe-variable #[nil "ÀÁ!‡" [electric-helpify describe-variable] 2 nil nil] electric-describe-bindings #[nil "ÀÁ!‡" [electric-helpify describe-bindings] 2 nil nil] electric-describe-syntax #[nil "ÀÁ!‡" [electric-helpify describe-syntax] 2 nil nil] electric-command-apropos #[nil "ÀÁ!‡" [electric-helpify command-apropos] 2 nil nil] boundp ehelp-map nil copy-keymap help-map map substitute-key-definition describe-key describe-mode view-lossage describe-function describe-variable describe-bindings describe-syntax ehelp-command] 4)

@@ -1,0 +1,41 @@
+;;; compiled by jwz@thalidomide on Tue Jul 30 20:21:18 1991
+;;; from file /u/jwz/emacs19/lisp/sup-mouse.el
+;;; emacs version 19.56.
+;;; bytecomp version 2.0 beta; 28-jul-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar sup-mouse-fast-select-window nil "\
+*Non-nil for mouse hits to select new window, then execute; else just select.")
+(byte-code "ÀÂÄÆÈ	ÊÌÎĞÀ‡" [0 mouse-left 1 mouse-center 2 mouse-right 4 mouse-2left 5 mouse-2center 6 mouse-2right 8 mouse-3left 9 mouse-3center 10 mouse-3right] 1)
+(fset 'sup-mouse-report #[nil "ÀÁ!ÀÁ!ÀÄ!Æ\"È!	Ê Ì S=‰?­…=Ï	8S=Ñ	8SY	@Z	A@Z«¹Ó!ˆ\nU«…Õ ˆª¢\nU«…× ˆª—\nU«‘deZ_Ù S¥bˆÚyˆÛ ˆÓ!‚Ä«ºÓ!ˆÕ\nU«ƒª¢\nU«ˆÑÜ Z\\ª”\nU«‰Ü [Ñ\\\\\\Ñ¥ªÚ!ˆÓ!‚Äƒg\nU«‡İ\"‚Ä\nU«‹İ\"ˆßà!‚Ä\n!U«–İ\"ˆŠâ`àvˆ`\"ˆ)ã‰$‚Ä\nU«å ˆİ\"ˆæ ‚Ä\n'U«å ˆİ\"ˆèé `\"‚Ä\n*U«”å ˆİ\"ˆâé `\"ˆã‰$ªú\nU«Œİ\"ˆã$ã ªè\n+U­âìà!ªİ«¡\nU«…íî!ªÎ\nU«…íï!ªÃ\nU­½ğñ!ª¸Ó!ˆ2?®®\nU«†İ\"ª¢\nU«Œå ˆİ\"ˆæ ª\nU­Šİ\"ˆã$ã .\n‡" [sup-get-tty-num 59 buttons x 99 y sup-pos-to-window window window-edges edges selected-window old-window screen-height in-minibuf-p same-window-p 3 in-modeline-p 2 in-scrollbar-p select-window mouse-left scroll-up mouse-right scroll-down mouse-center window-width 0 what-cursor-position window-height sup-move-point-to-x-y mouse-2left kill-word 1 mouse-3left copy-region-as-kill yank this-command push-mark exchange-point-and-mark mouse-2right kill-region mark mouse-3right mouse-2center yank-pop call-interactively eval-expression execute-extended-command describe-function sup-mouse-report sup-mouse-fast-select-window] 6 "\
+This function is called directly by the mouse, it parses and
+executes the mouse commands.
+
+ L move point          *  |---- These apply for mouse click in a window.
+2L delete word            |
+3L copy word		  | If sup-mouse-fast-select-window is nil,
+ C move point and yank *  | just selects that window.
+2C yank pop		  |
+ R set mark            *  |
+2R delete region	  |
+3R copy region		  |
+
+on modeline		    on \"scroll bar\"	in minibuffer
+ L scroll-up		    line to top		execute-extended-command
+ C proportional goto-char   line to middle	mouse-help
+ R scroll-down		    line to bottom	eval-expression" nil])
+(fset 'sup-get-tty-num #[(term-char) "ÀÁ \nÄY«“\nÅX«Æ_\nÄZ\\Á ‰ªi\n=¬„ÈÉ!ˆ*‡" [0 read-char char num 48 57 10 term-char error "Invalid data format in mouse command"] 4 "\
+Read from terminal until TERM-CHAR is read, and return intervening number.
+Upon non-numeric not matching TERM-CHAR signal an error."])
+(fset 'sup-move-point-to-x-y #[(x y) "À	!ˆÂ!‡" [move-to-window-line y move-to-column x] 2 "\
+Position cursor in window coordinates.
+X and Y are 0-based character positions in the window."])
+(fset 'sup-pos-to-window #[(x y) "À Á\nÄ =¬§A@W¬–Æ8Y¬@W¬ˆÈ8Y«ŠÉ\n!À\n!ªS\n®‚Ä *‡" [window-edges nil window edges selected-window y 3 x 2 next-window] 3 "\
+Find window corresponding to screen coordinates.
+X and Y are 0-based character positions on the screen."])

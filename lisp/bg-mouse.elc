@@ -1,0 +1,71 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:06:32 1991
+;;; from file /wg1/emacs-base/lisp/bg-mouse.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'bg-mouse)
+(defvar bg-mouse-fast-select-window nil "\
+*Non-nil for mouse hits to select new window, then execute; else just select.")
+(byte-code "ÀÂÂÅÇÉ\nËÍÀ‡" [1 bg-button-r 2 bg-button-m bg-button-c 4 bg-button-l 8 bg-in-modeline 16 bg-in-scrollbar 24 bg-in-minibuf 59 semicolon] 1)
+(fset 'bg-mouse-report #[(prefix-arg) "À	!ˆÂ SÀ	!Ã¥^Å SÀ	!Æ¥ZÀÈ!É¦\nË\"Í Ï!Å SU‰?­ˆÒ8SU?­Œ?­‡Ô8SY=­ƒ?‰«„ªÙ«„ªÙ«„ªÙ\\\\İß\n\\!\" @Z!A@Z\"¬„«ã!ˆä !ˆã!ª›¬„«†ä !ªã!ˆ%­„ä !.‡" [bg-get-tty-num semicolon screen-width 9 screen-mouse-x screen-height 16 screen-mouse-y 99 8 bg-mouse-buttons bg-window-from-x-y bg-mouse-window selected-window bg-cursor-window window-edges edges minibuf-p 3 in-modeline-p 2 in-scrollbar-p same-window-p in-minibuf-p bg-in-minibuf 0 bg-in-modeline bg-in-scrollbar bg-mode-bits lookup-key mouse-map char-to-string bg-command bg-mouse-x bg-mouse-y select-window bg-command-execute bg-mouse-fast-select-window] 6 "\
+Read, parse, and execute a BBN BitGraph mouse click.
+
+L-- move point             | These apply for mouse click in a window.
+--R set mark               | If bg-mouse-fast-select-window is nil,
+L-R kill region            | these commands on a nonselected window
+-C- move point and yank    | just select that window.
+LC- yank-pop		   |
+-CR or LCR undo		   | \"Scroll bar\" is right-hand window column.
+
+on modeline:		    on \"scroll bar\":	in minibuffer:
+L-- scroll-up		    line to top		execute-extended-command
+--R scroll-down		    line to bottom	eval-expression
+-C- proportional goto-char  line to middle	suspend-emacs
+
+To reinitialize the mouse if the terminal is reset, type ESC : RET" "P"])
+(fset 'bg-set-point #[nil "À	\n\"ˆÃ	‰‡" [bg-move-point-to-x-y bg-mouse-x bg-mouse-y next-line this-command temporary-goal-column] 3 "\
+Move point to location of BitGraph mouse." nil])
+(fset 'bg-set-mark #[nil "À ˆÁ\n\"ˆÄ ‡" [push-mark bg-move-point-to-x-y bg-mouse-x bg-mouse-y exchange-point-and-mark] 3 "\
+Set mark at location of BitGraph mouse." nil])
+(fset 'bg-yank #[nil "À	\n\"ˆÃÃ ‡" [bg-move-point-to-x-y bg-mouse-x bg-mouse-y yank this-command] 3 "\
+Move point to location of BitGraph mouse and yank." "*"])
+(fset 'yank-pop-1 #[nil "ÀÁ!‡" [yank-pop 1] 2 nil "*"])
+(fset 'bg-yank-or-pop #[nil "Á=«„ÂÃ!‡Ä ‡" [last-command yank yank-pop 1 bg-yank] 2 "\
+Move point to location of BitGraph mouse and yank or yank-pop.
+Do a yank unless last command was a yank, in which case do a yank-pop." "*"])
+(byte-code "ÀÀ‡" [8388607 bg-most-positive-fixnum] 1)
+(fset 'bg-move-by-percentage #[nil "ÁU«ƒÁªšÂ ¥W«ŠÂ _Ä S¥ªˆÂ Ä S¥_bˆÁyˆÅ ‡" [bg-mouse-x 0 buffer-size bg-most-positive-fixnum window-width what-cursor-position] 3 "\
+Go to location in buffer that is the same percentage of the
+way through the buffer as the BitGraph mouse's X position in the window." nil])
+(fset 'bg-mouse-line-to-top #[nil "À	!‡" [scroll-up bg-mouse-y] 2 "\
+Scroll the line pointed to by the BitGraph mouse to the top of the window." nil])
+(fset 'bg-mouse-line-to-center #[nil "À	‰Â [Ã\\\\\\Ã¥!‡" [scroll-up bg-mouse-y window-height 2] 5 "\
+Scroll the line pointed to by the BitGraph mouse to the center 
+of the window" nil])
+(fset 'bg-mouse-line-to-bottom #[nil "À	ÂÃ Z\\!‡" [scroll-up bg-mouse-y 2 window-height] 4 "\
+Scroll the line pointed to by the mouse to the bottom of the window." nil])
+(fset 'bg-kill-region #[nil "ÀÁ Â \"‡" [kill-region region-beginning region-end] 3 nil "*"])
+(fset 'bg-insert-moused-sexp #[nil "ŠÀ	\n\"ˆÃÄ!ˆŠÅÄ!ˆ`)`{)Ç!ˆÉ ˆn«…Ê ˆª”ŠËuˆÌÍ!?­ƒÌÎ!)¬„ÏĞ!ˆÏ!ˆl®”ÌÑ!®ÌÒ!«…ÌÓ!®…ŠÏĞ!))‡" [bg-move-point-to-x-y bg-mouse-x bg-mouse-y forward-sexp 1 backward-sexp moused-text select-window bg-cursor-window delete-horizontal-space indent-according-to-mode -1 looking-at "\\s\"" "[`'\"\\]\\|\\s(" insert-string " " "\\s.\\|\\s)" "'" "\\sw"] 3 "\
+Insert a copy of the word (actually sexp) that the mouse is pointing at.
+Sexp is inserted into the buffer at point (where the text cursor is).
+By gildea 7 Feb 89" nil])
+(fset 'bg-get-tty-num #[(term-char) "ÀÁ ÂZÀY«“ÅX«Æ_\\Á ÂZ‰ªiÂ\\=¬‡È ˆÉÊ!ˆ*‡" [0 read-char 48 char num 9 10 term-char bg-program-mouse error "Invalid data format in bg-mouse command: mouse reinitialized."] 4 "\
+Read from terminal until TERM-CHAR is read, and return intervening number.
+If non-numeric not matching TERM-CHAR, reprogram the mouse and signal an error."])
+(fset 'bg-move-point-to-x-y #[(x y) "À	!ˆiÂ ÅV«ƒSÆ\\\\!*‡" [move-to-window-line y window-hscroll scroll-offset zero-column 0 move-to-column x] 4 "\
+Position cursor in window coordinates.
+X and Y are 0-based character positions in the window."])
+(fset 'bg-window-from-x-y #[(x y) "À Á\nÄ =¬§A@W¬–Æ8Y¬@W¬ˆÈ8Y«ŠÉ\n!À\n!ªS\nÄ =«ƒÁªˆ\n¬„Ä ª\n*‡" [window-edges nil window edges selected-window y 3 x 2 next-window] 3 "\
+Find window corresponding to screen coordinates.
+X and Y are 0-based character positions on the screen."])
+(byte-code "ÀÁMˆÂÃMˆÄ!¬ƒÆ À‡" [bg-command-execute #[(bg-command) "À	!«„Â	!‡Ã ‡" [commandp bg-command command-execute ding] 2] bg-program-mouse #[nil "ÀÁ!‡" [send-string-to-terminal ":0;7;;;360;512;9;16;9;16c"] 2] keymapp mouse-map make-keymap] 2)
+(fset 'bind-bg-mouse-click #[(click-code function) "À	Â!#‡" [define-key mouse-map char-to-string click-code function] 4 "\
+Bind bg-mouse CLICK-CODE to run FUNCTION."])
+(byte-code "À	Â\"ˆÀÄ\"ˆÀÆ\"ˆÀ	\\Ç\"ˆÀ	\\È\"ˆÀ\\É\"ˆÀ	\\\\É\"ˆÀ\n	\\Ë\"ˆÀ\n\\Ì\"ˆÀ\n\\Í\"ˆÀ	\\Ï\"ˆÀ\\Ğ\"ˆÀ\\Ñ\"ˆÀ	\\Ó\"ˆÀ\\Ô\"ˆÀ\\Õ\"‡" [bind-bg-mouse-click bg-button-l bg-set-point bg-button-m bg-yank bg-button-r bg-set-mark yank-pop-1 bg-kill-region undo bg-in-modeline scroll-up bg-move-by-percentage scroll-down bg-in-scrollbar bg-mouse-line-to-top bg-mouse-line-to-center bg-mouse-line-to-bottom bg-in-minibuf execute-extended-command suspend-emacs eval-expression] 4)

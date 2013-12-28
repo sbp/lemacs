@@ -1,0 +1,15 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:24:34 1991
+;;; from file /wg1/emacs-base/lisp/mailpost.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'post-mail-send-it #[nil "«…ÁÂ!ªÃÄÁÅ!Æ‰p	\nÍŠ\nqˆÎ ˆÏ!ˆdbˆhĞU¬ƒĞcˆebˆÑÒÒQ!ˆÔÕ!ˆÖ×!ˆØ «†Úe\"ˆebˆÛÜİ#«Œ`W«†ÔÒ!ˆªlİ	ebˆÛŞİ#«…ß!ˆebˆÛàİ#«—ŠebˆÛáİ#)¬Š×yˆâã Ò±ˆebˆÛäİ#«„Ôå!ˆ«‰ŠqˆÎ ˆ))æç!‰!ˆèé\"ˆêëìíî!«„.ªïÆÆğñ¯«ƒòªóC#\"ˆ­£ŠqˆebˆÛôÆİ#«†Ôõ!ˆªsö ÃU?­†÷øed{\").‡" [mail-interactive generate-new-buffer " post-mail errors" 0 "/tmp/,rpost" " post-mail temp" nil mailbuf delimline case-fold-search tembuf temfile errbuf ((byte-code "À	!ˆÂ!«„Ä!ˆÀ‡" [kill-buffer tembuf bufferp errbuf switch-to-buffer] 2)) erase-buffer insert-buffer-substring 10 search-forward "\n" mail-header-separator replace-match "\n\n" backward-char 1 point-marker mail-aliases expand-mail-aliases re-search-forward "\n\n\n*" t "^FCC:" mail-do-fcc "^From:" "^Sender:" "Sender: " user-login-name "^Subject:[ 	]*\n" "" write-file make-temp-name set-file-modes 384 apply call-process append boundp post-mail-program "/usr/uci/lib/mh/post" "-nofilter" "-msgid" ("-watch") ("-nowatch") "\n\n* *" "; " buffer-size error "Sending...failed to %s"] 9 "\
+the MH -post interface for rmail-mail to call.
+to use it, include (setq send-mail-function 'post-mail-send-it) in site-init."])

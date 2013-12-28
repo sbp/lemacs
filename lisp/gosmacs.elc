@@ -1,0 +1,35 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:20:42 1991
+;;; from file /wg1/emacs-base/lisp/gosmacs.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "¿¡!¨Ç¬¬á" [boundp non-gosmacs-binding-alist nil] 2)
+(fset 'set-gosmacs-bindings #[nil "¿¡!âá" [rebind-and-record (("" compile) ("" save-buffers-kill-emacs) ("	" insert-file) ("" save-some-buffers) ("" next-error) ("" switch-to-buffer) ("" insert-file) ("" undo) ("" find-file-other-window) ("" shrink-window) ("!" shell-command) ("d" delete-window) ("n" gosmacs-next-window) ("p" gosmacs-previous-window) ("z" enlarge-window) ("" scroll-one-line-up) ("" save-buffers-kill-emacs) ("!" line-to-top-of-window) ("(" backward-paragraph) (")" forward-paragraph) ("?" apropos) ("h" delete-previous-word) ("j" indent-sexp) ("q" query-replace) ("r" replace-string) ("z" scroll-one-line-down) ("" suspend-emacs)) non-gosmacs-binding-alist] 2 "\
+Rebind some keys globally to make GNU Emacs resemble Gosling Emacs.
+Use \\[set-gnu-bindings] to restore previous global bindings." nil])
+(fset 'rebind-and-record #[(bindings) "¿\n´†\n@â@A@∆\"D	B»\"à+\nAâ¨`	ü)á" [nil old bindings this key newdef lookup-key global-map global-set-key] 5 "\
+Establish many new global bindings and record the bindings replaced.
+Arg is an alist whose elements are (KEY DEFINITION).
+Value is a similar alist whose elements describe the same KEYs
+but each with the old definition that was replaced,"])
+(fset 'set-gnu-bindings #[nil "¿	!á" [rebind-and-record non-gosmacs-binding-alist] 2 "\
+Restore the global bindings that were changed by \\[set-gosmacs-bindings]." nil])
+(fset 'gosmacs-previous-window #[nil "¿¡ !á" [select-window previous-window] 2 "\
+Select the window above or to the left of the window now selected.
+From the window at the upper left corner, select the one at the lower right." nil])
+(fset 'gosmacs-next-window #[nil "¿¡ !á" [select-window next-window] 2 "\
+Select the window below or to the right of the window now selected.
+From the window at the lower right corner, select the one at the upper left." nil])
+(fset 'scroll-one-line-up #[(&optional arg) "¿	ÆÅ¬!á" [scroll-up arg 1] 2 "\
+Scroll the selected window up (forward in the text) one line (or N lines)." "p"])
+(fset 'scroll-one-line-down #[(&optional arg) "¿	ÆÅ¬!á" [scroll-down arg 1] 2 "\
+Scroll the selected window down (backward in the text) one line (or N)." "p"])
+(fset 'line-to-top-of-window #[nil "¿¡!á" [recenter 0] 2 "\
+Scroll the selected window up so that the current line is at the top." nil])

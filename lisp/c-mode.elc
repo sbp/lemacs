@@ -1,0 +1,140 @@
+;;; compiled by jwz@thalidomide on Thu Feb 20 19:32:58 1992
+;;; from file /u/jwz/emacs19/lisp/c-mode.el
+;;; emacs version 19.60 Lucid.
+;;; bytecomp version 2.04; 5-feb-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar c-mode-abbrev-table nil "\
+Abbrev table in use in C-mode buffers.")
+(define-abbrev-table 'c-mode-abbrev-table nil)
+(defvar c-mode-map nil "\
+Keymap used in C mode.")
+(byte-code "¬ƒÁ ÂÃÄ#ˆÂÅÄ#ˆÂÆÇ#ˆÂÈÉ#ˆÂÊË#ˆÂÌÍ#ˆÂÎÏ#ˆÂĞÑ#ˆÂÒÓ#ˆÂÔÕ#ˆÂÖ×#‡" [c-mode-map make-sparse-keymap define-key "{" electric-c-brace "}" ";" electric-c-semi "#" electric-c-sharp-sign ":" electric-c-terminator "{" c-insert-braces "" mark-c-function "" indent-c-exp "q" c-fill-paragraph "" backward-delete-char-untabify "	" c-indent-command] 4)
+(autoload 'c-macro-expand "cmacexp" "\
+Display the result of expanding all C macros occurring in the region.
+The expansion is entirely correct because it uses the C preprocessor." t)
+(defvar c-mode-syntax-table nil "\
+Syntax table in use in C-mode buffers.")
+(byte-code "¬ËÁ ÂÃÄ#ˆÂÅÆ#ˆÂÇÈ#ˆÂÉÊ#ˆÂËÊ#ˆÂÌÊ#ˆÂÍÊ#ˆÂÎÊ#ˆÂÏÊ#ˆÂĞÊ#ˆÂÑÊ#ˆÂÒÓ#ˆÁ‡" [c-mode-syntax-table make-syntax-table modify-syntax-entry 92 "\\" 47 ". 14" 42 ". 23" 43 "." 45 61 37 60 62 38 124 39 "\""] 4)
+(defconst c-indent-level 2 "\
+*Indentation of C statements with respect to containing block.")
+(defconst c-brace-imaginary-offset 0 "\
+*Imagined indentation of a C open brace that actually follows a statement.")
+(defconst c-brace-offset 0 "\
+*Extra indentation for braces, compared with other text in same context.")
+(defconst c-argdecl-indent 5 "\
+*Indentation level of declarations of C function arguments.")
+(defconst c-label-offset -2 "\
+*Offset of C label lines and case statements relative to usual indentation.")
+(defconst c-continued-statement-offset 2 "\
+*Extra indent for lines not starting new statements.")
+(defconst c-continued-brace-offset 0 "\
+*Extra indent for substatements that start with open-braces.
+This is in addition to c-continued-statement-offset.")
+(defconst c-auto-newline nil "\
+*Non-nil means automatically newline before and after braces,
+and after colons and semicolons, inserted in C code.
+If you do not want a leading newline before braces then use:
+  (define-key c-mode-map " { " 'electric-c-semi)")
+(defconst c-tab-always-indent t "\
+*Non-nil means TAB in C mode should always reindent the current line,
+regardless of where in the line point is when the TAB command is used.")
+(fset 'c-mode #[nil "À ˆÁ\n!ˆÃÅÉ\n!ˆËÌ!ˆÍPËÏ!ˆËĞ!ˆÑËÒ!ˆÓËÔ!ˆÕËÖ!ˆÑË×!ˆØËÙ!ˆÚËÛ!ˆÜËİ!ˆŞËß!ˆàËá!ˆÑ!âã!‡" [kill-all-local-variables use-local-map c-mode-map c-mode major-mode "C" mode-name c-mode-abbrev-table local-abbrev-table set-syntax-table c-mode-syntax-table make-local-variable paragraph-start "^$\\|" page-delimiter paragraph-separate paragraph-ignore-fill-prefix t indent-line-function c-indent-line indent-region-function c-indent-region require-final-newline comment-start "/* " comment-end " */" comment-column 32 comment-start-skip "/\\*+ *" comment-indent-hook c-comment-indent parse-sexp-ignore-comments run-hooks c-mode-hook] 2 "\
+Major mode for editing C code.
+Expression and list commands understand all C brackets.
+Tab indents for C code.
+Comments are delimited with /* ... */.
+Paragraphs are separated by blank lines only.
+Delete converts tabs to spaces as it moves back.
+\\{c-mode-map}
+Variables controlling indentation style:
+ c-tab-always-indent
+    Non-nil means TAB in C mode should always reindent the current line,
+    regardless of where in the line point is when the TAB command is used.
+ c-auto-newline
+    Non-nil means automatically newline before and after braces,
+    and after colons and semicolons, inserted in C code.
+ c-indent-level
+    Indentation of C statements within surrounding block.
+    The surrounding block's indentation is the indentation
+    of the line on which the open-brace appears.
+ c-continued-statement-offset
+    Extra indentation given to a substatement, such as the
+    then-clause of an if or body of a while.
+ c-continued-brace-offset
+    Extra indentation given to a brace that starts a substatement.
+    This is in addition to c-continued-statement-offset.
+ c-brace-offset
+    Extra indentation for line if it starts with an open brace.
+ c-brace-imaginary-offset
+    An open brace following other text is treated as if it were
+    this far to the right of the start of its line.
+ c-argdecl-indent
+    Indentation level of declarations of C function arguments.
+ c-label-offset
+    Extra indentation for line that is a label, or case or default.
+
+Settings for K&R and BSD indentation styles are
+  c-indent-level                5    8
+  c-continued-statement-offset  5    8
+  c-brace-offset               -5   -8
+  c-argdecl-indent              0    8
+  c-label-offset               -5   -8
+
+Turning on C mode calls the value of the variable c-mode-hook with no args,
+if that value is non-nil." nil])
+(fset 'c-comment-indent #[nil "ÀÁ!«‚Â‡`ŠÂyˆÀÄ!«ˆÅÆ!ˆiTª¥ÀÇ!¬…ÀÈ!«ƒÉª˜bˆÊËxˆÂU«†n«ƒÂª…iT]*‡" [looking-at "^/\\*" 0 opoint "[ 	]*}[ 	]*\\($\\|/\\*\\)" search-forward "}" "^#[ 	]*endif[ 	]*" "^#[ 	]*else[ 	]*" 7 " 	" nil comment-column] 2])
+(fset 'c-fill-paragraph #[(&optional arg) "ŠÀyˆÁÂwˆÃ!)‰¬†Æ Ç=«ÙŠÀyˆÃÈ!«ŠÉ!ˆÊiË\"ª«ƒÌyˆ`ÍÎÇ!Ç\"ˆ`{)ĞPĞPŒeŠÓÔÂÕ#ˆÌyˆ`)}ˆÖ!ˆŠÓÔ!ˆÀyˆÃØ!­‚Ù -ª„Ö!)‡" [0 " 	" nil looking-at comment-start-skip first-line calculate-c-indent t "[ 	]*/\\*.*\\*/" re-search-forward make-string 32 1 move-to-column calculate-c-indent-within-comment paragraph-start "\\|^[ 	]*/\\*[ 	]*$\\|^[ 	]*\\*/[ 	]*$\\|^[^ 	/*]" paragraph-separate fill-prefix search-forward "*/" move fill-paragraph arg "[ 	]*\\*/" delete-indentation] 6 "\
+Like \\[fill-paragraph] but handle C comments.
+If point is inside a comment, the current paragraph of the comment
+is filled, preserving the comment indentation or line-starting decorations." "P"])
+(fset 'electric-c-brace #[(arg) "À\n¬¶l«³ŠÃÀxˆn)¬‰«§Å ˆÆ ˆcˆÅ ˆ«ŠÆ ˆ`ÈZÅ ˆŠ	«„	TbˆÉÊ!ˆ)	«ŒŠ	bˆËÌ\n!!)ª…ËÌ\n!!)‡" [nil insertpos arg " 	" c-auto-newline c-indent-line newline last-command-char 2 delete-char -1 self-insert-command prefix-numeric-value] 3 "\
+Insert character and correct line's indentation." "P"])
+(byte-code "ÀÁMˆÂÃM‡" [c-insert-brackets #[nil "ÀcˆŠÁc)‡" [91 93] 1 nil nil] c-insert-braces #[nil "ÀÁ!ˆÂ ˆÃ ˆŠÂ ˆÄcˆÃ )‡" [electric-c-brace 1 newline c-indent-line 125] 2 nil nil]] 2)
+(fset 'electric-c-sharp-sign #[(arg) "ŠÀÁxˆn)«‡ÁÃ!)‡ÅÆ!!‡" [" 	" nil c-auto-newline electric-c-terminator arg self-insert-command prefix-numeric-value] 3 "\
+Insert character and correct line's indentation." "P"])
+(fset 'electric-c-semi #[(arg) "«„Á\n!‡ÃÄ\n!!‡" [c-auto-newline electric-c-terminator arg self-insert-command prefix-numeric-value] 3 "\
+Insert character and correct line's indentation." "P"])
+(fset 'electric-c-terminator #[(arg) "À`¬íl«êŠÄyˆÅÀwˆgÆU®´È=«”ÉÊ!¬ŠËÀwˆÅÀwˆ`	W)®šÌ ˆÍ`	\"Ï8®ŠĞ8®„Ñ8))¬¦cˆÒ ˆ«Ô ¬ŠÕ ˆ`ÖZÒ ˆŠ\n«„\nTbˆ×Ø!ˆ)\n«ŒŠ\nbˆÙÚ!!)ª…ÙÚ!!*‡" [nil end insertpos arg 0 " 	" 35 last-command-char 58 looking-at "case[ 	'/(]" "a-zA-Z0-9_$" beginning-of-defun parse-partial-sexp pps 3 4 5 c-indent-line c-auto-newline c-inside-parens-p newline 2 delete-char -1 self-insert-command prefix-numeric-value] 3 "\
+Insert character and correct line's indentation." "P"])
+(fset 'c-inside-parens-p #[nil "ÀÁÂ‡" [nil (byte-code "ŠŒ`À ˆ`}ˆdbˆÁ`ÂÃ#®efÄU*‡" [beginning-of-defun scan-lists -1 1 40] 4) ((error))] 3])
+(fset 'c-indent-command #[(&optional whole-exp) "«µÁ Â‰Š«ƒÇyˆŠÈyˆ`)`W«ŒÉÈ!ˆ`ÊÂwˆªo)V­†ËÌ$+‡¬ŒŠÍÂxˆn)¬ƒÎ ‡Á ‡" [whole-exp c-indent-line nil end beg shift-amt c-tab-always-indent 0 1 forward-sexp " 	\n" indent-code-rigidly "#" " 	" insert-tab] 5 "\
+Indent current line as C code, or in some cases insert a tab character.
+If c-tab-always-indent is non-nil (the default), always indent current line.
+Otherwise, indent the current line only if point is at the left margin
+or in the line's indentation; otherwise insert a tab.
+
+A numeric argument, regardless of its value,
+means indent rigidly all the lines of the expression starting after point
+so that this line becomes properly indented.
+The relative indentation among the lines of the expression are preserved." "P"])
+(fset 'c-indent-line #[nil "ÀÁ!Á‰‰d`ZÇyˆ`Á=«‡È ‚ª É=«†Ê ªıËÌ!«…ÇªóÍÁwˆ<«…@ËÎ!¬ËÏ!«–ŠĞÑ!ˆËÒ!)«‹Ñ\\]ªÅËÔ!«ËÕ!¬‹ŠÖ ˆÈ )ª°Ë×!«‘ŠØ )«‹ŠØ ˆÈ )ªšgÙU«‰ZªŒgÛU«‡\\ÍÁwˆiZ‰ÇU«d\nZ`V«›d\nZbˆª”`|ˆjˆd\nZ`V«…d\nZbˆ-‡" [calculate-c-indent nil pos case-fold-search shift-amt beg indent 0 current-indentation t calculate-c-indent-within-comment looking-at "[ 	]*#" " 	" "case[ 	'/(]" "[A-Za-z]" forward-sexp 1 ":" c-label-offset "else\\b" "else\\s_" c-backward-to-start-of-if "while\\b" c-backward-to-start-of-do 125 c-indent-level 123 c-brace-offset] 7 "\
+Indent current line as C code.
+Return the amount the indentation changed by."])
+(fset 'calculate-c-indent #[(&optional parse-start) "ŠÀyˆ`Á‰‰«†bˆªƒÇ ˆ`W«`È`À#‰A@ªlÉ8¬…Ê8«†Ê8‚w\n¬ÅbˆËÁwˆgÌU«„À‚wÍ®e!ˆŠÎÏÁĞ#ˆÑÒ!«œÑÓ!«—À•SbˆÔÕ!ˆ`W«‰gÖ>¬„ªÀ)‚w\nfÌU¬ˆ\nTbˆi‚wbˆÍ\n!ˆhØ=¬–hÙ=«¦`ÚZfÛ=¬‰`ÚZfzÜ>«•hØ=«‡İuˆŞ\n!ˆÀyˆÍ\n!ˆªPhß>¬¬ŠbˆËÁwˆgàU)¬Ş\n!ˆ!iŠbˆËÁwˆg)Ì=«„\"ªÀ\\\\ªü\nbˆŠÕuˆÀ#äÁwˆÑå!«¨gæU«…ÕyˆªmgçU«‹ÚuˆèéÁĞ#ˆª]ŠÁˆ`#)èê!ˆªO`W­#`V«‡ë ,Zªi*®«n«-ÀU«‡.!\\ª‚-ËÁxˆn«ƒÀª‚/hğ=«„Ôİ!ˆë \\\\-‡" [0 nil containing-sexp state case-fold-search indent-point parse-start beginning-of-defun parse-partial-sexp 3 4 " 	" 123 c-backward-to-noncomment re-search-backward "^[^ 	\n#]" move looking-at "\\sw\\|\\s_" "[^\"\n=]*(" forward-sexp 1 (44 59) c-argdecl-indent 44 58 2 39 (119 95) -1 c-backward-to-start-of-continued-exp (nil 44 59 125 123) 125 c-continued-statement-offset c-continued-brace-offset colon-line-end " 	\n" "#\\|/\\*\\|case[ 	\n'/(].*:\\|[a-zA-Z0-9_$]*:" 35 47 search-forward "*/" ":" current-indentation c-label-offset c-indent-level c-brace-offset c-brace-imaginary-offset 41] 5 "\
+Return appropriate indentation for current line as C code.
+In usual case returns an integer: the column to indent to.
+Returns nil if line starts inside a string, t if in a comment."])
+(fset 'calculate-c-indent-within-comment #[(&optional after-star) "À‰ŠÃyˆÄÀwˆgÅUÆÀxˆ`ÃyˆÄÀwˆ«‰ÈÉ!«„ÊË!ˆÊÌ\nÍ#«Œ	«‰¬…Ã”TbˆÈÎ!«‰hÅU«„iTªi+‡" [nil star-start end 0 " 	" 42 " 	\n" after-star looking-at "\\*" re-search-forward "\\*[ 	]*" "/\\*[ 	]*" t "[ 	]*$"] 4 "\
+Return the indentation amount for line inside a block comment.
+Non-nil arg AFTER-STAR means, if lines in the comment have a leading star,
+return the indentation of the text that would follow this star."])
+(byte-code "ÀÁMˆÂÃM‡" [c-backward-to-noncomment #[(lim) "À‰	?­ÊÃxˆ``Å\\Y«’ŠÆuˆÇÈ!)«ˆÉÊË#ˆª]`X®ŠÌyˆ`ÅZfÍ=«ˆÎuˆÌyˆªmÏÀwˆÇĞ!)?‰¬7Ìyˆª2*‡" [nil stop opoint " 	\n" lim 2 -2 looking-at "\\*/" search-backward "/*" move 0 92 -1 " 	" "#"] 5] c-backward-to-start-of-continued-exp #[(lim) "hÀ>«„ÁÂ!ˆÃyˆ`X«„TbˆÅÆw‡" [(41 34) forward-sexp -1 0 lim " 	" nil] 2]] 2)
+(fset 'c-backward-to-start-of-if #[(&optional limit) "¬‡ŠÁ ˆ`)ÂÃo?­ªÆU?­¤ÇÂ!ˆÈÉ!«…TªhÈÊ!«…Sª^`W«YÆbˆªR*‡" [limit beginning-of-defun 1 nil case-fold-search if-level 0 backward-sexp looking-at "else\\b" "if\\b"] 2 "\
+Move to the start of the last ``unbalanced'' if."])
+(fset 'c-backward-to-start-of-do #[(&optional limit) "¬‡ŠÁ ˆ`)Â`Ã¬É`ÃÈÉˆ¬»ÊË!«„Ìª²ŠÍÎ!ˆ¬…hÏU®“ĞÑÂ«ˆhÏU¬ƒÒªÎ$)«„ÓªŠÃ`W«‚Ó)ª4Ì=«ƒÂª„bˆÃ+‡" [limit beginning-of-defun t nil done startpos first next-start (backward-sexp 1) ((error (byte-code "ÀÀ‡" [fail done] 1))) looking-at "do\\b" succeed forward-sexp 1 125 search-forward ";" 2 fail] 6 "\
+If point follows a `do' statement, move to beginning of it and return `t'.
+Otherwise return `nil' and don't move point."])
+(fset 'mark-c-function #[nil "À`!ˆÁ ˆÀ`!ˆÂ ˆÃ ˆÄ ‡" [push-mark end-of-defun beginning-of-defun backward-paragraph zmacs-activate-region] 2 "\
+Put mark at end of C function, point at beginning." nil])
+(fset 'indent-c-exp #[(&optional endpos) "ÀC`«˜ÀŠÅuˆÆ ˆ`)Œ`}ˆÀÇÈ*ª`C	À\nÀÀÀÀÀÀÀÀÀÀÀÖŠØÅ!ˆ)Š`ÚŠÀˆ`)Ü#« İ`À‰%ß8?­…à8?)«†á ˆÖyˆ*ŠÀm?…«…`Wªƒ?…À¬Ïm«†Ü‰¬Æİ`Àˆ`À‰%‰@AA@«AA@ÖY«‡AA@â8«ƒã ˆß8«…Åyˆª3Ü‰«1««ÖW«¥ä	ÀC\"ä	ÀC\"	TTå›å8T ˆªU?­„ÖX‰„‡ å8V«	A	A	S‰ªiU¬ƒÀW«’À	BÀ	B	T‰ªi	@¬‘	A@®‡ŠØæ!ˆ`) ˆÅyˆçÀwˆl„‡ 	@«é	@ÖY«ã	@fèU¬†	@ªìŠéê!gèUéë!ì\n!ˆhí>¬˜î	@!ˆ/i«„0ªÖ\\\\ª¡«Šñ\n!ˆò ª“«‹ó\n!«†ò ª„	@)ª—ô	@«…	@[ª\n!5	5‰ ˆ)éö!¬é÷!«”ŠØÅ!ˆéø!)«‰Å9\\]gúU«‡;ZgèU«‡<\\l«ƒÖiU¬gıU¬‹`Öyˆ`|ˆjˆé!„‡ `ÚŠÀˆ`)Ü#« İ`À‰%ß8?­…à8?)«†á ˆÖyˆ)‚‡ .‡" [nil indent-stack opoint endpos funbeg 1 beginning-of-defun (byte-code "ŠÀÁ!ˆ`)‡" [backward-up-list 1] 2) ((error (byte-code "`‡" [funbeg opoint] 1))) contain-stack case-fold-search restart outer-loop-done inner-loop-done state ostate this-indent last-sexp at-else at-brace at-while last-depth 0 next-depth forward-sexp beg re-search-forward comment-start-skip t parse-partial-sexp new-state 3 5 indent-for-comment 4 c-indent-line append 6 -1 " 	" 123 looking-at "else\\W" "while\\b" c-backward-to-noncomment (nil 44 59 125 58 123) c-backward-to-start-of-continued-exp c-continued-statement-offset c-continued-brace-offset c-backward-to-start-of-if current-indentation c-backward-to-start-of-do calculate-c-indent val "case[ 	'/(]" "[A-Za-z]" ":" c-label-offset 125 c-indent-level c-brace-offset 35] 7 "\
+Indent each line of the C grouping following point.
+If optional arg ENDPOS is given, indent each line, stopping when
+ENDPOS is encountered." nil])
+(fset 'c-indent-region #[(start end) "ŠbˆÁ\n!n«†l¬ƒÄ ˆÅ!ˆÆ‰“*‡" [start copy-marker end endmark c-indent-line indent-c-exp nil] 3])

@@ -1,0 +1,294 @@
+;;; compiled by jwz@thalidomide on Mon Mar 30 17:35:41 1992
+;;; from file /u/jwz/emacs19/lisp/comint.el
+;;; emacs version 19.87 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÀ‡" [provide comint "2.02" comint-version] 2)
+(defvar comint-prompt-regexp "^" "\
+Regexp to recognise prompts in the inferior process.
+Defaults to \"^\", the null string at BOL.
+
+Good choices:
+  Canonical Lisp: \"^[^> ]*>+:? *\" (Lucid, franz, kcl, T, cscheme, oaklisp)
+  Lucid Common Lisp: \"^\\(>\\|\\(->\\)+\\) *\"
+  franz: \"^\\(->\\|<[0-9]*>:\\) *\"
+  kcl: \"^>+ *\"
+  shell: \"^[^#$%>]*[#$%>] *\"
+  T: \"^>+ *\"
+
+This is a good thing to set in mode hooks.")
+(defvar input-ring-size 30 "\
+Size of input history ring.")
+(defvar comint-get-old-input 'comint-get-old-input-default "\
+Function that submits old text in comint mode.
+This function is called when return is typed while the point is in old text.
+It returns the text to be submitted as process input.  The default is
+comint-get-old-input-default, which grabs the current line, and strips off
+leading text matching comint-prompt-regexp")
+(defvar comint-input-sentinel 'ignore "\
+Called on each input submitted to comint mode process by comint-send-input.
+Thus it can, for instance, track cd/pushd/popd commands issued to the csh.")
+(defvar comint-input-filter #[(str) "ÀÁ\n\"?­„\nGÃV‡" [string-match "\\`\\s *\\'" str 2] 3] "\
+Predicate for filtering additions to input history.
+Only inputs answering true to this function are saved on the input
+history list. Default is to save anything longer than two characters
+that isn't all whitespace. If an existing item in the history exactly
+matches the new input, the existing item is removed and the new input
+is added.")
+(defvar comint-input-sender 'comint-simple-send "\
+Function to actually send to PROCESS the STRING submitted by user.
+Usually this is just 'comint-simple-send, but if your mode needs to 
+massage the input string, this is your hook. This is called from
+the user command comint-send-input. comint-simple-send just sends
+the string plus a newline.")
+(defvar comint-eol-on-send 'T "\
+If non-nil, then jump to the end of the line before sending input to process.
+See COMINT-SEND-INPUT")
+(defvar comint-mode-hook nil "\
+Called upon entry into comint-mode
+This is run before the process is cranked up.")
+(defvar comint-exec-hook nil "\
+Called each time a process is exec'd by comint-exec.
+This is called after the process is cranked up.  It is useful for things that
+must be done each time a process is executed in a comint-mode buffer (e.g.,
+(process-kill-without-query)). In contrast, the comint-mode-hook is only
+executed once when the buffer is created.")
+(byte-code "ÀÁ!¬‚ÂÂ‡" [boundp comint-mode-map nil] 2)
+(fset 'comint-mode #[nil "À 	ÄÆÈ	Ê!ˆÌÍ!ˆÎ ÌÏ!ˆÎ ÌĞ!ˆÑÌÒ!ˆÌÓ!ˆÌÔ!ˆÕÌÖ!ˆ×ÌØ!ˆÌÙ!ˆÌÚ!ˆÌÛ!ˆÌÜ!ˆÌÁ!ˆ\nİŞ!ˆßà!«ƒª„á!!*‡" [get-input-ring comint-ptyp old-ptyp old-ring comint-mode major-mode "Comint" mode-name (": %s") mode-line-process use-local-map comint-mode-map make-local-variable comint-last-input-start make-marker comint-last-input-end comint-last-input-match "" comint-prompt-regexp input-ring-size input-ring nil input-ring-index 0 comint-get-old-input comint-input-sentinel comint-input-filter comint-input-sender comint-eol-on-send run-hooks comint-mode-hook set-input-ring ring-p make-ring] 3 "\
+Major mode for interacting with an inferior interpreter.
+Interpreter name is same as buffer name, sans the asterisks.
+Return at end of buffer sends line as input.
+Return not at end copies rest of line to end and sends it.
+Setting mode variable comint-eol-on-send means jump to the end of the line
+before submitting new input.
+
+This mode is typically customised to create inferior-lisp-mode,
+shell-mode, etc.. This can be done by setting the hooks
+comint-input-sentinel, comint-input-filter, comint-input-sender and
+comint-get-old-input to appropriate functions, and the variable
+comint-prompt-regexp to the appropriate regular expression.
+
+An input history is maintained of size input-ring-size, and
+can be accessed with the commands comint-next-input [\\[comint-next-input]] and 
+comint-previous-input [\\[comint-previous-input]]. Commands not keybound by
+default are send-invisible, comint-dynamic-complete, and 
+comint-list-dynamic-completions.
+
+If you accidentally suspend your process, use \\[comint-continue-subjob]
+to continue it.
+
+\\{comint-mode-map}
+
+Entry to this mode runs the hooks on comint-mode-hook" nil])
+(byte-code "¬ïÁ ÂÃÄ#ˆÂÅÆ#ˆÂÇÄ#ˆÂÈÉ#ˆÂÊË#ˆÂÌÍ#ˆÂÎÏ#ˆÂĞÑ#ˆÂÒÓ#ˆÂÔÕ#ˆÂÖ×#ˆÂØÙ#ˆÂÚÛ#ˆÂÜİ#ˆÂŞß#ˆÂàá#ˆÂâã#ˆÂäå#ˆÁ‡" [comint-mode-map make-sparse-keymap define-key "p" comint-previous-similar-input "n" comint-next-similar-input "s" "" comint-send-input "" comint-delchar-or-maybe-eof "" comint-bol "" comint-kill-input "" backward-kill-word "" comint-interrupt-subjob "" comint-stop-subjob "" comint-quit-subjob "" comint-send-eof "" comint-kill-output "r" comint-previous-input-matching "" comint-show-output "P" comint-msearch-input "N" comint-psearch-input "R" comint-msearch-input-matching] 4)
+(fset 'full-copy-sparse-keymap #[(km) ":«ŠÁ@!ÁA!B‡‡" [km full-copy-sparse-keymap] 3 "\
+Recursively copy the sparse keymap KM"])
+(fset 'comint-check-proc #[(buffer-name) "À	!‰­…Ã\n!Ä>)‡" [get-buffer-process buffer-name proc process-status (run stop)] 3 "\
+True if there is a process associated w/buffer BUFFER-NAME, and
+it is alive (status RUN or STOP)."])
+(fset 'comint-mark #[nil "ÀÁp!!‡" [process-mark get-buffer-process] 3 "\
+Returns the process-mark of the current buffer."])
+(byte-code "ÀÁMˆÂÀM‡" [make-comint #[(name program &optional startfile &rest switches) "ÀÂÃÃQ!)Æ!‰«ˆÈ!É>¬“ŠqˆÊ ˆ)Ë%ˆ*‡" [nil default-major-mode get-buffer-create "*" name buffer get-buffer-process proc process-status (run stop) comint-mode comint-exec program startfile switches] 7] make-shell] 2)
+(defvar comint-ptyp t "\
+True if communications via pty; false if by pipe. Buffer local.
+This is to work around a bug in emacs process signalling.")
+(fset 'comint-exec #[(buffer name command startfile switches) "ŠqˆÁ!‰«„Ã\n!ˆ)Ä$ÈÉ!ˆ\n	dbˆË\n!`Ì“ˆ«›ÎÏ!ˆdbˆĞ!ˆ`d{`d|ˆÑ\n\"ˆ)ÒÓ!ˆ)‡" [buffer get-buffer-process proc delete-process comint-exec-1 name command switches make-local-variable comint-ptyp process-connection-type process-mark nil startfile sleep-for 1 insert-file-contents comint-send-string run-hooks comint-exec-hook] 6 "\
+Fires up a process in buffer for comint modes.
+Blasts any old process running in the buffer. Doesn't set the buffer mode.
+You can use this to cheaply run a series of processes in the same comint
+buffer. The hook comint-exec-hook is run after each exec."])
+(byte-code "ÀÁMˆÂÃM‡" [comint-exec-1 #[(name buffer command switches) "ÀÁ!«™Â	ÃÄÅ \"ÆÇE\"ÈÉ\n%)‡ÎÏ!ÎĞ!ÎÑ!ÕÖÏÃ×Å \"\"ˆÖĞØ\"ˆÖÑÙ\"ˆÈÉ\n%,‡" [boundp process-environment comint-update-env format "TERMCAP=emacs:co#%d:tc=unknown" screen-width "TERM=emacs" "EMACS=t" apply start-process name buffer command switches getenv "TERMCAP" "TERM" "EMACS" emv termv tcapv ((byte-code "ÀÁ\n\"ˆÀÃ\"ˆÀÅ\"‡" [setenv "TERMCAP" tcapv "TERM" termv "EMACS" emv] 3)) setenv "emacs:co#%d:tc=unknown" "emacs" "t"] 6] comint-update-env #[(old-env new) "À	!ÂÃ	\"«¶@ÈÉ\"­†Ê‰•OA«‡Ì\"¬«†BB*ªFŸ*‡" [reverse new mapcar #[(vv) "ÀÁ\n\"­…\nÃ‰•O‡" [string-match "^[^=]*=" vv 0] 3] vars ans old-env vv string-match "^[^=]*=" 0 var comint-mem] 4]] 2)
+(fset 'comint-mem #[(item list &optional elt=) "®ÁÂ«”¬‘@\"«„ªoA‰¬l*‡" [elt= equal nil done list item] 4 "\
+Test to see if ITEM is equal to an item in LIST.
+Option comparison function ELT= defaults to equal."])
+(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÂÄÅMˆÆÇM‡" [boundp use-buffer-local-input-ring nil *buffer-histories-list* get-input-ring #[nil "«‡ÁÂ!­Ø\n‡pÄ‰«Á¬¾È@ÉH!=«@ÊIˆ@ËHªš@ÊH=«@ÉÌ!Iˆ@ËHA‰¬?¬…ÍÄ!ª+‡" [use-buffer-local-input-ring boundp input-ring *buffer-histories-list* nil ring buffer list get-buffer 0 1 2 buffer-name set-input-ring] 5] set-input-ring #[(ring-to-use) "À	!¬„Â!«‰ÅÆ!ˆ	‰‡ÇÈp!p	#	B		‡" [ring-p ring-to-use make-ring input-ring-size use-buffer-local-input-ring make-local-variable input-ring vector buffer-name *buffer-histories-list*] 4]] 2)
+(fset 'ring-p #[(x) ":­•@¨­A:­‹A@¨­…ÁAA!‡" [x vectorp] 2 "\
+T if X is a ring; NIL otherwise."])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉM‡" [ring-head #[(ring) "@‡" [ring] 1] set-ring-head #[(ring value) "AAG\nÃW¬…\n	Y«ˆÄÅÆ	\n#!ˆ\n )‡" [ring len value 0 error format "Attempt to make head of ring (size = %d) be %d"] 5] ring-tail #[(ring) "A@‡" [ring] 1] set-ring-tail #[(ring value) "AAG\nÃW¬…\n	Y«ˆÄÅÆ	\n#!ˆA\n )‡" [ring len value 0 error format "Attempt to make head of ring (size = %d) be %d"] 5] ring-vector #[(ring) "AA‡" [ring] 1]] 2)
+(fset 'make-ring #[(size) "ÀÁÂÀ\\Ä\"BB‡" [1 0 make-vector size nil] 5 "\
+Make a ring that can contain SIZE elts"])
+(fset 'ring-plus1 #[(index veclen) "Á\\‰U«ƒÄª\n)‡" [index 1 new-index veclen 0] 3 "\
+INDEX+1, with wraparound"])
+(fset 'ring-minus1 #[(index veclen) "ÁU«ƒ\nªÃZ‡" [index 0 veclen 1] 2 "\
+INDEX-1, with wraparound"])
+(fset 'ring-plus #[(index increment veclen) "À	\n\\\"‡" [comint-mod index increment veclen] 3 "\
+INDEX+INCREMENT, with wraparound."])
+(fset 'ring-length #[(ring) "À	!Â	!Ã	!G‰X«ˆZÇ\\ªˆZÇ\\\\‰U«ƒÉª‚,‡" [ring-head ring ring-tail ring-vector siz tl hd 1 len 0] 5 "\
+Number of elts in the ring."])
+(fset 'ring-empty-p #[(ring) "À	!ÂU‡" [ring-length ring 0] 2])
+(fset 'ring-insert-new #[(ring item) "À	!‰GÄÅ	!\"Ç	\"ˆ\nIˆÉ	!­‰Ê	ÄË	!\"\"+‡" [ring-vector ring vec len ring-minus1 ring-head new-hd set-ring-head item ring-empty-p set-ring-tail ring-tail] 6 "\
+Insert a new item onto the ring. If the ring is full, dump the oldest
+item to make room."])
+(fset 'ring-remove-oldest #[(ring) "À	!«„ÂÃ!‡Ä	!Å	!È	ÉG\"\"ˆH*‡" [ring-empty-p ring error "Ring empty" ring-tail ring-vector vec tl set-ring-tail ring-minus1] 5 "\
+Remove the oldest item retained on the ring."])
+(fset 'ring-remove-newest #[(ring) "À	!«„ÂÃ!‡Ä	!Å	!È	ÉG\"\"ˆH*‡" [ring-empty-p ring error "Ring empty" ring-head ring-vector vec hd set-ring-head ring-plus1] 5 "\
+Remove the newest item retained on the ring."])
+(fset 'comint-mod #[(n m) "ÁU«Š\nÁW«ƒ\n[‡\n‡\n¦‰ÁY«ƒ\nªŒ\nÁY«ƒª‚[\\)‡" [m 0 n] 4 "\
+Returns N mod M. M is positive. Answer is guaranteed to be non-negative, 
+and less than (the absolute value of) M."])
+(fset 'ring-ref #[(ring index) "À	!‰ÃU«…ÄÅ!ª¨Æ	!È	!	Ê	!Ì\n\"Ì\\G\"H-)‡" [ring-length ring numelts 0 error "indexed empty ring" ring-head hd ring-tail tl ring-vector vec comint-mod index vec-index] 4])
+(fset 'ring-search-and-destroy #[(ring victim predicate) "À	!?…É Â	!Ä	!Æ	!‰GY«…É\\ª‚\nÌ¬Ã\nW«¼H\"«¨V«–ÉZHIˆÉZ‰ªfĞ	Ñ\"\"ˆÒÉ\\ª9?­ÏW­ÊÓ?­ÂX­¼H\"«¨W«–É\\HIˆÉ\\‰ªfÔ	Õ\"\"ˆÒÉ\\ª9.‡" [ring-empty-p ring ring-head hd ring-tail tl ring-vector vec len 1 top i nil done predicate victim set-ring-head ring-plus1 t 0 set-ring-tail ring-minus1] 6 "\
+Search for a matching victim in the ring according to predicate
+and destructively remove it if found."])
+(fset 'comint-previous-input #[(arg) "À Â	!‰ÄX«ˆÅÆ!ˆÇ ªİÈ ¬ˆÅÉ!ˆÇ ªÑ\nË=«‡`|ˆª¨\nÍ=«‡Î `|ˆª›ÄV«ƒĞªŠÄW«ƒÑªÄ`Ó“ˆÔ\\\"ÅÕT\"ˆÖ	\"cˆË‰*‡" [get-input-ring ring ring-length len 0 message "Empty input ring" ding comint-after-pmark-p "Not after process mark" last-command comint-previous-input comint-last-input-start comint-previous-similar-input comint-mark arg -1 1 input-ring-index nil comint-mod "%d" ring-ref this-command] 4 "\
+Cycle backwards through input history." "*p"])
+(fset 'comint-next-input #[(arg) "À	[!‡" [comint-previous-input arg] 2 "\
+Cycle forwards through input history." "*p"])
+(defvar comint-last-input-match "" "\
+Last string searched for by comint input history search, for defaulting.
+Buffer local variable.")
+(fset 'comint-previous-input-matching #[(str) "\nÃ=¬‚ÄÆ È!É!\nË\\‰\nW«”ÍÎ\"\"¬‰Ë\\‰ªg\nW«ˆÃZ!ª\nÃ=«ƒÃĞÑ!ˆÒ ,‡" [str comint-last-input-match last-command comint-previous-input -1 input-ring-index get-input-ring ring regexp-quote ring-length len 1 n string-match ring-ref this-command message "Not found." ding] 6 "\
+Searches backwards through input history for substring match." (byte-code "ÁÂÃ\"!‰Æ˜«ƒª*C‡" [last-command read-from-minibuffer format "Command substring (default %s): " comint-last-input-match s ""] 5)])
+(fset 'comint-psearch-input #[nil "À	dÂ#«ƒÃ‡ÄÅ!‡" [re-search-forward comint-prompt-regexp t nil error "No occurrence of prompt found"] 4 "\
+Search forwards for next occurrence of prompt and skip to end of line.
+(prompt is anything matching regexp comint-prompt-regexp)" nil])
+(fset 'comint-msearch-input #[nil "ŠÀyˆÁ\neÃ#«†Äˆ`ªÄ)‰«„bªƒÆÇ!)‡" [0 re-search-backward comint-prompt-regexp t nil p error "No occurrence of prompt found"] 5 "\
+Search backwards for previous occurrence of prompt and skip to end of line.
+Search starts from beginning of current line." nil])
+(fset 'comint-msearch-input-matching #[(str) "\nÃ!PŠÅyˆÆeÇ#«†Èˆ`ªÈ)‰	«…	bªƒÊË!*‡" [str comint-last-input-match comint-prompt-regexp regexp-quote r 0 re-search-backward t nil p error "No match"] 5 "\
+Search backwards for occurrence of prompt followed by STRING.
+STRING is prompted for, and is NOT a regular expression." (byte-code "ÀÁÂ\"!‰Å˜«ƒª)C‡" [read-from-minibuffer format "Command (default %s): " comint-last-input-match s ""] 5)])
+(defvar comint-last-similar-string "" "\
+The string last used in a similar string search.")
+(fset 'comint-previous-similar-input #[(arg) "À ¬„ÁÂ!ˆÄ=¬‰ÅÇ `{G	Ê Ì!ÅU«ÏU«ƒĞªÏZªˆÑ#‰ÔÔ¬°×\"‰G	W¬‹Ğ	O˜¬–Ñ#‰U«RØ‰«P¬ŸÄ=«‡`|ˆª†`Ô“ˆ	ÔOcªŠÚÛ!ˆÜ ˆİÏ!.‡" [comint-after-pmark-p error "Not after process mark" last-command comint-previous-similar-input -1 input-ring-index comint-mark comint-last-similar-string size get-input-ring ring ring-length len arg 1 0 ring-plus limit n nil done entry ring-ref t comint-last-input-start message "Not found." ding sit-for] 5 "\
+Reenters the last input that matches the string typed so far.  If repeated 
+successively older inputs are reentered.  If arg is 1, it will go back
+in the history, if -1 it will go forward." "p"])
+(fset 'comint-next-similar-input #[(arg) "ÀÀ\n[!‡" [comint-previous-similar-input this-command arg] 2 "\
+Reenters the last input that matches the string typed so far.  If repeated 
+successively older inputs are reentered.  If arg is 1, it will go forward
+in the history, if -1 it will go back." "p"])
+(fset 'comint-send-input #[nil "Àp!‰¬…ÂÃ!ªäÄ Æ	!È!	`	Y«\n«ƒËˆ`{ª bˆcˆ)Ïcˆ!«ÑÒ#ˆÓ\"ˆ!ˆ	\"ˆÆ	!`Ë“ˆ`Ë“,)‡" [get-buffer-process proc error "Current buffer has no process" get-input-ring ring process-mark pmark marker-position pmark-val comint-eol-on-send nil comint-get-old-input copy input 10 comint-input-filter ring-search-and-destroy string-equal ring-insert-new comint-input-sentinel comint-input-sender comint-last-input-end] 5 "\
+Send input to process.  After the process output mark, sends all text
+from the process mark to point as input to the process.  Before the
+process output mark, calls value of variable comint-get-old-input to retrieve
+old input, copies it to the end of the buffer, and sends it.  A terminal
+newline is also inserted into the buffer and sent to the process.  In either
+case, value of variable comint-input-sentinel is called on the input before
+sending it.  The input is entered into the input history ring, if value of
+variable comint-input-filter returns non-nil when called on the input.
+
+If variable comint-eol-on-send is non-nil, then point is moved to the end of
+line before sending the input.
+
+comint-get-old-input, comint-input-sentinel, and comint-input-filter are chosen
+according to the command interpreter running in the buffer. E.g.,
+If the interpreter is the csh,
+    comint-get-old-input is the default: take the current line, discard any
+        initial string matching regexp comint-prompt-regexp.
+    comint-input-sentinel monitors input for \"cd\", \"pushd\", and \"popd\" 
+        commands. When it sees one, it cd's the buffer.
+    comint-input-filter is the default: returns T if the input isn't all white
+	space.
+
+If the comint is Lucid Common Lisp, 
+    comint-get-old-input snarfs the sexp ending at point.
+    comint-input-sentinel does nothing.
+    comint-input-filter returns NIL if the input matches input-filter-regexp,
+        which matches (1) all whitespace (2) :a, :c, etc.
+
+Similarly for Soar, Scheme, etc.." nil])
+(fset 'comint-get-old-input-default #[nil "ŠÀyˆÁ ˆ`Ãˆ\n`{*‡" [0 comint-skip-prompt beg nil] 2 "\
+Default for comint-get-old-input: take the current line, and discard
+any initial text matching comint-prompt-regexp."])
+(fset 'comint-skip-prompt #[nil "ŠÀˆ`)Â!­‰Ä•	X­ƒÄ•b)‡" [nil eol looking-at comint-prompt-regexp 0] 2 "\
+Skip past the text matching regexp comint-prompt-regexp. 
+If this takes us past the end of the current line, don't skip at all."])
+(fset 'comint-after-pmark-p #[nil "ÀÁ !‰`X)‡" [marker-position comint-mark proc-pos] 3 "\
+Is point after the process output marker?"])
+(fset 'comint-simple-send #[(proc string) "À	\n\"ˆÀ	Ã\"‡" [comint-send-string proc string "\n"] 3 "\
+Default function for sending to PROC input STRING.
+This just sends STRING plus a newline. To override this,
+set the hook COMINT-INPUT-SENDER."])
+(fset 'comint-bol #[(arg) "Àyˆ	?­‚Â ‡" [0 arg comint-skip-prompt] 1 "\
+Goes to the beginning of line, then skips past the prompt, if any.
+If a prefix argument is given (\\[universal-argument]), then no prompt skip 
+-- go straight to column 0.
+
+The prompt skip is done by skipping text matching the regular expression
+comint-prompt-regexp, a buffer local variable.
+
+If you don't like this command, reset c-a to beginning-of-line 
+in your hook, comint-mode-hook." "P"])
+(fset 'comint-read-noecho #[(prompt) "ÀÁÂ;«Ç!Á˜¬…Ç!ˆÈ ‰ÉU¬ÊU¬ˆË!PªkÇÁ!ˆ+‡" [0 "" nil tem answ echo-keystrokes prompt message read-char 13 10 char-to-string] 3 "\
+Prompt the user with argument PROMPT. Read a single line of text
+without echoing, and return it. Note that the keystrokes comprising
+the text can still be recovered (temporarily) with \\[view-lossage]. This
+may be a security bug for some applications."])
+(fset 'send-invisible #[(str) "Àp!‰¬…ÂÃ!ª’Ä	;«ƒªƒÆÇ!\"ˆÄ	È\")‡" [get-buffer-process proc error "Current buffer has no process" comint-send-string str comint-read-noecho "Enter non-echoed text" "\n"] 5 "\
+Read a string without echoing, and send it to the process running
+in the current buffer. A new-line is additionally sent. String is not 
+saved on comint input history list.
+Security bug: your string can still be temporarily recovered with
+\\[view-lossage]." "P"])
+(defvar comint-input-chunk-size 512 "\
+*Long inputs send to comint processes are broken up into chunks of this size.
+If your process is choking on big inputs, try lowering the value.")
+(fset 'comint-send-string #[(proc str) "G‰\n^ÄÆO\"ˆ	W­™\n\\È ˆÄ	^O\"ˆ)ªb*‡" [str len comint-input-chunk-size i process-send-string proc 0 next-i accept-process-output] 7 "\
+Send PROCESS the contents of STRING as input.
+This is equivalent to process-send-string, except that long input strings
+are broken up into chunks of size comint-input-chunk-size. Processes
+are given a chance to output between chunks. This can help prevent processes
+from hanging when you send them long inputs on some OS's."])
+(fset 'comint-send-region #[(proc start end) "À	\n{\"‡" [comint-send-string proc start end] 4 "\
+Sends to PROC the region delimited by START and END.
+This is a replacement for process-send-region that tries to keep
+your process from hanging on long inputs. See comint-send-string."])
+(fset 'comint-kill-output #[nil "À Â	\"ˆ	bˆÄcˆ	`Å“)‡" [comint-mark pmark kill-region comint-last-input-end "*** output flushed ***\n" nil] 3 "\
+Kill all output from interpreter since last input." nil])
+(fset 'comint-show-output #[nil "bˆÁ ˆÂyˆÃÄ `\"ˆÅ‡" [comint-last-input-end backward-char 0 set-window-start selected-window nil] 3 "\
+Display start of this batch of interpreter output at top of window.
+Also put cursor there." nil])
+(fset 'comint-interrupt-subjob #[nil "ÀÁ\n\"‡" [interrupt-process nil comint-ptyp] 3 "\
+Interrupt the current subjob." nil])
+(fset 'comint-kill-subjob #[nil "ÀÁ\n\"‡" [kill-process nil comint-ptyp] 3 "\
+Send kill signal to the current subjob." nil])
+(fset 'comint-quit-subjob #[nil "ÀÁ\n\"‡" [quit-process nil comint-ptyp] 3 "\
+Send quit signal to the current subjob." nil])
+(fset 'comint-stop-subjob #[nil "ÀÁ\n\"‡" [stop-process nil comint-ptyp] 3 "\
+Stop the current subjob.
+WARNING: if there is no current subjob, you can end up suspending
+the top-level process running in the buffer. If you accidentally do
+this, use \\[comint-continue-subjob] to resume the process. (This
+is not a problem with most shells, since they ignore this signal.)" nil])
+(fset 'comint-continue-subjob #[nil "ÀÁ\n\"‡" [continue-process nil comint-ptyp] 3 "\
+Send CONT signal to process buffer's process group.
+Useful if you accidentally suspend the top-level process." nil])
+(fset 'comint-kill-input #[nil "À Â	!`V­„Ä	`\"*‡" [comint-mark pmark marker-position p-pos kill-region] 3 "\
+Kill all text from last stuff output by interpreter to point." nil])
+(fset 'comint-delchar-or-maybe-eof #[(arg) "m«ƒÀ ‡Á\n!‡" [process-send-eof delete-char arg] 2 "\
+Delete ARG characters forward, or send an EOF to process if at end of buffer." "p"])
+(fset 'comint-send-eof #[nil "À ‡" [process-send-eof] 1 "\
+Send an EOF to the process in the current buffer." nil])
+(byte-code "ÀÁMˆÂÃM‡" [comint-source-default #[(previous-dir/file source-modes) "«	\n>«ˆÃ!Ä!B‡®„ÇB‡" [buffer-file-name major-mode source-modes file-name-directory file-name-nondirectory previous-dir/file default-directory nil] 3] comint-check-source #[(fname) "À	!‰­œÃ\n!­—ÄÅÆÇ\n!\"!­p\nqˆÉ ˆq))‡" [get-file-buffer fname buff buffer-modified-p y-or-n-p format "Save buffer %s first? " buffer-name old-buffer save-buffer] 6]] 2)
+(fset 'comint-extract-string #[nil "Š`Áyˆ`Ãˆ`bˆÅÆ\nÇ#­‚`TbˆÉÆÇ#­‚`S\n­‰\n­…\n{.‡" [point 0 bol nil eol search-backward "\"" t start search-forward end] 4 "\
+Returns string around point that starts the current line or nil."])
+(byte-code "ÀÁMˆÂÃMˆÄÅ!¬‚ÆÀ‡" [comint-get-source #[(prompt prev-dir/file source-modes mustmatch-p) "À	\n\"Ä ‰­ŠÆÇÈ­„É!?‰\n«…Ë!ª‚@\n«…Í!ª‚AÏ«‰ĞÑ#ª‚‰P$ÕÖ!!.C‡" [comint-source-default prev-dir/file source-modes def comint-extract-string stringfile nil (file-exists-p stringfile) ((error)) file-directory-p sfile-p file-name-directory defdir file-name-nondirectory deffile read-file-name format "%s(default %s) " prompt mustmatch-p ans expand-file-name substitute-in-file-name] 6] comint-proc-query #[(proc str) "À	!Ã	!Å\n!ˆ\nqˆÆ\n!Ç!	Ê	\"ˆÌ	!ˆÍ	\"?­¥Î	!Ğ	\"ˆÑÒ!ˆÍ	\"¬†Ó!ª†Ğ	\"),‡" [process-buffer proc proc-buf process-mark proc-mark display-buffer get-buffer-window marker-position proc-pt proc-win comint-send-string str accept-process-output pos-visible-in-window-p window-point opoint set-window-point sit-for 0 push-mark] 3] boundp comint-match-partial-pathname-chars "^][<>{}()!#$^&*\\|?`'^ 	\n"] 2)
+(fset 'comint-match-partial-pathname #[nil "ŠÀÁxˆ`ÁÁxˆ`\nU«„ÅÆ!ˆÇÈÉQ!ˆbˆÊ\n{!+‡" [" 	\n" nil p2 p comint-match-partial-pathname-chars error "" looking-at "[" "]+" substitute-in-file-name] 4 "\
+Returns the filename at point or causes an error."])
+(fset 'comint-replace-by-expanded-filename #[nil "À Â	!Ä	!Æ®‚\"‰¬‰ÉÊ	\"ˆË ª˜Ì=«…ÉÍ!ªÎ”Î•|ˆÏP!c,‡" [comint-match-partial-pathname pathname file-name-directory pathdir file-name-nondirectory pathnondir file-name-completion default-directory completion message "No completions of %s." ding t "Unique completion." 0 expand-file-name] 4 "\
+Replace the filename at point with an expanded, canonicalised, and
+completed replacement.
+\"Expanded\" means environment variables (e.g., $HOME) and ~'s are
+replaced with the corresponding directories.  \"Canonicalised\" means ..
+and . are removed, and the filename is made absolute instead of relative.
+See functions expand-file-name and substitute-in-file-name. See also
+comint-dynamic-complete." nil])
+(fset 'comint-dynamic-complete #[nil "À Â	!Ä	!Æ®‚\"‰¬‰ÉÊ	\"ˆË ª¡Ì=«…ÉÍ!ª–š«…ÎÌ!ª‹Ï•bˆGĞOc,‡" [comint-match-partial-pathname pathname file-name-directory pathdir file-name-nondirectory pathnondir file-name-completion default-directory completion message "No completions of %s." ding t "Unique completion." comint-dynamic-list-completions 0 nil] 4 "\
+Dynamically complete the filename at point.
+This function is similar to comint-replace-by-expanded-filename, except
+that it won't change parts of the filename already entered in the buffer; 
+it just adds completion characters to the end of the filename." nil])
+(fset 'comint-dynamic-list-completions #[(&optional revert-soonest) "À Â	!Ä	!Æ®‚\"‰¬‰ÉÊ	\"ˆË ªÌÌ ÎÏ!‘ˆĞÑ!ˆ¬„ÉÓ!ˆÔÕ !«–×!«‡Ø!ˆªƒÙÛ!ª“Ü!İ=«†Ø!ª…‰*,‡" [comint-match-partial-pathname pathname file-name-directory pathdir file-name-nondirectory pathnondir file-name-all-completions default-directory completions message "No completions of %s." ding current-window-configuration conf "*Help*" display-completion-list sit-for 0 revert-soonest "Hit space to flush." next-command-event allocate-event ch key-press-event-p set-window-configuration nil not-reverted dispatch-event event-to-character 32 unread-command-event] 4 "\
+List in help buffer all possible completions of the filename at point." nil])
+(defvar comint-load-hook nil "\
+This hook is run when comint is loaded in.
+This is a good place to put keybindings.")
+(run-hooks 'comint-load-hook)

@@ -1,0 +1,33 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:20:02 1991
+;;; from file /wg1/emacs-base/lisp/gnusmail.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÃ!ˆÄÅÆ\"ˆÄÇÆ\"ˆÄÈÉ\"ˆÄÊÉ\"ˆÄËÉ\"ˆÄÌÉ\"‡" [provide gnusmail require gnus autoload news-mail-reply "rnewspost" news-mail-other-window mh-send "mh-e" mh-send-other-window mh-find-path mh-yank-cur-msg] 3)
+(fset 'gnus-Subject-mail-reply #[(yank) "À ˆÁ\n!ˆ~ˆÃ ˆÄ\n!ˆ!‡" [gnus-Subject-select-article switch-to-buffer gnus-Article-buffer delete-other-windows bury-buffer gnus-mail-reply-method yank] 2 "\
+Reply mail to news author.
+If prefix argument YANK is non-nil, original article is yanked automatically.
+Customize the variable gnus-mail-reply-method to use another mailer." "P"])
+(fset 'gnus-Subject-mail-reply-with-original #[nil "ÀÁ!‡" [gnus-Subject-mail-reply t] 2 "\
+Reply mail to news author with original article." nil])
+(fset 'gnus-Subject-mail-other-window #[nil "À ˆÁ\n!ˆ~ˆÃ ˆÄ\n!ˆ ‡" [gnus-Subject-select-article switch-to-buffer gnus-Article-buffer delete-other-windows bury-buffer gnus-mail-other-window-method] 2 "\
+Compose mail in other window.
+Customize the variable gnus-mail-other-window-method to use another mailer." nil])
+(fset 'gnus-mail-reply-using-mail #[(&optional yank) "À ˆÁ ˆ\n­Œ`dbˆÄÅ!ˆb)‡" [news-mail-reply gnus-overload-functions yank last mail-yank-original nil] 2 "\
+Compose reply mail using mail.
+Optional argument YANK means yank original article."])
+(fset 'gnus-mail-other-window-using-mail #[nil "À ˆÁ ‡" [news-mail-other-window gnus-overload-functions] 1 "\
+Compose mail other window using mail."])
+(fset 'gnus-mail-reply-using-mhe #[(&optional yank) "À‰‰‰‰‰pŒÈ ˆÉÊ!ÉË!‰«‹ÌÍ\"¬…ÎPª)ÉÏ!ÉĞ!ÉÑ!	\n®‚Ó ˆÔ®Õ#ˆŠÖ×ØÌÙ\"OÚQ\"ˆ)	Ü.­Š`à ˆb)‡" [nil buffer reply-to to date subject cc from gnus-Article-show-all-headers gnus-fetch-field "from" "subject" string-match "^[Rr][Ee]:.+$" "Re: " "reply-to" "cc" "date" mh-show-buffer mh-find-path mh-send "" mh-insert-fields "In-reply-to:" 0 "  *at \\|  *@ \\| *(\\| *<" "'s message of " mh-sent-from-folder 1 mh-sent-from-msg yank last mh-yank-cur-msg] 8 "\
+Compose reply mail using mh-e.
+Optional argument YANK means yank original article.
+The command \\[mh-yank-cur-msg] yank the original message into current buffer."])
+(fset 'gnus-mail-other-window-using-mhe #[nil "ÀÁ!ÀÂ!ÀÃÄÅ!\"É ˆp\nË ˆÌ#ˆpÎ‰+‡" [read-string "To: " "Cc: " "Subject: " gnus-fetch-field "subject" subject cc to gnus-Article-show-all-headers mh-show-buffer mh-find-path mh-send-other-window mh-sent-from-folder 1 mh-sent-from-msg] 6 "\
+Compose mail other window using mh-e."])

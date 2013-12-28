@@ -1,0 +1,12 @@
+;;; compiled by jwz@thalidomide on Sat Jul 27 20:08:52 1991
+;;; from file /u/jwz/emacs19/oldlisp/site-load.el
+;;; emacs version 19.55.
+;;; bytecomp version 2.0 beta; 27-jul-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+

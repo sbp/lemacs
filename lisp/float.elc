@@ -1,0 +1,95 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:17:04 1991
+;;; from file /wg1/emacs-base/lisp/float.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'float)
+(defconst exp-base 2 "\
+Base of exponent in this floating point representation.")
+(defconst mantissa-bits 24 "\
+Number of significant bits in this floating point representation.")
+(defconst decimal-digits 6 "\
+Number of decimal digits expected to be accurate.")
+(defconst expt-digits 2 "\
+Maximum permitted digits in a scientific notation exponent.")
+(defconst maxbit (1- mantissa-bits) "\
+Number of highest bit")
+(defconst mantissa-maxval (byte-code "ÀÁ\n\"S‡" [ash 1 maxbit] 3) "\
+Maximum permissable value of mantissa")
+(defconst mantissa-minval (ash 1 maxbit) "\
+Minimum permissable value of mantissa")
+(defconst floating-point-regexp "^[ 	]*\\(-?\\)\\([0-9]*\\)\\(\\.\\([0-9]*\\)\\|\\)\\(\\(\\([Ee]\\)\\(-?\\)\\([0-9][0-9]*\\)\\)\\|\\)[ 	]*$" "\
+Regular expression to match floating point numbers.  Extract matches:
+1 - minus sign
+2 - integer part
+4 - fractional part
+8 - minus sign for power of ten
+9 - power of ten
+")
+(defconst high-bit-mask (ash 1 maxbit) "\
+Masks all bits except the high-order (sign) bit.")
+(defconst second-bit-mask (byte-code "ÀÁ\nS\"‡" [ash 1 maxbit] 3) "\
+Masks all bits except the highest-order magnitude bit")
+(byte-code "ÀÂÄÆÈ	T\"‰\nËIˆ\nÌÍIˆ\nÎÏIˆ\nĞÑIˆ\nÒÓIˆ\nÔÕIˆ\n	SH\n	HØÙMˆÚÛMˆÜİMˆŞßMˆàáMˆâãMˆäåMˆæçMˆ(Ì¥)êË)\"S+ì+!-êË)Ì¥\".ïğMˆñòM‡" [(0 . 1) _f0 (4194304 . -23) _f1/2 (4194304 . -22) _f1 (5242880 . -19) _f10 make-vector decimal-digits powers-of-10 1 2 (6553600 . -16) 3 (8192000 . -13) 4 (5120000 . -9) 5 (6400000 . -6) 6 (8000000 . -3) all-decimal-digs-minval highest-power-of-10 fashl #[(fnum) "À	@Â\"	ASB‡" [ash fnum 1] 3] fashr #[(fnum) "À	@Â\"	ATB‡" [ash fnum -1] 3] normalize #[(fnum) "@ÁV«Â@\"ÁU«Ä!ªq@ÁW«Â@\"ÁU«‰Ä!ªq‡" [fnum 0 logand second-bit-mask fashl high-bit-mask _f0] 3] abs #[(n) "ÁY«‚‡[‡" [n 0] 2] fabs #[(fnum) "ÀÁ\n@!\nAB!‡" [normalize abs fnum] 3] xor #[(a b) "¬ƒ	­…­	?‡" [a b] 1] same-sign #[(a b) "ÀÁ\n@!Á@!\"?‡" [xor natnump a b] 4] extract-match #[(str i) "ÀÁÂ‡" [nil (byte-code "	”	•O‡" [str i] 3) ((error ""))] 3] mantissa-bits halfword-bits ash masklo lognot maskhi round-limit hihalf #[(n) "ÀÁ\n\"[\"‡" [ash logand n maskhi halfword-bits] 4] lohalf #[(n) "À	\n\"‡" [logand n masklo] 3]] 5)
+(fset 'f+ #[(a1 a2) "À	\n\"Ã	\n\"Æ	\n\"«ˆÇ!Ç!È@É@AAZ\"\\AB!*‡" [fmax a1 a2 fmin f2 f1 same-sign fashr normalize ash] 6 "\
+Returns the sum of two floating point numbers."])
+(fset 'f- #[(a1 &optional a2) "«‡Á\nÃ!\"‡Ä\n@[\nAB!‡" [a2 f+ a1 f- normalize] 4 "\
+Returns the difference of two floating point numbers."])
+(fset 'f* #[(a1 a2) "À	!@À!@Å	\"?ÇÈ\n!È!_!ÈÇ\n!È!_!È‰\n!Ç!_!\\\\	Ç\n!Ç!_Ç‰\n!È!_!ÇÈ\n!Ç!_!Ç	!\\\\\\\nÈ	!V«…\nT\nÌ«…\n[ª‚\nÀ	!AÀ!A\\\\B!-‡" [fabs a1 i1 a2 i2 same-sign sign hihalf lohalf prodlo prodhi round-limit normalize mantissa-bits] 6 "\
+Returns the product of two floating point numbers."])
+(fset 'f/ #[(a1 a2) "@ÁU«ˆÂÃÄE\"‡SÁÇ!@Ç!@È\"?	\nÎ!«¯\nZÁW«‰ÏĞ\"ªÏĞ\"T\nZÏĞ\"SªKÑ	«…[ª‚Ç!AÇ!AZSZB!-‡" [a2 0 signal arith-error "attempt to divide by zero" a1 maxbit fabs same-sign sign divisor dividend quotient bits natnump ash 1 normalize] 7 "\
+Returns the quotient of two floating point numbers."])
+(fset 'f% #[(a1 a2) "À	ÂÃÄ	\"!\"\"‡" [f- a1 f* ftrunc f/ a2] 7 "\
+Returns the remainder of first floating point number divided by second."])
+(fset 'f= #[(a1 a2) "	š‡" [a1 a2] 2 "\
+Returns t if two floating point numbers are equal, nil otherwise."])
+(fset 'f> #[(a1 a2) "À	@!«ˆ\n@ÃW«‚Ä‡	@ÃV«ˆ\n@ÃX«‚Ä‡	@ÃX«ˆÀ\n@!«‚Å‡	A\nAU¬†	A\nAV‡	@\n@V‡" [natnump a1 a2 0 t nil] 2 "\
+Returns t if first floating point number is greater than second,
+nil otherwise."])
+(fset 'f>= #[(a1 a2) "À	\n\"®„Ã	\n\"‡" [f> a1 a2 f=] 3 "\
+Returns t if first floating point number is greater than or equal to 
+second, nil otherwise."])
+(fset 'f< #[(a1 a2) "À	\n\"?‡" [f>= a1 a2] 3 "\
+Returns t if first floating point number is less than second,
+nil otherwise."])
+(fset 'f<= #[(a1 a2) "À	\n\"?‡" [f> a1 a2] 3 "\
+Returns t if first floating point number is less than or equal to
+second, nil otherwise."])
+(fset 'f/= #[(a1 a2) "À	\n\"?‡" [f= a1 a2] 3 "\
+Returns t if first floating point number is not equal to second,
+nil otherwise."])
+(fset 'fmin #[(a1 a2) "À	\n\"«‚	‡\n‡" [f< a1 a2] 3 "\
+Returns the minimum of two floating point numbers."])
+(fset 'fmax #[(a1 a2) "À	\n\"«‚	‡\n‡" [f> a1 a2] 3 "\
+Returns the maximum of two floating point numbers."])
+(fset 'fzerop #[(fnum) "@ÁU‡" [fnum 0] 2 "\
+Returns t if the floating point number is zero, nil otherwise."])
+(fset 'floatp #[(fnum) ":­ˆ@¨­ƒA¨‡" [fnum] 1 "\
+Returns t if the arg is a floating point number, nil otherwise."])
+(fset 'f #[(int) "À	ÂB!‡" [normalize int 0] 3 "\
+Convert the integer argument to floating point, like a C cast operator."])
+(fset 'int-to-hex-string #[(int) "ÀÁÂ‰ÆX«–ÇÈÉ\n\"Ë\"H!PÌ\\‰ªf+‡" [-20 "0x" "0123456789ABCDEF" hex-chars str shiftval 0 char-to-string logand lsh int 15 4] 8 "\
+Convert the integer argument to a C-style hexadecimal string."])
+(fset 'ftrunc #[(fnum) "À	A!«‚	‡	A\n[X«‚Ã‡	@	AÆÀ!«ŠÇ‰\"[\"ªŠÇ‰[\"[\"[B!*‡" [natnump fnum maxbit (0 . 1) exp mant normalize ash] 5 "\
+Truncate the fractional part of a floating point number."])
+(fset 'fint #[(fnum) "À	!‰@\nA‰Y«„ª[X«„ª„È\"+‡" [ftrunc fnum tf tint texp mantissa-bits mantissa-maxval mantissa-minval ash] 4 "\
+Convert the floating point number to integer, with truncation, 
+like a C cast operator."])
+(fset 'float-to-string #[(fnum &optional sci) "À	!	@ÃWÃÃÇÃ	\nÌ	\"«„Î‚AÏ\n\n\"«°ĞÑ\"‰	\n\"«‹	\\ªgĞÑ\"‰	\n\"«¶	TªiÕÖ\"‰	\n\"«‹	ZªgÕ\n\"«Ö\"SªlÑÖ\n\"\"Ø\n!ÙÕÛ\n\"\"«‰İ!Tª†İ!Ş!ßY«ƒT) «•ÃáOâáÙOãŞ!°ªÚSY«œZ$å$!«ÎP$S$ªm)ª·ÃW«¢[æZ$å$!«ÎP$S$ªmçP)ªÃTOâTÙOQ«†èPª‚.‡" [fabs fnum value 0 sign power result "" str temp _f1 pow10 f= _f0 "0" f>= f<= f* highest-power-of-10 decimal-digits _f10 f> f/ all-decimal-digs-minval ftrunc nil int f- _f1/2 fint int-to-string 1000000 sci 1 "." "E" zeroes natnump 2 "0." "-"] 6 "\
+Convert the floating point number to a decimal string.
+Optional second argument non-nil means use scientific notation."])
+(fset 'string-to-float #[(str) "À	\nÃ#ƒÄÆÇ\nÈ\"	Ç\nÊ\"	PÇ\nÍ\"ÎšÃÄ	GZGW«‘HÓU«ˆT‰ªiZÄO‰GV«“HÔYÃOª‰GZ\\ÕÖ!«ƒÍªÃ\\«ƒ×ªÍ_!.Ç\nØ\"Ç\nÚ\"ÎšÃÃÃ Æ!ÖÃ\"G^O!«ƒ×ªÍ_\\‰ÃW«ˆ[ã!¥¦ÃV«‘! $\" S‰ªk! %H\".\")‡&‡" [string-match floating-point-regexp str 0 nil power f* extract-match 2 int-subst 4 fract-subst digit-string 1 "-" mant-sign leading-0s round-up decimal-digits 48 53 f string-to-int -1 9 expt-subst 8 expt-sign expt chunks tens _f1 exponent func expt-digits f/ highest-power-of-10 powers-of-10 _f0] 8 "\
+Convert the string to a floating point number.
+Accepts a decimal string in scientific notation, 
+with exponent preceded by either E or e.
+Only the 6 most significant digits of the integer and fractional parts
+are used; only the first two digits of the exponent are used.
+Negative signs preceding both the decimal number and the exponent
+are recognized."])

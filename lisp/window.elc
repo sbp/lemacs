@@ -1,0 +1,37 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:37:03 1991
+;;; from file /wg1/emacs-base/lisp/window.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'count-windows #[(&optional minibuf) "ÀÂÃ\"ˆ	)‡" [0 count walk-windows #[nil "Á\\‰‡" [count 1] 2] minibuf] 3 "\
+Returns the number of visible windows.
+Optional arg NO-MINI non-nil means don't count the minibuffer
+even if it is active."])
+(fset 'balance-windows #[nil "ÀÂÃÄ\"ˆÅ 	¥ÂÇÄ\"*‡" [0 count walk-windows #[(w) "Á\\‰‡" [count 1] 2] nomini screen-height size #[(w) "À	!ˆÂÄ Z!‡" [select-window w enlarge-window size window-height] 3]] 3 "\
+Makes all visible windows the same size (approximately)." nil])
+(fset 'split-window-vertically #[(&optional arg) "À Á‰ÅÁ­„Ç!\"ŠÈ qˆÉ bˆÊË !ˆÌ`\"ˆ`Í!V«…Î`\"ˆÊÏ!ˆ`)\n`X«†Î\nS\"ˆ+‡" [selected-window nil bottom new-w old-w split-window arg prefix-numeric-value window-buffer window-start vertical-motion window-height set-window-start window-point set-window-point -1] 4 "\
+Split current window into two windows, one above the other.
+This window becomes the uppermost of the two, and gets
+ARG lines.  No arg means split equally." "P"])
+(fset 'split-window-horizontally #[(&optional arg) "ÀÁ\n­ƒÃ\n!Ä#‡" [split-window nil arg prefix-numeric-value t] 4 "\
+Split current window into two windows side by side.
+This window becomes the leftmost of the two, and gets
+ARG columns.  No arg means split equally." "P"])
+(fset 'enlarge-window-horizontally #[(arg) "À	Â\"‡" [enlarge-window arg t] 3 "\
+Make current window ARG columns wider." "p"])
+(fset 'shrink-window-horizontally #[(arg) "À	Â\"‡" [shrink-window arg t] 3 "\
+Make current window ARG columns narrower." "p"])
+(fset 'window-config-to-register #[(name) "À	Â \"‡" [set-register name current-window-configuration] 3 "\
+Save the current window configuration in register REG (a letter).
+It can be later retrieved using \\[M-x register-to-window-config]." "cSave window configuration in register: "])
+(fset 'register-to-window-config #[(name) "ÀÁ\n!!‡" [set-window-configuration get-register name] 3 "\
+Restore (make current) the window configuration in register REG (a letter).
+Use with a register previously set with \\[window-config-to-register]." "cRestore window configuration from register: "])
+(byte-code "À	ÂÃ#ˆÀ	ÄÅ#ˆÀ	ÆÇ#ˆÀ	ÈÉ#ˆÀ	ÊË#ˆÀ	ÌÍ#‡" [define-key ctl-x-map "2" split-window-vertically "5" split-window-horizontally "6" window-config-to-register "7" register-to-window-config "}" enlarge-window-horizontally "{" shrink-window-horizontally] 4)

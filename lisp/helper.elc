@@ -1,0 +1,29 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:21:04 1991
+;;; from file /wg1/emacs-base/lisp/helper.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÃ!¬‚ÄÂÅ!¬‚Ä¬®Æ ÇÈÉ#ˆÇÊË#ˆÇÌÍ#ˆÇÎÏ#ˆÇĞÑ#ˆÇÒ!Ñ#ˆÅMˆÔÕM‡" [provide helper boundp Helper-return-blurb nil Helper-help-map make-keymap define-key "m" Helper-describe-mode "b" Helper-describe-bindings "c" Helper-describe-key-briefly "k" Helper-describe-key "?" Helper-help-options char-to-string help-char Helper-help-scroller #[nil "ÀÁ!«ƒ	®ÂÄ‹)‡" [boundp Helper-return-blurb "return" blurb ((byte-code "ÀÁ !bˆÂÃ!«†ÄÃ!ˆª„ÅÃ!ˆebˆÆÇ		­ÙÊd!«ƒËªÌÍ_Êe!«ƒËªÌ\\ÎÏ8\"ˆÑ ‰	Ò>«‹ÍW«…Ó ˆªH	ÔU«…Õ ˆª=	ÖU«Í¦ÌU«…× ˆª*Ç‰	¬(Ç*‡" [window-start selected-window get-buffer-window "*Help*" pop-to-buffer switch-to-buffer t nil state continue pos-visible-in-window-p 1 0 2 message ("Space forward, Delete back. Other keys %s" "Space scrolls forward. Other keys %s" "Delete scrolls back. Other keys %s" "Type anything to %s") blurb read-char (32 22) scroll-up 12 recenter 127 scroll-down] 4))] 2]] 4)
+(fset 'Helper-help-options #[nil "ÀÁ!ˆÂÃ!‡" [message "c (key briefly), m (mode), k (key), b (bindings)" sit-for 4] 2 "\
+Describe help options." nil])
+(fset 'Helper-describe-key-briefly #[(key) "À	!ˆÂÃ!‡" [describe-key-briefly key sit-for 4] 2 "\
+Briefly describe binding of KEYS." "kDescribe key briefly: "])
+(fset 'Helper-describe-key #[(key) "À‹ˆÁ ‡" [((describe-key key)) Helper-help-scroller] 1 "\
+Describe binding of KEYS." "kDescribe key: "])
+(fset 'Helper-describe-function #[nil "À‹ˆÁ ‡" [((byte-code "ÀÁ!‡" [call-interactively describe-function] 2)) Helper-help-scroller] 1 "\
+Describe a function.  Name read interactively." nil])
+(fset 'Helper-describe-variable #[nil "À‹ˆÁ ‡" [((byte-code "ÀÁ!‡" [call-interactively describe-variable] 2)) Helper-help-scroller] 1 "\
+Describe a variable.  Name read interactively." nil])
+(fset 'Helper-describe-mode #[nil "Á\n!ŠÄÅ!qˆÆ ˆÇ	±ˆ+È ‡" [mode-name documentation major-mode name get-buffer-create "*Help*" erase-buffer " Mode\n" Helper-help-scroller] 3 "\
+Describe the current mode." nil])
+(fset 'Helper-describe-bindings #[nil "ÀÁ!ˆÂ‹ˆÃ ‡" [message "Making binding list..." ((describe-bindings)) Helper-help-scroller] 2 "\
+Describe local key bindings of current mode." nil])
+(fset 'Helper-help #[nil "ÀÁ­±ÄÅ!ˆÆÇ —!È	\n\"‰Ê=«…Ê ˆªcË\n!«‰Ì\n!ˆÁ‰ªVÍ ˆÁ‰¬PÁ*‡" [t nil c continue message "Help (Type ? for further options)" char-to-string read-char lookup-key Helper-help-map Helper-help-options commandp call-interactively ding] 4 "\
+Provide help for current mode." nil])

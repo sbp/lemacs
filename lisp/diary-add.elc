@@ -1,0 +1,38 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:11:59 1991
+;;; from file /wg1/emacs-base/lisp/diary-add.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'insert-diary-entry #[nil "«ƒÁªÂÄÅ ®ƒÆÇ!È\"	Ê!ˆdbˆ	Ì±*‡" [european-calendar-style (day " " monthname " " year) (monthname " " day ", " year) calendar-date-display-form calendar-date-string calendar-cursor-to-date error "Cursor is not on a date!" t date-string find-file-other-window diary-file " "] 3 "\
+Insert a diary entry for the date indicated by point." nil])
+(fset 'insert-weekly-diary-entry #[nil "ÀÁ ®ƒÂÃ!!Å!ˆdbˆÈ±)‡" [calendar-day-name calendar-cursor-to-date error "Cursor is not on a date!" weekday find-file-other-window diary-file diary-nonmarking-symbol " "] 3 "\
+Insert a weekly diary entry for the day of the week indicated by point." nil])
+(fset 'insert-monthly-diary-entry #[nil "«ƒÁªÂÄÅ ®ƒÆÇ!È\"	Ê!ˆdbˆ	Ì±*‡" [european-calendar-style (day " * ") ("* " day) calendar-date-display-form calendar-date-string calendar-cursor-to-date error "Cursor is not on a date!" t date-string find-file-other-window diary-file " "] 3 "\
+Insert a monthly diary entry for the day of the month indicated by point." nil])
+(fset 'insert-annual-diary-entry #[nil "«ƒÁªÂÄÅ ®ƒÆÇ!È\"	Ê!ˆdbˆ	Ì±*‡" [european-calendar-style (day " " monthname) (monthname " " day) calendar-date-display-form calendar-date-string calendar-cursor-to-date error "Cursor is not on a date!" t date-string find-file-other-window diary-file " "] 3 "\
+Insert an annual diary entry for the day of the year indicated by point." nil])
+(fset 'insert-hebrew-diary-entry #[nil "«ƒÁªÂÄÅÆ ®ƒÇÈ!!!	\nÌ	!Î!ˆdbˆÑ±,‡" [european-calendar-style (day " " monthname " " year) (monthname " " day ", " year) calendar-date-display-form calendar-hebrew-from-absolute calendar-absolute-from-gregorian calendar-cursor-to-date error "Cursor is not on a date!" hebrew-date calendar-hebrew-month-name-array-leap-year calendar-month-name-array calendar-date-string date-string find-file-other-window diary-file hebrew-diary-entry-symbol " "] 4 "\
+Insert a diary entry for the Hebrew date corresponding to the date
+indicated by point." nil])
+(fset 'insert-monthly-hebrew-diary-entry #[nil "«ƒÁªÂÄÅÆ ®ƒÇÈ!!!	\nÌ	!Î!ˆdbˆÑ±,‡" [european-calendar-style (day " * ") ("* " day) calendar-date-display-form calendar-hebrew-from-absolute calendar-absolute-from-gregorian calendar-cursor-to-date error "Cursor is not on a date!" hebrew-date calendar-hebrew-month-name-array-leap-year calendar-month-name-array calendar-date-string date-string find-file-other-window diary-file hebrew-diary-entry-symbol " "] 4 "\
+Insert a monthly diary entry for the day of the Hebrew month corresponding
+to the date indicated by point." nil])
+(fset 'insert-annual-hebrew-diary-entry #[nil "«ƒÁªÂÄÅÆ ®ƒÇÈ!!!	\nÌ	!Î!ˆdbˆÑ±,‡" [european-calendar-style (day " " monthname) (monthname " " day) calendar-date-display-form calendar-hebrew-from-absolute calendar-absolute-from-gregorian calendar-cursor-to-date error "Cursor is not on a date!" hebrew-date calendar-hebrew-month-name-array-leap-year calendar-month-name-array calendar-date-string date-string find-file-other-window diary-file hebrew-diary-entry-symbol " "] 4 "\
+Insert an annual diary entry for the day of the Hebrew year corresponding
+to the date indicated by point." nil])
+(fset 'insert-islamic-diary-entry #[nil "«ƒÁªÂÄÅÆ ®ƒÇÈ!!!	\nÌ	!Î!ˆdbˆÑ±,‡" [european-calendar-style (day " " monthname " " year) (monthname " " day ", " year) calendar-date-display-form calendar-islamic-from-absolute calendar-absolute-from-gregorian calendar-cursor-to-date error "Cursor is not on a date!" islamic-date calendar-islamic-month-name-array calendar-month-name-array calendar-date-string date-string find-file-other-window diary-file islamic-diary-entry-symbol " "] 4 "\
+Insert a diary entry for the Islamic date corresponding to the date
+indicated by point." nil])
+(fset 'insert-monthly-islamic-diary-entry #[nil "«ƒÁªÂÄÅÆ ®ƒÇÈ!!!	\nÌ	!Î!ˆdbˆÑ±,‡" [european-calendar-style (day " * ") ("* " day) calendar-date-display-form calendar-islamic-from-absolute calendar-absolute-from-gregorian calendar-cursor-to-date error "Cursor is not on a date!" islamic-date calendar-islamic-month-name-array calendar-month-name-array calendar-date-string date-string find-file-other-window diary-file islamic-diary-entry-symbol " "] 4 "\
+Insert a monthly diary entry for the day of the Islamic month corresponding
+to the date indicated by point." nil])
+(fset 'insert-annual-islamic-diary-entry #[nil "«ƒÁªÂÄÅÆ ®ƒÇÈ!!!	\nÌ	!Î!ˆdbˆÑ±,‡" [european-calendar-style (day " " monthname) (monthname " " day) calendar-date-display-form calendar-islamic-from-absolute calendar-absolute-from-gregorian calendar-cursor-to-date error "Cursor is not on a date!" islamic-date calendar-islamic-month-name-array calendar-month-name-array calendar-date-string date-string find-file-other-window diary-file islamic-diary-entry-symbol " "] 4 "\
+Insert an annual diary entry for the day of the Islamic year corresponding
+to the date indicated by point." nil])

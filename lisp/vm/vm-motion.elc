@@ -1,0 +1,47 @@
+;;; compiled by jwz@thalidomide on Sat Dec 28 16:57:43 1991
+;;; from file /wg1/emacs-base/lisp/vm/vm-motion.el
+;;; emacs version 19.39.
+;;; bytecomp version 2.03; 29-oct-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÃM‡" [require vm vm-record-and-change-message-pointer #[(old new) "\n\n‰‡" [old vm-last-message-pointer new vm-message-pointer] 2]] 2)
+(fset 'vm-goto-message #[(n) "??­À	«ˆÂ	!«ƒ	qˆÃ!«‡Â!¬‚ÅÆ ˆS›‰¬„ÉÊ!ˆ=«„Ì ªŒÍ\"ˆÎÌ )‡" [n vm-mail-buffer buffer-name bufferp vm-summary-buffer nil vm-error-if-folder-empty vm-message-list cons error "No such message." vm-message-pointer vm-preview-current-message vm-record-and-change-message-pointer t vm-need-summary-pointer-update] 4 "\
+Go to the message numbered N.
+Interactively N is the prefix argument.  If no prefix arg is provided
+N is prompted for in the minibuffer.
+
+If vm-follow-summary-cursor is non-nil this command first tries
+to follow the summary cursor to a new message.  If a new message
+is selected in this way, no further action is taken.  I.e. you can move
+the cursor in the summary buffer, press RETURN and select a new
+message without typing in a message number." (byte-code "À «ƒÁª‹\n«…Ã\n!ªƒÄÅ!C‡" [vm-follow-summary-cursor nil current-prefix-arg prefix-numeric-value vm-read-number "Go to message: "] 2)])
+(fset 'vm-goto-message-last-seen #[nil "«ˆÁ!«ƒqˆÂ!«‡Á!¬‚ÄÅ ˆ­ŒÇ\"ˆÉ\nË ‡" [vm-mail-buffer buffer-name bufferp vm-summary-buffer nil vm-error-if-folder-empty vm-last-message-pointer vm-record-and-change-message-pointer vm-message-pointer t vm-need-summary-pointer-update vm-preview-current-message] 3 "\
+Go to the message last previewed." nil])
+(byte-code "ÀÁÂÃ#ˆÀÁÄÅ#ˆÀÆÂÇ#ˆÀÆÄÈ#ˆÉÊMˆËÌMˆÍÎM‡" [put beginning-of-folder error-conditions (beginning-of-folder error) error-message "Beginning of folder" end-of-folder (end-of-folder error) "End of folder" vm-check-count #[(count) "ÁY«‹\nGW­–ÃÄÅ\"‡G\nGZTÇ!W­„ÃÈÅ\"‡" [count 0 vm-message-pointer signal end-of-folder nil vm-message-list vm-abs beginning-of-folder] 3] vm-move-message-pointer #[(direction) "\nÃ=«”	A‰¬§«„ª ÆÇÈ\"ˆª™	@ÉHÊHJ‰¬«†Ë!ª…ÆÌÈ\"ˆ	‰)‡" [vm-message-pointer mp direction forward vm-circular-folders vm-message-list signal end-of-folder nil 0 8 vm-last beginning-of-folder] 4] vm-should-skip-message #[(mp &optional skip-dogmatically) "«¦	«ˆ\n@ÃHÃH®Ä­—\n@ÃHÃH®\n@ÃHÅH®†\n@ÃHÆH?‡	Ç=«ˆ\n@ÃHÃH®œÇ=­—\n@ÃHÃH®\n@ÃHÅH®†\n@ÃHÆH?‡" [skip-dogmatically vm-skip-deleted-messages mp 2 vm-skip-read-messages 0 1 t] 2]] 4)
+(fset 'vm-next-message #[(&optional count retry signal-errors) "«ˆÁ!«ƒqˆÂ ˆÃ!«‡Á!¬‚Å«ƒÇ ˆ¬ƒÉ\nÅËV«ƒÌªÍÎ!\n¬†\nª’ÉU¬‡ÅÓÔˆª…ÅÕÖˆ\n=¬×\n\"ˆØÚ ˆ­‰­…ÛÅ\",‡" [vm-mail-buffer buffer-name vm-sanity-check-modification-flag bufferp vm-summary-buffer nil signal-errors vm-error-if-folder-empty count 1 vm-message-pointer 0 forward backward vm-abs direction error oldmp vm-message-list (byte-code "ÁU¬ŠÂ!ˆS‰ªrÁ‡" [count 0 vm-move-message-pointer direction] 3) ((beginning-of-folder (byte-code "ÀÀ‡" [beginning-of-folder error] 1)) (end-of-folder (byte-code "ÀÀ‡" [end-of-folder error] 1))) (byte-code "À	!ˆ\n=¬ŒÄÅ\"«†À	!ˆªo\n=«™«•A«\n=¬‹Ä!«†À	!ˆªpÀ‡" [vm-move-message-pointer direction oldmp vm-message-pointer vm-should-skip-message t retry vm-message-list] 3) ((beginning-of-folder (byte-code "\n«‡ÃÄÅªƒÆÃ‡" [oldmp vm-message-pointer retry nil (byte-code "Á\n!ˆÃ!«†Á\n!ˆªu)‡" [vm-message-pointer vm-move-message-pointer direction vm-should-skip-message] 2) ((beginning-of-folder (byte-code "À\n‡" [beginning-of-folder error oldmp] 1))) beginning-of-folder error] 3)) (end-of-folder (byte-code "\n«‡ÃÄÅªƒÆÃ‡" [oldmp vm-message-pointer retry nil (byte-code "Á\n!ˆÃ!«†Á\n!ˆªu)‡" [vm-message-pointer vm-move-message-pointer direction vm-should-skip-message] 2) ((end-of-folder (byte-code "À\n‡" [end-of-folder error oldmp] 1))) end-of-folder error] 3))) vm-record-and-change-message-pointer t vm-need-summary-pointer-update vm-preview-current-message signal] 5 "\
+Go forward one message and preview it.
+With prefix arg COUNT, go forward COUNT messages.  A negative COUNT
+means go backward.  If the absolute value of COUNT > 1 the values of the
+variables vm-skip-deleted-messages and vm-skip-read-messages are
+ignored." "p\np\np"])
+(fset 'vm-previous-message #[(&optional count retry signal-errors) "¬‚Á\n«ˆÃ\n!«ƒ\nqˆÄ[#‡" [count 1 vm-mail-buffer buffer-name vm-next-message retry signal-errors] 4 "\
+Go back one message and preview it.
+With prefix arg COUNT, go backward COUNT messages.  A negative COUNT
+means go forward.  If the absolute value of COUNT > 1 the values of the
+variables vm-skip-deleted-messages and vm-skip-read-messages are
+ignored." "p\np\np"])
+(fset 'vm-Next-message #[(&optional count) "«ˆÁ!«ƒqˆÂ‰ÅÂÇ#*‡" [vm-mail-buffer buffer-name nil vm-skip-read-messages vm-skip-deleted-messages vm-next-message count t] 4 "\
+Like vm-next-message but will not skip messages." "p"])
+(fset 'vm-Previous-message #[(&optional count) "«ˆÁ!«ƒqˆÂ‰Å!*‡" [vm-mail-buffer buffer-name nil vm-skip-read-messages vm-skip-deleted-messages vm-previous-message count] 2 "\
+Like vm-previous-message but will not skip messages." "p"])
+(fset 'vm-next-unread-message #[nil "«ˆÁ!«ƒqˆÂ!«‡Á!¬‚ÄÄÅÆ‡" [vm-mail-buffer buffer-name bufferp vm-summary-buffer nil (byte-code "À	ÄÅÆÀ#ˆ	\n=­„ÇÈÆ\"*‡" [t vm-message-pointer oldmp vm-skip-read-messages vm-next-message 1 nil signal end-of-folder] 4) ((end-of-folder (message "No next unread message")))] 3 "\
+Move forward to the nearest new or unread message, if there is one." nil])
+(fset 'vm-previous-unread-message #[nil "«ˆÁ!«ƒqˆÂ!«‡Á!¬‚ÄÄÅÆ‡" [vm-mail-buffer buffer-name bufferp vm-summary-buffer nil (byte-code "À	Ä ˆ	\n=­„ÅÆÇ\"*‡" [t vm-message-pointer oldmp vm-skip-read-messages vm-previous-message signal beginning-of-folder nil] 3) ((beginning-of-folder (message "No previous unread message")))] 3 "\
+Move backward to the nearest new or unread message, if there is one." nil])
+(byte-code "ÀÁMˆÂÃM‡" [vm-find-first-unread-message #[nil "À‰‰«\n@ÄHÅH«\n@ÄHÄH¬‡\nÀ‰ªg\nA‰¬c	¬¢‰«\n@ÄHÆH«\n@ÄHÄH¬‡\nÀ‰ªg\nA‰¬c	*‡" [nil unread-mp mp vm-message-list 2 0 1] 3] vm-thoughtfully-select-message #[nil "«†	Â=?­¤Ã ‰«•«‡Å\"ˆª‚ÆÈ ˆÆªˆ?­„É ˆÆ)‡" [vm-message-pointer vm-system-state reading vm-find-first-unread-message mp vm-record-and-change-message-pointer t vm-need-summary-pointer-update vm-preview-current-message vm-Next-message] 4]] 2)

@@ -1,0 +1,15 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:23:56 1991
+;;; from file /wg1/emacs-base/lisp/lint.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÀÂM‡" [compilation-parse-lint-errors compilation-parse-errors-hook #[nil "À ˆÁ ‡" [compilation-convert-lint compilation-parse-errors] 1]] 2)
+(fset 'compilation-convert-lint #[nil "ŠÀqˆÁbˆÂÃÄÅ#­¹ÄÇyˆÈyˆ`ŠÄˆ`){ÉyˆÊË!«›ÌÍQcˆÎÁ!ˆÏÐ!ˆÎÇ!ˆÑcˆÁyˆª`)ª@)‡" ["*compilation*" 1 re-search-forward "^=" nil t filename -1 0 2 looking-at "(" "\"" "\", line " delete-char search-forward ")" ":"] 4 "\
+Modify *compilation* buffer from lint format."])

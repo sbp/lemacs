@@ -1,0 +1,22 @@
+;;; compiled by jwz@thalidomide on Fri Feb 21 17:31:34 1992
+;;; from file /u/jwz/emacs19/lisp/x-mouse.el
+;;; emacs version 19.60 Lucid.
+;;; bytecomp version 2.04; 5-feb-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "¿¡!à¬√!àƒ∆«#àƒ»…#á" [provide x-mouse require mouse define-key global-map button2 x-set-point-and-insert-selection (control button2) x-mouse-kill] 4)
+(fset 'x-mouse-kill #[(event) "`¡\n!à`{ƒ!à≈!à)∆`\")á" [old-point mouse-set-point event s x-own-clipboard x-store-cutbuffer kill-region] 3 "\
+Kill the text between the point and mouse and copy it to the clipboard and
+to the cut buffer" "@e"])
+(fset 'x-set-point-and-insert-selection #[(event) "¿¡¬èÆÇ√ â¨Ö≈∆!™á«!àc)á" [nil (x-get-selection) ((error)) x-get-cutbuffer text error "No selection or cut buffer available" mouse-set-point event] 4 "\
+Sets point where clicked and insert the primary selection or the cut buffer" "e"])
+(fset 'track-select-and-also-copy-to-cutbuffer #[(event) "¿	!à\n≠êä√\n!qàƒ≈\n!∆\n!{!)á" [energize-mouse-track-select event primary-selection-extent extent-buffer x-store-cutbuffer extent-start-position extent-end-position] 4 "\
+Does a selection and also copies it to the cutbuffer" "e"])
+(fset 'x-insert-selection #[nil "¿ â≠Ç	c)á" [x-get-selection text] 2 "\
+Insert the current selection into buffer at point." nil])

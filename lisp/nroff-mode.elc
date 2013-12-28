@@ -1,0 +1,49 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:27:04 1991
+;;; from file /wg1/emacs-base/lisp/nroff-mode.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar nroff-mode-abbrev-table nil "\
+Abbrev table used while in nroff mode.")
+(defvar nroff-mode-map nil "\
+Major mode keymap for nroff-mode buffers")
+(byte-code "¬§Á ÂÃÄ#ˆÂÅÆ#ˆÂÇÈ#ˆÂÉÊ#ˆÂËÌ#ˆÂÍÎ#ˆÁ‡" [nroff-mode-map make-sparse-keymap define-key "	" tab-to-tab-stop "s" center-line "?" count-text-lines "\n" electric-nroff-newline "n" forward-text-line "p" backward-text-line] 4)
+(fset 'nroff-mode #[nil "À ˆÁ\n!ˆÃÅÇ!ˆ	\nËÌ!ˆËÍ!ˆÎËÏ!ˆÐPËÑ!ˆÐPËÒ!ˆÓËÔ!ˆÕËÖ!ˆ×ËØ!ˆÙÚÛÜ\"‡" [kill-all-local-variables use-local-map nroff-mode-map "Nroff" mode-name nroff-mode major-mode set-syntax-table text-mode-syntax-table nroff-mode-abbrev-table local-abbrev-table make-local-variable nroff-electric-mode page-delimiter "^\\.\\(bp\\|SK\\|OP\\)" paragraph-start "^[.']\\|" paragraph-separate comment-start "\\\" " comment-start-skip "\\\\\"[ 	]*" comment-column 24 comment-indent-hook nroff-comment-indent run-hooks text-mode-hook nroff-mode-hook] 3 "\
+Major mode for editing text intended for nroff to format.
+\\{nroff-mode-map}
+Turning on Nroff mode runs text-mode-hook, then nroff-mode-hook.
+Also, try nroff-electric-mode, for automatically inserting
+closing requests for requests that are used in matched pairs." nil])
+(fset 'nroff-comment-indent #[nil "`ÁŽÂÃxˆn«‰TÄcˆÅª˜ŠÆÅ!ˆÇÈ!)«ƒÅªŠ	iÊ\\Ë¥Ë_]*‡" [pt ((goto-char pt)) " 	" nil 46 1 backward-char looking-at "^[.']" comment-column 9 8] 3 "\
+Compute indent for an nroff/troff comment.
+Puts a full-stop before comments on a line by themselves."])
+(fset 'count-text-lines #[(start end &optional print) "«ˆÁÂÃ\"\"‡ŠŒ}ˆebˆÆ ÇÆ !Z*‡" [print message "Region has %d text lines" count-text-lines start end buffer-size forward-text-line] 5 "\
+Count lines in region, except for nroff request lines.
+All lines not starting with a period are counted up.
+Interactively, print result in echo area.
+Noninteractively, return number of non-request lines from START to END." "r\np"])
+(fset 'forward-text-line #[(&optional cnt) "¬‚ÁÂV«šm¬—Áyˆm¬ŠÃÄ!«…ÁyˆªsÁZ‰ªbÂW«šo¬—Åyˆo¬ŠÃÄ!«…ÅyˆªsÁ\\‰ªb‡" [cnt 1 0 looking-at "[.']." -1] 3 "\
+Go forward one nroff text line, skipping lines of nroff requests.
+An argument is a repeat count; if negative, move backward." "p"])
+(fset 'backward-text-line #[(&optional cnt) "À	[!‡" [forward-text-line cnt] 2 "\
+Go backward one nroff text line, skipping lines of nroff requests.
+An argument is a repeat count; negative means move forward." "p"])
+(byte-code "ÀÂ‡" [((".(b" . ".)b") (".(l" . ".)l") (".(q" . ".)q") (".(c" . ".)c") (".(x" . ".)x") (".(z" . ".)z") (".(d" . ".)d") (".(f" . ".)f") (".LG" . ".NL") (".SM" . ".NL") (".LD" . ".DE") (".CD" . ".DE") (".BD" . ".DE") (".DS" . ".DE") (".DF" . ".DE") (".FS" . ".FE") (".KS" . ".KE") (".KF" . ".KE") (".LB" . ".LE") (".AL" . ".LE") (".BL" . ".LE") (".DL" . ".LE") (".ML" . ".LE") (".RL" . ".LE") (".VL" . ".LE") (".RS" . ".RE") (".TS" . ".TE") (".EQ" . ".EN") (".PS" . ".PE") (".BS" . ".BE") (".G1" . ".G2") (".na" . ".ad b") (".nf" . ".fi") (".de" . "..")) nroff-brace-table nil] 1)
+(fset 'electric-nroff-newline #[(arg) "ŠÀyˆ	?­“\n­`dÃZX­‰Ä``Ã\\{\"A)ÆÇ!?‰	¬‡ÊË	!!ª‘ŠÌ	±ˆ«ƒÍcˆ)Îu*‡" [0 arg nroff-electric-mode 3 assoc nroff-brace-table looking-at "[ 	]*$" needs-nl completion newline prefix-numeric-value "\n\n" "\n" 1] 5 "\
+Insert newline for nroff mode; special if electric-nroff mode.
+In electric-nroff-mode, if ending a line containing an nroff opening request,
+automatically inserts the matching closing request after point." "P"])
+(fset 'electric-nroff-mode #[(&optional arg) "Á=¬„ÂÃ!ˆÄž¬†ÆÇC\"¬„?ª†É!ÊV‰‡" [major-mode nroff-mode error "Must be in nroff mode" nroff-electric-mode minor-mode-alist append (nroff-electric-mode " Electric") arg prefix-numeric-value 0] 3 "\
+Toggle nroff-electric-newline minor mode
+Nroff-electric-newline forces emacs to check for an nroff
+request at the beginning of the line, and insert the
+matching closing request if necessary.  
+This command toggles that mode (off->on, on->off), 
+with an argument, turns it on iff arg is positive, otherwise off." "P"])

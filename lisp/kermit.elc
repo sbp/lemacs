@@ -1,0 +1,38 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:23:45 1991
+;;; from file /wg1/emacs-base/lisp/kermit.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(require 'shell)
+(defvar kermit-esc-char "" "\
+*Kermit's escape char")
+(fset 'kermit-esc #[nil "ÀÁp!\nÃÄ !P\"‡" [process-send-string get-buffer-process kermit-esc-char char-to-string read-char] 5 "\
+For sending escape sequences to a kermit running in shell mode." nil])
+(fset 'kermit-send-char #[nil "ÀÁp!ÂÃ !\"‡" [process-send-string get-buffer-process char-to-string read-char] 4 "\
+Send an arbitrary character to a program in shell mode." nil])
+(byte-code "À	ÂÃ#ˆÀ	ÄÅ#ˆÀ	ÆÃ#‡" [define-key shell-mode-map "" kermit-esc "" kermit-send-char "\\"] 4)
+(fset 'kermit-send-input-cr #[nil "ÀÁ!‡" [comint-send-input ""] 2 "\
+Like \\[comint-send-input] but end the line with carriage-return." nil])
+(define-key shell-mode-map "\n" 'kermit-send-input-cr)
+(fset 'kermit-default-cr #[nil "À	ÂÃ#ˆÀ	ÄÅ#‡" [define-key shell-mode-map "" kermit-send-input-cr "\n" comint-send-input] 4 "\
+Make RETURN end the line with carriage-return and LFD end it with a newline.
+This is useful for talking to other systems on which carriage-return
+is the normal way to end a line." nil])
+(fset 'kermit-default-nl #[nil "À	ÂÃ#ˆÀ	ÄÅ#‡" [define-key shell-mode-map "\n" kermit-send-input-cr "" comint-send-input] 4 "\
+Make RETURN end the line with a newline char.  This is the default state.
+In this state, use LFD to send a line and end it with a carriage-return." nil])
+(fset 'kermit-clean-filter #[(proc str) "ŠÀ	!Ã	!qˆ\nbˆÄ!ˆÆÇ\nÈ#­†ÉÊ!ˆªs*‡" [process-mark proc beg process-buffer insert-before-markers str re-search-backware "[]+" t replace-match ""] 4 "\
+Strip ^M and ^@ characters from process output."])
+(fset 'kermit-clean-on #[nil "ÀÁp!Â\"‡" [set-process-filter get-buffer-process kermit-clean-filter] 3 "\
+Delete all null characters and ^M's from the kermit output.
+Note that another (perhaps better) way to do this is to use the
+command `kermit | tr -d '\\015''." nil])
+(fset 'kermit-clean-off #[nil "ÀÁp!Â\"‡" [set-process-filter get-buffer-process nil] 3 "\
+Cancel a previous kermit-clean-shell-on command." nil])

@@ -1,0 +1,38 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:07:36 1991
+;;; from file /wg1/emacs-base/lisp/c-fill.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar c-comment-starting-blank t "\
+*Controls whether global comments have an initial blank line.")
+(defvar c-comment-indenting t "\
+*If set global comments are indented to the level of the previous line.")
+(defvar c-comment-hanging-indent t "\
+*If true, comments will be automatically indented to the dash.")
+(defvar c-hang-already-done t "\
+If true we have performed the haning indent already for this comment.")
+(defvar c-comment-mode-map nil "\
+Keymap used in C comment mode.")
+(byte-code "¬–Á\n!ÃÄÅ#ˆÃÆÇ#ˆÃÈÉ#ˆÁ‡" [c-comment-mode-map copy-keymap c-mode-map define-key "" newline "q" set-fill-and-fill "" set-fill-and-return] 4)
+(fset 'c-comment #[nil "«ƒÁªÂÃÄÆ‰‰‰	\nŠÎÏĞÃ#­‡``Ñ\\{Ò˜)ÆÕ!ˆ¬²× ˆØcˆÙ`!	Ú ˆ`ŠĞyˆÛÒÃ#)«ŒiÜ\\İX«…Şcˆªƒßcˆ× ˆª’Ù`!	Ú ˆÛàá Ã#ˆâyˆ#«´Š`äyˆÛÒÃ#«ˆÛàÃ#¬œåÒ!ˆæÃ#ˆÙ`!	çè!¬†é	±ˆ)× ˆÕ*!.‡" [c-comment-indenting do-indented-auto-fill do-auto-fill t "/*\\*+[ 	]*" paragraph-start nil opoint paragraph-separate fill-prefix paragraph-start-ref comment-start-skip comment-multi-line auto-fill-function re-search-backward "/\\*\\|\\*/" 0 2 "/*" in-comment c-hang-already-done use-local-map c-comment-mode-map c-indent-line "/* " get-current-fill recursive-edit search-forward 3 79 " */" "\n*/" "*/" buffer-size 1 c-comment-starting-blank -1 search-backward re-search-forward looking-at "\n" 10 c-mode-map] 8 "\
+Edit a C comment with filling and indentation.
+This performs hanging indentation, symmetric placement of delimiters,
+ and Indented-Text mode style indentation.  Type 'M-x apropos
+c-comment' for information on options." nil])
+(fset 'set-fill-and-fill #[(arg) "À`!Â!‡" [get-current-fill fill-prefix fill-paragraph arg] 2 "\
+Get the fill-prefix and fill the current paragraph." "P"])
+(fset 'set-fill-and-return #[nil "«„Á`!Ã\n±‡" [c-comment-indenting get-current-fill fill-prefix 10] 2 "\
+Set the current fill prefix and move to the next line." nil])
+(fset 'do-indented-auto-fill #[nil "`ŠÁ\nT!ˆÃÄxˆn«†ÅÆÇ#ˆŠÈÄxˆn)?­ŠÉ!\nË\n±*‡" [opoint move-to-column fill-column "^ 	\n" nil re-search-forward "[ 	]" t " 	" get-current-fill fill-prefix 10] 4 "\
+Perform auto-fill, but get fill-prefix first."])
+(fset 'get-current-fill #[(pnt) "Á‰ŠÅyˆ`ÆÈ#ˆ`{‰‰GSGO‰É˜¬‰\nÊ˜¬„ÉPËÌÉ#«¦¬¢`Áˆ`ÅyˆÑÒÈ#«Ó`ZÔ\"PÈ*Ö×ÅGSO!ØR‰)+‡" [pnt nil last-char fill opoint 0 re-search-forward comment-start-skip t " " "	" replace-letter "/" c-comment-hanging-indent c-hang-already-done opnt curr search-forward " - " make-string 32 paragraph-start-ref "\\|^" regexp-quote "$" paragraph-start paragraph-separate] 7 "\
+Get the current fill prefix.
+A valid fill prefix must be between the beginning of the line and point."])
+(fset 'replace-letter #[(str old-letter new-letter) "À‰Á\nGW«œ\n‰TO˜«„ªPT‰ª`,‡" [nil 0 str size sp c new-str old-letter new-letter] 5])

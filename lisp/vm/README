@@ -1,0 +1,12 @@
+How to setup VM:
+
+1) `make'.  `make all' if you want the Info document built as well.
+
+2) Put the .elc files in a Lisp directory that Emacs knows about.
+   (see load-path).
+
+3) Copy the file vm.info file into the Emacs' info directory under the
+   name "vm".  Edit the "dir" file in that directory and add a menu
+   entry for VM.
+
+Mail bug reports to bug-vm@uunet.uu.net or post them to gnu.emacs.vm.bug.

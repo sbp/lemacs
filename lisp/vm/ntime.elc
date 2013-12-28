@@ -1,0 +1,24 @@
+;;; compiled by jwz@thalidomide on Sat Dec 28 16:56:50 1991
+;;; from file /wg1/emacs-base/lisp/vm/ntime.el
+;;; emacs version 19.39.
+;;; bytecomp version 2.03; 29-oct-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(require 'timer)
+(defvar display-time-interval 60 "\
+*Number of secods between update of the clock display.")
+(defvar display-time-echo-area nil "\
+*Non-nil value means the clock should be displayed in the message echo area,
+instead of the mode line.")
+(defvar display-time-day-and-date nil "\
+*Non-nil value means the day and date should be displayed along with the
+usual time of day.")
+(fset 'display-time #[nil "ÀÁ!?­Ÿ\n¬…¬‚Ä\n¬ŠÅ>¬…ÆÇ\"È ˆÉÁÈ\n‰$‡" [get-timer "display-time" display-time-echo-area global-mode-string ("") display-time-string append (display-time-string) display-time-function start-timer display-time-interval] 5 "\
+Display time of day in the mode line or echo area." nil])
+(fset 'display-time-function #[nil "ÀÂ «ƒÄªÅÆO«È ÄU­¥ŠÉÊ !qˆË ˆÌ 	GZÍZjˆ	c)ª	ŠÏ qˆ)ĞÑ !)‡" [nil string current-time-string display-time-day-and-date 0 11 -8 display-time-echo-area minibuffer-depth window-buffer minibuffer-window erase-buffer screen-width 1 display-time-string other-buffer set-buffer-modified-p buffer-modified-p] 3])

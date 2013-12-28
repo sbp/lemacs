@@ -1,0 +1,88 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:30:22 1991
+;;; from file /wg1/emacs-base/lisp/rnewspost.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÀÂ!‡" [require sendmail rnews] 2)
+(defvar news-reply-mode-map nil "\
+Mode map used by news-reply.")
+(byte-code "¬ÑÁ ÂÃÄ#ˆÂÅÆ#ˆÂÇÈ#ˆÂÉÊ#ˆÂËÌ#ˆÂÍÎ#ˆÂÏĞ#ˆÂÑÒ#ˆÂÓÔ#ˆÂÕÖ#ˆÂ×Ø#ˆÂÙÚ#ˆÂÛÚ#ˆÁ‡" [news-reply-mode-map make-keymap define-key "?" describe-mode "" news-reply-distribution "" news-reply-keywords "" news-reply-newsgroups "" news-reply-followup-to "" mail-subject "" news-reply-summary "" news-caesar-buffer-body "" news-reply-signature "" news-reply-yank-original "" mail-fill-yanked-message "" news-inews ""] 4)
+(fset 'news-reply-mode #[nil "ÀÁ!¬„ÂÃ!ˆÄ ˆÅÆ!ˆÇÈ	!ˆÊ!ˆÎĞÅÒ!ˆÅÓ!ˆÔÖRÔÖR×ØÙ\"‡" [fboundp mail-setup load "sendmail" kill-all-local-variables make-local-variable mail-reply-buffer nil set-syntax-table text-mode-syntax-table use-local-map news-reply-mode-map text-mode-abbrev-table local-abbrev-table news-reply-mode major-mode "News" mode-name paragraph-separate paragraph-start "^" mail-header-separator "$\\|" run-hooks text-mode-hook news-reply-mode-hook] 4 "\
+Major mode for editing news to be posted on USENET.
+First-time posters are asked to please read the articles in newsgroup:
+                                                     news.announce.newusers .
+Like Text Mode but with these additional commands:
+
+C-c C-s  news-inews (post the message)    C-c C-c  news-inews
+C-c C-f	 move to a header field (and create it if there isn't):
+	 C-c C-f C-n  move to Newsgroups:	C-c C-f C-s  move to Subj:
+	 C-c C-f C-f  move to Followup-To:      C-c C-f C-k  move to Keywords:
+	 C-c C-f C-d  move to Distribution:	C-c C-f C-a  move to Summary:
+C-c C-y  news-reply-yank-original (insert current message, in NEWS).
+C-c C-q  mail-fill-yanked-message (fill what was yanked).
+C-c C-r  caesar rotate all letters by 13 places in the article's body (rot13)." nil])
+(defvar news-reply-yank-from "Save From: field for news-reply-yank-original." "\
+")
+(defvar news-reply-yank-message-id "Save Message-Id: field for news-reply-yank-original." "\
+")
+(fset 'news-reply-yank-original #[(arg) "À	!ˆÂ ˆÃÄ!‡" [mail-yank-original arg exchange-point-and-mark run-hooks news-reply-header-hook] 2 "\
+Insert the message being replied to, if any (in rmail).
+Puts point before the text and mark after.
+Indents each nonblank line ARG spaces (default 3).
+Just \\[universal-argument] as argument means don't indent
+and don't delete any header fields." "P"])
+(defvar news-reply-header-hook '(lambda nil (insert "In article " news-reply-yank-message-id " " news-reply-yank-from " writes:\n\n")) "\
+Hook for inserting a header at the top of a yanked message.")
+(fset 'news-reply-newsgroups #[nil "À ˆebˆÁÂ!‡" [expand-abbrev mail-position-on-field "Newsgroups"] 2 "\
+Move point to end of Newsgroups: field.
+RFC 850 constrains the Newsgroups: field to be a comma separated list of valid
+newsgroups names at your site:
+Newsgroups: news.misc,comp.misc,rec.misc" nil])
+(fset 'news-reply-followup-to #[nil "À ˆÁÂÃ\"®†ÁÄ!ˆÅc‡" [expand-abbrev mail-position-on-field "Followup-To" t "newsgroups" "\nFollowup-To: "] 3 "\
+Move point to end of Followup-To: field.  Create the field if none.
+One usually requests followups to only one newsgroup.
+RFC 850 constrains the Followup-To: field to be a comma separated list of valid
+newsgroups names at your site, that are also in the Newsgroups: field:
+Newsgroups: news.misc,comp.misc,rec.misc,misc.misc,soc.misc
+Followup-To: news.misc,comp.misc,rec.misc" nil])
+(fset 'news-reply-distribution #[nil "À ˆÁÂ!‡" [expand-abbrev mail-position-on-field "Distribution"] 2 "\
+Move point to end of Distribution: optional field.
+Create the field if none.  Without this field the posting goes to all of
+USENET.  The field is used to restrict the posting to parts of USENET." nil])
+(fset 'news-reply-keywords #[nil "À ˆÁÂ!‡" [expand-abbrev mail-position-on-field "Keywords"] 2 "\
+Move point to end of Keywords: optional field.  Create the field if none.
+Used as an aid to the news reader, it can contain a few, well selected keywords
+identifying the message." nil])
+(fset 'news-reply-summary #[nil "À ˆÁÂ!‡" [expand-abbrev mail-position-on-field "Summary"] 2 "\
+Move point to end of Summary: optional field.  Create the field if none.
+Used as an aid to the news reader, it can contain a succinct
+summary (abstract) of the message." nil])
+(fset 'news-reply-signature #[nil "ÀÁ!‡" [message "~/.signature will be appended automatically."] 2 "\
+The inews program appends ~/.signature automatically." nil])
+(fset 'news-setup #[(to subject in-reply-to newsgroups replybuffer) "Â¬Â‰Ç	ÂÂ&ˆÊyˆËÌ!ˆdbˆ*ªŒÇ	ÂÂ&ˆdbˆÍÏĞeÍ#)«šÊyˆÑ®ÓÔ±ˆ¬†ÕÌ!ˆªƒdbˆÖ×!)‡" [replybuffer mail-reply-buffer nil mail-setup-hook to mail-archive-file-name mail-self-blind mail-setup subject in-reply-to 0 kill-line 1 t case-fold-search re-search-backward "^Subject:" "Newsgroups: " newsgroups "" "\n" backward-char run-hooks news-setup-hook] 7 "\
+Setup the news reply or posting buffer with the proper headers and in
+news-reply-mode."])
+(fset 'news-inews #[nil "ÀÀÀŠŒebˆÄÅÅQ!ˆe`}ˆÇÈ!ÇÉ!)~ˆebˆÊË!ˆebˆÄÅÅQ!ˆÌÍ!ˆdbˆhÎU¬ƒÎcˆÏĞ!ˆÑedÀÓÀÔ&ˆÏÕ!ˆebˆÄÍ!ˆÌÅÅQ!ˆÖÀ!ˆ)×Ø!­‚Ø +‡" [nil newsgroups subject case-fold-search search-forward "\n" mail-header-separator mail-fetch-field "newsgroups" "subject" run-hooks news-inews-hook replace-match "\n\n" 10 message "Posting to USENET..." call-process-region news-inews-program 0 "-h" "Posting to USENET... done" set-buffer-modified-p fboundp bury-buffer] 8 "\
+Send a news message using inews." nil])
+(fset 'news-mail-reply #[nil "À‰‰‰‰‰pŒeÈe!ˆÉÊ!ˆ`ËZ}ˆÌÍ!ÌÎ!ÌÏ!ÌĞ!ÑÒ!ˆÓÀ\n«ƒ\nªÔÕ\"‰«ˆ×Oª‚ØQ)À	&.‡" [nil buffer reply-to to date subject cc from goto-line search-forward "\n\n" 1 mail-fetch-field "from" "subject" "reply-to" "date" pop-to-buffer "*mail*" mail string-match "  *at \\|  *@ \\| *(\\| *<" stop-pos 0 "'s message of "] 8 "\
+Mail a reply to the author of the current article.
+While composing the reply, use \\[news-reply-yank-original] to yank the
+original message into it." nil])
+(fset 'news-reply #[nil "ÀÁ!ƒ\nÂ‰‰‰‰‰‰‰‰‰‰p	\nŒÏĞ U¬–Òš«Ó ˆeebˆÔÕ!ˆ`ÖZ}ˆ×Ø!‰×Ú!×Û!×Ü!‰	®ƒ×İ!×Ş!×ß!×à!‰!âã!ˆä ˆå ­„Àæ!??…ç ˆ«èé\"«èé\"«‰êÂOªpëP«›èì\"‰-«ˆÏ-Oª‚îQ)ïÂ%ˆ	«‡ğ ˆ	cˆ«‡ñò!ˆcˆñó!ˆ«„cˆ«†«ƒôcˆ«ƒcˆdb.‡õö!‡" [y-or-n-p "Are you sure you want to followup to all of USENET? " nil buffer message-id distribution references message-of newsgroups followup-to to date subject cc from 0 buffer-size major-mode news-mode news-show-all-headers search-forward "\n\n" 1 mail-fetch-field "from" news-reply-yank-from "subject" "date" "followup-to" "newsgroups" "references" "distribution" "message-id" news-reply-yank-message-id pop-to-buffer "*post-news*" news-reply-mode buffer-modified-p "Unsent article being composed; erase it? " erase-buffer string-match "\\`Re: " 4 "Re: " "  *at \\|  *@ \\| *(\\| *<" stop-pos "'s message of " news-setup news-reply-followup-to mail-position-on-field "Distribution" "References" " " message ""] 13 "\
+Compose and post a reply (aka a followup) to the current article on USENET.
+While composing the followup, use \\[news-reply-yank-original] to yank the
+original message into it." nil])
+(fset 'news-post-news #[nil "ÀÁ!«ÇpŒÃÄ U¬•Æš«Ç ˆeebˆÈÉ!ˆ`ÊZ}ˆËÌ!ËÎ!)ĞÑ!ˆÒ ˆÓ ­„ÀÔ!??­ŠÕ ˆÖ×‰‰‰\n%)‡ØÙ!‡" [y-or-n-p "Are you sure you want to post to all of USENET? " buffer 0 buffer-size major-mode news-mode news-show-all-headers search-forward "\n\n" 1 mail-fetch-field "from" news-reply-yank-from "message-id" news-reply-yank-message-id pop-to-buffer "*post-news*" news-reply-mode buffer-modified-p "Unsent article being composed; erase it? " erase-buffer news-setup nil message ""] 6 "\
+Begin editing a new USENET news article to be posted.
+Type \\[describe-mode] once editing the article to get a list of commands." nil])
+(fset 'news-mail-other-window #[nil "ÀÁ‰‰‰‰p&‡" [mail-other-window nil] 7 "\
+Send mail in another window.
+While composing the message, use \\[news-reply-yank-original] to yank the
+original message into it." nil])

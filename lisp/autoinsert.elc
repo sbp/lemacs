@@ -1,0 +1,23 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:06:20 1991
+;;; from file /wg1/emacs-base/lisp/autoinsert.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar auto-insert-alist '(("\\.tex$" . "tex-insert.tex") ("\\.c$" . "c-insert.c") ("\\.h$" . "h-insert.c") ("[Mm]akefile" . "makefile.inc") ("\\.bib$" . "tex-insert.tex")) "\
+Alist specifying text to insert by default into a new file.
+Elements look like (REGEXP . FILENAME); if the new file's name
+matches REGEXP, then the file FILENAME is inserted into the buffer.
+Only the first matching element is effective.")
+(defvar auto-insert-directory "~/insert/" "\
+*Directory from which auto-inserted files are taken.")
+(fset 'insert-auto-insert-files #[nil "Á\n!Ã¬œ«˜Ç@@\"«ˆ@A‰ªiAªa­ P	Ê	!«ŠË	!ˆÌÃ!ª‰ÍÎ	\"ˆÏÐ!)+‡" [auto-insert-alist file-name-sans-versions buffer-file-name nil insert-file name alist string-match auto-insert-directory file file-readable-p insert-file-contents set-buffer-modified-p message "Auto-insert: file %s not found" sleep-for 1] 4 "\
+Insert default contents into a new file.
+Matches the visited file name against the elements of `auto-insert-alist'."])
+(byte-code "À	BÀ‡" [insert-auto-insert-files find-file-not-found-hooks] 2)

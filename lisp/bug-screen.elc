@@ -1,0 +1,44 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:07:10 1991
+;;; from file /wg1/emacs-base/lisp/bug-screen.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÃM‡" [provide screen death-function #[nil "À	!«ÂÄ	!ˆÅÆ!ˆÇÈ!‡ÇÈ!‡" [screenp terminal-screen nil window-system select-screen message "Well, looks like *you* can't use emacs 19!!" kill-emacs 33] 2]] 2)
+(defvar initial-screen-alist nil "\
+Alist of values used when creating the initial emacs screen.
+These may be set in your init file, like this:
+ (setq initial-screen-alist '((top . 1) (left . 1) (width . 80) (height . 55)))
+For values which are examined upon creation of each screen,
+use screen-default-alist.")
+(defvar screen-default-alist nil "\
+Alist of default values for screen creation.
+These may be set in your init file, like this:
+  (setq screen-default-alist '((width . 80) (height . 55)))
+For values specific to the first emacs screen, see initial-screen-alist.")
+(defvar minibuffer-alist '((minibuffer . only) (height . 1) (width . 80) (top . -1) (left . 1) (vertical-scroll-bar) (horizontal-scroll-bar) (unsplittable . t)) "\
+Alist of switches for the appearance of the minibuffer.")
+(defvar initial-screen-hooks nil "\
+Hook to run after initial screen startup.")
+(defvar screen-creation-func (byte-code "ÀÁ\n!ÃP!‡" [intern prin1-to-string window-system "-create-screen"] 3) "\
+Window-system dependent function for creating new screens.")
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇ!¬ƒÈÆÉ!¬ƒÈ	ÊËM‡" [detached-minibuffer-startup #[(window-system-switches) "À	Â	ÃÇ¬†Ç	CÊ¬‰ËÊ	C\"Ì¬‰ËÌ	C\"«‡Ë\"«‡Í¡ˆª…Ë	Î\"«†Ï¡ˆª…Ë	Ğ\"+!ÓËÔ	\"!Õ\"‡" [minibuffer screen-default-alist name nil extras screen-names mini-type foreground-color minibuffer-alist window-system-switches background-color append font none ((minibuffer . none)) "*emacs screen*" ((name . "*emacs screen*")) screen-creation-func global-minibuffer-screen select-screen ((minibuffer . none) (name . "*emacs screen*")) t] 5] attached-minibuffer-startup #[(window-system-switches) "À	\n!‰Ä\"‡" [select-screen screen-creation-func window-system-switches global-minibuffer-screen t] 3] multi-minibuffer-startup #[(window-system-switches) "À	\n!Ã\"‡" [select-screen screen-creation-func window-system-switches t] 3] boundp first-screen-user-positioned nil separate-minibuffer-screen pop-initial-screen #[(window-system-switches) "ÀÁÂˆÃÄ!‡" [signaled-error (byte-code "À	Ã	­ƒÄ	¬‰\n«Œ\nAÇ=«†È	!ˆª„É	!ˆ)À‡" [minibuffer window-system-switches mini top left first-screen-user-positioned separate-minibuffer-screen none detached-minibuffer-startup multi-minibuffer-startup] 2) ((error (death-function))) run-hooks initial-screen-hooks] 3]] 2)
+(defvar new-screen-x-delta 50 "\
+Horizontal displacement (in pixels) for position of new screen.")
+(defvar new-screen-y-delta 50 "\
+Vertical displacement (in pixels) for position of new screen.")
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÄÇÉÊM‡" [new-screen-position #[(top left width height) "	\\\n\\ÀÂ«‘\n«¡«ˆ\n¡«ƒ®ÇÀBÂBD\"‰,‡" [top new-screen-y-delta left new-screen-x-delta screen-default-alist new-left new-top append] 5] new-screen #[nil "«®Á ÃÄ\n!ÆÄ\n!È\n!	Ê\n!««ŒÌAA	$ˆ-!‡" [first-screen-user-positioned selected-screen s top screen-parameters this-top left this-left x-pixel-width this-width x-pixel-height this-height new-screen-position screen-creation-func screen-default-alist] 5] get-screen #[nil "ÀÁ !Á š«ƒÂ ‡ÀÁ !‡" [next-screen selected-screen new-screen] 3] auto-new-screen-function t auto-new-screen buffer-in-other-screen #[nil "ÀÂÃ!)‡" [t auto-new-screen pop-to-buffer nil] 2 nil nil]] 2)
+(fset 'next-multiscreen-window #[nil "ÀÁÂ Ã ÄVÅ#!‡" [select-window next-window selected-window minibuffer-depth 0 t] 5 "\
+Select the next window, regardless of which screen it is on." nil])
+(fset 'previous-multiscreen-window #[nil "ÀÁÂ Ã ÄVÅ#!‡" [select-window previous-window selected-window minibuffer-depth 0 t] 5 "\
+Select the previous window, regardless of which screen it is on." nil])
+(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÂÄÅMˆÆÇM‡" [boundp icon-screen nil visible-screens iconify-hook #[nil "À	!«ƒ	ª‚Â Ã	Ä \"Ç!?­¨É\n«šÇ@!«Ë@C\"Í@!ˆA‰¬fÎ‰\n*‡" [screenp global-minibuffer-screen selected-screen delq screen-list screens leader screen-visible-p icon-screen nil unmap-screen-hook append visible-screens make-screen-invisible iconify-hook] 5] iconify-function #[(icon-screen) "ÀÂÄ \"‰«šÆ@!«Ç@C\"É@!ˆA‰¬fÊ!ˆ)Ë‰‡" [nil unmap-screen-hook delq icon-screen screen-list screens screen-visible-p append visible-screens make-screen-invisible iconify-screen iconify-hook] 4]] 2)
+(fset 'iconify-emacs #[nil "À	!«†Â	‰!‡ÂÄ ‰!‡" [screenp global-minibuffer-screen iconify-function icon-screen selected-screen] 3 "\
+Iconify emacs, unmapping all screens in use and mapping the icon window." nil])
+(byte-code "ÀÁMˆÀÃÅÇÈ#ˆÅ	ÇÊ#ˆÅÌÍ#ˆÎĞÑ#ˆÒÓMˆÔÕMˆÖ×MˆØÙMˆÚÛMˆÜİMˆŞßMˆàáMˆâãMˆäåMˆæçM‡" [deiconify-hook #[nil "À	!­\n­šÃ\n«‹Å\n@!ˆ\nA‰¬uÆ	Ç\"ˆÈÃ‰‡" [screenp icon-screen visible-screens nil map-screen-hook make-screen-visible select-screen t deiconify-hook] 4] map-screen-hook iconify-hook unmap-screen-hook define-key ctl-x-map "o" next-multiscreen-window esc-map other-window global-map "" iconify-emacs define-function-key global-function-map xk-f2 buffer-in-other-screen set-screen-height #[(h) "À ÂÃÄÀ !\"AÅÀ #*‡" [selected-screen screen assoc width screen-parameters set-screen-size h] 4 nil "NHeight: "] set-screen-width #[(w) "À ÂÃÄÀ !\"AÅÀ #*‡" [selected-screen screen assoc height screen-parameters set-screen-size w] 4 nil "NWidth: "] set-default-font #[(font-name) "ÀÁ ÂBC\"‡" [modify-screen-parameters selected-screen font font-name] 4 nil "sFont name: "] set-screen-background #[(color-name) "ÀÁ ÂBC\"‡" [modify-screen-parameters selected-screen background-color color-name] 4 nil "sColor: "] set-screen-foreground #[(color-name) "ÀÁ ÂBC\"‡" [modify-screen-parameters selected-screen foreground-color color-name] 4 nil "sColor: "] set-cursor-color #[(color-name) "ÀÁ ÂBC\"‡" [modify-screen-parameters selected-screen cursor-color color-name] 4 nil "sColor: "] set-pointer-color #[(color-name) "ÀÁ ÂBC\"‡" [modify-screen-parameters selected-screen mouse-color color-name] 4 nil "sColor: "] set-auto-raise #[(toggle) "ÀÁ ÂBC\"‡" [modify-screen-parameters selected-screen auto-raise toggle] 4 nil "xt or nil? "] set-auto-lower #[(toggle) "ÀÁ ÂBC\"‡" [modify-screen-parameters selected-screen auto-lower toggle] 4 nil "xt or nil? "] set-vertical-bar #[(toggle) "ÀÁ ÂBC\"‡" [modify-screen-parameters selected-screen vertical-scroll-bar toggle] 4 nil "xt or nil? "] set-horizontal-bar #[(toggle) "ÀÁ ÂBC\"‡" [modify-screen-parameters selected-screen horizontal-scroll-bar toggle] 4 nil "xt or nil? "]] 4)

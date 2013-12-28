@@ -1,0 +1,15 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:09:11 1991
+;;; from file /wg1/emacs-base/lisp/cmacexp.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'c-macro-expand #[(beg end) "ÀÁ!ÂÃ‰ŠqˆÈ ˆ)ÉÊË#ÌÍ\"ˆŒ~ˆŠbˆÏyˆ`ÐÑÃÒ#«’ÃˆhÓU«…ÔyˆªsÔyˆ`)ÕeÃÖ%ˆÕ×ÃÒÖ%ˆÕÙPÃÖ%ˆÚÛÜQ\"ˆÚÝ\"ˆÚÛÞQ\"ˆß!ˆ)à!á=«…â ˆªtã!ˆãÙP!ˆä!ˆŠqˆdbˆåyˆ`d|ˆÐæ!ˆçyˆl«†èÔ!ˆªwe`|ˆ)ä!,‡" [get-buffer-create "*Macroexpansion*" "%%macroexpand%%" nil last-needed process tempfile outbuf erase-buffer start-process "macros" "/lib/cpp" set-process-sentinel (lambda (&rest x)) beg 0 re-search-backward "^[ 	]*#" t 92 1 write-region nomsg "*//*\"*/\n" end "x" process-send-string "#include \"" "\"\n" "\n" "x\"\n" process-send-eof process-status run accept-process-output delete-file display-buffer -1 "\n# 1 " 2 delete-char] 6 "\
+Display the result of expanding all C macros occurring in the region.
+The expansion is entirely correct because it uses the C preprocessor." "r"])

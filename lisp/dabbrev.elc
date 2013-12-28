@@ -1,0 +1,56 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:11:44 1991
+;;; from file /wg1/emacs-base/lisp/dabbrev.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'dabbrevs)
+(defvar dabbrevs-limit nil "\
+*Limits region searched by dabbrevs-expand to that many chars away (local).")
+(make-variable-buffer-local 'dabbrevs-limit)
+(defvar dabbrevs-backward-only nil "\
+*If non-NIL, dabbrevs-expand only looks backwards.")
+(defvar last-dabbrevs-table nil "\
+Table of expansions seen so far. (local)")
+(make-variable-buffer-local 'last-dabbrevs-table)
+(defvar last-dabbrevs-abbreviation "" "\
+Last string we tried to expand.  Buffer-local.")
+(make-variable-buffer-local 'last-dabbrevs-abbreviation)
+(defvar last-dabbrevs-direction 0 "\
+Direction of last dabbrevs search. (local)")
+(make-variable-buffer-local 'last-dabbrevs-direction)
+(defvar last-dabbrevs-abbrev-location nil "\
+Location last abbreviation began (local).")
+(make-variable-buffer-local 'last-dabbrevs-abbrev-location)
+(defvar last-dabbrevs-expansion nil "\
+Last expansion of an abbreviation. (local)")
+(make-variable-buffer-local 'last-dabbrevs-expansion)
+(defvar last-dabbrevs-expansion-location nil "\
+Location the last expansion was found. (local)")
+(make-variable-buffer-local 'last-dabbrevs-expansion-location)
+(fset 'dabbrev-expand #[(arg) "À‰‰‰‰‰‰	­\n	\nŠ¬™=«’«\nª¬¬Š«ƒÓª‡Ôª„Õ!`Övˆ``{‰\nÀÀÙÚ\n!ÛQÔY«ºÓ]«„bˆÔV«›Üİ#‰	«‘Ş 	BS‰ªa	¬ƒÀÓ^ÔX«µ	¬±Ó[]«„bˆÔV«›ÜÀ#‰	«‘Ş 	BS‰ªaÖ)	¬ª\n˜À¬à ˆáG!ˆ\ncˆâ«ƒãªä\n\")ª¤à ˆå!ˆæ	­…	‰—˜?ç#ˆ\n	‰.‡" [nil case-fold-search case-replace do-case pattern n loc which old expansion abbrev arg last-command this-command last-dabbrevs-abbrev-location last-dabbrevs-abbreviation last-dabbrevs-expansion last-dabbrevs-direction dabbrevs-backward-only 1 0 prefix-numeric-value -1 last-dabbrevs-expansion-location last-dabbrev-table "\\b" regexp-quote "\\(\\sw\\|\\s_\\)+" dabbrevs-search t point-marker first undo-boundary delete-backward-char error "No dynamic expansion for \"%s\" found." "No further dynamic expansions for \"%s\" found." search-backward replace-match literal] 9 "\
+Expand previous word \"dynamically\".
+Expands to the most recent, preceding word for which this is a prefix.
+If no suitable preceding word is found, words following point are considered.
+
+If `case-fold-search' and `case-replace' are non-nil (usually true)
+then the substituted word may be case-adjusted to match the abbreviation
+that you had typed.  This takes place if the substituted word, as found,
+is all lower case, or if it is at the beginning of a sentence and only
+its first letter was upper case.
+
+A positive prefix argument, N, says to take the Nth backward DISTINCT
+possibility.  A negative argument says search forward.  The variable
+dabbrev-backward-only may be used to limit the direction of search to
+backward if set non-nil.
+
+If the cursor has not moved from the end of the previous expansion and
+no argument is given, replace the previously-made expansion
+with the next possible expansion not yet tried." "*P"])
+(fset 'dabbrevs-search #[(pattern reverse ignore-case) "À‰	Œ«`«ƒÈªÉ_\\}ˆÀÀ¬Ë¬È«ˆÊÀÌ#ª†ÍÀÌ#?‰¬cÎ”Î•{‰«›	«‰@——˜ª…@˜¬ˆA‰¬e«‚À)ª2«¿ŠÎ”‰bˆ	«³ÉÀOÉÀO—˜«§ÓP˜«ÊÀÌ#«–Î•UªŠÉuˆÖ ˆ`U«ƒ—*,‡" [nil ignore-case case-fold-search result missing dabbrevs-limit last-dabbrevs-abbrev-location reverse -1 1 re-search-backward pattern t re-search-forward 0 last-dabbrev-table test beg paragraph-start "^$\\|" page-delimiter sentence-end backward-sentence] 5])

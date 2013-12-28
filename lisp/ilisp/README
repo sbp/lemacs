@@ -1,0 +1,104 @@
+Version 4.00 of the EMACS to LISP interface ILISP is now available.
+If you have gotten ILISP prior to today, you should get the new
+version.  The new version fixes a number of bugs and is much improved
+at finding source code and supporting CLOS.  The process code has also
+been rewritten to give better asynchronous behavior and a visual
+indication of process status.  Partial completion is now allowed on
+lisp symbols.
+
+FEATURES:
+
++Support for multiple LISP dialects including Lucid, Allegro and CMU
+on multiple machines even at the same time.
+
++Dynamically sized pop-up windows that can be buried and scrolled from
+any window.
+
++Packages are properly handled including the distinction between
+exported and internal symbols.
+
++Synchronous, asynchronous or batch eval and compile of files,
+regions, definitions and sexps.
+
++Arglist, documentation, describe, and macroexpand.
+
++Completion of filenames and LISP symbols including partial matches.
+
++Find source both with and without help from the inferior LISP.
+Including CLOS methods, multiple definitions and multiple files.  Also
+works for automatically generated functions like defstruct.
+
++Edit the callers of a function with and without help from the
+inferior LISP.
+
++Trace/untrace a function.
+
++Esc-q works properly on paragraphs in comments, strings and code.
+
++Find unbalanced parentheses.
+
++Super brackets.
+
++Handles editing, entering and indenting full LISP expressions.
+
++Next/previous and similar history mechanism compatible with comint.
+
++Handles LISP errors.
+
++Result histories are maintained in the inferior LISP.
+
++Does not create spurious symbols.
+
+
+HOW TO GET IT
+
+If you do start using the package, please send mail to ccm@cs.cmu.edu
+so that I can keep a mailing list of users.  Any comments or code are
+also welcome.
+
+You can anonymously ftp the source files from CMU:
+- Ftp to a.gp.cs.cmu.edu (128.2.242.7) or any other SCS machine.
+- cd /afs/cs.cmu.edu/user/ccm/src/gnu/ilisp/
+  Don't try to cd to or ls any of the intermediate directories;
+  go straight to the subdirectory. The CMU security mechanisms
+  will block you from accessing any of the other directories while you
+  are doing anonymous accesses.
+- get ilisp.tar.Z or
+  mget README HISTORY completer.el symlink.el popper.el epoch-pop.el 
+       comint.el comint-ipc.el ilisp*.el *.lisp
+
+Of course, anyone with AFS access at CMU, Dartmouth, Michigan, MIT, Mt. Xinu
+or Transarc can just cd to the directory and copy what they want.
+ 
+
+ONCE YOU HAVE IT: 
+
+1) uncompress ilisp.tar.Z; tar xf ilisp.tar
+
+2) Read the start of ilisp/ilisp.el for the site and .emacs information.
+
+
+ILISP FILES:
+
+symlink.el	Package for expanding symbolic links.
+
+completer.el 	Partial completion mechanism for the minibuffer.
+
+popper.el	Standalone module for a shrink-wrapped pop-up window.
+
+epoch-pop.el	Standalone module for pop-up window in epoch.
+
+comint.el	COMmand INTerpreter module used by cmushell and ilisp.
+
+comint-ipc.el	Module to allow Emacs to send to a shell and get back results.
+
+ilisp-ext.el    Standalone extensions to lisp mode.
+
+ilisp-src.el    Ilisp source code module.
+
+ilisp-bat.el    Ilisp batch code module.
+
+ilisp.el	Actual code for the Emacs to LISP interface.
+
+*.lisp		Interface files for specific LISPs.
+

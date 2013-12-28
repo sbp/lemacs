@@ -1,0 +1,75 @@
+;;; compiled by jwz@thalidomide on Sat Dec 28 01:57:28 1991
+;;; from file /wg1/emacs-base/lisp/postscript.el
+;;; emacs version 19.39.
+;;; bytecomp version 2.03; 29-oct-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'postscript)
+(defconst ps-indent-level 2 "\
+*Indentation to be used inside of PostScript blocks or arrays")
+(defconst ps-tab-width 8 "\
+*Tab stop width for PostScript mode")
+(fset 'ps-make-tabs #[(stop) "ÁW­‡Â\\!B‡" [stop 132 ps-make-tabs ps-tab-width] 4])
+(defconst ps-tab-stop-list (ps-make-tabs ps-tab-width) "\
+*Tab stop list for PostScript mode")
+(defconst ps-postscript-command "gs -" "\
+*Command used to invoke with a printer spooler or NeWS server.")
+(defvar ps-mode-map nil "\
+Keymap used in PostScript mode buffers")
+(defvar ps-mode-syntax-table nil "\
+PostScript mode syntax table")
+(fset 'postscript-mode #[nil "À ˆÁ\n!ˆ«†Ä!ˆª¥Å Ä!ˆÆÇÈ\"ˆÆÉÊ\"ˆÆËÌ\"ˆÆÍÎ\"ˆÆÏÐ\"ˆÆÑÒ\"ˆÓÔ!ˆÓÕ!ˆÓÖ!ˆÓ×!ˆÓØ!ˆÓÙ!ˆÚÛÇÜÝß á\"ãä!‡" [kill-all-local-variables use-local-map ps-mode-map ps-mode-syntax-table set-syntax-table make-syntax-table modify-syntax-entry 40 "(" 41 ")" 91 "(]" 93 ")[" 37 "<" 10 ">" make-local-variable comment-start comment-start-skip comment-column indent-line-function tab-stop-list page-delimiter "% " "% *" ps-indent-line "^showpage" ps-tab-stop-list "PostScript" mode-name postscript-mode major-mode run-hooks ps-mode-hook] 3 "\
+Major mode for editing PostScript files.
+
+\\[ps-execute-buffer] will send the contents of the buffer to the NeWS
+server using psh(1).  \\[ps-execute-region] sends the current region.
+\\[ps-shell] starts an interactive psh(1) window which will be used for
+subsequent \\[ps-execute-buffer] or \\[ps-execute-region] commands.
+
+In this mode, TAB and \\[indent-region] attempt to indent code
+based on the position of {}, [], and begin/end pairs.  The variable
+ps-indent-level controls the amount of indentation used inside
+arrays and begin/end pairs.  
+
+\\{ps-mode-map}
+
+\\[postscript-mode] calls the value of the variable ps-mode-hook with no args,
+if that value is non-nil." nil])
+(fset 'ps-tab #[nil "ŠÀÁxˆn)«ƒÂ ‡ŠÂ )‡" [" 	" nil ps-indent-line] 2 "\
+Command assigned to the TAB key in PostScript mode." nil])
+(fset 'ps-indent-line #[nil "ÀyˆÁ ˆÂÃ!®‚Ä ?­™`dW«Š`fzÅ=«ƒÆ ‡ÂÇ!«ƒÈ ‡É ‡" [0 delete-horizontal-space looking-at "%%" ps-top-level-p 41 ps-indent-close "\\(dict\\|class\\)?end\\|cdef\\|grestore" ps-indent-end ps-indent-in-block] 2 "\
+Indents a line of PostScript code." nil])
+(fset 'ps-open #[nil "c‡" [last-command-char] 1 nil nil])
+(fset 'ps-insert-d-char #[(arg) "À	\n\"ˆŠÃyˆÄÅ!­…Æ ˆÇ )‡" [insert-char last-command-char arg 0 looking-at "^[ 	]*\\(\\(dict\\|class\\)?end\\|cdef\\|grestore\\)" delete-horizontal-space ps-indent-end] 3 "\
+Awful hack to make \"end\" and \"cdef\" keywords indent themselves." "p"])
+(fset 'ps-close #[nil "cˆÁÂ!ˆÃ ˆÂuˆÄ ‡" [last-command-char backward-char 1 ps-indent-close blink-matching-open] 2 "\
+Inserts and indents a close delimiter." nil])
+(fset 'ps-indent-close #[nil "ŠÀÁxˆn)­¯Á`ÁuˆÄ ˆÅ`\n\"Æ=«‹Æ\n`ZV«„\nbª‘ÇyˆÀÁwˆi\nbˆÈ ˆj*‡" [" 	" nil oldpoint x backward-sexp count-lines 1 0 delete-horizontal-space] 3 "\
+Internal function to indent a line containing a an array close delimiter."])
+(fset 'ps-indent-end #[nil "À ‰¬„Â ªŒŠ	bˆÃ ˆi)‰j)‡" [ps-block-start goal indent-relative back-to-indentation] 2 "\
+Indent an \"end\" token or array close delimiter."])
+(fset 'ps-indent-in-block #[nil "À Š	bˆÂ ˆn«ƒª†Â ˆi\\)‰j)‡" [ps-block-start goal back-to-indentation ps-indent-level] 3 "\
+Indent a line which does not open or close a block."])
+(fset 'ps-block-start #[nil "ŠÀÁÀÄÅÆ!+‡" [nil 0 skip open (byte-code "ŠÀÁ!ˆ`T)‡" [backward-up-list 1] 2) ((error)) ps-begin-end-hack] 3 "\
+Returns the character position of the character following the nearest
+enclosing `[' `{' or `begin' keyword."])
+(fset 'ps-begin-end-hack #[(start) "ŠÀÁ‰ÄV«ŸÅÆÈ#¬ˆÅÉÈ#«ÊË!«„Tª‚S‰ª]Ä=¬„ª„Àvˆ`+‡" [1 nil match depth 0 re-search-backward "^[ 	]*\\(dict\\|class\\)?\\(end\\|grestore\\)\\|\\(begin\\|gsave\\)[ 	]*\\(%.*\\)*$" start t "^[ 	]*cdef.*$" looking-at "[ 	]*\\(dict\\|class\\)?\\(end\\|grestore\\)"] 5 "\
+Search backwards from point to START for enclosing `begin' and returns the
+character number of the character following `begin' or START if not found."])
+(fset 'ps-top-level-p #[nil "ÀÁÂ­„ÃÀ!?‡" [nil (byte-code "À`ÁÂ#?‡" [scan-lists -1 1] 4) ((error t)) ps-begin-end-hack] 3 "\
+Awful test to see whether we are inside some sort of PostScript block."])
+(byte-code "¬¿Á ÂÃÄ#ˆÂÅÄ#ˆÂÆÇ#ˆÂÈÉ#ˆÂÊÇ#ˆÂËÉ#ˆÂÌÍ#ˆÂÎÏ#ˆÂÐÑ#ˆÂÒÓ#ˆÁ‡" [ps-mode-map make-sparse-keymap define-key "d" ps-insert-d-char "f" "{" ps-open "}" ps-close "[" "]" "	" ps-tab "" ps-execute-buffer "|" ps-execute-region "!" ps-shell] 4)
+(fset 'ps-execute-buffer #[nil "ŠÀ ˆÁed\")‡" [mark-whole-buffer ps-execute-region] 3 "\
+Send the contents of the buffer to a printer or NeWS server." nil])
+(fset 'ps-execute-region #[(start end) "`À ^`À ]ÃÄÅ*‡" [mark end start nil (byte-code "ÀÁ\n{\"‡" [process-send-string "PostScript" start end] 4) ((error (shell-command-on-region start end ps-postscript-command nil)))] 3 "\
+Send the region between START and END to a printer or NeWS server.
+You should kill any existing *PostScript* buffer unless you want the
+PostScript text to be executed in that process." "r"])
+(fset 'ps-shell #[nil "ÀÁ!ˆÂÃÄ\"!ˆÆÇ!ˆÈ‰‡" [require shell switch-to-buffer-other-window make-shell "PostScript" ps-postscript-command make-local-variable shell-prompt-pattern "GS>"] 4 "\
+Start a shell communicating with a PostScript printer or NeWS server." nil])

@@ -1,0 +1,1171 @@
+Info file ../info/emacs, produced by Makeinfo, -*- Text -*- from input
+file lemacs.tex.
+
+   This file documents the GNU Emacs editor.
+
+   Copyright (C) 1985, 1986, 1988 Richard M. Stallman.  Copyright (C)
+1991, 1992 Lucid, Inc.
+
+   Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the sections entitled "The GNU Manifesto", "Distribution" and "GNU
+General Public License" are included exactly as in the original, and
+provided that the entire resulting derived work is distributed under
+the terms of a permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the sections entitled "The GNU Manifesto",
+"Distribution" and "GNU General Public License" may be included in a
+translation approved by the author instead of in the original English.
+
+
+File: emacs,  Node: Accumulating Text,  Next: Rectangles,  Prev: Using X Selections,  Up: Top
+
+Accumulating Text
+=================
+
+   Usually you copy or move text by killing it and yanking it, but
+there are other ways that are useful for copying one block of text in
+many places, or for copying many scattered blocks of text into one
+place.
+
+   If you like, you can accumulate blocks of text from scattered
+locations either into a buffer or into a file.  The relevant commands
+are described here.  You can also use Emacs registers for storing and
+accumulating text.  *Note Registers::.
+
+`C-x a'
+     Append region to contents of specified buffer
+     (`append-to-buffer').
+
+`M-x prepend-to-buffer'
+     Prepend region to contents of specified buffer.
+
+`M-x copy-to-buffer'
+     Copy region into specified buffer, deleting that buffer's old
+     contents.
+
+`M-x insert-buffer'
+     Insert contents of specified buffer into current buffer at point.
+
+`M-x append-to-file'
+     Append region to contents of specified file, at the end.
+
+   To accumulate text into a buffer, use the command `C-x a
+BUFFERNAME' (`append-to-buffer'), which inserts a copy of the region
+into the buffer BUFFERNAME, at the location of point in that buffer. 
+If there is no buffer with the given name, one is created.
+
+   If you append text to a buffer that has been used for editing, the
+copied text goes to the place where point is.  Point in that buffer is
+left at the end of the copied text, so successive uses of `C-x a'
+accumulate the text in the specified buffer in the same order as they
+were copied.  Strictly speaking, `C-x a' does not always append to the
+text already in the buffer; but if `C-x a' is the only command used to
+alter a buffer, it does always append to the existing text because
+point is always at the end.
+
+   `M-x prepend-to-buffer' is similar to `C-x a' but point in the
+other buffer is left before the copied text, so successive prependings
+add text in reverse order.  `M-x copy-to-buffer' is similar except that
+any existing text in the other buffer is deleted, so the buffer is left
+containing just the text newly copied into it.
+
+   You can retrieve the accumulated text from that buffer with `M-x
+insert-buffer', which takes BUFFERNAME as an argument.  It inserts a
+copy of the text in buffer BUFFERNAME into the selected buffer.  You
+could alternatively select the other buffer for editing, perhaps moving
+text from it by killing or with `C-x a'.  *Note Buffers::, for
+background information on buffers.
+
+   Instead of accumulating text within Emacs, in a buffer, you can
+append text directly into a file with `M-x append-to-file', which takes
+FILE-NAME as an argument.  It adds the text of the region to the end
+of the specified file.  The file is changed immediately on disk.  This
+command is normally used with files that are not being visited in
+Emacs.  Using it on a file that Emacs is visiting can produce
+confusing results, because the file's text inside Emacs does not change
+while the file itself changes.
+
+
+File: emacs,  Node: Rectangles,  Next: Registers,  Prev: Accumulating Text,  Up: Top
+
+Rectangles
+==========
+
+   The rectangle commands affect rectangular areas of text: all
+characters between a certain pair of columns, in a certain range of
+lines.  Commands are provided to kill rectangles, yank killed
+rectangles, clear them out, or delete them.  Rectangle commands are
+useful with text in multicolumnar formats, like code with comments at
+the right, or for changing text into or out of such formats.
+
+   To specify the rectangle a command should work on, put the mark at
+one corner and point at the opposite corner.  The specified rectangle
+is called the "region-rectangle" because it is controlled about the
+same way the region is controlled.  Remember that a given combination
+of point and mark values can be interpreted either as specifying a
+region or as specifying a rectangle; it is up to the command that uses
+them to choose the interpretation.
+
+`M-x delete-rectangle'
+     Delete the text of the region-rectangle, moving any following
+     text on each line leftward to the left edge of the
+     region-rectangle.
+
+`M-x kill-rectangle'
+     Similar, but also save the contents of the region-rectangle as the
+     "last killed rectangle".
+
+`M-x yank-rectangle'
+     Yank the last killed rectangle with its upper left corner at
+     point.
+
+`M-x open-rectangle'
+     Insert blank space to fill the space of the region-rectangle. 
+     The previous contents of the region-rectangle are pushed
+     rightward.
+
+`M-x clear-rectangle'
+     Clear the region-rectangle by replacing its contents with spaces.
+
+   The rectangle operations fall into two classes: commands deleting
+and moving rectangles, and commands for blank rectangles.
+
+   There are two ways to get rid of the text in a rectangle: you can
+discard the text (delete it) or save it as the "last killed"
+rectangle.  The commands for these two ways are `M-x delete-rectangle'
+and `M-x kill-rectangle'.  In either case, the portion of each line
+that falls inside the rectangle's boundaries is deleted, causing
+following text (if any) on the line to move left.
+
+   Note that "killing" a rectangle is not killing in the usual sense;
+the rectangle is not stored in the kill ring, but in a special place
+that only records the most recently killed rectangle (that is, does not
+append to a killed rectangle).  Different yank commands have to be
+used and only one rectangle is stored because yanking a rectangle is
+quite different from yanking linear text and yank-popping commands are
+difficult to make sense of.
+
+   Inserting a rectangle is the opposite of deleting one.  You specify
+where to put the upper left corner by putting point there.  The
+rectangle's first line is inserted at point, the rectangle's second
+line is inserted at a point one line vertically down, and so on.  The
+number of lines affected is determined by the height of the saved
+rectangle.
+
+   To insert the last killed rectangle, type `M-x yank-rectangle'. 
+This can be used to convert single-column lists into double-column
+lists; kill the second half of the list as a rectangle and then yank
+it beside the first line of the list.
+
+   There are two commands for working with blank rectangles: `M-x
+clear-rectangle' to blank out existing text, and `M-x open-rectangle'
+to insert a blank rectangle.  Clearing a rectangle is equivalent to
+deleting it and then inserting a blank rectangle of the same size.
+
+   Rectangles can also be copied into and out of registers.  *Note
+Rectangle Registers: RegRect.
+
+
+File: emacs,  Node: Registers,  Next: Display,  Prev: Rectangles,  Up: Top
+
+Registers
+*********
+
+   Emacs "registers" are places in which you can save text or
+positions for later use.  Text saved in a register can be copied into
+the buffer once or many times; a position saved in a register is used
+by moving point to that position.  Rectangles can also be copied into
+and out of registers (*note Rectangles::.).
+
+   Each register has a name, which is a single character.  A register
+can store either a piece of text or a position or a rectangle, but
+only one thing at any given time.  Whatever you store in a register
+remains there until you store something else in that register.
+
+* Menu:
+
+* RegPos::    Saving positions in registers.
+* RegText::   Saving text in registers.
+* RegRect::   Saving rectangles in registers.
+
+`M-x view-register RET R'
+     Display a description of what register R contains.
+
+   `M-x view-register' reads a register name as an argument and then
+displays the contents of the specified register.
+
+
+File: emacs,  Node: RegPos,  Next: RegText,  Prev: Registers,  Up: Registers
+
+Saving Positions in Registers
+=============================
+
+   Saving a position records a spot in a buffer so you can move back
+there later.  Moving to a saved position re-selects the buffer and
+moves point to the spot.
+
+`C-x / R'
+     Save the location of point in register R (`point-to-register').
+
+`C-x j R'
+     Jump to the location saved in register R (`register-to-point').
+
+   To save the current location of point in a register, choose a name
+R and type `C-x / R'.  The register R retains the location thus saved
+until you store something else in that register.
+
+   The command `C-x j R' moves point to the location recorded in
+register R.  The register is not affected; it continues to record the
+same location.  You can jump to the same position using the same
+register as often as you want.
+
+
+File: emacs,  Node: RegText,  Next: RegRect,  Prev: RegPos,  Up: Registers
+
+Saving Text in Registers
+========================
+
+   When you want to insert a copy of the same piece of text many
+times, it can be impractical to use the kill ring, since each
+subsequent kill moves the piece of text further down on the ring.  It
+becomes hard to keep track of the argument needed to retrieve the same
+text with `C-y'.  An alternative is to store the text in a register
+with `C-x x' (`copy-to-register') and then retrieve it with `C-x g'
+(`insert-register').
+
+`C-x x R'
+     Copy region into register R (`copy-to-register').
+
+`C-x g R'
+     Insert text contents of register R (`insert-register').
+
+   `C-x x R' stores a copy of the text of the region into the register
+named R.  Given a numeric argument, `C-x x' deletes the text from the
+buffer as well.
+
+   `C-x g R' inserts the text from register R in the buffer.  By
+default it leaves point before the text and places the mark after it. 
+With a numeric argument, it puts point after the text and the mark
+before it.
+
+
+File: emacs,  Node: RegRect,  Prev: RegText,  Up: Registers
+
+Saving Rectangles in Registers
+==============================
+
+   A register can contain a rectangle instead of lines of text.  The
+rectangle is represented as a list of strings.  *Note Rectangles::,
+for basic information on rectangles and how to specify rectangles in a
+buffer.
+
+`C-x r R'
+     Copy the region-rectangle into register
+     R(`copy-region-to-rectangle').  With a numeric argument, delete
+     it as well.
+
+`C-x g R'
+     Insert the rectangle stored in register R (if it contains a
+     rectangle) (`insert-register').
+
+   The `C-x g' command inserts linear text if the register contains
+that, or inserts a rectangle if the register contains one.
+
+
+File: emacs,  Node: Display,  Next: Search,  Prev: Registers,  Up: Top
+
+Controlling the Display
+***********************
+
+   Since only part of a large buffer fits in the window, Emacs tries
+to show the part that is likely to be interesting.  The display
+control commands allow you to specify which part of the text you want
+to see.
+
+`C-l'
+     Clear screen and redisplay, scrolling the selected window to
+     center point vertically within it (`recenter').
+
+`C-v'
+     Scroll forward (a windowful or a specified number of lines)
+     (`scroll-up').
+
+`M-v'
+     Scroll backward (`scroll-down').
+
+`ARG C-l'
+     Scroll so point is on line ARG (`recenter').
+
+`C-x <'
+     Scroll text in current window to the left (`scroll-left').
+
+`C-x >'
+     Scroll to the right (`scroll-right').
+
+`C-x $'
+     Make deeply indented lines invisible (`set-selective-display').
+
+* Menu:
+
+* Scrolling::	           Moving text up and down in a window.
+* Horizontal Scrolling::   Moving text left and right in a window.
+* Selective Display::      Hiding lines with lots of indentation.
+* Display Vars::           Information on variables for customizing display.
+
+
+File: emacs,  Node: Scrolling,  Next: Horizontal Scrolling,  Prev: Display,  Up: Display
+
+Scrolling
+=========
+
+   If a buffer contains text that is too large to fit entirely within
+the window that is displaying the buffer, Emacs shows a contiguous
+section of the text.  The section shown always contains point.
+
+   "Scrolling" means moving text up or down in the window so that
+different parts of the text are visible.  Scrolling forward means that
+text moves up, and new text appears at the bottom.  Scrolling backward
+moves text down and new text appears at the top.
+
+   Scrolling happens automatically if you move point past the bottom
+or top of the window.  You can also explicitly request scrolling with
+the commands in this section.
+
+`C-l'
+     Clear screen and redisplay, scrolling the selected window to
+     center point vertically within it (`recenter').
+
+`C-v'
+     Scroll forward (a windowful or a specified number of lines)
+     (`scroll-up').
+
+`M-v'
+     Scroll backward (`scroll-down').
+
+`ARG C-l'
+     Scroll so point is on line ARG (`recenter').
+
+   The most basic scrolling command is `C-l' (`recenter') with no
+argument.  It clears the entire screen and redisplays all windows.  In
+addition, it scrolls the selected window so that point is halfway down
+from the top of the window.
+
+   The scrolling commands `C-v' and `M-v' let you move all the text in
+the window up or down a few lines.  `C-v' (`scroll-up') with an
+argument shows you that many more lines at the bottom of the window,
+moving the text and point up together as `C-l' might.  `C-v' with a
+negative argument shows you more lines at the top of the window. 
+`Meta-v' (`scroll-down') is like `C-v', but moves in the opposite
+direction.
+
+   To read the buffer a windowful at a time, use `C-v' with no
+argument.  `C-v' takes the last two lines at the bottom of the window
+and puts them at the top, followed by nearly a whole windowful of
+lines not previously visible.  Point moves to the new top of the window
+if it was in the text scrolled off the top.  `M-v' with no argument
+moves backward with similar overlap.  The number of lines of overlap
+across a `C-v' or `M-v' is controlled by the variable
+`next-screen-context-lines'; by default, it is two.
+
+   Another way to scroll is using `C-l' with a numeric argument. 
+`C-l' does not clear the screen when given an argument; it only
+scrolls the selected window.  With a positive argument N,`C-l'
+repositions text to put point N lines down from the top.  An argument
+of zero puts point on the very top line.  Point does not move with
+respect to the text; rather, the text and point move rigidly on the
+screen.  `C-l' with a negative argument puts point that many lines
+from the bottom of the window.  For example, `C-u - 1 C-l' puts point
+on the bottom line, and `C-u - 5 C-l' puts it five lines from the
+bottom.  Just `C-u' as argument, as in `C-u C-l', scrolls point to the
+center of the screen.
+
+   Scrolling happens automatically if point has moved out of the
+visible portion of the text when it is time to display.  Usually
+scrolling is done  to put point vertically centered within the window.
+ However, if the variable `scroll-step' has a non-zero value, an
+attempt is made to scroll the buffer by that many lines; if that is
+enough to bring point back into visibility, that is what happens.
+
+
+File: emacs,  Node: Horizontal Scrolling,  Prev: Scrolling,  Up: Display
+
+Horizontal Scrolling
+====================
+
+`C-x <'
+     Scroll text in current window to the left (`scroll-left').
+
+`C-x >'
+     Scroll to the right (`scroll-right').
+
+   The text in a window can also be scrolled horizontally.  This means
+that each line of text is shifted sideways in the window, and one or
+more characters at the beginning of each line are not displayed at
+all.  When a window has been scrolled horizontally in this way, text
+lines are truncated rather than continued (*note Continuation
+Lines::.), with a `$' appearing in the first column when there is text
+truncated to the left, and in the last column when there is text
+truncated to the right.
+
+   The command `C-x <' (`scroll-left') scrolls the selected window to
+the left by N columns with argument N.  With no argument, it scrolls
+by almost the full width of the window (two columns less, to be
+precise).  `C-x >' (`scroll-right') scrolls similarly to the right. 
+The window cannot be scrolled any farther to the right once it is
+displaying normally (with each line starting at the window's left
+margin); attempting to do so has no effect.
+
+
+File: emacs,  Node: Selective Display,  Next: Display Vars,  Prev: Display,  Up: Display
+
+Selective Display
+=================
+
+   Emacs can hide lines indented more than a certain number of columns
+(you specify how many columns).  This allows you  to get an overview
+of a part of a program.
+
+   To hide lines, type `C-x $' (`set-selective-display') with a
+numeric argument N.  (*Note Arguments::, for information on giving the
+argument.)  Lines with at least N columns of indentation disappear
+from the screen.  The only indication of their presence are three dots
+(`...'), which appear at the end of each visible line that is followed
+by one or more invisible ones.
+
+   The invisible lines are still present in the buffer, and most
+editing commands see them as usual, so it is very easy to put point in
+the middle of invisible text.  When this happens, the cursor appears
+at the end of the previous line, after the three dots.  If point is at
+the end of the visible line, before the newline that ends it, the
+cursor appears before the three dots.
+
+   The commands `C-n' and `C-p' move across the invisible lines as if
+they were not there.
+
+   To make everything visible again, type `C-x $' with no argument.
+
+
+File: emacs,  Node: Display Vars,  Prev: Selective Display,  Up: Display
+
+Variables Controlling Display
+=============================
+
+   This section contains information for customization only.  Beginning
+users should skip it.
+
+   The variable `mode-line-inverse-video' controls whether the mode
+line is displayed in inverse video (assuming the terminal supports it);
+`nil' means don't do so.  *Note Mode Line::.
+
+   If the variable `inverse-video' is non-`nil', Emacs attempts to
+invert all the lines of the display from what they normally are.
+
+   If the variable `visible-bell' is non-`nil', Emacs attempts to make
+the whole screen blink when it would normally make an audible bell
+sound.  This variable has no effect if your terminal does not have a
+way to make the screen blink.
+
+   When you reenter Emacs after suspending, Emacs normally clears the
+screen and redraws the entire display.  On some terminals with more
+than one page of memory, it is possible to arrange the termcap entry
+so that the `ti' and `te' strings (output to the terminal when Emacs
+is entered and exited, respectively) switch between pages of memory so
+as to use one page for Emacs and another page for other output.  In
+that case, you might want to set the variable `no-redraw-on-reenter'
+non-`nil' so that Emacs will assume, when resumed, that the screen
+page it is using still contains what Emacs last wrote there.
+
+   The variable `echo-keystrokes' controls the echoing of
+multi-character keys; its value is the number of seconds of pause
+required to cause echoing to start, or zero meaning don't echo at all.
+ *Note Echo Area::.
+
+   If the variable `ctl-arrow' is `nil', control characters in the
+buffer are displayed with octal escape sequences, all except newline
+and tab.  Altering the value of `ctl-arrow' makes it local to the
+current buffer; until then, the default value is in effect.  The
+default is initially `t'.  *Note Locals::.
+
+   Normally, a tab character in the buffer is displayed as whitespace
+which extends to the next display tab stop position, and display tab
+stops come at intervals equal to eight spaces.  The number of spaces
+per tab is controlled by the variable `tab-width', which is made local
+by changing it, just like `ctl-arrow'.  Note that how the tab character
+in the buffer is displayed has nothing to do with the definition of
+TAB as a command.
+
+   If you set the variable `selective-display-ellipses' to `nil', the
+three dots at the end of a line that precedes invisible lines do not
+appear.  There is no visible indication of the invisible lines.  This
+variable becomes local automatically when set.
+
+
+File: emacs,  Node: Search,  Next: Fixit,  Prev: Display,  Up: Top
+
+Searching and Replacement
+*************************
+
+   Like other editors, Emacs has commands for searching for
+occurrences of a string.  The principal search command is unusual in
+that it is "incremental": it begins to search before you have finished
+typing the search string.  There are also non-incremental search
+commands more like those of other editors.
+
+   Besides the usual `replace-string' command that finds all
+occurrences of one string and replaces them with another, Emacs has a
+fancy replacement command called `query-replace' which asks
+interactively which occurrences to replace.
+
+* Menu:
+
+* Incremental Search::     Search happens as you type the string.
+* Non-Incremental Search::  Specify entire string and then search.
+* Word Search::            Search for sequence of words.
+* Regexp Search::          Search for match for a regexp.
+* Regexps::                Syntax of regular expressions.
+* Search Case::            To ignore case while searching, or not.
+* Replace::                Search, and replace some or all matches.
+* Other Repeating Search:: Operating on all matches for some regexp.
+
+
+File: emacs,  Node: Incremental Search,  Next: Non-Incremental Search,  Prev: Search,  Up: Search
+
+Incremental Search
+==================
+
+   An incremental search begins searching as soon as you type the first
+character of the search string.  As you type in the search string,
+Emacs shows you where the string (as you have typed it so far) is
+found.  When you have typed enough characters to identify the place
+you want, you can stop.  Depending on what you do next, you may or may
+not need to terminate the search explicitly with an ESC.
+
+`C-s'
+     Incremental search forward (`isearch-forward').
+
+`C-r'
+     Incremental search backward (`isearch-backward').
+
+   `C-s' starts an incremental search.  `C-s' reads characters from
+the keyboard and positions the cursor at the first occurrence of the
+characters that you have typed.  If you type `C-s' and then `F', the
+cursor moves right after the first `F'.  Type an `O', and see the
+cursor move to after the first `FO'.  After another `O', the cursor is
+after the first `FOO' after the place where you started the search. 
+Meanwhile, the search string `FOO' has been echoed in the echo area.
+
+   The echo area display ends with three dots when actual searching is
+going on.  When search is waiting for more input, the three dots are
+removed.  (On slow terminals, the three dots are not displayed.)
+
+   If you make a mistake in typing the search string, you can erase
+characters with DEL.  Each DEL cancels the last character of the
+search string.  This does not happen until Emacs is ready to read
+another input character; first it must either find, or fail to find,
+the character you want to erase.  If you do not want to wait for this
+to happen, use `C-g' as described below.
+
+   When you are satisfied with the place you have reached, you can type
+ESC, which stops searching, leaving the cursor where the search
+brought it.  Any command not specially meaningful in searches also
+stops the search and is then executed.  Thus, typing `C-a' exits the
+search and then moves to the beginning of the line.  ESC is necessary
+only if the next command you want to type is a printing character,
+DEL, ESC, or another control character that is special within searches
+(`C-q', `C-w', `C-r', `C-s' or `C-y').
+
+   Sometimes you search for `FOO' and find it, but were actually
+looking for a different occurance of it.  To move to the next
+occurrence of the search string, type another `C-s'.  Do this as often
+as necessary.  If you overshoot, you can cancel some `C-s' characters
+with DEL.
+
+   After you exit a search, you can search for the same string again by
+typing just `C-s C-s': the first `C-s' is the key that invokes
+incremental search, and the second `C-s' means "search again".
+
+   If the specified string is not found at all, the echo area displays
+the text `Failing I-Search'.  The cursor is after the place where
+Emacs found as much of your string as it could.  Thus, if you search
+for `FOOT', and there is no `FOOT', the cursor may be after the `FOO'
+in `FOOL'.  At this point there are several things you can do.  If you
+mistyped the search string, correct it.  If you like the place you
+have found, you can type ESC or some other Emacs command to "accept
+what the search offered".  Or you can type `C-g', which removes from
+the search string the characters that could not be found (the `T' in
+`FOOT'), leaving those that were found (the `FOO' in `FOOT').  A
+second `C-g' at that point cancels the search entirely, returning
+point to where it was when the search started.
+
+   If a search is failing and you ask to repeat it by typing another
+`C-s', it starts again from the beginning of the buffer.  Repeating a
+failing reverse search with `C-r' starts again from the end.  This is
+called "wrapping around".  `Wrapped' appears in the search prompt once
+this has happened.
+
+   The `C-g' "quit" character does special things during searches;
+just what it does depends on the status of the search.  If the search
+has found what you specified and is waiting for input, `C-g' cancels
+the entire search.  The cursor moves back to where you started the
+search.  If `C-g' is typed when there are characters in the search
+string that have not been found--because Emacs is still searching for
+them, or because it has failed to find them--then the search string
+characters which have not been found are discarded from the search
+string.  The search is now successful and waiting for more input, so a
+second `C-g' cancels the entire search.
+
+   To search for a control character such as `C-s' or DEL or ESC, you
+must quote it by typing `C-q' first.  This function of `C-q' is
+analogous to its meaning as an Emacs command: it causes the following
+character to be treated the way a graphic character would normally be
+treated in the same context.
+
+   To search backwards, you can use `C-r' instead of `C-s' to start
+the search; `C-r' is the key that runs the command
+(`isearch-backward') to search backward.  You can also use `C-r' to
+change from searching forward to searching backwards.  Do this if a
+search fails because the place you started was too far down in the
+file.  Repeated `C-r' keeps looking for more occurrences backwards. 
+`C-s' starts going forward again.  You can cancel `C-r' in a search
+with DEL.
+
+   The characters `C-y' and `C-w' can be used in incremental search to
+grab text from the buffer into the search string.  This makes it
+convenient to search for another occurrence of text at point.  `C-w'
+copies the word after point as part of the search string, advancing
+point over that word.  Another `C-s' to repeat the search will then
+search for a string including that word.  `C-y' is similar to `C-w'
+but copies the rest of the current line into the search string.
+
+   You can change all the characters special in incremental search by
+setting the following variables:
+
+`search-delete-char'
+     Character to delete from incremental search string (normally DEL).
+
+`search-exit-char'
+     Character to exit incremental search (normally ESC).
+
+`search-quote-char'
+     Character to quote special characters for incremental search
+     (normally `C-q').
+
+`search-repeat-char'
+     Character to repeat incremental search forwards (normally `C-s').
+
+`search-reverse-char'
+     Character to repeat incremental search backwards (normally `C-r').
+
+`search-yank-line-char'
+     Character to pull rest of line from buffer into search string
+     (normally `C-y').
+
+`search-yank-word-char'
+     Character to pull next word from buffer into search string
+     (normally `C-w').
+
+Slow Terminal Incremental Search
+--------------------------------
+
+   Incremental search on a slow terminal uses a modified style of
+display that is designed to take less time.  Instead of redisplaying
+the buffer at each place the search gets to, it creates a new
+single-line window and uses that to display the line the search has
+found.  The single-line window appears as soon as point gets outside
+of the text that is already on the screen.
+
+   When the search is terminated, the single-line window is removed. 
+Only at this time the window in which the search was done is
+redisplayed to show its new value of point.
+
+   The three dots at the end of the search string, normally used to
+indicate that searching is going on, are not displayed in slow style
+display.
+
+   The slow terminal style of display is used when the terminal baud
+rate is less than or equal to the value of the variable
+`search-slow-speed', initially 1200.
+
+   The number of lines to use in slow terminal search display is
+controlled by the variable `search-slow-window-lines'.  Its normal
+value is 1.
+
+
+File: emacs,  Node: Non-Incremental Search,  Next: Word Search,  Prev: Incremental Search,  Up: Search
+
+Non-Incremental Search
+======================
+
+   Emacs also has conventional non-incremental search commands, which
+require you type the entire search string before searching begins.
+
+`C-s ESC STRING RET'
+     Search for STRING.
+
+`C-r ESC STRING RET'
+     Search backward for STRING.
+
+   To do a non-incremental search, first type `C-s ESC'.  This enters
+the minibuffer to read the search string.  Terminate the string with
+RET to start the search.  If the string is not found the search
+command gets an error.
+
+   By default, `C-s' invokes incremental search, but if you give it an
+empty argument, which would otherwise be useless, it invokes
+non-incremental search.  Therefore, `C-s ESC' invokes non-incremental
+search.  `C-r ESC' also works this way.
+
+   Forward and backward non-incremental searches are implemented by the
+commands `search-forward' and `search-backward'.  You can bind these
+commands to keys.  The reason that incremental search is programmed to
+invoke them as well is that `C-s ESC' is the traditional sequence of
+characters used in Emacs to invoke non-incremental search.
+
+   Non-Incremental searches performed using `C-s ESC' do not call
+`search-forward' right away.  They first check if the next character
+is `C-w', which requests a word search.
+
+   *Note Word Search::.
+
+
+File: emacs,  Node: Word Search,  Next: Regexp Search,  Prev: Non-Incremental Search,  Up: Search
+
+Word Search
+===========
+
+   Word search looks for a sequence of words without regard to how the
+words are separated.  More precisely, you type a string of many words,
+using single spaces to separate them, and the string is found even if
+there are multiple spaces, newlines or other punctuation between the
+words.
+
+   Word search is useful in editing documents formatted by text
+formatters.  If you edit while looking at the printed, formatted
+version, you can't tell where the line breaks are in the source file. 
+Word search, allows you to search  without having to know the line
+breaks.
+
+`C-s ESC C-w WORDS RET'
+     Search for WORDS, ignoring differences in punctuation.
+
+`C-r ESC C-w WORDS RET'
+     Search backward for WORDS, ignoring differences in punctuation.
+
+   Word search is a special case of non-incremental search.  It is
+invoked with `C-s ESC C-w' followed by the search string, which must
+always be terminated with RET.  Being non-incremental, this search
+does not start until the argument is terminated.  It works by
+constructing a regular expression and searching for that.  *Note
+Regexp Search::.
+
+   You can do a backward word search with `C-r ESC C-w'.
+
+   Forward and backward word searches are implemented by the commands
+`word-search-forward' and `word-search-backward'.  You can bind these
+commands to keys.  The reason that incremental search is programmed to
+invoke them as well is that `C-s ESC C-w' is the traditional Emacs
+sequence of keys for word search.
+
+
+File: emacs,  Node: Regexp Search,  Next: Regexps,  Prev: Word Search,  Up: Search
+
+Regular Expression Search
+=========================
+
+   A "regular expression" ("regexp", for short) is a pattern that
+denotes a set of strings, possibly an infinite set.  Searching for
+matches for a regexp is a powerful operation that editors on Unix
+systems have traditionally offered.  In GNU Emacs, you can search for
+the next match for a regexp either incrementally or not.
+
+   Incremental search for a regexp is done by typing `C-M-s'
+(`isearch-forward-regexp').  This command reads a search string
+incrementally just like `C-s', but it treats the search string as a
+regexp rather than looking for an exact match against the text in the
+buffer.  Each time you add text to the search string, you make the
+regexp longer, and the new regexp is searched for.  A reverse regexp
+search command `isearch-backward-regexp' also exists but no key runs
+it.
+
+   All of the control characters that do special things within an
+ordinary incremental search have the same functionality in incremental
+regexp search.  Typing `C-s' or `C-r' immediately after starting a
+search retrieves the last incremental search regexp used: incremental
+regexp and non-regexp searches have independent defaults.
+
+   Note that adding characters to the regexp in an incremental regexp
+search does not make the cursor move back and start again.  Perhaps it
+ought to; I am not sure.  As it stands, if you have searched for `foo'
+and you add `\|bar', the search will not check for a `bar' in the
+buffer before the `foo'.
+
+   Non-Incremental search for a regexp is done by the functions
+`re-search-forward' and `re-search-backward'.  You can invoke them
+with `M-x' or bind them to keys.  You can also call
+`re-search-forward' by way of incremental regexp search with `C-M-s
+ESC'.
+
+
+File: emacs,  Node: Regexps,  Next: Search Case,  Prev: Regexp Search,  Up: Search
+
+Syntax of Regular Expressions
+=============================
+
+   Regular expressions have a syntax in which a few characters are
+special constructs and the rest are "ordinary".  An ordinary character
+is a simple regular expression which matches that character and
+nothing else.  The special characters are `$', `^', `.', `*', `+',
+`?', `[', `]' and `\'; no new special characters will be defined.  Any
+other character appearing in a regular expression is ordinary, unless
+a `\' precedes it.
+
+   For example, `f' is not a special character, so it is ordinary, and
+therefore `f' is a regular expression that matches the string `f' and
+no other string.  (It does not match the string `ff'.)  Likewise, `o'
+is a regular expression that matches only `o'.
+
+   Any two regular expressions A and B can be concatenated.  The
+result is a regular expression which matches a string if A matches
+some amount of the beginning of that string and B matches the rest of
+the string.
+
+   As a simple example, you can concatenate the regular expressions `f'
+and `o' to get the regular expression `fo', which matches only the
+string `fo'.  To do something nontrivial, you need to use one of the
+following special characters:
+
+`. (Period)'
+     is a special character that matches any single character except a
+     newline.  Using concatenation, you can make regular expressions
+     like `a.b' which matches any three-character string which begins
+     with `a' and ends with `b'.
+
+`*'
+     is not a construct by itself; it is a suffix, which means the
+     preceding regular expression is to be repeated as many times as
+     possible.  In `fo*', the `*' applies to the `o', so `fo*' matches
+     one `f' followed by any number of `o's.  The case of zero `o's is
+     allowed: `fo*' does match `f'.
+
+     `*' always applies to the smallest possible preceding expression.
+      Thus, `fo*' has a repeating `o', not a repeating `fo'.
+
+     The matcher processes a `*' construct by matching, immediately,
+     as many repetitions as it can find.  Then it continues with the
+     rest of the pattern.  If that fails, backtracking occurs,
+     discarding some of the matches of the `*'-modified construct in
+     case that makes it possible to match the rest of the pattern. 
+     For example, matching `ca*ar' against the string `caaar', the
+     `a*' first tries to match all three `a's; but the rest of the
+     pattern is `ar' and there is only `r' left to match, so this try
+     fails.  The next alternative is for `a*' to match only two `a's. 
+     With this choice, the rest of the regexp matches successfully.
+
+`+'
+     Is a suffix character similar to `*' except that it requires that
+     the preceding expression be matched at least once.  For example,
+     `ca+r' will match the strings `car' and `caaaar' but not the
+     string `cr', whereas `ca*r' would match all three strings.
+
+`?'
+     Is a suffix character similar to `*' except that it can match the
+     preceding expression either once or not at all.  For example,
+     `ca?r' will match `car' or `cr'; nothing else.
+
+`[ ... ]'
+     `[' begins a "character set", which is terminated by a `]'.  In
+     the simplest case, the characters between the two form the set. 
+     Thus, `[ad]' matches either one `a' or one `d', and `[ad]*'
+     matches any string composed of just `a's and `d's (including the
+     empty string), from which it follows that `c[ad]*r' matches `cr',
+     `car', `cdr', `caddaar', etc.
+
+     You can include character ranges in a character set by writing
+     two characters with a `-' between them.  Thus, `[a-z]' matches
+     any lower-case letter.  Ranges may be intermixed freely with
+     individual characters, as in `[a-z$%.]', which matches any lower
+     case letter or `$', `%' or period.
+
+     Note that inside a character set the usual special characters are
+     not special any more.  A completely different set of special
+     characters exists inside character sets: `]', `-' and `^'.
+
+     To include a `]' in a character set, you must make it the first
+     character.  For example, `[]a]' matches `]' or `a'.  To include a
+     `-', write `--', which is a range containing only `-'.  To
+     include `^', make it other than the first character in the set.
+
+`[^ ... ]'
+     `[^' begins a "complement character set", which matches any
+     character except the ones specified.  Thus, `[^a-z0-9A-Z]'
+     matches all characters except letters and digits.
+
+     `^' is not special in a character set unless it is the first
+     character.  The character following the `^' is treated as if it
+     were first (`-' and `]' are not special there).
+
+     Note that a complement character set can match a newline, unless
+     newline is mentioned as one of the characters not to match.
+
+`^'
+     is a special character that matches the empty string, but only if
+     at the beginning of a line in the text being matched.  Otherwise
+     it fails to match anything.  Thus, `^foo' matches a `foo' which
+     occurs at the beginning of a line.
+
+`$'
+     is similar to `^' but matches only at the end of a line.  Thus,
+     `xx*$' matches a string of one `x' or more at the end of a line.
+
+`\'
+     does two things: it quotes the special characters (including
+     `\'), and it introduces additional special constructs.
+
+     Because `\' quotes special characters, `\$' is a regular
+     expression which matches only `$', and `\[' is a regular
+     expression which matches only `[', and so on.
+
+   Note: for historical compatibility, special characters are treated
+as ordinary ones if they are in contexts where their special meanings
+make no sense.  For example, `*foo' treats `*' as ordinary since there
+is no preceding expression on which the `*' can act.  It is poor
+practice to depend on this behavior; better to quote the special
+character anyway, regardless of where is appears.
+
+   Usually, `\' followed by any character matches only that character.
+ However, there are several exceptions: characters which, when
+preceded by `\', are special constructs.  Such characters are always
+ordinary when encountered on their own.  Here is a table of `\'
+constructs.
+
+`\|'
+     specifies an alternative.  Two regular expressions A and B with
+     `\|' in between form an expression that matches anything that
+     either A or B matches.
+
+     Thus, `foo\|bar' matches either `foo' or `bar' but no other
+     string.
+
+     `\|' applies to the largest possible surrounding expressions. 
+     Only a surrounding `\( ... \)' grouping can limit the grouping
+     power of `\|'.
+
+     Full backtracking capability exists to handle multiple uses of
+     `\|'.
+
+`\( ... \)'
+     is a grouping construct that serves three purposes:
+
+       1. To enclose a set of `\|' alternatives for other operations. 
+          Thus, `\(foo\|bar\)x' matches either `foox' or `barx'.
+
+       2. To enclose a complicated expression for the postfix `*' to
+          operate on.  Thus, `ba\(na\)*' matches `bananana', etc.,
+          with any (zero or more) number of `na' strings.
+
+       3. To mark a matched substring for future reference.
+
+          This last application is not a consequence of the idea of a
+     parenthetical grouping; it is a separate feature which happens to
+     be assigned as a second meaning to the same `\( ... \)' construct
+     because in practice there is no conflict between the two meanings. 
+     Here is an explanation:
+
+`\DIGIT'
+     after the end of a `\( ... \)' construct, the matcher remembers
+     the beginning and end of the text matched by that construct. 
+     Then, later on in the regular expression, you can use `\'
+     followed by DIGIT to mean "match the same text matched the
+     DIGIT'th time by the `\( ... \)' construct."
+
+     The strings matching the first nine `\( ... \)' constructs
+     appearing in a regular expression are assigned numbers 1 through
+     9 in order that the open-parentheses appear in the regular
+     expression.  `\1' through `\9' may be used to refer to the text
+     matched by the corresponding `\( ... \)' construct.
+
+     For example, `\(.*\)\1' matches any newline-free string that is
+     composed of two identical halves.  The `\(.*\)' matches the first
+     half, which may be anything, but the `\1' that follows must match
+     the same exact text.
+
+`\`'
+     matches the empty string, provided it is at the beginning of the
+     buffer.
+
+`\''
+     matches the empty string, provided it is at the end of the buffer.
+
+`\b'
+     matches the empty string, provided it is at the beginning or end
+     of a word.  Thus, `\bfoo\b' matches any occurrence of `foo' as a
+     separate word.  `\bballs?\b' matches `ball' or `balls' as a
+     separate word.
+
+`\B'
+     matches the empty string, provided it is not at the beginning or
+     end of a word.
+
+`\<'
+     matches the empty string, provided it is at the beginning of a
+     word.
+
+`\>'
+     matches the empty string, provided it is at the end of a word.
+
+`\w'
+     matches any word-constituent character.  The editor syntax table
+     determines which characters these are.
+
+`\W'
+     matches any character that is not a word-constituent.
+
+`\sCODE'
+     matches any character whose syntax is CODE.  CODE is a character
+     which represents a syntax code: thus, `w' for word constituent,
+     `-' for whitespace, `(' for open-parenthesis, etc.  *Note
+     Syntax::.
+
+`\SCODE'
+     matches any character whose syntax is not CODE.
+
+   Here is a complicated regexp, used by Emacs to recognize the end of
+a sentence together with any whitespace that follows.  It is given in
+Lisp syntax to enable you to distinguish the spaces from the tab
+characters.  In Lisp syntax, the string constant begins and ends with
+a double-quote.  `\"' stands for a double-quote as part of the regexp,
+`\\' for a backslash as part of the regexp, `\t' for a tab and `\n'
+for a newline.
+
+     "[.?!][]\"')]*\\($\\|\t\\|  \\)[ \t\n]*"
+
+This regexp contains four parts: a character set matching period, `?'
+or `!'; a character set matching close-brackets, quotes or
+parentheses, repeated any number of times; an alternative in
+backslash-parentheses that matches end-of-line, a tab or two spaces;
+and a character set matching whitespace characters, repeated any
+number of times.
+
+
+File: emacs,  Node: Search Case,  Next: Replace,  Prev: Regexps,  Up: Search
+
+Searching and Case
+==================
+
+   All searches in Emacs normally ignore the case of the text they are
+searching through; if you specify searching for `FOO', `Foo' and `foo'
+are also considered a match.  Regexps, and in particular character
+sets, are included: `[aB]' matches `a' or `A' or `b' or `B'.
+
+   If you want a case-sensitive search, set the variable
+`case-fold-search' to `nil'.  Then all letters must match exactly,
+including case. `case-fold-search' is a per-buffer variable; altering
+it affects only the current buffer, but there is a default value which
+you can change as well.  *Note Locals::.
+
+
+File: emacs,  Node: Replace,  Next: Other Repeating Search,  Prev: Search Case,  Up: Search
+
+Replacement Commands
+====================
+
+   Global search-and-replace operations are not needed as often in
+Emacs as they are in other editors, but they are available.  In
+addition to the simple `replace-string' command which is like that
+found in most editors, there is a `query-replace' command which asks
+you, for each occurrence of a pattern, whether to replace it.
+
+   The replace commands all replace one string (or regexp) with one
+replacement string.  It is possible to perform several replacements in
+parallel using the command `expand-region-abbrevs'.  *Note Expanding
+Abbrevs::.
+
+* Menu:
+
+* Unconditional Replace::  Replacing all matches for a string.
+* Regexp Replace::         Replacing all matches for a regexp.
+* Replacement and Case::   How replacements preserve case of letters.
+* Query Replace::          How to use querying.
+
+
+File: emacs,  Node: Unconditional Replace,  Next: Regexp Replace,  Prev: Replace,  Up: Replace
+
+Unconditional Replacement
+-------------------------
+
+`M-x replace-string RET STRING RET NEWSTRING RET'
+     Replace every occurrence of STRING with NEWSTRING.
+
+`M-x replace-regexp RET REGEXP RET NEWSTRING RET'
+     Replace every match for REGEXP with NEWSTRING.
+
+   To replace every instance of `foo' after point with `bar', use the
+command `M-x replace-string' with the two arguments `foo' and `bar'. 
+Replacement occurs only after point: if you want to cover the whole
+buffer you must go to the beginning first.  By default, all
+occurrences up to the end of the buffer are replaced.  To limit
+replacement to part of the buffer, narrow to that part of the buffer
+before doing the replacement (*note Narrowing::.).
+
+   When `replace-string' exits, point is left at the last occurrence
+replaced.  The value of point when the `replace-string' command was
+issued is remembered on the mark ring; `C-u C-SPC' moves back there.
+
+   A numeric argument restricts replacement to matches that are
+surrounded by word boundaries.
+
+
+File: emacs,  Node: Regexp Replace,  Next: Replacement and Case,  Prev: Unconditional Replace,  Up: Replace
+
+Regexp Replacement
+------------------
+
+   `replace-string' replaces exact matches for a single string.  The
+similar command `replace-regexp' replaces any match for a specified
+pattern.
+
+   In `replace-regexp', the NEWSTRING need not be constant.  It can
+refer to all or part of what is matched by the REGEXP.  `\&' in
+NEWSTRING stands for the entire text being replaced.  `\D' in
+NEWSTRING, where D is a digit, stands for whatever matched the D'th
+parenthesized grouping in REGEXP.  For example,
+
+     M-x replace-regexp RET c[ad]+r RET \&-safe RET
+
+would replace (for example) `cadr' with `cadr-safe' and `cddr' with
+`cddr-safe'.
+
+     M-x replace-regexp RET \(c[ad]+r\)-safe RET \1 RET
+
+would perform exactly the opposite replacements.  To include a `\' in
+the text to replace with, you must give `\\'.
+
+
+File: emacs,  Node: Replacement and Case,  Next: Query Replace,  Prev: Regexp Replace,  Up: Replace
+
+Replace Commands and Case
+-------------------------
+
+   If the arguments to a replace command are in lower case, the command
+preserves case when it makes a replacement.  Thus, the command
+
+     M-x replace-string RET foo RET bar RET
+
+replaces a lower case `foo' with a lower case `bar', `FOO' with `BAR',
+and `Foo' with `Bar'.  If upper case letters are used in the second
+argument, they remain upper case every time that argument is inserted.
+ If upper case letters are used in the first argument, the second
+argument is always substituted exactly as given, with no case
+conversion.  Likewise, if the variable `case-replace' is set to `nil',
+replacement is done without case conversion.  If `case-fold-search' is
+set to `nil', case is significant in matching occurrences of `foo' to
+replace; also, case conversion of the replacement string is not done.
+
+

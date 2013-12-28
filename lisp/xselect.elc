@@ -1,0 +1,61 @@
+;;; compiled by jwz@thalidomide on Fri Feb 28 17:27:56 1992
+;;; from file /u/jwz/emacs19/lisp/xselect.el
+;;; emacs version 19.65 Lucid.
+;;; bytecomp version 2.04; 5-feb-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'x-get-selection #[nil "ÀÁÂ\"‡" [x-get-selection-internal PRIMARY STRING] 3 "\
+Return text selected from some X window."])
+(fset 'x-get-secondary-selection #[nil "ÀÁÂ\"‡" [x-get-selection-internal SECONDARY STRING] 3 "\
+Return text selected from some X window."])
+(fset 'x-get-clipboard #[nil "ÀÁÂ\"‡" [x-get-selection-internal CLIPBOARD STRING] 3 "\
+Return text pasted to the clipboard."])
+(defvar primary-selection-extent nil "\
+The extent of the primary selection; don't change this.")
+(defvar secondary-selection-extent nil "\
+The extent of the secondary selection; don't change this.")
+(defvar primary-selection-attribute 70 "\
+The attribute used to display the primary selection")
+(defvar secondary-selection-attribute 70 "\
+The attribute used to display the secondary selection")
+(fset 'x-select-make-extent-for-selection #[(selection previous-extent attribute) "ÀÁ\n!­ŠÃ\n!­…ÄÃ\n!!À‰	;¬Ó	:«©	@	A^	@	A]­‰Ê	@!Ã\n!=Ê	@!ª¥Á	!«ŸË	!Ì	!­ˆÃ	!Ã\n!=Ã	!¬•Á\n!«Ã\n!«‹ÄÃ\n!!«„Í\n!ˆ??­—«ˆÎ\n#ª‹ÏĞ#\",‡" [nil extentp previous-extent extent-buffer buffer-name end start valid buffer selection marker-buffer extent-start-position extent-end-position delete-extent update-extent set-extent-attribute make-extent attribute] 5])
+(fset 'x-own-selection #[(selection &optional type) ";¬ÃÁ!¬¾:«³Â@!«­ÂA!«§Ã@!«¡ÃA!«›Ã@!ÃA!=«ÄÃ@!!«ˆÄÃA!!¬‡ÅÆÇD\"ˆ¬ƒÉÊ\"ˆÉ=«‹Ë#ªÎ=«‰Ë#‡" [selection extentp markerp marker-buffer buffer-name signal error "invalid selection" type PRIMARY x-own-selection-internal x-select-make-extent-for-selection primary-selection-extent primary-selection-attribute SECONDARY secondary-selection-extent secondary-selection-attribute] 4 "\
+Make a primary X Selection of the given argument.  
+The argument may be a string, a cons of two markers or an extent.  In the 
+latter cases the selection is considered to be the text between 
+the markers or the between extents endpoints" (byte-code "¬…ÁÂ!C‡ÃÄ !ÃÅ !BC‡" [current-prefix-arg read-string "Store text for pasting: " copy-marker point-marker mark-marker] 3)])
+(fset 'x-own-secondary-selection #[(selection &optional type) "À	Â\"‡" [x-own-selection selection SECONDARY] 3 "\
+Make a secondary X Selection of the given argument.  The argument may be a 
+string or a cons of two markers (in which case the selection is considered to
+be the text between those markers.)" (byte-code "¬…ÁÂ!C‡ÃÄ !ÃÅ !BC‡" [current-prefix-arg read-string "Store text for pasting: " copy-marker point-marker mark-marker] 3)])
+(fset 'x-own-clipboard #[(string) "À	Â\"‡" [x-own-selection string CLIPBOARD] 3 "\
+Paste the given string to the X Clipboard."])
+(fset 'x-disown-selection #[(&optional secondary-p) "À	«ƒÂªÃ!‡" [x-disown-selection-internal secondary-p SECONDARY PRIMARY] 2 "\
+Assuming we own the selection, disown it.  With an argument, discard the
+secondary selection instead of the primary selection."])
+(fset 'x-dehilight-selection #[(selection) "Á=«•\n«‰ÃÅ\n!ˆÆ)«™È ˆª”É=«\n«‹ÃÅ\n!ˆÆ\n)Æ‡" [selection PRIMARY primary-selection-extent t inhibit-quit delete-extent nil zmacs-regions zmacs-deactivate-region SECONDARY secondary-selection-extent] 2 "\
+for use as a value of x-lost-selection-hooks."])
+(byte-code "ÀÀ‡" [x-dehilight-selection x-lost-selection-hooks] 1)
+(fset 'x-notice-selection-requests #[(selection type successful) "¬†ÁÂ#‡ÁÅ#‡" [successful message "Selection request failed to convert %s to %s" selection type "Sent selection %s as %s"] 4 "\
+for possible use as the value of x-sent-selection-hooks."])
+(fset 'x-notice-selection-failures #[(selection type successful) "®…ÁÂ#‡" [successful message "Selection request failed to convert %s to %s" selection type] 4 "\
+for possible use as the value of x-sent-selection-hooks."])
+(fset 'x-get-cutbuffer #[(&optional which-one) "À	«…Â	HªÃ!‡" [x-get-cutbuffer-internal which-one [CUT_BUFFER0 CUT_BUFFER1 CUT_BUFFER2 CUT_BUFFER3 CUT_BUFFER4 CUT_BUFFER5 CUT_BUFFER6 CUT_BUFFER7] CUT_BUFFER0] 3 "\
+Returns the value of one of the 8 X server cut-buffers.  Optional arg
+WHICH-ONE should be a number from 0 to 7, defaulting to 0.
+Cut buffers are considered obsolete; you should use selections instead."])
+(fset 'x-store-cutbuffer #[(string) ";¬„ÁÂ!ˆÃÄ!ˆÅÆ\"‡" [string error "must be a string" x-rotate-cutbuffers-internal 1 x-store-cutbuffer-internal CUT_BUFFER0] 3 "\
+Store the given string into the X server's primary cut buffer.
+The previous value of the primary cut buffer is rotated to the secondary
+cut buffer, and the second to the third, and so on (there are 8 buffers.)
+Cut buffers are considered obsolete; you should use selections instead."])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕM‡" [xselect-convert-to-string #[(selection type value) ";«‚‡:«´Á@!«®ÁA!«¨Â@!ÂA!=¬ŠÃÄÅ@AE\"ˆŠÂ@!®ƒÄÆ!qˆ@A{)‡Ç‡" [value markerp marker-buffer signal error "markers must be in the same buffer" "selection is in a killed buffer" nil] 5] xselect-convert-to-length #[(selection type value) ";«„Gª¬:­¨Á@!­¢ÁA!­œÂ@!ÂA!=¬ŠÃÄÅ@AE\"ˆÆ@AZ!‰­‰ÇÈ\"ÉÊ\"B)‡" [value markerp marker-buffer signal error "markers must be in the same buffer" abs ash -16 logand 65535] 6] xselect-convert-to-targets #[(selection type value) "ÀÁÂ\"B‰«˜@A>«‹Æ@A\"¡ˆªkA‰¬hÇÈ\"*‡" [TIMESTAMP mapcar car selection-converter-alist all rest delq apply vector] 5] xselect-convert-to-delete #[(selection type value) "À	!ˆÂ‡" [x-disown-selection-internal selection NULL] 2] xselect-convert-to-filename #[(selection type value) ":­—Á@!­‘ÁA!­‹ÂÃ@!®ƒÄÅ!!‡" [value markerp buffer-file-name marker-buffer error "selection is in a killed buffer"] 3] xselect-convert-to-charpos #[(selection type value) ":­ÂÁ@!­¼ÁA!­¶Â@!SÂA!SÃW«ˆÇÈÉÊ\"ËÌ\"BÉÊ\"ËÌ\"B\"+B‡" [value markerp marker-position nil tmp b a SPAN vector ash -16 logand 65535] 7] xselect-convert-to-lineno #[(selection type value) ":­ÏÁ@!­ÉÁA!­ÃÂÃÄ@!\"ÂÃÄA!\"ÅW«ŒÉÊËÌ\"ÍÎ\"BËÌ\"ÍÎ\"B\"+B‡" [value markerp count-lines 1 marker-position nil tmp b a SPAN vector ash -16 logand 65535] 7] xselect-convert-to-colno #[(selection type value) ":­ÀÁ@!­ºÁA!­´Š@bˆi)ŠAbˆi)ÂW«†ÆÇÈÉ\"ÊË\"BÈÉ\"ÊË\"B\"+B‡" [value markerp nil tmp b a SPAN vector ash -16 logand 65535] 7] xselect-convert-to-os #[(type size) "À	!‡" [symbol-name system-type] 2] xselect-convert-to-host #[(type size) "À ‡" [system-name] 1] xselect-convert-to-user #[(type size) "À ‡" [user-full-name] 1]] 2)
+(defun xselect-convert-to-class (type size) "\
+XEmacs")
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕMˆÖ×\"À‡" [xselect-convert-to-name (lambda (type size) invocation-name) xselect-convert-to-integer #[(selection type value) "¨­‰ÁÂ\"ÃÄ\"B‡" [value ash -16 logand 65535] 4] xselect-convert-to-atom #[(selection type value) "9­‡" [value] 1] ((TEXT . xselect-convert-to-string) (STRING . xselect-convert-to-string) (TARGETS . xselect-convert-to-targets) (LENGTH . xselect-convert-to-length) (DELETE . xselect-convert-to-delete) (FILE_NAME . xselect-convert-to-filename) (CHARACTER_POSITION . xselect-convert-to-charpos) (LINE_NUMBER . xselect-convert-to-lineno) (COLUMN_NUMBER . xselect-convert-to-colno) (OWNER_OS . xselect-convert-to-os) (HOST_NAME . xselect-convert-to-host) (USER . xselect-convert-to-user) (CLASS . xselect-convert-to-class) (NAME . xselect-convert-to-name) (ATOM . xselect-convert-to-atom) (INTEGER . xselect-convert-to-integer)) selection-converter-alist xselect-energize-convert-to-string #[(selection type value) "À	!«ŠÂ	!qˆÃ	!Ä	!{)‡Å	#‡" [extentp value extent-buffer extent-start-position extent-end-position xselect-convert-to-string selection type] 4] xselect-convert-to-energize #[(selection type value) "À‰‰‰‰:«¦Ç@!«ŸÇA!«˜ÈÉ@!!Ê@!SÊA!SªË!«‰Ì!ÍÍ??…Ù ÎÏÍ\"\nW«†\n	ÍĞÑ@Ò\"Ó\"IˆÔĞ@Ó\"IˆÕĞÑAÒ\"Ó\"IˆÖĞAÓ\"Iˆ×ĞÑØ\"Ó\"IˆÙĞÑÚ\"Ó\"IˆÛĞÑÒ\"Ó\"IˆÜĞÓ\"IˆİĞÑ\nØ\"Ó\"IˆŞĞÑ\nÚ\"Ó\"IˆßĞÑ\nÒ\"Ó\"IˆàĞ\nÓ\"IˆáB-‡" [nil tmp end start id str value markerp energize-buffer-id marker-buffer marker-position extentp extent-to-generic-id 0 make-string 12 logand ash -8 255 1 2 3 4 -24 5 -16 6 7 8 9 10 11 ENERGIZE_OBJECT] 6] xselect-energize-convert-to-length #[(selection type value) "À	!¬†Â	#‡Å	!Æ	Ç\"È	É\"B‡" [extentp value xselect-convert-to-length selection type extent-length ash -16 logand 65535] 4] xselect-energize-convert-to-filename #[(selection type value) "À	!«†ÂÃ	!!‡Ä	#‡" [extentp value buffer-file-name extent-buffer xselect-convert-to-filename selection type] 4] xselect-energize-convert-to-charpos #[(selection type value) "À	!«—ŠÂ	!qˆÃ Ä	!Å“Ã Æ	!Å“B)Ç		#‡" [extentp value extent-buffer make-marker extent-start-position nil extent-end-position xselect-convert-to-charpos selection type] 4] xselect-energize-convert-to-lineno #[(selection type value) "À	!«—ŠÂ	!qˆÃ Ä	!Å“Ã Æ	!Å“B)Ç		#‡" [extentp value extent-buffer make-marker extent-start-position nil extent-end-position xselect-convert-to-lineno selection type] 4] xselect-energize-convert-to-colno #[(selection type value) "À	!«—ŠÂ	!qˆÃ Ä	!Å“Ã Æ	!Å“B)Ç		#‡" [extentp value extent-buffer make-marker extent-start-position nil extent-end-position xselect-convert-to-colno selection type] 4] append ((TEXT . xselect-energize-convert-to-string) (STRING . xselect-energize-convert-to-string) (LENGTH . xselect-energize-convert-to-length) (FILE_NAME . xselect-energize-convert-to-filename) (CHARACTER_POSITION . xselect-energize-convert-to-charpos) (LINE_NUMBER . xselect-energize-convert-to-lineno) (COLUMN_NUMBER . xselect-energize-convert-to-colno) (ENERGIZE_OBJECT . xselect-convert-to-energize))] 3)

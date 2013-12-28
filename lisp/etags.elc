@@ -1,0 +1,239 @@
+;;; compiled by jwz@thalidomide on Mon Jan  6 17:46:39 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/etags.el
+;;; emacs version 19.40 Lucid.
+;;; bytecomp version 2.03; 29-oct-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'tags-delete #[(item list) "¬‚Á‡\n@š«†Ã\nA\"‡@Ã\nA\"B‡" [list nil item tags-delete] 4 "\
+delete the item from the list, testing with equal.  Copies the list."])
+(fset 'tags-remove-duplicates #[(list) "¬‚Á‡@ÂÃ@A\"!B‡" [list nil tags-remove-duplicates tags-delete] 5 "\
+delete equal duplicates from the list; copies the list."])
+(fset 'generate-new-buffer-name #[(name) "À	!¬‚	‡Â	ÃPÄÈÉ+‡" [get-buffer name 1 "<%d>" nil tempname template count found (byte-code "À	\n\"Ä!¬…ÅÆ\"ˆ\nTªl" [format template count tempname get-buffer throw found] 3)] 3 "\
+Foo"])
+(defvar tags-build-completion-table 'ask "\
+*If this variable is nil, then tags completion is disabled.
+If this variable is t, then things which prompt for tags will do so with 
+ completion across all known tags.
+If this variable is the symbol `ask', then you will be asked whether each
+ tags table should be added to the completion list as it is read in.
+ (With the exception that for very small tags tables, you will not be asked,
+ since they can be parsed quickly.)")
+(defvar tag-table-alist nil "\
+*A list which determines which tags files should be active for a 
+given buffer.  This is not really an association list, in that all 
+elements are checked.  The CAR of each element of this list is a 
+pattern against which the buffer's file name is compared; if it 
+matches, then the CDR of the list should be the name of the tags
+table to use.  If more than one element of this list matches the
+buffer's file name, then all of the associated tags tables will be
+used.  Earlier ones will be searched first.
+
+If the CAR of elements of this list are strings, then they are treated
+as regular-expressions against which the file is compared (like the
+auto-mode-alist).  If they are not strings, then they are evaluated.
+If they evaluate to non-nil, then the current buffer is considered to
+match.
+
+If the CDR of the elements of this list are strings, then they are
+assumed to name a TAGS file.  If they name a directory, then the string
+\"TAGS\" is appended to them to get the file name.  If they are not 
+strings, then they are evaluated, and must return an appropriate string.
+
+For example:
+  (setq tag-table-alist
+	'((\"/usr/src/public/perl/\" . \"/usr/src/public/perl/perl-3.0/\")
+	 (\"\\\\.el$\" . \"/usr/local/emacs/src/\")
+	 (\"/jbw/gnu/\" . \"/usr15/degree/stud/jbw/gnu/\")
+	 (\"\" . \"/usr/local/emacs/src/\")
+	 ))
+
+This means that anything in the /usr/src/public/perl/ directory should use
+the TAGS file /usr/src/public/perl/perl-3.0/TAGS; and file ending in .el should
+use the TAGS file /usr/local/emacs/src/TAGS; and anything in or below the
+directory /jbw/gnu/ should use the TAGS file /usr15/degree/stud/jbw/gnu/TAGS.
+A file called something like \"/usr/jbw/foo.el\" would use both the TAGS files
+/usr/local/emacs/src/TAGS and /usr15/degree/stud/jbw/gnu/TAGS (in that order)
+because it matches both patterns.
+
+If the buffer-local variable `buffer-tag-table' is set, then it names a tags
+table that is searched before all others when find-tag is executed from this
+buffer.
+
+If there is a file called \"TAGS\" in the same directory as the file in 
+question, then that tags file will always be used as well (after the
+`buffer-tag-table' but before the tables specified by this list.)
+
+If the variable tags-file-name is set, then the tags file it names will apply
+to all buffers (for backwards compatibility.)  It is searched first.
+")
+(defvar buffer-tag-table nil "\
+*The name of one TAGS table to be used for this buffer in addition to the
+TAGS tables that the variable `tag-table-alist' specifies.  You can set this
+with meta-x set-buffer-tag-table.  See the documentation for the variable
+`tag-table-alist' for more information.")
+(make-variable-buffer-local 'buffer-tag-table)
+(defvar tags-file-name nil "\
+*The name of the tags-table used by all buffers.  This is for backwards
+compatibility, and is largely supplanted by the variable tag-table-alist.")
+(byte-code "ÀÀ‡" [nil tags-file-name] 1)
+(fset 'buffer-tag-table-list #[nil "À‰«„\nBÄÆP!«†ÆP\nB®„È P	\n\n«´\n@@‰;«ŠÌ\n@@\"ª„ÀÍÎ«“ÀÏĞ‰;«†	\nBª„ÑÒ!ˆ\nA‰\n¬L*«†\nC¤ÔÕ\n\"ÖÀ\n\"‰¬„Ñ×!ˆØ\nŸ!*‡" [nil expression result buffer-tag-table file-readable-p default-directory "TAGS" buffer-file-name buffer-name tag-table-alist alist key string-match (eval expression) ((error)) (byte-code "À	@A!‡" [eval alist] 2) ((error)) error "Expression in tag-table-alist evaluated to non-string" tags-file-name mapcar #[(name) "À	!«„	ÂPÃ	!­ˆŠÄ	!qˆ)‡" [file-directory-p name "TAGS" file-readable-p get-tag-table-buffer buffer-file-name] 2] delq "Buffer has no associated tag tables" tags-remove-duplicates] 4 "\
+Returns a list (ordered) of the tags tables which should be used for 
+the current buffer."])
+(fset 'visit-tags-table #[(file) "Á˜«„Â‰‡Ä!Å!«…ÄÆ\"‰‡" [file "" nil tags-file-name expand-file-name file-directory-p "TAGS"] 3 "\
+Tell tags commands to use tags table file FILE first." (byte-code "ÀÁ\nÃÄ\n\"Å$C‡" [read-file-name "Visit tags table: (default TAGS) " default-directory expand-file-name "TAGS" t] 6)])
+(fset 'set-buffer-tag-table #[(file) "¬„ÁÂ!ˆÃ!Ä!«„ÅPÆ!¬…ÁÇ\"ˆ‰‡" [file error "No TAGS file name supplied" expand-file-name file-directory-p "TAGS" file-exists-p "TAGS file missing: %s" buffer-tag-table] 3 "\
+In addition to the tags tables specified by the variable `tag-table-alist',
+each buffer can have one additional table.  This command sets that.
+See the documentation for the variable `tag-table-alist' for more information." (byte-code "ÀÁÂÄ$C‡" [read-file-name "Visit tags table: (directory sufficient) " nil default-directory t] 5)])
+(defconst tag-table-completion-status nil "\
+Indicates whether a completion table has been built, or has explicitly not 
+been built.  this is nil, t, or 'disabled.")
+(make-variable-buffer-local 'tag-table-completion-status)
+(defvar make-tags-files-invisible nil "\
+*If true, TAGS-files will not show up in buffer-lists or be 
+selectable (or deletable.)")
+(fset 'get-tag-table-buffer #[(tag-table) ";¬…ÁÂ\"ˆÃÄ!«„Ä!Å‰‰É!‰¬”Ê!«ŠË!Ìª…ÁÍ\"ˆŠqˆ«”«ÏĞÑ \"«‰ÒÓÔÑ P!!ˆÕ!¬™Ö×Ø\"!«‘ÙÌ‰\"ˆÌ=«ƒÅÅÜfİ=¬…ÁŞ\"ˆß>¬ƒÌ«¯ Å=¬¦ Ì=¬™ á=«â ãW¬ä×å\"!ªƒÁæ!«‡çèéˆªƒê)+‡" [tag-table error "Bad tags file name supplied: %s" fboundp symlink-expand-file-name nil check-name build-completion buf get-file-buffer file-readable-p find-file-noselect t "No such tags file: %s" make-tags-files-invisible string-match "\\`[^ ]" buffer-name rename-buffer generate-new-buffer-name " " verify-visited-file-modtime yes-or-no-p format "Tags file %s has changed, read new contents? " revert-buffer tag-table-completion-status tag-table-files 1 12 "File %s not a valid tags file" (t disabled) tags-build-completion-table ask buffer-size 20000 y-or-n-p "Build tag completion table for %s? " "tags-build-completion-table is not t, nil, or ask." foo (byte-code "À ˆÁÀ‡" [add-to-tag-completion-table t tag-table-completion-status] 1) ((quit (byte-code "ÀÂÄÂ!‡" [nil tag-table-completion-status t quit-flag eval] 2))) disabled] 5 "\
+Returns a buffer visiting the give TAGS table, reverting if appropriate,
+and possibly building a completion-table."])
+(fset 'file-of-tag #[nil "`À‰Šebˆ`W«›ÄyˆÀˆÅÀxˆ`Æp!\nbˆÄyˆ	uˆª`\nSbˆ`Çyˆ`{,‡" [nil size prev opoint 1 "^,\n" read 0] 3 "\
+Return the file name of the file whose tags point is within.
+Assumes the tag table is the current buffer.
+File name returned is relative to tag table file's directory."])
+(defconst tag-table-files nil "\
+If the current buffer is a TAGS table, this holds a list of the files 
+referenced by this file, or nil if that hasn't been computed yet.")
+(make-variable-buffer-local 'tag-table-files)
+(fset 'tag-table-files #[(tag-table) "ŠÀ	!qˆ\n¬¿Ã‰‰ebˆm¬­ÇyˆÃˆÈÃxˆ`Ép!bˆÊ`SŠËyˆ`){\"BÇyˆuˆªPŸ+\n)‡" [get-tag-table-buffer tag-table tag-table-files nil size prev files 1 "^,\n" read expand-file-name 0 default-directory] 3 "\
+Returns a list of the files referenced by the named TAGS table."])
+(fset 'buffer-tag-table-files #[nil "ÀÁÂÃÄ \"\"‡" [apply append mapcar tag-table-files buffer-tag-table-list] 5 "\
+Returns a list of all files referenced by all TAGS tables that 
+this buffer uses."])
+(byte-code "ÀÁ!¬…ÂÃÄ\"ÅÆMˆÇÈMˆÅÇKMˆÉ\nËÍÏÀ‡" [boundp tag-completion-table make-vector 511 0 intern-tag-symbol (macro . #[(tag) "ÀÁÂÃÅEÆÇ¯ÈE‡" [progn setq tag-symbol intern tag tag-completion-table tag-symbol-tables (and (boundp tag-symbol) (symbol-value tag-symbol)) (or (memq tag-table-symbol tag-symbol-tables) (set tag-symbol (cons tag-table-symbol tag-symbol-tables)))] 6]) intern-tag-symbol2 #[(tag) "À	\n\"Ä!­‚J>®†BL‡" [intern tag tag-completion-table tag-symbol boundp tag-symbol-tables tag-table-symbol] 3] "DEFUN[ 	]*(\"\\([^\"]+\\)\",[ 	]*\\(\\(\\sw\\|\\s_\\)+\\)," tags-DEFUN-pattern ".*[ 	]+\\([^ []+\\)\\[" tags-array-pattern "\\(.*[ 	]+\\)?\\(\\(\\sw\\|\\s_\\)+\\)[ ();,	]*" tags-def-pattern "^\n\\([^,]+\\),[0-9]+\n" tags-file-pattern] 3)
+(fset 'add-to-tag-completion-table #[nil "ÀÁ\n\"ˆebˆÃ\n\"Å Æ‰‰‰‰‰‰‰	\nÑÒ!ƒRÔ•bˆÕ”Õ•{Ö!ÆÆÆÆÙ=¬›«—Ü@@\"«†@AAªa*«ŠÃİ!ŞP!«ß!«ˆàJ!ˆª…àá !ˆm¬\ngâ=¬ã=«£ÆÒä!)«šÒ%!¬„æç!ˆÕ”Õ•{è”è•{ª°Òé!¬«ã=«˜Òê!«“Ò+!¬„æì!ˆÕ”Õ•{ªÒ-!«‡è”è•{«¢Ã\"\nß\n!­ƒ\nJ>¬‰\nBLˆ«¢Ã\"\nß\n!­ƒ\nJ>¬‰\nBLˆÕyˆ‚Ÿ )m¬„æî!ˆ.\nÀï\n\"‡" [message "Adding %s to tags completion table..." buffer-file-name intern tag-completion-table syntax-table nil file-type-syntax-table tag-symbol-tables eol-point tag-symbol name2 name file-type filename original-syntax-table tag-table-symbol ((set-syntax-table original-syntax-table)) looking-at tags-file-pattern 0 1 file-name-sans-versions auto-mode-alist system-type vax-vms case-fold-search alist string-match symbol-name "-syntax-table" boundp set-syntax-table standard-syntax-table 12 c-mode "DEFUN[ 	]" tags-DEFUN-pattern error "DEFUN doesn't fit pattern" 2 "\\s " ".*\\[" tags-array-pattern "array definition doesn't fit pattern" tags-def-pattern "Bad TAGS file" "Adding %s to tags completion table...done"] 10 "\
+Sucks the current buffer (a TAGS table) into the completion-table."])
+(defvar find-tag-default-hook nil "\
+****Function to call to create a default tag.
+Make it buffer-local in a mode hook.
+The function is called with no args.")
+(defvar find-tag-hook nil "\
+****Function to call after a hook is found.
+Make it buffer-local in a mode hook.
+The function is called with no args.")
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇM‡" [find-tag-default #[nil "ÀÁ!«‹	Â>¬†ÃÄÅ®¹ŠhzÆ>¬ŠÇÈ!¬…ÉuˆªvÇÊ!«…ÉuˆªvËÊÌÍ#­–ÎÉuˆ`ÏĞ!ˆÇÑ!«…Éuˆªv`{!)‡" [boundp find-tag-default-hook (nil find-tag-default) data (funcall find-tag-default-hook) ((error (byte-code "ÀÁ\n\"ˆÃÄ!ˆÅ‡" [message "value of find-tag-default-hook signalled error: %s" data sit-for 1 nil] 3))) (119 95) looking-at "\\sw\\|\\s_\\|\\'" 1 "\\sw\\|\\s_" re-search-backward nil t regexp-quote forward-sexp -1 "\\s'"] 4] tag-completion-predicate #[(tag-symbol) "À	!­‰	J‰­ƒÃÄ‡" [boundp tag-symbol tag-symbol-tables found (byte-code "­’@	>«…ÂÃÄ\"ˆA‰¬oÅ‡" [tag-symbol-tables buffer-tag-table-list throw found t nil] 4)] 2] buffer-tag-table-symbol-list #[nil "ÀÁÂ \"‡" [mapcar #[(table-name) "À	\n\"‡" [intern table-name tag-completion-table] 3] buffer-tag-table-list] 3] find-tag-tag #[(prompt) "À Â ÄÄÇ	«ˆÈÉ\n	#ª‚\nÌÄ‰%‰Í˜«„	Cª‚,‡" [find-tag-default default buffer-tag-table-symbol-list buffer-tag-table-list nil tag-symbol-tables tag-name completing-read format "%s(default %s) " prompt tag-completion-table tag-completion-predicate ""] 7]] 2)
+(defvar last-tag-data nil "\
+Information for continuing a tag search.
+Is of the form (TAG POINT TAG-TABLE TAG-TABLE ...).")
+(autoload 'get-symbol-syntax-table "symbol-syntax")
+(fset 'find-tag-internal #[(tagname) "	?	:Â‰‰‰‰‰‰‰‰‰‰‰‰	\n«ƒ	@«’AA@A@ª‡Ô Õ¬†Ö×	\"«¬Ø«ˆÙ	ÙQª…Ú	!Ö×\"«ŠÛ•SÜIˆªoİŞ !ª†	Ş ŠÅßˆàá!ˆâã !`SŠÛyˆ`){\nàä!ˆåp!		`D¤)æ!ŠqˆŠŒ~ˆçèé\n!P	¬ƒe	¬œ	Zbˆo¬’ê	\\Ø#ë_ªa¬êÂØ#¬‡ìí#ˆÛyˆ`	+	.B‡" [find-tag-hook tagname nil syn-tab pat found offset buf target startpos linebeg file tag-table-point tag-tables tag-target symbol-border exact next local-find-tag-hook last-tag-data buffer-tag-table-list 1 string-match "\\\\_" t "\\_" copy-sequence 0 98 get-symbol-syntax-table syntax-table (byte-code "«»Á@!qˆÂp!ˆ®ebˆÄÅ ÄÈ	!ˆÊËÄÍ#«ŒÎÏ!«sĞÑÍ\"ˆªl+A‰¬EÒÓ«ƒÕªÖ«ƒØªÙ$‡" [tag-tables get-tag-table-buffer bury-buffer tag-table-point nil syntax-table case-fold-search osyn set-syntax-table syn-tab ((set-syntax-table osyn)) re-search-forward tag-target t looking-at "[^\n]*" throw found error "No %sentries %s %s" next "more " "" exact "matching" "containing" tagname] 6) search-forward "" expand-file-name file-of-tag "," read find-file-noselect 1000 "^" regexp-quote re-search-forward 3 error "%s not found in %s"] 16 "\
+Foo"])
+(fset 'find-tag #[(tagname &optional other-window) "\n?Ä\n!‰@A«†É>¬ƒÊ ˆ«‡Ì!ˆª…Í!ˆ~ˆÎ ˆbˆ«… ˆª†	«ƒ	 ˆ-ÏĞ‰EÒ‡" [find-tag-hook local-find-tag-hook tagname next find-tag-internal result tag-buf tag-point last-command (find-tag find-tag-other-window tags-loop-continue) push-tag-mark other-window pop-to-buffer switch-to-buffer push-mark find-tag nil tags-loop-form t] 4 "\
+*Find tag whose name contains TAGNAME.
+ Selects the buffer that the tag is contained in
+and puts point at its definition.
+ If TAGNAME is a null string, the expression in the buffer
+around or before point is used as the tag name.
+ If second arg NEXT is non-nil (interactively, with prefix arg),
+searches for the next tag in the tag table
+that matches the tagname used in the previous find-tag.
+
+This version of this function supports multiple active tags tables,
+and completion.
+
+Variables of note:
+
+  tag-table-alist		controls which tables apply to which buffers
+  tags-file-name		a default tags table
+  tags-build-completion-table   controls completion behavior
+  buffer-tag-table		another way of specifying a buffer-local table
+  make-tags-files-invisible	whether tags tables should be very hidden
+  tag-mark-stack-max		how many tags-based hops to remember" (byte-code "«‚Á‡ÂÃ!ÄD‡" [current-prefix-arg (nil nil) find-tag-tag "Find tag: " nil] 2)])
+(fset 'find-tag-other-window #[(tagname) "À	Â\"‡" [find-tag tagname t] 3 "\
+*Find tag whose name contains TAGNAME.
+ Selects the buffer that the tag is contained in in another window
+and puts point at its definition.
+ If TAGNAME is a null string, the expression in the buffer
+around or before point is used as the tag name.
+ If second arg NEXT is non-nil (interactively, with prefix arg),
+searches for the next tag in the tag table
+that matches the tagname used in the previous find-tag.
+
+This version of this function supports multiple active tags tables,
+and completion.
+
+Variables of note:
+
+  tag-table-alist		controls which tables apply to which buffers
+  tags-file-name		a default tags table
+  tags-build-completion-table   controls completion behavior
+  buffer-tag-table		another way of specifying a buffer-local table
+  make-tags-files-invisible	whether tags tables should be very hidden
+  tag-mark-stack-max		how many tags-based hops to remember" (byte-code "«‚Á‡ÂÃ!C‡" [current-prefix-arg (nil) find-tag-tag "Find tag other window: "] 2)])
+(fset 'lisp-complete-symbol #[nil "À Â«„Ä!ˆŠÅÆ!ˆgzÇU«…Æuˆªuh)È=	Ê	«ƒÌªÍ	?­Î#+‡" [syntax-table buffer-syntax ((set-syntax-table buffer-syntax)) lisp-mode-syntax-table set-syntax-table backward-sexp 1 39 40 fn complete-symbol obarray fboundp #[(sym) "À	!®ˆÂ	!®ƒÃ	!‡" [boundp sym fboundp symbol-plist] 2] #[(list) "À\n«™ÃÄ\n@!!«†\n@ÅDª‚\n@	B\nA‰¬g	Ÿ)‡" [nil new list fboundp intern " <f>"] 4]] 4 "\
+*Perform completion on Lisp symbol preceding point.
+That symbol is compared against the symbols that exist
+and any additional characters determined by what is there
+are inserted.
+If the symbol starts just after an open-parenthesis,
+only symbols with function definitions are considered.
+Otherwise, all symbols with function definitions, values
+or properties are considered." nil])
+(fset 'complete-symbol #[(&optional table predicate prettify) "`ŠÁÂ!ˆgzÃU«…Âuˆªu`)‰{®‚È	#‰\nË=®Á\n¬‰ÌÍ\"ˆÎ ª´\n˜¬‰|ˆ\ncª¥ÌÏ!ˆĞ	#«‡!ÓÔ!‘ˆ)ÌÕÖ\"-‡" [end backward-sexp 1 39 beg pattern table obarray try-completion predicate completion t message "Can't find completion for \"%s\"" ding "Making completion list..." all-completions list prettify "*Help*" display-completion-list "Making completion list...%s" "done"] 5])
+(fset 'tag-complete-symbol #[nil "À ÂÄÆ\"*‡" [buffer-tag-table-symbol-list buffer-tag-table-list nil tag-symbol-tables complete-symbol tag-completion-table tag-completion-predicate] 3 "\
+The function used to do tags-completion (using 'tag-completion-predicate)." nil])
+(defvar next-file-list nil "\
+List of files for next-file to process.")
+(fset 'next-file #[(&optional initialize) "«ƒÁ \n¬„ÃÄ!ˆ\n@Æ!È	\nA¬ˆÊ!Ë	ÌË\"ˆ~ˆ`eV«ˆÍÈË\"ˆebˆ	+‡" [initialize buffer-tag-table-files next-file-list error "All files processed." file get-file-buffer buf nil new find-file-noselect t switch-to-buffer push-mark] 3 "\
+Select next file among files in current tag table(s).
+Non-nil argument (prefix arg, if interactive) initializes to the beginning 
+of the list of files in the (first) tag table." "P"])
+(defvar tags-loop-form nil "\
+Form for tags-loop-continue to eval to process one file.
+If it returns nil, it is through with one file; move on to next.")
+(fset 'tags-loop-continue #[(&optional first-time) "À‰«ŒÄÅ!ÁÆ\"ˆÅÈ	!¬˜\n«ˆÊ ¬„Ëp!ˆÄ ÁÆ\"ˆÅªbÌp!ˆ	­…ÁÍ\"*‡" [nil message buf-is-new first-time next-file t "Scanning file %s..." buffer-file-name eval tags-loop-form buffer-modified-p kill-buffer switch-to-buffer "Scanning file %s...done"] 3 "\
+Continue last \\[tags-search] or \\[tags-query-replace] command.
+Used noninteractively with non-nil argument
+to begin such a command.  See variable tags-loop-form." nil])
+(fset 'tags-search #[(regexp) "Áš«Š\n@Ã=«„ÄÅ!‡ÃÅÆFÄÆ!‡" [regexp "" tags-loop-form re-search-forward tags-loop-continue nil t] 4 "\
+Search through all files listed in tag table for match for REGEXP.
+Stops when a match is found.
+To continue searching for next match, use command \\[tags-loop-continue].
+
+See documentation of variable tag-table-alist." "sTags search (regexp): "])
+(fset 'tags-query-replace #[(from to &optional delimited) "ÀÁÂÄÅFDÆÇÅ‰	??¯DE\nËÅ!‡" [and save-excursion re-search-forward from nil t not perform-replace to delimited tags-loop-form tags-loop-continue] 9 "\
+Query-replace-regexp FROM with TO through all files listed in tag table.
+Third arg DELIMITED (prefix arg) means replace only word-delimited matches.
+If you exit (C-G or ESC), you can resume the query-replace
+with the command \\[tags-loop-continue].
+
+See documentation of variable tag-table-alist." "sTags query replace (regexp): \nsTags query replace %s by: \nP"])
+(fset 'list-tags #[(string) "ÀÁÂ!ˆÁ!ˆÄ ˆŠÅ ˆÆbˆÇÈÉQ!ˆÆyˆm®ƒÊË!?­’Á`ÌÍwˆ`{!ˆÄ ˆÆyˆªe)‘‡" ["*Tags List*" princ "Tags in file " string terpri visit-tags-table-buffer 1 search-forward "\n" "," looking-at "" "^" nil] 5 "\
+Display list of tags in file FILE.
+FILE should not contain a directory spec
+unless it has one in the tag table." "sList tags (in file): "])
+(fset 'tags-apropos #[(string) "ÀÁÂ!ˆÃ!ˆÅ ˆŠÆ ˆÇbˆÈÉÊ#­•ËyˆÁ`ÌÉwˆ`{!ˆÅ ˆÇyˆªd)‘‡" ["*Tags List*" princ "Tags matching regexp " prin1 string terpri visit-tags-table-buffer 1 re-search-forward nil t 0 "^"] 5 "\
+Display list of all tags in tag table REGEXP matches." "sTag apropos (regexp): "])
+(byte-code "ÀÁ!¬‚Â	¢Ã=«ƒ	CÄ	>¬„Ä	BÄÅMˆÄ ˆÆÇ!«ˆŠÇqˆÄ ˆ)Â‡" [boundp emacs-lisp-mode-hook nil lambda setup-emacs-lisp-default-tag-hook #[nil "Á=­‡ÂÃ!ˆÄ‰‡" [major-mode emacs-lisp-mode make-variable-buffer-local find-tag-default-hook emacs-lisp-default-tag] 2] get-buffer "*scratch*"] 2)
+(fset 'emacs-lisp-default-tag #[nil "À ®‚Á ‰­ƒÃ\n!)‡" [variable-at-point function-called-at-point tag symbol-name] 3 "\
+Function to return a default tag for Emacs-Lisp mode."])
+(byte-code "À	Â\"¬†Ã	ÂÄ#ˆÀ‡" [lookup-key esc-map "?" define-key display-tag-info] 4)
+(fset 'display-tag-info #[(tagname) "À	!‰@\nAÅÅÅÅ	Å\nÅŠqˆŠŒ~ˆbˆÅÍÎ!)«äÏĞ!ˆÑĞ!ˆÒp!ÏĞ!ˆ`ÓĞ!ˆ`{\nÏÔ!ˆ`ÓĞ!ˆ`{ÏÕ!ˆ`ÓĞ!ˆ`{	ÖĞ!ˆÏÕ!ˆ`ÓĞ!ˆ`{×Ø\n	˜«„ª‡×Ù	#%ª‹Úyˆ`Åˆ`{+ÛÜ\"ˆ.	İß‡" [find-tag-internal tagname results tag-buf tag-point nil info lname min max fname args case-fold-search looking-at "^DEFUN[ 	]" forward-sexp 1 down-list read backward-sexp 3 2 backward-up-list format "Elisp: %s, C: %s %s, #args: %s" "from %s to %s" 0 message "%s" (display-tag-info nil) tags-loop-form t] 10 "\
+Prints a description of the first tag matching TAGNAME in the echo area.
+If this is an elisp function, prints something like \"(defun foo (x y z)\".
+That is, is prints the first line of the definition of the form.
+If this is a C-defined elisp function, it does something more clever." (byte-code "«‚Á‡ÂÃ!C‡" [current-prefix-arg (nil) find-tag-tag "Display tag info: "] 2)])
+(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÂÂ‡" [boundp tag-mark-stack1 nil tag-mark-stack2] 2)
+(defvar tag-mark-stack-max 16 "\
+*The maximum number of elements kept on the mark-stack used
+by tags-search.  See also the commands push-tag-mark (\\[push-tag-mark])
+and pop-tag-mark. (\\[pop-tag-mark]).")
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÈ\"É>«‡ÊÈË#ˆÀ‡" [push-mark-on-stack #[(stack-symbol &optional max-size) "JÂ 	B«•	GV«	›@Ä‰“ˆS	›Ä¡ˆ	L)‡" [stack-symbol stack point-marker max-size nil] 3] pop-mark-from-stack #[(stack-symbol1 stack-symbol2 &optional max-size) "J®ƒÁÂ!‰@Å!ALˆ¬„ÁÇ!ˆÈ!¬„ÁÉ!ˆÊ\"ˆÍ!ˆ~ˆÎ!b+‡" [stack-symbol1 error "No more tag marks on stack" stack marker marker-buffer m-buf "Marker has no buffer" buffer-name "Buffer has been killed" push-mark-on-stack stack-symbol2 max-size switch-to-buffer marker-position] 4] push-tag-mark #[nil "ÀÁ\n\"‡" [push-mark-on-stack tag-mark-stack1 tag-mark-stack-max] 3] lookup-key esc-map "*" (nil undefined) define-key pop-tag-mark] 4)
+(fset 'pop-tag-mark #[(arg) "¬†ÁÂÃ#‡ÁÃÂ#‡" [arg pop-mark-from-stack tag-mark-stack1 tag-mark-stack2 tag-mark-stack-max] 4 "\
+find-tag maintains a mark-stack seperate from the \\[set-mark-command] mark-stack.
+This function pops (and moves to) the tag at the top of this stack." "P"])
+(provide 'tags)

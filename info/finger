@@ -1,0 +1,409 @@
+Info file finger.info, produced by Makeinfo, -*- Text -*- from
+input file finger.texinfo.
+
+This file documents the GNU Finger program.
+
+Copyright (C) 1988 Free Software Foundation, Inc.  Program authored
+by Brian Fox and Dante De Lucia.  Manual authored by Brian Fox
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission
+notice are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided
+also that the GNU Copyright statement is available to the
+distributee, and provided that the entire resulting derived work is
+distributed under the terms of a permission notice identical to
+this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for
+modified versions.
+
+
+
+File: finger.info,  Node: Top,  Next: Introduction,  Up: (DIR)
+
+This document describes the GNU Finger program, a utility for
+finding out useful information about users on the Internet network.
+
+* Menu:
+
+* Introduction::	What can you do with Finger?
+* Using Finger::	How to use Finger day to day.
+* Installation::	How to install Finger on your system.
+
+ 
+
+File: finger.info,  Node: Introduction,  Next: Using Finger,  Up: Top
+
+Introduction
+ ***********
+
+GNU Finger is a utility program designed to allow users of Unix
+hosts on the Internet network to get information about each other. 
+It is a direct replacement for the Berkeley 4.3 finger code.
+
+Why Another Finger?
+===================
+
+Originally, each host on the Internet network consisted of a
+single, reasonably powerful computer, capable of handling many
+users at the same time.  Typically, a "site" (physical location of
+computer users) would have only one or two computers, even if they
+had 20 or more people who used them.  If a user at site A wanted to
+know about users logged on at site B, a simple program could be
+invoked to query the host at site B about the users which were
+logged on.
+
+With the onset of more-power-per-person computing, the mainframe
+has been set aside.  A modern computing facility usually consists
+of one user per host, and many hosts per site.  This makes it a
+trial to find out about logged on users at another site, since you
+must query each host to find out about the single user who is
+logged on.  If the site had 20 hosts, you would have to invoke a
+finger program 20 times just to find out who was logged on!
+
+GNU Finger is a simple and effective way around this problem.  For
+sites with many hosts, a single host may be designated as the
+finger "server" host.  This host collects information about who is
+logged on to other hosts at that site.  If a user at site A wants
+to know about users logged on at site B, only the server host need
+be queried, instead of each host at that site.  This is very
+convenient.
+
+GNU Finger is also a direct replacement for the existing finger
+programs.  Since the finger "protocol" (rules for communication) is
+very simple, GNU Finger follows that protocol in responding to
+simple requests.  But GNU Finger also implements another protocol
+which allows two finger programs to exchange information in a
+predetermined way, which allows faster and wider bandwidth
+communication.
+
+A definition for the passing graphic images is built on the new
+protocol.  A user at site A (e.g. MIT) may now see the picture of a
+user at site B (e.g. UCSB), simply by typing a finger request!  The
+conversion of graphic data from one format to another is done
+through GNU Finger; no site need know where or how such images are
+stored on any other site to be able to display those images.
+
+Finger delivers information about users in varying formats,
+depending on how it is invoked.  `finger' invoked with no switch
+arguments performs a *site wide* finger request, no matter which
+machine it has been invoked from.  Switch arguments exist for
+getting the ``long'' form of finger information and for getting
+information only about the local machine.
+
+If a user on host A wants to know about a user on host B, Finger
+must make a network "connection" to host B.  If host B is running a
+finger program, that program is asked to relay information about
+the user in question through the connection back to host A, where
+Finger can display it.
+
+GNU Finger also runs a "server" process on a given host, whose job
+is to keep track of which users are logged in to local machines.
+
+
+
+File: finger.info,  Node: Using Finger,  Next: Installation,  Prev: Introduction,  Up: Top
+
+Using Finger
+ ***********
+
+* Menu:
+
+* Finger Arguments::		How the arguments to Finger are interpreted.
+* Command Switches::		Switches you can pass to GNU Finger.
+* Special User Names::		Some user names can return statistics.
+
+ 
+
+File: finger.info,  Node: Finger Arguments,  Next: Command Switches,  Up: Using Finger
+
+Arguments to GNU Finger
+=======================
+
+The basic argument to Finger is a USER@HOST pair.  The USER portion
+is the name of the user about whom you would like information.  The
+HOST is a machine that the user has an account on.   When invoked
+in this manner, GNU Finger displays the list of hosts that this
+user is currently logged in on, or, if the user is not logged in,
+the last time and location that he or she was.  HOST may be
+expressed as any valid Internet address (i.e.  "dot-notation",
+"host.domain", etc).
+
+If HOST is non-existent, the local host is assumed.  If USER is
+non-existent, it is assumed that you wish information about all
+users.
+
+
+
+File: finger.info,  Node: Command Switches,  Next: Special User Names,  Prev: Finger Arguments,  Up: Using Finger
+
+Command Line Options
+====================
+
+There are a few command line options that you can give to GNU Finger:
+
+`-face USER@HOST'
+     Ask Finger to get the face of USER from the server for HOST
+     instead of the login information.  Subsequent arguments to
+     Finger are not affected; you must specify `-face' before each
+     user whose face you would like to see.
+
+`-info'
+`-l'
+     Display the ``long'' form of information for the users
+     fingered.  For each site this means something a little
+     different.  `-l' is supplied for backwards compatibility;
+     Finger as distributed from Berkeley has this switch.
+
+
+
+File: finger.info,  Node: Special User Names,  Prev: Command Switches,  Up: Using Finger
+
+Special User Names
+==================
+
+You can give GNU Finger one of several ``special'' user names. 
+These user names all begin with a period (`.') and instruct the
+receiving finger daemon to do something that only a GNU Finger
+daemon can do.  Currently, the existing ``special'' names are:
+
+`.free'
+     Return a list of free machines.  `Free' machines are those
+     that have no users logged in, or have been idle for a long
+     time.  The information returned makes it clear which one is
+     true.
+
+`.all'
+     Return the information about every machine that the Finger
+     server knows about.  `.all' is equivalent to issuing the
+     `finger' command without specifying the user name.
+
+`.clients'
+     Returns a list of the clients that the local GNU Finger server
+     serves.
+
+`.faces'
+     Return a list of the faces that this server has available. 
+     The last line output tells you how many lines were listed
+     previously.
+
+`.local'
+     Finger only at this machine.  This allows finger to continue
+     to be useful even in the event that the server is down.
+
+
+
+File: finger.info,  Node: Installation,  Prev: Using Finger,  Up: Top
+
+Installation
+ ***********
+
+* Menu:
+
+* Basic Installation::		Let's just get this thing installed!
+* Site Specific Functions::	How to customize Finger to your site.
+* Installing Finger Faces::	Available default formats and naming schemes.
+
+ 
+
+File: finger.info,  Node: Basic Installation,  Next: Site Specific Functions,  Up: Installation
+
+Basic Installation
+==================
+
+Here are the steps that you will need to take in order to install
+GNU Finger:
+
+  1. Change your working directory to be the top of the GNU Finger
+     sources.  If you have placed the source in `/src/gnu/finger'
+     you would type `cd /src/gnu/finger'.
+
+  2. Edit the file `./config.h'.  This file contains the basic
+     configuration information for GNU Finger.  You need to specify
+     the correct values for `EtcDir', `BinDir', `FingerDir', and
+     `MugShotPath'.  You should also choose one of the face formats
+     present at the end of the file.
+
+  3. Type ```make''' in the toplevel directory.  This builds
+     `./lib/libfinger.a' and the main programs in `./src':
+     `finger', `fingerd', `in.fingerd', and `in.cfingerd'.
+
+  4. Pick a machine which will be the local Finger server for your
+     site.  On that machine, as the superuser, do `make server' in
+     the toplevel directory.  If the install-finger script didn't
+     already do so, create the `clients' file, and install it in
+     /usr/local/etc/fingerdir.
+
+  5. For each Finger client, login to that client, change
+     directories to the top of the GNU Finger source tree, and as
+     the superuser type `make client'.
+
+     Each of the Finger clients must be able to run the client
+     finger daemon and the GNU Finger reply daemon.  In order to do
+     this, each Finger client must have:
+
+       1. the client finger daemon installed in
+          ``EtcDir'/in.cfingerd',
+
+       2. the reply daemon installed in ``EtcDir'/in.fingerd',
+
+       3. an `/etc/inetd.conf' file which contains references to
+          these programs,
+
+       4. an `/etc/services' file which mentions the correct TCP
+          port for `in.cfingerd',
+
+       5. a `/usr/local/etc/fingerdir/serverhost' file which
+          contains the name of the Finger server host,
+
+       6. the inetd daemon restarted, so that server requests can
+          be answered.
+
+     The easiest way to insure that all of this is done correctly
+     is to login to each client, and then as the superuser do `make
+     client'.
+
+  6. As the superuser, start the server daemon (`fingerd'). 
+     Depending on the number of clients, the server should be
+     storing information about all the client machines in about 30
+     seconds to 2 minutes, at which time `finger' will be able to
+     report it.
+
+  7. If you elected to support the face option, now might be a good
+     time to install the mugshots.  But first, try getting a face
+     from another site running GNU Finger!  For example, you might
+     try
+
+          `finger -face bfox@aurel.cns.caltech.edu'
+
+
+
+File: finger.info,  Node: Site Specific Functions,  Next: Installing Finger Faces,  Prev: Basic Installation,  Up: Installation
+
+Site Specific Functions
+=======================
+
+In the directory `./lib/site' there are two default files. 
+`defface.c' contains the defaults for handling Finger requests that
+have to do with faces.  The four functions defined in this file are:
+
+`BITMAP *site_read_face (char *user)'
+     `site_read_face ()' returns a pointer to a `BITMAP' structure,
+     which (hopefully) is the face of USER.  The `BITMAP' structure
+     is defined in `bitmaps.h'.  It is the in-RAM structure used to
+     hold onto the array of pixels, 1 bit per pixel.  Here is the
+     type declaration from that file:
+
+          /* The structure that defines what a bitmap looks like. */
+          typedef struct {
+            int width;                 /* Width in bits.               */
+            int height;                /* Height in bits.              */
+            int rowlen;                /* Number of bytes in each row. */
+            unsigned char *bits;       /* Location of the bits.        */
+          } BITMAP;
+
+     If your site does not support the face functionality of
+     Finger, or if USER doesn't have a face bitmap stored on the
+     machine, the `site_read_face ()' function should return a
+     `NULL' pointer.
+
+`void site_show_face (char *user, BITMAP *face)'
+     `site_show_face ()' is responsible for displaying the `BITMAP'
+     structure pointed to by FACE on the user's display. 
+     Currently, the faces can be displayed on a Sun (tm)
+     workstation monitor, or on any workstation running the X11
+     Window system.
+
+`int site_list_faces (FILE *stream)'
+     `site_list_faces ()' prints a list of the faces which are
+     available on the current host to STREAM.  The default function
+     is in the file `site_list_faces.c' which uses the paths in the
+     define `MUGSHOT_PATH', and prints a list of all files in those
+     directories to STREAM.  `site_list_faces ()' returns the
+     number of bitmaps that are available for sending.
+
+`int site_save_face (char *user, BITMAP *face)'
+     `site_save_face ()' writes the bitmap in FACE on the local
+     filesystem in such a way that it is added to the list of faces
+     available for other systems to view.  A non-zero return value
+     is the filesystem error code that occurred while trying to
+     save the file.  USER is the name under which this face should
+     be requested.
+
+The file `./lib/site/definfo.c' contains the code which is executed
+when GNU Finger is asked for the ``long'' form of information about
+a user.
+
+`display_finger_info (struct passwd *entry, FILE *stream, FINGER_PACKET **packets)'
+     `display_finger_info ()' prints out information about the user
+     mention in ENTRY on STREAM.  PACKETS contains this user's
+     login state from the machine fingered at.  The default output
+     of this function consists of a few fields from ENTRY, and the
+     contents of PACKETS.  In addition, an indication of whether or
+     not the user has mail is made, and `~USER/.plan' is printed
+     out if it exists and is readable.
+
+If you are interested in customizing GNU Finger's output, then the
+`./lib/site' directory is the right place to start.  If you would
+like to add new code for displaying faces, or have a particularly
+interesting ``long'' information output format, I would be glad to
+include it in the next distribution of GNU Finger.
+
+Future work includes an editable database of information about
+users, and an alternate `display_finger_info ()' function which
+will look up and display that information.
+
+
+
+File: finger.info,  Node: Installing Finger Faces,  Prev: Site Specific Functions,  Up: Installation
+
+Reading and Writing Faces
+=========================
+
+Code has been provided with GNU Finger for reading and writing a
+few different types of image formats.  Some of the following
+functions can be used to read an image from a disk file.  In fact,
+the function `site_read_face ()' in `.lib/site/defface.c' simply
+calls one of these functions.  The remainder are functions for
+writing different image formats.  Here are the image manipulation
+functions currently provided:
+
+`BITMAP *read_rasterfile (char *user)'
+`int save_rasterfile (char *user, BITMAP *face)'
+     Read or save the contents of USER's mugshot file as if it were
+     in Sun (tm) rasterfile format.
+
+`BITMAP *read_bitmap (char *user)'
+`int save_bitmap (char *user, BITMAP *face)'
+     Read or save the contents of USER's mugshot file as if it were
+     in GNU Finger `BITMAP' format.
+
+`BITMAP *read_x_bitmap (char *user)'
+`int save_x_bitmap (char *user, BITMAP *face)'
+     Read or save the contents of USER's mugshot file as if it were
+     in X11 bitmap file format (`.xbm').
+
+`BITMAP *read_lispmug (char *user)'
+`int save_lispmug (char *user, BITMAP *face)'
+     Read or save the contents of USER's mugshot file as if it were
+     in a file matching the MIT AI Lab Lisp machine mugshot format.
+
+
+
+Tag Table:
+Node: Top910
+Node: Introduction1266
+Node: Using Finger4490
+Node: Finger Arguments4811
+Node: Command Switches5565
+Node: Special User Names6311
+Node: Installation7486
+Node: Basic Installation7798
+Node: Site Specific Functions10541
+Node: Installing Finger Faces14184
+
+End Tag Table

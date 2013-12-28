@@ -1,0 +1,24 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:37:01 1991
+;;; from file /wg1/emacs-base/lisp/vt100-led.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar led-state (make-vector 5 nil) "\
+The internal state of the LEDs.  Choices are nil, t, `flash.
+Element 0 is not used.")
+(fset 'led-flash #[(l) "	ÂIˆÃ ‡" [led-state l flash led-update] 3 "\
+Flash LED l."])
+(fset 'led-off #[(&optional l) "«‰	Â!ÃIˆª…Ä	Ã\"ˆÅ ‡" [l led-state prefix-numeric-value nil fillarray led-update] 3 "\
+Turn off vt100 led number L.  With no argument, turn them all off." "P"])
+(fset 'led-on #[(l) "	ÂIˆÃ ‡" [led-state l t led-update] 3 "\
+Turn on LED l."])
+(fset 'led-update #[nil "ÀÁÂÆU¬¦H‰É=«‰ÊË!Qª‹«‡ÊË!Q)T‰ªVÌÍRÎ!+‡" ["[?0" "[0" 1 l o f 5 led-state s flash ";" int-to-string "q" "t" send-string-to-terminal] 5 "\
+Update the terminal's LEDs to reflect the internal state."])
+(provide 'vt100-led)

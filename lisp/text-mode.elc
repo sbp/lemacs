@@ -1,0 +1,48 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:34:38 1991
+;;; from file /wg1/emacs-base/lisp/text-mode.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar text-mode-syntax-table nil "\
+Syntax table used while in text mode.")
+(defvar text-mode-abbrev-table nil "\
+Abbrev table used while in text mode.")
+(byte-code "ÀÁÂ\"ˆ¬•Ä ÅÆÇ#ˆÅÈÇ#ˆÅÉÊ#ˆÂ‡" [define-abbrev-table text-mode-abbrev-table nil text-mode-syntax-table make-syntax-table modify-syntax-entry 34 ".   " 92 39 "w   "] 4)
+(defvar text-mode-map nil "\
+Keymap for Text mode.
+Many other modes, such as Mail mode, Outline mode and Indented Text mode,
+inherit all the commands defined in this map.")
+(byte-code "¬•Á ÂÃÄ#ˆÂÅÆ#ˆÂÇÈ#ˆÁ‡" [text-mode-map make-sparse-keymap define-key "	" tab-to-tab-stop "s" center-line "S" center-paragraph] 4)
+(fset 'text-mode #[nil "À ˆÁ\n!ˆÃÅÉ\n!ˆËÌ!‡" [kill-all-local-variables use-local-map text-mode-map "Text" mode-name text-mode major-mode text-mode-abbrev-table local-abbrev-table set-syntax-table text-mode-syntax-table run-hooks text-mode-hook] 2 "\
+Major mode for editing text intended for humans to read.  Special commands:\\{text-mode-map}
+Turning on text-mode calls the value of the variable `text-mode-hook',
+if that value is non-nil." nil])
+(defvar indented-text-mode-map nil "\
+Keymap for Indented Text mode.
+All the commands defined in Text mode are inherited unless overridden.")
+(byte-code "¬ŠÁ\n!ÃÄÅ#ˆÁ‡" [indented-text-mode-map copy-keymap text-mode-map define-key "	" indent-relative] 4)
+(fset 'indented-text-mode #[nil "À ˆÁ\n!ˆÃÄÅ\"ˆÇ!ˆÉÊ!ˆË\nÁ!ˆÍÏÑÒ!‡" [kill-all-local-variables use-local-map text-mode-map define-abbrev-table text-mode-abbrev-table nil local-abbrev-table set-syntax-table text-mode-syntax-table make-local-variable indent-line-function indent-relative-maybe indented-text-mode-map "Indented Text" mode-name indented-text-mode major-mode run-hooks text-mode-hook] 3 "\
+Major mode for editing indented text intended for humans to read.\\{indented-text-mode-map}
+Turning on indented-text-mode calls the value of the variable `text-mode-hook',
+if that value is non-nil." nil])
+(fset 'change-log-mode #[nil "À ˆÁÃÅÆ!ˆÇÈÉ!‡" [indented-text-mode 8 left-margin 74 fill-column make-local-variable version-control never run-hooks change-log-mode-hook] 2 "\
+Major mode for editing ChangeLog files.  See M-x add-change-log-entry.
+Almost the same as Indented Text mode, but prevents numeric backups
+and sets `left-margin' to 8 and `fill-column' to 74." nil])
+(fset 'center-paragraph #[nil "ŠÀ ˆn¬„ÁÂ!ˆ`Ä ˆÅ`\"*‡" [forward-paragraph newline 1 end backward-paragraph center-region] 3 "\
+Center each nonblank line in the paragraph at or after point.
+See center-line for more info." nil])
+(fset 'center-region #[(from to) "	V«‡	\n)ŠŒ	}ˆbˆm?­‘ŠÃÄwˆl)¬ƒÅ ˆÆyˆªk*‡" [from to tem " 	" nil center-line 1] 2 "\
+Center each nonblank line starting in the region.
+See center-line for more info." "r"])
+(fset 'center-line #[nil "ŠÀÂyˆÃ ˆÀˆÃ ˆiÂyˆZ	ZÆ¥\\j*‡" [nil line-length 0 delete-horizontal-space left-margin fill-column 2] 3 "\
+Center the line point is on, within the width specified by `fill-column'.
+This means adjusting the indentation so that it equals
+the distance between the end of the text and `fill-column'." nil])

@@ -1,0 +1,24 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:05:06 1991
+;;; from file /wg1/emacs-base/lisp/add-log.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'prompt-for-change-log-name #[nil "Á=«ƒÂªÃÅÆÇÈ\"É#!)‡" [system-type vax-vms "$CHANGE_LOG$.TXT" "ChangeLog" default expand-file-name read-file-name format "Log file (default %s): " nil] 5 "\
+Prompt for a change log name."])
+(fset 'add-change-log-entry #[(whoami file-name &optional other-window) "Á=«ƒÂªÃ«‡ÆÇÈ \"ª‚È 	«‡ÆÊË \"ª‚Ë «‡ÆÍÎ \"ª‚Î Ğ!«ˆÒ!P«š¬‡Õ!ˆª…Ö!ˆ× ˆebˆØÙ ÚÛO!«ØÜ	İŞ°!¬Ù ß	İàá±ˆebˆâyˆØã!«…âyˆªv`äåxˆ`|ˆæç!ˆèyˆ)jˆêc,‡" [system-type vax-vms "$CHANGE_LOG$.TXT" "ChangeLog" default whoami read-input "Full name: " user-full-name full-name "Login name: " user-login-name login-name "Site name: " system-name site-name file-directory-p file-name file-name-as-directory other-window buffer-file-name find-file-other-window find-file undo-boundary looking-at current-time-string 0 10 ".* " "  (" " at" "  " " at " ")\n\n" 1 "\\sW" "\n" nil open-line 3 2 left-margin "* "] 8 "\
+Find change log file and add an entry for today.
+First arg (interactive prefix) non-nil means prompt for user name and site.
+Second arg is file name of change log.
+Optional third arg OTHER-WINDOW non-nil means visit in other window." (byte-code "Á D‡" [current-prefix-arg prompt-for-change-log-name] 2)])
+(fset 'add-change-log-entry-other-window #[(whoami file-name) "À	\nÃ#‡" [add-change-log-entry whoami file-name t] 4 "\
+Find change log file and add an entry for today.
+First arg (interactive prefix) non-nil means prompt for user name and site.
+Second arg is file name of change log.
+Interactively, with a prefix argument, the file name is prompted for." (byte-code "«…Á D‡ÂD‡" [current-prefix-arg prompt-for-change-log-name nil default-directory] 2)])

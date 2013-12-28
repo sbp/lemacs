@@ -1,0 +1,13 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:31:12 1991
+;;; from file /wg1/emacs-base/lisp/session.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÂÃMˆÄÅÆ‰#‡" [(save-session) kill-emacs-hook save-session #[nil "­¶ÁÂÄ=«ƒÅªÆÇÈÉ!ÊP˜«ƒËªƒÌ!ÍÎÌÏ !ÍĞÑÒÌÓÔ`\"T!Í°ÕÖ×!ÕØ%‡" [buffer-file-name write-region "(" major-mode rmail-mode "rmail" "find-file" " " getenv "HOME" "/RMAIL" "" prin1-to-string ")\n" "(goto-char " window-start "(beginning-of-line)\n" "(set-window-start (selected-window) (point))\n" "(goto-line " count-lines 1 nil expand-file-name "~/.emacs-session" lambda] 16] load "~/.emacs-session" t] 4)

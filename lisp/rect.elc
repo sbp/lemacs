@@ -1,0 +1,58 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:28:20 1991
+;;; from file /wg1/emacs-base/lisp/rect.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'operate-on-rectangle #[(function start end coerce-tabs) "À‰‰‰ŠbˆiÆyˆ`)ŠbˆiÈyˆÉ )\nW«‰\n\n\n)\nU¬çŠbˆ`	W«İÀ‰‰Î!ˆ«‰iV«„Ğ!ˆiZ`Î\n!ˆi\nV««†Ğ\n!ˆªƒÑuˆ\niZÆW«Š\\Æ#ˆ+Èyˆª)\nZ,‡" [nil endlinepos endcol startlinepos startcol start 0 end 1 point-marker tem endextra begextra startpos move-to-column coerce-tabs rectangle-coerce-tab -1 function] 4 "\
+Call FUNCTION for each line of rectangle with corners at START, END.
+If COERCE-TABS is non-nil, convert multi-column characters
+that span the starting or ending columns on any line
+to multiple spaces before calling FUNCTION.
+FUNCTION is called with three arguments:
+ position of start of segment of this line within the rectangle,
+ number of columns that belong to rectangle but are before that position,
+ number of columns that belong to rectangle but are after point.
+Point is at the end of the segment of this line within the rectangle."])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÈÉM‡" [delete-rectangle-line #[(startdelpos ignore ignore) "`|‡" [startdelpos] 2] delete-extract-rectangle-line #[(startdelpos begextra endextra) "ŠÀ	\n#ˆ)	`|‡" [extract-rectangle-line startdelpos begextra endextra] 4] extract-rectangle-line #[(startdelpos begextra endextra) "`{`bˆÃÄ	Å#«¤iŠÆuˆi)Z\nÈ`	ZÉZOÊ!\n‰G`	Z\\ËOQ)ªUÈV¬†ÈV«‹Ê!\nÊ!Q\nB‰*‡" [startdelpos end line search-forward "	" t -1 width 0 1 spaces-string nil begextra endextra lines] 6] ["" " " "  " "   " "    " "     " "      " "       " "        "] spaces-strings spaces-string #[(n) "ÁX«„\nH‡ÃÁV«‹ÅPÁZ‰ªq\nHP)‡" [n 8 spaces-strings "" val "        "] 4]] 2)
+(fset 'delete-rectangle #[(start end) "ÀÁ\nÄ$‡" [operate-on-rectangle delete-rectangle-line start end t] 5 "\
+Delete (don't save) text in rectangle with point and mark as corners.
+The same range of columns is deleted in each line
+starting with the line where the region begins
+and ending with the line where the region ends." "r"])
+(fset 'delete-extract-rectangle #[(start end) "ÀÂÃÆ$ˆ	Ÿ)‡" [nil lines operate-on-rectangle delete-extract-rectangle-line start end t] 5 "\
+Delete contents of rectangle and return it as a list of strings.
+Arguments START and END are the corners of the rectangle.
+The value is list of strings, one for each line of the rectangle."])
+(fset 'extract-rectangle #[(start end) "ÀÂÃÀ$ˆ	Ÿ)‡" [nil lines operate-on-rectangle extract-rectangle-line start end] 5 "\
+Return contents of rectangle with corners at START and END.
+Value is list of strings, one for each line of the rectangle."])
+(defvar killed-rectangle nil "\
+Rectangle for yank-rectangle to insert.")
+(fset 'kill-rectangle #[(start end) "À	\n\"‰‡" [delete-extract-rectangle start end killed-rectangle] 3 "\
+Delete rectangle with corners at point and mark; save as last killed one.
+Calling from program, supply two args START and END, buffer positions.
+But in programs you might prefer to use delete-extract-rectangle." "r"])
+(fset 'yank-rectangle #[nil "À	!‡" [insert-rectangle killed-rectangle] 2 "\
+Yank the last killed rectangle with upper left corner at point." nil])
+(fset 'insert-rectangle #[(rectangle) "iÁ‰­®\n¬Åyˆn¬ƒÆcˆÇ!ˆiV«„È!ˆiW«ƒjˆÉ@cˆA‰¬SÉ+‡" [rectangle t first insertcolumn lines 1 10 move-to-column rectangle-coerce-tab nil] 4 "\
+Insert text of RECTANGLE with upper left corner at point.
+RECTANGLE's first line is inserted at point,
+its second line is inserted at a point vertically under point, etc.
+RECTANGLE should be a list of strings."])
+(fset 'open-rectangle #[(start end) "ÀÁ\nÄ$‡" [operate-on-rectangle open-rectangle-line start end nil] 5 "\
+Blank out rectangle with corners at point and mark, shifting text right.
+The text previously in the region is not overwritten by the blanks,
+but insted winds up to the right of the rectangle." "r"])
+(fset 'open-rectangle-line #[(startpos begextra endextra) "i	\\\\bˆiÅÆwˆ\niZ\\)`ÅÆxˆ`|ˆ\nj)‡" [begextra endextra column startpos ocol " 	" nil] 3])
+(fset 'clear-rectangle #[(start end) "ÀÁ\nÄ$‡" [operate-on-rectangle clear-rectangle-line start end t] 5 "\
+Blank out rectangle with corners at point and mark.
+The text previously in the region is overwritten by the blanks.
+When called from a program, requires two args which specify the corners." "r"])
+(byte-code "ÀÁMˆÂÃM‡" [clear-rectangle-line #[(startpos begextra endextra) "ÀÁwˆi\n\\`bˆÀÁxˆ`|ˆj)‡" [" 	" nil endextra column startpos] 3] rectangle-coerce-tab #[(column) "iÀÃÄ!ˆ\njˆÅ\nZ!*‡" [nil indent-tabs-mode aftercol delete-char -1 backward-char column] 3]] 2)

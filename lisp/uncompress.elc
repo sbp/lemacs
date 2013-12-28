@@ -1,0 +1,19 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:34:44 1991
+;;; from file /wg1/emacs-base/lisp/uncompress.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁMˆÂÃ\"¬„ÅBÀ‡" [uncompress-backup-file #[nil "«“	«\n¬Ã!¬ˆÄÅÆ‰‰%ˆÆ‡" [buffer-file-name make-backup-files buffer-backed-up file-exists-p call-process "uncompress" nil] 6] assoc "\\.Z$" auto-mode-alist ("\\.Z$" . uncompress-while-visiting)] 3)
+(fset 'uncompress-while-visiting #[nil "«ÁÂ\"«ˆÃÄ‰”O!ˆÅÆ!ˆÇÉedÊË$ˆ)ÅÌ!ˆÍÇ!ˆÎÏ!ˆĞ>¬†ĞBÑ ‡" [buffer-file-name string-match "\\.Z$" set-visited-file-name 0 message "Uncompressing..." nil buffer-read-only shell-command-on-region "uncompress" t "Uncompressing...done" set-buffer-modified-p make-local-variable write-file-hooks uncompress-backup-file normal-mode] 5 "\
+Temporary \"major mode\" used for .Z files, to uncompress the contents.
+It then selects a major mode from the uncompressed file name and contents."])
+(byte-code "À	>¬„À	BÀ‡" [find-compressed-version find-file-not-found-hooks] 2)
+(fset 'find-compressed-version #[nil "À	ÂP!­	ÂPÃ	Ä\"ˆebˆÅÄ‡" [file-exists-p buffer-file-name ".Z" insert-file-contents t nil error] 3 "\
+Hook to read and uncompress the compressed version of a file."])

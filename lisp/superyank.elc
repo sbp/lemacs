@@ -1,0 +1,357 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:32:51 1991
+;;; from file /wg1/emacs-base/lisp/superyank.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "¿¡!à¬√!àƒƒá" [require sendmail provide superyank nil news-reply-header-hook] 2)
+(defvar sy-default-attribution "Anon" "\
+String that describes attribution to unknown person. This string
+should not contain the citation string.")
+(defvar sy-citation-string ">" "\
+String to use as an end-delimiter for citations.  This string is
+used in both nested and non-nested citations.  For best results, use a
+single character with no trailing space.  Most commonly used string
+is: \">.")
+(defvar sy-nested-citation-p nil "\
+Non-nil uses nested citations, nil uses non-nested citations.
+Nested citations are of the style:
+
+I wrote this
+> He wrote this
+>> She replied to something he wrote
+
+Non-nested citations are of the style:
+
+I wrote this
+John> He wrote this
+Jane> She originally wrote this")
+(defvar sy-cite-regexp "[a-zA-Z0-9]*>" "\
+Regular expression that describes how an already cited line in an
+article begins.  The regexp is only used at the beginning of a line,
+so it doesn't need to begin with a '^'.")
+(defvar sy-titlecue-regexp "\\s +-+\\s +" "\
+Regular expression that delineates names from titles in the name
+field.  Often, people will set up their name field to look like this:
+
+(John Xavier Doe -- Computer Hacker Extraordinaire)
+
+Set to nil to treat entire field as a name.")
+(defvar sy-preferred-attribution 2 "\
+This is an integer indicating what the user's preference is in
+attribution style, based on the following key:
+
+0: email address name is preferred
+1: initials are preferred
+2: first name is preferred
+3: last name is preferred
+
+The value of this variable may also be greater than 3, which would
+allow you to prefer the 2nd through nth - 1 name.  If the preferred
+attribution is nil or the empty string, then the secondary preferrence
+will be the first name.  After that, the entire name alist is search
+until a non-empty, non-nil name is found.  If no such name is found,
+then the user is either queried or the default attribution string is
+used depending on the value of sy-confirm-always-p.
+
+Examples:
+
+assume the from: line looks like this:
+
+from: doe@computer.some.where.com (John Xavier Doe)
+
+The following preferences would return these strings:
+
+0: \"doe\"
+1: \"JXD\"
+2: \"John\"
+3: \"Doe\"
+4: \"Xavier\"
+
+anything else would return \"John\".")
+(defvar sy-confirm-always-p t "\
+If t, always confirm attribution string before inserting into
+buffer.")
+(defvar sy-rewrite-header-hook 'sy-header-on-said "\
+Hook for inserting informative header at the top of the yanked
+message. Set to nil for no header.  Here is a list of predefined
+header styles; you can use these as a model to write you own:
+
+sy-header-on-said [default]:   On 14-Jun-1989 GMT,
+                               John Xavier Doe said:
+
+sy-header-inarticle-writes:    In article <123456789> John Xavier Doe writes:
+
+sy-header-regarding-writes:    Regarding RE: superyank; John Xavier Doe adds:
+
+sy-header-verbose:             On 14-Jun-1989 GMT, John Xavier Doe
+                               from the organization Great Company
+                               has this to say about article <123456789>
+                               in newsgroups misc.misc
+                               concerning RE: superyank
+                               referring to previous articles <987654321>
+
+You can use the following variables as information strings in your header:
+
+sy-reply-yank-date:         the date field              [ex: 14-Jun-1989 GMT]
+sy-reply-yank-from:         the from field              [ex: John Xavier Doe]
+sy-reply-yank-message-id:   the message id              [ex: <123456789>]
+sy-reply-yank-subject:      the subject line            [ex: RE: superyank]
+sy-reply-yank-newsgroup:    the newsgroup name for GNUS [ex: misc.misc]
+sy-reply-yank-references:   the article references      [ex: <987654321>]
+sy-reply-yank-organization: the author's organization   [ex: Great Company]
+
+If a field can't be found, because it doesn't exist or is not being
+shown, perhaps because of toggle-headers, the corresponding field
+variable will contain the string \"mumble mumble\".")
+(defvar sy-downcase-p nil "\
+Non-nil means downcase the author's name string.")
+(defvar sy-left-justify-p nil "\
+If non-nil, delete all leading white space before citing.")
+(defvar sy-auto-fill-region-p nil "\
+If non-nil, automatically fill each paragraph that is cited.  If
+nil, do not auto fill each paragraph.")
+(defvar sy-use-only-preference-p nil "\
+If non-nil, then only the preferred attribution string will be
+used.  If the preferred attribution string can not be found, then the
+sy-default-attribution will be used.  If nil, and the preferred
+attribution string is not found, then some secondary scheme will be
+employed to find a suitable attribution string.")
+(byte-code "¿\n√P≈≈≈≈	≈\n≈≈ÕŒMàœ–Mà—“Mà”‘Mà’÷Mà◊ÿMàŸ⁄Mà€‹Mà›ﬁMàﬂ‡Mà·‚Mà„‰MàÂÊMàÁËMàÈÍMàÎÏMàÌÓMàÔMàÒÚMàÛÙMàıˆMà˜¯Má" ["^via:\\|^origin:\\|^status:\\|^re\\(mail\\|ceiv\\)ed\\|^[a-z-]*message-id:\\|^\\(summary-\\)?line[s]?:\\|^cc:\\|^subject:\\|^\\(\\(in-\\)?reply-\\)?to:\\|^\\(\\(return\\|reply\\)-\\)?path:\\|^\\(posted-\\)?date:\\|^\\(mail-\\)?from:\\|^newsgroup[s]?:\\|^organization:\\|^keywords:\\|^distribution:\\|^references:" mail-yank-ignored-headers sy-default-attribution "> " sy-persist-attribution "" sy-reply-yank-date sy-reply-yank-from sy-reply-yank-message-id sy-reply-yank-subject sy-reply-yank-newsgroups sy-reply-yank-references sy-reply-yank-organization sy-%-style-address #[nil "¿yà¡¬d√#àn¨Éƒuà`≈∆!à`{á" [0 re-search-forward "%" t -1 re-search-backward "^\\|[^a-zA-Z0-9]"] 4] sy-@-style-address #[nil "¿yà¡¬d√#àn¨Éƒuà`≈∆!àn¨É«uà`{á" [0 re-search-forward "@" t -1 re-search-backward "^\\|[^a-zA-Z0-0]" 1] 4] sy-!-style-address #[nil "¿yà¡¬d√#¨y`¡ƒ!àl¨É≈uà`{á" [0 re-search-forward "!" t "[^a-zA-Z0-9]\\|$" -1] 4] sy-get-emailname #[nil "¿ ¡ ¬ â∆ò¨É™ë∆ò¨É™â∆ò¨É™Å∆+á" [sy-%-style-address sy-@-style-address sy-!-style-address en3 en2 en1 ""] 4] sy-string-car #[(namestring) "¡¬\"à√ï¡ƒ\"à√ïOá" [namestring string-match "\\s *" 0 "\\s *\\S +"] 5] sy-string-cdr #[(namestring) "¡¬\"à√ïƒOá" [namestring string-match "\\s *\\S +\\s *" 0 nil] 4] sy-namestring-to-list #[(namestring) "¿	¬\"?≠ã√ƒ	!C≈∆	!!\"á" [string-match namestring "" append sy-string-car sy-namestring-to-list sy-string-cdr] 5] sy-strip-initials #[(raw-nlist) "??≠ä@¡¬O√A!Pá" [raw-nlist 0 1 sy-strip-initials] 3] sy-build-ordered-namelist #[(namestring) "¿	!√\n!\n@∆\nA!â@∆A!	  ÃCCCC	%.á" [sy-namestring-to-list namestring raw-nlist sy-strip-initials initials firstname reverse revnames lastname midnames sy-get-emailname emailnames append] 7] sy-query-for-attribution #[nil "¿	¬Qƒ!â∆ò´É	™Å´Öó™Ç+	Pá" ["Enter attribution string: (default " sy-default-attribution ") " prompt read-input query "" attribution sy-downcase-p sy-citation-string] 4] sy-get-namestring #[nil "å¿yà¡¬d√#´ª¿yà¡ƒd√#à`¡≈«Qd√#à`â	}à¿yà` àÀÃÕQe√#à`â	{,™ò¿yà¡Œ!à`¡œd√#à`â	{*)á" [0 re-search-forward "(.*)" t "\\((\\s *\\)\\|$" "\\(\\s *\\()\\|" sy-titlecue-regexp "\\)\\)\\|$" end start nil re-search-backward "\\s *\\()\\|" "\\)$" "^\"*" "\\(\\s *[a-zA-Z0-9\\.]+\\)*"] 6] sy-return-preference-n #[(nlist) "¡âƒW´Ü≈∆™ä8¨Ñ≈∆8»ò´Ñƒ∆8´ë8»ò´â∆…\\â™j\n´Ñ\nÆÖ8??≠Å*á" [sy-preferred-attribution nil exception p 0 2 t nlist "" 1 sy-use-only-preference-p] 3] sy-nlist-to-alist #[(nlist) "¿	!¬√â¨à« ¬BC™§	8¬BC	8´óU¨ä»	8¬BC\"…\\â™e+á" [sy-return-preference-n nlist nil 0 n alist preference sy-query-for-attribution append 1] 5] sy-get-attribution #[(alist) "´É¡™Í\n¨Ö@@™‚ƒ∆@@«Q… \nÀ\nÃÕ#àÀ\nŒœ#àÀ\n–—#àÀ\n“”#àÀ\n‘”#àÀ\n’÷#à\n)ÿ\"â´Ü¡ò´Ö@@™Ç´Öó™Ç-Pá" [sy-nested-citation-p "" sy-confirm-always-p alist nil ignore "Complete attribution string: (default " ") " prompt make-sparse-keymap map define-key "?" minibuffer-completion-help " " minibuffer-complete-word "	" minibuffer-complete " A" exit-minibuffer " D" "" (lambda nil (interactive) (beep) (exit-minibuffer)) minibuffer-local-must-match-map completing-read attribution choice sy-downcase-p sy-citation-string] 5] sy-scan-rmail-for-names #[(rmailbuffer) "ä¿¡â≈!àebà«»d¿#¨Ö… ™úå`¡à`}à  Ã!Œ!+œ!\n,á" [t nil attribution alist case-fold-search switch-to-buffer rmailbuffer re-search-forward "^from:\\s *" sy-query-for-attribution sy-get-namestring namestring sy-build-ordered-namelist nlist sy-nlist-to-alist sy-get-attribution] 4] sy-insert-citation #[(start end cite-string) "äbà¡ \nbàn¨É√yà≈P```W´’	´à` Àwà`|àl¨ÜÃ!´±l¨á´ÉcàU¨ò´îbàl´Ü√\\–\"à``™äcàÀà`√yà™&+Àâì)á" [end point-marker start 1 cite-string " " fend fstart fill-prefix sy-left-justify-p " 	" nil looking-at sy-cite-regexp sy-nested-citation-p sy-auto-fill-region-p fill-region-as-paragraph] 3] sy-yank-fields #[(start) "äbà¡¬!¡ƒ!¡∆!¡»!	¡ !¡Ã!¡Œ!¨Ç–¨Ç–¨É–	¨É–	¨É–¨É–ÆÑ–â)á" [start mail-fetch-field "date" sy-reply-yank-date "from" sy-reply-yank-from "subject" sy-reply-yank-subject "newsgroups" sy-reply-yank-newsgroups "references" sy-reply-yank-references "message-id" sy-reply-yank-message-id "organization" sy-reply-yank-organization "mumble mumble"] 2] sy-rewrite-headers #[(start) "bà¡¬!á" [start run-hooks sy-rewrite-header-hook] 2] sy-header-on-said #[nil "¿¡\n√≈%á" [insert-string "\nOn " sy-reply-yank-date ",\n" sy-reply-yank-from " said:\n"] 6] sy-header-inarticle-writes #[nil "¿¡\n√≈%á" [insert-string "\nIn article " sy-reply-yank-message-id " " sy-reply-yank-from " writes:\n"] 6] sy-header-regarding-writes #[nil "¿¡\n√≈%á" [insert-string "\nRegarding " sy-reply-yank-subject "; " sy-reply-yank-from " adds:\n"] 6] sy-header-verbose #[nil "¿¡\n√≈«…\nÀÕœ&á" [insert-string "\nOn " sy-reply-yank-date ",\n" sy-reply-yank-from "\nfrom the organization " sy-reply-yank-organization "\nhad this to say about article " sy-reply-yank-message-id "\nin newsgroups " sy-reply-yank-newsgroups "\nconcerning " sy-reply-yank-subject "\nreferring to previous articles " sy-reply-yank-references "\n"] 16]] 2)
+(fset 'sy-yank-original #[(arg) "´¡	:´É¬™Åƒ!``»!à…!à  Ã!àÕ!à`Œ  \"àœP—#-ábà“ á" [mail-reply-buffer arg t sy-confirm-always-p sy-scan-rmail-for-names attribution top start delete-windows-on insert-buffer mark end sy-yank-fields sy-rewrite-headers mail-yank-clear-headers " " sy-persist-attribution sy-insert-citation exchange-point-and-mark] 4 "\
+Insert the message being replied to, if any (in rmail/gnus). Puts
+point before the text and mark after. Calls generalized citation
+function sy-insert-citation to cite all allowable lines." "P"])
+(fset 'mail-yank-original #[(arg) "¿¡¬\"à¿√¬\"à¿ƒ≈\"à¿∆≈\"à¿«»\"à…\n!á" [local-set-key "q" sy-fill-paragraph-manually "" "i" sy-insert-persist-attribution "	" "" sy-open-line sy-yank-original arg] 3 "\
+Yank original message buffer into the reply buffer, citing as per
+user preferences.  Numeric Argument forces confirmation.
+
+Here is a description of the superyank.el package, what it does and
+what variables control its operation.  This was written by Barry
+Warsaw (warsaw@cme.nist.gov, {...}!uunet!cme-durer!warsaw).
+
+A 'Citation' is the acknowledgement of the original author of a mail
+message.  There are two general forms of citation. In 'nested
+citations', indication is made that the cited line was written by
+someone *other* that the current message author (or by that author at
+an earlier time).  No indication is made as to the identity of the
+original author.  Thus, a nested citation after multiple replies would
+look like this (this is after my reply to a previous message):
+
+>>John originally wrote this
+>>and this as well
+> Jane said that John didn't know
+> what he was talking about
+And that's what I think as well.
+
+In non-nested citations, you won't see multiple \">\" characters at
+the beginning of the line.  Non-nested citations will insert an
+informative string at the beginning of a cited line, attributing that
+line to an author.  The same message described above might look like
+this if non-nested citations were used:
+
+John> John originally wrote this
+John> and this as well
+Jane> Jane said that John didn't know
+Jane> what he was talking about
+And that's what I think as well.
+
+Notice that my inclusion of Jane's inclusion of John's original
+message did not result in a cited line of the form: Jane>John>.  Thus
+no nested citations.  The style of citation is controlled by the
+variable `sy-nested-citation-p'.  Nil uses non-nested citations and
+non-nil uses old style, nested citations.
+
+The variable `sy-citation-string' is the string to use as a marker for
+a citation, either nested or non-nested.  For best results, this
+string should be a single character with no trailing space and is
+typically the character \">\".  In non-nested citations this string is
+appended to the attribution string (author's name), along with a
+trailing space.  In nested citations, a trailing space is only added
+to a first level citation.
+
+Another important variable is `sy-cite-regexp' which describes strings
+that indicate a previously cited line.  This regular expression is
+always used at the beginning of a line so it doesn't need to begin
+with a \"^\" character.  Change this variable if you change
+`sy-citation-string'.
+
+The following section only applies to non-nested citations.
+
+This package has a fair amount of intellegence related to deciphering
+the author's name based on information provided by the original
+message buffer.  In normal operation, the program will pick out the
+author's first and last names, initials, terminal email address and
+any other names it can find.  It will then pick an attribution string
+from this list based on a user defined preference and it will ask for
+confirmation if the user specifies.  This package gathers its
+information from the `From:' line of the original message buffer.  It
+recognizes From: lines with the following forms:
+
+From: John Xavier Doe <doe@speedy.computer.com>
+From: \"John Xavier Doe\" <doe@speedy.computer.com>
+From: doe@speedy.computer.com (John Xavier Doe)
+From: computer!speedy!doe (John Xavier Doe)
+From: computer!speedy!doe (John Xavier Doe)
+From: doe%speedy@computer.com (John Xavier Doe)
+
+In this case, if confirmation is requested, the following strings will
+be made available for completion and confirmation:
+
+\"John\"
+\"Xavier\"
+\"Doe\"
+\"JXD\"
+\"doe\"
+
+Note that completion is case sensitive.  If there was a problem
+picking out a From: line, or any other problem getting even a single
+name, then the user will be queried for an attribution string.  The
+default attribution string is set in the variable
+`sy-default-attribution'.
+
+Sometimes people set their name fields so that it also includes a
+title of the form:
+
+From: doe@speedy.computer.com (John Doe -- Hacker Extraordinaire)
+
+To avoid the inclusion of the string \"-- Hacker Extraordinaire\" in
+the name list, the variable `sy-titlecue-regexp' is provided.  Its
+default setting will still properly recognize names of the form:
+
+From: xdoe@speedy.computer.com (John Xavier-Doe -- Crazed Hacker)
+
+The variable `sy-preferred-attribution' contains an integer that
+indicates which name field the user prefers to use as the attribution
+string, based on the following key:
+
+0: email address name is preferred
+1: initials are preferred
+2: first name is preferred
+3: last name is preferred
+
+The value can be greater than 3, in which case, you would be
+preferring the 2nd throught nth -1 name.  In any case, if the
+preferred name can't be found, then one of two actions will be taken
+depending on the value of the variable `sy-use-only-preference-p'.  If
+this is non-nil, then the `sy-default-attribution will be used.  If it
+is nil, then a secondary scheme will be employed to find a suitable
+attribution scheme.  First, the author's first name will be used.  If
+that can't be found than the name list is searched for the first
+non-nil, non-empty name string.  If still no name can be found, then
+the user is either queried, or the `sy-default-attribution' is used,
+depending on the value of `sy-confirm-always-p'.
+
+If the variable `sy-confirm-always-p' is non-nil, superyank will always
+confirm the attribution string with the user before inserting it into
+the reply buffer.  Confirmation is with completion, but the completion
+list is merely a suggestion; the user can override the list by typing
+in a string of their choice.
+
+The variable `sy-rewrite-header-hook' is a hook that contains a lambda
+expression which rewrites the informative header at the top of the
+yanked message.  Set to nil to avoid writing any header.
+
+You can make superyank autofill each paragraph it cites by setting the
+variable `sy-auto-fill-region-p' to non-nil.  Or set the variable to nil
+and fill the paragraphs manually with sy-fill-paragraph-manually (see
+below).
+
+Finally, `sy-downcase-p' if non-nil, indicates that you always want to
+downcase the attribution string before insertion, and
+`sy-left-justify-p', if non-nil, indicates that you want to delete all
+leading white space before citing.
+
+Since the almost all yanking in other modes (RMAIL, GNUS) is done
+through the function `mail-yank-original', and since superyank
+overloads this function, cited yanking is automatically bound to the
+C-c C-y key.  There are three other smaller functions that are
+provided with superyank and they are bound as below.  Try C-h f on
+each function to get more information on these functions.
+
+Key Bindings:
+
+C-c C-y     mail-yank-original (superyank's version)
+C-c q       sy-fill-paragraph-manually
+C-c C-q     sy-fill-paragraph-manually
+C-c i       sy-insert-persist-attribution
+C-c C-i     sy-insert-persist-attribution
+C-c C-o     sy-open-line
+
+
+Summary of variables, with their default values:
+
+sy-default-attribution     (default: \"Anon\")
+           Attribution to use if no attribution string can be deciphered
+           from the original message buffer.
+
+sy-citation-string         (default: \">\")
+           String to append to the attribution string for citation, for
+           best results, it should be one character with no trailing space.
+
+sy-nested-citation-p       (default: nil)
+           Nil means use non-nested citations, non-nil means use old style
+           nested citations.
+
+sy-cite-regexp             (default: \"[a-zA-Z0-9]*>\")
+           Regular expression that matches the beginning of a previously
+           cited line.  Always used at the beginning of a line so it does
+           not need to start with a \"^\" character.
+
+sy-titlecue-regexp         (default: \"\\s +-+\\s +\")
+           Regular expression that matches a title delimiter in the name
+           field.
+
+sy-preferred-attribution   (default: 2)
+           Integer indicating user's preferred attribution field.
+
+sy-confirm-always-p        (default: t)
+           Non-nil says always confirm with completion before inserting
+           attribution.
+
+sy-rewrite-header-hook     (default: 'sy-header-on-said)
+           Hook for inserting informative header at the top of the yanked
+           message.
+
+sy-downcase-p              (default: nil)
+           Non-nil says downcase the attribution string before insertion.
+
+sy-left-justify-p          (default: nil)
+           Non-nil says delete leading white space before citing.
+  
+sy-auto-fill-region-p      (default: nil)
+           Non-nil says don't auto fill the region.  T says auto fill the
+           paragraph.
+
+sy-use-only-preference-p   (default: nil)
+           If nil, use backup scheme when preferred attribution string
+           can't be found.  If non-nil and preferred attribution string
+           can't be found, then use sy-default-attribution." "P"])
+(fset 'sy-fill-paragraph-manually #[(arg) "ä¿ àn¨Ñ¡¬!à`√« à»…!´É¬uà`¨’ \"à¿ à`bà»!´çÃ!à`{ÕP™é»Œ!´Ö¬uà™v`{œ¬!à–yà`W´ò—ò¨ì»“!!¨Éœ¬!à–yà™b‘#,á" [forward-paragraph newline 1 nil fill-prefix st end backward-paragraph looking-at "\n" untabify sy-cite-regexp re-search-forward " " "[^a-zA-Z0-9]" next-line 0 "" regexp-quote sy-persist-attribution fill-region-as-paragraph arg] 4 "\
+Fill paragraph containing or following point, automatically finding
+the sy-cite-regexp and using it as the prefix.  If the sy-cite-regexp
+is not in the first line of the paragraph, it makes a guess at what
+the fill-prefix for the paragraph should be by looking at the first
+line and taking anything up to the first alphanumeric character.
+
+Prefix arg means justify both sides of paragraph as well.
+
+This function just does fill-paragraph if the fill-prefix is set. If
+what it deduces to be the paragraph prefix (based on the first line)
+does not precede each line in the region, then the persistant
+attribution is used.  The persistant attribution is just the last
+attribution string used to cite lines." "P"])
+(fset 'sy-insert-persist-attribution #[nil "ä¿yà¡\n!)á" [0 insert-string sy-persist-attribution] 2 "\
+Insert the persistant attribution at the beginning of the line that
+point is on.  This string is the last attribution confirmed and used
+in the yanked reply buffer." nil])
+(fset 'sy-open-line #[(arg) "ä`¡\n!àbà√yàƒ\nW≠å≈ à∆yà\n∆Z™o*á" [start open-line arg nil 0 sy-insert-persist-attribution 1] 2 "\
+Insert a newline and leave point before it.  Also inserts the
+persistant attribution at the beginning of the line.  With arg,
+inserts that many newlines." "p"])

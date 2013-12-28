@@ -1,0 +1,27 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:07:55 1991
+;;; from file /wg1/emacs-base/lisp/c-style.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar default-c-style 'GNU "\
+*The default value of c-style.  Set this in your .emacs.")
+(byte-code "¿¡!¨Ç¬¿á" [boundp c-style-alist ((GNU (c-indent-level . 2) (c-continued-statement-offset . 2) (c-brace-offset . 0) (c-argdecl-indent . 5) (c-label-offset . -2)) (BSD (c-indent-level . 8) (c-continued-statement-offset . 8) (c-brace-offset . -8) (c-argdecl-indent . 8) (c-label-offset . -8)) (K&R (c-indent-level . 5) (c-continued-statement-offset . 5) (c-brace-offset . -5) (c-argdecl-indent . 0) (c-label-offset . -5)) (C++ (c-indent-level . 4) (c-continued-statement-offset . 4) (c-brace-offset . -4) (c-argdecl-indent . 4) (c-label-offset . -4)) (LRS (c-indent-level . 4) (c-continued-statement-offset . 4) (c-brace-offset . 0) (c-argdecl-indent . 4) (c-label-offset . -2) (c-auto-newline)))] 2)
+(defvar c-style nil "\
+The buffer local C mode indentation style.")
+(defvar default-c-style 'GNU "\
+The default C mode indentation style.")
+(fset 'set-c-style #[(&optional style) "ÆÅ	â\nû¨á√ƒ≈\"!à∆«!àƒ»\"à… \nûA\"àá" [style default-c-style c-style-alist error message "Undefined c style: %s" make-local-variable c-style "c-style: %s" mapcar #[(c-style-pair) "¿	@!à	@	ALá" [make-local-variable c-style-pair] 2]] 5 "\
+Specify a style of indentation for C code for the current buffer.
+The argument STYLE should be a standard style name defined in
+`c-style-alist', such as GNU, BSD, K&R, etc.  (These are Lisp symbols.)
+An omitted arg, or nil, means to use the value of `default-c-style'.
+
+Setting the style sets various C-mode customization parameters accordingly,
+all local to the current buffer." (byte-code "¿¡¬\"≈#â«ò´É™Ñ»!)á" [completing-read format "Set c-mode indentation style to (default %s): " default-c-style c-style-alist t style-string "" intern] 5)])

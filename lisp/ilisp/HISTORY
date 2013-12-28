@@ -1,0 +1,80 @@
+ILISP HISTORY
+
+90/12/30 Version 4.00 released
+
+IMPROVEMENTS: Process stuff has been rewritten and much improved.  If
+you prefer the old eval/compile behavior, set lisp-wait-p to t in your
+ilisp-load-hook.  Improved edit-definitions and edit-callers so that
+they support multiple definitions of any LISP object even if the
+inferior LISP does not store the information.  Added support for
+Epoch.  Separated out lisp-mode extensions, symlink fix, source stuff
+and batch eval/compile.  Lots of minor improvements, see details
+below.
+
+INCOMPATIBLE CHANGES: Renamed interactive functions to put package
+specification at the end so that names were quicker to specify and
+some internal functions so that they were unique to ilisp.
+ilisp-clisp now takes the full file name.  ilisp-load-or-send-command
+now takes the binary and source paths explicitly.  The ilisp- prefix
+was removed from dialect file names.  ilisp-definition-regexp has gone
+away.  ilisp-prompt, ilisp-fix-error and ilisp-continue have gone away
+in favor of the actual comint- variables.  ilisp-expand-symlinks has
+gone away. 
+
+DETAILS: Finally fixed up how many newlines are inserted.  Made it so
+that the source file stuff would use a resident buffer with the same
+name if available.  Added ilisp-filter-length to the input filter.
+When reading a symbol, the inferior lisp is no longer queried with an
+empty string.  newline-and-indent-ilisp will send a string w/o a new
+line if called at the end of a buffer.  This was so that raw character
+i/o could be done in some lisps.  All comint and comint-ipc variables
+can now be set in hooks and the right thing will happen.  Made
+lisp-end-defun-text skip over leading comments.  Added the functions
+search-in-lisp-files and replace-in-lisp-files.  Prevented the
+addition of duplicate entries to the input ring and expanded its size
+to 200 entries.  Made lisp-def-name so that it adds the name of the
+defining form and returns an empty string at the end of a buffer.
+Swapped bindings of macroexpand-lisp and macroexpand-1-lisp.  Fixed
+expand-file-name bug if // was at the start of a filename.  Fixed
+obscure bug in make-local-variable.  Added ilisp-other-prompt and
+bol-ilisp.  Added case-fold-search to appropriate places.  Fixed error
+recovery in ilisp-completer.  Removed extra parentheses in the string
+for ilisp-init-binary-command.  Added documentation on scrolling the
+popper window backwards.  Fixed comment-region so that it handles
+empty lines and deleting spaces at the start.  Fixed behavior of
+reindent-lisp on comments at the start and end of a buffer.  Saved the
+point in reposition-window-lisp.  Rewrote close-all-lisp so that it
+inserted a bracket if in a string and was better behaved WRT non sexp
+brackets and so that it could close all brackets.  Removed breaks in
+lisp-end-defun-text for unclosed strings.  Added comint-check-prompt
+to comint-ipc so that dialects can be smarter about errors.  Added
+ilisp-check-prompt and allegro and lucid definitions.  Changed
+edit-callers so that it uses the name of the current defun as its
+default.  Changed popper so that it handles more windows, removes
+trailing lines, is nicer about bindings and added popper-grow-output.
+Also added epoch-pop for epoch.  Made lisp-input-start work if the
+point was at the start of the line the prompt was on.  This made
+reindent-lisp and close-all-lisp work in ilisp mode.  Added
+close-and-send-lisp.  Made it so that bindings are only done after the
+hooks are run.  Shorter clisp error messages.  Removed
+ilisp-definition-regexp and replaced it with ilisp-locator.  Made
+message optional in ilisp-send and ilisp-send-string.  Added a startup
+message to ilisp buffers.  Made it so that there is filename
+completion when prompting for lisp program.  Fixed bug in
+ilisp-load-init.  Made it so that if an eval/compile worked normally,
+no message was displayed.  Fixed lucid ilisp-list-callers so that it
+does not recurse forever.  Changed lisp-list-callers to who-calls-lisp
+and made it so that it would display the buffer.  Added ilisp-dialect
+as a list of dialect names for the inferior LISP.  Added partial
+minibuffer completion.  Improved filename completion help in
+complete-lisp.  Added ilisp-bug for bug reporting. Improved case
+handling for clisp.  popper v2.00, completer v2.00.
+
+10/12/90 Version 3.0 released.  Improved pop-up windows, symbol
+completion, package handling, compilation and initialization.
+Changed default binding prefix.  Added trace/untrace and
+evaluation of defvars.
+  
+ 8/22/90 Version 2.0 released. Fixed bugs and changed initialization.
+
+ 6/11/90 Version 1.0 released.

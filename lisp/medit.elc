@@ -1,0 +1,43 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:24:42 1991
+;;; from file /wg1/emacs-base/lisp/medit.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(require 'mim-mode)
+(defconst medit-zap-file (byte-code "ÀÁ ÂQ‡" ["/tmp/" user-login-name ".medit.mud"] 3) "\
+File name for data sent to MDL by Medit.")
+(defconst medit-buffer "*MEDIT*" "\
+Name of buffer in which Medit accumulates data to send to MDL.")
+(defconst medit-save-files t "\
+If non-nil, Medit offers to save files on return to MDL.")
+(fset 'medit-save-define #[nil "ŠÀ ˆ`ÂÃ!ˆÄ	`#ˆ	bˆÆ	Çˆ`{!*‡" [beginning-of-DEFINE start forward-mim-object 1 append-to-buffer medit-buffer message nil] 4 "\
+Mark the previous or surrounding toplevel object to be sent back to MDL." nil])
+(fset 'medit-save-region #[(start end) "À	\n#ˆÄÅ!‡" [append-to-buffer medit-buffer start end message "Current region saved for MDL."] 4 "\
+Mark the current region to be sent to back to MDL." "r"])
+(fset 'medit-save-buffer #[nil "À	ed#ˆÂÃ!‡" [append-to-buffer medit-buffer message "Current buffer saved for MDL."] 4 "\
+Mark the current buffer to be sent back to MDL." nil])
+(fset 'medit-zap-define-to-mdl #[nil "À ˆÁ ˆÂ ‡" [indetarctive medit-save-defun medit-go-to-mdl] 1 "\
+Return to MDL with surrounding or previous toplevel MDL object."])
+(fset 'medit-zap-region-mdl #[(start end) "À	\n\"ˆÃ ‡" [medit-save-region start end medit-go-to-mdl] 3 "\
+Return to MDL with current region." nil])
+(fset 'medit-zap-buffer #[nil "À ˆÁ ‡" [medit-save-buffer medit-go-to-mdl] 1 "\
+Return to MDL with current buffer." nil])
+(fset 'medit-goto-mdl #[nil "À	!‰«—Š\nqˆÃ\n!«†Äed#ˆÆÇ!ˆÈ ˆ)	«ƒÊ ˆË )‡" [get-buffer medit-buffer buffer buffer-modified-p write-region medit-zap-file set-buffer-modified-p nil erase-buffer medit-save-files save-some-buffers suspend-emacs] 5 "\
+Return from Emacs to superior MDL, sending saved code.
+Optionally, offers to save changed files." nil])
+(byte-code "ÀÂ!Ä	ÅÆ#ˆÄ	ÇÈ#ˆÄ	ÉÊ#ˆÄ	ËÌ#ˆÀ‡" [nil medit-mode-map copy-keymap mim-mode-map define-key "z" medit-save-define "" medit-save-buffer "z" medit-goto-mdl "s" medit-zap-buffer] 4)
+(defconst medit-mode-hook (byte-code "ÀÁ!­	‡" [boundp mim-mode-hook] 2) "\
+")
+(byte-code "ÀÂ‡" [(lambda nil (medit-mode)) mim-mode-hook nil] 1)
+(fset 'medit-mode #[(&optional state) "À	!ˆÂÃ!ˆÄÆ‰‡" [use-local-map medit-mode-map run-hooks medit-mode-hook medit-mode major-mode "Medit" mode-name] 2 "\
+Major mode for editing text and returning it to a superior MDL.
+Like Mim mode, plus these special commands:
+\\{medit-mode-map}" nil])
+(mim-mode)

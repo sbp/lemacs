@@ -1,0 +1,35 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:24:28 1991
+;;; from file /wg1/emacs-base/lisp/mail-utils.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'mail-utils)
+(defvar mail-use-rfc822 nil "\
+*If non-nil, use a full, hairy RFC822 parser on mail addresses.
+Otherwise, (the default) use a smaller, somewhat faster and
+often-correct parser.")
+(fset 'mail-string-delete #[(string start end) "¬…	ÂO‡	ÂO	ÄOP‡" [end string 0 start nil] 4 "\
+Returns a string containing all of STRING except the part
+from START (inclusive) to END (exclusive)."])
+(fset 'mail-strip-quoted-names #[(address) "«ÁÂ!ˆÃÄÅ!Ç#‡È	ÊË\"ˆÌ•ÊÍÌ•#OÊÎ\"«ØŠÏĞ!qˆÑ ˆcˆ¬›Ó!ÕÖ×#ˆÕØÙ#ˆÕÚÙ#ˆÛ!ˆÜbˆİŞÈß#«“àuˆáÈxˆ`ŠâÜ!ˆ`)|ˆªfã Ñ ˆ)ª–Êä\"‰	«Œå	Ì•#ªjÌ	Êæ	#‰	«£GÌ•V«Ì•HçU«†Ì•	ª]å	Ì•#ªQÊè\"‰	«¤Ü•é”Ì•*+,å*S*#å,+#+ªR)‡" [mail-use-rfc822 require rfc822 mapconcat identity rfc822-addresses address ", " nil pos string-match "\\`[ 	\n]*" 0 "[ 	\n]*\\'" "[ 	]*(\\([^)\"\\]\\|\\\\.\\|\\\\\n\\)*(" get-buffer-create " *temp*" erase-buffer lisp-mode-syntax-table copy-syntax-table emacs-lisp-mode-syntax-table modify-syntax-entry 124 "\"   " 91 "_   " 93 set-syntax-table 1 search-forward "(" t -1 " 	" forward-sexp buffer-string "[ 	]*(\\([^)\"\\]\\|\\\\.\\|\\\\\n\\)*)" mail-string-delete "[ 	]*\"\\([^\"\\]\\|\\\\.\\|\\\\\n\\)*\"[ 	\n]*" 64 "\\(,\\|\\`\\)[^,]*<\\([^>,]*>\\)" 2 close junk-end junk-beg] 6 "\
+Delete comments and quoted strings in an address list ADDRESS.
+Also delete leading/trailing whitespace and replace FOO <BAR> with just BAR.
+Return a modified address list."])
+(byte-code "ÀÁ!«ƒ	¬‚ÂÀ‡" [boundp rmail-default-dont-reply-to-names "info-"] 2)
+(fset 'rmail-dont-reply-to #[(userids) "¬‘	«…	ÂPªÃÄÅ !ÆPPÇÈQÉÊ‰Ï\"‰«©ÑV«…TÏÒÑ•#«„Ñ•ªƒGÓ#ªLÏÔ\"‰«ˆÑOÏÕ\"«ˆÑ•ÊOª‚,‡" [rmail-dont-reply-to-names rmail-default-dont-reply-to-names "\\|" "" regexp-quote user-original-login-name "\\>" "\\(^\\|,\\)[ 	\n]*\\([^,\n]*!\\|\\)\\(" "\\)" t nil epos pos case-fold-search match string-match userids 0 "[ 	\n,]+" mail-string-delete "[ ,	\n]*\\'" "\\s *"] 4 "\
+Returns string of mail addresses USERIDS sans any recipients
+that start with matches for  rmail-dont-reply-to-names.
+Usenet paths ending in an element that matches are removed also."])
+(fset 'mail-fetch-field #[(field-name &optional last all) "ŠebˆÀÁÂ!ÄQebˆ«·È	ÊËÀ#«¡`ÍyˆÎÏ!¬x	‰È˜«ƒÈªĞ`S{Q	)ªX	È˜?­‚	)ª£ÊËÀ#­œ«‡ÊËÀ#¬y`ÍyˆÎÏ!¬x`S{)+‡" [t "^" regexp-quote field-name "[ 	]*:[ 	]*" name case-fold-search all "" value re-search-forward nil opoint 1 looking-at "[ 	]" ", " last] 4 "\
+Return the value of the header field FIELD.
+The buffer is expected to be narrowed to just the headers of the message.
+If 2nd arg LAST is non-nil, use the last such field if there are several.
+If 3rd arg ALL is non-nil, concatenate all such fields, with commas between."])
+(byte-code "ÀÁMˆÂÃM‡" [mail-parse-comma-list #[nil "À‰ÃÀwˆm¬š`ÄÀwˆÃÀxˆ	`{\nBÄÀwˆÅÀwˆªc\n*‡" [nil beg accumulated " " "^," ", "] 2] mail-comma-list-regexp #[(labels) "ÀÂÃ\"®Å	ÂÆ	#OÂÇ\"‰«Å	OÈÅ•ÀOQªj)‡" [nil pos string-match "[^ 	]" labels 0 "[ 	]*$" "[ 	]*,[ 	]*" "\\|"] 6]] 2)

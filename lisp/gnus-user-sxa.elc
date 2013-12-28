@@ -1,0 +1,30 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:17:58 1991
+;;; from file /wg1/emacs-base/lisp/gnus-user-sxa.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'gnus-user-sxa)
+(fset 'gnus-user-sxa-show-server-name #[nil "	P‰‡" [mode-name mode-line-process] 2 "\
+Show NNTP server name in mode line."])
+(fset 'gnus-Subject-set-mode-line #[nil "ÀÁ\n«…Ã\n!ª\"ÆÇ!‡" [format "--- GNUS: %17s %%[(%%m)%%]----%%3p-%%-" gnus-current-headers nntp-header-subject gnus-newsgroup-name mode-line-format set-buffer-modified-p t] 4 "\
+Set Subject mode line string."])
+(fset 'gnus-Article-set-mode-line #[nil "G	GZÃÄÅÄÆ\nÉU«ƒÊª„ÄË\n\"$\"ÌQ)ÎÏ!‡" [gnus-newsgroup-unreads gnus-newsgroup-marked unmarked "--- GNUS:" format "%17s" " %s{%d} %s" gnus-newsgroup-name gnus-current-article 0 "      " "%d more" " %[(%m)%]----%3p-%-" mode-line-format set-buffer-modified-p t] 10 "\
+Set Article mode line string."])
+(defvar news-inews-program "inews" "\
+Function to post news.")
+(defvar news-path "/usr/spool/news/" "\
+The root directory below which all news files are stored.")
+(byte-code "ÀÁKMˆÂÃKMˆÄÅKMˆÆÇ!¬…ÇÁKMˆÆÈ!¬…ÈÉKMˆÆÊ!¬…ÊËKMˆÁÌ!ˆÍÎMˆÉÏMˆËĞMˆÑÒM‡" [load-library load process-send-string send-string process-send-region send-region fboundp load-org bury-buffer-org bury-buffer apply-org apply "backquote" one-window-p #[(&optional win) "«…Á=«ƒÂ Â Ã!=‡" [win t selected-window next-window] 3] #[(&optional buffer) "®pÂ	!ˆ¬…ÃÄ !ˆ)Å‡" [buffer buf bury-buffer-org switch-to-buffer other-buffer nil] 2] #[(func &rest args) "À	!@À‰	!A!Ä\n\"Æ\"+‡" [reverse args last before append org-arg apply-org func] 3] file-name-as-directory #[(filename &optional expand-filename) "«…Á\n!ª\n‰GS‰ÅV«ŠHÆU«ƒªƒÇP*‡" [expand-filename expand-file-name filename expanded tail-ix 0 47 "/"] 3]] 2)
+(fset 'load #[(file &optional missing-ok nomessage dum) "À	\n#‡" [load-org file missing-ok nomessage] 4 "\
+Load FILE." "sLoad file: "])
+(fset 'insert-char #[(chr count) "ÁV­‰\ncˆS‰ªs‡" [count 0 chr] 3 "\
+Insert COUNT (second arg) copies of CHAR (first arg).
+Both arguments are required."])
+(byte-code "ÀÁMˆÂÃM‡" [current-window-configuration #[nil "p‡" [] 1] set-window-configuration #[(window-config) "À	!‡" [switch-to-buffer window-config] 2]] 2)

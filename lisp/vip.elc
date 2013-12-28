@@ -1,0 +1,592 @@
+;;; compiled by eb@watergate on Mon Oct 14 18:52:28 1991
+;;; from file /wg1/emacs-base/lisp/vip.el
+;;; emacs version 19.85.
+;;; bytecomp version 2.02 beta; 11-sep-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar vip-emacs-local-map nil "\
+Local map used in emacs mode. (buffer specific)")
+(defvar vip-insert-local-map nil "\
+Local map used in insert command mode. (buffer specific)")
+(byte-code "ÀÁ!ˆÀÂ!‡" [make-variable-buffer-local vip-emacs-local-map vip-insert-local-map] 2)
+(defconst vip-insert-mode-vi-map t "\
+* Whether you want the vi map in insert mode or want to use emacs mode maps.
+Buffer specific so that that you can choose depending on the mode")
+(make-variable-buffer-local 'vip-insert-mode-vi-map)
+(defvar vip-current-mode nil "\
+Current mode.  One of emacs-mode, vi-mode, insert-mode.")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local vip-current-mode set-default emacs-mode] 3)
+(defvar vip-emacs-mode-line-buffer-identification nil "\
+value of mode-line-buffer-identification in emacs-mode.")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local vip-emacs-mode-line-buffer-identification set-default ("Emacs: %17b")] 3)
+(defvar vip-current-major-mode nil "\
+vip-current-major-mode is the major-mode vi considers it is now.
+(buffer specific)")
+(make-variable-buffer-local 'vip-current-major-mode)
+(defconst vip-toggle-key "" "\
+*The key which will be used to change modes from emacs to vi and back.
+In insert mode, this will also function as Meta")
+(defconst vip-ESC-key "" "\
+key used to ESC")
+(defconst vip-no-multiple-ESC t "\
+*If true, multiple ESC in vi mode will cause bell to ring.
+_ is then mapped to Meta")
+(defconst vip-help-in-insert-mode nil "\
+*if t then C-h is bound to help-command in insert mode, if nil then it is
+bound to delete-backward-char.")
+(defvar vip-need-to-finish-change nil "\
+Change command still need to be finished.
+(buffer specific)")
+(make-variable-buffer-local 'vip-need-to-finish-change)
+(defvar vip-need-to-exit-overwrite nil "\
+Overwrite mode needs to aborted.(buffer specific)")
+(make-variable-buffer-local 'vip-need-to-exit-overwrite)
+(defvar vip-change-beg-point nil "\
+Remember point where change is to start.(buffer specific)")
+(byte-code "ÀÁÂ \"ˆÃÁ!‡" [set-default vip-change-beg-point make-marker make-variable-buffer-local] 3)
+(defvar vip-change-end-point nil "\
+Remember point where change is to end.(buffer specific)")
+(byte-code "ÀÁÂ \"ˆÃÁ!‡" [set-default vip-change-end-point make-marker make-variable-buffer-local] 3)
+(defvar vip-cted nil "\
+cted - Control T'ed - keep track of whether C-t has been pressed.
+(buffer specific)")
+(make-variable-buffer-local 'vip-cted)
+(defvar vip-current-indent 0 "\
+Preserve the indent value, used during ^^D.(buffer specific)")
+(make-variable-buffer-local 'vip-current-indent)
+(defvar vip-preserve-indent nil "\
+Whether to preserve the indent, used by ^^D.(buffer specific)")
+(make-variable-buffer-local 'vip-preserve-indent)
+(defconst vip-auto-indent nil "\
+* Autoindent if t.")
+(defconst vip-shift-width 8 "\
+* the shiftwidth variable")
+(defvar vip-insert-point nil "\
+Remember insert point as a marker. (buffer specific)")
+(byte-code "ÀÁÂ \"ˆÃÁ!‡" [set-default vip-insert-point make-marker make-variable-buffer-local] 3)
+(defvar vip-com-point nil "\
+Remember com point as a marker. (buffer specific)")
+(byte-code "ÀÁÂ \"ˆÃÁ!‡" [set-default vip-com-point make-marker make-variable-buffer-local] 3)
+(defvar vip-d-com nil "\
+If non-nil, it's value is a list (M-COM VAL COM), and is used to
+re-execute last destrcutive command")
+(defvar vip-d-char nil "\
+The character remembered by the vi \"r\" command")
+(defvar vip-use-register nil "\
+name of register to store deleted or yanked strings.")
+(defvar vip-f-char nil "\
+for use by \";\" command")
+(defvar vip-F-char nil "\
+for use by \".\" command")
+(defvar vip-f-forward nil "\
+for use by \";\" command")
+(defvar vip-f-offset nil "\
+for use by \";\" command")
+(defvar vip-s-string nil "\
+last search string")
+(defvar vip-s-forward nil "\
+if t, search is forward.")
+(defconst vip-case-fold-search nil "\
+*if t, search ignores cases.")
+(defconst vip-re-search t "\
+*if t, search is reg-exp search, otherwise vanilla search.")
+(defconst vip-re-query-replace t "\
+*If t then do regexp replace, if nil then do string replace.")
+(defconst vip-re-replace t "\
+*If t then do regexp replace, if nil then do string replace.")
+(defconst vip-ex-style-motion t "\
+*l,h do not cross lines, ESC backs up etc.")
+(defconst vip-buffer-search-char 103 "\
+* Key bound for buffer-searching")
+(defconst vip-search-wrap-around-t t "\
+*if t, search wraps around")
+(defconst vip-heading-start (concat "^\\s-*(\\s-*defun\\s-\\|" "^{\\s-*$\\|^[_a-zA-Z][^()]*[()].*{\\s-*$\\|" "^\\s-*class.*{\\|^\\s-*struct.*{\\|^\\s-*enum.*{\\|" "^\\\\[sb][a-z]*{.*}\\s-*$\\|" "^@node\\|@table\\|^@m?enu\\|^@itemize\\|^@if") "\
+* Regexps for Headings. Used by [[, ]].")
+(defconst vip-heading-end "^}\\|^\\\\end{\\|^@end \\|)\n\n[ 	\n]*" "\
+* Regexps to end Headings/Sections")
+(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÄÀÅ!¬‚ÆÀÇ!¬ƒÈÀÉ!¬ƒÈ	ÀÊ!¬ƒÈ\nÈ‡" [boundp vip-word-chars-alpha "a-zA-Z0-9_" vip-word-chars-nonalpha "^a-zA-Z0-9_ 	\n" vip-word-chars-separator " 	\n" vip-history nil vip-search-history vip-ex-history] 2)
+(defconst vip-want-history nil "\
+* History for vi searches and ex commands")
+(defconst vip-make-cc-quit nil "\
+* If set, will call set-input-mode to make ^C the quit character.
+However, there is no quit-char option for older emacsen. Moreover, the
+first two options may need to change from system to system")
+(defvar vip-last-keyboard-macro nil "\
+Remember the last register used for keyboard macro")
+(defconst vip-filename-complete nil "\
+*If t then enable filename completion.")
+(defvar vip-ex-last-shell-com nil "\
+last shell command executed by :! command")
+(defvar vip-last-shell-com nil "\
+last shell command executed by ! command")
+(byte-code "ÀÁ!¬‚ÂÂ‡" [boundp vip-inhibit-startup-message nil] 2)
+(defconst vip-always t "\
+* Default vip-mode for files and buffers")
+(defconst vip-custom-file-name "~/.vip" "\
+* Customisation file")
+(defvar vip-is-vi nil "\
+Ultimate compatibility test")
+(defvar vip-quote-string "> " "\
+string inserted at the beginning of region")
+(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÄÅÇ\"‡" [boundp vip-tags-file-name "TAGS" running-epoch nil global-set-key vip-toggle-key vip-change-mode-to-vi] 3)
+(fset 'vip-redefine-toggle-key #[(key) "À	!ˆÂ	Ä#ˆ	ÆÇ\"ˆÂÈ#‡" [global-unset-key key define-key vip-mode-map nil vip-toggle-key global-set-key vip-change-mode-to-vi vip-change-mode-to-emacs] 4 "\
+Redefine the toggle key to be the ARG"])
+(fset 'vip-loop '(macro . #[(count body) "ÀÁ	DCÂÃÁÄEÆÁÇÁDEFE‡" [let count while > 0 body setq 1-] 9 "\
+(COUNT BODY) Execute BODY COUNT times."]))
+(fset 'vip-push-mark-silent #[(&optional location) "À «œÁÂ !B‰GV«›@Å‰“ˆS›Å¡ˆÆ®`!‡" [mark copy-marker mark-marker mark-ring mark-ring-max nil set-mark location] 4 "\
+Set mark at LOCATION (point, by default) and push old mark on mark ring.
+No message."])
+(fset 'vip-goto-col #[(arg) "À	!Â	!ŠÅˆiTV«„ÆÇ!ˆ)«†`Å“ˆÉyˆSuˆ­…ÊË#*‡" [vip-p-val arg vip-getcom com val nil error "" vip-com-point 0 vip-execute-com vip-goto-col] 4 "\
+Go to ARG's column." "P"])
+(fset 'vip-refresh-mode-line #[nil "ÀÁ !‡" [set-buffer-modified-p buffer-modified-p] 2 "\
+Redraw mode line."])
+(fset 'vip-copy-keymap #[(map) "¬ƒÁ ‡Â!‡" [map make-sparse-keymap copy-keymap] 2])
+(fset 'vip-change-mode #[(new-mode) "Á=«İ\nÃ=«£ÄÄ=«…Ç ˆª‰È`	\"ˆÊ ˆ«³n¬°ÌÍ!ˆªª\nÁ=«—Ï =¬ĞÑ!ˆÏ ÓÏ !ªÏ ÓÏ !×Ø!ˆÙ!ˆªöÃ=«ã\nÚ=«–	`Û“ˆÏ ÓÏ !ªª\nÃ=«™Ï =¬ŒĞÜ!ˆÓÏ !ª’Ğİ!ˆªŒ	`Û“ˆÓ!×Ş!ˆÙ!ˆß á#ˆß\"ã#ˆä ˆªÚ=«‰×å!ˆÙ!ˆæ ‡" [new-mode vi-mode vip-current-mode insert-mode t vip-need-to-exit-overwrite vip-need-to-finish-change vip-finish-change vip-copy-region-as-kill vip-insert-point vip-repeat-insert-command vip-ex-style-motion backward-char 1 vip-mode-map current-local-map message "Warning: Local map changed under vi mode" vip-emacs-local-map vip-copy-keymap vip-insert-local-map mode-line-buffer-identification vip-emacs-mode-line-buffer-identification vip-change-mode-line "Vi:   " use-local-map emacs-mode nil "Warning: Local map changed under insert mode!!!" "Warning: From insert mode to insert mode!!!" "Insert" define-key vip-ESC-key vip-exit-insert-mode vip-toggle-key vip-alternate-ESC vip-insert-mode-bindings "Emacs:" vip-refresh-mode-line] 4 "\
+Change mode to NEW-MODE.  NEW-MODE is either emacs-mode, vi-mode,
+or insert-mode."])
+(byte-code "ÀÁ LˆÂÃÄ#ˆÂÅÆ#ˆÂÇÈ#ˆÂÉ\n«ƒËªÌ#ˆÂÍÆ#ˆÂÎÏ#ˆÂĞÑ#ˆÂÒÓ#ˆÂÔÕ#ˆÂÖÌ#ˆ×Ø!¬„ØÙMˆÀ‡" [vip-insert-mode-map make-sparse-keymap define-key "" vip-insert-quit "" self-insert-command "" quoted-insert "" vip-help-in-insert-mode help-command delete-backward-char "	" "" vip-delete-backward-word "" vip-erase-line "" vip-forward-indent "" vip-backward-indent "" fboundp vip-insert-mode-bindings #[nil "­©Á\nÃ\"ˆÄ\nÃ\"ˆÅ\n\"ˆ«ŒÈ\nÉÊ#ˆÈ\nËÊ#ˆ­…È\nÍÃ#‡" [vip-insert-mode-vi-map vip-rebind-emacs-keys vip-insert-local-map self-insert-command vip-rebind-other-keys vip-add-keymap vip-insert-mode-map vip-auto-indent define-key "" vip-autoindent "\n" vip-is-vi ""] 4]] 4)
+(fset 'vip-add-keymap #[(mapsrc mapdst) "ÀÁ\n\"‡" [map-keymap #[(kdl binding) "À	\n#‡" [define-key mapdst kdl binding] 4] mapsrc] 3 "\
+Add contents of mapsrc to mapdst."])
+(fset 'vip-copy-region-as-kill #[(beg end) "ÀÁÂ‡" [nil (copy-region-as-kill beg end) ((error (byte-code "À	‰\"‡" [copy-region-as-kill beg] 3)))] 3 "\
+If BEG and END do not belong to the same buffer, it copies empty region."])
+(fset 'vip-change-mode-line #[(string) "Á˜«ƒ\nª„ÃPC‰‡" [string "Emacs:" vip-emacs-mode-line-buffer-identification " %17b" mode-line-buffer-identification] 2 "\
+Assuming that the mode line format contains the string \"Emacs:\", this
+function replaces the string by \"Vi:   \" etc."])
+(fset 'vip-mode #[nil "¬ÃÁÂÃ!ˆÄ ˆÅÆ!cˆebˆÇÈ!«¥ÉÊ!!ŠqˆdbˆÍcˆÎ ˆ)Ï!ˆĞÑ!ˆÒÓ!ˆ)Ïp!ˆĞÔ!ˆÕ ‡" [vip-inhibit-startup-message t switch-to-buffer "VIP Startup Message" erase-buffer substitute-command-keys "VIP is a VI emulation package for GNU Emacs.VIP provides most \nVI and EX commands.The important differences from VI are:\n    1. VI EXIT functions (e.g. :wq) work on INDIVIDUAL files.\n    2. \"ZZ\" and ^X^C EXITS EMACS.\n    3. \"u\" will undo. Repeat undo by \".\". Another u changes direction.\n    5. ^X will invoke emacs functions; ^Z will toggle vi/emacs modes.\n    6. Emacs Meta functions are invoked by \"_\" instead of ESC.\n    7. Try ^C,^G repeatedly and \\[abort-recursive-edit] if something strange happens. \nYou can get more information on VIP by:\n    1.  Typing `M-x info' and selecting menu item \"vip\".\n    2.  Printing VIP manual which can be found as GNU/man/vip.texinfo\n    3.  Printing VIP Reference Card which can be found as GNU/etc/vipcard.tex\nUltimate compatibilty: Execute vip-become-vi. Emacs is suppressed.\n    \nThis startup message appears whenever you load VIP unless you type `y' now.\nType `n' to quit this window for now.\n" y-or-n-p "Inhibit VIP startup message? " find-file-noselect substitute-in-file-name vip-custom-file-name buf "\n(setq vip-inhibit-startup-message t)\n" save-buffer kill-buffer message "VIP startup message inhibited." sit-for 2 "" vip-change-mode-to-vi] 3 "\
+Turn on VIP emulation of VI." nil])
+(fset 'vip-exit-insert-mode #[nil "ÀÁ!‡" [vip-change-mode vi-mode] 2 "\
+Exit from insert mode to vi mode." nil])
+(fset 'vip-insert-quit #[nil "À ˆÁ ‡" [vip-exit-insert-mode vip-keyboard-quit] 1 "\
+Exit from insert mode to vi mode and do a keyboard quit." nil])
+(fset 'vip-change-mode-to-vi #[nil "ÀÁ!‡" [vip-change-mode vi-mode] 2 "\
+Change mode to vi mode." nil])
+(fset 'vip-change-mode-to-insert #[nil "ÀÁ!‡" [vip-change-mode insert-mode] 2 "\
+Change mode to insert mode." nil])
+(fset 'vip-change-mode-to-emacs #[nil "ÀÁ!‡" [vip-change-mode emacs-mode] 2 "\
+Change mode to emacs mode." nil])
+(fset 'vip-get-editor-command #[(l-map g-map &optional str) "À‰‰«…Å˜«„Æ ªƒÇ!‰É\n\"‰¬¤É\"‰??­ĞÌ	!«‰ÍÀ	Î!#ªÂ	Ï=«ƒªº	ª·Ì\n!«©É\"‰¬‰Í\nÀÎ!#ª Ì	!«‰Í\n	Î!#ª’Í\nÀÎ!#ª‰\nÏ=«ƒª\n+‡" [nil g-bind l-bind char str "" read-char string-to-char last-command-char vip-binding-of l-map g-map keymapp vip-get-editor-command vip-string-tail self-insert-command] 6 "\
+Read characters from keyboard until an editor command is formed, using
+local keymap L-MAP and global keymap G-MAP.  If the command is a
+self-insert-command, the character just read is returned instead.  Optional
+string STR is used as initial input string."])
+(fset 'vip-binding-of #[(char map) "??­„Á\n\"‰¬ƒÄª£Å!«‹9«„Kª–ª“K‰«†Å!«„ª))‡" [map lookup-key char val nil keymapp fun] 4 "\
+Return key-binding of CHAR under keymap MAP.  It is nil if the binding
+is void, or a command, or a keymap"])
+(fset 'vip-escape-to-emacs #[(arg &optional char) "ÀpÁ«ŠÇÈ \"	\n\n¬†ÌY«°ÀÍ\"‰§«›Ğ!‰ÌV«Ò!cˆS‰ªo)ªOÓ\"ˆªGÀ‰+‡" [nil t first buff com char unread-command-char character-to-event allocate-event unread-command-event arg prefix-arg 0 vip-get-editor-command vip-emacs-local-map global-map vip-p-val count char-to-string command-execute] 4 "\
+Escape to emacs mode and execute one emacs command and then return to
+vi mode.  ARG is used as the prefix value for the executed command.  If
+CHAR is given it becomes the first character of the command." "P"])
+(fset 'vip-message-conditions #[(conditions) "@A	¬‡ÃÄ\n\"ˆªˆÃÅ\nÆ	!#ˆÇ *‡" [conditions msg case message "%s" "%s %s" prin1-to-string ding] 5 "\
+Print CONDITIONS as a message."])
+(fset 'vip-ESC #[(arg) "«…	Â=«…ÃÅ\"‡Æ ‡" [vip-no-multiple-ESC vip-current-mode insert-mode vip-escape-to-emacs arg 27 ding] 3 "\
+Emulate ESC key in Emacs mode. Prevent multiple escape keystrokes if
+vip-no-multiple-ESC is true. In that case @ will be bound to ESC" "P"])
+(fset 'vip-alternate-ESC #[(arg) "À	Â\"‡" [vip-escape-to-emacs arg 27] 3 "\
+ESC key without checking for multiple keystrokes" "P"])
+(fset 'vip-ctl-c #[(arg) "À	Â\"‡" [vip-escape-to-emacs arg 3] 3 "\
+Emulate C-c key in Emacs mode." "P"])
+(fset 'vip-ctl-x #[(arg) "À	Â\"‡" [vip-escape-to-emacs arg 24] 3 "\
+Emulate C-x key in Emacs mode." "P"])
+(fset 'vip-ctl-h #[(arg) "À	Â\"‡" [vip-escape-to-emacs arg 8] 3 "\
+Emulate C-h key in Emacs mode." "P"])
+(fset 'vip-prefix-arg-value #[(char value com) "ÁY«šÂX«•§«ƒªÄÅ_ÁZ\\Æ ‰ªb«‡BÉU«‹Ê!ˆÆ ‰ªqÌÍ \"‰‡" [char 48 57 value 0 10 read-char prefix-arg com 85 vip-describe-arg unread-command-char character-to-event allocate-event unread-command-event] 4 "\
+Compute numeric prefix arg value.  Invoked by CHAR.  VALUE is the value
+obtained so far, and COM is the command part obtained so far."])
+(fset 'vip-prefix-arg-com #[(char value com) "À	ƒÁ \nÃU¬¸\nÄU¬³\nÅU¬®\nÆU¬©\nÇU¬¤\nÈU¬Ÿ\nÉU¬š\nÊU¬•\nËU¬\nÌU¬‹\nÍU¬†\nU«ş«™\nÊU¬…\nÍU«„ĞÑ!ˆ\nBÒ‰ª#\nÆU¬…\nÉU«‹\nÓ Ò‰ª\nÊU«ŒÓ Ô\\Ó ‚ \nÍU«­Ó ÖX«†×X¬ŒØX«ŒÙX«†ª„ĞÑ!ˆÓ )‚ \nÓ ‚ ):¬£B\nİU«‹Ş!ˆÓ ‰ªq\nà\ná \"‰\"‡@ËU¬‡@ÌU«§@AB\nËU«‡ã!ˆª…ä!ˆÒ‰*‡¬ƒåª‚Òæš«‡çèB!‡éš«‡çêB!‡ëš«ƒì ‡íš«‡çîB!‡ïš«‡çÇB!‡ğš«‡çÈB!‡ñš«‡çÆB!‡òš«‡çÉB!‡ĞÑ!‡" [t cont char 99 100 121 33 60 62 61 35 114 82 34 vip-buffer-search-char com error "" nil read-char 128 reg 65 122 49 57 vip-use-register value prefix-arg 85 vip-describe-arg unread-command-char character-to-event allocate-event unread-command-event vip-region vip-Region 1 (99 . 99) vip-line 67 (100 . 100) 68 (100 . 121) vip-yank-defun (121 . 121) 89 (60 . 60) (62 . 62) (33 . 33) (61 . 61)] 4 "\
+Vi operator as prefix argument."])
+(fset 'vip-describe-arg #[(arg) "À‰Ã!Å!\n¬	¬…ÆÇ!ª”ÆÈ	\"ª	¬†ÆÉ\n\"ª…ÆÊ\n	#*‡" [nil com val vip-P-val arg vip-getcom message "Value is nil, and commmand is nil." "Value is nil, and command is %c." "Value is %d, and command is nil." "Value is %d, and command is %c."] 4])
+(fset 'vip-digit-argument #[(arg) "À	Â:­‚A#‡" [vip-prefix-arg-value last-command-char nil arg] 4 "\
+Begin numeric argument for the next command." "P"])
+(fset 'vip-command-argument #[(arg) "ÀÁÂ‡" [conditions (byte-code "À	\n¬ƒÃª’\n:«„\n@ªŠ\n§«ƒ\nªƒÄÅ!\n¬ƒÃª’\n:«„\nAªŠ\n§«ƒÃªƒÄÅ!#‡" [vip-prefix-arg-com last-command-char arg nil error "strange arg"] 5) ((quit (byte-code "ÀÂÃÀ\"‡" [nil vip-use-register signal quit] 3)))] 3 "\
+Accept a motion command as an argument." "P"])
+(fset 'vip-p-val #[(arg) "¬‚Á‡:«‰@¬‚Á‡@‡‡" [arg 1] 1 "\
+Get value part of prefix-argument ARG."])
+(fset 'vip-P-val #[(arg) ":«ƒ@‡‡" [arg] 1 "\
+Get value part of prefix-argument ARG."])
+(fset 'vip-getcom #[(arg) "¬‚Á‡:«ƒA‡Á‡" [arg nil] 1 "\
+Get com part of prefix-argument ARG."])
+(fset 'vip-getCom #[(arg) "À	!‰Ãš«ƒÄª‘\nÅš«ƒÆª‰\nÇš«ƒÈª\n)‡" [vip-getcom arg com 99 67 100 68 121 89] 3 "\
+Get com part of prefix-argument ARG and modify it."])
+(fset 'vip-append-to-register #[(reg start end) "À	Â	!®Ã{P\"‡" [set-register reg get-register "" start end] 5 "\
+Append region to text in register REG.
+START and END are buffer positions indicating what to append."])
+(fset 'vip-execute-com #[(m-com val com) "\nƒ¤\nÃU«ˆÄ`\"ˆ‚¤\nÆU«ˆÇ`\"ˆ‚¤\nÈU¬…\nÉU«ÚŠÊ!ˆËÌ `\"ˆ«±ÍX«ÎX«ŠÏÌ `Ğ$ˆª›ÑX«ÒX«‹ÓÔ\\Ì `#ˆª†ĞÕÖ!ˆĞÌ `|ˆ)×Ø!ˆ\nÈU«†Ù ˆ‚¤Ú ˆ‚¤\nÛU«×«¯ÍX«ÎX«‰Ï`Ğ$ˆªšÑX«ÒX«ŠÓÔ\\`#ˆª†ĞÕÖ!ˆĞİ=­ŞŞ`\"ˆİ ƒ¤lƒ¤n„¤áØ!ˆ‚¤\nâU«ŞŠÊ!ˆËÌ `\"ˆ«±ÍX«ÎX«ŠÏÌ `Ğ$ˆª›ÑX«ÒX«‹ÓÔ\\Ì `#ˆª†ĞÕÖ!ˆĞã=­ŞŞÌ `\"ˆ$å=«ƒã)æ ˆ‚¤\nçU«À«¯ÍX«ÎX«‰Ï`Ğ$ˆªšÑX«ÒX«ŠÓÔ\\`#ˆª†ĞÕÖ!ˆĞĞè`\"ˆbˆ‚¤\néU«ÏŠÊ!ˆËÌ `\"ˆ«±ÍX«ÎX«ŠÏÌ `Ğ$ˆª›ÑX«ÒX«‹ÓÔ\\Ì `#ˆª†ĞÕÖ!ˆĞĞèÌ `\"ˆ)bˆ‚¤\nêU¬…\nëU«¥ŠÊ!ˆËÌ `\"ˆìÌ `\nêU«ˆíî!‰/ª‚/ğ$ˆ)‚¤\nñU«ŠÊ!ˆËÌ `\"ˆÌ `V«ƒò ˆóÌ `Ğ#ˆ)ªö\nôU«šŠÊ!ˆËÌ `\"ˆõÌ `6[#ˆ)bˆª×\n÷U«™ŠÊ!ˆËÌ `\"ˆõÌ `6#ˆ)bˆª¹\nøY«ˆù\nøZ!ˆª¬\n:U«¦`{;ğ<=«şÿ@ ;#ˆ;?B?A ;<Ø#ˆ\n:U?­$B\nÃU¬Š\nÈU¬…\nêU«„\n[ª\n	F‰C)‡" [vip-use-register reg com 99 vip-change vip-com-point -99 vip-change-subr 67 -67 set-mark vip-enlarge-region mark 97 122 copy-to-register nil 65 90 vip-append-to-register 32 error "" open-line 1 vip-change-mode-to-insert yank 100 last-command d-command kill-region this-command vip-ex-style-motion backward-char 68 D-command m-com vip-line back-to-indentation 121 copy-region-as-kill 89 33 -33 shell-command-on-region vip-read-string "!" vip-last-shell-com t 61 exchange-point-and-mark indent-region 60 indent-rigidly vip-shift-width 62 128 vip-special-prefix-com vip-buffer-search-char vip-s-string vip-s-forward vip-want-history put vip-search-history default vip-search val vip-d-com] 5 "\
+(M-COM VAL COM)  Execute command COM. The list (M-COM VAL COM) is set
+to vip-d-com for later use by vip-repeat"])
+(fset 'vip-repeat #[(arg) "Á=«ƒÂ ‡@Ä!AA@Æ8	\n	¬…A@	\n¬„ËÌ!ˆ\n	B!,‡" [last-command vip-undo vip-undo-more vip-d-com vip-P-val arg 3 reg com val m-com error "No previous command to repeat." vip-use-register] 5 "\
+(ARG)  Re-excute last destructive command.  vip-d-com has the form
+(COM ARG CH REG), where COM is the command to be re-executed, ARG is the
+argument for COM, CH is a flag for repeat, and REG is optional and if exists
+is the name of the register for COM." "P"])
+(fset 'vip-special-prefix-com #[(char) "ÁU«‰Â`^`]\"‡ÄU«‰Å`^`]\"‡ÆU«‡Ç!ˆÈ ‡ÉU«‡Ç!ˆÊ ‡ËU­„Ì`\"‡" [char 99 downcase-region vip-com-point 67 upcase-region 103 set-mark vip-global-execute 113 vip-quote-region 115 spell-region] 4 "\
+This command is invoked interactively by the key sequence #<char>"])
+(fset 'vip-undo #[nil "ÀÁ!ˆÂ Ä ˆÅÆ!ˆl«‡n¬„ÇÈ!ˆ¬„ÉÊ!ˆ)Ë‰‡" [message "undo!" buffer-modified-p modified undo-start undo-more 2 backward-char 1 set-buffer-modified-p t vip-undo this-command] 2 "\
+Undo previous change." nil])
+(fset 'vip-undo-more #[nil "ÀÁ!ˆÂÃ!ˆl«‡n¬„ÄÃ!ˆÅ‰‡" [message "undo more!" undo-more 1 backward-char vip-undo this-command] 2 "\
+Continue undoing previous changes."])
+(byte-code "ÀÁMˆÂÃM‡" [vip-string-tail #[(str) "?®ƒÁ˜?­„ÂÃO‡" [str "" 1 nil] 3] vip-yank-defun #[nil "À ˆÁ`Â \"‡" [mark-defun copy-region-as-kill mark] 3]] 2)
+(fset 'vip-enlarge-region #[(beg end) "	W«‰bˆÂ	!ˆª‡	bˆÂ!ˆÃyˆÄ ˆm«ƒn¬„ÅÆ!ˆÃyˆ	V­‚Ä ‡" [beg end set-mark 0 exchange-point-and-mark next-line 1] 2 "\
+Enlarge region between BEG and END."])
+(fset 'vip-global-execute #[nil "`À V«ƒÁ ˆÂyˆÃ ˆ`À W­‹ÄyˆÂyˆÃ ˆªo‡" [mark exchange-point-and-mark 0 call-last-kbd-macro 1] 2 "\
+Call last keyboad macro for each line in the region."])
+(fset 'vip-quote-region #[nil "ÀÁ\n\"‰Ä˜«ƒ\nª)Å`Æ \"ˆ`Æ V«ƒÇ ˆ\ncˆÈyˆÉyˆ`Æ W­n­‹\ncˆÈyˆÉyˆªl‡" [vip-read-string "quote-string:" vip-quote-string str "" vip-enlarge-region mark exchange-point-and-mark 0 1] 4 "\
+Quote region by inserting the user supplied string at the beginning of
+each line in the region."])
+(fset 'vip-end-with-a-newline-p #[(string) "Á˜®‡‰GSHÂU‡" [string "" 10] 2 "\
+Check if the string ends with a newline."])
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [vip-read-string-complete #[nil "ÀÁ\nÃ$‡" [completer-complete-goto "^ 	\n\"" completer-words read-file-name-internal default-directory] 5 nil nil] vip-read-string-help #[nil "À ‡" [completer-help] 1 nil nil] vip-read-string #[(prompt &optional init history-var) "À	!Ã	ÄÅ#ˆÃ	ÆÇ#ˆÃ	ÈÉ#ˆÃ	ÊË#ˆÃ	Í#ˆ«ŒÃ	ÏĞ#ˆÃ	ÑÒ#ˆÓÕÖ×ˆ\n*‡" [copy-keymap minibuffer-local-map save-minibuffer-local-map define-key "" delete-backward-char "" delete-backward-word "" abort-recursive-edit "" quoted-insert vip-ESC-key exit-minibuffer vip-filename-complete "	" vip-read-string-complete "?" vip-read-string-help nil str conditions (byte-code "«Á\n«ƒ\nªÃ#ª„Æ\"Á‡" [vip-want-history read-with-history-in history-var vip-history prompt init read-string str] 4) ((quit (byte-code "ÂÃÄ\"‡" [save-minibuffer-local-map minibuffer-local-map signal quit nil] 3)))] 4]] 2)
+(fset 'vip-repeat-insert-command #[nil "@A@	­•	ÃV­\n	SÄEÅÆ!ˆ\n	ÄE‰*‡" [vip-d-com val i-com 1 114 vip-repeat nil] 3 "\
+This function is called when mode changes from insertion mode to
+vi command mode.  It will repeat the insertion command if original insertion
+command was invoked with argument > 1."])
+(fset 'vip-insert #[(arg) "À	!Â	!ÅÆE«–‰ÉV­‹Ê ˆS‰ªq)ª‚Ë *‡" [vip-p-val arg vip-getcom com val vip-insert 114 vip-d-com count 0 yank vip-change-mode-to-insert] 4 "\
+" "P"])
+(fset 'vip-append #[(arg) "À	!Â	!ÅÆEl¬ƒÈuˆÆš«–‰	ÊV­‹Ë ˆ	S‰	ªq)ª‚Ì *‡" [vip-p-val arg vip-getcom com val vip-append 114 vip-d-com nil count 0 yank vip-change-mode-to-insert] 4 "\
+Append after point." "P"])
+(fset 'vip-Append #[(arg) "À	!Â	!ÅÆEÈˆÆš«–‰	ÊV­‹Ë ˆ	S‰	ªq)ª‚Ì *‡" [vip-p-val arg vip-getcom com val vip-Append 114 vip-d-com nil count 0 yank vip-change-mode-to-insert] 4 "\
+Append at end of line." "P"])
+(fset 'vip-Insert #[(arg) "À	!Â	!ÅÆEÈ ˆÆš«–‰	ÊV­‹Ë ˆ	S‰	ªq)ª‚Ì *‡" [vip-p-val arg vip-getcom com val vip-Insert 114 vip-d-com back-to-indentation count 0 yank vip-change-mode-to-insert] 4 "\
+Insert before first non-white." "P"])
+(fset 'vip-open-line #[(arg) "À	!Â	!ÅÆEÈ 	Æš«¨‰\nËV­ÌˆÍÎ!ˆ«‡Ğ	jˆÒ ˆ\nS‰\nª_)ª”ÌˆÍÎ!ˆ«‡Ğ	jˆÓ +‡" [vip-p-val arg vip-getcom com val vip-open-line 114 vip-d-com current-indentation col count 0 nil newline 1 vip-auto-indent t vip-cted yank vip-change-mode-to-insert] 4 "\
+Open line below." "P"])
+(fset 'vip-Open-line #[(arg) "À	!Â	!ÅÆEÈ 	Æš«¨‰\nËV­ËyˆÌÍ!ˆ«‡Ï	jˆÑ ˆ\nS‰\nª_)ª”ËyˆÌÍ!ˆ«‡Ï	jˆÒ +‡" [vip-p-val arg vip-getcom com val vip-Open-line 114 vip-d-com current-indentation col count 0 open-line 1 vip-auto-indent t vip-cted yank vip-change-mode-to-insert] 4 "\
+Open line above." "P"])
+(fset 'vip-open-line-at-point #[(arg) "À	!Â	!ÅÆEÆš«š‰ÉV­ÊË!ˆÌ ˆS‰ªm)ª†ÊË!ˆÍ *‡" [vip-p-val arg vip-getcom com val vip-open-line-at-point 114 vip-d-com count 0 open-line 1 yank vip-change-mode-to-insert] 4 "\
+Open line at point." "P"])
+(fset 'vip-substitute #[(arg) "À	!Â	!Å`!ˆuˆÆš«ˆÇÈ `\"ˆª†ÉÈ `\"ˆÊÆE‰*‡" [vip-p-val arg vip-getcom com val set-mark 114 vip-change-subr mark vip-change vip-substitute vip-d-com] 3 "\
+Substitute characters." "P"])
+(fset 'vip-substitute-line #[(arg) "À	ÂB!‡" [vip-line arg 67] 3 "\
+Substitute lines." "p"])
+(fset 'vip-overwrite-execute #[(&optional arg exclusive limit) "À‰Á«`V«†Æ!ˆª‚À?­Ò\n­ÏÈ	\n\"‰§«¼«‘l«ƒÌuˆÍ!cˆÎÌ!ˆª“Í!cˆ¬‹l¬†ÎÌ!ˆª‚Á«B`Ï U«<ÀĞÑ!ˆÒ ˆª1Ó\"ˆª)+‡" [nil t cont overrun com limit set-mark vip-need-to-exit-overwrite vip-get-editor-command vip-insert-local-map global-map exclusive 1 char-to-string delete-char mark vip-change-mode-line "Insert" vip-refresh-mode-line command-execute arg] 4 nil nil])
+(fset 'vip-change-mode-to-overwrite #[(&optional arg exclusive limit) "ÀÂ ˆÃÄ!ˆÅ ˆÈÉ\n#ˆ‰)‡" [nil vip-need-to-exit-overwrite vip-change-mode-to-insert vip-change-mode-line "Replac" vip-refresh-mode-line echo-keystrokes echo 0 vip-overwrite-execute arg exclusive limit] 4 "\
+Change mode to overwrite mode until optional limit is reached.
+Also implement actual overwrite mode, eventually overwriting multiple
+lines if exclusive is set to true." nil])
+(fset 'vip-overwrite #[(arg) "À	!Â	!ÅÆE«–‰ÉV­‹Ê ˆS‰ªq)ª†ÅÌ	!*‡" [vip-p-val arg vip-getcom com val vip-overwrite 114 vip-d-com count 0 yank last-command vip-change-mode-to-overwrite] 4 "\
+" "P"])
+(fset 'vip-line #[(arg) "@A`Ä“ˆÅ\nS!ˆÆÇ\n	#*‡" [arg com val vip-com-point nil next-line vip-execute-com vip-line] 4])
+(fset 'vip-yank-line #[(arg) "À	!Ã\nÄB!)‡" [vip-p-val arg val vip-line 89] 3 "\
+Yank ARG lines (in vi's sense)" "P"])
+(byte-code "ÀÁMˆÂÃM‡" [vip-region #[(arg) "À	!Â	!`Æ“ˆÇ ˆÈÉ#*‡" [vip-P-val arg vip-getcom com val vip-com-point nil exchange-point-and-mark vip-execute-com vip-region] 4 nil "P"] vip-Region #[(arg) "À	!Â	!`Æ“ˆÇ ˆÈÉ#*‡" [vip-P-val arg vip-getCom com val vip-com-point nil exchange-point-and-mark vip-execute-com vip-Region] 4 nil "P"]] 2)
+(fset 'vip-replace-char #[(arg) "l«‡n«„ÀÁ!ˆÂ!Ä!Ål«„ÉÊ!ˆËÌEÎÌš«„ª‚Ğ \"+‡" [error "No character to replace" vip-p-val arg vip-getcom nil at-end com val backward-char 1 vip-replace-char 114 vip-d-com vip-replace-char-subr vip-d-char read-char] 3 "\
+Replace the following ARG chars by the character read." "P"])
+(fset 'vip-replace-char-subr #[(char arg) "À	Â\"ˆ	ÅV«ƒ	ª‚	[‰ÅV«•Ç=«…ÈcˆªƒcˆS‰ªg)É	!‡" [delete-char arg t char vip-d-char 0 count 13 "\n" backward-char] 4])
+(fset 'vip-replace-string #[nil "ÀÂ«ƒÄªÅ!‰Æ˜«‘?ÇÈÉ«ƒÊªË\"!ª—«‹Ì	ÂÈÍ	\"!\"ª‰Î	ÂÈÏ	\"!\")‡" [nil str vip-read-string vip-re-replace "Replace regexp: " "Replace string: " "" message format "Replace mode changed to %s." "regexp replace" "string replace" replace-regexp "Replace regexp \"%s\" with: " replace-string "Replace \"%s\" with: "] 7 "\
+Replace string.  If you supply null string as the string to be replaced,
+the query replace mode will toggle between string replace and regexp replace." nil])
+(fset 'vip-forward-char #[(arg) "À	!Â	!«…`Æ“ˆ«¤l«‰n«†ÈÉ!ˆªƒuˆ«†ÊË#ˆl­”ÌÍ!ˆÈÉ!ª‹uˆ­…ÊË#*‡" [vip-p-val arg vip-getcom com val vip-com-point nil vip-ex-style-motion error "" vip-execute-com vip-forward-char backward-char 1] 4 "\
+Move point right ARG characters (left if ARG negative).On reaching end
+of line, stop and signal error." "P"])
+(fset 'vip-backward-char #[(arg) "À	!Â	!«…`Æ“ˆ«—n«†ÈÉ!ˆª„Ê!ˆ­“ËÌ#ªŒÊ!ˆ­…ËÌ#*‡" [vip-p-val arg vip-getcom com val vip-com-point nil vip-ex-style-motion error "" backward-char vip-execute-com vip-backward-char] 4 "\
+Move point left ARG characters (right if ARG negative).  On reaching
+beginning of line, stop and signal error." "P"])
+(byte-code "ÀÁMˆÂÃM‡" [vip-skip-separators #[(forward) "«ÁÂwˆÃÄ!­™ÂuˆÁÂw‡ÁÂxˆÅ ˆÃÄ!«„ÁÂx‡Âu‡" [forward " 	" nil looking-at "\n" backward-char] 2] vip-forward-word-kernel #[(val) "ÁV­¹ÂÃÅQ!«ŠÆwˆÇÈ!ˆª¡ÂÃ	ÅQ!«†ÇÈ!ˆª’ÂÃ\nÅQ!«‰\nÆwˆÇÈ!ˆS‰ªC‡" [val 0 looking-at "[" vip-word-chars-alpha "]" nil vip-skip-separators t vip-word-chars-separator vip-word-chars-nonalpha] 5]] 2)
+(fset 'vip-forward-word #[(arg) "À	!Â	!«…`Æ“ˆÇ!ˆ­³ÈU¬…ÉU«†ÊÆxˆªËU¬…ÌU«†ÍÆxˆªÎU¬…ÏU«„ÍÆxˆĞÑ#*‡" [vip-p-val arg vip-getcom com val vip-com-point nil vip-forward-word-kernel 99 -99 " 	\n" 121 -121 "\n" 100 -100 vip-execute-com vip-forward-word] 4 "\
+Forward word." "P"])
+(fset 'vip-forward-Word #[(arg) "À	!Â	!«…`Æ“ˆ‰ÈV«ÉÆwˆÊË!ˆS‰ªl)­³ÌU¬…ÍU«†ÎÆxˆªÏU¬…ĞU«†ÑÆxˆªÒU¬…ÓU«„ÑÆxˆÔÕ#*‡" [vip-p-val arg vip-getcom com val vip-com-point nil count 0 "^ 	\n" vip-skip-separators t 99 -99 " 	\n" 121 -121 "\n" 100 -100 vip-execute-com vip-forward-Word] 5 "\
+Forward word delimited by white character." "P"])
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [vip-end-of-word-kernel #[(val) "ÀÁ\nÃQ!ŠÄuˆÀÁ\nÃQ!)Ç «ƒÄuˆÀÈ!«…ÉÄwª Ê ?­›ËÌ!ˆ¬‰«ŠÌ=«„ËÌ!ˆÎÄ!ˆÏ *‡" [looking-at "[" vip-word-chars-separator "]" nil next-sep was-sep vip-end-of-word-p "[ 	]*\n" " 	\n" vip-one-char-word-p vip-forward-word-kernel 1 val vip-skip-separators backward-char] 5] vip-end-of-word-p #[nil "m«‚À‡ŠÁÂÄQ!«‹ÅuˆÁÆÄQ!ª”ÁÂÄQ!­‹ÅuˆÁÂÄR!)‡" [t looking-at "[" vip-word-chars-alpha "]" nil "[^" vip-word-chars-nonalpha vip-word-chars-separator] 5] vip-one-char-word-p #[nil "ÀŠÂÃÅQ!« o«„ÆªƒÇ ˆo¬ˆÂÈÅQ!­¶	uˆÂÈÅQ!ª«ÂÃ	ÅQ!­¢o«„ÆªƒÇ ˆo¬ŠÂÃ\nÅR!­‹	uˆÂÃ\nÅR!*‡" [2 step looking-at "[" vip-word-chars-alpha "]" 1 backward-char "[^" vip-word-chars-nonalpha vip-word-chars-separator] 5]] 2)
+(fset 'vip-end-of-word #[(arg) "À	!Â	!«…`Æ“ˆ‰ÈV«ŒÉÊ!ˆS‰ªp)­ˆÆuˆËÌ#*‡" [vip-p-val arg vip-getcom com val vip-com-point nil count 0 vip-end-of-word-kernel 1 vip-execute-com vip-end-of-word] 5 "\
+Move point to end of current word." "P"])
+(fset 'vip-end-of-Word #[(arg) "À	!Â	!«…`Æ“ˆ‰ÈV«¢ÉÊ!ˆËÌÎQÆÏÊ$¬ƒdbˆĞÆxˆÑ ˆS‰ªZ)­ˆÆuˆÒÓ#*‡" [vip-p-val arg vip-getcom com val vip-com-point nil count 0 vip-end-of-word-kernel 1 re-search-forward "[" vip-word-chars-separator "]" t " 	\n" backward-char vip-execute-com vip-end-of-Word] 6 "\
+Forward to end of word delimited by white character." "P"])
+(fset 'vip-backward-word-kernel #[(val) "ÁV­ÛÂ ˆÃÄÆQ!«†ÇxˆªÄÃÄÆQ!«­ÇuˆÉÇ!ˆÂ ˆÃÄÆQ!«†Çxˆª£ÃÄ\nÆQ!«‡\nÇxˆª“ÇuˆªÃÄ\nÆQ!«…\nÇxˆS‰ª!‡" [val 0 backward-char looking-at "[" vip-word-chars-alpha "]" nil vip-word-chars-separator vip-skip-separators vip-word-chars-nonalpha] 5])
+(fset 'vip-backward-word #[(arg) "À	!Â	!«¡ÅŠÇ ˆÈÉ!)‰«ƒÇ ˆ\n`Å“ˆ«ƒÅuˆ)Ë!ˆ­…ÌÍ#*‡" [vip-p-val arg vip-getcom com val nil i backward-char looking-at "\n" vip-com-point vip-backward-word-kernel vip-execute-com vip-backward-word] 4 "\
+Backward word." "P"])
+(fset 'vip-backward-Word #[(arg) "À	!Â	!«¡ÅŠÇ ˆÈÉ!)‰«ƒÇ ˆ\n`Å“ˆ«ƒÅuˆ)‰ÌV«ÍÅ!ˆÎÅxˆS‰ªl)­…ÏĞ#*‡" [vip-p-val arg vip-getcom com val nil i backward-char looking-at "\n" vip-com-point count 0 vip-skip-separators "^ 	\n" vip-execute-com vip-backward-Word] 5 "\
+Backward word delimited by white character." "P"])
+(fset 'vip-beginning-of-line #[(arg) "À	!Â	!«…`Æ“ˆÇ!ˆ­…ÈÉ#*‡" [vip-p-val arg vip-getcom com val vip-com-point nil beginning-of-line vip-execute-com vip-beginning-of-line] 4 "\
+Go to beginning of line." "P"])
+(fset 'vip-bol-and-skip-white #[(arg) "À	!Â	!«…`Æ“ˆÇS!ˆ­…ÈÉ#*‡" [vip-p-val arg vip-getcom com val vip-com-point nil forward-to-indentation vip-execute-com vip-bol-and-skip-white] 4 "\
+Beginning of line at first non-white character." "P"])
+(fset 'vip-goto-eol #[(arg) "À	!Â	!«…`Æ“ˆˆ«†ÇÈ#ˆ	­Šl­‡n?­ƒÊË!*‡" [vip-p-val arg vip-getcom com val vip-com-point nil vip-execute-com vip-goto-eol vip-ex-style-motion backward-char 1] 4 "\
+Go to end of line." "P"])
+(fset 'vip-next-line #[(arg) "ŠÀˆm«„ÁÂ!ˆ)Ã!Å!«†`À“ˆÉ!ˆ\n«Šl«‡n¬„ËÌ!ˆÉ­‡ÎÏ#*‡" [nil error "Last line in buffer" vip-p-val arg vip-getCom com val vip-com-point next-line vip-ex-style-motion backward-char 1 this-command vip-execute-com vip-next-line] 4 "\
+Go to next line." "P"])
+(fset 'vip-next-line-at-bol #[(arg) "ŠÀˆm«„ÁÂ!ˆ)Ã!Å!«†`À“ˆÉ!ˆÊ ˆ­‡ËÌ#*‡" [nil error "Last line in buffer" vip-p-val arg vip-getCom com val vip-com-point next-line back-to-indentation vip-execute-com vip-next-line-at-bol] 4 "\
+Next line at beginning of line." "P"])
+(fset 'vip-previous-line #[(arg) "ŠÀyˆo«„ÁÂ!ˆ)Ã!Å!«†`É“ˆÊ[!ˆ«Šl«‡n¬„ÌÍ!ˆÎ­‡ĞÑ#*‡" [0 error "First line in buffer" vip-p-val arg vip-getCom com val vip-com-point nil next-line vip-ex-style-motion backward-char 1 previous-line this-command vip-execute-com vip-previous-line] 4 "\
+Go to previous line." "P"])
+(fset 'vip-previous-line-at-bol #[(arg) "ŠÀyˆo«„ÁÂ!ˆ)Ã!Å!«†`É“ˆÊ[!ˆË ˆ­‡ÌÍ#*‡" [0 error "First line in buffer" vip-p-val arg vip-getCom com val vip-com-point nil next-line back-to-indentation vip-execute-com vip-previous-line] 4 "\
+Previous line at beginning of line." "P"])
+(fset 'vip-change-to-eol #[(arg) "À	ÂB!‡" [vip-goto-eol arg 99] 3 "\
+Change to end of line." "P"])
+(fset 'vip-kill-line #[(arg) "À	ÂB!‡" [vip-goto-eol arg 100] 3 "\
+Delete line." "P"])
+(fset 'vip-erase-line #[(arg) "À	ÂB!‡" [vip-beginning-of-line arg 100] 3 "\
+Erase line." "P"])
+(fset 'vip-goto-line #[(arg) "À	!Â	!`Æ“ˆÇ`!ˆ¬…dbˆª‡ebˆSyˆÈ ˆ­…ÉÊ#*‡" [vip-P-val arg vip-getCom com val vip-com-point nil set-mark back-to-indentation vip-execute-com vip-goto-line] 4 "\
+Go to ARG's line.  Without ARG go to end of buffer." "P"])
+(fset 'vip-find-char #[(arg char forward offset) "«ƒ	ª‚	[ÂŠŒ	ÄV«•l«…ÅÆ!ª`ÇÈ!ˆÄyˆ`}ˆªn«…ÅÆ!ª`Äyˆ`}ˆ	ÄV«†eTbˆªƒdbˆÂ	ÊË!ÂÄ	$ˆ)`	ÄV«…dU¬Š	ÄW«‰eU«„ÅÆ!ˆ*	ÄV«Š«ƒÎª‹Ïªˆ«ƒÈªÄ\\b*‡" [forward arg nil point 0 error "" next-line 1 case-fold-search search-forward char-to-string char offset -2 -1] 5 "\
+Find ARG's occurence of CHAR on the current line.  If FORWARD then
+search is forward, otherwise backward.  OFFSET is used to adjust point
+after search."])
+(fset 'vip-find-char-forward #[(arg) "À	!Â	!‰ÅV«ŒÆ È	Êªƒ[«†`Ê“ˆÍÀ	!ÅV«„ª‚ÈÊ$ˆ[­ŒÊuˆÏĞ#*‡" [vip-p-val arg vip-getcom com val 0 read-char vip-f-char t vip-f-forward nil vip-f-offset vip-com-point vip-find-char vip-F-char vip-execute-com vip-find-char-forward] 6 "\
+Find char on the line.  If called interactively read the char to find
+from the terminal, and if called from vip-repeat, the char last used is
+used.  This behaviour is controlled by the sign of prefix numeric value." "P"])
+(fset 'vip-goto-char-forward #[(arg) "À	!Â	!‰ÅV«ŒÆ È	È\nªƒ[«†`Ì“ˆÍÀ	!ÅV«„ª‚È‰$ˆ[­ŒÌuˆÏĞ#*‡" [vip-p-val arg vip-getcom com val 0 read-char vip-f-char t vip-f-forward vip-f-offset vip-com-point nil vip-find-char vip-F-char vip-execute-com vip-goto-char-forward] 6 "\
+Go up to char ARG forward on line." "P"])
+(fset 'vip-find-char-backward #[(arg) "À	!Â	!‰ÅV«ŒÆ È	È\nªƒ[«†`È“ˆÌÀ	!ÅV«„ª‚È‰$ˆ[­‰ÎÏ#*‡" [vip-p-val arg vip-getcom com val 0 read-char vip-f-char nil vip-f-forward vip-f-offset vip-com-point vip-find-char vip-F-char vip-execute-com vip-find-char-backward] 6 "\
+Find char ARG on line backward." "P"])
+(fset 'vip-goto-char-backward #[(arg) "À	!Â	!‰ÅV«ŒÆ È	Êªƒ[«†`È“ˆÍÀ	!ÅV«„ª‚ÈÊ$ˆ[­‰ÏĞ#*‡" [vip-p-val arg vip-getcom com val 0 read-char vip-f-char nil vip-f-forward t vip-f-offset vip-com-point vip-find-char vip-F-char vip-execute-com vip-goto-char-backward] 6 "\
+Go up to char ARG backward on line." "P"])
+(fset 'vip-repeat-find #[(arg) "À	!Â	!«…`Æ“ˆÇ	\n$ˆ­Œ	«ƒÆuˆËÌ#*‡" [vip-p-val arg vip-getcom com val vip-com-point nil vip-find-char vip-f-char vip-f-forward vip-f-offset vip-execute-com vip-repeat-find] 5 "\
+Repeat previous find command." "P"])
+(fset 'vip-repeat-find-opposite #[(arg) "À	!Â	!«…`Æ“ˆÇ	?\n$ˆ­Œ	«ƒÆuˆËÌ#*‡" [vip-p-val arg vip-getcom com val vip-com-point nil vip-find-char vip-f-char vip-f-forward vip-f-offset vip-execute-com vip-repeat-find-opposite] 5 "\
+Repeat previous find command in the opposite direction." "P"])
+(fset 'vip-other-window #[(arg) "À	!ˆ\nÃ=?®‰Äp!Å˜®‚Æ ‡" [other-window arg vip-current-mode emacs-mode buffer-name " *Minibuf-1*" vip-change-mode-to-vi] 2 "\
+Switch to other window." "p"])
+(fset 'vip-window-top #[(arg) "À	!Â	!«…`Æ“ˆÇS!ˆ¬ƒÈ ˆ­…ÉÊ#*‡" [vip-p-val arg vip-getCom com val vip-com-point nil move-to-window-line back-to-indentation vip-execute-com vip-window-top] 4 "\
+Go to home window line." "P"])
+(fset 'vip-window-middle #[(arg) "À	!Â	!«…`Æ“ˆÇÈ SÉ¥S\\!ˆ¬ƒÊ ˆ­…ËÌ#*‡" [vip-p-val arg vip-getCom com val vip-com-point nil move-to-window-line window-height 2 back-to-indentation vip-execute-com vip-window-middle] 4 "\
+Go to middle window line." "P"])
+(fset 'vip-window-bottom #[(arg) "À	!Â	!«…`Æ“ˆÇ[!ˆ¬ƒÈ ˆ­…ÉÊ#*‡" [vip-p-val arg vip-getCom com val vip-com-point nil move-to-window-line back-to-indentation vip-execute-com vip-window-bottom] 4 "\
+Go to last window line." "P"])
+(fset 'vip-line-to-top #[(arg) "À	S!‡" [recenter arg] 2 "\
+Put current line on the home line." "p"])
+(fset 'vip-line-to-middle #[(arg) "À	SÂ SÃ¥\\!‡" [recenter arg window-height 2] 4 "\
+Put current line on the middle line." "p"])
+(fset 'vip-line-to-bottom #[(arg) "ÀÁ \nTZ!‡" [recenter window-height arg] 3 "\
+Put current line on the last line." "p"])
+(fset 'vip-paren-match #[(arg) "À	!	§«¦	ÃV¬…	ÄW«…ÅÆ!ªÿdÇV«‡dÈ¥	_ª…d	_È¥bˆÉ ªèÊl«†n¬ƒÌuˆŠÊˆ`)ÍÎÏ#«…Ğ ˆª„ÅÑ!ˆ)ÒÓ!«›\n«†`Ê“ˆÕÄ!ˆ\n«‡Ö×Ê\n#ª¦Ğ ª¢ÒØ!«šÊuˆ\n«†`Ê“ˆÙÄ!ˆ\n­ŠÖ×Ê\n#ªƒÅÚ!)‡" [vip-getcom arg com 99 1 error "Prefix must be between 1 and 99." 80000 100 back-to-indentation nil lim -1 re-search-forward "[][(){}]" t backward-char "No matchable character on line" looking-at "[([{]" vip-com-point forward-sexp vip-execute-com vip-paren-match "[])}]" backward-sexp ""] 4 "\
+Go to the matching parenthesis." "P"])
+(fset 'vip-forward-sentence #[(arg) "À	!Â	!«…`Æ“ˆÇ!ˆ­…ÈÉÆ#*‡" [vip-p-val arg vip-getcom com val vip-com-point nil forward-sentence vip-execute-com vip-forward-sentence] 4 "\
+Forward sentence." "P"])
+(fset 'vip-backward-sentence #[(arg) "À	!Â	!«…`Æ“ˆÇ!ˆ­…ÈÉÆ#*‡" [vip-p-val arg vip-getcom com val vip-com-point nil backward-sentence vip-execute-com vip-backward-sentence] 4 "\
+Backward sentence." "P"])
+(fset 'vip-forward-paragraph #[(arg) "À	!Â	!«…`Æ“ˆÇ!ˆ­…ÈÉÆ#*‡" [vip-p-val arg vip-getCom com val vip-com-point nil forward-paragraph vip-execute-com vip-forward-paragraph] 4 "\
+Forward paragraph." "P"])
+(fset 'vip-backward-paragraph #[(arg) "À	!Â	!«…`Æ“ˆÇ!ˆ­…ÈÉÆ#*‡" [vip-p-val arg vip-getCom com val vip-com-point nil backward-paragraph vip-execute-com vip-backward-paragraph] 4 "\
+Backward paragraph." "P"])
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [vip-prev-heading #[(arg) "À	!Â	!«…`Æ“ˆÇÆÉ$ˆÊ”bˆ­…ËÌÆ#*‡" [vip-p-val arg vip-getCom com val vip-com-point nil re-search-backward vip-heading-start t 0 vip-execute-com vip-prev-heading] 5 nil "P"] vip-heading-end #[(arg) "À	!Â	!«…`Æ“ˆÇÆÉ$ˆÊ”bˆ­…ËÈÆ#*‡" [vip-p-val arg vip-getCom com val vip-com-point nil re-search-forward vip-heading-end t 0 vip-execute-com] 5 nil "P"] vip-next-heading #[(arg) "À	!Â	!«…`Æ“ˆÆˆÇÆÉ$ˆÊ”bˆ­…ËÌÆ#*‡" [vip-p-val arg vip-getCom com val vip-com-point nil re-search-forward vip-heading-start t 0 vip-execute-com vip-next-heading] 5 nil "P"]] 2)
+(fset 'vip-scroll #[(arg) "ÁV«ÁV­–Â ˆS‰ªsÁV­ˆÃ ˆTªs‡" [arg 0 scroll-up scroll-down] 3 "\
+Scroll to next screen." "p"])
+(fset 'vip-scroll-back #[(arg) "À	[!‡" [vip-scroll arg] 2 "\
+Scroll to previous screen." "p"])
+(fset 'vip-scroll-down #[(arg) "¬‡ÁÂ Ã¥!‡Á!‡" [arg scroll-down window-height 2] 3 "\
+Scroll up half screen." "P"])
+(fset 'vip-scroll-down-one #[(arg) "À	!‡" [scroll-down arg] 2 "\
+Scroll up one line." "p"])
+(fset 'vip-scroll-up #[(arg) "¬‡ÁÂ Ã¥!‡Á!‡" [arg scroll-up window-height 2] 3 "\
+Scroll down half screen." "P"])
+(fset 'vip-scroll-up-one #[(arg) "À	!‡" [scroll-up arg] 2 "\
+Scroll down one line." "p"])
+(byte-code "ÀÀ‡" [1 scroll-step] 1)
+(fset 'vip-buffer-in-two-windows #[nil "À ˆÁÂ!‡" [delete-other-windows split-window-vertically nil] 2 "\
+Show current buffer in two windows." nil])
+(fset 'vip-if-string #[(prompt) "À	ÂÃ#‰Â˜?­ƒ‰)‡" [vip-read-string prompt "" vip-search-history s vip-s-string] 5])
+(fset 'vip-search-forward #[(arg) "À	!Â	!ÅÇÈ!ˆÉ\nÅ#ˆ­ŒÌ Í“ˆÎÏ#*‡" [vip-P-val arg vip-getcom com val t vip-s-forward vip-if-string "/" vip-search vip-s-string vip-com-point mark nil vip-execute-com vip-search-next] 4 "\
+Search a string forward.  ARG is used to find the ARG's occurence
+of the string.  Null string will repeat previous search" "P"])
+(fset 'vip-search-backward #[(arg) "À	!Â	!ÅÇÈ!ˆÉ\nÅ#ˆ­ŒÌ Å“ˆÍÎ#*‡" [vip-P-val arg vip-getcom com val nil vip-s-forward vip-if-string "?" vip-search vip-s-string vip-com-point mark vip-execute-com vip-search-next] 4 "\
+Search a string backward.  ARG is used to find the ARG's occurence
+of the string.  Null string will repeat previous search" "P"])
+(fset 'vip-search #[(string forward arg &optional no-offset init-point) "À	!Â	!Ã	!??®`	\n«†ÎÏĞª„ÎÑÒ.‡" [vip-p-val arg vip-getcom vip-P-val no-offset vip-case-fold-search init-point start-point case-fold-search offset null-arg com val forward conditions (byte-code "«†m¬ƒÁuˆ\n«ÃÁ‰$ˆÆ!ˆª‹ÇÁ‰$ˆÈ!ˆÉ\n!‡" [offset nil vip-re-search re-search-forward string val re-search-backward search-forward search-backward push-mark start-point] 5) ((search-failed (byte-code "«’	«ebˆÂÅBÇ%‡bˆÉÊA\"‡" [null-arg vip-search-wrap-around-t vip-search string forward 1 com t start-point signal search-failed conditions] 6))) (byte-code "«‰Á\nÃ‰$ˆª‡Å\nÃ‰$ˆÆ!‡" [vip-re-search re-search-backward string nil val search-backward push-mark start-point] 5) ((search-failed (byte-code "«’	«dbˆÂÅBÇ%‡bˆÉÊA\"‡" [null-arg vip-search-wrap-around-t vip-search string forward 1 com t start-point signal search-failed conditions] 6)))] 6 "\
+(STRING FORWARD COUNT &optional NO-OFFSET) Search COUNT's occurrence of
+STRING.  Search will be forward if FORWARD, otherwise backward."])
+(fset 'vip-search-next #[(arg) "À	!Â	!¬„ÆÇ!ˆÈ		#ˆ­Œ\nË Ì“ˆÍÎ#*‡" [vip-p-val arg vip-getcom com val vip-s-string error "No previous search string." vip-search vip-s-forward vip-com-point mark nil vip-execute-com vip-search-next] 4 "\
+Repeat previous search." "P"])
+(fset 'vip-search-Next #[(arg) "À	!Â	!¬„ÆÇ!ˆÈ	?	#ˆ­Œ\nË Ì“ˆÍÎ#*‡" [vip-p-val arg vip-getcom com val vip-s-string error "No previous search string." vip-search vip-s-forward vip-com-point mark nil vip-execute-com vip-search-Next] 4 "\
+Repeat previous search in the reverse direction." "P"])
+(fset 'vip-buffer-search-enable #[(&optional c) "«‚ÂÄ	!Å#‡" [c vip-buffer-search-char define-key vip-mode-map char-to-string vip-command-argument] 4])
+(fset 'vip-switch-to-buffer #[nil "ÀÂÃÄÅÆp!!\"!Ç	!ˆÈ )‡" [nil buffer read-buffer format "switch to buffer (%s): " buffer-name other-buffer switch-to-buffer vip-change-mode-to-vi] 6 "\
+Switch to buffer in the current window." nil])
+(fset 'vip-switch-to-buffer-other-window #[nil "ÀÂÃÄÅÆp!!\"!Ç	!ˆÈ )‡" [nil buffer read-buffer format "Switch to buffer (%s): " buffer-name other-buffer switch-to-buffer-other-window vip-change-mode-to-vi] 6 "\
+Switch to buffer in another window." nil])
+(fset 'vip-kill-buffer #[nil "À‰ÃÄÅÁp!\"!‰¬ƒpªƒÆ	!‰¬…ÇÈ	\"ˆÉ\n!«…ÊË!«…Ì\n!ªƒÇÍ!*‡" [nil buffer-name buffer read-buffer format "Kill buffer (%s): " get-buffer error "Buffer %s nonexistent." buffer-modified-p y-or-n-p "Buffer is modified, are you sure? " kill-buffer "Buffer not killed."] 6 "\
+Kill a buffer." nil])
+(fset 'vip-find-file #[nil "ÀÂÃ!ÄÅ	!!ˆÆ )‡" [nil file read-file-name "visit file: " switch-to-buffer find-file-noselect vip-change-mode-to-vi] 3 "\
+Visit file in the current window." nil])
+(fset 'vip-find-file-other-window #[nil "ÀÂÃ!ÄÅ	!!ˆÆ )‡" [nil file read-file-name "Visit file: " switch-to-buffer-other-window find-file-noselect vip-change-mode-to-vi] 3 "\
+Visit file in another window." nil])
+(fset 'vip-info-on-file #[nil "ÀÁÂ «„Â ªÃÄ «ƒÅªÃÆe`\"n«…Tª‚)Æed\"T%‡" [message "\"%s\"%s line %d of %d" buffer-file-name "" buffer-modified-p " [Modified]" count-lines l] 8 "\
+Give information of the file associated to the current buffer." nil])
+(fset 'vip-yank #[(text) "ŠÀ`!ˆ	cˆÂ ˆ)ÃÄw‡" [vip-push-mark-silent text exchange-point-and-mark " 	" nil] 2 "\
+yank TEXT silently."])
+(fset 'vip-put-back #[(arg) "À	!\n«—Ã\nX«Œ\nÄX«‡\nÃZ8ªˆÆ\n—!ª‚@¬•\n«\n	ÊËÌ	\"ˆ)ª„ËÍ!ˆÊÎ!«‰ÏĞ!ˆÑyˆª‰l¬†m¬ƒÊuˆÒÊ\nF‰ÑV­Õ!ˆS‰ªo+‡" [vip-p-val arg vip-use-register 49 57 kill-ring-yank-pointer get-register text val reg nil error "Nothing in register %c" "" vip-end-with-a-newline-p next-line 1 0 vip-put-back vip-d-com count vip-yank] 5 "\
+Put back after point/below line." "P"])
+(fset 'vip-Put-back #[(arg) "À	!\n«—Ã\nX«Œ\nÄX«‡\nÃZ8ªˆÆ\n—!ª‚@¬•\n«\n	ÊËÌ	\"ˆ)ª„ËÍ!ˆÊÎ!«ƒÏyˆĞÊ\nF‰ÏV­Ó!ˆS‰ªo+‡" [vip-p-val arg vip-use-register 49 57 kill-ring-yank-pointer get-register text val reg nil error "Nothing in register %c" "" vip-end-with-a-newline-p 0 vip-Put-back vip-d-com count vip-yank] 5 "\
+Put back at point/above line." "P"])
+(fset 'vip-delete-char #[(arg) "À	!Ã\nÄE\nÆV«•Š`Äˆ\n`ZV«…`Z*\nÈ=«‚Æ	«¦Ê	X«“	ËX«Ì	Í\\``\nZ#ˆªŠÎ	``\nZÄ$ˆÄ	«‘Ğ\nÑ\"ˆl­–n?­’ÒÆ!ªl«†Ó\nÑ\"ª„Ğ\nÑ\")‡" [vip-p-val arg val vip-delete-char nil vip-d-com 1 here 0 vip-use-register 65 90 vip-append-to-register 32 copy-to-register vip-ex-style-motion delete-char t backward-char delete-backward-char] 5 "\
+Delete character." "P"])
+(fset 'vip-delete-backward-char #[(arg) "À	!Ã\nÄE\nÆV«•Š`Èyˆ\n`ZV«…`Z*	«¦Ê	X«“	ËX«Ì	Í\\``\n\\#ˆªŠÎ	``\n\\Ä$ˆÄ	n«„Ï ª„Ğ\nÑ\")‡" [vip-p-val arg val vip-delete-backward-char nil vip-d-com 1 here 0 vip-use-register 65 90 vip-append-to-register 32 copy-to-register ding delete-backward-char t] 5 "\
+Delete previous character." "P"])
+(fset 'vip-join-lines #[(arg) "À	!Ã\nÄE\n¬ƒÆª‚\nS‰ÈV­™Äˆm¬‹Æyˆ``S|ˆÉ ˆS‰ªc*‡" [vip-P-val arg val vip-join-lines nil vip-d-com 1 count 0 fixup-whitespace] 4 "\
+Join this line to next, if ARG is nil.  Otherwise, join ARG lines" "*P"])
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [vip-finish-change #[nil "`{Â\"ÄU«`Y«Š`W«…Å`\"ˆÆ‰‡" [vip-change-beg-point c-string count-lines vip-change-end-point 1 kill-region nil vip-need-to-finish-change] 3] vip-change #[(beg end) "«‰Á\nÄ$ˆÄ\nX«\nÄ“ˆÄ“ˆª‹Ä“ˆ\nÄ“ˆÇÉ\"ÊU«™bˆËÊ!ˆÌcˆÍ bˆÎÄ‰#‡Ï\"ˆĞ ‡" [vip-use-register copy-to-register beg end nil vip-change-beg-point vip-change-end-point t vip-need-to-finish-change count-lines 1 delete-backward-char "$" point-marker vip-change-mode-to-overwrite kill-region vip-change-mode-to-insert] 5] vip-change-subr #[(beg end) "«‰Á\nÄ$ˆÄÅ\n\"ˆÆc‡" [vip-use-register copy-to-register beg end nil kill-region vip-change this-command c-string] 5]] 2)
+(fset 'vip-toggle-case #[(arg) "À	!ÂÅÂEÇV­¡gÈÉÂ\"ˆ‰–=«ˆÊ—É\"ˆª†Ê–É\"ˆS‰ª[*‡" [vip-p-val arg nil c val vip-toggle-case vip-d-com 0 delete-char 1 insert-char] 4 "\
+toggle character case." "P"])
+(fset 'vip-query-replace #[nil "ÀÂ«ƒÄªÅ!‰Æ˜«?ÇÈ«ƒÉªÊ\"ª—«‹Ë	ÂÌÍ	\"!\"ª‰Î	ÂÌÏ	\"!\")‡" [nil str vip-read-string vip-re-query-replace "Query replace regexp: " "Query replace: " "" message "Query replace mode changed to %s." "regexp replace" "string replace" query-replace-regexp format "Query replace regexp \"%s\" with: " query-replace "Query replace \"%s\" with: "] 7 "\
+Query replace.  If you supply null string as the string to be replaced,
+the query replace mode will toggle between string replace and regexp replace." nil])
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [vip-mark-beginning-of-buffer #[nil "À`!ˆebˆÁ ˆÂÃ!‡" [set-mark exchange-point-and-mark message "mark set at the beginning of buffer"] 2 nil nil] vip-mark-end-of-buffer #[nil "À`!ˆdbˆÁ ˆÂÃ!‡" [set-mark exchange-point-and-mark message "mark set at the end of buffer"] 2 nil nil] vip-mark-point #[(char) "À	X«‹	ÂX«†Ã	ÄZ!‡	ÅU«ƒÆ ‡	ÇU«ƒÈ ‡	ÉU«ƒÊ ‡	ËU«„ÌÍ!‡	ÎU«ƒÏ ‡ĞÑ!‡" [97 char 122 point-to-register 96 60 vip-mark-beginning-of-buffer 62 vip-mark-end-of-buffer 46 push-mark 44 set-mark-command 1 68 mark-defun error ""] 3 nil "c"]] 2)
+(fset 'vip-goto-mark #[(arg) "À Á\n!ÅÆ#*‡" [read-char vip-getcom arg com char vip-goto-mark-subr nil] 4 "\
+Go to mark." "P"])
+(fset 'vip-goto-mark-and-skip-white #[(arg) "À Á\n!ÅÆ#*‡" [read-char vip-getCom arg com char vip-goto-mark-subr t] 4 "\
+Go to mark and skip to first non-white on line." "P"])
+(byte-code "ÀÁMˆÂÃM‡" [vip-goto-mark-subr #[(char com skip-white) "À	X«Å	ÂX«Àp«…`Æ“ˆÇ	ÈZ!bˆ	«ƒÊ ˆË ˆ­ pš«Ì	«ƒÍªÎÆ#ªÏ!ˆbˆË ˆĞÑ!)‡	¬™	ÈU«”«…`Æ“ˆÒ ˆ­©ÌÎÆ#‡	«œ	ÓU«—«…`Æ“ˆÒ ˆÊ ˆ­‰ÌÍÆ#‡ĞÑ!‡" [97 char 122 buff com vip-com-point nil register-to-point 96 skip-white back-to-indentation vip-change-mode-to-vi vip-execute-com vip-goto-mark-and-skip-white vip-goto-mark switch-to-buffer error "" exchange-point-and-mark 39] 4] vip-exchange-point-and-mark #[nil "À ˆÁ ‡" [exchange-point-and-mark back-to-indentation] 1 nil nil]] 2)
+(fset 'vip-forward-indent #[nil "Ài\n\\j‡" [t vip-cted vip-shift-width] 2 "\
+Indent forward - C-d in VI" nil])
+(fset 'vip-backward-indent #[nil "­Ê`iÁÂÇÈ!«‘hÉU«ƒÂ\nËÌ!ˆ`ÁŠÍyˆ`)ÎÏÌ#«ƒÁuˆ`|ˆ«†Zjˆn¬…ÇÏ!­ƒÁ‰,‡" [vip-cted nil t indent bol c p vip-looking-back "[0^]" 94 vip-preserve-indent delete-backward-char 1 0 re-search-backward "[^ 	]" vip-shift-width] 4 "\
+Backtab, C-t in VI" nil])
+(fset 'vip-autoindent #[nil "À \n¬„	ª‚ÄÅÆ!ˆ­…È	j)‡" [current-indentation col vip-preserve-indent vip-current-indent nil newline 1 vip-auto-indent t vip-cted] 2 "\
+Auto Indentation, VI style" nil])
+(fset 'vip-register-macro #[(count) "À —Â	X««	ÃX«¦	«˜Æ ˆÇ	!«‰ÈÉ!¬„ÊË!ˆÌ	\"ªÜÎÇ	!\"ªÓ	ĞU¬Š	ÑU¬…	ÒU«‰ÎÇ!\"ª»	ÓU«†Ô!ª°	ÕU«¥À —Â	X­¢	ÃX­	Ç	!«‰ÈÉ!¬„ÊË!ˆÌ	\"ª†ÊÖ×	\"!)‡" [read-char reg 97 122 vip-last-macro-reg defining-kbd-macro end-kbd-macro get-register y-or-n-p "Register contains data. Overwrite?" error "Keyboard macro defined but not written" set-register last-kbd-macro execute-kbd-macro count 64 10 13 35 start-kbd-macro 33 format "Unknown register %c"] 4 "\
+Keyboard macros in registers - a modified @ command" "P"])
+(fset 'vip-ket-function #[(arg) "À Â	X«Š	ÃX«…Ä	!ªÁÅ	X««	ÆX«¦	ÅZ8ŠÉÊ!qˆed|ˆËÌ	\"cˆcˆebˆ)ÍÊ!)ª‘	ÎU«†Ï!ª†ÑÒ	#)‡" [read-char reg 97 122 view-register 49 57 kill-ring-yank-pointer text get-buffer-create "*Output*" format "Register %c contains the string:\n" display-buffer 93 vip-next-heading arg error "Invalid Command %c%c" last-command-char] 4 "\
+Function called by ], the ket. View registers and call ]]" "P"])
+(fset 'vip-brac-function #[(arg) "À ‰ÂU«†Ã!‚ç 	ÅU«†Æ!‚ç Ç	Xƒß 	ÈXƒß É	ÊZ!‰¬ˆÌÍÎ	\"!ª„Ï!Ñ!ÓÓŠØÙ!qˆed|ˆ«ï«ëŠqˆÚe\"TbˆÛyˆÜİÓŞ#«†Ûyˆ`bˆßyˆàİÓŞ#«†Óˆ`{ÍáÛZO	ZÓO$)Íâ	ã!$cˆÍä	#cˆª†Íå	\"cˆebˆ)æÙ!.ªˆÌÍç(	#!)‡" [read-char reg 91 vip-prev-heading arg 93 vip-heading-end 97 122 get-register 96 val error format "Textmarker %c does not point anywhere" marker-buffer buf marker-position pos nil line-no text s e get-buffer-create "*Output*" count-lines 0 re-search-backward "[^ 	]" t 1 re-search-forward "%s<%c>%s" "Textmarker %c is in buffer %s at line %d.\n" buffer-name "Here is some text around %c:\n\n %s" "Textmarker %c not set anywhere" display-buffer "Invalid Command %c%c" last-command-char] 8 "\
+Function called by [, the brac. View textmarkers and call [[" "P"])
+(fset 'vip-keyboard-quit #[nil "ÀÂ ‡" [nil vip-use-register keyboard-quit] 1 "\
+Abort partially formed or running command." nil])
+(fset 'vip-ctl-c-equivalent #[(arg) "ÀÁ\n\"‡" [vip-ctl-key-equivalent "" arg] 3 "\
+Emulate C-c in Emacs mode." "P"])
+(fset 'vip-ctl-x-equivalent #[(arg) "ÀÁ\n\"‡" [vip-ctl-key-equivalent "" arg] 3 "\
+Emulate C-x in Emacs mode." "P"])
+(fset 'vip-ctl-key-equivalent #[(key arg) "À Â	X«‰	ÃX«„	ÄZÇÈ	\nËÌÎ	!##!)‡" [read-char char 65 90 64 arg prefix-arg command-execute vip-get-editor-command vip-emacs-local-map global-map format "%s%s" key char-to-string] 9])
+(fset 'vip-delete-backward-word #[(arg) "ŠÀ`!ˆÁ\n!ˆ`Ã |)‡" [set-mark backward-word arg mark] 2 "\
+Delete previous word." "p"])
+(byte-code "ÀÁ LˆÂÃÄ#ˆÂÅÆ#ˆÂÇÈ#ˆÂÉÊ#ˆÂËÌ#ˆÂÍÎ#ˆÂÏĞ#ˆÂÑÒ#ˆÂÓÔ#ˆÂÕÖ#ˆÂØ#ˆÂÚ#ˆÛÜMˆÛ ‡" [vip-mode-map make-keymap define-key "" #[nil "ÀÁ!‡" [vip-ex "e#"] 2 nil nil] "" vip-scroll-back "" vip-scroll-up "" vip-scroll-up-one "" vip-scroll "" help-command "" vip-next-line-at-bol "" vip-scroll-down "" vip-ctl-x "" vip-scroll-down-one vip-toggle-key vip-change-mode-to-emacs vip-ESC-key vip-ESC vip-make-emacs-keys-invisible #[(&optional map) "¬‚	ÂÃÄ#ˆÂÅÆ#ˆÂÇÈ#ˆÂÉÄ#ˆÂÊÄ#ˆÂËÌ#ˆÂÍÎ#ˆÂÏÄ#ˆÂĞÑ#ˆÂÒÄ#ˆÂÓÌ#ˆÂÔÄ#ˆÂÕÄ#ˆÂÖÄ#ˆÂ×Ä#‡" [map vip-mode-map define-key "" vip-nil "" vip-keyboard-quit "" vip-info-on-file "	" "" "" redraw-display "" vip-next-line "" "" vip-previous-line "" "" "" "" "" ""] 4]] 4)
+(fset 'vip-rebind-emacs-keys #[(&optional map fun) "¬‚	ÂÃ#ˆÂÅ#ˆÂÆ#ˆÂÇ#ˆÂÈ#ˆÂÉ#ˆÂÊ#ˆÂË#ˆÂÌ#ˆÂÍ#ˆÂÎ#ˆÂÏ#ˆÂĞ#ˆÂÑ#ˆÂÒ#‡" [map vip-mode-map define-key "" fun "" "" "	" "" "" "" "" "" "" "" "" "" "" ""] 4 "\
+Unsuppress emacs key bindings that were hidden for strict vi compatitibilty"])
+(fset 'vip-rebind-other-keys #[(&optional map fun) "¬‚	ÂÃ#ˆÂÅ#ˆÂÆ#ˆÂÇ#ˆÂÈ#ˆÂÉ#ˆÂÊ#ˆÂË#ˆÂÌ#‡" [map vip-mode-map define-key "" fun "" "" "" "" "" "" "" ""] 4 "\
+Rebind"])
+(byte-code "ÀÁMˆÂÃMˆÄÆÇ#ˆÄÈÉ#ˆÄÊÉ#ˆÄËÉ#ˆÄÌÍ#ˆÄÎÏ#ˆÄĞÑ#ˆÄÒÓ#ˆÄÔÕ#ˆÄÖ×#ˆÄØÙ#ˆÄÚÛ#ˆÄÜİ#ˆÄŞß#ˆÄàá#ˆÄâã#ˆÄäå#ˆÄæç#ˆÄèç#ˆÄéç#ˆÄêç#ˆÄëç#ˆÄìç#ˆÄíç#ˆÄîç#ˆÄïç#ˆÄğñ#ˆÄòó#ˆÄôÉ#ˆÄõÉ#ˆÄöÉ#ˆÄ÷ø#ˆÄùú#ˆÄûü#ˆÄış#ˆÄÿ@ #ˆÄA B #ˆÄC D #ˆÄE F #ˆÄG H #ˆÄI J #ˆÄK L #ˆÄM N #ˆÄO P #ˆÄQ R #ˆÄS T #ˆÄU V #ˆÄW X #ˆÄY Z #ˆÄ[ \\ #ˆÄ] ^ #ˆÄ_ ` #ˆÄa b #ˆÄc d #ˆÄe f #ˆÄg h #ˆÄi j #ˆÄk l #ˆÄm n #ˆÄo P #ˆÄp q #ˆÄr s #ˆÄt u #ˆÄv w #ˆÄx y #ˆÄz { #ˆÄ| } #ˆÄ~ É#ˆÄ É#ˆÄ€  #ˆÄ‚ ƒ #ˆÄ„ P #ˆÄ… † #ˆÄ‡ ˆ #ˆÄ‰ Š #ˆÄ‹ Œ #ˆÄ Ç#ˆÄ  #ˆÄ ‘ #ˆÄ’ “ #ˆÄ” • #ˆÄ– P #ˆÄ— ˜ #ˆÄ™ š #ˆÄ› œ #ˆÄ d #ˆÄ Ÿ #ˆÄ  ¡ #ˆÄ¢ £ #ˆÄ¤ É#ˆÄ¥ ¦ #ˆÄ§ ¨ #ˆÄ© ª #ˆÄ« ¦ #ˆÄ¬ ¨ #ˆÄ­ ª #ˆÄ® ¯ #ˆÄ° ± #ˆÄ² ³ #ˆÄ´ µ #ˆÄ¶ j #‡" [vip-make-emacs-keys-visible #[nil "ÀÁÂ\"ˆÂÃ ˆÄÆÇ#ˆÄÈÉ#‡" [set-default vip-insert-mode-vi-map nil vip-rebind-emacs-keys define-key vip-mode-map "" vip-ctl-c "" vip-keyboard-quit] 4] vip-become-vi #[nil "À	ÂÃ#ˆÀ	ÄÃ#ˆÀ	ÅÃ#ˆÀ	ÆÃ#ˆÀ	ÇÈ#ˆÀ	ÉÊ#ˆÀ	ËÃ#ˆÀ	ÌÃ#ˆÍÏĞÑ\"‡" [define-key vip-mode-map "@" vip-nil "*" "#" "" "" suspend-emacs "" vip-backward-char "" "" t vip-is-vi global-set-key "" keyboard-quit] 4] define-key vip-mode-map " " vip-forward-char "!" vip-command-argument "\"" "#" "$" vip-goto-eol "%" vip-paren-match "&" #[nil "ÀÁ!‡" [vip-ex "&"] 2 nil nil] "'" vip-goto-mark-and-skip-white "(" vip-backward-sentence ")" vip-forward-sentence "*" call-last-kbd-macro "+" vip-next-line-at-bol "," vip-repeat-find-opposite "-" vip-previous-line-at-bol "." vip-repeat "/" vip-search-forward "0" vip-beginning-of-line "1" vip-digit-argument "2" "3" "4" "5" "6" "7" "8" "9" ":" vip-ex ";" vip-repeat-find "<" "=" ">" "?" vip-search-backward "@" vip-register-macro "A" vip-Append "B" vip-backward-Word "C" vip-change-to-eol "D" vip-kill-line "E" vip-end-of-Word "F" vip-find-char-backward "G" vip-goto-line "H" vip-window-top "I" vip-Insert "J" vip-join-lines "K" vip-nil "L" vip-window-bottom "M" vip-window-middle "N" vip-search-Next "O" vip-Open-line "P" vip-Put-back "Q" vip-query-replace "R" vip-overwrite "S" vip-substitute-line "T" vip-goto-char-backward "U" vip-undo "V" vip-find-file-other-window "W" vip-forward-Word "X" vip-delete-backward-char "Y" vip-yank-line "ZZ" save-buffers-kill-emacs "\\" "[" vip-brac-function "]" vip-ket-function "_" vip-alternate-ESC "^" vip-bol-and-skip-white "`" vip-goto-mark "a" vip-append "b" vip-backward-word "c" "d" "e" vip-end-of-word "f" vip-find-char-forward "g" "h" vip-backward-char "i" vip-insert "j" vip-next-line "k" vip-previous-line "l" "m" vip-mark-point "n" vip-search-next "o" vip-open-line "p" vip-put-back "q" "r" vip-replace-char "s" vip-substitute "t" vip-goto-char-forward "u" "v" vip-find-file "w" vip-forward-word "x" vip-delete-char "y" "zH" vip-line-to-top "zM" vip-line-to-middle "zL" vip-line-to-bottom "z" "z." "z-" "{" vip-backward-paragraph "|" vip-goto-col "}" vip-forward-paragraph "~" vip-toggle-case ""] 4)
+(byte-code "ÀÁMˆÂÃM‡" [vip-get-history #[nil "ÀÁ!«†ÂÃ!ˆª„ÁÄMˆÅÆ!ˆÇ‰‡" [fboundp gmhist-define-keys message "WARNING: gmhist already loaded - cannot change mappings" #[(map) "À	ÂÃ#ˆÀ	ÄÅ#ˆÀ	ÆÇ#ˆÀ	ÈÉ#ˆÀ	ÊË#ˆÀ	ÌÍ#ˆÀ	ÎÏ#ˆÀ	ĞÑ#ˆÀ	ÒÓ#ˆÀ	ÔÕ#ˆÀ	Ö×#ˆÀ	ØÙ#ˆ«ˆÀ	ÛÜ#ˆª†À	İŞ#ˆÀ	à#‡" [define-key map "" gmhist-previous "" gmhist-next "" gmhist-search-backward "" gmhist-search-forward "" gmhist-beginning "" gmhist-end "" gmhist-show "" delete-backward-char "" delete-backward-word "" vip-erase-line "" abort-recursive-edit "" quoted-insert vip-filename-complete "	" vip-read-string-complete "?" vip-read-string-help vip-ESC-key exit-minibuffer] 4 "Bind the standard history commands in MAP, a key map."] require gmhist t vip-want-history] 2] vip-version #[nil "ÀÁ!‡" [message "VIP version 4.3 of October 1, 1991"] 2 nil nil]] 2)
+(defvar ex-token-type nil "\
+type of token.  if non-nil, gives type of address.  if nil, it
+is a command.")
+(defvar ex-token nil "\
+value of token.")
+(defvar ex-addresses nil "\
+list of ex addresses")
+(defvar ex-flag nil "\
+flag for ex flag")
+(defvar ex-buffer nil "\
+name of ex buffer")
+(defvar ex-count nil "\
+value of ex count")
+(defvar ex-g-flag nil "\
+flag for global command")
+(defvar ex-g-variant nil "\
+if t global command is executed on lines not matching ex-g-pat")
+(defvar ex-reg-exp nil "\
+save reg-exp used in substitute")
+(defvar ex-repl nil "\
+replace pattern for substitute")
+(defvar ex-g-pat nil "\
+pattern for global command")
+(defvar ex-map (make-sparse-keymap) "\
+save commands for mapped keys")
+(defvar ex-ins-map (make-sparse-keymap) "\
+save commands for map!ped keys")
+(defconst ex-find-file-shell "csh" "\
+Shell in which to interpret wildcards")
+(defvar ex-tag nil "\
+save ex tag")
+(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÂÀÄ!¬‚ÂÀÅ!¬‚ÂÀÆ!¬ƒÂÂ‡" [boundp ex-file nil ex-variant ex-offset ex-append ex-cmdfile] 2)
+(defconst ex-cycle-other-window t "\
+* :n cycles through files in other window")
+(defconst ex-cycle-through-non-files nil "\
+* cycle through *scratch* etc.")
+(fset 'vip-nil #[nil "ÀÁ!‡" [error ""] 2 nil nil])
+(fset 'vip-looking-back #[(str) "ŠÀ	ÂÃ#)­„`Ä•U‡" [re-search-backward str nil t 0] 4 "\
+returns t if looking back reg-exp STR before point."])
+(fset 'vip-check-sub #[(str) "G‰\nGX«\nÃ	O˜«…\n‰ªƒÄ‰)‡" [ex-token length str 0 "non-command" ex-token-type] 5 "\
+check if ex-token is an initial segment of STR"])
+(fset 'vip-get-ex-com-subr #[nil "À`!ˆÁÂ!ˆÃ`Å {Ç ˆÈÉ!«ŸÈÊ!«‡ËÌ!ˆ‚³ÈÍ!«‡ËÎ!ˆ‚³ËÏ!ˆ‚³ÈĞ!«…Ñ‚³ÈÒ!««ÈÓ!«‡ËÓ!ˆ‚³ÈÔ!«‡ËÕ!ˆ‚³ÈÖ!«‡Ë×!ˆ‚³ËØ!ˆ‚³ÈÙ!«‡ËÚ!ˆ‚³ÈÛ!«“ÈÜ!«‡ËÜ!ˆ‚³Ëİ!ˆ‚³ÈŞ!«‡Ëß!ˆ‚³Èà!«‡Ëá!ˆ‚³Èâ!«‡Ëã!ˆ‚³Èä!«‡Ëå!ˆ‚³Èæ!«‡Ëç!ˆ‚³Èè!«ŸÈé!«‡Ëé!ˆ‚³Èê!«‡Ëë!ˆ‚³Ëì!ˆ‚³Èí!«“Èî!«‡Ëï!ˆ‚³Ëğ!ˆ‚³Èñ!«‡Ëò!ˆ‚³Èó!««Èô!«‡Ëõ!ˆ‚³Èö!«‡Ë÷!ˆ‚³Èø!«‡Ëù!ˆ‚³Ëú!ˆ‚³Èû!«‡Ëü!ˆ‚³Èı!«¥Èş!«‡Ëÿ!ˆ‚³È@ !«‰ËA !ˆ‚³ËB !ˆ‚³ÈC !«éÈD !«‰ËE !ˆ‚³ÈF !«‰ËG !ˆ‚³ÈH !«‰ËI !ˆ‚³ÈJ !«‰ËJ !ˆ‚³ÈK !«‰ËL !ˆ‚³ÈM !«‰ËN !ˆ‚³ËO !ˆ‚³ÈP !«™ÈQ !«‰ËR !ˆ‚³ËP !ˆ‚³ÈS !«§ÈT !«‰ËU !ˆ‚³ÈV !«ˆËW !ˆªşËX !ˆªöÈY !«¦ÈZ !«ˆË[ !ˆªàÈ\\ !«ˆË] !ˆªÑËY !ˆªÉÈ^ !«—È_ !«ˆË_ !ˆª³Ë` !ˆª«Èa !«ˆËb !ˆªœÈc !«ˆËd !ˆªÈe !«†Ëe !ˆÇ ‡" [set-mark re-search-forward "[a-z][a-z]*" "command" ex-token-type mark ex-token exchange-point-and-mark looking-at "a" "ab" vip-check-sub "abbreviate" "ar" "args" "append" "[bh]" "non-command" "c" "cd" "ch" "chdir" "co" "copy" "change" "d" "delete" "e" "ex" "edit" "f" "file" "g" "global" "i" "insert" "j" "join" "l" "list" "m" "map" "mar" "mark" "move" "n" "nu" "number" "next" "o" "open" "p" "pre" "preserve" "pu" "put" "pw" "pwd" "print" "q" "quit" "r" "rec" "recover" "rew" "rewind" "read" "s" "se" "set" "sh" "shell" "so" "source" "sr" "st" "stop" "sus" "suspend" "substitute" "t" "ta" "tag" "u" "una" "unabbreviate" "unm" "unmap" "undo" "v" "ve" "version" "vi" "visual" "w" "wq" "write" "x" "xit" "y" "yank" "z"] 2 "\
+get a complete ex command"])
+(fset 'vip-get-ex-token #[nil "À‹‡" [((byte-code "ÀqˆÁÂwˆÃÄ!«‹ÅÇg!Éu‡ÃÊ!«ƒË ‡ÃÌ!«ˆÉuˆÍ‰‡ÃÎ!«§Ï`!ˆĞÑ!ˆÒ˜«ƒÓªŠÔ˜«ƒÕªÖ×`Ø {!‰‡ÃÙ!«ˆÉuˆÚ‰‡ÃÛ!«ˆÉuˆÜ‰‡Ãİ!«ªÃŞ!¬…Ãß!«ÉuˆàcˆáÉ!ˆÒ‰‡Ãâ!«ˆÉuˆÒ‰‡ãä!‡Ãå!«ªÃæ!¬…Ãç!«ÉuˆàcˆáÉ!ˆÔ‰‡Ãè!«ˆÉuˆÔ‰‡ãä!‡Ãé!«·ÉuˆÏ`!ˆê+l¬’+«Ğì!ˆíî!¬pÂ+ªk)áÉ!ˆ`Ø {Ãé!«ƒÉuˆï‰‡Ãğ!«¸ÉuˆÏ`!ˆê+l¬+«šĞñ!ˆíò!¬ƒÂ+áÉ!ˆÃó!¬dÉuˆª_)ô`SØ {‰‡Ãõ!«ˆÉuˆö‰‡Ã÷!«ˆÉuˆø‰‡Ãù!«‹ÅÇg!Éu‡Ãú!«¡ûÉuˆÃú!«…ÂªÃÊ!«…gª„ãü!ˆÉu‡Ãó!«ˆış‰‡ãÿ!‡" [" *ex-working-space*" " 	|" nil looking-at "[k#]" "command" ex-token-type char-to-string ex-token 1 "[a-z]" vip-get-ex-com-subr "\\." "dot" "[0-9]" set-mark re-search-forward "[0-9]*" "plus" "add-number" "minus" "sub-number" "abs-number" string-to-int mark "\\$" "end" "%" "whole" "+" "+[-+]" "+[\n|]" "1" backward-char "+[0-9]" error "Badly formed address" "-" "-[-+]" "-[\n|]" "-[0-9]" "/" t cont "[^/]*\\(/\\|\n\\)" vip-looking-back "[^\\\\]\\(\\\\\\\\\\)*\\\\/" "search-forward" "\\?" "[^\\?]*\\(\\?\\|\n\\)" "[^\\\\]\\(\\\\\\\\\\)*\\\\\\?" "\n" "search-backward" "," "comma" ";" "semi-colon" "[!=><&~]" "'" "goto-mark" "Marks are ' and a-z" "end-mark" "goto" "illegal token"] 3))] 1 "\
+get an ex-token which is either an address or a command.
+a token has type (command, address, end-mark) and value."])
+(fset 'vip-ex #[(&optional string) "¬„ÁÁ®…ÄÅÆÇ#ÁÈ`	\nÍ‹ˆÆÁ\n…Ò Ğ ˆÑ˜¬†Ò˜«³«‡BÔ˜«ŠÕÁ!ˆÁ‰\nªSÖ˜«ŠÕÈ!ˆÁ‰\nªC× ˆØ‹ˆª9Ù˜«ŠÚÛÜ\"!ˆª)İ˜«ŠdeBBªŞ˜«¬ƒ`ª‚Bªß˜«™«„	¬ƒ`ª‚B‚# à	\"‰!«„!)‚# ,‡" [string nil ex-g-flag ex-g-variant vip-read-string ":" "" vip-ex-history t dot cont address com-str ((byte-code "ÀÁ!qˆed|ˆ\nÃ±ˆeb‡" [get-buffer-create " *ex-working-space*" com-str "\n"] 2)) ex-token-type ex-addresses vip-get-ex-token "command" "end-mark" ex-token "global" ex-global "v" vip-execute-ex-command ((byte-code "ÀqˆÁÂwˆÃÄ!«…ÅuˆªÃÆ!«…Âª„ÈÉ!ˆÂ‡" [" *ex-working-space*" " 	" nil looking-at "|" 1 "\n" cont error "Extra character at end of a command"] 2)) "non-command" error format "%s: Not an editor command" "whole" "comma" "semi-colon" vip-get-ex-address-subr ans] 5 "\
+ex commands within VIP." nil])
+(fset 'vip-get-ex-pat #[nil "À‹‡" [((byte-code "ÀqˆÁÂwˆÃÄ!«??ÇuˆÁÂwˆgÃÉ!«¿ÇuˆÊ`!ˆËl¬›«—ÍÎÏ‰#!ˆĞÎÑ\"!¬gÂªb)Ò `U«ƒÓª…`SÒ {ÕÇ!ˆªƒÂ)‡" [" *ex-working-space*" " 	" nil looking-at "!" ex-g-variant ex-g-flag 1 c "[^\\\\\n]" set-mark t cont re-search-forward format "[^%c]*\\(%c\\|\n\\)" vip-looking-back "[^\\\\]\\(\\\\\\\\\\)*\\\\%c" mark "" ex-token backward-char] 5))] 1 "\
+get a regular expression and set ex-variant if found"])
+(fset 'vip-get-ex-command #[nil "À‹‡" [((byte-code "ÀqˆÁÂ!«ƒÃuˆÄÅwˆÁÆ!«Ç ˆÉ˜­–ÊË\"‡ÁÍ!«ˆÎg!Ãu‡ÊÏ!‡" [" *ex-working-space*" looking-at "/" 1 " 	" nil "[a-z]" vip-get-ex-com-subr ex-token-type "non-command" error "%s: not an editor command" ex-token "[!=><&~]" char-to-string "Could not find an ex command"] 3))] 1 "\
+get an ex command"])
+(fset 'vip-get-ex-opt-gc #[(c) "À‹‡" [((byte-code "ÀqˆÁÂÃ\"!«ƒÅuˆÆÇwˆÁÈ!«ˆÈ	ÅuˆÊ‡ÁË!«ˆË	ÅuˆÊ‡Ç‡" [" *ex-working-space*" looking-at format "%c" c 1 " 	" nil "g" ex-token t "c"] 4))] 1 "\
+get an ex option g or c"])
+(fset 'vip-default-ex-addresses #[(&optional whole-flag) "¬’	«‡deÂBBª…``ÂBB‰‡A?­†@B‰‡" [ex-addresses whole-flag nil] 3 "\
+compute default addresses.  whole-flag means whole buffer."])
+(fset 'vip-get-ex-address #[nil "À ÁÄÆ\n«ÙÈ ˆ	Ê˜«Ë˜¬ŠÌ˜¬…Í˜«ˆÁÆ‰ª^ÎÏ!ˆªW	Ğ˜«…Æ‰ªM	Ñ˜«†ÎÒ!ˆª@	Ó˜«†ÎÔ!ˆª4ÕÀ \"‰«ƒ)ª$*‡" [point-marker t cont address "" ex-token nil ex-flag vip-get-ex-token ex-token-type "command" "print" "list" "#" error "address expected" "end-mark" "whole" "a trailing address is expected" "comma" "Extra characters after an address" vip-get-ex-address-subr ans] 4 "\
+get an ex-address as a marker and set ex-flag if a flag is found"])
+(fset 'vip-get-ex-address-subr #[(old-address dot) "À\n¬‚Å˜«…‚° Æ˜«™Š\nbˆ\nÇU«…Sª‚yˆÉ )‚° Ê˜«Š\nbˆ[yˆÉ )ªíË˜«™ŠebˆÇU«„ÇªˆSyˆÉ )ªÏÌ˜«…Í ªÅÎ˜¬ÀÏ˜¬»Ğ˜«‹ŠÑÒ!ˆÉ )ª«Ó˜«‹ŠÑÀ!ˆÉ )ª›Ô˜«–Š¬…Õ ˆªˆÖ×Z!bˆÉ )	)‡" [nil address old-address dot ex-token-type "dot" "add-number" 0 ex-token point-marker "sub-number" "abs-number" "end" point-max-marker "plus" "minus" "search-forward" ex-search-address t "search-backward" "goto-mark" exchange-point-and-mark register-to-point 96] 3 "\
+returns an address as a point"])
+(fset 'ex-search-address #[(forward) "Á˜«\n¬†ÃÄ!ˆª†\nª‚«‡ÆyˆÇ!‡ÈyˆÉ!‡" [ex-token "" vip-s-string error "No previous search string" forward 1 re-search-forward -1 re-search-backward] 2 "\
+search pattern and set address"])
+(fset 'vip-get-ex-buffer #[nil "ÀÀÀÄ‹‡" [nil ex-buffer ex-count ex-flag ((byte-code "ÀqˆÁÂwˆÃÄ!«‰gÆuˆÁÂwˆÃÇ!«”È`!ˆÉÊ!ˆË`Ì {!ÁÂwˆÃÎ!«†ÏÆuˆÃÑ!?­ƒÒÓ!‡" [" *ex-working-space*" " 	" nil looking-at "[a-zA-Z]" ex-buffer 1 "[0-9]" set-mark re-search-forward "[0-9][0-9]*" string-to-int mark ex-count "[pl#]" t ex-flag "[\n|]" error "Illegal extra characters"] 3))] 1 "\
+get a buffer name and set ex-count and ex-flag if found"])
+(fset 'vip-get-ex-count #[nil "ÀÀÀÄ‹‡" [nil ex-variant ex-count ex-flag ((byte-code "ÀqˆÁÂwˆÃÄ!«†ÅÇuˆÁÂwˆÃÈ!«”É`!ˆÊË!ˆÌ`Í {!ÁÂwˆÃÏ!«†ÅÇuˆÃÑ!?­ƒÒÓ!‡" [" *ex-working-space*" " 	" nil looking-at "!" t ex-variant 1 "[0-9]" set-mark re-search-forward "[0-9][0-9]*" string-to-int mark ex-count "[pl#]" ex-flag "[\n|]" error "Illegal extra characters"] 3))] 1])
+(fset 'ex-expand-filsyms #[(cmd buf) "À‰‰ŠqˆÆÇ!)¬‹ÈÉ\n\"«„ËÌ!ˆ\n¬‹ÈÍ\n\"«„ËÎ!ˆŠÏĞ!qˆ\ncˆebˆÑÒÀÇ#«²Ó Ô”Ô•{×ØP!«‡Ù!ˆª•Ú!ˆÛ˜«†Ù!ˆª„Ù\n!ˆ*ªGÀˆe`{Üp!ˆİŞ	\"ˆ)	+‡" [nil ret pf cf buf buffer-file-name ex-next t string-match "[^\\]%\\|\\`%" cmd error "No current file to substitute for %" "[^\\]#\\|\\`#" "No alternate file to substitute for #" get-buffer-create " ex-tmp" re-search-forward "%\\|#" match-data 0 char data vip-looking-back "\\\\" replace-match store-match-data "%" kill-buffer message "%s"] 4 "\
+expand % and # in ex command"])
+(fset 'vip-get-ex-file #[nil "pÁÁÁÁÁÇ‹)‡" [file-buf nil ex-file ex-variant ex-append ex-offset ex-cmdfile ((byte-code "ÀqˆÁÂwˆÃÄ!«¡ÅÆ!«ŠŠÇuˆÃÆ!)«ŒÈ	ÇuˆÁÂwˆª†È\nÇuˆÃË!«ÈÈ	ÍuˆÁÂwˆÃÎ!«œÇuˆÏ`!ˆĞÑ!ˆÒÇ!ˆ`Ó {ÇuˆÁÂwˆÏ`!ˆĞÕ!ˆÒÇ!ˆÖ`Ó {\"‰‡" [" *ex-working-space*" " 	" nil looking-at "!" vip-looking-back "[ 	]" 1 t ex-variant ex-cmdfile ">>" ex-append 2 "+" set-mark re-search-forward "[ 	\n]" backward-char mark ex-offset "[ 	\n|]" ex-expand-filsyms file-buf ex-file] 3))] 1 "\
+get a file name and set ex-variant, ex-append and ex-offset if found"])
+(fset 'vip-execute-ex-command #[nil "Á˜«ƒÂ ‡Ã˜«„ÄÅ!‡Æ˜«ƒÇ ‡È˜«ƒÇ ‡É˜«ƒÊ ‡Ë˜«ƒÌ ‡Í˜«ƒÎ ‡Ï˜«ƒĞ ‡Ñ˜«„ÒÑ!‡Ó˜«ƒÔ ‡Õ˜«ƒÔ ‡Ö˜«ƒ× ‡Ø˜«„ÄÙ!‡Ú˜«ƒÛ ‡Ü˜«ƒİ ‡Ş˜«ƒß ‡à˜«ƒá ‡â˜«ƒã ‡ä˜«ƒå ‡æ˜«ƒç ‡è˜«ƒé ‡ê˜«ƒë ‡ì˜«ƒí ‡î˜«ƒï ‡ğ˜«…ñÙ‰\"‡ò˜«ƒñ ‡ó˜«ƒô ‡õ˜«ƒô ‡ö˜«„ÄÅ!‡÷˜«ƒø ‡ù˜«ƒú ‡û˜«ƒü ‡ı˜«ƒş ‡ÿ˜«ƒÌ ‡@ ˜«†A Å!‡B ˜«†A Ù!‡C ˜«†A Ù!‡D ˜«…E  ‡F ˜«…G  ‡H ˜«…I  ‡J ˜«†ÒK !‡L ˜«†ÒM !‡N ˜«„ñÙ!‡O ˜«…ñÙ‰\"‡P ˜¬•Q ˜¬R ˜¬‡S ˜«T U V \"!‡W ˜¬œX ˜¬•Y ˜¬Z ˜¬‡[ ˜«T U \\ \"!‡T U ] \"!‡" [ex-token "args" ex-args "copy" ex-copy nil "cd" ex-cd "chdir" "delete" ex-delete "edit" ex-edit "file" vip-info-on-file "goto" ex-goto "join" ex-line "k" ex-mark "mark" "map" ex-map "move" t "next" ex-next "put" ex-put "pwd" ex-pwd "preserve" ex-preserve "quit" ex-quit "read" ex-read "recover" ex-recover "rewind" ex-rewind "set" ex-set "shell" ex-shell "source" ex-source "sr" ex-substitute "substitute" "suspend" suspend-emacs "stop" "t" "tag" ex-tag "undo" vip-undo "unmap" ex-unmap "version" vip-version "visual" "write" ex-write "wq" "xit" "yank" ex-yank "!" ex-command "=" ex-line-no ">" "right" "<" "left" "&" "~" "append" "change" "insert" "open" error format "%s: no such command from VIP" "abbreviate" "list" "print" "unabbreviate" "z" "%s: not implemented in VIP" "%s: Not an editor command"] 4 "\
+execute ex command using the value of addresses."])
+(byte-code "ÀÁMˆÂÃM‡" [vip-undisplayed-files #[nil "ÀÁÂ \"‡" [mapcar #[(b) "À	!?­ŸÂ	!‰«ƒª”­‘Å	!‰ÇÈOÉ˜?­‚))‡" [get-buffer-window b buffer-file-name f ex-cycle-through-non-files buffer-name s 0 1 " "] 4] buffer-list] 3] ex-args #[nil "À Á`ÂÃÄ 	‰\n«\n@«‘ËÌ	\n@$	T\nA‰\n¬b	Á˜«…ÍÎ!ªÏŠĞcˆÑ	Ñ±ˆÒcˆÓcˆÍÔ!ˆ`Õ *.‡" [vip-undisplayed-files "" nil 1 buffer-modified-p modified file-count end-point insert-point args l format "%s %d) %s" message "All files are displayed" ((byte-code "	|ˆÂ!‡" [insert-point end-point set-buffer-modified-p modified] 2)) "\n\nThese files are not displayed in any window." "\n=============\n" "The numbers can be given as counts to :next. " "Press any key to continue.\n\n" "Undisplayed files. Press any key to continue" read-char] 7]] 2)
+(fset 'ex-cd #[nil "À ˆ	Â˜«‚ÃÄÅ	!!‰‡" [vip-get-ex-file ex-file "" "~" file-name-as-directory expand-file-name default-directory] 3 "\
+ex cd. Default directory of this buffer changes"])
+(fset 'ex-copy #[(del-flag) "À ˆÁ \n@\nA@bˆŠÆ!ˆÇÈ `\"ˆ	«ˆÊ`È \"ˆª†Ë`È \"ˆ« ÍÎ	¬ˆ¬„«…@ª„`È {!‘ˆÒÓÔˆ)ÕU«…ebˆª†bˆÖyˆ@c+‡" [vip-default-ex-addresses vip-get-ex-address ex-addresses beg end address set-mark vip-enlarge-region mark del-flag kill-region copy-region-as-kill ex-flag "*copy text*" princ ex-g-flag ex-g-variant kill-ring-yank-pointer nil (byte-code "ÀÁ!ˆŠÂÃ!ˆ)À‡" [vip-read-string "[Hit return to continue] " kill-buffer "*copy text*"] 2) ((quit (byte-code "ŠÀÁ!ˆ)ÂÃÄ\"‡" [kill-buffer "*copy text*" signal quit nil] 3))) 0 1] 4 "\
+ex copy and move command.  DEL-FLAG means delete."])
+(fset 'ex-delete #[nil "À ˆÁ ˆ\n@\nA@V«„ÅÆ!ˆŠÇ\"ˆÈ ˆ	«‹Ê`!ˆ	Syˆª„Ê!ˆÇ`Ë \"ˆ«–ÍÎ`Ë {!‘ˆÏĞÑˆŠÒÍ!)ª©«¡ÔX«’ÕX«ŒÖ×\\`Ë #ˆª‰Ø`Ë Ù$ˆ`Ë |+‡" [vip-default-ex-addresses vip-get-ex-buffer ex-addresses beg end error "First address exceeds second" vip-enlarge-region exchange-point-and-mark ex-count set-mark mark ex-flag " *delete text*" princ conditions (vip-read-string "[Hit return to continue] ") ((quit (byte-code "ŠÀÁ!ˆ)ÂÃ!‡" [kill-buffer " *delete text*" error ""] 2))) kill-buffer ex-buffer 65 90 vip-append-to-register 32 copy-to-register nil] 5 "\
+ex delete"])
+(byte-code "ÀÁMˆÂÃM‡" [vip-ex-find-buf #[(buf) "«ƒÁªÂ!‡" [running-epoch find-buffer-other-screen switch-to-buffer buf] 2] vip-ex-kill-buf #[(buf) "«‰ÁÂÃÄ!!\"ˆÆ!‡" [running-epoch mapcar epoch::delete-screen epoch::screens-of-buffer get-buffer buf kill-buffer] 5]] 2)
+(fset 'ex-edit #[(&optional file) "¬ƒÁ ˆ\n¬‹Ã «‡«„ÅÆ!ˆÈ˜«¤\n«Ä ÉÊ!ˆËp!ˆª“ÌÍÎ\"!«†ª„ÅÈ!ˆĞ!‰¬‡Ñ!ˆª„Ò!ˆÓ ˆebˆ­‹Õ‹ˆÖ bˆ×yˆÊ‡" [file vip-get-ex-file ex-variant buffer-modified-p buffer-file-name error "No write since last change (:e! overrides)" ex-file "" set-buffer-modified-p nil vip-ex-kill-buf y-or-n-p format "No file specified. Dired %s ?" default-directory get-file-buffer ex-find-file vip-ex-find-buf vip-change-mode-to-vi ex-offset ((byte-code "Àqˆed|ˆ	Â±ˆeb‡" [" *ex-working-space*" ex-offset "\n"] 2)) vip-get-ex-address 0] 4 "\
+ex-edit"])
+(fset 'ex-find-file #[(filespec) "À‰ÃÄ\"«´ŠÆÇ!qˆÈ	ÀÊÀËÌÍ\"&ˆebˆm¬“`Àˆ\n`{Î	!ˆÏĞ!ˆªjÑp!ˆ)ª†Î‰!ˆÒÓÔ	!¬ƒ	ªƒÕ	!!!*‡" [nil f s string-match "[^a-zA-Z0-9_.-/]" filespec get-buffer-create " ex-tmp" call-process ex-find-file-shell t "-c" format "echo %s | tr ' ' '\\012'" find-file-noselect forward-to-indentation 1 kill-buffer vip-ex-find-buf file-name-nondirectory file-directory-p directory-file-name] 9])
+(fset 'ex-global #[(variant) "¬ƒ	«†ÂÃ!ˆª«†ÅÆª„ÆÅÇ ˆ¬„ÂÉ!ˆÊ˜«¬†ÂÌ!ˆªªˆ¬…deDÅÏÅ@A@V«„ÂÕ!ˆŠÖ\"ˆ× ˆÆØ × ˆÏyˆm«‡o¬„ÛÜ!ˆ«Îo¬Ë`Y«ÅÏyˆİ`!ˆÅˆŞß Æ# «„ ¬‡	«“ ¬ÅˆTØ B)Ïyˆo«†Å‰ª8áyˆÅˆª.+â‹ˆ­˜@bˆã!ˆSA‰¬iÅ-‡" [ex-g-flag ex-g-variant error "Global within global not allowed" variant nil t vip-get-ex-pat ex-token "Missing regular expression for global command" "" vip-s-string "No previous search string" ex-g-pat ex-addresses 0 beg end com-str mark-count marks "First address exceeds second" vip-enlarge-region exchange-point-and-mark point-marker limit cont backward-char 1 set-mark re-search-backward mark found -1 ((byte-code "Àqˆ`TdS{Â‡" [" *ex-working-space*" com-str nil] 2)) vip-ex] 6 "\
+ex global command"])
+(fset 'ex-goto #[nil "¬„`ÁBÂ`!ˆ@bˆÃyˆÁ‡" [ex-addresses nil push-mark 0] 2 "\
+ex goto command"])
+(fset 'ex-line #[(com) "À ˆÁ ˆ\n@\nA@ÃV«„ÇÈ!ˆŠÉ\"ˆÊ ˆ«ˆÌ`!ˆyˆ«—ÎÏ`Ğ {!‘ˆÑÒÓˆŠÔÎ!ˆ)ªˆÕ`Ğ #ˆ`)Sbˆ×yˆ+Ã‡" [vip-default-ex-addresses vip-get-ex-count ex-addresses nil point beg end error "First address exceeds second" vip-enlarge-region exchange-point-and-mark ex-count set-mark ex-flag " *text*" princ mark conditions (byte-code "ÀÁ!ˆÂ`Ä #‡" [vip-read-string "[Hit return to continue] " ex-line-subr com mark] 4) ((quit (ding))) kill-buffer ex-line-subr com 0] 4 "\
+ex line commands.  COM is join, shift-right or shift-left."])
+(fset 'ex-line-subr #[(com beg end) "Á˜«¯\n^bˆm?­¥`\n]W­ÈÄˆ`\n]X«km¬hÅyˆ``S|ˆ¬\\Ç ˆªW‡È˜¬…É˜­ŸÊ\n^\n]È˜«„ªƒ[#ˆ\n]bˆÄˆÅu‡" [com "join" beg end nil 1 ex-variant fixup-whitespace "right" "left" indent-rigidly vip-shift-width] 5])
+(fset 'ex-mark #[nil "À\n¬„`ÀBÃ‹ˆŠ\n@bˆÄ	ÅZ!*‡" [nil char ex-addresses ((byte-code "ÀqˆÁÂwˆÃÄ!«”gÆuˆÁÂwˆÃÇ!¬•ÈÉ!ˆªÃÇ!«†ÈÊ!ˆª„ÈË!ˆÂ‡" [" *ex-working-space*" " 	" nil looking-at "[a-z]" char 1 "[\n|]" error "Extra characters at end of \"k\" command" "\"k\" requires a following letter" "Mark must specify a letter"] 2)) point-to-register 96] 3 "\
+ex mark"])
+(fset 'ex-map #[nil "À‰‰Ä‹ˆ	«©Å\"¬ÇÅ\"®É#ˆÇÊËÌÍÎÏ\nĞEEBD!#ª§Å\"¬ÇÅ\"®É#ˆÇÊËÌÓÔÏ\nĞEEBD!#+‡" [nil ins string char ((byte-code "ÀqˆÁÂ!«…ÃÅuˆÆÇwˆÈg!	ÅuˆÁÊ!¬„ËÌ!ˆÆÇwˆÁÍ!«„ËÎ!ˆÏ`!ˆĞ ˆÑÅ!ˆÒ `{Ç‡" [" *ex-working-space*" looking-at "!" t ins 1 " 	" nil char-to-string char "[ 	]" error "Usage: :map char string" "[\n|]" "Missing rhs" set-mark end-of-buffer backward-char mark string] 2)) lookup-key ex-ins-map define-key vip-insert-mode-map vip-nil eval quote lambda (count) (interactive "p") execute-kbd-macro count ex-map vip-mode-map (count) (interactive "p")] 11 "\
+ex map"])
+(fset 'ex-unmap #[nil "À‰Ã‹ˆ	«œÄ\n\"¬„ÆÇ!ˆÈ	\nÄ\n\n\"#ˆÈ\nÀ#ªœÄ\n\n\"¬„ÆÇ!ˆÈ\nÄ\n\n\"#ˆÈ\n\nÀ#*‡" [nil ins char ((byte-code "ÀqˆÁÂ!«…ÃÅuˆÆÇwˆÈg!	ÅuˆÆÇwˆÁÊ!¬„ËÌ!ˆÇ‡" [" *ex-working-space*" looking-at "!" t ins 1 " 	" nil char-to-string char "[\n|]" error "Macro must be a character"] 2)) lookup-key ex-ins-map error "That macro wasn't mapped" define-key vip-insert-mode-map ex-map vip-mode-map] 6 "\
+ex unmap"])
+(fset 'ex-next #[(&optional previous) "ÀÁ‡" [ex-edit (byte-code "À‰¬¸Ä ˆÅ!¬È˜¬’ÉÊ\"¬‹ËÌ!ˆÍËÀ\"ˆª™Î!‰ÏU«‚Ğ\nÏW«ˆÑÒ!ˆª‚ĞÓ \nÏV«š	«Š	@¬†	A‰¬v\nS‰ÏV«f	Aªa«„	@ª¬	@«¥«„Õ ª‚Ö ÀÙ!ÛÜ	@!\"ˆİ!+ªƒÑŞ!*‡" [nil l count previous vip-get-ex-file char-or-string-p ex-offset ex-file "" string-match "[0-9]+" ex-edit t throw string-to-int 0 1 error "Usage: next (count >= 0)" vip-undisplayed-files ex-cycle-other-window get-lru-window selected-window w k window-buffer b set-window-buffer get-file-buffer bury-buffer "Not that many undisplayed files"] 5)] 2])
+(fset 'ex-preserve #[nil "ÀÁ!ˆÂÃ!‡" [message "Autosaving all buffers that need to be saved..." do-auto-save t] 2 "\
+Force auto save"])
+(fset 'ex-put #[nil "¬ƒ`ª‚@Â ˆ	bˆ	ÅU«…ÆÇ!ªƒÈÇ!)‡" [ex-addresses point vip-get-ex-buffer ex-buffer vip-use-register 0 vip-Put-back 1 vip-put-back] 2 "\
+ex put"])
+(fset 'ex-pwd #[nil "À	!‡" [message default-directory] 2 "\
+ex print working directory"])
+(fset 'ex-quit #[nil "ÀÂ‹ˆ	ÃU«„ÄÀ!ˆ«„Æ ªƒÇp!)‡" [nil char ((byte-code "ÀqˆÁÂwˆgÂ‡" [" *ex-working-space*" " 	" nil char] 2)) 33 set-buffer-modified-p vip-is-vi save-buffers-kill-emacs vip-ex-kill-buf] 2 "\
+ex quit"])
+(fset 'ex-read #[nil "À ˆ	¬ƒ`ª‚	@‰bˆ\nÃU¬„ÄÅ!ˆÃyˆ¬’È˜«Œ	¬„ÊË!ˆ	«‡ÍÎ\"ª„Ï!)‡" [vip-get-ex-file ex-addresses point 0 next-line 1 ex-variant ex-file "" buffer-file-name error "No file specified" ex-cmdfile shell-command t insert-file] 4 "\
+ex read"])
+(fset 'ex-recover #[nil "À ˆ	¬ƒ\n«„ÃÄ!ˆÆ˜«¬„ÃÈ!ˆª„É!Ç ˜¬ŒÊ «ˆ¬„ÃÌ!ˆÍ!‡" [vip-get-ex-file ex-append ex-offset error "Illegal extra characters" ex-file "" buffer-file-name "No file associated with this buffer" expand-file-name buffer-modified-p ex-variant "No write since last change (:rec! overrides)" recover-file] 2 "\
+ex recover from emacs #file#"])
+(fset 'ex-rewind #[nil "ÀÁ!‡" [message ":n can count the :args list now. :rewind is obsolete"] 2 "\
+No rewind really. Instead tell about :next count"])
+(fset 'ex-set #[nil "ÀÁÂp!ÃÈ‹,‡" [nil 0 buffer-name "setq" s b val var ((byte-code "ÀqˆÁÂwˆÃÄ!«„ÅÆ!ˆÇ`!ˆÈÂwˆÉ `{‰\nË˜¬†\nÌ˜«‰Í\nÎ‚\nĞ˜¬†\nÑ˜«‰Í\nÒ‚\nÓ˜¬†\nÔ˜«‰Õ\nÎ‚\nÖ˜¬†\n×˜«‰Õ\nÒ‚\nØ˜¬†\nÙ˜«‰Ú\nÎ‚\nÛ˜¬†\nÜ˜«ˆÚ\nÒªö\nİ˜¬†\nŞ˜«ˆß\nÎªâ\nà˜¬†\ná˜«ˆß\nÒªÎ\nâ˜¬†\nã˜«ˆä\nÎªº\nå˜¬†\næ˜«ˆä\nÒª¦\nç˜¬†\nè˜«ˆé\nÎª’\nê˜¬†\në˜«†é\nÒì=ƒ›ÃÄ!«„ÅÆ!ˆíuˆÁÂwˆÃÄ!«„Åî!ˆÇ`!ˆï ˆğí!ˆÉ `{\nñ˜¬†\nò˜«…ó\nªÉ\nô˜¬†\nõ˜«ˆö\n÷8ªµ\nù˜¬†\nú˜«û\nüı\"÷8ªš\nş˜¬†\nÿ˜«@ \nüA \"B üC 8\n$!ˆD E üF 8\n$!@!‡" [" *ex-working-space*" " 	" nil looking-at "[\n|]" error "Usage: set variable[= 	]value" set-mark "^ 	=\n|" mark var "ai" "autoindent" "vip-auto-indent" "t" val "noai" "noautoindent" "nil" "ic" "ignorecase" "vip-case-fold-search" "noic" "noignorecase" "ma" "magic" "vip-re-search" "noma" "nomagic" "ro" "readonly" "buffer-read-only" "noro" "noreadonly" "sm" "showmatch" "blink-matching-paren" "nosm" "noshowmatch" "ws" "wrapscan" "vip-search-wrap-around-t" "nows" "nowrapscan" 0 1 "Missing rhs" end-of-buffer backward-char "sw" "shiftwidth" "vip-shift-width" "ts" "tabstop" "tab-width" "setq-default" s "wm" "wrapmargin" "fill-column" format "(- (window-width) %s)" "sh" "shell" "explicit-shell-file-name" "\"%s\"" message "%s %s %s" eval read-from-string "(%s %s %s)"] 8))] 4])
+(fset 'ex-shell #[nil "À ‡" [shell] 1 "\
+ex shell"])
+(fset 'ex-source #[nil "À ˆ	Â˜«„Ã!‡Ã	!‡" [vip-get-ex-file ex-file "" load vip-custom-file-name] 2 "\
+ex-source - just load the file or ~/.vip"])
+(fset 'ex-substitute #[(&optional repeat r-flag) "À‰‰‰‰‰«…Àª„É ¬\n«„ª‚ªªÎ˜«„ª‚‰É ¬ˆÎÎª‡Ï!«Ğ˜«„ÑªpÑªlÒ ˆ«Š«…@bˆÕ`!ˆSyˆ`Ö ÀBB)ªš¬‰``ÀBBªA¬ˆ@B@A@ÑÀŠÛ\"ˆŠ`Ö ]bˆÜ )`Ö ^bˆ`W«ÎÀˆÜ Şyˆ«£l¬˜ßÑ#«\n«…àá!«m`â!ˆªeÀˆÀuˆªJßÑ#«\n«…àá!«†`â!ˆÀˆÀuˆª,.	«ƒ	bˆŞyˆ\n­ƒãä!.‡" [nil matched-pos opt-c opt-g repl pat delim repeat ex-token vip-get-ex-pat r-flag vip-s-string ex-reg-exp ex-repl "" vip-get-ex-opt-gc "g" t vip-get-ex-count ex-count ex-addresses set-mark mark eol-mark cont end beg vip-enlarge-region point-marker limit 0 re-search-forward y-or-n-p "Replace? " replace-match message "done"] 7 "\
+ex substitute. if REPEAT use previous reg-exp which is ex-reg-exp or
+vip-s-string"])
+(fset 'ex-tag #[nil "ÀÂ‹ˆ	Ã˜¬‚	Å ˆÆÇÈ)‡" [nil tag ((byte-code "ÀqˆÁÂwˆÃ`!ˆÄÂwˆÅ `{Â‡" [" *ex-working-space*" " 	" nil set-mark "^ |	\n" mark tag] 2)) "" ex-tag vip-change-mode-to-emacs conditions (byte-code "Á˜«‡ÂÄ\"ˆª„Å!ˆÆ ‡" [tag "" find-tag ex-tag t find-tag-other-window vip-change-mode-to-vi] 3) ((error (byte-code "À ˆÁ\n!‡" [vip-change-mode-to-vi vip-message-conditions conditions] 2)))] 3 "\
+ex tag"])
+(fset 'ex-write #[(q-flag) "ÀÁ!ˆÂ ˆ@A@Ä‰‰‰	\n	\nV«„ËÌ!ˆ«‘Î	\n\"ˆÏ`Ğ #‚¿ Ò˜«¬„ËÔ!ˆª†Õ!Ó ˜¬’Ö!«Œ¬ˆËØÙ\"!ˆŠÎ	\n\"ˆÚ`Ğ Ü%ˆ`Ğ Z˜«ŠİÄ!ˆŞ ˆß ˆ)àÖ!	\n%ˆ¬„!­‹\"«„ã ªƒäp!.‡" [vip-default-ex-addresses t vip-get-ex-file ex-addresses nil ex-write-cmd ret old-point size beg end error "First address exceeds second" ex-cmdfile vip-enlarge-region shell-command-on-region mark ex-file "" buffer-file-name "No file associated with this buffer" expand-file-name file-exists-p ex-variant format "\"%s\" File exists - use w! to override" write-region ex-append 1 set-buffer-modified-p clear-visited-file-modtime delete-auto-save-file-if-necessary ex-write-info q-flag vip-is-vi save-buffers-kill-emacs kill-buffer] 6 "\
+ex write"])
+(fset 'ex-write-info #[(exists file-name size beg end) "ÀÁ\n«ƒÄªÅÆ\"	%‡" [message "\"%s\"%s %d lines, %d characters" file-name exists "" " [New file]" count-lines beg end size] 7])
+(fset 'ex-yank #[nil "À ˆÁ ˆ\n@\nA@V«„ÅÆ!ˆŠÇ\"ˆÈ ˆ	¬„\n«„ÅË!ˆ«‹Í`!ˆSyˆª„Í!ˆÇ`Î \"ˆ«„ÅĞ!ˆ«‰Ò`Î Ó$ˆÔ`Î \"+‡" [vip-default-ex-addresses vip-get-ex-buffer ex-addresses beg end error "First address exceeds second" vip-enlarge-region exchange-point-and-mark ex-g-flag ex-g-variant "Can't yank within global" ex-count set-mark mark ex-flag "Extra chacters at end of command" ex-buffer copy-to-register nil copy-region-as-kill] 5 "\
+ex yank"])
+(fset 'ex-command #[nil "ÀÂ‹ˆÃ	p\"‰ÄÅOÆ˜«’«Š	ÅÀOPª„ÈÉ!ˆ	\n¬…Ë	!ª°\n@\nA@¬„ŠbˆÎ!ˆÏ`Ğ \"ˆÑ`Ğ 	Ò$ˆ)b*)‡" [nil command ((byte-code "ÀqˆÁÂwˆ`d{Â‡" [" *ex-working-space*" " 	" nil command] 2)) ex-expand-filsyms 0 1 "!" vip-ex-last-shell-com error "No previous shell command" ex-addresses shell-command beg end set-mark vip-enlarge-region mark shell-command-on-region t] 6 "\
+execute shell command"])
+(fset 'ex-line-no #[nil "ÀÁÂe¬ƒdª‚@\"T\"‡" [message "%d" count-lines ex-addresses] 5 "\
+print line number"])
+(byte-code "À	!«„Â	!ˆ«ƒÄ ˆ«âÆÆÉÊMˆËÌMˆÍÎ!¬ƒÏË!ÍĞ!¬ƒÏË!ÍÑ!¬ƒÏË!ÍÒ!¬ƒÏË!ÍÓ!¬ƒÏË!ÍÔ!¬ƒÏË!Ï‡" [file-exists-p vip-custom-file-name load vip-want-history vip-get-history vip-always vip-mode term-setup-hook default-major-mode vip-tmp-hook #[nil "À ‡" [vip-mode] 1] vip-set-hook #[(h) "<«‰«‰@Áš«ƒCÂ>®…ÂB‰‡" [h lambda vip-tmp-hook] 2] boundp emacs-lisp-mode-hook nil TeX-mode-hook c-mode-hook c++-mode-hook lisp-interaction-mode-hook text-mode-hook] 2)

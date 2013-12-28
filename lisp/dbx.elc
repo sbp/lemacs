@@ -1,0 +1,65 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:11:48 1991
+;;; from file /wg1/emacs-base/lisp/dbx.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(require 'comint)
+(defvar dbx-trace-flag nil "\
+Dbx trace switch.")
+(defvar dbx-process nil "\
+The process in which dbx is running.")
+(defvar dbx-break-point "stopped in .* at line \\([0-9]*\\) in file \"\\([^\"]*\\)\"" "\
+Regexp of pattern that dbx writes at break point.")
+(byte-code "ÀÁ!¬‚Â	¬—Ã!Å	ÆÇ#ˆÅ	ÈÉ#ˆÅ\nËÌ#ˆÂ‡" [boundp inferior-dbx-mode-map nil copy-keymap shell-mode-map define-key "" dbx-where "" dbx-trace-mode ctl-x-map " " dbx-stop-at] 4)
+(fset 'inferior-dbx-mode #[nil "À ˆÁ ˆÂ!ˆÄÆÈ	ÊË!ˆËž¬†ÍBÎÏ!‡" [kill-all-local-variables comint-mode use-local-map inferior-dbx-mode-map inferior-dbx-mode major-mode "Inferior dbx" mode-name "^[^)]*dbx) *" comint-prompt-regexp make-local-variable dbx-trace-flag minor-mode-alist (dbx-trace-flag " Trace") run-hooks dbx-mode-hook] 2 "\
+Major mode for interacting with an inferior dbx process.
+
+The following commands are available:
+\\{inferior-dbx-mode-map}
+
+Entry to this mode calls the value of dbx-mode-hook with no arguments,
+if that value is non-nil.  Likewise with the value of comint-mode-hook.
+dbx-mode-hook is called after comint-mode-hook.
+
+You can display the debugging program in other window and point out
+where you are looking at using the command \\[dbx-where].
+
+\\[dbx-trace-mode] toggles dbx-trace mode. In dbx-trace mode,
+debugging program is automatically traced using output from dbx.
+
+The command \\[dbx-stop-at] sets break point at current line of the
+program in the buffer. Major mode name of the buffer must be in
+dbx-language-mode-list.
+
+Commands:
+
+Return at end of buffer sends line as input.
+Return not at end copies line, sans any dbx prompt, to end and sends it.
+\\[shell-send-eof] sends end-of-file as input.
+\\[comint-kill-input] and \\[backward-kill-word] are kill commands, imitating normal Unix input editing.
+\\[comint-interrupt-subjob] interrupts the shell or its current subjob if any.
+\\[comint-stop-subjob] stops, likewise. \\[comint-quit-subjob] sends quit signal, likewise.
+\\[dbx-where] displays debugging program in other window and
+ points out where you are looking at.
+\\[dbx-trace-mode] toggles dbx-trace mode.
+\\[dbx-stop-at] sets break point at current line." nil])
+(fset 'run-dbx #[(path) "À	!Â	!ÄÅÆQ!ˆÇ	!ÄÉÊPËÌ$!ˆ)Íp!ÏÐ\"ˆÑ ‡" [expand-file-name path file-name-nondirectory file switch-to-buffer "*dbx-" "*" file-name-directory default-directory make-comint "dbx-" "dbx" nil get-buffer-process dbx-process set-process-filter dbx-filter inferior-dbx-mode] 6 "\
+Run inferior dbx process on PROGRAM, with I/O via buffer *dbx-PROGRAM*." "fProgram to debug: "])
+(fset 'dbx-trace-mode #[(arg) "Á=¬„ÂÃ!ˆ¬„?ª…Æ!ÇVÈÉ !‡" [major-mode inferior-dbx-mode error "dbx-trace mode is effective in inferior-dbx mode only." arg dbx-trace-flag prefix-numeric-value 0 set-buffer-modified-p buffer-modified-p] 2 "\
+Toggle dbx-trace mode.
+With arg, turn dbx-trace mode on iff arg is positive.
+In dbx-trace mode, user program is automatically traced." "P"])
+(fset 'dbx-filter #[(process string) "ŠÀ	!qˆdbˆ`Ã!ˆ«…Æ\nÇ\"ˆ)È	!«‡È	!dÉ“ˆ)À	!p=­‚db‡" [process-buffer process beg insert-before-markers string dbx-trace-flag dbx-where t process-mark nil] 3 "\
+Trace debugging program automatically if dbx-trace-flag is not nil."])
+(fset 'dbx-where #[(&optional begin quiet) "À‰ŠÃ#«ŒÇ”Ç•{È”È•{)\n­§	­¤ÉÊ\nÀ\"!ˆËÌ	!!ˆÍyˆÎ¬„Ñ `p“ˆÒÇ!*‡" [nil line file re-search-backward dbx-break-point begin quiet 1 2 find-file-other-window expand-file-name goto-line string-to-int 0 "=>" overlay-arrow-string overlay-arrow-position make-marker other-window] 4 "\
+Display dbx'ed program in other window and point out where you are looking.
+BEGIN bounds the search. If QUIET, just return nil (no error) if fail." nil])
+(fset 'dbx-stop-at #[nil "À	!Œ~ˆÂÃ`\"T)ÆÈÉÊ°\"*‡" [file-name-nondirectory buffer-file-name count-lines 1 line file-name send-string dbx-process "stop at \"" "\":" "\n"] 7 "\
+Set break point at current line." nil])

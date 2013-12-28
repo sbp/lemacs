@@ -1,0 +1,40 @@
+;;; compiled by jwz@thalidomide on Sat Dec 28 16:57:10 1991
+;;; from file /wg1/emacs-base/lisp/vm/vm-delete.el
+;;; emacs version 19.39.
+;;; bytecomp version 2.03; 29-oct-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(require 'vm)
+(fset 'vm-delete-message #[(count) "t«ƒÀ ˆ	«ˆÂ	!«ƒ	qˆÃ!«‡Â!¬‚Å«ˆÇÈpC\"ˆªtÉ ˆ\nË=Í!‰«˜@ĞHĞH¬‡Ñ@Ò\"ˆA‰¬hÓ ˆ­Œ?­‡ÕÒ#*‡" [vm-follow-summary-cursor vm-mail-buffer buffer-name bufferp vm-summary-buffer nil vm-folder-read-only signal folder-read-only vm-error-if-folder-empty last-command vm-next-command-uses-marks used-marks vm-select-marked-or-prefixed-messages count mlist 2 vm-set-deleted-flag t vm-update-summary-and-mode-line vm-move-after-deleting vm-next-message executing-kbd-macro] 5 "\
+Add the `deleted' attribute to the current message.
+
+The message will be physically deleted from the current folder the next
+time the current folder is expunged.
+
+With a prefix argument, the next COUNT messages are deleted.  A negative
+argument means the previous COUNT messages are deleted.
+
+When invoked on marked messages (via vm-next-command-uses-marks),
+all marked messages are deleted, other messages are ignored." "p"])
+(fset 'vm-delete-message-backward #[(count) "[ÂÃ!)‡" [count prefix-arg command-execute vm-delete-message] 2 "\
+Like vm-delete-message, except that the deletion direction is reversed." "p"])
+(fset 'vm-undelete-message #[(count) "t«ƒÀ ˆ	«ˆÂ	!«ƒ	qˆÃ!«‡Â!¬‚Å«ˆÇÈpC\"ˆªtÉ ˆ\nË=Í!‰«˜@ĞHĞH«‡Ñ@Å\"ˆA‰¬hÒ ˆ­Œ?­‡ÔÕ#*‡" [vm-follow-summary-cursor vm-mail-buffer buffer-name bufferp vm-summary-buffer nil vm-folder-read-only signal folder-read-only vm-error-if-folder-empty last-command vm-next-command-uses-marks used-marks vm-select-marked-or-prefixed-messages count mlist 2 vm-set-deleted-flag vm-update-summary-and-mode-line vm-move-after-undeleting vm-next-message t executing-kbd-macro] 5 "\
+Remove the `deleted' attribute from the current message.
+
+With a prefix argument, the next COUNT messages are undeleted.  A
+negative argument means the previous COUNT messages are undeleted.
+
+When invoked on marked messages (via vm-next-command-uses-marks),
+all marked messages are undeleted, other messages are ignored." "p"])
+(fset 'vm-kill-subject #[nil "À ˆ	«ˆÂ	!«ƒ	qˆÃ!«‡Â!¬‚Å«ˆÇÈpC\"ˆªtÉ ˆÊ@!ÍÑÒ\"«ˆÍ•ÅOÓÔ!ÕQ«¨@ÖHÖH¬—ÑÊ@!\"«Œ×@Ø\"ˆTA‰¬Xt«›ÍU«†ÙÚ!ˆªÙÛ‰ÜU«ƒİªŞ#ˆ+ß ‡" [vm-follow-summary-cursor vm-mail-buffer buffer-name bufferp vm-summary-buffer nil vm-folder-read-only signal folder-read-only vm-error-if-folder-empty vm-su-subject vm-message-pointer vm-message-list 0 n mp subject string-match "^\\(re: *\\)+" "^\\(re: *\\)*" regexp-quote " *$" 2 vm-set-deleted-flag t message "No messages deleted." "%d message%s deleted" 1 "" "s" vm-update-summary-and-mode-line] 6 "\
+Delete all messages with the same subject as the current message
+(ignoring re:'s)." nil])
+(fset 'vm-expunge-folder #[(&optional quitting shaddap) "«ˆÁ!«ƒqˆÂ!«‡Á!¬‚Ä«ˆÆÇpC\"ˆªuÈ	!‰	«„ÊË!ˆ¬„ÍÎ!ˆÏÄÒ ‰«´Ä?­§¬„×Ø!ˆ¬Œ¬„Û ª“Ü ª¬„Ş ª‡Û ªƒÊß!*‡" [vm-mail-buffer buffer-name bufferp vm-summary-buffer nil vm-folder-read-only signal folder-read-only vm-trim-dead-buffers vm-virtual-buffers error "Can't execute command: folder is referenced virtually." shaddap message "Expunging..." t did-gobble inhibit-quit vm-gobble-deleted-messages vm-numbering-redo-start-point vm-summary-redo-start-point vm-totals quitting vm-deferred-message "Deleted messages expunged." vm-message-pointer vm-message-list vm-update-summary-and-mode-line vm-next-message vm-system-state vm-preview-current-message "No messages are flagged for deletion."] 3 "\
+Expunge deleted messages, but don't save folder to disk or exit VM." nil])
+(fset 'vm-gobble-deleted-messages #[nil "ŠÀ deZVÁ‰‰«Å eÁ“‰«†Å dÁ“Æ~ˆ‰Á‰‰‰‰	\n‰­@@ÏHĞHJ=?«ä@ÑHÑH¬†ªÍ¬ˆ®‚¬@ÏHÏH@ÏHÒH|ˆ¬‘A@ÏHÓHÁLˆª˜A¡ˆA«ŒA@ÏHÓHLˆA‰¬«Š=«ƒÔ­ĞÕ ˆÖÔ!ˆ«Œ@ÑHÑH«ƒÁ«¯@ÑHÑH«¦ÁA‰«‘@ÑHÑH«ˆA‰¬o®„Ü!.‡" [buffer-size nil vm-sr-max vm-sr-min vm-sr-clip make-marker ((byte-code "~ˆ«	\n}ˆ	Ã‰“ˆ\nÃ‰“ˆÃ‡" [vm-sr-clip vm-sr-min vm-sr-max nil] 3)) vm-message-list did-gobble tail-cons buffer-read-only prev virtual old-message-list mp 0 6 2 3 8 t vm-clear-expunge-invalidated-undos vm-set-buffer-modified-p vm-message-order-stuffed vm-message-order-changed vm-last-message-pointer vm-message-pointer vm-system-state vm-last] 8])

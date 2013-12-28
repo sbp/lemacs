@@ -1,0 +1,233 @@
+;;; compiled by jwz@thalidomide on Mon Mar 30 17:36:23 1992
+;;; from file /u/jwz/emacs19/lisp/picture.el
+;;; emacs version 19.87 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'picture)
+(fset 'move-to-column-force #[(column) "À	!ˆi‰	W«„	jª˜\n	U?­’hÃU­ÄÆÇ!ˆ\njˆÀ	!)È	)‡" [move-to-column column col 9 nil indent-tabs-mode delete-char -1 t zmacs-region-stays] 3 "\
+Move to column COLUMN in current line.
+Differs from move-to-column in that it creates or modifies whitespace
+if necessary to attain exactly the specified column."])
+(fset 'picture-end-of-line #[(&optional arg) "«†Á!SyˆÂyˆÃ`Äˆx‡" [arg prefix-numeric-value 0 " 	" nil] 3 "\
+Position point after last non-blank character on current line.
+With ARG not nil, move forward ARG - 1 lines first.
+If scan reaches end of buffer, stop there without error." "P"])
+(fset 'picture-forward-column #[(arg) "Ài	\\!‡" [move-to-column-force arg] 3 "\
+Move cursor right, making whitespace if necessary.
+With argument, move that many columns." "p"])
+(fset 'picture-backward-column #[(arg) "Ài	Z!‡" [move-to-column-force arg] 3 "\
+Move cursor left, making whitespace if necessary.
+With argument, move that many columns." "p"])
+(fset 'picture-move-down #[(arg) "iÁ\n!ˆÃ!)‡" [col picture-newline arg move-to-column-force] 2 "\
+Move vertically down, making whitespace if necessary.
+With argument, move that many lines." "p"])
+(defconst picture-vertical-step 0 "\
+Amount to move vertically after text character in Picture mode.")
+(defconst picture-horizontal-step 1 "\
+Amount to move horizontally after text character in Picture mode.")
+(fset 'picture-move-up #[(arg) "À	[!‡" [picture-move-down arg] 2 "\
+Move vertically up, making whitespace if necessary.
+With argument, move that many lines." "p"])
+(fset 'picture-movement-right #[nil "ÀÁÂ\"‡" [picture-set-motion 0 1] 3 "\
+Move right after self-inserting character in Picture mode." nil])
+(fset 'picture-movement-left #[nil "ÀÁÂ\"‡" [picture-set-motion 0 -1] 3 "\
+Move left after self-inserting character in Picture mode." nil])
+(fset 'picture-movement-up #[nil "ÀÁÂ\"‡" [picture-set-motion -1 0] 3 "\
+Move up after self-inserting character in Picture mode." nil])
+(fset 'picture-movement-down #[nil "ÀÁÂ\"‡" [picture-set-motion 1 0] 3 "\
+Move down after self-inserting character in Picture mode." nil])
+(fset 'picture-movement-nw #[nil "ÀÁ‰\"‡" [picture-set-motion -1] 3 "\
+Move up and left after self-inserting character in Picture mode." nil])
+(fset 'picture-movement-ne #[nil "ÀÁÂ\"‡" [picture-set-motion -1 1] 3 "\
+Move up and right after self-inserting character in Picture mode." nil])
+(fset 'picture-movement-sw #[nil "ÀÁÂ\"‡" [picture-set-motion 1 -1] 3 "\
+Move down and left after self-inserting character in Picture mode." nil])
+(fset 'picture-movement-se #[nil "ÀÁ‰\"‡" [picture-set-motion 1] 3 "\
+Move down and right after self-inserting character in Picture mode." nil])
+(fset 'picture-set-motion #[(vert horiz) "\nÄÅ\nÆ¦Æ¦TÇ_È\\\\É›@\"\nËÌ !ˆÍÎ!‡" [vert picture-vertical-step horiz picture-horizontal-step format "Picture:%s" 2 3 1 (nw up ne left none right sw down se) mode-name set-buffer-modified-p buffer-modified-p message ""] 5 "\
+Set VERTICAL and HORIZONTAL increments for movement in Picture mode.
+The mode line is updated to reflect the current direction."])
+(fset 'picture-move #[nil "À	!ˆÂ!‡" [picture-move-down picture-vertical-step picture-forward-column picture-horizontal-step] 2 "\
+Move in direction of  picture-vertical-step  and  picture-horizontal-step."])
+(fset 'picture-motion #[(arg) "À	\n_!ˆÃ	_!‡" [picture-move-down arg picture-vertical-step picture-forward-column picture-horizontal-step] 3 "\
+Move point in direction of current picture motion in Picture mode.
+With ARG do it that many times.  Useful for delineating rectangles in
+conjunction with diagonal picture motion.
+Do \\[command-apropos]  picture-movement  to see commands which control motion." "p"])
+(fset 'picture-motion-reverse #[(arg) "À	[!‡" [picture-motion arg] 2 "\
+Move point in direction opposite of current picture motion in Picture mode.
+With ARG do it that many times.  Useful for delineating rectangles in
+conjunction with diagonal picture motion.
+Do \\[command-apropos]  picture-movement  to see commands which control motion." "p"])
+(fset 'picture-self-insert #[(arg) "ÁV­šSÂiT!ˆÃÄ!ˆcˆÄuˆÆ ˆÇªa‡" [arg 0 move-to-column-force delete-char -1 last-input-char picture-move nil zmacs-region-stays] 2 "\
+Insert this character in place of character previously at the cursor.
+The cursor then moves in the direction you previously specified
+with the commands picture-movement-right, picture-movement-up, etc.
+Do \\[command-apropos]  picture-movement  to see those commands." "p"])
+(fset 'picture-clear-column #[(arg) "`i‰\n\\Ä!ˆ`|ˆŠ	]j,‡" [opoint original-col arg target-col move-to-column-force] 3 "\
+Clear out ARG columns after point without moving." "p"])
+(fset 'picture-backward-clear-column #[(arg) "À	[!‡" [picture-clear-column arg] 2 "\
+Clear out ARG columns before point, moving back over them." "p"])
+(fset 'picture-clear-line #[(arg) "«•Á!Â!ˆÃÄV«ƒª‚[!‡ÅÆ!«ŠÇ`Èyˆ`\"ˆªˆÉ`Êˆ`\"ˆÊ‰‡" [arg prefix-numeric-value kill-line newline 0 looking-at "[ 	]*$" kill-ring-save 1 kill-region nil zmacs-region-stays] 3 "\
+Clear out rest of line; if at end of line, advance to next line.
+Cleared-out line text goes into the kill ring, as do
+newlines that are advanced over.
+With argument, clear out (and save in kill ring) that many lines." "P"])
+(fset 'picture-newline #[(arg) "ÁW«ƒy‡ÁV­”Âˆm«…Ã ˆªƒÄuˆS‰ªh‡" [arg 0 nil newline 1] 3 "\
+Move to the beginning of the following line.
+With argument, moves that many lines (up, if negative argument);
+always moves to the beginning of a line." "p"])
+(fset 'picture-open-line #[(arg) "ŠÀˆÁ\n!)‡" [nil open-line arg] 2 "\
+Insert an empty line after the current line.
+With positive argument insert that many lines." "p"])
+(fset 'picture-duplicate-line #[nil "ŠÀyˆ`ÁÂ!ˆ`{Äyˆc*‡" [0 picture-newline 1 contents -1] 3 "\
+Insert a duplicate of the current line, below it." nil])
+(defvar picture-tab-chars "!-~" "\
+*A character set which controls behavior of commands
+\\[picture-set-tab-stops] and \\[picture-tab-search].  It is NOT a
+regular expression, any regexp special characters will be quoted.
+It defines a set of \"interesting characters\" to look for when setting
+(or searching for) tab stops, initially \"!-~\" (all printing characters).
+For example, suppose that you are editing a table which is formatted thus:
+| foo		| bar + baz | 23  *
+| bubbles	| and + etc | 97  *
+and that picture-tab-chars is \"|+*\".  Then invoking
+\\[picture-set-tab-stops] on either of the previous lines would result
+in the following tab stops
+		:     :     :     :
+Another example - \"A-Za-z0-9\" would produce the tab stops
+  :		  :	:     :
+
+Note that if you want the character `-' to be in the set, it must be
+included in a range or else appear in a context where it cannot be
+taken for indicating a range (e.g. \"-A-Z\" declares the set to be the
+letters `A' through `Z' and the character `-').  If you want the
+character `\\' in the set it must be preceded by itself: \"\\\\\".
+
+The command \\[picture-tab-search] is defined to move beneath (or to) a
+character belonging to this set independent of the tab stops list.")
+(fset 'picture-set-tab-stops #[(&optional arg) "ŠÀ\n«†ÃÄ!ª±ÅÆ!ÈQ	Êyˆ`ÀˆÌ	Í#«ŠÎÀwˆi	Bªm	¬ˆÏĞÆ!\"ˆ*	Ñ	GS	8TÒ\"	«	@ÔIˆ	A‰¬sÕ!+‡" [nil tabs arg default-value tab-stop-list "[ 	]+[" regexp-quote picture-tab-chars "]" regexp 0 bol re-search-backward t " 	" error "No characters in set %s on this line." make-string 32 blurb 58 message] 5 "\
+Set value of  tab-stop-list  according to context of this line.
+This controls the behavior of \\[picture-tab].  A tab stop
+is set at every column occupied by an \"interesting character\" that is
+preceded by whitespace.  Interesting characters are defined by the
+variable  picture-tab-chars,  see its documentation for an example
+of usage.  With ARG, just (re)set  tab-stop-list  to its default value.
+The tab stops computed are displayed in the minibuffer with `:' at
+each stop." "P"])
+(fset 'picture-tab-search #[(&optional arg) "iŠ	¬’ÂyˆÃÄ!Pexˆo¬„Æ!ˆÇÈÄ!ÉQŠÊˆ`)Ë#«…iSª‚Ê)«…Ì!ª„ÂyˆÊ)‡" [target arg 0 "^" regexp-quote picture-tab-chars move-to-column re-search-forward "[ 	]+[" "]" nil move move-to-column-force] 4 "\
+Move to column beneath next interesting char in previous line.
+With ARG move to column occupied by next interesting character in this
+line.  The character must be preceded by whitespace.
+\"interesting characters\" are defined by variable  picture-tab-chars.
+If no such character is found, move to beginning of line." "P"])
+(fset 'picture-tab #[(&optional arg) "`Á ˆ\n«Ãi`|ˆj*ª„Æ‰)‡" [opoint move-to-tab-stop arg nil column indent-tabs-mode t zmacs-region-stays] 2 "\
+Tab transparently (just move point) to next tab stop.
+With prefix arg, overwrite the traversed text with spaces.  The tab stop
+list can be changed by \\[picture-set-tab-stops] and \\[edit-tab-stops].
+See also documentation for variable `picture-tab-chars'." "P"])
+(defconst picture-killed-rectangle nil "\
+Rectangle killed or copied by \\[picture-clear-rectangle] in Picture mode.
+The contents can be retrieved by \\[picture-yank-rectangle]")
+(fset 'picture-clear-rectangle #[(start end &optional killp) "À	\n#‰‡" [picture-snarf-rectangle start end killp picture-killed-rectangle] 4 "\
+Clear and save rectangle delineated by point and mark.
+The rectangle is saved for yanking by \\[picture-yank-rectangle] and replaced
+with whitespace.  The previously saved rectangle, if any, is lost.
+With prefix argument, the rectangle is actually killed, shifting remaining
+text." "r\nP"])
+(fset 'picture-clear-rectangle-to-register #[(start end register &optional killp) "À	Â#\"‡" [set-register register picture-snarf-rectangle start end killp] 6 "\
+Clear rectangle delineated by point and mark into REGISTER.
+The rectangle is saved in REGISTER and replaced with whitespace.
+With prefix argument, the rectangle is actually killed, shifting remaining
+text." "r\ncRectangle to register: \nP"])
+(fset 'picture-snarf-rectangle #[(start end &optional killp) "iÀŠ«‡Ä\"ª‹Ç\"È\"ˆ)É\n!ˆÀ\n*‡" [nil indent-tabs-mode column killp delete-extract-rectangle start end extract-rectangle clear-rectangle move-to-column-force zmacs-region-stays] 4])
+(fset 'picture-yank-rectangle #[(&optional insertp) ":¬„ÁÂ!‡Ã\"‡" [picture-killed-rectangle error "No rectangle saved." picture-insert-rectangle insertp] 3 "\
+Overlay rectangle saved by \\[picture-clear-rectangle]
+The rectangle is positioned with upper left corner at point, overwriting
+existing text.  With prefix argument, the rectangle is inserted instead,
+shifting existing text.  Leaves mark at one corner of rectangle and
+point at the other (diagonally opposed) corner." "P"])
+(fset 'picture-yank-rectangle-from-register #[(register &optional insertp) "À	!‰:¬†ÃÄ	\"ª…Å\n\")‡" [get-register register rectangle error "Register %c does not contain a rectangle." picture-insert-rectangle insertp] 4 "\
+Overlay rectangle saved in REGISTER.
+The rectangle is positioned with upper left corner at point, overwriting
+existing text.  With prefix argument, the rectangle is
+inserted instead, shifting existing text.  Leaves mark at one corner
+of rectangle and point at the other (diagonally opposed) corner." "cRectangle from register: \nP"])
+(fset 'picture-insert-rectangle #[(rectangle &optional insertp) "À\n¬“ŠÃ`Ä@G!ˆÆGS!ˆ`\"ˆ)Ç ˆÈ!)‡" [nil indent-tabs-mode insertp delete-rectangle picture-forward-column rectangle picture-move-down push-mark insert-rectangle] 4 "\
+Overlay RECTANGLE with upper left corner at point.
+Optional argument INSERTP, if non-nil causes RECTANGLE to be inserted.
+Leaves the region surrounding the rectangle."])
+(byte-code "ÀÂÄ ÅW«Æ	ÇÈ\"É#ˆT‰ªmÆ	ÊË#ˆÆ	ÌÍ#ˆÆ	ÎÏ#ˆÆ	ĞÑ#ˆÆ	ÒÓ#ˆÆ	ÔÕ#ˆÆ	Ö×#ˆÆ	ØÙ#ˆÆ	ÚÛ#ˆÆ	Üİ#ˆÆ	Şß#ˆÆ	àá#ˆÆ	âã#ˆÆ	äå#ˆÆ	âæ#ˆÆ	çè#ˆÆ	éê#ˆÆ	ëì#ˆÆ	íî#ˆÆ	ïğ#ˆÆ	ñò#ˆÆ	óô#ˆÆ	õö#ˆÆ	÷ø#ˆÆ	ùú#ˆÆ	ûü#ˆÆ	ış#ˆÆ	ÿ@ #ˆÆ	A B #ˆÆ	C D #ˆÆ	E F #ˆ)À‡" [nil picture-mode-map 32 i make-keymap 127 define-key make-string 1 picture-self-insert "" picture-forward-column "" picture-backward-column "" picture-clear-column "" delete-char "" picture-backward-clear-column "" picture-clear-line "" picture-open-line "" picture-newline "\n" picture-duplicate-line "" picture-move-down "" picture-move-up "" picture-end-of-line "	" picture-toggle-tab-state "	" picture-tab picture-tab-search "	" picture-set-tab-stops "" picture-clear-rectangle "" picture-clear-rectangle-to-register "" picture-yank-rectangle "" picture-yank-rectangle-from-register "" picture-mode-exit "" picture-motion "" picture-motion-reverse "<" picture-movement-left ">" picture-movement-right "^" picture-movement-up "." picture-movement-down "`" picture-movement-nw "'" picture-movement-ne "/" picture-movement-sw "\\" picture-movement-se] 6)
+(defvar edit-picture-hook nil "\
+If non-nil, it's value is called on entry to Picture mode.
+Picture mode is invoked by the command \\[edit-picture].")
+(fset 'edit-picture #[nil "Á=«„ÂÃ!‡ÄÅ!ˆÆ Ç!ˆÄÉ!ˆ\n	ÄË!ˆÁÄÌ!ˆÍÄÎ!ˆÏÎ!ÄĞ!ˆÏĞ!ÄÑ!ˆÄÒ!ˆÓÔÕ\"ˆÖ×!ˆØÙÚ!	\"‡" [major-mode edit-picture error "You are already editing a Picture." make-local-variable picture-mode-old-local-map current-local-map use-local-map picture-mode-map picture-mode-old-mode-name mode-name picture-mode-old-major-mode picture-killed-rectangle nil tab-stop-list default-value picture-tab-chars picture-vertical-step picture-horizontal-step picture-set-motion 0 1 run-hooks edit-picture-hook message substitute-command-keys "Type \\[picture-mode-exit] in this buffer to return it to %s mode."] 3 "\
+Switch to Picture mode, in which a quarter-plane screen model is used.
+Printing characters replace instead of inserting themselves with motion
+afterwards settable by these commands:
+  C-c <	  Move left after insertion.
+  C-c >	  Move right after insertion.
+  C-c ^	  Move up after insertion.
+  C-c .	  Move down after insertion.
+  C-c `	  Move northwest (nw) after insertion.
+  C-c '	  Move northeast (ne) after insertion.
+  C-c /	  Move southwest (sw) after insertion.
+  C-c \\   Move southeast (se) after insertion.
+The current direction is displayed in the mode line.  The initial
+direction is right.  Whitespace is inserted and tabs are changed to
+spaces when required by movement.  You can move around in the buffer
+with these commands:
+  C-p	  Move vertically to SAME column in previous line.
+  C-n	  Move vertically to SAME column in next line.
+  C-e	  Move to column following last non-whitespace character.
+  C-f	  Move right inserting spaces if required.
+  C-b	  Move left changing tabs to spaces if required.
+  C-c C-f Move in direction of current picture motion.
+  C-c C-b Move in opposite direction of current picture motion.
+  Return  Move to beginning of next line.
+You can edit tabular text with these commands:
+  M-Tab	  Move to column beneath (or at) next interesting character.
+	    `Indents' relative to a previous line.
+  Tab	  Move to next stop in tab stop list.
+  C-c Tab Set tab stops according to context of this line.
+	    With ARG resets tab stops to default (global) value.
+	    See also documentation of variable	picture-tab-chars
+	    which defines \"interesting character\".  You can manually
+	    change the tab stop list with command \\[edit-tab-stops].
+You can manipulate text with these commands:
+  C-d	  Clear (replace) ARG columns after point without moving.
+  C-c C-d Delete char at point - the command normally assigned to C-d.
+  Delete  Clear (replace) ARG columns before point, moving back over them.
+  C-k	  Clear ARG lines, advancing over them.	 The cleared
+	    text is saved in the kill ring.
+  C-o	  Open blank line(s) beneath current line.
+You can manipulate rectangles with these commands:
+  C-c C-k Clear (or kill) a rectangle and save it.
+  C-c C-w Like C-c C-k except rectangle is saved in named register.
+  C-c C-y Overlay (or insert) currently saved rectangle at point.
+  C-c C-x Like C-c C-y except rectangle is taken from named register.
+  \\[copy-rectangle-to-register]   Copies a rectangle to a register.
+  \\[advertised-undo]   Can undo effects of rectangle overlay commands
+	    commands if invoked soon enough.
+You can return to the previous mode with:
+  C-c C-c Which also strips trailing whitespace from every line.
+	    Stripping is suppressed by supplying an argument.
+
+Entry to this mode calls the value of  edit-picture-hook  if non-nil.
+
+Note that Picture mode commands will work outside of Picture mode, but
+they are not defaultly assigned to keys." nil])
+(fset 'picture-mode 'edit-picture)
+(fset 'picture-mode-exit #[(&optional nostrip) "Á=¬„ÂÃ!‡¬ƒÅ ˆÈ	!ˆ\nËÌ!ˆÍÎ !‡" [major-mode edit-picture error "You aren't editing a Picture." nostrip picture-clean picture-mode-old-mode-name mode-name use-local-map picture-mode-old-local-map picture-mode-old-major-mode kill-local-variable tab-stop-list set-buffer-modified-p buffer-modified-p] 2 "\
+Undo edit-picture and return to previous major mode.
+With no argument strips whitespace from end of every line in Picture buffer
+  otherwise just return to previous mode." "P"])
+(fset 'picture-clean #[nil "ŠebˆÀÁÂÃ#­‡Ä”`|ˆªr)‡" [re-search-forward "[ 	][ 	]*$" nil t 0] 4 "\
+Eliminate whitespace at ends of lines."])

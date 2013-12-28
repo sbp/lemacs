@@ -1,0 +1,25 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:16:56 1991
+;;; from file /wg1/emacs-base/lisp/float-sup.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!¬„ÂÃ!ˆÄÅ!‡" [fboundp atan error "Floating point was disabled at compile time" provide lisp-float-type] 2)
+(defconst pi (byte-code "ÀÁ!Â_‡" [atan 1 4] 2) "\
+The value of Pi (3.1415926...)")
+(defconst e (exp 1) "\
+The value of e (2.7182818...)")
+(defconst degrees-to-radians (/ pi 180) "\
+Degrees to radian conversion constant")
+(defconst radians-to-degrees (/ 180 pi) "\
+Radian to degree conversion constant")
+(fset 'degrees-to-radians '(macro . #[(x) "À	Â¥E‡" [* pi 180 x] 3 "\
+Convert ARG from degrees to radians."]))
+(fset 'radians-to-degrees '(macro . #[(x) "ÀÁ\n¥E‡" [* 180 pi x] 3 "\
+Convert ARG from radians to degrees."]))

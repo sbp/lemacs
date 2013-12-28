@@ -1,0 +1,1106 @@
+Info file: calendar-info,    -*-Text-*-
+produced by texinfo-format-buffer
+from file: calendar.texinfo
+then hand-hacked by jwz
+
+
+
+File: calendar-info  Node: Top, Up: (DIR)
+
+Calendar Mode and the Diary
+===========================
+
+  Emacs provides all the usual functions of a calendar, with a diary of
+past or planned events.  To see a three-month calendar centered around
+the current month, use the command `M-x calendar'.  Emacs will
+display a window with the calendar, point will indicate the current
+date, and you will be in Calendar mode.
+
+* Menu:
+
+* Calendar Motion::       Moving through the calendar; selecting a date.
+* Scroll Calendar::       Bringing earlier or later months onto the screen.
+* Mark and Region::       Remembering dates, the mark ring.
+* Misc Calendar::         Moving to today's date, to a specified date.
+* Holidays::              Displaying dates of holidays.
+* Other Calendars::       Converting dates to other calendar systems.
+* Diary::                 Displaying events from your diary.
+* Diary File::            Entering events in your diary.
+* Special Diary Entries:: Anniversaries, blocks of dates, cyclic entries, etc.
+* Customization:: Altering the behavior of the features above.
+
+
+File: calendar-info  Node: Calendar Motion, Prev: Top, Up: Top, Next: Scroll Calendar
+
+Movement in the Calendar
+------------------------
+
+  You can move through the calendar from the current date to other
+dates.  If you move outside the three months originally displayed,
+the calendar display scrolls automatically through time.
+
+* Menu:
+
+* Calendar Unit Motion::       Moving by days, weeks, months, and years.
+* Beg or End Calendar Motion:: Moving to beg/end of weeks, months, and years.
+* Moving to Arbitrary Dates::  Moving to a specific date.
+
+
+File: calendar-info  Node: Calendar Unit Motion, Prev: Calendar Motion, Up: Calendar Motion, Next: Beg or End Calendar Motion
+
+Motion by Integral Days, Weeks, Months, Years
+.............................................
+
+  The commands for movement in the calendar buffer parallel the
+commands for movement in text.  You can move forward and backward by
+days, weeks, months, and years.
+
+`C-f'
+     Move point one day forward (`calendar-forward-day').
+`C-b'
+     Move point one day backward (`calendar-backward-day').
+`C-n'
+     Move point one week forward (`calendar-forward-week').
+`C-p'
+     Move point one week backward (`calendar-backward-week').
+`M-]'
+     Move point one month forward (`calendar-forward-month').
+`M-['
+     Move point one month backward (`calendar-backward-month').
+`C-x ]'
+     Move point one year forward (`calendar-forward-year').
+`C-x ['
+     Move point one year backward (`calendar-forward-year').
+
+  The day and week commands are natural analogues of the usual Emacs
+commands for moving by characters and by lines.  Just as `C-n'
+usually moves to the same column in the following line, in Calendar
+mode it moves to the same day in the following week.  And `C-p'
+moves to the same day in the previous week.
+
+  The commands for motion by months and years work like those for
+weeks, but move a larger distance.  The month commands `M-]' and
+`M-[' move forward or backward by an entire month's time.  The
+year commands `C-x ]' and `C-x [' move forward or backward a
+whole year.
+
+  The easiest way to remember these commands is to consider months and
+years analogous to paragraphs and pages of text, respectively.  But the
+commands themselves are not quite analogous.  The ordinary Emacs paragraph
+commands move to the beginning or end of a paragraph, whereas these month
+and year commands move by an entire month or an entire year, which usually
+involves skipping across the end of a month or year.
+
+  Each of these commands accepts a numeric argument as repeat counts.
+For convenience, the digit keys and the minus sign are bound in
+Calendar mode so that it is unnecessary to type the `M-' prefix.
+For example, `100 C-f' will move point 100 days forward from its
+present location.
+
+
+File: calendar-info  Node: Beg or End Calendar Motion, Prev: Calendar Unit Motion, Up: Calendar Motion
+
+Beginning or End of Week, Month or Year
+.......................................
+
+  A week (or month, or year) is not just a quantity of days; we think
+of new weeks (months, years) as starting on particular days.  So
+Calendar mode provides commands to move to the beginning or end of the
+week, month or year:
+
+`C-a'
+     Move point to beginning of week (`calendar-beginning-of-week').
+`C-e'
+     Move point to end of week (`calendar-end-of-week').
+`M-a'
+     Move point to beginning of month (`calendar-beginning-of-month').
+`M-e'
+     Move point to end of month (`calendar-end-of-month').
+`M-<'
+     Move point to beginning of year (`calendar-beginning-of-year').
+`M->'
+     Move point to end of year (`calendar-end-of-year').
+
+  These commands also take numeric arguments as repeat counts, with the
+repeat count indicating how many weeks, months, or years to move backward
+or forward.
+
+
+File: calendar-info  Node: Moving to Arbitrary Dates, Prev: Beg or End Calendar Motion, Up: Calendar Motion
+
+Arbitrary Dates
+...............
+
+  You can move to any arbitrary date:
+
+`g d'
+     Move point to specified date (`calendar-goto-date').
+
+  This command prompts for a year, a month, and a day of the month an goes
+to that date.  Because the calendar includes all dates from the beginning of
+the present era, you must enter the year in its entirety; that is, type
+`1990', not `90'.
+
+
+File: calendar-info  Node: Scroll Calendar, Prev: Calendar Motion, Up: Top, Next: Misc Calendar
+
+Scrolling the Calendar through Time
+-----------------------------------
+
+  The calendar display scrolls automatically through time when you move out
+of the visible portion.  You can also scroll it manually.  Imagine that the
+calendar window contains a long strip of paper with the months on it.
+Scrolling it means moving the strip so that new months become visible in
+the window.
+
+`C-x <'
+     Scroll calendar display one month forward
+     (`scroll-calendar-left').
+`C-x >'
+     Scroll calendar display one month backward
+     (`scroll-calendar-right').
+`C-v'
+     Scroll calendar display three months forward
+     (`scroll-calendar-left-three-months').
+`M-v'
+     Scroll calendar display three months backward
+     (`scroll-calendar-right-three-months').
+`o'
+     Prompt for month and year and scroll calendar to that month
+     (`calendar-other-month').
+
+  The most basic calendar scroll commands scroll by one month at a
+time.  This means that there are two months of overlap between the
+display before the command and the display after.  `C-x <' scrolls
+the calendar contents one month to the left; that is, it moves the
+display forward in time.  `C-x >' scrolls the contents to the
+right, which moves backwards in time.
+
+  The commands `C-v' and `M-v' scroll the calendar by an entire
+"screenful"---three months---in analogy with the usual meaning of these
+commands.  `C-v' makes later dates visible and `M-v' makes earlier
+dates visible.  These commands also take a numeric argument as a repeat
+count; in particular, since `C-u' (`universal-argument') multiplies
+the next command by four, typing `C-u C-v' scrolls the calendar forward by
+a year and typing `C-u M-v' scrolls the calendar backward by a year.
+
+  Any of the special Calendar mode commands will scroll the calendar
+automatically as necessary to ensure that the date you have moved to
+is visible.
+
+  You can scroll to an absolute date with
+`o' (`calendar-other-month').  This command prompts for a month
+and year, and centers the three-month around that month.  You must enter
+the year in its entirety; that is, type `1990', not `90'.
+
+
+File: calendar-info  Node: Mark and Region, Prev: Scroll Calendar, Up: Top, Next: Misc Calendar
+
+The Mark and the Region
+-----------------------
+  The concept of the mark applies to the calendar just as to any other
+buffer, but it marks a *date*, not a *position* in the buffer.
+The region consists of the days between the mark and point (including
+the starting and stopping dates).
+
+`C-SPC'
+     Set the mark to today's date (`calendar-set-mark').
+`C-@'
+     The same.
+`C-x C-x'
+     Interchange mark and point (`calendar-exchange-point-and-mark').
+`M-='
+     Print the number of days in the current region
+     (`calendar-count-days-region').
+
+  You set the mark in the calendar, as in any other buffer, by using `C-@'
+or `C-SPC' (`calendar-set-mark').  You return to the marked date
+with the command `C-x C-x' (`calendar-exchange-point-and-mark')
+which puts the mark where point was and point where mark was.  The calendar
+will be scrolled as necessary, if the marked date was not visible on the
+screen.  This does not change the extent of the region.
+
+  To determine the number of days in the region, use `M-='
+(`calendar-count-days-region').  The numbers of days printed will be
+*inclusive*, that is, will include the days specified by mark and point.
+
+  The main use of the mark in the calendar is to remember dates that you may
+want to go back to.  To make this feature more useful, the mark ring
+(*Note The Mark Ring::) operates exactly as in other buffers:  Emacs remembers
+16 previous locations of the mark.  To return to a marked date, use `C-u
+C-SPC' (or `C-u C-@'); this is the command `calendar-set-mark' given
+a numeric argument.  It moves point to where the mark was, restores the mark
+from the ring of former marks, and stores the (previous) point at the end of
+the mark ring.  So, repeated use of this command moves point through all
+the old marks on the ring, one by one.
+
+
+File: calendar-info  Node: Misc Calendar, Prev: Mark and Region, Up: Top, Next: Holidays
+
+Miscellaneous Calendar Commands
+-------------------------------
+
+`c'
+     Move point to today's date (`calendar-current-month').
+`D'
+     Display day-in-year (`cursor-to-calendar-day-of-year').
+`?'
+     Briefly describe calendar commands (`describe-calendar-mode').
+`SPC'
+     Scroll the next window (`scroll-other-window').
+`C-c C-l'
+     Regenerate the calendar window (`redraw-calendar').
+`q'
+     Exit from calendar (`exit-calendar').
+
+  You can always return to the current date with `c'
+(`calendar-current-month').
+
+  If you want to know how many days have elapsed since the start of
+the year, or the number of days remaining in the year, use the `D'
+command (`cursor-to-calendar-day-of-year').  This displays both
+of those numbers in the echo area.
+
+  To display a brief description of the calendar commands, type `?'
+(`describe-calendar-mode').  For a fuller description, type `C-h m'.
+
+  You can use `SPC' (`scroll-other-window') to scroll the other
+window.  This is handy when you display a list of holidays or diary entries
+in another window.
+
+  If the calendar window gets corrupted, type `C-c C-l'
+(`redraw-calendar') to redraw it as it was.
+
+  To exit from the calendar, type `q' (`exit-calendar').  All
+buffers related to the calendar will be deleted and the window display
+will return to what it was when you entered the calendar.
+
+
+File: calendar-info  Node: Holidays, Prev: Misc Calendar, Up: Top, Next: Other Calendars
+
+Holidays
+--------
+
+  The Emacs calendar knows about all major and many minor holidays.
+
+`h'
+     Display holidays for the date indicated by point
+     (`calendar-cursor-holidays').
+`x'
+     Mark holidays in the calendar window (`mark-calendar-holidays').
+`u'
+     Unmark calendar window (`calendar-unmark').
+`a'
+     List all holidays for the displayed three months in another window
+     (`list-calendar-holidays').
+`M-x holidays'
+     List all holidays for three months around today's date in another
+     window.
+
+  To see if any holidays fall on a given date, position point on that
+date in the calendar window and use the `h' command.  The holidays
+are usually listed in the echo area, but if there are too many to fit in
+one line, then they are displayed in a separate window.
+
+  To find the distribution of holidays for a wider period, you can use the
+`x' command to mark all the days in the calendar display that have
+holidays.  The mark appears as a `*' next to the date in the calendar.
+This command applies to the dates currently visible and new dates that
+become visible by scrolling new months onto the display.  To erase these
+marks from the calendar, use `u', which also erases any diary marks
+(*Note Diary::); neither holidays nor diary entries will be marked on new
+dates that are scrolled into view.
+
+  To get even more detailed information, use the `a' command, which
+displays a separate buffer containing a list of all holidays in the
+current three-month range.
+
+  You can display the list of holidays for the current month and the
+preceding and succeeding months even if you don't have a calendar window.
+Use the command `M-x holidays'.
+
+  The holidays known to Emacs include American holidays, as well as major
+Christian, Jewish, and Islamic holidays.  The dates used by Emacs for
+holidays are based on *current practice*, not historical fact.
+Historically, for instance, the start of daylight savings time and even its
+existence have varied from year to year.  However present American law mandates
+that daylight savings time begins on the first Sunday in April; this is the
+definition that Emacs uses, even though it will be wrong for some prior years.
+
+  The religious holidays known to Emacs are usually limited to those
+commonly found in secular calendars.  For a more extensive collection of
+religious holidays, you can set any (or all) of the variables
+`all-christian-calendar-holidays', `all-hebrew-calendar-holidays',
+or `all-islamic-calendar-holidays' to `t' in your `.emacs'
+file.
+
+  You can easily customize the list of holidays to your own needs; to
+find out how, use `C-h v calendar-holidays RET' after entering the
+calendar.
+
+
+File: calendar-info  Node: Other Calendars, Prev: Holidays, Up: Top, Next: Diary
+
+Our Calendar and Other Calendars
+--------------------------------
+
+  The Emacs calendar displayed is always the Gregorian calendar, sometimes
+called the "new style" calendar, which is used in most of the world today.
+However, this calendar did not exist before the sixteenth century and was
+not widely used before the eighteenth century; it did not fully displace
+the Julian calendar and gain universal acceptance until the early twentieth
+century.  This poses a problem for the Emacs calendar: you can ask for the
+calendar of any month after January, 1 AD, but the calendar displayed will
+be the Gregorian, even for a date at which the Gregorian calendar did not
+exist!
+
+  Emacs knows about several different calendars, though, not just the
+Gregorian calendar.  The following commands describe the date indicated
+by point in various calendar notations:
+
+`C'
+     Display ISO commercial calendar equivalent for selected day
+     (`cursor-to-iso-calendar-date').
+`J'
+     Display Julian date for selected day (`cursor-to-julian-calendar-date').
+`H'
+     Display Hebrew date for selected day (`cursor-to-hebrew-calendar-date').
+`I'
+     Display Islamic date for selected day (`cursor-to-islamic-calendar-date').
+`F'
+     Display French Revolutionary date for selected day (`cursor-to-french-calendar-date').
+
+  You can find out the date on the ISO (International Standardization
+Organization) commercial calendar---used largely in Europe---with the
+`C' command.  The ISO date equivalent to the date indicated by point
+will be displayed in the echo area.
+
+  If you need to know the equivalent date on the Julian ("old style")
+calendar, use the `J' command.  This will display in the echo area
+the Julian date for the day point is on.  The Julian calendar is no
+longer in common use.
+
+  If you want to know the equivalent date on the Hebrew (Jewish)
+calendar, use the `H' command; this will display in the echo area
+the Hebrew date for the day point is on.  The Hebrew calendar is the
+one used to determine the dates of Jewish holidays.
+
+  To find the equivalent date on the Islamic (Moslem) calendar, use the
+`I' command; this will display in the echo area the Islamic date for
+the day point is on.  The Islamic calendar is the one used to determine
+the dates of Moslem holidays.  Note that there is no universal agreement
+in the Islamic world about the calendar; Emacs uses a widely accepted
+version, but the precise dates of Islamic holidays often depend on
+proclamation by religious authorities, not on calculations.  As a
+consequence, the actual dates of occurrence can vary slightly from the
+dates computed by Emacs.
+
+  To find the equivalent date on the French Revolutionary calendar, use
+the `F' command; this will display in the echo area the French
+Revolutionary date for the day point is on.  The French Revolutionary
+calendar is no longer in use.
+
+  You can move to dates that you specify on the Commercial, Julian, Hebrew,
+or Islamic calendars:
+
+`g C'
+     Move point to a date specified by the ISO commercial calendar
+     (`calendar-goto-iso-date').
+`g J'
+     Move point to a date specified by the Julian calendar
+     (`calendar-goto-julian-date').
+`g H'
+     Move point to a date specified by the Hebrew calendar
+     (`calendar-goto-hebrew-date').
+`g I'
+     Move point to a date specified by the Islamic calendar
+     (`calendar-goto-islamic-date').
+
+  These commands will ask you for a date on the other calendar, move the
+point to the date equivalent to that date, and display the other calendar's
+date in the echo area.
+
+
+File: calendar-info  Node: Diary, Prev: Other Calendars, Up: Top, Next: Diary File
+
+The Diary
+---------
+
+  Associated with the Emacs calendar is a diary that keeps track of
+appointments or other events on a daily basis.  To use the diary
+feature, you must first create a "diary file" containing a list of
+events and their dates.  Then Emacs can automatically pick out and
+display the events for today, for the immediate future, or for any
+specified date.
+
+`d'
+     Display any diary entries for the selected date
+     (`view-diary-entries').
+`s'
+     Display entire diary file (`show-all-diary-entries').
+`m'
+     Mark all visible dates that have diary entries
+     (`mark-diary-entries').
+`u'
+     Unmark calendar window (`calendar-unmark').
+`M-x print-diary-entries'
+     Print a hard copy of the diary display as it appears.
+`M-x diary'
+     Display any diary entries for today's date.
+
+  Displaying the diary entries with `d' shows in a separate window
+the diary entries for the date indicated by the point in the calendar
+window.  The mode line of the new window shows the date of the diary
+entries and any holidays that fall on that date.
+
+  If you specify a numeric argument with `d', then all the diary
+entries for that many successive days are shown.  Thus, `2 d'
+displays all the entries for the selected date and for the following
+day.
+
+  To get a broader overview of which days are mentioned in the diary, use
+the `m' command to mark those days in the calendar window.  The marks
+appear next to the dates to which they apply.  The `m' command affects
+the dates currently visible and, if you scroll the calendar, newly visible
+dates as well.  The `u' command deletes all diary marks (and all
+holiday marks too; *Note Holidays::), not only in the dates currently
+visible, but dates that become visible when you scroll the calendar.
+
+  For more detailed information, use the `s' command, which displays
+the entire diary file.
+
+  The diary file is displayed using selective display, the same mechanism
+used in Outline mode (*Note Outline Mode::).  This means that diary entries
+that are not relevant are made invisible by changing the preceding newline
+into an ASCII control-m (code 015).  These lines are invisible, but they
+are part of the file; when you save the diary, the control-m characters are
+saved as newlines so the invisible lines become ordinary lines in the file
+without changing their visibility status in Emacs.
+
+  Because the diary buffer as you see it is an illusion, simply printing
+the contents will not print what you see on your screen.  So there is a
+special command to print a hard copy of the buffer *as it appears*;
+this command is `M-x print-diary-entries'.  It sends the data
+directly to the printer, and can be customized like `lpr-region'
+(*Note Hardcopy::).
+
+  The command `M-x diary' displays the diary entries for the current
+date, independently of the calendar display.  Entries for the next few
+days can be displayed as well; the number of days is governed by the
+variable `number-of-diary-entries' (*Note Customizing Calendar::).
+
+  The function `diary' is suitable for use in your `.emacs'
+file to display automatically the day's diary entries when you enter
+Emacs.  The mode line of the displayed window will show the date and any
+holidays that fall on that date.  It is sufficient to put this
+expression in `.emacs':
+
+     (diary)
+
+
+File: calendar-info  Node: Diary File, Prev: Diary, Up: Top, Next: Sexp Diary Entries
+
+The Diary File
+--------------
+
+  Your "diary file" is a file that records events associated with
+particular dates.  The name of the diary file is specified by the variable
+`diary-file'; `~/diary' is the default.  You can use the same file
+for the `calendar' utility program since the formats are consistent.
+
+  Each entry in the file describes one event and consists of one or more
+lines.  It always begins with a date specification at the left margin.
+The rest of the entry is simply text to describe the event.  If the
+entry has more than one line, then the lines after the first must begin
+with whitespace to indicate they continue a previous entry.
+
+  Dates can be given numerically, as in `MONTH/DAY' or
+`MONTH/DAY/YEAR'.  This must be followed by a
+nondigit.  In the date itself, MONTH and DAY are numbers of
+one or two digits.  YEAR is a number and may be abbreviated to the
+last two digits; that is, you can use `11/12/1989' or
+`11/12/89'.
+
+  A date may be "generic", or partially unspecified.  Then the entry
+applies to all dates that match the specification.  If the date does not
+contain a year, it is generic and applies to any year.  Alternatively,
+MONTH, DAY, or YEAR can be a `*'; this matches any month, day, or year,
+respectively.  Thus, a diary entry `3/*/*' will match any day in March
+of any year.
+
+  Dates can also have the form `MONTHNAME DAY' or `MONTHNAME DAY, YEAR',
+where the month's name can be spelled in full or abbreviated to three
+characters (with or without a period).  Case is not significant.  If the
+date does not contain a year, it is generic and applies to any year.
+Also, MONTHNAME, DAY, or YEAR can be a `*' which matches any month, day,
+or year, respectively.
+
+  If you prefer the European style of writing dates---in which the day comes
+before the month---type `M-x european-calendar' while in the calendar or
+set the variable `european-calendar-style' to `t' in your
+`.emacs' file before the calendar or diary command.  This causes
+all dates in the diary to be interpreted in the European manner, and any dates
+displayed on the terminal will be shown in the European form. (Note that there
+is no comma after the MONTHNAME in the European style.)
+
+  To revert to the (default) American style of writing dates, type `M-x
+american-calendar' while in the calendar.
+
+  Dates can also have the form DAYNAME.  The day name can be spelled out
+in full (say, `Tuesday') or it can be abbreviated to three characters
+(with or without a period); it need not be capitalized.  This form of
+date is generic and applies to any date on that day of the week.
+
+  You may want entries that are not marked in the calendar window; this
+is especially true of DAYNAME style entries or entries such as `12/*',
+each of which causes many marks in the calendar.  You can make diary
+entries nonmarking by preceding them with an ampersand (`&').  Such
+entries are not marked on dates in the calendar window, but will appear
+in a diary window.
+
+  Lines that do not begin with valid dates and do not continue a preceding
+entry are ignored.
+
+  Here are some sample diary entries:
+
+     12/22/1988 Twentieth wedding anniversary!!
+     &1/1. Happy New Year!
+     10/22 Ruth's birthday.
+     * 21, *: Payday
+     Tuesday--weekly meeting with grad students at 10am
+              Supowit, Shen, Bitner, and Kapoor to attend.
+     1/13/89 Friday the thirteenth!!
+     &thu 4pm squash game with Lloyd.
+     mar 16 Dad's birthday
+     April 15, 1989 Income tax due.
+     &* 15 time cards due.
+
+  If the first line of a diary entry consists only of the date or day
+name with no following blanks or punctuation, then that line is not
+displayed in the diary window; only the continuation lines are shown.
+For example:
+
+     02/11/1989
+           Bill B. visits Princeton today
+           2pm Cognitive Studies Committee meeting
+           2:30-5:30 Liz at Lawrenceville
+           4:00pm Dentist appt
+           7:30pm Dinner at George's
+           8:00-10:00pm concert
+
+will appear in the diary window without the date line at the beginning.
+This facility allows the diary window to look neater when a single day's
+entries are displayed, but can cause confusion if you ask for more than one
+day's entries to be displayed.
+
+  You can edit the diary entries as they appear in the window, but it is
+important to remember that the buffer displayed contains the *entire*
+diary file, with portions of it concealed from view.  This means, for
+instance, that the `C-f' (`forward-char') command can put the cursor at
+what appears to be the end of the line, but what is in reality the
+middle of some concealed line.  *Be careful when editing the diary
+entries!* Inserting additional lines or adding/deleting characters in
+the middle of a visible line will not cause problems; watch out for
+`C-e' (`end-of-line'), however; it may put you at the end of a concealed
+line far from where the cursor appears to be!  Before editing the diary,
+it is best to display the entire file with `s'
+(`show-all-diary-entries').
+
+  While in the calendar, there are several commands to help you in making
+entries to your diary.
+
+`C-c d'
+     Add a diary entry for the selected date (`insert-diary-entry').
+`C-c w'
+     Add a diary entry for the selected day of the week (`insert-weekly-diary-entry').
+`C-c m'
+     Add a diary entry for the selected day of the month (`insert-monthly-diary-entry').
+`C-c y'
+     Add a diary entry for the selected day of the year (`insert-yearly-diary-entry').
+
+  You can make a diary entry for a specific date by moving point to that
+date in the calendar window and using the `C-c d' command.  This
+command causes the end of your diary file to be displayed in another
+window and the date to be inserted; you can then type the diary entry.
+
+  If you want to make a diary entry that will apply to a specific day of
+the week, move point to that day of the week (any occurrence will do) and
+use the `C-c w' command.  The end of your file will be displayed in
+another window and the name of the day of the week will be inserted; you
+can then type the diary entry.
+
+  You make a monthly diary entry in the same fashion.  Move point to the
+day of the month, use the `C-c m' command, and type the diary entry.
+Similarly, you make a yearly diary entry with the `C-c y' command.
+
+  All of the above commands make marking diary entries.  If you want the diary
+entry to be nonmarking, give a prefix argument to the command.  For example,
+`C-u C-c w' will make a nonmarking, weekly diary entry.
+
+  If you modify the diary, be sure to write the file before exiting from the
+calendar.
+
+
+File: calendar-info  Node: Special Diary Entries, Prev: Diary File, Up: Top, Next: Customization
+
+Special Diary Entries (Sexps)
+-----------------------------
+  In addition to entries based on calendar dates, your diary file can contain
+entries based on expressions (sexps) to be evaluated as the diary file is
+scanned for entries for a given date.  Such an entry is indicated by `%%'
+at the beginning (preceded by `&' for a nonmarking entry), followed by an
+sexp in parentheses.  Here is such a diary entry that will apply to all dates
+from June 24, 1990 through July 10, 1990:
+
+     %%(diary-block 6 24 1990 7 10 1990) Vacation
+
+The `6 24 1990' indicates the starting date and the `7 10 1990'
+indicates the stopping date.  (If you are using the European calendar style,
+the months and days would be interchanged.)  Or, as another example, here is a
+nonmarking diary entry that applies to the last Thursday in November:
+
+     &%%(diary-float 11 4 -1) Payday
+
+In this last example, the `11' specifies November, the `4' specifies
+Thursday (the fourth day of the week, counting Sunday as zero), and the
+`-1' specifies "last" (`1' would mean "first", `2' would
+mean "second", `-2' would mean "second-to-last", and so on).
+
+  Anniversaries of dates can be specifed in the diary with, for example,
+
+     %%(diary-anniversary 10 31 1948) Arthur's birthday
+
+This entry will apply to October 31 in any year after 1948; `10 31 1948'
+specifies the date.  (Again, if you are using the European calendar style, the
+month and day would be interchanged.)
+
+  You can specify cyclic diary entries that repeat after a fixed interval of
+days.  For example,
+
+     %%(diary-cyclic 50 1 1 1990) Renew medication
+
+will apply to January 1, 1990 and every 50th day following; `1 1 1990'
+specifies the starting date.  (Again, if you are using the European calendar
+style, the month and day would be interchanged.)
+
+  There are Calendar mode commands to help you in making block and anniversary
+entries to your diary.
+
+`C-c a'
+     Add an anniversary diary entry for the selected date (`insert-anniversary-diary-entry').
+`C-c b'
+     Add a block diary entry for the current region (`insert-block-diary-entry').
+`C-c c'
+     Add a cyclic diary entry starting at the date (`insert-cyclic-diary-entry').
+
+  If you want to make a diary entry that will apply to the anniversary of a
+specific date, move point to that date and use the `C-c a' command.  The
+end of your diary file will be displayed in another window and the anniversary
+description will be inserted; you can then type the diary entry.
+
+  You can make a diary entry entry for a block of dates by setting the mark
+at the date at one end of the block, moving point to the date at the other
+end of the block, and using the `C-c b' command.  This command
+causes the end of your diary file to be displayed in another window and the
+block description to be inserted; you can then type the diary entry.
+
+  If you want to make a cyclic diary entry that will apply to a specific date
+and every so many days afterward, move point to the starting date and use the
+`C-c c' command.  You will be asked to type the interval, the end of your
+diary file will be displayed in another window, and the cyclic description
+will be inserted; you can then type the diary entry.
+
+  All three of the these commands make marking diary entries.  If you want the
+diary entry to be nonmarking, give a numeric argument to the command.  For
+example, `C-u C-c a' will make a nonmarking anniversary diary entry.
+
+  Marking sexp diary entries in the calendar is *extremely*
+time-consuming, since every date visible in the calendar window must be
+individually checked.  So these diary entries are much better if they are
+nonmarking.
+
+  The sexp feature of the diary allows you to specify diary entries
+based on any Emacs-Lisp expression.  You can use a library of built-in
+functions or you can write your own functions.  The built-in functions
+include `diary-block', `diary-float', `diary-anniversary',
+`diary-cyclic', and others (*Note Fancy Diary Display::).  For more
+details on these functions and a description of how to write your own
+functions, use `C-h f list-sexp-diary-entries RET' after entering the
+diary.
+
+
+File: calendar-info  Node: Customization, Prev: Sexp Diary Entries, Up: Calendar
+
+Customizing the Calendar and Diary
+----------------------------------
+
+  There are many customizations that you can use to make the calendar and
+diary suit your personal tastes.
+
+* Menu:
+
+* Customizing Calendar::   Defaults you can set.
+* Customizing Diary::      Defaults you can set.
+* Hebrew/Islamic Entries:: How to obtain them.
+* Fancy Diary Display::    Enhancing the diary display, sorting entries.
+* Sharing Diary Files::    Including other files in the diary.
+* Sexp Diary Entries::     Fancy things you can do.
+
+
+File: calendar-info  Node: Customizing Calendar, Prev: Customization, Up: Customization, Next: Customizing Diary
+
+Customizing the Calendar
+........................
+  The variable `view-diary-entries-initially', whose default is
+`nil', can be set to to `t' to cause diary entries for the
+current date to be displayed in another window when the calendar is first
+displayed, if the current date is visible.  If you add the lines
+
+     (setq view-diary-entries-initially t)
+     (calendar)
+
+to your `.emacs' file, then whenever you start the editor, you'll see
+the calendar and the diary windows.
+
+  Similarly, if you set the variable
+`view-calendar-holidays-initially' to `t', it will cause the
+holidays for the current three month period will be displayed on entry
+to the calendar.  The holidays are displayed in a separate window.
+
+  Setting the variable `mark-diary-entries-in-calendar' to `t'
+causes any dates visible in the calendar window with diary entries to be
+marked with the symbol specified by the variable `diary-entry-marker',
+normally a plus sign (`+').  Whenever the calendar window is displayed or
+redisplayed, the diary entries will be automatically marked.
+
+  Similarly, setting the variable `mark-holidays-in-calendar' to
+`t' causes any holidays visible in the calendar window to be marked
+with the symbol specified by the variable `calendar-holiday-marker',
+normally an asterisk (`*').  Whenever the calendar window is
+displayed or redisplayed, the holidays will be automatically marked.
+
+  There are many customizations that you can make with the hooks provided.
+For example, the variable `initial-calendar-window-hook', whose
+default value is `nil', is a list of functions to be called when the
+calendar window is first opened.  The functions invoked are called after
+the calendar window is opened, but once opened is never called again.
+Leaving the calendar with the `q' command and reentering it will cause
+these functions to be called again.
+
+  The variable `today-visible-calendar-hook', whose default value is
+`nil', is the list of functions called after the calendar buffer has
+been prepared with the calendar when the current date is visible in the
+window.  This hook can be used, for example, to replace today's date with
+asterisks; a function `calendar-star-date' is included for this
+purpose.  To use it, you would execute this expression:
+
+     (setq today-visible-calendar-hook 'calendar-star-date)
+
+This hook could also be used to mark the current date with an asterisk; a
+function is also provided for this, too:
+
+     (setq today-visible-calendar-hook 'calendar-mark-today)
+
+There is a corresponding variable `today-invisible-calendar-hook',
+whose default value is `nil', is the list of functions called after
+the calendar buffer has been prepared with the calendar when the current
+date is *not* visible in the window.
+
+
+File: calendar-info  Node: Customizing Diary, Prev: Customizing Calendar, Up: Customization, Next: Hebrew/Islamic Entries
+
+Customizing the Diary
+.....................
+  Ordinarily, the mode line of the diary buffer window will indicate any
+holidays that fall on the date of the diary entries.  The process of
+checking for holidays takes several seconds, so the display of the diary
+buffer is delayed slightly because the holiday information is included.
+If you'd prefer to have a faster display of the diary buffer but without
+the holiday information, set the variable `holidays-in-diary-buffer'
+to `nil'.
+
+  The variable `number-of-diary-entries' controls the number of days of
+diary entries that will be displayed initially (when
+`view-diary-entries-initially' is set to `t') or with the command `M-x
+diary'.  For example, if the default value 1 is used, then only the
+current day's diary entries will be displayed.  If the value 2 is used,
+both the current day's and the next day's entries will be displayed.
+The value can also be a vector of seven elements: if the value is `[0 2
+2 2 2 4 1]' then no diary entries will be displayed on Sunday, the
+current date's and the next day's diary entries will be displayed Monday
+through Thursday, Friday through Monday's entries will be displayed on
+Friday, while on Saturday only that day's entries will be displayed.
+
+  The variable `print-diary-entries-hook' is the list of functions
+called after a temporary buffer is prepared with the diary entries
+currently visible in the diary buffer.  The default value of this hook adds
+a heading (composed from the diary buffer's mode line), does the printing
+with the command `lpr-buffer', and kills the temporary buffer.  If you
+want to use a different command to do the printing, just change the value
+of this hook.  Other uses might include, for example, rearranging the lines
+into order by day and time.
+
+  You can customize the form of dates in your diary file if neither the
+standard American nor European styles suits your needs; to find out how,
+use `C-h v diary-date-forms RET' after entering the calendar.  You can
+similarly customize the form in which dates are displayed in the diary,
+in mode lines, and in messages; use `C-h v calendar-date-display-form
+RET' after entering the calendar.
+
+
+File: calendar-info  Node: Hebrew/Islamic Entries, Prev: Customizing Diary, Up: Customization, Next: Fancy Diary Display
+
+Hebrew- and Islamic-Date Diary Entries
+......................................
+  Your diary file can have entries based on Hebrew or Islamic dates, as well
+as entries based on our usual Gregorian calendar.  However, because the
+processing of such entries is time-consuming and most people don't need
+them, you must customize the processing of your diary file to specify that
+you want such entries recognized.  If you want Hebrew-date diary entries,
+for example, you must include the lines
+
+     (setq nongregorian-diary-listing-hook 'list-hebrew-diary-entries)
+     (setq nongregorian-diary-marking-hook 'mark-hebrew-diary-entries)
+
+in your `.emacs' file.  If you want Islamic-date entries, include the
+lines
+
+     (setq nongregorian-diary-listing-hook 'list-islamic-diary-entries)
+     (setq nongregorian-diary-marking-hook 'mark-islamic-diary-entries)
+
+If you want both Hebrew- and Islamic-date entries, include the lines
+
+     (setq nongregorian-diary-listing-hook
+           '(list-hebrew-diary-entries list-islamic-diary-entries))
+     (setq nongregorian-diary-marking-hook
+           '(mark-hebrew-diary-entries mark-islamic-diary-entries))
+
+  Hebrew- and Islamic-date diary entries have the same formats as
+Gregorian-date diary entries, except that the date must be preceded with an
+`H' for Hebrew dates and an `I' for Islamic dates.  Moreover,
+because the Hebrew and Islamic month names are not uniquely specified by
+the first three letters, they must be spelled out fully.  For example, a
+diary entry for the Hebrew date Heshvan 25 could look like
+
+     HHeshvan 25 Happy Hebrew birthday!
+
+and would appear in the diary for any date that corresponds to Heshvan 25
+on the Hebrew calendar.  Similarly, an Islamic-date diary entry might be
+
+     IDhu al-Qada 25 Happy Islamic birthday!
+
+and would appear in the diary for any date that corresponds to Dhu al-Qada 25
+on the Islamic calendar.
+
+  As with Gregorian-date diary entries, Hebrew- and Islamic-date entries
+are nonmarking if they are preceded with an ampersand (`&').
+
+There are commands to help you in making Hebrew- and Islamic-date entries
+to your diary:
+
+
+`C-c H d'
+     Add a diary entry for the Hebrew date corresponding to the selected date
+     (`insert-hebrew-diary-entry').
+`C-c H m'
+     Add a diary entry for the day of the Hebrew month corresponding to the
+     selected date (`insert-monthly-hebrew-diary-entry').
+`C-c H y'
+     Add a diary entry for the day of the Hebrew year corresponding to the
+     selected date (`insert-yearly-hebrew-diary-entry').
+`C-c I d'
+     Add a diary entry for the Islamic date corresponding to the selected date
+     (`insert-islamic-diary-entry').
+`C-c I m'
+     Add a diary entry for the day of the Islamic month corresponding to the
+     selected date (`insert-monthly-islamic-diary-entry').
+`C-c I y'
+     Add a diary entry for the day of the Islamic year corresponding to the
+     selected date (`insert-yearly-islamic-diary-entry').
+
+  These commands work exactly like the corresponding commands for ordinary
+diary entries: Move point to a date in the calendar window and the above
+commands insert the Hebrew or Islamic date (corresponding to the date
+indicated by point) at the end of your diary file and you can then type the
+diary entry.  If you want the diary entry to be nonmarking, give a numeric
+argument to the command.
+
+
+File: calendar-info  Node: Fancy Diary Display, Prev: Hebrew/Islamic Entries, Up: Customization, Next: Sharing Diary Files
+
+Fancy Diary Display
+...................
+  After the diary buffer has been prepared, the functions specified by the
+variable `diary-display-hook' are called.  The default value of
+this hook simply displays the diary file using selective display to conceal
+irrelevant diary entries.  However, if you specify the hook as follows,
+
+     (setq diary-display-hook 'prepare-fancy-diary-buffer)
+
+Emacs will prepare a noneditable buffer with a neatly organized
+day-by-day listing of relevant diary entries and known holidays.  If you
+are using the fancy diary display, you get a hard copy of the buffer
+with `M-x lpr-buffer'; you should *not* use `M-x print-diary-entries'.
+Thus you can get a hard copy of a day-by-day diary for a week by
+positioning the point on Sunday of that week, using `7 d', switching to
+the fancy diary, and using `M-x lpr-buffer'.  As in the standard diary
+buffer, the inclusion of the holidays slows down the display slightly;
+you can speed things up by setting the variable
+`holidays-in-diary-buffer' to `nil'.
+
+  Ordinarily, the fancy diary buffer will not show days for which there
+are no diary entries, even if that day is a holiday.  If you want such
+days to be shown in the fancy diary buffer, set the variable
+`diary-list-include-blanks' to `t'.
+
+  If you use the fancy diary display, you can use the
+`list-diary-entries-hook' to sort each day's diary entries.  Add the lines
+
+     (setq list-diary-entries-hook
+           '(lambda nil
+              (setq diary-entries-list
+                    (sort diary-entries-list 'diary-entry-compare))))
+
+to your `.emacs' file.  For each day, diary entries that begin with a
+recognizable time of day will be sorted into order, preceded by any diary
+entries that do not begin with a time of day.
+
+
+File: calendar-info  Node: Sharing Diary Files, Prev: Fancy Diary Display, Up: Customization, Next: Sexp Diary Entries
+
+Including Other Diary Files
+...........................
+  If you use the fancy diary display, you can have diary entries from other
+files included with your own by an "include" mechanism.  This facility makes
+possible the sharing of common diary files among groups of users.  Lines in
+the diary file of the form
+
+     #include "FILENAME"
+
+cause the diary entries in the file FILENAME to included in the
+fancy diary buffer (because the ordinary diary buffer is just the buffer
+associated with your diary file, you cannot use the include mechanism
+unless you use the fancy diary buffer).  The include mechanism is
+recursive, by the way, so that included files can cause other files to be
+included, and so on; you must be careful not to have a cycle of inclusions,
+of course.  To obtain the include facility, add lines as follows:
+
+     (setq list-diary-entries-hook 'include-other-diary-files)
+     (setq mark-diary-entries-hook 'mark-included-diary-files)
+
+to your `.emacs' file.
+
+To have both included files *and* sorted diary entries, use the lines
+
+     (setq list-diary-entries-hook
+           '(include-other-diary-files
+             (lambda nil
+               (setq diary-entries-list
+                     (sort diary-entries-list 'diary-entry-compare)))))
+     (setq mark-diary-entries-hook 'mark-included-diary-files)
+
+
+File: calendar-info  Node: Sexp Diary Entries, Prev: Sharing Diary Files, Up: Customization
+
+Sexp Entries and the Fancy Diary Display
+........................................
+  Sexp diary entries are especially powerful when the fancy diary display is
+used because the function called can generate the text of the entry depending
+on the date itself.  For example, the anniversary diary entry described above
+(*Note Special Diary Entries::) can insert the number of years since
+the anniversary date into the text of the diary entry.  Thus the dairy entry
+
+     %%(diary-anniversary 10 31 1948) Arthur's birthday (%d years old)
+
+will have the `%d' replaced by the age, so on October 31, 1990 the entry
+will appear in the fancy diary buffer as
+
+     Arthur's birthday (42 years old)
+
+If the diary file instead contains the entry
+
+     %%(diary-anniversary 10 31 1948) Arthur's %d%s birthday
+
+the entry in the fancy diary buffer for October 31, 1990 will be
+
+     Arthur's 42nd birthday
+
+  Similarly, cyclic diary entries can interpolate the number of repetitions
+that have occurred:
+
+     %%(diary-cyclic 50 1 1 1990) Renew medication (%d%s time)
+
+will cause the diary entry
+
+     Renew medication (5th time)
+
+to appear in the fancy diary display on September 8, 1990.
+
+  The following sexp diary entries take advantage of the ability (in the fancy
+diary display) to concoct diary entries based on the date:
+
+`%%(diary-day-of-year)'
+     Make a diary entry with today's day number in the current year and the number
+     of days remaining in the current year.
+`%%(diary-iso-date)'
+     Make a diary entry with today's equivalent ISO commercial date.
+`%%(diary-hebrew-date)'
+     Make a diary entry with today's equivalent date on the Hebrew calendar.
+`%%(diary-islamic-date)'
+     Make a diary entry with today's equivalent date on the Islamic calendar.
+`%%(diary-french-date)'
+     Make a diary entry with today's equivalent date on the French Revolutionary
+     calendar.
+
+Thus including the diary entry
+
+     &%%(diary-hebrew-date)
+
+will cause every day's diary display to contain the equivalent date on the
+Hebrew calendar, if you are using the fancy diary display.  (If you are not
+using the fancy diary display, you will simply see the line
+`&%%(diary-hebrew-date)' when your diary file is displayed with any day's
+diary entries.)
+
+  There are a number of other available sexp diary entries that are important
+to those who follow the Hebrew calendar:
+
+`%%(diary-rosh-hodesh)'
+     Make a diary entry that tells the occurrence and ritual announcement of each
+     new Hebrew month.
+`%%(diary-parasha)'
+     Make a diary entry that tells the weekly synagogue scripture reading.
+`%%(diary-omer)'
+     Make a diary entry that gives the omer count, when appropriate.
+`%%(diary-yahrzeit MONTH DAY YEAR) NAME'
+     Make a diary entry marking the anniversary of a date of death.  The date is
+     the *Gregorian* (civil) date of death.  The diary entry will appear on
+     the proper Hebrew calendar anniversary and on the day before.  (If the
+     European style is used, the order of the parameters should be changed to
+     `DAY', `MONTH', `YEAR'.)
+
+
+
+Tag table:
+Node: Top108
+Node: Calendar Motion1195
+Node: Calendar Unit Motion1756
+Node: Beg or End Calendar Motion3965
+Node: Moving to Arbitrary Dates4958
+Node: Scroll Calendar5449
+Node: Mark and Region7657
+Node: Misc Calendar9556
+Node: Holidays11001
+Node: Other Calendars13761
+Node: Diary17390
+Node: Diary File20776
+Node: Special Diary Entries27443
+Node: Customization31666
+Node: Customizing Calendar32272
+Node: Customizing Diary35130
+Node: Hebrew/Islamic Entries37424
+Node: Fancy Diary Display40892
+Node: Sharing Diary Files42779
+Node: Sexp Diary Entries44227
+
+End tag table

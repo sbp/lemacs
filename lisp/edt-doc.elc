@@ -1,0 +1,12 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:15:40 1991
+;;; from file /wg1/emacs-base/lisp/edt-doc.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+

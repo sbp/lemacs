@@ -1,0 +1,145 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:06:58 1991
+;;; from file /wg1/emacs-base/lisp/blackbox.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar blackbox-mode-map nil "\
+")
+(byte-code "¬¸Á ÂÃ\"ˆÄÅÆ#ˆÄÇÈ#ˆÄÉÊ#ˆÄËÌ#ˆÄÍÎ#ˆÄÏĞ#ˆÄÑÒ#ˆÄÓÔ#ˆÕÖ×Ø#‡" [blackbox-mode-map make-keymap suppress-keymap t define-key "" bb-right "" bb-left "" bb-up "" bb-down "" bb-eol "" bb-bol " " bb-romp "" bb-done put blackbox-mode mode-class special] 4)
+(fset 'blackbox-mode #[nil "À ˆÁ\n!ˆÃÅÇ‰‡" [kill-all-local-variables use-local-map blackbox-mode-map t truncate-lines blackbox-mode major-mode "Blackbox" mode-name] 2 "\
+Major mode for playing blackbox.  To learn how to play blackbox,
+see the documentation for function  blackbox.
+
+The usual mnemonic keys move the cursor around the box.
+C-a and C-e move to the beginning and end of line, respectively.
+Using other methods of moving point loses.
+
+SPC -- send in a ray from point, or toggle a ball at point
+RET -- end game and get score
+
+Precisely,\\{blackbox-mode-map}" nil])
+(fset 'blackbox #[(num) "ÀÁ!ˆÂ ˆÃÅp!ˆÆ®È!	ÊÌÌÏÏÒ ˆÓB!‡" [switch-to-buffer "*Blackbox*" blackbox-mode t buffer-read-only buffer-disable-undo bb-init-board num 4 bb-board nil bb-balls-placed -1 bb-x bb-y 0 bb-score bb-detour-count bb-insert-board bb-goto] 3 "\
+Play blackbox.  Arg is number of balls; default is 4.
+
+What is blackbox?
+
+Blackbox is a game of hide and seek played on an 8 by 8 grid (the
+Blackbox).  Your opponent (Emacs, in this case) has hidden several
+balls (usually 4) within this box.  By shooting rays into the box and
+observing where they emerge it is possible to deduce the positions of
+the hidden balls.  The fewer rays you use to find the balls, the lower
+your score.
+
+Overview of play:
+
+To play blackbox, call the function blackbox.  An optional prefix
+argument specifies the number of balls to be hidden in the box; the
+default is four.
+
+The cursor can be moved around the box with the standard cursor
+movement keys.  Using any other form of cursor movement is guaranteed
+not to work correctly.
+
+To shoot a ray, move the cursor to the edge of the box and press SPC.
+The result will be determined and the playfield updated.
+
+You may place or remove balls in the box by moving the cursor into the
+box and pressing SPC.
+
+When you think the configuration of balls you have placed is correct,
+press RET.  You will be informed whether you are correct or not, and
+be given your score.  Your score is the number of letters and numbers
+around the outside of the box plus five for each incorrectly placed
+ball.  If you placed any balls incorrectly, they will be indicated
+with 'x', and their actual positions indicated with 'o'.
+
+Details:
+
+There are three possible outcomes for each ray you send into the box:
+
+	Detour: the ray is deflected and emerges somewhere other than
+		where you sent it in.  On the playfield, detours are
+		denoted by matching pairs of numbers -- one where the
+		ray went in, and the other where it came out.
+
+	Reflection: the ray is reflected and emerges in the same place
+		it was sent in.  On the playfield, reflections are
+		denoted by the letter 'R'.
+
+	Hit:	the ray strikes a ball directly and is absorbed.  It does
+		not emerge from the box.  On the playfield, hits are
+		denoted by the letter 'H'.
+
+The rules for how balls deflect rays are simple and are best shown by
+example.
+
+As a ray approaches a ball it is deflected ninety degrees.  Rays can
+be deflected multiple times.  In the diagrams below, the dashes
+represent empty box locations and the letter 'O' represents a ball.
+The entrance and exit points of each ray are marked with numbers as
+described under 'Detour' above.  Note that the entrance and exit
+points are always interchangeable.  '*' denotes the path taken by the
+ray.
+
+Note carefully the relative positions of the ball and the ninety
+degree deflection it causes.
+
+    1                                            
+  - * - - - - - -         - - - - - - - -         - - - - - - - -       
+  - * - - - - - -         - - - - - - - -         - - - - - - - -       
+1 * * - - - - - -         - - - - - - - -         - O - - - - O -       
+  - - O - - - - -         - - O - - - - -         - - * * * * - -
+  - - - - - - - -         - - - * * * * * 2     3 * * * - - * - -
+  - - - - - - - -         - - - * - - - -         - - - O - * - -      
+  - - - - - - - -         - - - * - - - -         - - - - * * - -       
+  - - - - - - - -         - - - * - - - -         - - - - * - O -       
+                                2                         3
+
+As mentioned above, a reflection occurs when a ray emerges from the same point
+it was sent in.  This can happen in several ways:
+
+                                                                           
+  - - - - - - - -         - - - - - - - -          - - - - - - - -
+  - - - - O - - -         - - O - O - - -          - - - - - - - -
+R * * * * - - - -         - - - * - - - -          O - - - - - - -
+  - - - - O - - -         - - - * - - - -        R - - - - - - - -
+  - - - - - - - -         - - - * - - - -          - - - - - - - -
+  - - - - - - - -         - - - * - - - -          - - - - - - - -
+  - - - - - - - -       R * * * * - - - -          - - - - - - - -
+  - - - - - - - -         - - - - O - - -          - - - - - - - -
+
+In the first example, the ray is deflected downwards by the upper ball,
+then left by the lower ball, and finally retraces its path to its point
+of origin.  The second example is similar.  The third example is a bit
+anomalous but can be rationalized by realizing the ray never gets a chance
+to get into the box.  Alternatively, the ray can be thought of as being
+deflected downwards and immediately emerging from the box.
+
+A hit occurs when a ray runs straight into a ball:
+
+  - - - - - - - -         - - - - - - - -          - - - - - - - -
+  - - - - - - - -         - - - - - - - -          - - - - O - - -
+  - - - - - - - -         - - - - O - - -        H * * * * - - - -
+  - - - - - - - -       H * * * * O - - -          - - - * - - - -
+  - - - - - - - -         - - - - O - - -          - - - O - - - -
+H * * * O - - - -         - - - - - - - -          - - - - - - - -
+  - - - - - - - -         - - - - - - - -          - - - - - - - -
+  - - - - - - - -         - - - - - - - -          - - - - - - - -
+
+Be sure to compare the second example of a hit with the first example of
+a reflection." "P"])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕMˆÖ×M‡" [bb-init-board #[(num-balls) "ÀÁ!ˆÂ‰S‰ÆY«”ÀÇ!ÀÇ!BÈ\"¬rBªd*‡" [random t nil pos board num-balls 0 8 bb-member] 3] bb-insert-board #[nil "À‰Ã ˆÄcˆÅ\nS‰ÆY«…ÇcˆªsÄc*‡" [nil buffer-read-only i erase-buffer "                     \n" 8 0 "   - - - - - - - -   \n"] 2] bb-right #[nil "ÁU?­‡ÂuˆT‰‡" [bb-x 8 2] 2 nil nil] bb-left #[nil "ÁU?­ˆÂÃ!ˆS‰‡" [bb-x -1 backward-char 2] 2 nil nil] bb-up #[nil "ÁU?­ˆÂÃ!ˆS‰‡" [bb-y -1 previous-line 1] 2 nil nil] bb-down #[nil "ÁU?­ˆÂÃ!ˆT‰‡" [bb-y 8 next-line 1] 2 nil nil] bb-eol #[nil "ÀÂ	B!‡" [8 bb-x bb-goto bb-y] 3 nil nil] bb-bol #[nil "ÀÂ	B!‡" [-1 bb-x bb-goto bb-y] 3 nil nil] bb-romp #[nil "ÁU¬…ÂU«ŠÁU®”ÂU®Ä\"«…Å\"‡Æ\"‡" [bb-x -1 8 bb-y bb-outside-box bb-trace-ray bb-place-ball] 3 nil nil] bb-place-ball #[(x y) "	BÃ\n\"«ŠÅ\n\"ÆÇ!ª‡\nBÆÈ!)‡" [x y coord bb-member bb-balls-placed bb-delete bb-update-board "-" "O"] 3] bb-trace-ray #[(x y) "ÀÁ\n‰ÃU«ƒÄª‰\nÅU«ƒÃªÆ‰ÃU«ƒÄªŠÅU«ƒÃªÆ%‰É=«ŒÊË!ˆT‰ª¸\nBš«ŒÊÍ!ˆT‰ª£TÊÏĞ\"!ˆŠÑ!ˆÊÏĞ\"!ˆ)Ò\\‰)‡" [bb-trace-ray-2 t x -1 1 8 0 y result hit bb-update-board "H" bb-score "R" bb-detour-count format "%d" bb-goto 2] 8] bb-trace-ray-2 #[(first x dx y dy) "¬ŠÁ\n\"«„\nB‡Ä\n\\\\B\"«‚È‡Ä\n\\\\\\\\B\"«‹ÉÊ\n[[%‡Ä\n[\\\\[\\\\B\"«‰ÉÊ\n%‡ÉÊ\n\\\\%‡" [first bb-outside-box x y bb-member dx dy bb-board hit bb-trace-ray-2 nil] 6]] 2)
+(fset 'bb-done #[nil "À\nGGU¬ÄÅGÆU«ƒÇªÈGGÆU«ƒÉªÊ\nG%ª©Ë\n\"‰ÌU«ˆÄÍ\"ˆª”ÄÏ	‰ÆU«ƒÉªÊ	Ğ_\\$ˆÑÒ!)‡" [nil bogus-balls bb-balls-placed bb-board message "There %s %d hidden ball%s; you have placed %d." 1 "is" "are" "" "s" bb-show-bogus-balls 0 "Right!  Your score is %d." bb-score "Oops!  You missed %d ball%s.  Your score is %d." 5 bb-goto (-1 . -1)] 8 "\
+Finish the game and report score." nil])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉM‡" [bb-show-bogus-balls #[(balls-placed board) "À	\nÃ#ˆÀ\n	Ä#‡" [bb-show-bogus-balls-2 balls-placed board "x" "o"] 4] bb-show-bogus-balls-2 #[(list-1 list-2 c) "¬‚Á‡Â@\"«‡ÄA#‡Æ@!ˆÇ!ˆÄA#T‡" [list-1 0 bb-member list-2 bb-show-bogus-balls-2 c bb-goto bb-update-board] 4] bb-outside-box #[(x y) "ÁU®ÂU®ˆÁU®ƒÂU‡" [x -1 8 y] 2] bb-goto #[(pos) "@Á_AÂ_Ã\\\\b‡" [pos 2 22 26] 3] bb-update-board #[(c) "ÀÂGS!ˆÄG!ˆcˆÂÅ!)‡" [nil buffer-read-only backward-char c delete-char 1] 2]] 2)
+(fset 'bb-member #[(elt list) "ÀÁÂÃ\"B!‡" [eval or mapcar #[(x) "	š‡" [x elt] 2] list] 5 "\
+Returns non-nil if ELT is an element of LIST.  Comparison done with equal."])
+(fset 'bb-delete #[(item list) "	@š«ƒ	A‡	@Â	A\"B‡" [item list bb-delete] 4 "\
+Deletes ITEM from LIST and returns a copy."])

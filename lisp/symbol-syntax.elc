@@ -1,0 +1,13 @@
+;;; compiled by jwz@thalidomide on Wed Jan  1 15:37:12 1992
+;;; from file /u/jwz/emacs19/lisp/symbol-syntax.el
+;;; emacs version 19.39.
+;;; bytecomp version 2.03; 29-oct-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!¬‚ÂÃÄMˆÅÆMˆÇÈMˆÉÊMˆËÌ!‡" [boundp symbol-syntax-table-alist nil update-symbol-syntax-table-alist #[nil "Á‰:­Ö@¬†ÄÅ!ˆª«@@¬†ÄÆ!ˆª @@‰9«˜@A«„ÄÇ!ˆ\n9«†\nJ‰ªw@\n ˆÈ@@!¬†ÄÉ!ˆª@A¬‰@Ê@@!¡ˆA‰ª'*‡" [symbol-syntax-table-alist nil item alist error "Missing alist item" "Alist item with null car" "Alist item expected to have null cdr" syntax-table-p "Alist item car expected to be symbol table" make-symbol-syntax-table] 4] get-symbol-syntax-table #[(norm-table) "À\n‰¬Ä ˆ\n‰¬“\nCBÄ ˆ\n‰¬„ÅÆ!ˆ	A‰¬„ÅÇ!ˆÈ	!¬„ÅÉ!ˆ	)‡" [nil result norm-table symbol-syntax-table-alist update-symbol-syntax-table-alist error "Syntax table missing from symbol-syntax-table-alist" "Alist item has null cdr" syntax-table-p "Non-syntax-table item in alist"] 2] make-symbol-syntax-table #[(in-table) "À Á\n!ÃÄÉW«£HÊË\"Ì=«ÍÊÎ\"Ï\"IˆT‰ªY,‡" [syntax-table copy-syntax-table in-table 0 nil syntax i out-table osyn 256 logand 255 3 logior -256 2] 7] show-chars-with-syntax #[(tables syntax) "À ÁÄ:«ÜÁ@‰É\n9¬„ËÌ!ˆ9«ˆJ‰ªuÍ!ˆ\nÎW«š\nz=«ŠĞÑ\n\"B\nT‰\nªbÒÓŸÔ#D\nB,A‰ª!)\nŸ*‡" [syntax-table nil schars osyn ((set-syntax-table osyn)) tables chars table-symbol table 0 i error "bad argument non-symbol" set-syntax-table 256 syntax format "%c" mapconcat identity ""] 6] provide symbol-syntax] 2)

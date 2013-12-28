@@ -1,0 +1,44 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:26:48 1991
+;;; from file /wg1/emacs-base/lisp/netunam.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defconst rfa-node-directory "/net/" "\
+Directory in which RFA network special files are stored.
+By HP convention, this is \"/net/\".")
+(defvar rfa-default-node nil "\
+If not nil, this is the name of the default RFA network special file.")
+(defvar rfa-password-memoize-p t "\
+If non-nil, remember login user's passwords after they have been entered.")
+(defvar rfa-password-alist nil "\
+An association from node-name strings to password strings.
+Used if `rfa-password-memoize-p' is non-nil.")
+(defvar rfa-password-per-node-p t "\
+If nil, login user uses same password on all machines.
+Has no effect if `rfa-password-memoize-p' is nil.")
+(fset 'rfa-set-password #[(password &optional node user) "¬ƒÁ Â\"‰«ÂA\"‰«‡¡ªŠ‰ABC¤¡)ª‹BDC¤‰)‡" [user user-login-name assoc node rfa-password-alist node-entry user-entry password] 5 "\
+Add PASSWORD to the RFA password database.
+Optional second arg NODE is a string specifying a particular nodename;
+ if supplied and not nil, PASSWORD applies to only that node.
+Optional third arg USER is a string specifying the (remote) user whose
+ password this is; if not supplied this defaults to (user-login-name)."])
+(fset 'rfa-open #[(node &optional user password) "¬‡	Â š?­¬¥Å	Å\"A\"A¬ƒ®‘ÈÉÊ	«†ÉË\"ªÌ#\"))ÍÎ\"	ĞQ\"t««ˆÒÓ	#ˆª„ÔÕ!ˆ«Š«†×	#ˆ)‡" [rfa-password-per-node-p user user-login-name node password assoc rfa-password-alist current-prefix-arg rfa-password-read format "password for user %s%s: " " on node \"%s\"" "" sysnetunam expand-file-name rfa-node-directory ":" result message "Opened network connection to %s as %s" error "Unable to open network connection" rfa-password-memoize-p rfa-set-password] 7 "\
+Open a network connection to a server using remote file access.
+First argument NODE is the network node for the remote machine.
+Second optional argument USER is the user name to use on that machine.
+  If called interactively, the user name is prompted for.
+Third optional argument PASSWORD is the password string for that user.
+  If not given, this is filled in from the value of
+`rfa-password-alist', or prompted for.  A prefix argument of - will
+cause the password to be prompted for even if previously memoized." (byte-code "ÀÁ\nÄ$ÅÆÇ \"D‡" [read-file-name "rfa-open: " rfa-node-directory rfa-default-node t read-string "user-name: " user-login-name] 5)])
+(fset 'rfa-close #[(node) "ÀÁ\n\"Ä\"t¬ƒªŒ¬…ÆÇ!ª„ÈÉ\n\")‡" [sysnetunam expand-file-name node rfa-node-directory "" result error "Unable to close network connection" message "Closed network connection to %s"] 4 "\
+Close a network connection to a server using remote file access.
+NODE is the network node for the remote machine." (byte-code "ÀÁ\nÄ$C‡" [read-file-name "rfa-close: " rfa-node-directory rfa-default-node t] 5)])
+(byte-code "ÀÁMˆÂÃ!¬‚Ä¬¶ÅÇ ÈW«‘ÉÊ!Ë#ˆT‰ªkÉÌÍ#ˆÉÎÏ#ˆÉĞÑ#ˆÉÒÑ#ˆ)ÂÓ!¬ƒÄËÔMˆÏÕM‡" [rfa-password-read #[(prompt default) "®ÁÃ­¥°ÅGW«ÉIˆT‰ªl+\n#ˆ\n)‡" [default "" rfa-password-accumulator read-from-minibuffer prompt 0 length index copy 46 rfa-password-map] 6] boundp rfa-password-map nil 32 char make-keymap 127 define-key char-to-string rfa-password-self-insert "" abort-recursive-edit "" rfa-password-rubout "\n" exit-minibuffer "" rfa-password-accumulator #[nil "Á\n!PÃc‡" [rfa-password-accumulator char-to-string last-command-char 46] 3 nil nil] #[nil "ÀÁ!ˆ\nÃÁO‰‡" [delete-char -1 rfa-password-accumulator 0] 3 nil nil]] 5)

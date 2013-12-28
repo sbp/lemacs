@@ -1,0 +1,100 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:04:51 1991
+;;; from file /wg1/emacs-base/lisp/abbrev.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'abbrev-mode #[(arg) "¬„	?ª…Â!ÃVÄÅ !‡" [arg abbrev-mode prefix-numeric-value 0 set-buffer-modified-p buffer-modified-p] 2 "\
+Toggle abbrev mode.
+With arg, turn abbrev mode on iff arg is positive.
+In abbrev mode, inserting an abbreviation causes it to expand
+and be replaced by its expansion." "P"])
+(defvar edit-abbrevs-map nil "\
+Keymap used in edit-abbrevs.")
+(byte-code "¬Á ÂÃÄ#ˆÂÅÄ#ˆÁ‡" [edit-abbrevs-map make-sparse-keymap define-key "" edit-abbrevs-redefine ""] 4)
+(fset 'kill-all-abbrevs #[nil "‰­Â	@J!ˆ	A‰¬tÃ)‡" [abbrev-table-name-list tables clear-abbrev-table nil] 3 "\
+Undefine all defined abbrevs." nil])
+(fset 'insert-abbrevs #[nil "ÀŠ	‰«ŒÃ\n@Ä\"ˆ\nA‰¬t)`)!‡" [push-mark abbrev-table-name-list tables insert-abbrev-table-description t] 5 "\
+Insert after point a description of all defined abbrevs.
+Mark is set after the inserted text." nil])
+(fset 'list-abbrevs #[nil "ÀÁ !‡" [display-buffer prepare-abbrev-list-buffer] 2 "\
+Display a list of all defined abbrevs." nil])
+(fset 'prepare-abbrev-list-buffer #[nil "ŠÀÁ!qˆÂ ˆ‰«ŒÅ@Æ\"ˆA‰¬t)ebˆÇÈ!ˆÉ ˆ)ÀÁ!‡" [get-buffer-create "*Abbrevs*" erase-buffer abbrev-table-name-list tables insert-abbrev-table-description t set-buffer-modified-p nil edit-abbrevs-mode] 4])
+(fset 'edit-abbrevs-mode #[nil "ÀÂÄ!‡" [edit-abbrevs-mode major-mode "Edit-Abbrevs" mode-name use-local-map edit-abbrevs-map] 2 "\
+Major mode for editing the list of abbrev definitions.
+\\{edit-abbrevs-map}" nil])
+(fset 'edit-abbrevs #[nil "ÀÁ !‡" [switch-to-buffer prepare-abbrev-list-buffer] 2 "\
+Alter abbrev definitions by editing a list of them.
+Selects a buffer containing a list of abbrev definitions.
+You can edit them and type C-c C-c to redefine abbrevs
+according to your editing.
+Buffer contains a header line for each abbrev table,
+ which is the abbrev table name in parentheses.
+This is followed by one line per abbrev in that table:
+NAME   USECOUNT   EXPANSION   HOOK
+where NAME and EXPANSION are strings with quotes,
+USECOUNT is an integer, and HOOK is any valid function
+or may be omitted (it is usually omitted)." nil])
+(fset 'edit-abbrevs-redefine #[nil "ÀÁ!ˆÂÃ!‡" [define-abbrevs t set-buffer-modified-p nil] 2 "\
+Redefine abbrevs according to current buffer contents." nil])
+(fset 'define-abbrevs #[(&optional arg) "«ƒÁ ˆŠebˆm?­ÚÂÃÄÅ#­ÓpÇ!Ä	ÊyˆÊyˆl¬´Ç!Ç!Ç!ÎÄxˆl?­„Ç!ÎÄxˆF	B	ªFĞ	\"ˆ+ª\")‡" [arg kill-all-abbrevs re-search-forward "^(" nil t buf read table abbrevs 1 name count exp " 	\n" hook define-abbrev-table] 4 "\
+Define abbrevs according to current visible buffer contents.
+See documentation of edit-abbrevs for info on the format of the
+text you must have in the buffer.
+With argument, eliminate all abbrev definitions except
+the ones defined from the buffer now." "P"])
+(fset 'read-abbrev-file #[(&optional file quietly) "À	«‰	GÂV«ƒ	ªÄ#ˆÆÄ‰‡" [load file 0 abbrev-file-name nil quietly t save-abbrevs abbrevs-changed] 4 "\
+Read abbrev definitions from file written with write-abbrev-file.
+Takes file name as argument.
+Optional second argument non-nil means don't print anything." "fRead abbrev file: "])
+(fset 'quietly-read-abbrev-file #[(&optional file) "À	Â\"‡" [read-abbrev-file file t] 3 "\
+Read abbrev definitions from file written with write-abbrev-file.
+Takes file name as argument.  Does not print anything."])
+(fset 'write-abbrev-file #[(file) "«†GÁV¬‚\nŠÃÄ!qˆÅ ˆ‰«È@É\"ˆA‰¬q)ÊËd#ˆÅ )‡" [file 0 abbrev-file-name get-buffer-create " write-abbrev-file" erase-buffer abbrev-table-name-list tables insert-abbrev-table-description nil write-region 1] 5 "\
+Write all abbrev definitions to file of Lisp code.
+The file can be loaded to define the same abbrevs." (byte-code "ÀÁÂÃ!!#C‡" [read-file-name "Write abbrev file: " file-name-directory expand-file-name abbrev-file-name] 5)])
+(fset 'add-mode-abbrev #[(arg) "À	«ƒ\nª†®ƒÄÅ!Æ#‡" [add-abbrev only-global-abbrevs global-abbrev-table local-abbrev-table error "No per-mode abbrev table." "Mode" arg] 4 "\
+Define mode-specific abbrev for last word(s) before point.
+Argument is how many words before point form the expansion;
+or zero means the region is the expansion.
+A negative argument means to undefine the specified abbrev.
+Reads the abbreviation in the minibuffer.
+
+Don't use this function in a Lisp program; use define-abbrev instead." "p"])
+(fset 'add-global-abbrev #[(arg) "À	Â#‡" [add-abbrev global-abbrev-table "Global" arg] 4 "\
+Define global (all modes) abbrev for last word(s) before point.
+Argument is how many words before point form the expansion;
+or zero means the region is the expansion.
+A negative argument means to undefine the specified abbrev.
+Reads the abbreviation in the minibuffer.
+
+Don't use this function in a Lisp program; use define-abbrev instead." "p"])
+(fset 'add-abbrev #[(table type arg) "ÁY­’`ÁU«„Â ª‡Š[vˆ`){ÃÆÇ«ƒÈªÉ\n#!«”Ë\"«ÍÇÎË\"#!­‡Ï—#*‡" [arg 0 mark nil name exp read-string format "%s abbrev for \"%s\": " "Undefine %s abbrev: " type abbrev-expansion table y-or-n-p "%s expands to \"%s\"; redefine? " define-abbrev] 7])
+(fset 'inverse-add-mode-abbrev #[(arg) "À	«ƒ\nª†®ƒÄÅ!Æ#‡" [inverse-add-abbrev only-global-abbrevs global-abbrev-table local-abbrev-table error "No per-mode abbrev table." "Mode" arg] 4 "\
+Define last word before point as a mode-specific abbrev.
+With argument N, defines the Nth word before point.
+Reads the expansion in the minibuffer.
+Expands the abbreviation after defining it." "p"])
+(fset 'inverse-add-global-abbrev #[(arg) "À	Â#‡" [inverse-add-abbrev global-abbrev-table "Global" arg] 4 "\
+Define last word before point as a global (mode-independent) abbrev.
+With argument N, defines the Nth word before point.
+Reads the expansion in the minibuffer.
+Expands the abbreviation after defining it." "p"])
+(fset 'inverse-add-abbrev #[(table type arg) "À‰‰Š[vˆ`Åvˆ`‰{)ÆÇÈ	#!Ê\"«ÌÇÍÊ\"#!­Î—	#ˆŠ\nbˆÏ )+‡" [nil exp nameloc name arg 1 read-string format "%s expansion for \"%s\": " type abbrev-expansion table y-or-n-p "%s expands to \"%s\"; redefine? " define-abbrev expand-abbrev] 7])
+(fset 'abbrev-prefix-mark #[(&optional arg) "¬ƒÁ ˆÂ pÅc‡" [arg expand-abbrev point-marker abbrev-start-location abbrev-start-location-buffer "-"] 1 "\
+Mark current point as the beginning of an abbrev.
+Abbrev to be expanded starts here rather than at
+beginning of word.  This way, you can expand an abbrev
+with a prefix: insert the prefix, use this command,
+then insert the abbrev." "P"])
+(fset 'expand-region-abbrevs #[(start end &optional noquery) "Šbˆd	ZÂ‰m?­«Ævˆ`‰dZX­ŸÇŠÈvˆ`){‰!«b	¬ˆÊËÌ\"!«VÍ ˆªQ,‡" [start end nil string pnt lim 1 abbrev-expansion -1 noquery y-or-n-p format "Expand `%s'? " expand-abbrev] 4 "\
+For abbrev occurrence in the region, offer to expand it.
+The user is asked to type y or n for each occurrence.
+A numeric argument means don't query; expand all abbrevs.
+Calling from a program, arguments are START END &optional NOQUERY." "r\nP"])

@@ -1,0 +1,10 @@
+								-*-Text-*-
+Byte-compile the file timer.el and install it in a Lisp library.
+
+C compile the file timer.c and install the resulting executable in one
+of the directories in your (or Emacs') search path.  The executable
+should be named `timer'.  Use -DUSG if running under System V.  I
+couldn't test the code under System V.
+
+A simple example of timer usage appears in the file ntime.el, which
+contains a no-frills rewrite of Emacs' time.el.

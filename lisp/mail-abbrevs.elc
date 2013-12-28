@@ -1,0 +1,71 @@
+;;; compiled by jwz@thalidomide on Tue Mar 31 09:03:32 1992
+;;; from file /wg1/emacs-base/lisp/mail-abbrevs.el
+;;; emacs version 19.87 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(require 'sendmail)
+(defvar mail-abbrev-mailrc-file nil "\
+Name of file with mail aliases.   If nil, ~/.mailrc is used.")
+(fset 'mail-abbrev-mailrc-file '(macro . #[nil "À‡" [(or mail-abbrev-mailrc-file (setq mail-abbrev-mailrc-file (or (getenv "MAILRC") "~/.mailrc")))] 1]))
+(defvar mail-aliases nil "\
+Word-abbrev table of mail address aliases.
+If this is nil, it means the aliases have not yet been initialized and
+should be read from the .mailrc file.  (This is distinct from there being
+no aliases, which is represented by this being a table with no entries.)")
+(fset 'mail-aliases-setup #[nil "À	!¬’Â®ˆÄÅ!®Æ‰!«ƒÇ ˆÈÉ!ˆ	<«	@Ê=¬†Ë	Bª„Ë	D	ÌÍ!‡" [vectorp mail-aliases file-exists-p mail-abbrev-mailrc-file getenv "MAILRC" "~/.mailrc" build-mail-aliases make-local-variable pre-abbrev-expand-hook lambda sendmail-pre-abbrev-expand-hook abbrev-mode 1] 3])
+(fset 'build-mail-aliases #[(&optional file recursivep) "À	®‹\n®ˆÃÄ!®Å‰!Æ!¬ˆÈÉÇÈ\"ˆÊË	\"ˆÈpÎÏĞ!Ñ!ˆqˆÒ	!«ŠÒ	!qˆed{)cˆª‰Ó	!«„Ô	!ˆdbˆhÕ=¬ƒÖ ˆebˆ×ØÈÙ#«`ÚZÈˆ`|ˆ)ªiebˆm¬šÈˆhÜU«İŞ!ˆİß!ˆàcˆªhßuˆªcebˆáâÈÙ#«¸ãyˆäå!«Èˆæß”ß•{Ù\"ˆªcáç!ˆß”ß•{(éÈwˆ`*Èˆë(*`{Ù#ˆ*ªA,¬ƒí ˆ+Êî	\"‡" [expand-file-name file mail-abbrev-mailrc-file getenv "MAILRC" "~/.mailrc" vectorp mail-aliases nil define-abbrev-table message "Parsing %s ..." obuf buffer ((byte-code "«„Á!ˆ\nq‡" [buffer kill-buffer obuf] 2)) generate-new-buffer "mailrc" buffer-disable-undo get-file-buffer file-exists-p insert-file-contents 10 newline search-forward "# " t 2 p 92 delete-char -1 1 32 re-search-forward "^\\(a\\(lias\\|\\)\\|g\\(roup\\)\\|source\\)[ 	]+" 0 looking-at "source[ 	]+\\([^ 	\n]+\\)" build-mail-aliases "[ 	]+\\([^ 	\n]+\\)" name " 	" start define-mail-alias recursivep mail-resolve-all-aliases "Parsing %s ... done"] 4 "\
+Read mail aliases from .mailrc and set mail-aliases."])
+(defvar mail-alias-seperator-string ", " "\
+*A string inserted between addresses in multi-address mail aliases.
+This has to contain a comma, so \", \" is a reasonable value.  You might 
+also want something like \",\\n    \" to get each address on its own line.")
+(byte-code "ÀÁ!¬‚ÂÀ‡" [boundp mail-abbrev-aliases-need-to-be-resolved t] 2)
+(fset 'define-mail-alias #[(name definition &optional from-mailrc-file) "À	!¬™ÂÃÁÂ\"ˆÄ®ˆÆÇ!®È‰!«ƒÉ ˆÊË\"«ˆÍ•ÂOÊÎ\"«ˆÍ‰”OÂÍGÂ«Ğ«¤HÔ=«TÊÕ#ª”ÊÖ#ª‰Ê×#OB­ŠÍ•U?­‚Í•‰¬0ØÙŸ#,Û—ß	à$)‡" [vectorp mail-aliases nil define-abbrev-table file-exists-p mail-abbrev-mailrc-file getenv "MAILRC" "~/.mailrc" build-mail-aliases string-match "\\`[ 	\n,]+" definition 0 "[ 	\n,]+\\'" end L start result from-mailrc-file 34 "\"[ 	,]*" "[ 	,]+" "[ 	\n,]*,[ 	\n,]*" mapconcat identity mail-alias-seperator-string t mail-abbrev-aliases-need-to-be-resolved name abbrevs-changed define-abbrev mail-abbrev-expand-hook] 6 "\
+Define NAME as a mail-alias that translates to DEFINITION.
+If DEFINITION contains multiple addresses, seperate them with commas." "sDefine mail alias: \nsDefine %s as mail alias for: "])
+(fset 'mail-resolve-all-aliases #[nil "­Á\n!«…ÃÄ\n\"ˆÅ‰‡" [mail-abbrev-aliases-need-to-be-resolved vectorp mail-aliases mapatoms mail-resolve-all-aliases-1 nil] 3 "\
+Resolve all forward references in the mail aliases table."])
+(fset 'mail-resolve-all-aliases-1 #[(sym) "À	!­‚	J‰«±ÃÄ«›ÇÈ\n#	\n	OB	­‚Ä•)ªbÊËŸ#	\nLˆ*)	J‡" [boundp sym definition nil 0 start result string-match "[ 	\n]*,[, 	\n]*" end mapconcat #[(x) "ÀÁ\n\"!®\n‡" [mail-resolve-all-aliases-1 intern-soft x mail-aliases] 4] mail-alias-seperator-string] 5])
+(fset 'mail-abbrev-expand-hook #[nil "Š`À­¹iY­´ÀÆyˆ`\nbˆÇÈ	É#«”ŠÊuˆËcˆÌ ˆ`Í ˆ\n`{)iV­‰®ÎĞ ))+‡" [nil bol p auto-fill-function fill-column fp 0 search-backward "," t 1 "\n" delete-horizontal-space indent-relative "	" fill-prefix do-auto-fill] 4 "\
+For use as the fourth arg to define-abbrev.
+  After expanding a mail-abbrev, if fill-mode is on and we're past the 
+fill-column, break the line at the previous comma, and indent the next
+line."])
+(defvar mail-abbrev-mode-regexp "^\\(Resent-\\)?\\(To\\|From\\|CC\\|BCC\\):" "\
+*Regexp to select mail-headers in which mail-aliases should be expanded.
+This string it will be handed to `looking-at' with the point at the beginning
+of the current line; if it matches, abbrev mode will be turned on, otherwise
+it will be turned off.  (You don't need to worry about continuation lines.)
+This should be set to match those mail fields in which you want abbreviations
+turned on.")
+(defvar mail-mode-syntax-table (copy-syntax-table text-mode-syntax-table) "\
+The syntax table which is used in send-mail mode message bodies.")
+(defvar mail-mode-header-syntax-table (byte-code "À	!ÃÄÅ\n#ˆÃÆÅ\n#ˆÃÇÅ\n#ˆÃÈÅ\n#ˆÃÉÅ\n#ˆÃÊÅ\n#ˆÃËÌ\n#ˆÃÍÎ\n#ˆ\n)‡" [copy-syntax-table text-mode-syntax-table tab modify-syntax-entry 64 "_" 37 33 46 95 45 60 "(>" 62 ")<"] 4) "\
+The syntax table used in send-mail mode when in a mail-address header.
+mail-mode-syntax-table is used when the cursor is in the message body or in
+non-address headers.")
+(defvar mail-abbrev-syntax-table (byte-code "À	!‰GSÄ ÅHÄ ÇHÉY«”\nHU«†\nIˆS‰ªh\n,‡" [copy-syntax-table mail-mode-header-syntax-table tab i standard-syntax-table 95 _ 119 w 0] 4) "\
+The syntax-table used for abbrev-expansion purposes; this is not actually
+made the current syntax table of the buffer, but simply controls the set of
+characters which may be a part of the name of a mail-alias.")
+(fset 'mail-abbrev-in-expansion-header-p #[nil "ÀŠÂyˆÃÄ!«Š`eU¬…ÅyˆªqÃ!)­’`ŠebˆÇÈ	ÈQÊÂ#ˆ`)W)‡" [t case-fold-search 0 looking-at "^[ 	]" -1 mail-abbrev-mode-regexp search-forward "\n" mail-header-separator nil] 5 "\
+Whether point is in a mail-address header field."])
+(fset 'sendmail-pre-abbrev-expand-hook #[nil "«ƒÁ ˆ\n­¸\nÃ=?­²Ä ¬ÅÆ!­‚È	!‡\n\nzËU¬ŒÌÈ!ˆÏ ˆ)`pÈ!‡" [mail-abbrev-aliases-need-to-be-resolved mail-resolve-all-aliases mail-aliases t mail-abbrev-in-expansion-header-p boundp mail-mode-abbrev-table local-abbrev-table set-syntax-table mail-mode-syntax-table last-command-char 95 nil pre-abbrev-expand-hook mail-abbrev-syntax-table expand-abbrev abbrev-start-location abbrev-start-location-buffer mail-mode-header-syntax-table] 2])
+(fset 'merge-mail-aliases #[(file) "À	!‡" [build-mail-aliases file] 2 "\
+Merge mail aliases from the given file with existing ones." (byte-code "ÀÁÂ!®ˆÄÅ!®Æ‰	ÊËÌ\"Á\"À$+C‡" [t expand-file-name "~/" mail-abbrev-mailrc-file getenv "MAILRC" "~/.mailrc" def default-directory insert-default-directory read-file-name format "Read additional aliases from file: (default %s) "] 6)])
+(fset 'rebuild-mail-aliases #[(file) "ÀÂ!‡" [nil mail-aliases build-mail-aliases file] 2 "\
+Rebuild all the mail aliases from the given file." (byte-code "ÀÁÂ!®ˆÄÅ!®Æ‰	ÊËÌ\"Á\"À$+C‡" [t expand-file-name "~/" mail-abbrev-mailrc-file getenv "MAILRC" "~/.mailrc" def default-directory insert-default-directory read-file-name format "Read mail aliases from file: (default %s) "] 6)])
+(fset 'mail-interactive-insert-alias #[(&optional alias) "«‡Á\n\"J®Ãc‡" [alias intern-soft mail-aliases ""] 3 "\
+Prompt for and insert a mail alias." (byte-code "ÀÁ\nÃÄ$C‡" [completing-read "Expand alias: " mail-aliases nil t] 5)])
+(fset 'abbrev-hacking-next-line #[(&optional arg) "ÀÁ!«ƒÂ ˆÃ!‡" [looking-at "[ 	]*\n" expand-abbrev next-line arg] 2 "\
+Just like `next-line' (\\[next-line]) but expands abbrevs when at end of line." "p"])
+(fset 'abbrev-hacking-end-of-buffer #[(&optional arg) "ÀÁ!«ƒÂ ˆÃ!‡" [looking-at "[ 	]*\n" expand-abbrev end-of-buffer arg] 2 "\
+Just like `end-of-buffer' (\\[end-of-buffer]) but expands abbrevs when at end of line." "P"])
+(byte-code "À	ÂÃ#ˆÄÅ!ˆÆÇ!‡" [define-key mail-mode-map "" mail-interactive-insert-alias fmakunbound expand-mail-aliases provide mail-abbrevs] 4)

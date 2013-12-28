@@ -1,0 +1,31 @@
+;;; compiled by jwz@thalidomide on Sat Mar  7 03:23:21 1992
+;;; from file /u/jwz/emacs19/lisp/vm/vm-mark.el
+;;; emacs version 19.71 Lucid.
+;;; bytecomp version 2.04; 5-feb-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(require 'vm)
+(fset 'vm-clear-all-marks #[nil "«ˆÁ!«ƒqˆÂ!«‡Á!¬‚ÄÅ ˆ‰«—@ÈHÈÄIˆÉ@!ˆA‰¬i)Ê ‡" [vm-mail-buffer buffer-name bufferp vm-summary-buffer nil vm-error-if-folder-empty vm-message-list mp 1 vm-mark-for-display-update vm-update-summary-and-mode-line] 4 "\
+Removes all message marks in the current folder." nil])
+(fset 'vm-mark-all-messages #[nil "«ˆÁ!«ƒqˆÂ!«‡Á!¬‚ÄÅ ˆ‰«—@ÈHÈÉIˆÊ@!ˆA‰¬i)Ë ‡" [vm-mail-buffer buffer-name bufferp vm-summary-buffer nil vm-error-if-folder-empty vm-message-list mp 1 t vm-mark-for-display-update vm-update-summary-and-mode-line] 4 "\
+Mark all messages in the current folder." nil])
+(fset 'vm-mark-message #[(count) "t«ƒÀ ˆ	«ˆÂ	!«ƒ	qˆÃ!«‡Â!¬‚ÅÆ ˆÈ=¬…É\n!ˆ\nËW«ƒÌªÍÎ\n!‰\n\nËU¬©@ÒHÒH¬@ÒHÒÈIˆÓ@!ˆ\nS‰\nËU¬XÔ!ˆªQ,Õ ‡" [vm-follow-summary-cursor vm-mail-buffer buffer-name bufferp vm-summary-buffer nil vm-error-if-folder-empty vm-circular-folders t vm-check-count count 0 backward forward vm-abs vm-message-pointer oldmp direction 1 vm-mark-for-display-update vm-move-message-pointer vm-update-summary-and-mode-line] 5 "\
+Mark the current message.
+Numeric prefix argument N means mark the current message and the next
+N-1 messages.  A negative N means mark the current message and the
+previous N-1 messages." "p"])
+(fset 'vm-unmark-message #[(count) "t«ƒÀ ˆ	«ˆÂ	!«ƒ	qˆÃ!«‡Â!¬‚ÅÆ ˆÈ=¬…É\n!ˆ\nËW«ƒÌªÍÎ\n!‰\n\nËU¬©@ÒHÒH«@ÒHÒÅIˆÓ@!ˆ\nS‰\nËU¬XÔ!ˆªQ,Õ ‡" [vm-follow-summary-cursor vm-mail-buffer buffer-name bufferp vm-summary-buffer nil vm-error-if-folder-empty vm-circular-folders t vm-check-count count 0 backward forward vm-abs vm-message-pointer oldmp direction 1 vm-mark-for-display-update vm-move-message-pointer vm-update-summary-and-mode-line] 5 "\
+Remove the mark from the current message.
+Numeric prefix argument N means unmark the current message and the next
+N-1 messages.  A negative N means unmark the current message and the
+previous N-1 messages." "p"])
+(fset 'vm-next-command-uses-marks #[nil "ÀÁ!ˆÂÃ!«‡ÃÄ !‰‡Æ ‰‡" [message "Next command uses marks..." fboundp next-command-event allocate-event unread-command-event read-char unread-command-char] 2 "\
+Does nothing except insure that the next VM command will operate only
+on the marked messages in the current folder." nil])
+(fset 'vm-marked-messages #[nil "À	\n«“\n@ÄHÄH«…\n@B\nA‰¬mŸ*‡" [nil vm-message-list mp list 1] 3])

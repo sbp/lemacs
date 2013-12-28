@@ -1,0 +1,52 @@
+;;; compiled by jwz@thalidomide on Sun Mar  1 15:06:51 1992
+;;; from file /u/jwz/emacs19/lisp/dired-cd.el
+;;; emacs version 19.66 Lucid.
+;;; bytecomp version 2.04; 5-feb-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar dired-cd-same-subdir nil "\
+*If non-nil, and selected file(s) (by marks, numeric arg, \\[universal-argument]) are in same
+subdir, causes dired shell command to run in that subdir.  Filenames provided
+to shell commands are stripped of their directory components.  Does not
+affect behavior of on-each, for that see variable dired-cd-on-each.")
+(defvar dired-cd-on-each nil "\
+*If non-nil, on-each causes each dired shell command to run in the 
+file's directory.  Filenames provided to shell commands are stripped of 
+their directory components.  Also see variable dired-cd-same-subdir.")
+(fset 'dired-do-shell-command #[(&optional arg in-background) "ÁšÃÄ\n?­\"«ƒÇªÈ\n«„	¬Œ\n«‹\n¬ˆË!«ƒÌªÍÎ\n«ƒÏªÍĞ°Ò\n?­#Ô\n$Ö\"-‡" [arg 0 on-each dired-mark-get-files t file-list in-background "& " "! " dired-cd-on-each dired-cd-same-subdir dired-files-same-directory "cd <dir>; " "" "on " "each " "%s: " prompt dired-read-shell-command command dired-cd-wrap-it result dired-run-shell-command] 5 "\
+Run a shell command on the marked files.
+If there is output, it goes to a separate buffer.
+The list of marked files is appended to the command string unless asterisks
+  `*' indicate the place(s) where the list should go.
+If no files are marked or a specific numeric prefix arg is given, uses
+  next ARG files.  With a zero argument, run command on each marked file
+  separately: `cmd * foo' results in `cmd F1 foo; ...; cmd Fn foo'.
+  As always, a raw arg (\\[universal-argument]) means the current file.
+The option variables dired-cd-same-subdir and dired-cd-on-each
+  permit the command(s) to run in the files' directories if appropriate,
+  and thus determine where output files are created.  Default is top
+  directory.  The prompt mentions the file(s) or the marker, the cd subdir,
+  and the on-each flags when they apply.
+No automatic redisplay is attempted, as the file names may have
+  changed.  Type \\[dired-do-redisplay] to redisplay the marked files." "P"])
+(fset 'dired-cd-wrap-it #[(command files on-each &optional raw) "«™ÁÃÅÆÈ#	«†	ÊPª‚	+‡­…ÌÃ\"Á‰«–Áš¬ÏĞ\"ÑÒ!ÈQÓ$P*‡" [on-each "" cwd nil in-subshell mapconcat #[(file) "ÀÁ«¬ÅÆ!®À!È!\n	˜¬–\n	\n«ƒËªÀÌÍ	!ÎRÏ\nĞC$P*‡" ["" nil d cd dired-cd-on-each directory-file-name file-name-directory file file-name-nondirectory cwd in-subshell "); " "(cd " shell-quote "; " t dired-shell-stuff-it command on-each raw] 6] files "; " cmd ")" dired-cd-same-subdir dired-files-same-directory cd same-dir mapcar file-name-nondirectory "cd " shell-quote dired-shell-stuff-it command raw] 7 "\
+Args COMMAND FILES ON-EACH &optional RAW-ARG, like dired-shell-stuff-it.
+Calls dired-shell-stuff-it, but wraps the resulting command(s)
+with \"cd <dir>\" commands when appropriate.  Note: when ON-EACH is non-nil, 
+dired-shell-stuff-it is called once for each file in FILES.
+See documentation of variables dired-cd-same-subdir and dired-cd-on-each 
+for wrap conditions."])
+(fset 'dired-files-same-directory #[(file-list &optional absolute) "À	@!ÃÄÅ	\">?­˜Æ«ˆ\n«‹È\n!«†\n®‡Éª„\n\nP!)‡" [file-name-directory file-list dir nil mapcar #[(file) "Á\n!˜‡" [dir file-name-directory file] 3] directory-file-name absolute file-name-absolute-p "" default-directory] 4 "\
+If all files in LIST are in the same directory return it, otherwise nil.
+Returned name has no trailing slash.  \"Same\" means file-name-directory of
+the files are string=.  File names in LIST must all be absolute or all be
+relative.  Implicitly, relative file names are in default-directory.  If
+optional ABS is non-nil, the returned name will be absolute, otherwise the
+returned name will be absolute or relative as per the files in LIST."])
+(provide 'dired-cd)

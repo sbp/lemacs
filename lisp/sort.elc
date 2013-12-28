@@ -1,0 +1,103 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:32:15 1991
+;;; from file /wg1/emacs-base/lisp/sort.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'sort)
+(fset 'sort-subr #[(reverse nextrecfun endrecfun &optional startkeyfun endkeyfun) "ŠÀÁ!ˆÂ$È!	«Ú¬…ŸÀÊ!ˆËÌ!«šÌ‰@@§«ƒÍª‹@@:«ƒÎªÏ\"ª˜Ğ‰@@§«ƒÑª‹@@:«ƒÒªÓ\"«…ŸÀÔ!ˆÕ	\"ˆ*ÀÖ!ˆ)×‡" [message "Finding sort keys..." sort-build-lists nextrecfun endrecfun startkeyfun endkeyfun sort-lists reverse old "Sorting records..." fboundp sortcar < buffer-substring-lessp string< sort #[(a b) "@	@W‡" [a b] 2] #[(a b) "À	@\n@\"‡" [buffer-substring-lessp a b] 3] #[(a b) "@	@™‡" [a b] 2] "Reordering buffer..." sort-reorder-buffer "Reordering buffer... Done" nil] 5 "\
+General text sorting routine to divide buffer into records and sort them.
+Arguments are REVERSE NEXTRECFUN ENDRECFUN &optional STARTKEYFUN ENDKEYFUN.
+
+We consider this portion of the buffer to be divided into disjoint pieces
+called sort records.  A portion of each sort record (perhaps all of it)
+is designated as the sort key.  The records are rearranged in the buffer
+in order by their sort keys.  The records may or may not be contiguous.
+
+Usually the records are rearranged in order of ascending sort key.
+If REVERSE is non-nil, they are rearranged in order of descending sort key.
+
+The next four arguments are functions to be called to move point
+across a sort record.  They will be called many times from within sort-subr.
+
+NEXTRECFUN is called with point at the end of the previous record.
+It moves point to the start of the next record.
+It should move point to the end of the buffer if there are no more records.
+The first record is assumed to start at the position of point when sort-subr
+is called.
+
+ENDRECFUN is is called with point within the record.
+It should move point to the end of the record.
+
+STARTKEYFUN may moves from the start of the record to the start of the key.
+It may return either return a non-nil value to be used as the key, or
+else the key will be the substring between the values of point after
+STARTKEYFUNC and ENDKEYFUN are called.
+
+ENDKEYFUN moves from the start of the sort key to the end of the sort key.
+ENDKEYFUN may be nil if STARTKEYFUN returns a value or if it would be the
+same as ENDRECFUN."])
+(byte-code "ÀÁMˆÂÃM‡" [sort-build-lists #[(nextrecfun endrecfun startkeyfun endkeyfun) "À‰‰‰m¬Í`ÀÁÅ\nÀ¬”«† ˆªŠ«† ˆÈ	«œ	:«‘	@š«‹	A`š«…	‰Bª„	`EB\n¬:«6 ˆª0,‡" [nil key done start-rec sort-lists (byte-code "«„ ®˜`\n®ƒÄ ˆÆÇ!«…	`Bªƒ	`{)‡" [startkeyfun start endkeyfun endrecfun t done fboundp buffer-substring-lessp] 2) endrecfun nextrecfun t] 4] sort-reorder-buffer #[(sort-lists old) "ÀeeddbˆÅÆ!ˆ\ndS}ˆ«°dbˆÈp	@A@#ˆdbˆÈp@A@Ê@8#ˆÊ	@8A	A	ªLdbˆÈp	#ˆ\n	|ˆdbˆ\n`T}ˆ``T|,‡" [t max min last inhibit-quit insert-before-markers " " sort-lists insert-buffer-substring old 2] 5]] 2)
+(fset 'sort-lines #[(reverse beg end) "ŠŒ	}ˆebˆÂÄÅ#*‡" [beg end sort-subr reverse forward-line end-of-line] 4 "\
+Sort lines in region alphabetically; argument means descending order.
+Called from a program, there are three arguments:
+REVERSE (non-nil means reverse order), BEG and END (region to sort)." "P\nr"])
+(fset 'sort-paragraphs #[(reverse beg end) "ŠŒ	}ˆebˆÂÄÅ#*‡" [beg end sort-subr reverse #[nil "ÀÁw‡" ["\n 	" nil] 2] forward-paragraph] 4 "\
+Sort paragraphs in region alphabetically; argument means descending order.
+Called from a program, there are three arguments:
+REVERSE (non-nil means reverse order), BEG and END (region to sort)." "P\nr"])
+(fset 'sort-pages #[(reverse beg end) "ŠŒ	}ˆebˆÂÄÅ#*‡" [beg end sort-subr reverse #[nil "ÀÁw‡" ["\n" nil] 2] forward-page] 4 "\
+Sort pages in region alphabetically; argument means descending order.
+Called from a program, there are three arguments:
+REVERSE (non-nil means reverse order), BEG and END (region to sort)." "P\nr"])
+(byte-code "ÀÁ!¬‚Â	¬¸Ã ÄÇW«ÈÉ#ˆT‰ªoÈÊË#ˆÈÌË#ˆÈÍË#ˆÈÎÏ#ˆ*Â‡" [boundp sort-fields-syntax-table nil make-syntax-table 0 i table 256 modify-syntax-entry "w" 32 " " 9 10 46 "_"] 5)
+(fset 'sort-numeric-fields #[(field beg end) "À	\nÄÅ%‡" [sort-fields-1 field beg end #[nil "À	S!ˆÂ`ŠÃÄ!ˆ`){!‡" [sort-skip-fields field string-to-int forward-sexp 1] 4] nil] 6 "\
+Sort lines in region numerically by the ARGth field of each line.
+Fields are separated by whitespace and numbered from 1 up.
+Specified field must contain a number in each line of the region.
+With a negative arg, sorts by the -ARG'th field, in decending order.
+Called from a program, there are three arguments:
+FIELD, BEG and END.  BEG and END specify region to sort." "p\nr"])
+(fset 'sort-fields #[(field beg end) "À	\nÄÅ%‡" [sort-fields-1 field beg end #[nil "À	S!ˆÂ‡" [sort-skip-fields field nil] 2] #[nil "ÀÁw‡" ["^ 	\n" nil] 2]] 6 "\
+Sort lines in region lexicographically by the ARGth field of each line.
+Fields are separated by whitespace and numbered from 1 up.
+With a negative arg, sorts by the -ARG'th field, in decending order.
+Called from a program, there are three arguments:
+FIELD, BEG and END.  BEG and END specify region to sort." "p\nr"])
+(byte-code "ÀÁMˆÂÃM‡" [sort-fields-1 #[(field beg end startkeyfun endkeyfun) "ÁWÂ Å‰[]]ÆŠŒ}ˆebˆÉ\n!ˆËÌÍ%-‡" [field 0 syntax-table tbl reverse 1 ((set-syntax-table tbl)) beg end set-syntax-table sort-fields-syntax-table sort-subr forward-line end-of-line startkeyfun endkeyfun] 6] sort-skip-fields #[(n) "ŠÀˆ`)\nvˆ`	V«ŒÃÄŠÅyˆ`)	{\"ˆÆÇw)‡" [1 eol n error "Line has too few fields: %s" 0 " 	" nil] 4]] 2)
+(fset 'sort-regexp-fields #[(reverse record-regexp key-regexp beg end) "Áš¬…Âš«„ÃªŒÄÅ\"«†ÆHÇZŠŒ	}ˆebˆÊÌ!ˆ`Ã”bˆÎĞÑÒ$+‡" [key-regexp "" "\\&" 0 string-match "\\`\\\\[1-9]\\'" 1 48 beg end nil sort-regexp-record-end re-search-forward record-regexp sort-subr reverse #[nil "À	ÂÃ#­‰Ä•‰­ƒÄ”b‡" [re-search-forward record-regexp nil move 0 sort-regexp-record-end] 4] #[nil "b‡" [sort-regexp-record-end] 1] #[nil "À\n§«„\nªÃ\nÅ#«„Àª…ÆÇÈ\"ˆÈÉÊ)‡" [0 n key-regexp re-search-forward sort-regexp-record-end t throw key nil (byte-code "ÀÁ!«†\n”\n•B‡\n”\n•{‡" [fboundp buffer-substring-lessp n] 2) ((error (byte-code "ÀÁÂ\"‡" [throw key nil] 3)))] 4]] 5 "\
+Sort the region lexicographically as specifed by RECORD-REGEXP and KEY.
+RECORD-REGEXP specifies the textual units which should be sorted.
+  For example, to sort lines RECORD-REGEXP would be \"^.*$\"
+KEY specifies the part of each record (ie each match for RECORD-REGEXP)
+  is to be used for sorting.
+  If it is \"\\digit\" then the digit'th \"\\(...\\)\" match field from
+  RECORD-REGEXP is used.
+  If it is \"\\&\" then the whole record is used.
+  Otherwise, it is a regular-expression for which to search within the record.
+If a match for KEY is not found within a record then that record is ignored.
+
+With a negative prefix arg sorts in reverse order.
+
+For example: to sort lines in the region by the first word on each line
+ starting with the letter \"f\",
+ RECORD-REGEXP would be \"^.*$\" and KEY would be \"\\=\\<f\\w*\\>\"" "P\nsRegexp specifying records to sort: \nsRegexp specifying key within record: \nr"])
+(byte-code "ÀÁ!¬‚ÂÀ‡" [boundp sort-columns-subprocess t] 2)
+(fset 'sort-columns #[(reverse &optional beg end) "ŠÀ‰‰‰‰‰^bˆiÉyˆ`]bˆiÀyˆ`^]ÊËÌ#«„ÍÎ!ˆĞ=¬šÑÒÌ‰À«ƒÔªÕÖ\nP×	P&	ª”ŠŒ}ˆbˆØÙÚÛÜ%*.‡" [nil col-end col-start col-end1 col-beg1 end1 beg1 beg end 0 search-backward "	" t error "sort-columns does not work with tabs.  Use M-x untabify." system-type vax-vms call-process-region "sort" reverse "-rt\n" "-t\n" "+0." "-0." sort-subr forward-line end-of-line #[nil "À	!ˆÂ‡" [move-to-column col-start nil] 2] #[nil "À	!ˆÂ‡" [move-to-column col-end nil] 2]] 11 "\
+Sort lines in region alphabetically by a certain range of columns.
+For the purpose of this command, the region includes
+the entire line that point is in and the entire line the mark is in.
+The column positions of point and mark bound the range of columns to sort on.
+A prefix argument means sort into reverse order.
+
+Note that `sort-columns' rejects text that contains tabs,
+because tabs could be split across the specified columns
+and it doesn't know how to handle that.  Also, when possible,
+it uses the `sort' utility program, which doesn't understand tabs.
+Use \\[untabify] to convert tabs to spaces before sorting." "P\nr"])

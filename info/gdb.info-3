@@ -1,0 +1,1081 @@
+Info file: gdb.info,    -*-Text-*-
+produced by texinfo-format-buffer
+from file: gdb.tex
+
+
+
+This file documents the GNU debugger GDB.
+
+Copyright (C) 1988, 1989 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided also that the
+section entitled "GNU General Public License" is included exactly as
+in the original, and provided that the entire resulting derived work is
+distributed under the terms of a permission notice identical to this
+one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that the section entitled "GNU General Public License" may be
+included in a translation approved by the author instead of in the
+original English.
+
+
+
+File: gdb.info  Node: Symbols, Prev: Data, Up: Top, Next: Altering
+
+Examining the Symbol Table
+**************************
+
+The commands described in this section allow you to make inquiries for
+information about the symbols (names of variables, functions and types)
+defined in your program.  This information is found by GDB in the symbol
+table loaded by the `symbol-file' command; it is inherent in the text
+of your program and does not change as the program executes.
+
+`whatis EXP'
+     Print the data type of expression EXP.  EXP is not
+     actually evaluated, and any side-effecting operations (such as
+     assignments or function calls) inside it do not take place.
+     *Note Expressions::.
+
+`whatis'
+     Print the data type of `$', the last value in the value history.
+
+`info address SYMBOL'
+     Describe where the data for SYMBOL is stored.  For a register
+     variable, this says which register it is kept in.  For a non-register
+     local variable, this prints the stack-frame offset at which the variable
+     is always stored.
+
+     Note the contrast with `print &SYMBOL', which does not work
+     at all for a register variables, and for a stack local variable prints
+     the exact address of the current instantiation of the variable.
+
+`ptype TYPENAME'
+     Print a description of data type TYPENAME.  TYPENAME may be the
+     name of a type, or for C code it may have the form `struct
+     STRUCT-TAG', `union UNION-TAG' or `enum ENUM-TAG'.
+
+`info sources'
+     Print the names of all source files in the program for which there
+     is debugging information.
+
+`info functions'
+     Print the names and data types of all defined functions.
+
+`info functions REGEXP'
+     Print the names and data types of all defined functions
+     whose names contain a match for regular expression REGEXP.
+     Thus, `info fun step' finds all functions whose names
+     include `step'; `info fun ^step' finds those whose names
+     start with `step'.
+
+`info variables'
+     Print the names and data types of all variables that are declared
+     outside of functions (i.e., except for local variables).
+
+`info variables REGEXP'
+     Print the names and data types of all variables (except for local
+     variables) whose names contain a match for regular expression
+     REGEXP.
+
+`info types'
+     Print all data types that are defined in the program.
+
+`info types REGEXP'
+     Print all data types that are defined in the program whose names
+     contain a match for regular expression REGEXP.
+
+
+`printsyms FILENAME'
+     Write a complete dump of the debugger's symbol data into the
+     file FILENAME.
+
+
+File: gdb.info  Node: Altering, Prev: Symbols, Up: Top, Next: Sequences
+
+Altering Execution
+******************
+
+Once you think you have find an error in the program, you might want to
+find out for certain whether correcting the apparent error would lead to
+correct results in the rest of the run.  You can find the answer by
+experiment, using the GDB features for altering execution of the
+program.
+
+For example, you can store new values into variables or memory
+locations, give the program a signal, restart it at a different address,
+or even return prematurely from a function to its caller.
+
+* Menu:
+
+* Assignment::    Altering variable values or memory contents.
+* Jumping::       Altering control flow.
+* Signaling::     Making signals happen in the program.
+* Returning::     Making a function return prematurely.
+
+
+File: gdb.info  Node: Assignment, Prev: Altering, Up: Altering, Next: Jumping
+
+Assignment to Variables
+=======================
+
+To alter the value of a variable, evaluate an assignment expression.
+*Note Expressions::.  For example,
+
+     print x=4
+
+would store the value 4 into the variable `x', and then print
+the value of the assignment expression (which is 4).
+
+All the assignment operators of C are supported, including the
+incrementation operators `++' and `--', and combining
+assignments such as `+=' and `<<='.
+
+If you are not interested in seeing the value of the assignment, use the
+`set' command instead of the `print' command.  `set' is
+really the same as `print' except that the expression's value is not
+printed and is not put in the value history (*Note Value History::).  The
+expression is evaluated only for side effects.
+
+Note that if the beginning of the argument string of the `set' command
+appears identical to a `set' subcommand, it may be necessary to use
+the `set variable' command.  This command is identical to `set'
+except for its lack of subcommands.
+
+GDB allows more implicit conversions in assignments than C does; you can
+freely store an integer value into a pointer variable or vice versa, and
+any structure can be converted to any other structure that is the same
+length or shorter.
+
+To store values into arbitrary places in memory, use the `{...}'
+construct to generate a value of specified type at a specified address
+(*Note Expressions::).  For example, `{int}0x83040' would refer
+to memory location 0x83040 as an integer (which implies a certain size
+and representation in memory), and
+
+     set {int}0x83040 = 4
+
+would store the value 4 into that memory location.
+
+
+File: gdb.info  Node: Jumping, Prev: Assignment, Up: Altering, Next: Signaling
+
+Continuing at a Different Address
+=================================
+
+Ordinarily, when you continue the program, you do so at the place where
+it stopped, with the `cont' command.  You can instead continue at
+an address of your own choosing, with the following commands:
+
+`jump LINENUM'
+     Resume execution at line number LINENUM.  Execution may stop
+     immediately if there is a breakpoint there.
+
+     The `jump' command does not change the current stack frame, or
+     the stack pointer, or the contents of any memory location or any
+     register other than the program counter.  If line LINENUM is in
+     a different function from the one currently executing, the results may
+     be bizarre if the two functions expect different patterns of arguments or
+     of local variables.  For this reason, the `jump' command requests
+     confirmation if the specified line is not in the function currently
+     executing.  However, even bizarre results are predictable based on
+     careful study of the machine-language code of the program.
+
+`jump *ADDRESS'
+     Resume execution at the instruction at address ADDRESS.
+
+You can get much the same effect as the `jump' command by storing a
+new value into the register `$pc'.  The difference is that this
+does not start the program running; it only changes the address where it
+*will* run when it is continued.  For example,
+
+     set $pc = 0x485
+
+causes the next `cont' command or stepping command to execute at
+address 0x485, rather than at the address where the program stopped.
+*Note Stepping::.
+
+The most common occasion to use the `jump' command is when you have
+stepped across a function call with `next', and found that the
+return value is incorrect.  If all the relevant data appeared correct
+before the function call, the error is probably in the function that
+just returned.
+
+In general, your next step would now be to rerun the program and execute
+up to this function call, and then step into it to see where it goes
+astray.  But this may be time consuming.  If the function did not have
+significant side effects, you could get the same information by resuming
+execution just before the function call and stepping through it.  To do this,
+first put a breakpoint on that function; then, use the `jump' command
+to continue on the line with the function call.
+
+
+File: gdb.info  Node: Signaling, Prev: Jumping, Up: Altering, Next: Returning
+
+Giving the Program a Signal
+===========================
+
+`signal SIGNALNUM'
+     Resume execution where the program stopped, but give it immediately the
+     signal number SIGNALNUM.
+
+     Alternatively, if SIGNALNUM is zero, continue execution without
+     giving a signal.  This is useful when the program stopped on account of
+     a signal and would ordinary see the signal when resumed with the
+     `cont' command; `signal 0' causes it to resume without a
+     signal.
+
+
+File: gdb.info  Node: Returning, Prev: Signaling, Up: Altering
+
+Returning from a Function
+=========================
+
+You can cancel execution of a function call with the `return'
+command.  This command has the effect of discarding the selected stack
+frame (and all frames within it), so that control moves to the caller of
+that function.  You can think of this as making the discarded frame
+return prematurely.
+
+First select the stack frame that you wish to return from
+(*Note Selection::).  Then type the `return' command.  If you wish
+to specify the value to be returned, give that as an argument.
+
+This pops the selected stack frame (and any other frames inside of it),
+leaving its caller as the innermost remaining frame.  That frame becomes
+selected.  The specified value is stored in the registers used for
+returning values of functions.
+
+The `return' command does not resume execution; it leaves the
+program stopped in the state that would exist if the function had just
+returned.  Contrast this with the `finish' command
+(*Note Stepping::), which resumes execution until the selected stack
+frame returns *naturally*.
+
+
+File: gdb.info  Node: Sequences, Prev: Altering, Up: Top, Next: Options
+
+Canned Sequences of Commands
+****************************
+
+GDB provides two ways to store sequences of commands for execution as a
+unit: user-defined commands and command files.
+
+* Menu:
+
+* Define::         User-defined commands.
+* Command Files::  Command files.
+* Output::         Controlled output commands useful in
+                   user-defined commands and command files.
+
+
+File: gdb.info  Node: Define, Prev: Sequences, Up: Sequences, Next: Command Files
+
+User-Defined Commands
+=====================
+
+A "user-defined command" is a sequence of GDB commands to which you
+assign a new name as a command.  This is done with the `define'
+command.
+
+`define COMMANDNAME'
+     Define a command named COMMANDNAME.  If there is already a command
+     by that name, you are asked to confirm that you want to redefine it.
+
+     The definition of the command is made up of other GDB command lines,
+     which are given following the `define' command.  The end of these
+     commands is marked by a line containing `end'.
+
+`document COMMANDNAME'
+     Give documentation to the user-defined command COMMANDNAME.  The
+     command COMMANDNAME must already be defined.  This command reads
+     lines of documentation just as `define' reads the lines of the
+     command definition, ending with `end'.  After the `document'
+     command is finished, `help' on command COMMANDNAME will print
+     the documentation you have specified.
+
+     You may use the `document' command again to change the
+     documentation of a command.  Redefining the command with `define'
+     does not change the documentation.
+
+User-defined commands do not take arguments.  When they are executed, the
+commands of the definition are not printed.  An error in any command
+stops execution of the user-defined command.
+
+Commands that would ask for confirmation if used interactively proceed
+without asking when used inside a user-defined command.  Many GDB commands
+that normally print messages to say what they are doing omit the messages
+when used in user-defined command.
+
+
+File: gdb.info  Node: Command Files, Prev: Define, Up: Sequences, Next: Output
+
+Command Files
+=============
+
+A command file for GDB is a file of lines that are GDB commands.  Comments
+(lines starting with `#') may also be included.  An empty line in a
+command file does nothing; it does not mean to repeat the last command, as
+it would from the terminal.
+
+When GDB starts, it automatically executes its "init files", command
+files named `.gdbinit'.  GDB reads the init file (if any) in your home
+directory and then the init file (if any) in the current working
+directory.  (The init files are not executed if the `-nx' option
+is given.)  You can also request the execution of a command file with the
+`source' command:
+
+`source FILENAME'
+     Execute the command file FILENAME.
+
+The lines in a command file are executed sequentially.  They are not
+printed as they are executed.  An error in any command terminates execution
+of the command file.
+
+Commands that would ask for confirmation if used interactively proceed
+without asking when used in a command file.  Many GDB commands that
+normally print messages to say what they are doing omit the messages
+when used in a command file.
+
+
+File: gdb.info  Node: Output, Prev: Command Files, Up: Sequences
+
+Commands for Controlled Output
+==============================
+
+During the execution of a command file or a user-defined command, the only
+output that appears is what is explicitly printed by the commands of the
+definition.  This section describes three commands useful for generating
+exactly the output you want.
+
+`echo TEXT'
+     Print TEXT.  Nonprinting characters can be included in TEXT
+     using C escape sequences, such as `\n' to print a newline.  No
+     newline will be printed unless you specify one. In addition to the
+     standard C escape sequences a backslash followed by a space stands for a
+     space.  This is useful for outputting a string with spaces at the
+     beginning or the end, since leading and trailing spaces are trimmed from
+     all arguments.  Thus, to print " and foo = ", use the command
+     "echo \ and foo = \ ".
+
+     A backslash at the end of TEXT can be used, as in C, to continue
+     the command onto subsequent lines.  For example,
+
+          echo This is some text\n\
+          which is continued\n\
+          onto several lines.\n
+
+     produces the same output as
+
+          echo This is some text\n
+          echo which is continued\n
+          echo onto several lines.\n
+
+`output EXPRESSION'
+     Print the value of EXPRESSION and nothing but that value: no
+     newlines, no `$NN = '.  The value is not entered in the
+     value history either.  *Note Expressions:: for more information on
+     expressions. 
+
+`output/FMT EXPRESSION'
+     Print the value of EXPRESSION in format FMT.
+     *Note Output formats::, for more information.
+
+`printf STRING, EXPRESSIONS...'
+     Print the values of the EXPRESSIONS under the control of
+     STRING.  The EXPRESSIONS are separated by commas and may
+     be either numbers or pointers.  Their values are printed as specified
+     by STRING, exactly as if the program were to execute
+
+          printf (STRING, EXPRESSIONS...);
+
+     For example, you can print two values in hex like this:
+
+          printf "foo, bar-foo = 0x%x, 0x%x\n", foo, bar-foo
+
+     The only backslash-escape sequences that you can use in the string are
+     the simple ones that consist of backslash followed by a letter.
+
+
+File: gdb.info  Node: Options, Prev: Sequences, Up: Top, Next: Emacs
+
+Options and Arguments for GDB
+*****************************
+
+When you invoke GDB, you can specify arguments telling it what files to
+operate on and what other things to do.
+
+* Menu:
+
+* Mode Options::     Options controlling modes of operation.
+* File Options::     Options to specify files (executable, coredump, commands)
+* Other Arguments::  Any other arguments without options
+			also specify files.
+
+
+File: gdb.info  Node: Mode Options, Prev: Options, Up: Options, Next: File Options
+
+Mode Options
+============
+
+`-nx'
+     Do not execute commands from the init files `.gdbinit'.
+     Normally, the commands in these files are executed after all the
+     command options and arguments have been processed.  *Note Command Files::.
+
+`-q'
+     "Quiet".  Do not print the usual introductory messages.
+
+`-batch'
+     Run in batch mode.  Exit with code 0 after processing all the command
+     files specified with `-x' (and `.gdbinit', if not inhibited).
+     Exit with nonzero status if an error occurs in executing the GDB
+     commands in the command files.
+
+`-fullname'
+     This option is used when Emacs runs GDB as a subprocess.  It tells GDB
+     to output the full file name and line number in a standard,
+     recognizable fashion each time a stack frame is displayed (which
+     includes each time the program stops).  This recognizable format looks
+     like two `\032' characters, followed by the file name, line number
+     and character position separated by colons, and a newline.  The
+     Emacs-to-GDB interface program uses the two `\032' characters as
+     a signal to display the source code for the frame.
+
+
+File: gdb.info  Node: File Options, Prev: Mode Options, Up: Options, Next: Other Arguments
+
+File-specifying Options
+=======================
+
+All the options and command line arguments given are processed
+in sequential order.  The order makes a difference when the
+`-x' option is used.
+
+`-s FILE'
+     Read symbol table from file FILE.
+
+`-e FILE'
+     Use file FILE as the executable file to execute when
+     appropriate, and for examining pure data in conjunction with a core
+     dump.
+
+`-se FILE'
+     Read symbol table from file FILE and use it as the executable
+     file.
+
+`-c FILE'
+     Use file FILE as a core dump to examine.
+
+`-x FILE'
+     Execute GDB commands from file FILE.
+
+`-d DIRECTORY'
+     Add DIRECTORY to the path to search for source files.
+
+
+File: gdb.info  Node: Other Arguments, Prev: File Options, Up: Options
+
+Other Arguments
+===============
+
+If there are arguments to GDB that are not options or associated with
+options, the first one specifies the symbol table and executable file name
+(as if it were preceded by `-se') and the second one specifies a core
+dump file name (as if it were preceded by `-c').
+
+
+File: gdb.info  Node: Emacs, Prev: Options, Up: Top, Next: Remote
+
+Using GDB under GNU Emacs
+*************************
+
+A special interface allows you to use GNU Emacs to view (and
+edit) the source files for the program you are debugging with
+GDB.
+
+To use this interface, use the command `M-x gdb' in Emacs.  Give the
+executable file you want to debug as an argument.  This command starts
+GDB as a subprocess of Emacs, with input and output through a newly
+created Emacs buffer.
+
+Using GDB under Emacs is just like using GDB normally except for two
+things:
+
+   * All "terminal" input and output goes through the Emacs buffer.  This
+     applies both to GDB commands and their output, and to the input and
+     output done by the program you are debugging.
+
+     This is useful because it means that you can copy the text of previous
+     commands and input them again; you can even use parts of the output
+     in this way.
+
+     All the facilities of Emacs's Shell mode are available for this purpose.
+
+   * GDB displays source code through Emacs.  Each time GDB displays a
+     stack frame, Emacs automatically finds the source file for that frame
+     and puts an arrow (`=>') at the left margin of the current line.
+
+     Explicit GDB `list' or search commands still produce output as
+     usual, but you probably will have no reason to use them.
+
+In the GDB I/O buffer, you can use these special Emacs commands:
+
+`M-s'
+     Execute to another source line, like the GDB `step' command.
+
+`M-n'
+     Execute to next source line in this function, skipping all function
+     calls, like the GDB `next' command.
+
+`M-i'
+     Execute one instruction, like the GDB `stepi' command.
+
+`C-c C-f'
+     Execute until exit from the selected stack frame, like the GDB
+     `finish' command.
+
+`M-c'
+     Continue execution of the program, like the GDB `cont' command.
+
+`M-u'
+     Go up the number of frames indicated by the numeric argument (*Note
+     Numeric Arguments: (emacs)Arguments.), like the GDB `up' command.
+
+`M-d'
+     Go down the number of frames indicated by the numeric argument, like the
+     GDB `down' command.
+
+In any source file, the Emacs command `C-x SPC' (`gdb-break')
+tells GDB to set a breakpoint on the source line point is on.
+
+The source files displayed in Emacs are in ordinary Emacs buffers
+which are visiting the source files in the usual way.  You can edit
+the files with these buffers if you wish; but keep in mind that GDB
+communicates with Emacs in terms of line numbers.  If you add or
+delete lines from the text, the line numbers that GDB knows will cease
+to correspond properly to the code.
+
+
+File: gdb.info  Node: Remote, Prev: Emacs, Up: Top, Next: Extensions
+
+Remote Kernel Debugging
+***********************
+
+If you are trying to debug a program running on a machine that can't run
+GDB in the usual way, it is often useful to use remote debugging.  For
+example, you might be debugging an operating system kernel, or debugging
+a small system which does not have a general purpose operating system
+powerful enough to run a full-featured debugger.  Currently GDB supports
+remote debugging over a serial connection.
+
+The program to be debugged on the remote machine needs to contain a
+debugging device driver which talks to GDB over the serial line using the
+protocol described below.  The same version of GDB that is used ordinarily
+can be used for this.  Several sample remote debugging drivers are
+distributed with GDB; see the `README' file in the GDB distribution for
+more information.
+
+* Menu:
+
+* Remote Commands::       Commands used to start and finish remote debugging.
+
+For details of the communication protocol, see the comments in the GDB
+source file `remote.c'.
+
+
+File: gdb.info  Node: Remote Commands, Prev: Remote, Up: Remote
+
+Commands for Remote Debugging
+=============================
+
+To start remote debugging, first run GDB and specify as an executable file
+the program that is running in the remote machine.  This tells GDB how
+to find the program's symbols and the contents of its pure text.  Then
+establish communication using the `attach' command with a device
+name rather than a pid as an argument.  For example:
+
+     attach /dev/ttyd
+
+if the serial line is connected to the device named `/dev/ttyd'.  This
+will stop the remote machine if it is not already stopped.
+
+Now you can use all the usual commands to examine and change data and to
+step and continue the remote program.
+
+To resume the remote program and stop debugging it, use the `detach'
+command.
+
+
+
+File: gdb.info  Node: Extensions, Prev: Remote, Up: Top, Next: Commands
+
+C++ Extensions
+**************
+
+Lucid has added special extensions to GDB for debugging C++ code,
+including support for:
+
+
+   *  Qualified names
+
+   *  Identifier demangling
+
+   *  Overloaded and member functions
+
+   *  Data member access inside a function member
+
+Lucid has also improved symbol table dynamics.  
+
+To effectively use these extensions, debug programs compiled with the
+Lucid compiler option `-g'. Consult "Debugging, Profiling, and
+Linking Options" in Chapter 2 of the Lucid C++ User's Guide for a
+description of `-g'.
+
+* Menu:
+
+* Conditions::          Special conditions while debugging C++ code.
+* Qualified Names::     Using qualified identifiers with a class name.
+* Constructors::        Defining constructor and destructor functions.
+* Overloading::         How GDB handles overloaded functions.
+* Demangling::          How GDB demangles output.
+
+
+File: gdb.info  Node: Special Conditions, Prev: Extensions, Next: Qualified Names
+
+Special Conditions
+==================
+
+This section describes special conditions you might encounter
+debugging C++ code.
+
+
+   *  GDB evaluates expressions in debugging commands as C expressions,
+     using C type rules and coercions. For example, print `a + b'
+     evaluates the expression `a + b' as a C addition expression. If
+     `a +b a' is an inappropriate operand for `+' in C, GDB
+     generates an error, even if `a' is an instance of a C++ class
+     that defines a member function `operator +()'.
+
+   *  GDB cannot interpret `operator ()' in command expressions. For
+     example, assume you debug the following C++ code:
+
+          struct x { int operator() (int a) { return 2*a; } };
+          void main() { int i;   x   t;     i = t(3); }
+
+     GDB will not correctly interpret `break x::operator()'. You can
+     still set a break with the mangled name, `break__cl__lx'.
+
+   *  You must explicitly pass the `this' argument when evaluating
+     member functions. For example, assume the following class and instance
+     are defined:
+
+          class C {
+                int i
+              public:
+                int get_i (){
+                 return i;
+                }
+             };
+          C c;
+
+     To evaluate `get_i' in GDB, use this command to explicitly pass 
+     the address of a C instance:
+
+          (gdb) print C::get_i (&c) 
+
+   *  To call a member function of a class, you must refer to it directly by
+     qualified name. Prefix the function's name with the name of the class
+     that defines the member function, followed by a double colon (::).
+     For example, assume `class D' is derived from `class C' and
+     refines the member function `f':
+
+          class C { virtual int f (); }; 
+          class D : public C { virtual int f (); }; 
+
+     To call `C::f' on the instance `c' of class C and
+     `D::f' on the instance `d' of `class D', enter this
+     command:
+
+          (gdb) print C::f(&c) (gdb) print D::f(&d)
+
+   *  GDB cannot handle coercions between a derived class and its
+     non-left-most base classes. Using the preceding example, you can only
+     call `C::f' with an instance of `class D' as an argument
+     because class C is a left-most base class of `D':
+
+          (gdb) print C::f(&d) 	
+
+     Assume class D also has a non-left-most base `class B':
+
+          class B { public: virtual int g (); }; 
+          class C { public: virtual int f (); };
+          class D : public C, public B {
+          public: 
+          virtual int f ();
+          virtual int g (); 
+          }; 
+
+     In this case, you can still call `C::f' with an instance of
+     `class D'. However, you must supply address arithmetic to call
+     `B::g' with an instance of `D'.
+
+   *  GDB might report a source line twice or skip a line when stepping
+     through nested `if' and `switch' statements. This condition
+     results from branch optimizations generated by the Lucid compiler.
+
+
+
+File: gdb.info  Node: Qualified Names, Prev: Conditions, Up: Extensions, Next: Constructors
+
+Qualified Names 
+================
+
+You can qualify identifiers with a class name in a GDB command.  This
+method is particularly useful when you refer to static class members.
+For example, assume the following class and instance are defined:
+
+     class C1 { 	
+        public:
+           static int i; 				
+           void set_i (int x) { C1::i = x; } 		 
+        }; 		
+     C1 c1; 
+
+You can use the following GDB commands to first set `i' to
+`10' and then verify the value of `i':
+
+     (gdb) print C1::set_i(&c1, 10) 	 
+     10 	 
+     (gdb) print C1::i 10
+
+
+File: gdb.info  Node: Constructors, Prev: Qualified Names, Up: Extensions, Next: Overloading
+
+Constructors, Destructors, and Operators 
+=========================================
+
+In C++, a class can define constructor and destructor functions:
+
+
+   * Use a constructor to allocate or initialize a class's instances.
+
+   * Use a destructor to destroy or delete a class's instance. 
+
+You can also overload operators as global or member functions by
+referring to them in the expression part of a GDB command. You refer
+to constructors, destructors, and member operators as they are
+defined:
+
+
+   * class_name::class_name for a constructor.
+
+   * class_name::~class_name for a destructor. 
+
+   * `::operator' op, `::operator'op, or ::op, for a
+     global operator, where op is any operator decribed in section 13.4
+     of The Annotated C++ Reference Manual.
+
+     Note that `operator' is not a reserved name in C++. You must
+     include a double colon prefix (::) to force the C++ interpretation. It
+     is legal, particularly in standard C, to name functions, types, and
+     variables `operator'.
+
+   * `class_name::operator' op,`class_name::operator'op, 
+     class_name::op for C++ member function operators.
+
+   * `class_name::operator' type for user-type conversion
+     operators.  
+
+
+As standard with any member function, you must explicitly supply the
+`this' argument when you call a constructor, destructor, or
+member operator.
+ 
+Consult the UNIX System V, AT&T C++ Language System, Release 2.1
+Product Reference Manual: Select Code 307-160, AT&T 1989 for more
+information on constructors, destructors, and operators.
+
+
+File: gdb.info  Node: Overloading, Prev: Constructors, Up: Extensions, Next: Demangling
+
+Overloaded Functions
+====================
+
+C++ allows functions to be overloaded. Overloading allows more
+than one function to share the same name as long these functions are
+distinct in their argument types. GDB lets you to select a desired
+function from the overloaded set. For example, assume the following
+functions are defined:
+
+     int add (int i1, int i2);
+     int add (float f1, float f2);
+
+To set a break point on `int add (int i1, int i2);', 
+enter this command:
+
+     (gdb) break add
+
+GDB presents the set of overloads for `add':
+
+     [0] cancel
+     [1] add (int, int)
+     [2] add (float, float)
+     > 
+
+You select the desired function by entering the corresponding
+index following the > prompt:
+
+     [0] cancel
+     [1] add (int, int)
+     [2] add (float, float)
+     > 1
+     breakpoint set 0x3456; add (int, int)
+
+GDB similarly handles overloaded member functions, except that it
+qualifies each function name with its containing class's name.  For
+example, assume the `add' functions in the previous example are
+member functions of `class A'. In this case, the following GDB
+sequence appears:
+
+     (gdb) break A::add
+     [0] cancel
+     [1] A::add (int, int)
+     [2] A::add (float, float)
+     > 1
+     breakpoint set 0x3456; A::add (int, int)
+
+Using the qualifier in the command `break A::add' restricts the
+set of possible overloaded functions to the member functions of
+`class A'.
+
+GDB should only display the set of overloads, if any, associated with
+the given function name.  Note, however, that GDB cannot distinguish
+between valid overloads and other functions with the same name.
+
+
+File: gdb.info  Node: Demangling, Prev: Overloading, Up: Extensions
+
+Output Demangling
+=================
+
+The GDB extensions attempt to demangle all output; that is, it
+changes most of the names the compiler mangles into their original
+source form. In the following cases, GDB does not perform demangling
+and instead uses the mangled form as output:
+
+
+   * If the name is an enumerated constant defined in a class. 
+
+   * If the name is a member of a non-left-most base class. In this case,
+     GDB prefixes the name with the path of the C struct generated around
+     such members.  Note that a reference to any non-left-most member must
+     include the name of the generated C struct.
+
+   * If a `type-safe-link' name is longer than 1024 characters
+
+
+File: gdb.info  Node: Commands, Prev: Extensions, Up: Top, Next: Concepts
+
+Command Index
+*************
+
+
+* Menu:
+
+
+
+File: gdb.info  Node: Concepts, Prev: Commands, Up: Top
+
+Concept Index
+*************
+
+
+* Menu:
+
+* $_: Breakpoints.
+* $_: List.
+* $_: Memory.
+* $__: Memory.
+* `$$': Value History.
+* `$': Value History.
+* abbreviation: User Interface.
+* add-file: File Commands.
+* arguments (to your program): Arguments.
+* artificial array: Arrays.
+* assignment: Assignment.
+* attach: Attach.
+* attach: Attach.
+* automatic display: Auto Display.
+* backtrace: Backtrace.
+* break: Set Breaks.
+* breakpoint commands: Break Commands.
+* breakpoint conditions: Conditions.
+* breakpoints: Breakpoints.
+* bt: Backtrace.
+* C++ enhancements: Special Conditions.
+* C++, special conditions: Special Conditions.
+* call stack: Stack.
+* cd: Working Directory.
+* clear: Delete Breaks.
+* clearing breakpoint: Delete Breaks.
+* command files: Command Files.
+* condition: Conditions.
+* conditional breakpoints: Conditions.
+* constructors: Constructors.
+* cont: Continuing.
+* controlling terminal: Input/Output.
+* convenience variables: Convenience Vars.
+* core dump file: Files.
+* core-file: File Commands.
+* define: Define.
+* delete: Delete Breaks.
+* delete display: Auto Display.
+* delete environment: Environment.
+* deleting breakpoints: Delete Breaks.
+* destructors : Constructors.
+* detach: Attach.
+* directories for source files: Source Path.
+* directory: Source Path.
+* disable breakpoints: Disabling.
+* disable: Disabling.
+* disable display: Auto Display.
+* disabled breakpoints: Disabling.
+* disassemble: Memory.
+* display: Auto Display.
+* display of expressions: Auto Display.
+* document: Define.
+* down: Selection.
+* dynamic linking: File Commands.
+* echo: Output.
+* enable breakpoints: Disabling.
+* enable: Disabling.
+* enable display: Auto Display.
+* enabled breakpoints: Disabling.
+* environment (of your program): Environment.
+* examining data: Data.
+* examining memory: Memory.
+* exec-file: File Commands.
+* executable file: Files.
+* exiting GDB: User Interface.
+* expressions: Expressions.
+* fatal signals: Signals.
+* finish: Stepping.
+* format options: Format options.
+* formatted output: Output formats.
+* forward-search: Search.
+* frame: Frames.
+* frame number: Frames.
+* frame pointer: Frames.
+* frame: Selection.
+* frameless execution: Frames.
+* `.gdbinit': Command Files.
+* handle: Signals.
+* handling signals: Signals.
+* history number: Value History.
+* ignore: Conditions.
+* ignore count (of breakpoint): Conditions.
+* info address: Symbols.
+* info args: Frame Info.
+* info break: Breakpoints.
+* info convenience: Convenience Vars.
+* info directories: Source Path.
+* info display: Auto Display.
+* info environment: Environment.
+* info files: File Commands.
+* info format: Format options.
+* info frame: Frame Info.
+* info functions: Symbols.
+* info line: List.
+* info locals: Frame Info.
+* info registers: Registers.
+* info signal: Signals.
+* info sources: Symbols.
+* info stack: Backtrace.
+* info types: Symbols.
+* info values: Value History.
+* info variables: Symbols.
+* init file: Command Files.
+* initial frame: Frames.
+* innermost frame: Frames.
+* jump: Jumping.
+* kill: Kill Process.
+* linespec: List.
+* list: List.
+* next: Stepping.
+* nexti: Stepping.
+* ni: Stepping.
+* operators : Constructors.
+* outermost frame: Frames.
+* output demangling: Demangling.
+* output formats: Output formats.
+* output: Output.
+* overload functions : Extensions.
+* overloaded functions: Overloading.
+* pauses in output: User Interface.
+* print: Data.
+* printf: Output.
+* printing data: Data.
+* printsyms: Symbols.
+* prompt: User Interface.
+* ptype: Symbols.
+* pwd: Working Directory.
+* qualified names : Extensions.
+* qualified names: Qualified Names.
+* quit: User Interface.
+* redirection: Input/Output.
+* registers: Registers.
+* repeating commands: User Interface.
+* return: Returning.
+* returning from a function: Returning.
+* reverse-search: Search.
+* run: Running.
+* running: Running.
+* screen size: User Interface.
+* searching: Search.
+* selected frame: Frames.
+* set args: Arguments.
+* set array-max: Format options.
+* set: Assignment.
+* set environment: Environment.
+* set prettyprint: Format options.
+* set prompt: User Interface.
+* set screensize: User Interface.
+* set unionprint: Format options.
+* set variable: Assignment.
+* set verbose: User Interface.
+* setting variables: Assignment.
+* si: Stepping.
+* signal: Signaling.
+* signals: Signals.
+* silent: Break Commands.
+* source: Command Files.
+* source path: Source Path.
+* stack frame: Frames.
+* step: Stepping.
+* stepi: Stepping.
+* stepping: Stepping.
+* symbol table: Files.
+* symbol-file: File Commands.
+* tbreak: Set Breaks.
+* tty: Input/Output.
+* undisplay: Auto Display.
+* unset environment: Environment.
+* until: Stepping.
+* up: Selection.
+* user-defined command: Define.
+* value history: Value History.
+* whatis: Symbols.
+* where: Backtrace.
+* word: Memory.
+* working directory (of your program): Working Directory.
+* x: Memory.
+
+

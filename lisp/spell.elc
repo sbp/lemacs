@@ -1,0 +1,35 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:32:19 1991
+;;; from file /wg1/emacs-base/lisp/spell.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar spell-command "spell" "\
+*Command to run the spell program.")
+(defvar spell-filter nil "\
+*Filter function to process text before passing it to spell program.
+This function might remove text-processor commands.
+nil means don't alter the text before checking it.")
+(fset 'spell-buffer #[nil "ÀedÁ#‡" [spell-region "buffer"] 4 "\
+Check spelling of every word in the buffer.
+For each incorrect word, you are asked for the correct spelling
+and then put into a query-replace to fix some or all occurrences.
+If you do not want to change a word, just give the same word
+as its \"correct\" spelling; then the query replace is skipped." nil])
+(fset 'spell-word #[nil "À‰‰ŠÄÅ!¬ƒÆvˆ`Çvˆ`)È\n\n{#+‡" [nil spell-filter end beg looking-at "\\<" -1 1 spell-region] 5 "\
+Check spelling of word at or before point.
+If it is not correct, ask user for the correct spelling
+and query-replace the entire buffer to substitute it." nil])
+(fset 'spell-region #[(start end &optional description) "ÁÂ!Šqˆ~ˆÅ ˆ)ÆÇ®É\"ˆ¬¬\nSfËU«¤Í˜«ŒÎ\nÍÐ%ˆªÍÎ\nÐÐÒ&ˆª»pŠqˆÔ\n#ˆn¬ƒËcˆ«ƒ ˆÍ˜«ŠÎedÍÕ%ˆªŽÎedÕÐÒ&ˆ*ÆÖ®ÉŠqˆ× ØV)«ƒÙªÚ#ˆÐ‰Õ‰Šqˆ× ØV)­ÅŠqˆebˆ`Ðˆ`{—ßuˆe`|ˆàáâQ\"ãäå!æQ!ˆ)š¬Aebˆçèå!èQ\"ˆª0.‡" [spell-filter get-buffer-create " *temp*" buf filter erase-buffer message "Checking spelling of %s..." description "region" end 10 spell-command "spell" call-process-region start nil shell-file-name "-c" oldbuf insert-buffer-substring t "Checking spelling of %s...%s" buffer-size 0 "not correct" "correct" case-replace case-fold-search newword word 1 read-input "`" "' not recognized; edit a replacement: " flush-lines "^" regexp-quote "$" query-replace-regexp "\\b"] 9 "\
+Like spell-buffer but applies only to region.
+Used in a program, applies from START to END.
+DESCRIPTION is an optional string naming the unit being checked:
+for example, \"word\"." "r"])
+(fset 'spell-string #[(string) "ÀÁ!Š\nqˆ~ˆÃ ˆÅ±ˆÇ˜«ŠÈedÇÉ‰%ˆªŽÈed\nÉ‰ËÌ&ˆÍ ÎU«†ÏÐ\"ª–ebˆÑÅËÉ#«†ÒÓ!ˆªsÏÔÕd{\"*‡" [get-buffer-create " *temp*" buf erase-buffer string "\n" spell-command "spell" call-process-region t shell-file-name nil "-c" buffer-size 0 message "%s is correct" search-forward replace-match " " "%sincorrect" 1] 9 "\
+Check spelling of string supplied as argument." "sSpell string: "])

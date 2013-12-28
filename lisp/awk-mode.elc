@@ -1,0 +1,27 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:06:22 1991
+;;; from file /wg1/emacs-base/lisp/awk-mode.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar awk-mode-syntax-table nil "\
+Syntax table in use in Awk-mode buffers.")
+(byte-code "¬àÁ ÂÃÄ#ˆÂÅÆ#ˆÂÈÆ#ˆÂÉÊ#ˆÂËÌ#ˆÂÍÌ#ˆÂÎÌ#ˆÂÏÌ#ˆÂÐÌ#ˆÂÑÌ#ˆÂÒÌ#ˆÂÓÌ#ˆÂÔÌ#ˆÂÕÌ#ˆÂÖ×#ˆÁ‡" [awk-mode-syntax-table make-syntax-table modify-syntax-entry 92 "\\" 10 ">   " emacs-lisp-mode-syntax-table 12 35 "<   " 47 "." 42 43 45 61 37 60 62 38 124 39 "\""] 4)
+(defvar awk-mode-abbrev-table nil "\
+Abbrev table in use in Awk-mode buffers.")
+(define-abbrev-table 'awk-mode-abbrev-table nil)
+(fset 'awk-mode #[nil "À ˆÁ\n!ˆÃÅÉ\n!ˆËÌ!ˆÍPËÏ!ˆËÐ!ˆÑËÒ!ˆÓËÔ!ˆÑËÕ!ˆÖË×!ˆØËÙ!ˆÚËÛ!ˆÜËÝ!ˆÞßà!‡" [kill-all-local-variables use-local-map c-mode-map awk-mode major-mode "AWK" mode-name awk-mode-abbrev-table local-abbrev-table set-syntax-table awk-mode-syntax-table make-local-variable paragraph-start "^$\\|" page-delimiter paragraph-separate paragraph-ignore-fill-prefix t indent-line-function awk-indent-line require-final-newline comment-start "# " comment-end "" comment-column 32 comment-start-skip "#+ *" comment-indent-hook c-comment-indent run-hooks awk-mode-hook] 2 "\
+Major mode for editing AWK code.
+This is much like C mode except for the syntax of comments.
+It uses the same keymap as C mode and has the same variables
+for customizing indentation.  It has its own abbrev table
+and its own syntax table.
+
+Turning on AWK mode calls the value of the variable `awk-mode-hook'
+with no args, if that value is non-nil." nil])

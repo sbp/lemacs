@@ -1,0 +1,22 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:34:40 1991
+;;; from file /wg1/emacs-base/lisp/time.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!¬‚ÂÂ‡" [boundp display-time-process nil] 2)
+(defvar display-time-interval 60 "\
+*Seconds between updates of time in the mode line.")
+(byte-code "ÀÁ!¬‚ÂÂ‡" [boundp display-time-string nil] 2)
+(fset 'display-time #[nil "­…Á!Â=‰?­°«„Ä!ˆ¬‚ÆÇ>¬…ÈÉ\"ÊËÌÍÎÏ!$Ñ!ˆÒÓ\"ˆÔÕ\")‡" [display-time-process process-status run live delete-process global-mode-string ("") display-time-string append (display-time-string) "" start-process "display-time" nil "wakeup" int-to-string display-time-interval process-kill-without-query set-process-sentinel display-time-sentinel set-process-filter display-time-filter] 7 "\
+Display current time and load level in mode line of each buffer.
+Updates automatically every minute.
+If display-time-day-and-date is non-nil, the current day and date
+are displayed as well." nil])
+(byte-code "ÀÁMˆÂÃM‡" [display-time-sentinel #[(proc reason) "À	!Â=¬‚ÃŠÅ qˆ)ÆÇ !ˆÈÉ!‡" [process-status proc run "" display-time-string other-buffer set-buffer-modified-p buffer-modified-p sit-for 0] 2] display-time-filter #[(proc string) "À ÁÂÃ @\"ÅÆ!®‡ÅÇ!®‚È PÉ‰\nÏĞÑÒOP!‰ÓY\nÓV«ˆÓZª‰ÔU«ƒÓÁÕ\"ÒÖO\n«ƒ×ªØÔÙOÚÙÉOÛ!«Üİ!8ÔV«ƒŞªß° !«ŠÔÑO P -Šâ qˆ)ãä !ˆåÔ!‡" [current-time-string format "%03d" load-average rmail-spool-directory getenv "LOGNAME" "USER" user-login-name nil pm hour mail-spool-file load time read "+" 11 13 12 0 "%d" 16 "pm " "am " -2 "." file-exists-p 7 file-attributes " Mail" "" display-time-string display-time-day-and-date other-buffer set-buffer-modified-p buffer-modified-p sit-for] 10]] 2)

@@ -1,0 +1,377 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:34:34 1991
+;;; from file /wg1/emacs-base/lisp/texnfo-upd.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'texnfo-upd)
+(fset 'texinfo-make-menu #[(&optional region-p) "¬ŒÁ Ã\n!ˆÄÅ!)‡ÄÆ!ˆÇ È Ç bˆÁ 		U«„ÊË!ˆŠŒ~ˆÌ\n\"«‰Á Ã\n!ˆªp`W«šÍ\n\"«“Á Ì\n\"«iÁ Ã\n!ˆªp-ÄÎ!‡" [region-p texinfo-hierarchic-level level texinfo-make-one-menu message "Done...updated the menu.  You may save the buffer." "Making or updating menus... " region-beginning region-end beginning error "Please mark a region!" texinfo-find-lower-level-node texinfo-find-higher-level-node "Done...updated menus.  You may save the buffer."] 3 "\
+Without any prefix argument, make or update a menu.
+Make the menu for the section enclosing the node found following point.
+
+Non-nil argument (prefix, if interactive) means make or update menus
+for nodes within or part of the marked region.
+
+Whenever a menu exists, and is being updated, the descriptions that
+are associated with node names in the pre-existing menu are
+incorporated into the new menu.  Otherwise, the nodes' section titles
+are inserted as descriptions." "P"])
+(fset 'texinfo-make-one-menu #[(level) "ÀÂ!Å!Ç\"bˆÉ \nË#Í\"«‹Î!ˆÏ\"ˆĞ\n\".‡" [t case-fold-search texinfo-update-menu-region-beginning level beginning texinfo-update-menu-region-end end texinfo-menu-first-node first texinfo-copy-node-name node-name texinfo-make-menu-list new-menu-list texinfo-old-menu-p texinfo-incorporate-descriptions texinfo-delete-old-menu texinfo-insert-menu] 4 "\
+Make a menu of all the appropriate nodes in this section.
+`Appropriate nodes' are those associated with sections that are 
+at the level specified by LEVEL.  Point is left at the end of menu."])
+(fset 'texinfo-all-menus-update #[(&optional update-all-nodes-p) "ŠÀ ˆÁÂ!ˆŠÃÅÆ#«„ÇÈ!ˆ)	«ÁÊ!ˆËÌ!ˆÀ ˆÍÆ!ˆÁÎ!ˆËÌ!ˆÏÆ!ˆÁĞ!)‡" [mark-whole-buffer message "Checking for a master menu... " re-search-forward texinfo-master-menu-header nil t error "Please remove existing master menu, lest it be partly duplicated!" update-all-nodes-p "First updating all nodes... " sleep-for 2 texinfo-update-node "Updating all menus... " texinfo-make-menu "Done...updated all the menus.  You may save the buffer."] 4 "\
+Update every regular menu in a Texinfo file.
+You must remove the detailed part of a pre-existing master menu before
+running this command, lest it be partly duplicated.
+
+If called with a non-nil argument, this function first updates all the
+nodes in the buffer before updating the menus." "P"])
+(fset 'texinfo-find-lower-level-node #[(level region-end) "`W­˜ÁÂÃÄÅ\"A!QÈ!É#­ƒÊ”b‡" [region-end re-search-forward "\\(^@node\\).*\n" "\\(\\(^@c\\).*\n\\)?" eval assoc level texinfo-update-menu-lower-regexps texinfo-update-menu-region-end t 1] 7 "\
+Search forward from point for node at any level lower than LEVEL.
+Search is limited to the end of the marked region, REGION-END, 
+and to the end of the menu region for the level.
+
+Return t if the node is found, else nil.  Leave point at the beginning
+of the node if one is found; else do not move point."])
+(fset 'texinfo-find-higher-level-node #[(level region-end) "`W­•ÁÂÃÄÅ\"A!QÈÉ#­ƒÊ”b‡" [region-end re-search-forward "\\(^@node\\).*\n" "\\(\\(^@c\\).*\n\\)?" eval assoc level texinfo-update-menu-higher-regexps nil t 1] 7 "\
+Search forward from point for node at any higher level than argument LEVEL.
+Search is limited to the end of the marked region, REGION-END.
+
+Return t if the node is found, else nil.  Leave point at the beginning
+of the node if one is found; else do not move point."])
+(fset 'texinfo-make-menu-list #[(beginning end level) "bˆÁÃ\"«ŠÆ Ç B\nBªpÈ\n!)‡" [beginning nil new-menu-list texinfo-menu-locate-entry-p level end texinfo-copy-node-name texinfo-copy-section-title reverse] 3 "\
+Make a list of node names and their descriptions.
+Point is left at the end of the menu region, but the menu is not inserted.
+
+First argument is position from which to start making menu list; 
+second argument is end of region in which to try to locate entries;
+third argument is the level of the nodes that are the entries.
+
+Node names and descriptions are dotted pairs of strings.  Each pair is
+an element of the list.  If the description does not exist, the
+element consists only of the node name."])
+(fset 'texinfo-menu-locate-entry-p #[(level search-end) "ÀÁÂÃÄ\"A!QÈ#­ƒÉ”b‡" [re-search-forward "\\(^@node\\).*\n" "\\(\\(^@c\\).*\n\\)?" eval assoc level texinfo-update-menu-same-level-regexps search-end t 1] 7 "\
+Find a node that will be part of menu for this section.
+First argument is a string such as \"section\" specifying the general
+hierarchical level of the menu; second argument is a postion
+specifying the end of the search.
+
+The function returns t if the node is found, else nil.  It searches
+forward from point, and leaves point at the beginning of the node.
+
+The function finds entries of the same type.  Thus `subsections' and
+`unnumberedsubsecs' will appear in the same menu."])
+(fset 'texinfo-copy-node-name #[nil "ŠÀvˆÁÂwˆ`ÃÄŠÂˆ`)Å#«„`Sª„Âˆ`{)‡" [1 " 	" nil search-forward "," t] 5 "\
+Return the node name as a string.
+
+Start with point at the beginning of the node line; copy the text
+after the node command up to the first comma on the line, if any, and
+return the text as a string.  Leaves point at the beginning of the
+line.  If there is no node name, returns an empty string."])
+(fset 'texinfo-copy-section-title #[nil "À”bˆÁvˆÂÃwˆ`Ãˆ`{‡" [4 1 " 	" nil] 2 "\
+Return the title of the section as a string.
+The title is used as a description line in the menu when one does not
+already exist.
+
+Move point to the beginning of the appropriate section line by going
+to the start of the text matched by last regexp searched for, which
+must have been done by `texinfo-menu-locate-entry-p'."])
+(fset 'texinfo-old-menu-p #[(beginning first) "bˆÁÂÄ#¬ˆÅcˆÆyˆÇ‡È‡" [beginning re-search-forward "^@menu" first goto-end "\n\n" -2 nil t] 4 "\
+Move point to the beginning of the menu for this section, if any.
+Otherwise move point to the end of the first node of this section.
+Return t if a menu is found, nil otherwise.
+
+First argument is the position of the beginning of the section in which
+the menu will be located; second argument is the position of the first
+node within the section.
+
+If no menu is found, the function inserts two newlines just before the
+end of the section, and leaves point there where a menu ought to be."])
+(fset 'texinfo-incorporate-descriptions #[(new-menu-list) "Á «šŠÄÅ@@P\nÆ#«‡@Ç\n!¡ˆ)A‰¬f‰*‡" [new-menu-list texinfo-menu-end end-of-menu new-menu-list-pointer search-forward "* " t texinfo-menu-copy-old-description] 5 "\
+Copy the old menu line descriptions that exist to the new menu.
+
+Point must be at beginning of old menu.
+
+If the node-name of the new menu entry cannot be found in the old
+menu, use the new section title for the description, but if the
+node-name of the new menu is found in the old menu, replace the
+section title with the old description, whatever it may be.
+
+For this function, the new menu is a list made up of lists of dotted
+pairs in which the first element of the pair is the node name and the
+second element the description. The new menu is changed destructively.
+The old menu is the menu as it appears in the texinfo file."])
+(fset 'texinfo-menu-copy-old-description #[(end-of-menu) "ÀÁwˆÂÃ!«˜ÂÄ!¬“`ŠÅÄÇ#ˆÈyˆÁˆ`){‡É‡" ["[:.,	\n ]+" nil looking-at "\\(\\w+\\|@\\)" "\\(^\\* \\|^@end menu\\)" re-search-forward end-of-menu t -1 ""] 5 "\
+Return description field of old menu line as string.
+Point must be located just after the node name.  Point left before description.
+Single argument, END-OF-MENU, is position limiting search."])
+(fset 'texinfo-menu-end #[nil "ŠÀÁÂÃ#«ƒ`ªƒÄÅ!)‡" [re-search-forward "^@end menu" nil t error "Menu does not have an end."] 4 "\
+Return position of end of menu. Does not change location of point.
+Signal an error if not end of menu."])
+(fset 'texinfo-delete-old-menu #[(beginning first) "ÀÁ\n\"ˆ`ŠÃÄ\"ˆ`)|‡" [re-search-backward "^@menu" beginning re-search-forward "^@end menu" first] 4 "\
+Delete the old menu.  Point must be in or after menu.
+First argument is position of the beginning of the section in which
+the menu will be located; second argument is the position of the first
+node within the section."])
+(defvar texinfo-column-for-description 32 "\
+*Column at which descriptions start in a Texinfo menu.")
+(fset 'texinfo-insert-menu #[(menu-list node-name) "Àcˆ	«ª	@A«—ÂÃ	@@\"cˆÄÆ\"ˆÂÇ	@A\"cˆªˆÂÈ	@@\"cˆ	A‰¬VÉcˆÊË#‡" ["@menu\n" menu-list format "* %s::" indent-to texinfo-column-for-description 2 "%s\n" "* %s::\n" "@end menu" message "Updated \"%s\" level menu following node: %s ... " level node-name] 5 "\
+Insert formatted menu at point.
+Indents the first line of the description, if any, to the value of
+texinfo-column-for-description.
+
+MENU-LIST has form:
+
+    ((\"node-name1\" . \"description\") 
+    (\"node-name\" . \"description\") ... )
+
+However, there does not need to be a description field."])
+(fset 'texinfo-indent-menu-description #[(column &optional region-p) "ŠŒ~ˆ¬ÁÂ!ˆÃ!ˆÅÆ!ªÅÇ!ˆÈ bˆ`É W«Ê «‰ËyˆÃ!ˆªmÅÌ!*‡" [region-p re-search-forward "^@menu" texinfo-menu-indent-description column message "Indented descriptions in menu.  You may save the buffer." "Indenting every menu description in region... " region-beginning region-end texinfo-locate-menu-p 1 "Indenting done.  You may save the buffer."] 2 "\
+Indent every description in menu following point to COLUMN.  
+Non-nil argument (prefix, if interactive) means indent every
+description in every menu in the region.  Does not indent second and
+subsequent lines of a multi-line description." "nIndent menu descriptions to (column number): \nP"])
+(fset 'texinfo-menu-indent-description #[(to-column-number) "`‰ŠÁ bˆÂyˆ`)W­¦ÃÄÁ Å#«–`ÇÈwˆÉÊ!«‰`|ˆjˆ)Ìyˆ`‰ªM)‡" [beginning-of-next-line texinfo-menu-end 0 search-forward "::" t beginning-white-space " 	" nil looking-at "\\(@\\|\\w\\)+" to-column-number 1] 5 "\
+Indent the Texinfo file menu description to TO-COLUMN-NUMBER.
+Start with point just after the word `menu' in the `@menu' line and
+leave point on the line before the `@end menu' line.  Does not indent
+second and subsequent lines of a multi-line description."])
+(fset 'texinfo-master-menu #[(update-all-nodes-menus-p) "~ˆebˆÀÁÂÃ#¬„ÄÅ!ˆŠÀÆ!ˆ`)ÀÃ#«™É”bˆŠÊ bˆÉyˆËuˆ`)`|ˆ))«ÎÏ!ˆĞÑ!ˆÒ ˆÓÃ!ˆÎÔ!ˆĞÑ!ˆÒ ˆÕÃ!ˆÎÖ!ˆĞÑ!ˆebˆ×Ø !ˆŠebˆÀ!ˆÉ”bˆÙcˆÚ ˆÛÜ!ˆËyˆÚ ˆÀİ!ˆŞyˆÚ ˆ)Îß!‡" [re-search-forward "^@node [ 	]*top" nil t error "This buffer needs a Top node!" "^@node" first-chapter texinfo-master-menu-header 0 texinfo-menu-end -1 end-of-detailed-menu-descriptions update-all-nodes-menus-p message "Making a master menu...first updating all nodes... " sleep-for 2 mark-whole-buffer texinfo-update-node "Updating all menus... " texinfo-make-menu "Now making the master menu... " texinfo-insert-master-menu-list texinfo-master-menu-list "\n" delete-blank-lines re-search-backward "^@menu" "^@end menu" 1 "Done...completed making master menu.  You may save the buffer."] 4 "\
+Make a master menu for a whole Texinfo file.
+Non-nil argument (prefix, if interactive) means first update all
+existing nodes and menus.  Remove pre-existing master menu, if there is one.
+
+This function creates a master menu that follows the top node.  The
+master menu includes every entry from all the other menus.  It
+replaces any existing ordinary menu that follows the top node.
+
+If called with a non-nil argument, this function first updates all the
+menus in the buffer (incorporating descriptions from pre-existing
+menus) before it constructs the master menu.
+
+The function removes the detailed part of an already existing master
+menu.  This action depends on the pre-exisitng master menu using the
+standard `texinfo-master-menu-header'.
+
+The master menu has the following format, which is adapted from the
+recommendation in the Texinfo Manual:
+
+   * The first part contains the major nodes in the Texinfo file: the
+     nodes for the chapters, chapter-like sections, and the major
+     appendices.  This includes the indices, so long as they are in
+     chapter-like sections, such as unnumbered sections.
+
+   * The second and subsequent parts contain a listing of the other,
+     lower level menus, in order.  This way, an inquirer can go
+     directly to a particular node if he or she is searching for
+     specific information.
+
+Each of the menus in the detailed node listing is introduced by the
+title of the section containing the menu." "P"])
+(fset 'texinfo-master-menu-list #[nil "ÀÂ «ŠÃ Ä D	BªrÅ	!)‡" [nil master-menu-list texinfo-locate-menu-p texinfo-copy-menu texinfo-copy-menu-title reverse] 2 "\
+Return a list of menu entries and header lines for the master menu.
+
+Start with the menu for chapters and indices and then find each
+following menu and the title of the node preceding that menu.
+
+The master menu list has this form:
+
+    (((... \"entry-1-2\"  \"entry-1\") \"title-1\")
+      ((... \"entry-2-2\"  \"entry-2-1\") \"title-2\")
+      ...)
+
+However, there does not need to be a title field."])
+(fset 'texinfo-insert-master-menu-list #[(master-menu-list) "ebˆÀÁ!ˆÂyˆ`ŠÀÃ!ˆ`)|ˆŠÄcˆÅ@@!ÈÉ\"ˆ«Ê@Ë±ˆA‰¬pAcˆ«¶ÈÍ@A@\"ˆË@A@Î±ˆÅ@@!‰«Ê@Ë±ˆA‰¬pA‰¬JÏc)‡" [re-search-forward "^@menu" 0 "^@end menu" "\n@menu\n" reverse master-menu-list this-very-menu-list message "Inserting chapter menu entry: %s ... " "* " "\n" texinfo-master-menu-header "Inserting menu for %s .... " "\n\n" "@end menu\n\n"] 4 "\
+Format and insert the master menu in the current buffer."])
+(defvar texinfo-master-menu-header "\n --- The Detailed Node Listing ---\n" "\
+String inserted before lower level entries in Texinfo master menu.
+It comes after the chapter-level menu entries.")
+(fset 'texinfo-locate-menu-p #[nil "ÀÁÂÃ#‡" [re-search-forward "\\(^@menu\\)" nil t] 4 "\
+Find the next menu in the texinfo file.
+If found, leave point after word `menu' on the `@menu' line, and return t.
+If a menu is not found, do not move point and return nil."])
+(fset 'texinfo-copy-menu-title #[nil "ŠÀÁÂÃÄÅ \"A!QÇÈ#«„É ªÊ)‡" [re-search-backward "\\(^@node\\).*\n" "\\(\\(^@c\\).*\n\\)?" eval assoc texinfo-hierarchic-level texinfo-update-menu-higher-regexps nil t texinfo-copy-section-title " "] 7 "\
+Return the title of the section preceding the menu as a string.
+If such a title cannot be found, return an empty string.  Do not move
+point."])
+(fset 'texinfo-copy-menu #[nil "ÀÂ ŠbˆÄÅ!ˆ`)`W«™ÇÅÈ#«s`ŠÇÉÀÈ#ˆ`ÊZ){	Bªa	+‡" [nil this-menu-list texinfo-menu-end end-of-menu re-search-backward "^* " last-entry re-search-forward t "\\(^* \\|^@e\\)" 3] 5 "\
+Return the entries of an existing menu as a list.
+Start with point just after the word `menu' in the `@menu' line
+and leave point on the line before the `@end menu' line."])
+(fset 'texinfo-specific-section-type #[nil "ŠÀÁÂÃ#«ƒÄª–ÀÂÃ#«ŒÆyˆ`TÇvˆ`{ªƒÈÉ!)‡" [re-search-forward "^@node [ 	]*top" nil t "top" texinfo-section-types-regexp 0 1 error "texinfo-specific-section-type: Chapter or section not found."] 4 "\
+Return the specific type of next section, as a string.
+For example, \"unnumberedsubsec\".  Return \"top\" for top node.
+
+Searches forward for a section.  Hence, point must be before the
+section whose type will be found.  Does not move point.  Signal an
+error if the node is not the top node and a section is not found."])
+(fset 'texinfo-hierarchic-level #[nil "ÀÁ \n\"A‡" [assoc texinfo-specific-section-type texinfo-section-to-generic-alist] 3 "\
+Return the general hierarchal level of the next node in a texinfo file.
+Thus, a subheading or appendixsubsec is of type subsection."])
+(fset 'texinfo-update-menu-region-beginning #[(level) "Á˜«ŠŠÂÃÄÅ#ˆ`)‡Æ˜«ŠŠÇÃÄÅ#ˆ`)‡ŠÇÈÉÊË\"A!QÄÍ#ˆ`)‡" [level "top" re-search-forward "^@node [ 	]*top" nil t "chapter" re-search-backward "\\(^@node\\).*\n" "\\(\\(^@c\\).*\n\\)?" eval assoc texinfo-update-menu-higher-regexps goto-beginning] 7 "\
+Locate beginning of higher level section this section is within.
+Return position of the beginning of the node line; do not move point.
+Thus, if this level is subsection, searches backwards for section node.
+Only argument is a string of the general type of section."])
+(fset 'texinfo-update-menu-region-end #[(level) "ŠÀÁÂÃÄ\"A!QÇÈ#«„É”ªd)‡" [re-search-forward "\\(^@node\\).*\n" "\\(\\(^@c\\).*\n\\)?" eval assoc level texinfo-update-menu-higher-regexps nil goto-end 1] 7 "\
+Locate end of higher level section this section is within.
+Return position; do not move point.  Thus, if this level is a
+subsection, find the node for the section this subsection is within.
+If level is top or chapter, returns end of file.  Only argument is a
+string of the general type of section."])
+(fset 'texinfo-menu-first-node #[(beginning end) "ŠbˆÁyˆÂÃÅ#ˆÆyˆ`)‡" [beginning 1 re-search-forward "^@node" end t 0] 4 "\
+Locate first node of the section the menu will be placed in.  
+Return position; do not move point.
+The menu will be located just before this position.  
+
+First argument is the position of the beginning of the section in
+which the menu will be located; second argument is the position of the
+end of that region; it limits the search."])
+(defvar texinfo-section-to-generic-alist '(("top" . "top") ("chapter" . "chapter") ("unnumbered" . "chapter") ("majorheading" . "chapter") ("chapheading" . "chapter") ("appendix" . "chapter") ("section" . "section") ("unnumberedsec" . "section") ("heading" . "section") ("appendixsec" . "section") ("subsection" . "subsection") ("unnumberedsubsec" . "subsection") ("subheading" . "subsection") ("appendixsubsec" . "subsection") ("subsubsection" . "subsubsection") ("unnumberedsubsubsec" . "subsubsection") ("subsubheading" . "subsubsection") ("appendixsubsubsec" . "subsubsection")) "\
+*An alist of specific and corresponding generic Texinfo section types.
+The keys are strings specifying specific types of section; the values
+are strings of their corresponding general types.")
+(defvar texinfo-section-types-regexp "^@\\(chapter \\|sect\\|sub\\|unnum\\|major\\|heading \\|appendix\\)" "\
+Regexp matching chapter, section, other headings (but not the top node).")
+(defvar texinfo-chapter-level-regexp "chapter\\|unnumbered \\|appendix \\|majorheading\\|chapheading" "\
+Regular expression matching just the Texinfo chapter level headings.")
+(defvar texinfo-section-level-regexp "section\\|unnumberedsec\\|heading \\|appendixsec" "\
+Regular expression matching just the Texinfo section level headings.")
+(defvar texinfo-subsection-level-regexp "subsection\\|unnumberedsubsec\\|subheading\\|appendixsubsec" "\
+Regular expression matching just the Texinfo subsection level headings.")
+(defvar texinfo-subsubsection-level-regexp "subsubsection\\|unnumberedsubsubsec\\|subsubheading\\|appendixsubsubsec" "\
+Regular expression matching just the Texinfo subsubsection level headings.")
+(defvar texinfo-update-menu-same-level-regexps '(("top" . "top[ 	]+") ("chapter" concat "\\(^@\\)\\(" texinfo-chapter-level-regexp "\\)[ 	]*") ("section" concat "\\(^@\\)\\(" texinfo-section-level-regexp "\\)[ 	]*") ("subsection" concat "\\(^@\\)\\(" texinfo-subsection-level-regexp "\\)[ 	]+") ("subsubsection" concat "\\(^@\\)\\(" texinfo-subsubsection-level-regexp "\\)[ 	]+")) "\
+*Regexps for searching for same level sections in a Texinfo file.
+The keys are strings specifying the general hierarchical level in the
+document; the values are regular expressions.")
+(defvar texinfo-update-menu-higher-regexps '(("top" . "^@node [ 	]*DIR") ("chapter" . "^@node [ 	]*top") ("section" concat "\\(^@\\(" texinfo-chapter-level-regexp "\\)[ 	]*\\)") ("subsection" concat "\\(^@\\(" texinfo-section-level-regexp "\\|" texinfo-chapter-level-regexp "\\)[ 	]*\\)") ("subsubsection" concat "\\(^@\\(" texinfo-subsection-level-regexp "\\|" texinfo-section-level-regexp "\\|" texinfo-chapter-level-regexp "\\)[ 	]*\\)")) "\
+*Regexps for searching for higher level sections in a Texinfo file.
+The keys are strings specifying the general hierarchical level in the
+document; the values are regular expressions.")
+(defvar texinfo-update-menu-lower-regexps '(("top" concat "\\(^@\\(" texinfo-chapter-level-regexp "\\|" texinfo-section-level-regexp "\\|" texinfo-subsection-level-regexp "\\|" texinfo-subsubsection-level-regexp "\\)[ 	]*\\)") ("chapter" concat "\\(^@\\(" texinfo-section-level-regexp "\\|" texinfo-subsection-level-regexp "\\|" texinfo-subsubsection-level-regexp "\\)[ 	]*\\)") ("section" concat "\\(^@\\(" texinfo-subsection-level-regexp "\\|" texinfo-subsubsection-level-regexp "\\)[ 	]+\\)") ("subsection" concat "\\(^@\\(" texinfo-subsubsection-level-regexp "\\)[ 	]+\\)") ("subsubsection" . "nothing lower")) "\
+*Regexps for searching for lower level sections in a Texinfo file.
+The keys are strings specifying the general hierarchical level in the
+document; the values are regular expressions.")
+(fset 'texinfo-update-node #[(&optional region-p) "¬•ÁÃÄeÅ#¬„ÆÇ!ˆÈ ˆÉÊ!)‡ÁË Ì U«„ÆÏ!ˆŒ}ˆbˆĞ ˆÑÄdÅ#«ˆÒyˆÈ ˆªqÉÓ!,‡" [region-p nil auto-fill-hook re-search-backward "^@node" t error "Node line not found before this position." texinfo-update-the-node message "Done...updated the node.  You may save the buffer." region-beginning region-end end beginning "Please mark a region!" push-mark re-search-forward 0 "Done...updated nodes in region.  You may save the buffer."] 4 "\
+Without any prefix argument, update the node in which point is located.
+Non-nil argument (prefix, if interactive) means update the nodes in the
+marked region.
+
+The functions for creating or updating nodes and menus, and their
+keybindings, are:
+
+    texinfo-update-node (&optional region-p)    \\[texinfo-update-node]
+    texinfo-every-node-update ()                \\[texinfo-every-node-update]
+    texinfo-sequential-node-update (&optional region-p)
+
+    texinfo-make-menu (&optional region-p)      \\[texinfo-make-menu]
+    texinfo-all-menus-update ()                 \\[texinfo-all-menus-update]
+    texinfo-master-menu ()
+
+    texinfo-indent-menu-description (column &optional region-p)
+
+The `texinfo-column-for-description' variable specifies the column to
+which menu descriptions are indented. Its default value is 24." "P"])
+(fset 'texinfo-every-node-update #[nil "ŠÀ ˆÁÂ!ˆÃÄ!)‡" [mark-whole-buffer texinfo-update-node t message "Done...updated every node.       You may save the buffer."] 2 "\
+Update every node in a Texinfo file." nil])
+(fset 'texinfo-update-the-node #[nil "À ˆÁ ˆÂÃÄ \"ˆŒ~ˆÅÇ É!\nË!Í˜«„Î ª Ï\nĞ$ˆÏ\nÑ$ˆÏ\nÒ$ˆÓ -‡" [texinfo-check-for-node-name texinfo-delete-existing-pointers message "Updating node: %s ... " texinfo-copy-node-name t case-fold-search texinfo-hierarchic-level level texinfo-update-menu-region-beginning beginning texinfo-update-menu-region-end end "top" texinfo-top-pointer-case texinfo-insert-pointer next previous up texinfo-clean-up-node-line] 5 "\
+Update one node.  Point must be at the beginning of node line.  
+Leave point at the end of the node line."])
+(fset 'texinfo-top-pointer-case #[nil "À ˆÁŠÂÃÄÅ#«‡ÆyˆÇ ªÈ)É±‡" [texinfo-clean-up-node-line ", " re-search-forward "^@node" nil t 0 texinfo-copy-node-name " " ", (dir), (dir)"] 5 "\
+Insert pointers in the Top node.  This is a special case.
+
+The `Next' pointer is a pointer to a chapter or section at a lower
+hierarchical level in the file.  The `Previous' and `Up' pointers are
+to `(dir)'.  Point must be at the beginning of the node line, and is
+left at the end of the node line."])
+(fset 'texinfo-check-for-node-name #[nil "ŠÀvˆÁÂwˆÃÄ!?­‹ÅÆ!È±))‡" [1 " 	" nil looking-at "[^,	\n ]+" read-from-minibuffer "Node name: " node-name " "] 2 "\
+Determine whether the node has a node name.  Prompt for one if not.
+Point must be at beginning of node line.  Does not move point."])
+(fset 'texinfo-delete-existing-pointers #[nil "ÀÁŠÂˆ`)Ã#«ˆ`SbˆÄÂ!ˆÅyˆÂ‡" [search-forward "," nil t kill-line 0] 4 "\
+Delete `Next', `Previous', and `Up' pointers.  
+Starts from the current position of the cursor, and searches forward
+on the line for a comma and if one is found, deletes the rest of the
+line, including the comma.  Leaves point at beginning of line."])
+(fset 'texinfo-find-pointer #[(beginning end level direction) "Á=«—ÂyˆÃÄÅ\"A!É#«‚Ê‡Ë‡Ì=«¢ÍÎÄÅ\"A!ÏÄÅ\"A!Ñ°É#«‚Ê‡Ë‡Ó=«”ÍÄÅ\"A!É#«‚Ê‡Ë‡ÔÕ!‡" [direction next 3 re-search-forward eval assoc level texinfo-update-menu-same-level-regexps end t normal no-pointer previous re-search-backward "\\(" "\\|" texinfo-update-menu-higher-regexps "\\)" beginning up error "texinfo-find-pointer: lack proper arguments"] 8 "\
+Move point to section associated with next, previous, or up pointer.
+Return type of pointer (either 'normal or 'no-pointer).
+
+The first and second arguments bound the search for a pointer to the
+beginning and end, respectively, of the enclosing higher level
+section.  The third argument is a string specifying the general kind
+of section such as \"chapter or \"section\".  When looking for the
+`Next' pointer, the section found will be at the same hierarchical
+level in the Texinfo file; when looking for the `Previous' pointer,
+the section found will be at the same or higher hierarchical level in
+the Texinfo file; when looking for the `Up' pointer, the section found
+will be at some level higher in the Texinfo file.  The fourth argument
+(one of 'next, 'previous, or 'up) specifies whether to find the
+`Next', `Previous', or `Up' pointer."])
+(fset 'texinfo-pointer-name #[(kind) "À\nÃ=«‘ÀˆÄÅŠÆy)Ç#ˆÈ ª‡\nÉ=«‚Ê	)‡" [nil name kind normal re-search-backward "^@node" -3 t texinfo-copy-node-name no-pointer " "] 4 "\
+Return the node name preceding the section command.
+The argument is the kind of section, either normal or no-pointer."])
+(fset 'texinfo-insert-pointer #[(beginning end level direction) "ÀˆÁŠÂÃ$!)±‡" [nil ", " texinfo-pointer-name texinfo-find-pointer beginning end level direction] 7 "\
+Insert the `Next', `Previous' or `Up' node name at point.
+Move point forward.  
+
+The first and second arguments bound the search for a pointer to the
+beginning and end, respectively, of the enclosing higher level
+section.  The third argument is the hierarchical level of the Texinfo
+file, a string such as \"section\".  The fourth argument is direction
+towards which the pointer is directed, one of `next, `previous, or
+'up."])
+(fset 'texinfo-clean-up-node-line #[nil "ÀˆÁÀxˆ`ŠÀˆ`)|‡" [nil ", "] 2 "\
+Remove extra commas, if any, at end of node line."])
+(fset 'texinfo-sequential-node-update #[(&optional region-p) "¬•ÁÃÄeÅ#¬„ÆÇ!ˆÈ ˆÉÊ!)‡ÁË Ì U«„ÆÏ!ˆŒ}ˆbˆĞ ˆÑÄdÅ#«ˆÒyˆÈ ˆªqÉÓ!,‡" [region-p nil auto-fill-hook re-search-backward "^@node" t error "Node line not found before this position." texinfo-sequentially-update-the-node message "Done...sequentially updated the node .  You may save the buffer." region-beginning region-end end beginning "Please mark a region!" push-mark re-search-forward 0 "Done...updated the nodes in sequence.  You may save the buffer."] 4 "\
+Update one node (or many) in a Texinfo file with sequential pointers.
+
+This function causes the `Next' or `Previous' pointer to point to the
+immediately preceding or following node, even if it is at a higher or
+lower hierarchical level in the document.  Continually pressing `n' or
+`p' takes you straight through the file.
+
+Without any prefix argument, update the node in which point is located.
+Non-nil argument (prefix, if interactive) means update the nodes in the
+marked region.
+
+This command makes it awkward to navigate among sections and
+subsections; it should be used only for those documents that are meant
+to be read like a novel rather than a reference, and for which the
+Info `g*' command is inadequate." "P"])
+(fset 'texinfo-sequentially-update-the-node #[nil "À ˆÁ ˆÂÃÄ \"ˆŒ~ˆÅÇ ‰É˜«„Ê ª”ËÌ\"ˆËÍ\"ˆËÎ\"ˆÏ +‡" [texinfo-check-for-node-name texinfo-delete-existing-pointers message "Sequentially updating node: %s ... " texinfo-copy-node-name t case-fold-search texinfo-hierarchic-level level "top" texinfo-top-pointer-case texinfo-sequentially-insert-pointer next previous up texinfo-clean-up-node-line] 4 "\
+Update one node such that the pointers are sequential. 
+A `Next' or `Previous' pointer points to any preceding or following node,
+regardless of its hierarchical level."])
+(fset 'texinfo-sequentially-find-pointer #[(level direction) "Á=«ÂyˆÃdÅ#«‚Æ‡Ç‡È=«‹ÉeÅ#«‚Æ‡Ç‡Ê=«”ÉËÌ\"A!Å#«‚Æ‡Ç‡ĞÑ!‡" [direction next 3 re-search-forward texinfo-section-types-regexp t normal no-pointer previous re-search-backward up eval assoc level texinfo-update-menu-higher-regexps beginning error "texinfo-sequential-find-pointer: lack proper arguments"] 5 "\
+Find next or previous pointer sequentially in Texinfo file, or up pointer.
+Move point to section associated with the pointer.  Find point even if
+it is in a different section.
+
+Return type of pointer (either 'normal or 'no-pointer).
+
+The first argument is a string specifying the general kind of section
+such as \"chapter or \"section\".  The section found will be at the
+same hierarchical level in the Texinfo file, or, in the case of the up
+pointer, some level higher.  The second argument (one of 'next,
+'previous, or 'up) specifies whether to find the `Next', `Previous',
+or `Up' pointer."])
+(fset 'texinfo-sequentially-insert-pointer #[(level direction) "ÀˆÁŠÂÃ\"!)±‡" [nil ", " texinfo-pointer-name texinfo-sequentially-find-pointer level direction] 5 "\
+Insert the `Next', `Previous' or `Up' node name at point.
+Move point forward.  
+
+The first argument is the hierarchical level of the Texinfo file, a
+string such as \"section\".  The second argument is direction, one of
+`next, `previous, or 'up."])
+(fset 'texinfo-insert-node-lines #[(&optional title-p) "ŠÀ Á ‰bˆ`\nW«ÚÄÆÇ#ˆÈyˆÉvˆÊÆwˆ`ŠÆˆ`){ÌÍŠÎyˆ`)Ï#«…ÉvˆªŠÈyˆĞcˆÑÉ!ˆ«›ÊÆwˆÓÔ!¬’ÈyˆÉvˆÕ±ˆÖ×\"ˆØyˆ)ª!+«„ÖÙ!‡ÖÚ!‡" [region-beginning region-end end-region begin-region re-search-forward texinfo-section-types-regexp nil end 0 1 " 	" title re-search-backward "^@node" -3 t "@node\n" backward-char title-p looking-at "[^,	\n ]+" " " message "Inserted title %s ... " 3 "Done inserting node lines and titles.  You may save the buffer." "Done inserting node lines.  You may save the buffer."] 5 "\
+Insert missing `@node' lines in region of Texinfo file.
+Non-nil argument (prefix, if interactive) means also to insert the
+section titles as node names; and also to insert the section titles as
+node names in pre-existing @node lines that lack names." "P"])

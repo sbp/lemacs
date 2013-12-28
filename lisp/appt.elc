@@ -1,0 +1,125 @@
+;;; compiled by jwz@thalidomide on Sat Dec 28 20:49:46 1991
+;;; from file /u/jwz/emacs19/lisp/appt.el
+;;; emacs version 19.39.
+;;; bytecomp version 2.03; 29-oct-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÀÂ!‡" [require calendar diary] 2)
+(defvar appt-issue-message t "\
+*If T, the diary buffer is checked for appointments.  For an
+ appointment warning to be made, the time must be the first thing on
+ the line.")
+(defvar appt-msg-countdown-list '(20 15 10 5 3 1) "\
+*A list of the intervals in minutes before the appointment when
+ the warnings will be given.  That is, if this were the list '(5 3 1),
+ then a notification would be given five minutes, three minutes, and
+ one minute before the appointment.")
+(defvar appt-audible t "\
+*Controls whether appointment announcements should beep.")
+(defvar appt-display-mode-line t "\
+*Controls if minutes-to-appointment should be displayed on the mode line.")
+(defvar appt-announce-method 'appt-window-announce "\
+*The name of the function used to notify the user of an impending 
+appointment.  This is called with two arguments, the number of minutes
+until the appointment, and the appointment description list.
+
+Reasonable values for this variable are 'appt-window-announce,
+'appt-message-announce, or 'appt-persistent-message-announce.")
+(defvar appt-time-msg-list nil "\
+The list of appointments for today.  Use appt-add and appt-delete
+ to add and delete appointments from list.  The original list is generated
+ from the today's diary-entries-list. The number before each time/message
+ is the time in minutes after midnight.")
+(defconst max-time 1439 "\
+11:59pm in minutes - number of minutes in a day minus 1.")
+(byte-code "ÀÀ‡" [-1 appt-check-tick] 1)
+(fset 'appt-message-announce #[(min-to-app appt) "À	Â=«ƒÃª‘ÄÅ	‰Æ=«ƒÇªÈ	A@$!‡" [message min-to-app 0 "App't NOW." format "App't in %d minute%s -- %s" 1 "" "s" appt] 6 "\
+Set appt-announce-method to the name of this function to cause appointment
+notifications to be given via messages in the minibuffer."])
+(fset 'appt-persistent-message-announce #[(min-to-app appt) "Á=«ˆÂÃA@\"ªÂÅ‰Æ=«ƒÇªÈA@$É Ê =¬…ŠÍ‹ˆ)­„Ç˜?­…ÎÏ\"*‡" [min-to-app 0 format "App't NOW -- %s" appt "App't in %d minute%s -- %s" 1 "" "s" selected-window minibuffer-window in-echo-area-already str ((byte-code "ÀÁ !ˆed|ˆ\nc‡" [select-window minibuffer-window str] 2)) message "%s"] 5 "\
+Set appt-announce-method to the name of this function to cause appointment
+notifications to be given via messages in the minibuffer, but have those 
+messages stay around even if you type something (unlike normal messages)."])
+(defvar appt-display-duration 5 "\
+*The number of seconds an appointment message is displayed in its own 
+ window if appt-announce-method is 'appt-window-announce.")
+(fset 'appt-window-announce #[(min-to-app appt) "ÀÁ!ˆŠÂ‹)‡" [require electric ((byte-code "À ÁÂÃ !8U¬†Ä ˆÅ ˆpÆÉÊË!qÌÎ=«ƒÏªĞ‰Ñ=«ƒÒªÓQÔÕÖ ×ØO!‰ÚV«†ÚZª‚ÛÖ ÜİOÚW«ƒŞªßR)à°!â!ˆã$A@!ˆåæ!!ˆçÆ!ˆè)!+‡" [screen-height 3 window-edges selected-window appt-select-lowest-window split-window nil appt-disp-buf this-buffer ((byte-code "«„Á!ˆÁ‡" [appt-disp-buf kill-buffer] 2)) get-buffer-create "*appt-buf*" "-------------------- Appointment " min-to-app 0 "NOW" "in " 1 " minute" " minutes" ". (" string-to-int current-time-string 11 13 h 12 ":" 14 16 "am" "pm" ") %-" mode-line-format pop-to-buffer insert-string appt shrink-window-if-larger-than-buffer get-buffer-window set-buffer-modified-p sit-for appt-display-duration] 9))] 2 "\
+Set appt-announce-method to the name of this function to cause appointment 
+notifications to be given via messages in a pop-up window.  The variable
+appt-display-duration controls how long this window should be left up."])
+(byte-code "ÀÁ!¬‚ÂÂ‡" [boundp appt-screen-defaults nil] 2)
+(fset 'appt-screen-announce #[(min-to-app appt) "ŠÀÁ!qÃ ˆÄÆ=«ƒÇªŒÈ‰É=«ƒÊªËQÌÍÎ ÏĞO!‰ÒV«†ÒZª‚ÓÎ ÔÕOÒW«ƒÖª×R)Ø°ÚA@!ˆÜİŞed\"ß\\^] áâ!«¢\"«ã $å\"!ˆæ\"!ˆç !ˆèÆ!ˆå$!)ªéê+ìà BD\"!‰\"*‡" [get-buffer-create "*appt-buf*" appt-disp-buf erase-buffer "-------------------- Appointment " min-to-app 0 "NOW" "in " 1 " minute" " minutes" ". (" string-to-int current-time-string 11 13 h 12 ":" 14 16 "am" "pm" ") %-" mode-line-format insert-string appt 10 20 count-lines 2 height boundp appt-disp-screen selected-screen s select-screen make-screen-visible set-screen-height sit-for x-create-screen append appt-screen-defaults (width . 80)] 9 "\
+Set appt-announce-method to the name of this function to cause appointment 
+notifications to be given via messages in a pop-up screen."])
+(fset 'appt-select-lowest-window #[nil "À Â AAA@Ä Æ­­È 	ÊÂ	!8W«†	Ì	!ˆ	=«‡Ì	!ˆÍ*ªO+‡" [selected-window lowest-window window-edges bottom-edge previous-window last-window t window-search next-window this-window 3 next-bottom-edge select-window nil] 3 "\
+ Determines which window is the lowest one being displayed and 
+selects that one."])
+(defvar appt-mode-line-string "" "\
+*The string displayed in the mode line by the appointment package.")
+(fset 'appt-display-mode-line #[(min-to-app) "«™	«–	Â=«ƒÃªÄ	‰Å=«ƒÆªÇQªÈ	«¦\n¬‡ÈÉD\nª›\n;«ˆ\nÉD\nªÉ\n>¬ˆË\nÉC\"\nŠÌ qˆ)ÍÎ !ˆÏÂ!‡" [appt-display-mode-line min-to-app 0 "App't NOW " "App't in " 1 " minute  " " minutes " "" appt-mode-line-string global-mode-string append other-buffer set-buffer-modified-p buffer-modified-p sit-for] 4 "\
+Add an appointment annotation to the mode line."])
+(fset 'appt-convert-time #[(time2conv) "ÀÁ\n\"«‚Ã‡ÀÄ\n\"«‚Å‡Ã‰ÀÈ\n\"¬…ÉÊ\n\"ˆË\nÌ”Ì•O!Í”«ŠË\nÍ”Í•O!Î”«²ÃU¬†ÏV«…ÉĞ\n\"ˆÀÑ\nÎ”ÒO\"«‹ÏU«‘ÃªŒÏW«†Ï\\ÓV«…ÉÔ\n\"ˆÕ_\\*‡" [string-match "^[ 	]*midni\\(ght\\|te\\)[ 	]*\\'" time2conv 0 "^[ 	]*noon[ 	]*\\'" 720 min hr "\\`[ 	]*\\([0-9][0-9]?\\)[ 	]*\\(:[ 	]*\\([0-9][0-9]\\)\\)?[ 	]*\\(am\\|pm\\)?" error "unparsable time \"%s\"" string-to-int 1 3 4 12 "mixing 12hr and 24 hr time!  %s" "am" nil 59 "minutes outa bounds - %s" 60] 5 "\
+ Convert hour:min[am/pm] format to minutes from midnight."])
+(fset 'appt-current-time-in-seconds #[nil "À Â	ÃÄO!Â	ÆÇO!É_\\+‡" [current-time-string str string-to-int 11 13 hour 14 16 min 60] 4 "\
+returns the current time in seconds since midnight."])
+(byte-code "ÀÁMˆÂÃM‡" [appt-sort-list #[(appt-list) "ÀÁ\n!Ã\"‡" [sort copy-sequence appt-list #[(x y) "@@	@@W‡" [x y] 2]] 3] appt-diary-entries #[nil "ÀÁ‰ÅÆ!ˆ+‡" [(appt-make-list) nil diary-list-include-blanks diary-display-hook list-diary-entries-hook diary 1 appt-time-msg-list] 3]] 2)
+(fset 'appt-initialize #[nil "À ˆÁ G‰ÃU«…ÄÅ!ª\nÆU«…ÄÇ!ª†ÄÈÉ\n\"!)‡" [install-display-time-hook appt-diary-entries n 0 message "no appointments today." 1 "1 appointment today." format "%d appointments today."] 5 "\
+ Read your `diary-file' and remember today's appointments.  Call this from 
+ your .emacs file, or any time you want your .diary file re-read (this happens 
+ automatically at midnight to move to notice the next day's appointments).
+ 
+ The time must be at the beginning of a line for it to be put in the 
+ appointments list.
+               02/23/89
+                  12:00pm    lunch
+                Wednesday
+                  10:00am    group meeting"])
+(fset 'appt-make-list #[nil "À\n«à\nÀ‰«ÒÅÆ @@\"«É@A@ÈÉ\"«µÊ•Ì”Ì•OÌ•OÏ!CÀOÑQCBB,ªD)A‰¬.ÒŸ	\"*Ó	!Ô 	@@@	«•W«	A‰«p	@@@ªh*	‡" [nil appt-time-msg-list diary-entries-list new-appts entry-list calendar-date-equal calendar-current-date time-string string-match "^[ 	]*\\([0-9]?[0-9]\\(:[0-9][0-9]\\)?[ 	]*\\(am\\|pm\\)?\\|noon\\|midnight\\|midnite\\).*$" 0 eol 1 appt-time-string appt-msg-string appt-convert-time appt-time ":" append appt-sort-list appt-current-time-in-seconds appt-comp-time cur-comp-time] 5 "\
+Don't call this directly; call appt-initialize or appt-diary-entries."])
+(fset 'appt-beep #[nil "¬‚Á‡§«’‰ÃV­‰Ä ˆ\nS‰ªs)‡:«¢@A:«ƒ@\nÃV­Ä ˆÆÇ\"ˆ\nS‰ªn*‡Ä ‡" [appt-audible nil i 0 beep j sleep-for t] 4])
+(fset 'appt-check #[nil "…î ÁÂÅ ‰UV		«ƒÊ ˆƒê @@@‰Z«˜W«‘A‰«m@@@ªdÍÎ\"W«—ÍÎ\"\\V«ŠTZÑÍÎ\"V«…ÒÑ!ªç¬‹ÓU¬‰>¬ƒÑªÕÓU«£ÔÕ@A@\"«™@A@Ó•SÑOÑ×ØÚ!*ª­ÍÎ\"X«¡ÓY«œÛ ˆ@\"ˆÒ!ˆÓU­‹A‰ªƒÒÑ!)ªƒÒÑ!-‡" [appt-issue-message -1 "" new-time min-to-app appt-current-time-in-seconds cur-comp-time appt-check-tick shut-up-this-time turnover-p appt-diary-entries appt-time-msg-list appt-comp-time apply max appt-msg-countdown-list max-time nil appt-display-mode-line 0 string-match "%%(" list-string (read list-string) ((error (byte-code "À ˆÁÂ@A@\"ˆÄÅ!ˆÆ‡" [ding message "Appt: error reading from \"%s\"" appt-time-msg-list sit-for 2 nil] 3))) form eval appt-beep appt-announce-method] 5 "\
+Check for an appointment and update the mode line and minibuffer if
+ desired. Note: the time must be the first thing in the line in the diary
+ for a warning to be issued.
+  The format of the time can be either 24 hour or am/pm.  Example: 
+ 
+               02/23/89
+                 18:00 Dinner
+              Thursday
+                11:45am Lunch meeting.
+  
+ The following variables control the action of the notification:
+ 
+ appt-issue-message		If this variable is nil, then the code in this
+				file does nothing.
+ appt-msg-countdown-list	Specifies how much warning you want before 
+				appointments.
+ appt-audible			Whether to beep when it's notification-time.
+ appt-display-mode-line		Whether to display a countdown to the next 
+				appointment in the mode-line.
+ appt-announce-method   	The function used to do the notifications.
+				'appt-window-announce to do it in a pop-up
+				window, 'appt-message-announce or 
+				'appt-persistent-message-announce to do it 
+				in the echo-area.
+ appt-display-duration  	If appt-announce-method is set to the function
+				'appt-window-announce, this specifies how many
+				seconds the pop-up window should stick around.
+ 
+ This function is run from the `loadst' or `wakeup' process for display-time.
+ Therefore, you need to have (display-time) in your .emacs file."])
+(fset 'appt-add #[(new-appt-time new-appt-msg) "ÀÁ\n\"¬„ÃÄ!ˆ\nÅQÈ\n!C‰	CB\nË\nC\"Í!‰+‡" [string-match "[0-9]?[0-9]:[0-9][0-9]\\(am\\|pm\\)?" new-appt-time error "Unacceptable time-string" " " new-appt-msg appt-time-string appt-convert-time appt-time time-msg append appt-time-msg-list appt-sort-list] 4 "\
+Adds an appointment to the list of appointments for the day at TIME
+ and issue MESSAGE. The time should be in either 24 hour format or
+ am/pm format. " "sTime (hh:mm[am/pm]): \nsMessage: "])
+(fset 'appt-delete #[nil "	«¥	@ÃÄ\nA@!ÅQÇ!	A«…É\n\"Ê+ªXÌÍ!)‡" [appt-time-msg-list tmp-msg-list element "Delete " prin1-to-string " from list? " prompt-string y-or-n-p test-input delq nil tmp-appt-msg-list message ""] 3 "\
+Deletes an appointment from the list of appointments." nil])
+(defvar display-time-hook nil "\
+*List of functions to be called when the time is updated on the mode line.")
+(byte-code "ÀÂÃ!¬‚ÄÅÆMˆÇÈ!‡" [appt-check display-time-hook boundp display-time-hook-installed nil install-display-time-hook #[nil "?­©ÁÂ!«’ÁÃ!«ÄÅÆ \"«ƒÂª„ÃªÇÉKMˆÊMˆ)Ë‰‡" [display-time-hook-installed fboundp display-time-filter-18-55 display-time-filter-18-57 string-match "18\\.5[0-5]" emacs-version display-time-filter old-fn old-display-time-filter #[(proc string) "À	\n\"ˆÃÄ!‡" [old-display-time-filter proc string run-hooks display-time-hook] 3 "Revised version of the original function: this version calls a hook."] t] 3] provide appt] 2)

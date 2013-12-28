@@ -1,0 +1,115 @@
+;;; compiled by jwz@thalidomide on Sat Dec 28 02:25:44 1991
+;;; from file /wg1/emacs-base/lisp/reportmail.el
+;;; emacs version 19.39.
+;;; bytecomp version 2.03; 29-oct-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar display-time-announce-mail t "\
+*Toggles whether name of mail sender is displayed in mode line.")
+(defvar display-time-announce-junk-mail-too nil "\
+*When non-NIL, announce incoming junk mail as well as interesting mail")
+(defvar display-time-time t "\
+*Toggles whether the time is displayed.")
+(defvar display-time-load nil "\
+*Toggles whether machine load is displayed.")
+(defvar display-time-day-and-date nil "\
+*Toggles whether day and date are displayed.")
+(defvar display-time-mail-ring-bell nil "\
+*Toggles whether bell is rung on mail arrival.")
+(defvar display-time-junk-mail-ring-bell nil "\
+*Toggles whether bell is rung on junk mail arrival.
+If display-time-mail-ring-bell is nil, this variable is ignored.")
+(defvar display-time-my-addresses nil "\
+*Report the addressee of incoming mail in the message announcement, 
+unless it appears in this list  (See also display-time-match-using-regexps.)")
+(defvar display-time-junk-mail-checklist nil "\
+*A list of lists of strings.  In each sublist, the first component is the
+name of a message field and the rest are values that flag a piece of
+junk mail.  If an entry begins with the character ^ it is matched as
+a regular expression rather than an exact prefix of the given header 
+field.  (See also display-time-match-using-regexps.)  
+
+Note: elements of display-time-my-addresses are NOT automatically
+      included in display-time-junk-mail-checklist")
+(defvar display-time-match-using-regexps nil "\
+*When non-nil, elements of 
+display-time-junk-mail-checklist and display-time-my-addresses are matched
+as regular expressions instead of literal prefixes of header fields.")
+(defvar display-time-max-from-length 35 "\
+*Truncate sender name to this length in mail announcements")
+(defvar display-time-max-to-length 11 "\
+*Truncate addressee name to this length in mail announcements")
+(defvar display-time-interval 30 "\
+*Seconds between updates of time in the mode line.  Also used
+as interval for checking incoming mail.")
+(defvar display-time-no-file-means-no-mail t "\
+*Set this to T if you are on a system which deletes your mail-spool file 
+when there is no new mail.")
+(defvar display-time-incoming-mail-file nil "\
+*User's incoming mail file.  Default is value of environment variable MAIL,
+if set;  otherwise /usr/spool/mail/$USER is used.")
+(byte-code "ÀÁ!¬‚ÂÂ‡" [boundp display-time-message-separator nil] 2)
+(defvar display-time-flush-echo-area nil "\
+*If true, then display-time's echo-area message will be 
+automatically cleared when display-time-interval has expired.")
+(defvar display-time-use-xbiff nil "\
+*If set, display-time uses xbiff to announce new mail.")
+(defvar display-time-xbiff-arg-list nil "\
+*List of arguments passed to xbiff.  Useful for setting geometry, etc.")
+(defvar display-time-mail-arrived-file nil "\
+New mail announcements saved in this file if xbiff used.  Deleted when 
+mail is read.  Xbiff used to monitor existence of this file.")
+(defvar display-time-loadst-process nil "\
+The process providing time, load, and mail info.")
+(defvar display-time-xbiff-process nil "\
+The xbiff process used to announce incoming mail.")
+(defvar display-time-string nil "\
+Time displayed in mode line")
+(defvar display-time-mail-buffer-name "*Mail*" "\
+Name of buffer used for announcing mail.")
+(defvar display-time-may-need-to-reset t "\
+Set to NIL when display-time-reset-mail-processing has not been called 
+since the last time we changed from having mail in the queue to an empty
+queue.")
+(defvar display-time-debugging nil "\
+*When non-NIL, reportmail records various status information
+as it's working.")
+(defvar display-time-debugging-delay nil "\
+*When non-nil and display-time-debugging is set, sit for this 
+long after displaying each debugging message in mode line")
+(defvar display-time-debugging-buffer "*Reportmail-Debugging*" "\
+Status messages are appended here.")
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [display-time-del-file (macro . #[(filename) "ÀÁ\nDÃ\nDE‡" [if file-exists-p filename delete-file] 4]) display-time-debug (macro . #[(mesg &rest args) "ÀÁÂÃÄD\"DE‡" [if display-time-debugging display-time-debug-mesg append format mesg args] 6]) display-time-init #[nil "¬ÁÂ!®—ÁÃ!®‚Ä ‰­ˆÆÇ!­ƒÇP)®È	¬‘ÊÌÍÎ \"«ƒÏªĞ)	¬‡Ò Ä D®ˆÁÔ!ÕP‰‡" [display-time-incoming-mail-file getenv "MAIL" "USER" user-login-name user-name file-directory-p "/usr/spool/mail/" "" display-time-message-separator t case-fold-search string-match "\\.cmu\\.edu" system-name "" "From " display-time-my-addresses user-full-name display-time-mail-arrived-file "HOME" "/.mail-arrived"] 4]] 2)
+(fset 'display-time-kill #[nil "«„Á!ˆ\n­ƒÁ\n!‡" [display-time-loadst-process delete-process display-time-xbiff-process] 2 "\
+Kill all display-time processes.  Done automatically if display-time
+is re-invoked." nil])
+(fset 'display-time #[nil "À ˆÁŠÃ ˆÅ˜¬‰¬’Ç!¬ÈÉ\"ˆÊË!ˆÌÁ!ˆ¬ƒÎ<¬†ÏDĞ>¬‡ÑÒ\"ÓÔÕÖ \"«Œ×ØÁÙÚÛ!%ªŒ×İÁßPÛ!$ á !ˆâ ã\"ˆä ÔÕÖ \"«ƒåªæ\"ˆ'«®Ç(!«…é(!ˆê×ëÁìí(.&/á/!ˆÊË!ˆğ/!ñU¬„òó!ˆ*ô ‡" [display-time-init nil process-connection-type display-time-kill display-time-incoming-mail-file "" display-time-no-file-means-no-mail file-exists-p message "Reportmail: mail spool file \"%s\" not found" sit-for 1 ding global-mode-string ("") "  " display-time-string append (display-time-string) "time and load" string-match "18\\.5[0-5]" emacs-version start-process "display-time-loadst" "loadst" "-n" int-to-string display-time-interval "display-time-wakeup" exec-directory "wakeup" display-time-loadst-process process-kill-without-query set-process-sentinel display-time-sentinel set-process-filter display-time-filter-18-55 display-time-filter-18-57 display-time-use-xbiff display-time-mail-arrived-file delete-file apply "display-time-xbiff" "xbiff" "-file" display-time-xbiff-arg-list display-time-xbiff-process process-exit-status 0 error "Display time: xbiff failed.  Check xbiff-arg-list" display-time-reset-mail-processing] 8 "\
+Displays current time, date, load level, and incoming mail status in 
+mode line of each buffer (if corresponding user variables are set)." nil])
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [display-time-sentinel #[(proc reason) "À	!Â>«¦;«ŒÄÅ\"«†Æ‰”OÇ ˆÈÉ\"\nËÌ!ˆÍÎ	À	!$ˆŠÏ qˆ)ĞÑ !ˆÒÆ!‡" [process-status proc (stop exit closed signal) reason string-match "\n?\n*\\'" 0 ding format "%s" display-time-string display-time-message "" message "process %s: %s (%s)" other-buffer set-buffer-modified-p buffer-modified-p sit-for] 6] display-time-filter-18-55 #[(proc string) "«„ÁÂ!ˆGÄV«…ÅÆOGÇV«ÈÉÇ#«‰Ê”ÆO‰ªkÈË\"«‡Ê‰”TO«ÈÍ\"«…Î ˆªƒÏ ˆÈÍ\"­‰«„ªÑ«’ÈÉ\"«ŒÊ”Ê•OÔQ«ŠÖ Ê×OP«’ÈÙ\"«ŒÊ”Ê•OÔQŠÛ qˆ)Üİ !ˆŞÊ!)‡" [display-time-flush-echo-area display-time-message "" string 30 -30 nil 4 string-match "[0-9]+:[0-9][0-9].." 0 "[^0-9][0-9]+:" display-time-announce-mail "Mail" display-time-process-new-mail display-time-reset-mail-processing display-time-mail-modeline "Mail " time-string display-time-time " " display-time-day-and-date current-time-string 11 display-time-load "[0-9]+\\.[0-9][0-9]" display-time-string other-buffer set-buffer-modified-p buffer-modified-p sit-for] 5] display-time-filter-18-57 #[(proc string) "«„ÁÂ!ˆÃ!­ˆÅÆ!8Ç=?	«Œ«…Ê ˆªƒË ˆ­‰	«„ªÍ«¿Ğ ÒÓÔO!‰ÖYÖV«†ÖZÇU«ƒÖØÙ\"ÔÚO«ƒÛªÜR+«ŠĞ ÇÓOP«ŠßàáâQ#Šä qˆ)åæ !ˆçÇ!*‡" [display-time-flush-echo-area display-time-message "" file-exists-p display-time-incoming-mail-file 7 file-attributes 0 mailp display-time-announce-mail display-time-process-new-mail display-time-reset-mail-processing display-time-mail-modeline "Mail " time-string display-time-time current-time-string time read 11 13 hour 12 pm format "%d" 16 "pm " "am " display-time-day-and-date display-time-load nil (byte-code "À @ÁU«‚Â‡ÃÄÀ @\"‡" [load-average 0 "" format "%03d"] 3) ((error "load-error")) " " display-time-string other-buffer set-buffer-modified-p buffer-modified-p sit-for] 6]] 2)
+(defvar display-time-mail-who-from "" "\
+Short-form name of sender of last piece of interesting unread mail")
+(defvar display-time-mail-modeline "" "\
+Terse mail announcement (displayed in modeline)")
+(defvar display-time-previous-mail-buffer-max 1 "\
+The length of the mail buffer the last time we looked at it")
+(defvar display-time-msg-count 0 "\
+How many interesting messages have arrived")
+(defvar display-time-junk-msg-count 0 "\
+How many junk messages have arrived")
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉM‡" [display-time-reset-mail-processing #[nil "­¯Á\n«†ÃÄÅ!!ˆÆ!‰«…É!ˆ)\n«‹Ë!«…Í!ˆÎ ˆÏĞ!‡" [display-time-may-need-to-reset nil display-time-debugging display-time-debug-mesg format "Resetting mail processing" get-buffer display-time-mail-buffer-name mail-buffer kill-buffer display-time-use-xbiff file-exists-p display-time-mail-arrived-file delete-file display-time-reset-mail-processing-vars display-time-message ""] 4] display-time-reset-mail-processing-vars #[nil "ÀÀÃÅ‰‡" [0 display-time-msg-count display-time-junk-msg-count "Junk mail" display-time-mail-who-from 1 display-time-previous-mail-buffer-max] 2] display-time-process-new-mail #[nil "ÀÂ!À‰­ƒÆ!?­‚Ç‹*‡" [t display-time-may-need-to-reset get-buffer display-time-mail-buffer-name inhibit-local-variables mail-buffer verify-visited-file-modtime ((byte-code "Š«†ÁÂÃ!!ˆ«„Å!ˆÆ!qˆÈ	!ˆÊ )‡" [display-time-debugging display-time-debug-mesg format "\n\nProcessing new mail" mail-buffer kill-buffer find-file-noselect display-time-incoming-mail-file rename-buffer display-time-mail-buffer-name display-time-process-mail-buffer] 3))] 3] display-time-process-mail-buffer #[nil "À\ndW«“À\nbˆÄÅ!!¬ƒÇ ˆ)ªƒÇ ˆ\nbˆm¬ƒÈuˆm¬ `ÀÉÊPÀË#)¬ƒdbˆ	`}ˆÌ ˆdbˆ~ˆª]d‰)‡" [nil start display-time-previous-mail-buffer-max case-fold-search looking-at regexp-quote display-time-message-separator display-time-reset-mail-processing-vars 1 search-forward "\n" t display-time-process-this-message] 4] display-time-process-this-message #[nil "«†ÁÂÃ!!ˆÄ «…Å ˆªƒÆ ˆÇÈ 	ÊR­‡ÁÂÌ\"!‡" [display-time-debugging display-time-debug-mesg format "\nProcessing a message" display-time-junk-message display-time-process-junk-message display-time-process-good-message "[" display-time-format-msg-count display-time-mail-who-from "] " display-time-mail-modeline "New mode line: %s "] 4]] 2)
+(fset 'display-time-junk-message #[nil "«†ÁÂÃ!!ˆÅ«Ÿ¬›ÈÉ@@!@A\"«…ÊªeA‰¬a*‡" [display-time-debugging display-time-debug-mesg format "Comparing current message to junk mail checklist" display-time-junk-mail-checklist nil junk checklist display-time-member display-time-get-field t] 4 "\
+Check to see whether this message is interesting"])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉM‡" [display-time-message #[(&rest message-args) "ÀÁ\n\"Ã Ä =¬…ŠÇ‹ˆ)­„È˜?­…ÉÊ\"*‡" [apply format message-args selected-window minibuffer-window in-echo-area-already str ((byte-code "ÀÁ !ˆed|ˆ\nc‡" [select-window minibuffer-window str] 2)) "" message "%s"] 3] display-time-process-good-message #[nil "«†ÁÂÃ!!ˆÅ\\ÆÇÈ\"	ÆÊÈ\"ÆÌÈ\"	È˜«ƒÈª…Î	ÏQÑ\"ÑÔ!Õ\"×\"«ƒÈªˆÑÔ!\"Û ÜÈ˜«ƒÈª…İŞQß° !«Šâã!‰$qˆ cˆå ˆæed'#ˆè$!ˆ*«ˆÁÂé \"!ˆêë \"ˆ),«ƒí ˆ‰..‡" [display-time-debugging display-time-debug-mesg format "Formatting message announcement (good message)" display-time-msg-count 1 display-time-get-field "Subject" "" subject "From" from "To" to " (" ")" print-subject display-time-truncate display-time-max-from-length print-from display-time-extract-short-addr 25 short-from display-time-member display-time-my-addresses display-time-max-to-length print-to display-time-format-msg-count "Mail " "to " " " "from " msg display-time-use-xbiff generate-new-buffer "*Tmp*" tmp-buf newline append-to-file display-time-mail-arrived-file kill-buffer "Message: %s" display-time-message "%s" display-time-mail-ring-bell ding display-time-mail-who-from] 7] display-time-process-junk-message #[nil "«†ÁÂÃ!!ˆÅ\\ÆÇÈ\"	ÆÊÈ\"ÆÌÈ\"	È˜«ƒÈª…Î	ÏQÑ\"ÑÔ!Õ\"×\"«ƒÈªˆÑÔ!\"­×Ü İÈ˜«ƒÈª…ŞßQà°!\"«Šãä!‰%qˆ!cˆæ ˆçed(#ˆé%!ˆ*êë!\"ˆ«ˆÁÂì!\"!ˆ-­†.­‚ï ).‡" [display-time-debugging display-time-debug-mesg format "Formatting message announcement (junk message)" display-time-junk-msg-count 1 display-time-get-field "Subject" "" subject "From" from "To" to " (" ")" print-subject display-time-truncate display-time-max-from-length print-from display-time-extract-short-addr 25 short-from display-time-member display-time-my-addresses display-time-max-to-length print-to display-time-announce-junk-mail-too display-time-format-msg-count "Junk Mail " "to " " " "from " msg display-time-use-xbiff generate-new-buffer "*Tmp*" tmp-buf newline append-to-file display-time-mail-arrived-file kill-buffer display-time-message "%s" "Message: %s" display-time-mail-ring-bell display-time-junk-mail-ring-bell ding] 7] display-time-format-msg-count #[nil "	\\ÂV«‘Ã!	ÄV­†ÅÃ	!ÆQÇQ‡È‡" [display-time-msg-count display-time-junk-msg-count 1 int-to-string 0 "(" ")" ": " ""] 4] display-time-get-field #[(field &optional default) "À 	š¬Â ˆÃÄÀ 	#ˆÅÆ!ˆebˆÇÈ	ÊQËÌ#«š`ËˆÎÏ!«ˆĞyˆËˆªs`{)ª…®Ò«ŠÕÖ×	#!ˆ)‡" [buffer-name display-time-mail-buffer-name beep message "reportmail bug: processing buffer %s, not %s" sit-for 2 re-search-forward "^" field ":[ |	]*" nil t start looking-at "\n[ 	]" 1 default "<unknown>" result display-time-debugging display-time-debug-mesg format "value of %s field is %s"] 5]] 2)
+(fset 'display-time-member #[(e l) "À‰\n¬¿¬…Ä‰ªv¬ˆ@ÆœÇU«”È@	\"«‡Ä‰ª\\AªVÈÊ@—!	—\"«‡Ä‰ªDAª>	*‡" [nil result done l t display-time-match-using-regexps 0 94 string-match e regexp-quote] 4 "\
+Is string E matched by an element of list L?  
+When an element of L begins with ^, match it as a regexp.  Otherwise,
+ignore case and match exactly.  If display-time-match-using-regexps is
+non-nil, always match using regexps."])
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [display-time-truncate #[(s max) "«G	Y«‡Â	OÃP‡‡" [s max 0 "\\"] 3] display-time-extract-short-addr #[(long-addr) "ÀÂ	ÃP\"¬ŸÂÅ\"¬™Â	ÆP\"¬‘ÂÇ	ÈQ\"¬ˆÂ	ÈP\"«ˆÉ”É•Oª)‡" ["\\([A-Za-z0-9-_+\\. ]+\\)" name string-match "[ |	]+<.+>" long-addr ".+(\\(.+\\)).*" "%.+@.+" ".*!" "@.+" 1] 4] display-time-debug-mesg #[(mesg) "ŠÀ‹ˆ)	­ˆÂÃ\"ˆÅ	!‡" [((byte-code "À	!qˆdbˆ\nÃ±‡" [get-buffer-create display-time-debugging-buffer mesg "\n"] 2)) display-time-debugging-delay message "Reportmail: %s" mesg sit-for] 3]] 2)

@@ -1,0 +1,443 @@
+;;; compiled by eb@watergate on Mon Apr  6 23:24:48 1992
+;;; from file /wg1/emacs-base/lisp/evi.el
+;;; emacs version 19.0 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!¬„ÂÃ!	¬ˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏM‡" [boundp evi-new-event-model-p fboundp event-to-character character-to-event (lambda (char event) char) allocate-event (lambda nil) evi-unread-char #[(char) "«	¬ƒ\nª…Ã	Ä \"‰‡	¬„ª	‰‡" [evi-new-event-model-p char last-command-event character-to-event allocate-event unread-command-event last-command-char unread-command-char] 3] evi-read-char #[nil "À Â	!ˆÃ	Ä\"‰¬†	Çª…È	!ˆ*‡" [allocate-event event next-command-event event-to-character nil char unread-command-event 27 deallocate-event] 4] evi-event-to-character #[(event) "«‡Á\n!®ƒÃ‡\n‡" [evi-new-event-model-p event-to-character event 27] 2] defbuffervar (macro . #[(name default-value documentation) "ÀÁ\nÃFÅÆ\nDDÇÆ\nDEF‡" [progn defvar name nil documentation make-variable-buffer-local quote set-default default-value] 6])] 2)
+(defvar evi-mode nil "\
+Current vi mode, one of vi, insert or replace.")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-mode set-default vi] 3)
+(defvar evi-command-keys nil "\
+The keystrokes for the current modifying command.")
+(defvar evi-meta-prefix-char 1 "\
+meta-prefix-char is locally set to this in all EVI buffers")
+(defvar evi-replace-max nil "\
+Maximum excursion of a replace, after which it switches to insert.")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-replace-max set-default nil] 3)
+(defvar evi-overstruck-char nil "\
+Value of the character overstruck by the `$' marking a partial line change.")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-overstruck-char set-default nil] 3)
+(defvar evi-context nil "\
+Current motion context.  One of to-end, to-next, whole-line, or nil.
+The value of this variable is passed to evi-motion-command, and is set by
+prefix operators like 'd' or '>' to control the type of region defined by
+the following motion command.")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-context set-default nil] 3)
+(defvar evi-prefix-count nil "\
+Current prefix count.  (buffer specific)")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-prefix-count set-default nil] 3)
+(defvar evi-prefix-count-multiplier nil "\
+Current prefix count multiplier.  (buffer specific)")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-prefix-count-multiplier set-default 1] 3)
+(defvar evi-register nil "\
+Current register to use for deletes, yanks, puts, etc.  (buffer specific)")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-register set-default nil] 3)
+(defvar evi-digit-register 0 "\
+Current delete-ring register cursor.  Points to the register that
+will be register 1.")
+(defvar evi-last-macro-register nil "\
+Last register used to invoke a macro via \\[evi-register-macro].")
+(defvar evi-registers (make-vector 72 nil) "\
+Vi registers.  0-8 are the delete ring, 9 is the unnamed text register,
+10-35 are the alphabetic text registers, and 36-71 are the mark registers.
+Each text register is a cons cell with the car being the text in the register
+and the cdr being a flag indicating whether or not the text is whole lines.")
+(defvar evi-register-unnamed 9 "\
+Symbolic name for the unnamed register.  Shouldn't change.")
+(defvar evi-region-whole-lines nil "\
+If t, the current region specified by a motion as an operand encompasses
+whole lines.  This is set by evi-motion-command if either the motion is
+a vertical one, it is a horizontal motion that covers more than one line
+or the operator command requires it ('>' for example only operates on
+whole lines).  The value of this variable is stored in the cdr of any
+register that gets stored as a result of the current command.  (buffer
+specific)")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-region-whole-lines set-default nil] 3)
+(defvar evi-current-indentation nil "\
+The indentation of the most recently auto-indented line.  Used by
+evi-newline-and-indent to determine when to kill auto-indented whitespace.
+(buffer specific)")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-current-indentation set-default 0] 3)
+(defvar evi-internal-command nil "\
+If t, next command will be executed in internal mode (certain interface
+features turned off)")
+(defvar evi-scroll-count nil "\
+The last specified number of lines to scroll.")
+(defvar evi-goal-column nil "\
+The column that vertical cursor motion will try to preserve, if possible.")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-goal-column set-default 0] 3)
+(defvar evi-reset-goal-column nil "\
+If t, a horizontal motion has been performed, thus goal column must be reset.")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-reset-goal-column set-default t] 3)
+(defvar evi-search-pattern nil "\
+The last pattern specified for searching.")
+(defvar evi-search-forward t "\
+If t, the last search command was a forward search.")
+(defvar evi-find-character nil "\
+The last character specified for finding.")
+(defvar evi-find-forward t "\
+If t, the last find command was a forward search.")
+(defvar evi-find-up-to nil "\
+If t, the last find command was a find up to command.")
+(defvar evi-context-ring nil "\
+The last 10 contexts for this buffer.  A context is a location in the buffer
+where only relative motions were performed.  A new context is thus saved each
+time a non-relative motion is performed.")
+(byte-code "ÀÁ!ˆÂÁÃÄÅ\"\"‡" [make-variable-buffer-local evi-context-ring set-default make-vector 10 nil] 5)
+(defvar evi-context-ring-cursor nil "\
+The cursor pointing to the last context in the context ring.")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-context-ring-cursor set-default 0] 3)
+(defvar ex-work-space (byte-code "ÀÁ!ÃÄ!«‹Š\nqˆÅÄ!ÆLˆ)\n)‡" [get-buffer-create " *ex-work-space*" b boundp zmacs-regions make-local-variable nil] 2) "\
+Evi work space for parsing ex commands.")
+(byte-code "ÀÁ!¬‚ÂÀ‡" [boundp ex-find-file-shell "/bin/csh"] 2)
+(defvar ex-tag nil "\
+Last tag specified.")
+(fset 'evi-make-empty-keymap #[nil "À Â	!«‡Ã	Ä\"ˆª†ÅÆ Ç\"ˆ	)‡" [make-keymap map vectorp fillarray undefined map-keymap current-global-map #[(key value) "À	\nÃ#‡" [define-key map key undefined] 4]] 3 "\
+Makes a keymap and shadows everything that is in global map."])
+(defvar evi-vi-map (evi-make-empty-keymap) "\
+The keymap used in vi mode.")
+(defvar evi-vi-local-map nil "\
+The local keymap used in evi-get-commmand.")
+(defvar evi-internal-map (evi-make-empty-keymap) "\
+A subkeymap of vi-map, used to hard-code standard modification operations
+for use in defining command macros.")
+(defvar evi-motion-map (evi-make-empty-keymap) "\
+The keymap used for operand motions.")
+(defvar evi-insert-map (byte-code "À ÁÄ\nS‰X«‹ÅÆÇ\n\"È#ˆªm*‡" [evi-make-empty-keymap 128 i map 0 define-key make-string 1 self-insert-command] 5) "\
+The keymap used in insert mode.")
+(defvar evi-replace-map (byte-code "À ÁÄ\nS‰X«‹ÅÆÇ\n\"È#ˆªm*‡" [evi-make-empty-keymap 128 i map 0 define-key make-string 1 evi-self-replace] 5) "\
+The keymap used in replace mode.")
+(defvar evi-minibuffer-map (copy-keymap evi-insert-map) "\
+The keymap used when reading from the minibuffer.")
+(defvar evi-minibuffer-completion-map (copy-keymap evi-insert-map) "\
+The keymap used when reading with completion from the minibuffer.")
+(defvar evi-minibuffer-must-match-map (copy-keymap evi-insert-map) "\
+The keymap used when reading with must match completion from the minibuffer.")
+(defvar evi-minibuffer-no-space-map (copy-keymap evi-insert-map) "\
+The keymap used when reading from the minibuffer with no spaces.")
+(defvar evi-ex-map (copy-keymap evi-insert-map) "\
+The keymap used when reading ex commands from the minibuffer")
+(defconst evi-all-input-maps '(insert replace minibuffer minibuffer-completion minibuffer-must-match minibuffer-no-space ex) "\
+All Evi keymaps associated with input.")
+(defconst evi-all-keymaps '(vi insert replace minibuffer minibuffer-completion minibuffer-must-match minibuffer-no-space ex) "\
+All Evi keymaps.")
+(byte-code "ÀÁÂ!\"À‡" [delq insert copy-sequence evi-all-keymaps evi-all-keymaps-but-insert] 4)
+(defvar evi-get-command-depth 0 "\
+Current nesting depth of evi-get-command's.")
+(defvar evi-signal-abort nil "\
+If t, abort the current command.")
+(defvar evi-register-parameter nil "\
+Register specification to the current parameterized macro.")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-register-parameter set-default nil] 3)
+(defvar evi-prefix-count-parameter nil "\
+Prefix count to the current parameterized macro.")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-prefix-count-parameter set-default nil] 3)
+(defvar evi-get-commands nil "\
+If t, currently accepting commands from within evi-get-commands.")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-get-commands set-default nil] 3)
+(defvar evi-last-command-keys nil "\
+Command keys for the last complete vi command.")
+(defvar evi-insert-point nil "\
+The point at which the current insert command began.")
+(byte-code "ÀÁ!ˆÂÁÃ\"‡" [make-variable-buffer-local evi-insert-point set-default nil] 3)
+(defvar evi-error-string nil "\
+If non-nil, the current command has encountered a non serious error.
+This string will be presented to the user upon completion.")
+(byte-code "ÀÂ‡" [((("autoindent" "ai") bool . evi-auto-indent) (("autoprint" "ap") bool) (("autowrite" "aw") bool) (("beautify") bool) (("directory" "dir") string) (("edcompatible" "ed") bool) (("errorbells" "eb") bool) (("flash") bool) (("hardtabs" "ht") number) (("ignorecase" "ic") bool . evi-ignore-case) (("lisp") bool) (("list") bool) (("magic") bool . evi-search-magic) (("mesg") bool) (("modeline") bool) (("novice") bool) (("number" "nu") bool) (("optimize" "opt") bool) (("paragraphs" "para") string) (("prompt") bool) (("readonly" "ro") bool) (("redraw") bool) (("remap") bool) (("report") number) (("redraw" "re") bool) (("scroll") number) (("sections" "sect") string) (("shell") string) (("shiftwidth" "sw") number . evi-shift-width) (("showmatch" "sm") bool . blink-matching-paren) (("slowopen" "slow") bool) (("sourceany") bool) (("tabstop" "ts") number . tab-width) (("tags") string) (("taglength" "tl") number) (("term") string) (("terse") bool) (("timeout") bool . evi-timeout) (("ttytype" "tty") string) (("warn") bool) (("wrapmargin" "wm") bool) (("wrapscan" "ws") bool . evi-search-wraparound) (("writeany" "wa") bool)) evi-option-list nil] 1)
+(defconst evi-auto-indent nil "\
+*If t, automatically indents text inserted on a new line.")
+(defconst evi-ignore-case nil "\
+*If t, ignore case in searches.")
+(defconst evi-search-magic t "\
+*If t, search patterns are normal regular expressions.  This is the default.
+Otherwise, the `magic' characters `.' `[' and `*' are treated as literals and
+must be escaped to get their regular expression interpretation.")
+(defconst evi-shift-width 8 "\
+*The number of colums shifted by > and < command, and ^T and ^D
+in insert mode.")
+(defconst evi-timeout t "\
+*If t, timeout is actually *not* implemented.  If nil, <ESC><ESC> becomes
+<ESC>, and arrows keys are mapped to h, j, k and l.")
+(fset 'evi-timeout #[(value) "«†ÁÂÃÄ#‡ÁÅÃ#ˆÇÉÊ#ˆÇËÌ#ˆÇÍÎ#ˆÇÏĞ#ˆÁÑÒÄ#‡" [value evi-define-key (vi) "" nil (vi) esc-map define-key function-keymap "l" evi-backward-char "r" evi-forward-char "u" evi-previous-line "d" evi-next-line (vi) ""] 4])
+(defconst evi-search-wraparound t "\
+*If t, search wraps around the end of the file.")
+(byte-code "ÀÁ!¬‚ÂÃÄMˆÅÆMˆÇÈMˆÉÊMˆËÌMˆÍÎMˆÏĞMˆÑÒMˆÓÔMˆÕÖMˆÑ×ØÙ#ˆÑÚÛÙ#ˆÑÜİÙ#ˆÑŞßà#ˆÑáâã#ˆÑäåæ#ˆÑçèé#ˆÑêëì#ˆÑíîï#ˆÑ0ñò#ˆÑóôõ#ˆÑö÷ø#ˆÑùúû#ˆÑüış#ˆÑÿ@ A #ˆÑB C D #ˆÑE F G #ˆÑH I J #ˆÓK L M #ˆÓN O P #ˆÓQ R S #ˆÓT U V #ˆÓW X Y #ˆÑZ [ \\ #ˆÑ] ^ _ #ˆÑ` a b #ˆÑc d e #ˆÓf g h #ˆÓi j k #ˆÓl m n #ˆÑo p q #ˆÓr s t #ˆÓu v w #ˆÓx y z #ˆÑ{ | } #ˆÓ~  € #ˆÑ ‚ ƒ #ˆÑ„ … † #ˆÑ‡ ˆ ‰ #ˆÑŠ ‹ Œ #ˆÑ   #ˆÑ ‘ ’ #ˆÑ“ ” • #ˆÑ– — ˜ #ˆÑ™ š › #ˆÑœ  › #ˆÑ Ÿ   #ˆÑ¡ ¢   #ˆ£ ¤ !«ŒÑ¥ ¦   #ˆÑ§ ¨ © #ˆÑª « © #ˆÑ¬ ­ © #ˆÑ® ¯ ° #ˆÑ± ² ° #ˆÑ³ ´ µ #ˆÑ¶ · µ #ˆÑ¸ ¹ º #ˆÑ» ¼ ½ #ˆÑ¾ ¿ À #ˆÑÁ Â Ã #ˆÑÄ Å Æ #ˆÑÇ È É #ˆÑÊ Ë Ì #ˆÑÍ Î Ï #ˆÑĞ Ñ Ò #ˆÑÓ Ô Õ #ˆÑÖ × Ø #ˆÑÙ Ú Û #ˆÑÜ İ Ş #ˆÑß à á #ˆÑâ ã ä #ˆÑå æ ç #ˆÑè é ê #ˆÑë ì í #ˆÑî ï ğ #ˆÑñ ò ó #ˆÑô õ ö #ˆÑ÷ [ ø #ˆÑù ^ ú #ˆÑû ü ı #ˆÑş ÿ  #ˆÑ#ˆÑ#ˆÑ	#ˆÑ\n#ˆÑ#ˆÑ#ˆÑ#ˆÑ#ˆÑ#ˆÑ#ˆÑ !#ˆÑ\"#$#ˆÑ%&'#ˆÑ()*#ˆÑ+,-#ˆÑ./0#ˆÑ123#ˆÑ453#ˆÑ673#ˆÑ893#ˆÑ:;3#ˆÑ<=3#ˆÑ>?3#ˆÑ@A3#ˆÑBC3#ˆÑDèE#ˆÑFGH#ˆÑIJK#ˆÑLMN#ˆÑOPQ#ˆÑRST#ˆÑ0UT#ˆÑVWX#ˆÑYZ[#ˆÑ\\P]#ˆÑ^ú_#ˆÑ`¢ a#ˆ£ ¤ !«ŒÑb¦ a#ˆÑcde#ˆÑfgh#ˆÑijk#ˆÑlma#ˆÑnP]#ˆÑo¢ p#ˆ£ ¤ !«ŒÑq¦ p#ˆÑrmp#ˆÑsPt#ˆÑu¢ v#ˆÑw¢ x#ˆÑymv#ˆÑzmx#ˆÑ{« |#ˆÑ}¯ |#ˆÑ~gh#ˆÑj|#ˆÑ€î#ˆÑ‚ ƒ#ˆÑ„ÿ …#ˆÑ†« ‡#ˆÑˆ¯ ‡#ˆÑ‰j‡#ˆÑŠî|#ˆÑ‹ |#ˆÑŒÿ #ˆÑ¢ #ˆÑm#ˆÑ‘î’#ˆÑ“ ”#ˆÑ•–—#ˆÑ•˜™#‡" [boundp ex-commands ((("append" . 1) (1) . ex-not-implemented) (("args" . 2) (0) . ex-not-implemented) (("cd" . 2) (0 (t . rest-of-line)) . ex-change-directory) (("change" . 1) (2) . ex-not-implemented) (("chdir" . 3) (0 (t . rest-of-line)) . ex-change-directory) (("copy" . 2) (2 (t . address)) . ex-copy) (("delete" . 1) (2 (t . register)) . ex-delete) (("edit" . 1) (0 (nil . "!") (t . word)) . ex-edit) (("Edit" . 1) (0 (nil . "!") (t . word)) . ex-edit-other-window) (("file" . 1) (0 (t . word)) . ex-file) (("global" . 1) (2 (t . regular-expression) (t . command)) . ex-global) (("insert" . 1) (1) . ex-not-implemented) (("join" . 1) (2) . ex-not-implemented) (("list" . 1) (2) . ex-not-implemented) (("map" . 3) (0 (nil . "!") (t . word) (t . rest-of-line)) . ex-map) (("mark" . 2) (1) . ex-not-implemented) (("move" . 1) (2 (t . address)) . ex-move) (("next" . 1) (0 (nil . "!")) . ex-next) (("Next" . 1) (0 (nil . "!")) . ex-next-other-window) (("number" . 2) (2) . ex-not-implemented) (("previous" . 3) (0) . ex-not-implemented) (("print" . 1) (2) . ex-print) (("put" . 2) (1 (t . register)) . ex-put) (("quit" . 1) (0 (nil . "!")) . ex-quit) (("read" . 1) (1 (t . "!") (t . rest-of-line)) . ex-read) (("rewind" . 3) (0) . ex-not-implemented) (("set" . 2) (0 (nil . settings)) . ex-set) (("source" . 2) (0 (t . rest-of-line)) . ex-source-file) (("substitute" . 1) (2 (t . regular-expression) (backup . regular-expression) (nil . "g") (nil . "c")) . ex-substitute) (("tag" . 1) (0 (t . word)) . ex-tag) (("undo" . 1) (0) . ex-not-implemented) (("unmap" . 3) (0) . ex-not-implemented) (("version" . 2) (0) . ex-not-implemented) (("write" . 1) (2 (nil . "!") (t . ">>") (t . word)) . ex-write) (("wq" . 2) (0) . ex-write-quit) (("xit" . 1) (0) . ex-save-quit) (("yank" . 1) (2 (t . register)) . ex-yank) (("!" . 1) (2 (t . rest-of-line)) . ex-shell-command) (("<" . 1) (2) . ex-shift-left) (("=" . 1) (2) . ex-not-implemented) ((">" . 1) (2) . ex-shift-right) (("&" . 1) (2) . ex-not-implemented) (("@" . 1) (2) . ex-not-implemented) (("" . 0) (2) . ex-null)) defmotion (macro . #[(&rest args) "@A@Ã8Å8Ç›ÉÊË\n!P!@Í=«£ÎÏ\nĞÑÒÓÔÕDÕ	DDÖ#¯Ó×AD#EªÍ@Ø=«¨ÎÏ\nÙÚÛÕDÕ	DÜİŞA@D¯¯ÓßAAD#EªŸÎÏ\nÙàÛÕDÕ	DÜİ¯¯ÓáD#E.‡" [args direction function 2 params 3 documentation 4 body intern "do-" symbol-name do-function &char progn defun (char) (interactive "c") (if evi-command-keys (setq evi-command-keys (concat evi-command-keys (char-to-string char)))) append (evi-motion-command) quote (evi-prefix-count evi-context char) (defun) &string nil (interactive) evi-motion-command evi-prefix-count evi-context evi-read-string (defun) (interactive) (defun)] 13]) evi-iterate (macro . #[(count &rest body) "ÀÁ	DCÂÃÄÁÅEDÇÁÈÁDEC#ÉÁÅEF‡" [let count append while > 0 body setq 1- =] 9]) evi-break (macro . #[nil "ÀÁÂE‡" [setq count -1] 3]) evi-enumerate-condition (macro . #[(item list condition &rest body) "ÀÁ	D\nCDÃÄÅÁÆÇ\nÈE	EED\n«‡Ã\nË\"ªÌ\"ÁF‡" [let list item append while and progn setq (car list) condition body ((setq list (cdr list))) ((setq list (cdr list)))] 10]) evi-register-text (macro . #[(register) "À	D‡" [car register] 2]) evi-register-whole-lines-p (macro . #[(register) "À	D‡" [cdr register] 2]) evi-single-change (macro . #[(&rest prog) "ÀÁ\nÃ#‡" [append (let ((previous-undo-list buffer-undo-list))) prog ((setq buffer-undo-list (evi-remove-undo-boundaries buffer-undo-list previous-undo-list)))] 4]) evi-define-key #[(maps key def) "Á‰«˜@ÄÅÆÇÈ\n!ÉQ!ÊËF!ˆA‰¬h*‡" [maps nil map list eval define-key intern "evi-" symbol-name "-map" key def] 7] evi-define-macro #[(maps key macro) "Á‰«¡@ÄÅÆÇÈ\n!ÉQ!ÊËÌÁÍÎDFDF!ˆA‰¬_*‡" [maps nil map list eval define-key intern "evi-" symbol-name "-map" key quote lambda (interactive) evi-execute-command-macro macro] 11] evi-make-local-keymap #[(keydefs) "À ÂÃ\"ˆ	)‡" [make-sparse-keymap keymap mapcar #[(keydef) "À	Â@!A@#‡" [define-key keymap eval keydef] 4] keydefs] 3] (vi motion internal) "]" nil (vi motion internal) "[" (vi) "Z" (vi internal motion minibuffer minibuffer-completion minibuffer-must-match minibuffer-no-space) "" evi-internal-command (vi internal motion) "[(" evi-parameterized-macro (vi internal) "@" evi-register-macro (internal) "\"" evi-register-parameter (internal) "#" evi-prefix-count-parameter (internal) "	" evi-maybe-indent evi-all-keymaps-but-insert "" evi-other-file (vi) "" evi-scroll-page-forward (vi) "" evi-scroll-page-backward (vi) "" evi-scroll-text-forward (vi) "" evi-scroll-text-backward (vi) "" evi-scroll-cursor-forward (vi) "" evi-scroll-cursor-backward (vi) "z" evi-window-control (vi internal) "i" evi-insert (vi) "a" "l#i" (vi) "I" "0^i" (vi) "A" "$i" (vi) "o" "$i" (vi) "O" "0iki" (vi) "r" evi-replace-char (vi) "R" evi-replace (vi) "~" evi-toggle-case (vi internal) "c" evi-change (vi) "C" "\"c#$" (vi) "s" "\"c#l" (vi) "S" "\"c#c" (vi internal) "d" evi-delete (vi) "x" "\"d#l" (vi) "X" "\"d#h" (vi) "D" "\"d$" (vi internal) "y" evi-yank (vi) "Y" "\"y#y" (vi) "p" evi-put-after (vi) "P" evi-put (vi internal) ">" evi-shift-right (vi internal) "<" evi-shift-left (vi internal) "=" evi-indent (vi internal) "!" evi-shell-filter (vi internal) "[{" evi-loop-over-lines-in-region (vi internal) "J" evi-join-lines (vi internal motion) "l" evi-forward-char (vi internal motion) " " (vi internal motion) "h" evi-backward-char (vi internal motion) "" fboundp map-keymap (vi internal motion) backspace (vi internal motion) "j" evi-next-line (vi internal motion) "\n" (vi internal motion) "" (vi internal motion) "" evi-beginning-of-next-line (vi internal motion) "+" (vi internal motion) "k" evi-previous-line (vi internal motion) "" (vi internal motion) "-" evi-beginning-of-previous-line (vi internal motion) "G" evi-goto-line (vi internal motion) "H" evi-goto-top-of-window (vi internal motion) "M" evi-goto-middle-of-window (vi internal motion) "L" evi-goto-bottom-of-window (vi internal motion) "|" evi-goto-column (vi internal motion) "0" evi-beginning-of-line (vi internal motion) "^" evi-goto-indentation (vi internal motion) "$" evi-end-of-line (vi internal motion) "w" evi-forward-word (vi internal motion) "W" evi-forward-white-word (vi internal motion) "e" evi-end-of-word (vi internal motion) "E" evi-end-of-white-word (vi internal motion) "b" evi-backward-word (vi internal motion) "B" evi-backward-white-word (vi internal motion) ")" evi-forward-sentence (vi internal motion) "(" evi-backward-sentence (vi internal motion) "}" evi-forward-paragraph (vi internal motion) "{" evi-backward-paragraph (vi internal motion) "]]" evi-forward-section (vi internal motion) "[[" evi-backward-section (internal motion) evi-region (internal motion) evi-region-whole-lines (vi internal motion) "/" evi-search-forward (vi internal motion) "?" evi-search-backward (vi internal motion) "n" evi-search-next (vi internal motion) "N" evi-search-next-reverse (vi internal motion) "f" evi-find-character (vi internal motion) "F" evi-find-character-backwards (vi internal motion) "t" evi-find-character-before (vi internal motion) "T" evi-find-character-backwards-after (vi internal motion) ";" evi-find-next-character (vi internal motion) "," evi-find-next-character-reverse (vi internal motion) "%" evi-paren-match (vi) "m" evi-mark (vi internal motion) "`" evi-goto-mark-horizontal (vi internal motion) "'" evi-goto-mark-vertical (vi) "." evi-repeat (vi) "_" evi-prompt-repeat (vi) "u" evi-undo (vi) "U" evi-undo-all (vi motion) "1" evi-prefix-digit (vi motion) "2" (vi motion) "3" (vi motion) "4" (vi motion) "5" (vi motion) "6" (vi motion) "7" (vi motion) "8" (vi motion) "9" (vi) evi-prefix-register (vi) "" evi-file-info (vi) "" evi-tag (vi) ":" evi-ex-command (vi) "" keyboard-quit (vi) "" evi-redraw-selected-screen "" (vi) "ZZ" evi-save-and-exit evi-all-input-maps "" quoted-insert (insert) evi-input-mode-quit (insert) evi-backward-indent (insert) evi-insert-mode-delete-backward-char (insert) (insert) "" evi-forward-indent (insert) "" "db" (insert replace) "" evi-exit-get-commands (insert) "" (replace) (replace) evi-replace-mode-delete-backward-char (replace) (replace) (minibuffer minibuffer-completion minibuffer-must-match minibuffer-no-space ex) abort-recursive-edit (minibuffer) evi-minibuffer-delete-backward-char (minibuffer-completion minibuffer-must-match minibuffer-no-space) delete-backward-char (minibuffer) (minibuffer-completion minibuffer-must-match minibuffer-no-space) (minibuffer minibuffer-completion minibuffer-no-space ex) exit-minibuffer (minibuffer minibuffer-completion minibuffer-no-space ex) (minibuffer minibuffer-completion minibuffer-must-match minibuffer-no-space) (minibuffer minibuffer-completion minibuffer-no-space ex) (minibuffer-completion minibuffer-must-match) minibuffer-complete (minibuffer-completion minibuffer-must-match) minibuffer-complete-word (minibuffer-completion minibuffer-must-match) minibuffer-completion-help (minibuffer-must-match) minibuffer-complete-and-exit (minibuffer-must-match) (minibuffer-must-match) (minibuffer-no-space) (minibuffer-no-space) (minibuffer-no-space) self-insert-and-exit (ex) ex-delete-backward-char (ex) (ex) ex-complete (ex) ex-space evi-all-keymaps "" ctl-x-map "" esc-map] 4)
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕMˆÖ×MˆØÙMˆÚÛMˆÜİM‡" [evi-execute-command-macro #[(macro) "À ˆÁÁÁÉ\n!ˆË\")ÌÍ!.‡" [evi-save-command-keys nil evi-last-command-keys evi-register evi-register-parameter evi-prefix-count evi-prefix-count-parameter buffer-undo-list previous-undo-list execute-kbd-macro macro evi-remove-undo-boundaries evi-fixup-cursor vertical] 3] evi-parameterized-macro #[nil "À ˆÁÂ!Ä!)‡" [evi-start-command-keys evi-read-string "(" macro evi-execute-command-macro] 2 nil nil] evi-register-macro #[(char) "À ˆÁÄU«ˆ®ˆÆÇ!ªƒÈ!	\n	H@	Ì!+‡" [evi-save-command-keys nil evi-last-command-keys char 64 evi-last-macro-register error "No previous macro register specified" evi-register-number register-number evi-registers macro execute-kbd-macro] 2 nil "c"] evi-internal-command #[nil "À	Ä *‡" [t evi-internal-map evi-vi-map evi-internal-command evi-get-command] 2 nil nil] evi-register-parameter #[nil "Â )‡" [evi-register-parameter evi-register evi-get-command] 1 nil nil] evi-prefix-count-parameter #[nil "Â )‡" [evi-prefix-count-parameter evi-prefix-count evi-get-command] 1 nil nil] evi-get-commands #[(&optional local-map) "ÀÂ	­ˆÄÅ\"ˆªu)‡" [t evi-get-commands 0 echo-keystrokes evi-get-command nil local-map] 3] evi-exit-get-commands #[nil "À‰‡" [nil evi-get-commands] 2 nil nil] evi-this-command-keys-string #[nil "ÀÁÂÃ Ä\"\"°‡" [mapcar evi-event-to-character append this-command-keys nil] 5] evi-get-command #[(&optional save-command-keys local-map) "«ˆ	Â=«ƒÃ ®‚T		ƒ¤ ÊË‰Í=¬†ÎU«‘«…Âª„ĞÑ!ˆÒ «ŠÓÔ!\"®ˆÓ	Ô!\"×Ø \"	«‡	Ô!PÚ!«‰	Âª£;«ŠÊ!ˆÂ	ª”Û!«ŠÜ!ˆÂ	ª„Ğİ!ˆ*‚ ?ßU«ƒÂ+‡" [save-command-keys evi-command-keys nil evi-this-command-keys-string evi-vi-map local-map evi-vi-local-map evi-get-command-depth current-local-keymap current-keymap execute-kbd-macro (evi-read-char) char t -1 executing-macro error "Unknown source of EOS" evi-read-char lookup-key char-to-string keydef last-command-char character-to-event allocate-event last-command-event keymapp commandp call-interactively "Unknown command" evi-signal-abort 1] 5] evi-read-string #[(prompt) "À	!«„Äªˆ«…\nÆQ\n)‡" [read-string prompt string evi-signal-abort nil evi-command-keys ""] 3] evi-start-command-keys #[nil "À ‰‡" [evi-this-command-keys-string evi-command-keys] 2] evi-save-command-keys #[nil "®‚Á Ã‰‡" [evi-command-keys evi-this-command-keys-string evi-last-command-keys nil] 2] evi-interactive-args #[nil "C‡" [evi-prefix-count] 1] evi-character-arg #[nil "À ‰Â=«ƒÃª	)D‡" [evi-read-char char 13 10 evi-prefix-count] 3]] 2)
+(fset 'evi-change-mode-id #[(string) "À\n‰‡" [("EVI 0.9b: %16b") mode-line-buffer-identification string mode-name] 2 "\
+Change the mode identification string to STRING."])
+(fset 'evi-refresh-mode-line #[nil "ÀÁ !‡" [set-buffer-modified-p buffer-modified-p] 2 "\
+Redraw mode line."])
+(byte-code "ÀÁ!¬‚ÂÃÄM‡" [boundp evi-install-undo-list nil evi-install-var #[(var value) "	¬‡‰JB	B\nL‡" [var evi-install-undo-list value] 2]] 2)
+(defvar evi-startup-hook nil "\
+function or functions to run when evi is started.")
+(defvar evi-exit-hook nil "\
+function or functions to run when evi mode is turned off.")
+(defvar evi-mode-hook nil "\
+function or functions to run for each buffer that is placed in evi-mode.")
+(fset 'evi #[nil "??ÂÃ\"ˆÂÅ\"ˆÂÇ\"ˆÂÉ\n\"ˆËÌ!«…ÂÌÍ\"ˆÎ ˆ	¬„ÏĞ!ˆÑ ˆÒ )‡" [evi-install-undo-list evi-was-on-already evi-install-var minibuffer-local-map evi-minibuffer-map minibuffer-local-completion-map evi-minibuffer-completion-map minibuffer-local-must-match-map evi-minibuffer-must-match-map minibuffer-local-ns-map evi-minibuffer-no-space-map boundp interrupt-char 3 evi-load-init-files run-hooks evi-startup-hook evi-mode evi-refresh-mode-line] 3 "\
+Start global vi emulation." nil])
+(fset 'evi-mode #[nil "¬ƒÁ ˆÂÃ!ˆÄ!ˆÆÇ!ÈLˆÆÉ!ÊLˆÆË!ÌLˆÍÎ!«†ÆÎ!ÌLˆÆÏ!LˆÑ ˆÌÓÔ!‡" [evi-install-undo-list evi evi-change-mode-id "Vi" use-local-map evi-vi-map make-local-variable vi-buffer-p t scroll-step 1 evi-last-changed-line nil boundp zmacs-regions meta-prefix-char evi-meta-prefix-char evi-refresh-mode-line buffer-read-only run-hooks evi-mode-hook] 2 "\
+Start vi emulation in this buffer."])
+(fset 'evi-exit-to-emacs #[nil "ÀÁ\n\"ˆÃŠÄ ‰«³@qˆÆÇ!«¤« ÃÈ «É ¬‰ÊÈ !¬ƒËÍÃ!ˆÎ ˆÏÃ‰\"ˆA‰¬M*Ğ ˆÑÒ!ˆÓ ‡" [mapcar #[(cons) "@AL‡" [cons] 2] evi-install-undo-list nil buffer-list rest boundp vi-buffer-p buffer-file-name buffer-modified-p file-writable-p t buffer-read-only use-local-map kill-all-local-variables after-find-file evi-refresh-mode-line run-hooks evi-exit-hook top-level] 4 "\
+Stop vi emulation." nil])
+(fset 'evi-minibuffer-delete-backward-char #[nil "n«…ÀÂ ‡ÃÄ!‡" [t evi-signal-abort exit-minibuffer delete-backward-char 1] 2 "\
+Backup and delete previous character, aborting command if at
+beginning of input." nil])
+(fset 'evi-other-file #[nil "À «Á ‰«…Ã\n!ªƒÄÅ!)‡ÆÇ!‡" [one-window-p evi-next-file-buffer buffer switch-to-buffer message "No other file to display" other-window 1] 3 "\
+Switch to other file." nil])
+(fset 'evi-scroll-page-forward #[(&optional count) "À	®ÂÂ=«†Ã ÄZªˆÃ S	®Â_!ˆÅ‰‡" [scroll-up count 1 window-height 3 t evi-reset-goal-column] 3 "\
+Scroll COUNT pages forward." (evi-interactive-args)])
+(fset 'evi-scroll-page-backward #[(&optional count) "À	®ÂÂ=«†Ã ÄZªˆÃ S	®Â_!ˆÅ‰‡" [scroll-down count 1 window-height 3 t evi-reset-goal-column] 3 "\
+Scroll COUNT pages backward." (evi-interactive-args)])
+(fset 'evi-scroll-text-forward #[(&optional count) "«„iÂ«…‰ªˆ®…Å SÆ¥ÇÈ `T\"ÇÈ É \"\n‰\nX«Í!ˆS^yˆª¢\nÆ¥X«ˆ\nÆ¥yˆª‘ŠÎyˆm)«†ÏĞ!ˆªƒdbˆÑ	!ˆÒÓ!+‡" [evi-reset-goal-column evi-goal-column nil count evi-scroll-count window-height 2 count-lines window-start window-end window-text-height window-line line-count scroll-up 1 error "End of buffer" evi-move-to-column evi-fixup-cursor vertical] 6 "\
+Scroll COUNT lines forward.  Default is one half of a page or the last COUNT
+specified to either \\[evi-scroll-up] or \\[evi-scroll-down] if one was previously
+given.  The position of the cursor on the screen is maintained." (evi-interactive-args)])
+(fset 'evi-scroll-text-backward #[(&optional count) "«„iÂ«…‰ªˆ®…Å SÆ¥ÇÈ `T\"	\nË\n!ˆÅ S	Z\n^[yˆÌ	!*‡" [evi-reset-goal-column evi-goal-column nil count evi-scroll-count window-height 2 count-lines window-start window-line line-count scroll-down evi-move-to-column] 4 "\
+Scroll COUNT lines backward.  Default is one half of a page or the last COUNT
+specified to either \\[evi-scroll-up] or \\[evi-scroll-down] if one was previously
+given.  The position of the cursor on the screen is maintained." (evi-interactive-args)])
+(fset 'evi-scroll-cursor-forward #[(&optional count) "«„iÂÃ®Å!ˆÆ	!‡" [evi-reset-goal-column evi-goal-column nil scroll-up count 1 evi-move-to-column] 2 "\
+Scroll COUNT lines forward.  Maintain cursor position in the file
+if possible." (evi-interactive-args)])
+(fset 'evi-scroll-cursor-backward #[(&optional count) "«„iÂÃ®Å!ˆÆ	!‡" [evi-reset-goal-column evi-goal-column nil scroll-down count 1 evi-move-to-column] 2 "\
+Scroll COUNT lines backward.  Maintain cursor position in the file
+if possible." (evi-interactive-args)])
+(fset 'evi-window-control #[(char &optional linenumber) "«„Á!ˆ\nÃY«Ç\nÄX«ÂÅ\nÃZ!Ç ‰ÈU«ŠÉÊ SZ!ª§\nËU«†É!ªœ\nÌU«†Í!ª‘\nÎU­ŒÏU«„Ğ ª‚Ñ *‡\nÒ=¬…\nÓ=«ƒÔª\nÈ=¬…\nÕ=«†Ê Ö¥ª\nÌ=¬…\n×=­„Ê ÖZÙ!)‡" [linenumber do-evi-goto-line char 48 57 evi-read-number count evi-read-char 46 enlarge-window window-height 43 45 shrink-window 61 1 delete-other-windows split-window-vertically 13 72 0 77 2 76 position recenter] 4 "\
+Position current line on the screen according to the following character.
+With a prefix count, position that line." (evi-character-arg)])
+(fset 'evi-move-to-column #[(column) "À	!ˆl­†n?­‚Â ‡" [move-to-column column backward-char] 2])
+(fset 'evi-insert #[(&optional count) "À ˆ`Â!ˆn?­‚Ä ‡" [evi-start-command-keys evi-insert-point evi-insert-mode count backward-char] 2 "\
+Enter insert mode, adding new text before the cursor." (evi-interactive-args)])
+(fset 'evi-insert-mode #[(&optional count) "Àm«ˆÂÃ!ˆÄÃ!ˆ«‰ÆÈÉ#ˆª‡ÆÈÂ#ˆÊË!ˆÌ ˆÍ ˆÎĞ!ˆ)Ñ ˆÒ!‡" [insert evi-mode newline 1 backward-char evi-auto-indent define-key evi-insert-map "" evi-newline-and-indent evi-change-mode-id "Insert" evi-remember-last-changed-line evi-refresh-mode-line nil evi-command-keys evi-get-commands evi-maybe-kill-indentation evi-exit-input-mode count] 4])
+(fset 'evi-exit-input-mode #[(&optional count) "`{\n«ˆ\n	ÃQÄ ˆ«’S‰ÆV«‰	cˆS‰ªs))ÇÉÊ!ˆË ‡" [evi-insert-point input-string evi-command-keys "" evi-save-command-keys count 0 vi evi-mode evi-change-mode-id "Vi" evi-refresh-mode-line] 4 "\
+Exit from an input mode." nil])
+(fset 'evi-input-mode-quit #[nil "À ˆÁ ‡" [evi-exit-input-mode keyboard-quit] 1 "\
+Abort and exit from and input mode." nil])
+(fset 'evi-insert-mode-delete-backward-char #[nil "`V«„ÁÂ!‡ÃÄ!‡" [evi-insert-point delete-backward-char 1 message "Beginning of inserted text"] 2 "\
+Backup and delete previous character, but no further than insert point." nil])
+(byte-code "ÀÁMˆÂÃM‡" [evi-maybe-indent #[nil "­†Á ˆi‰‡" [evi-auto-indent indent-according-to-mode evi-current-indentation] 2 nil nil] evi-maybe-kill-indentation #[nil "­§	iU­¢ŠÂÃxˆn­`‰­ŠÂÃwˆl­ƒ`B*‰­…@A|)‡" [evi-auto-indent evi-current-indentation " 	" nil start region] 3]] 2)
+(fset 'evi-newline-and-indent #[nil "À ˆÁcˆÂ ˆi‰‡" [evi-maybe-kill-indentation 10 indent-according-to-mode evi-current-indentation] 2 "\
+Insert a newline, and indent to the current indentation level.
+Kills indentation on current line if the line is otherwise empty." nil])
+(fset 'evi-forward-indent #[nil "i‰		¦Z\\ŠÃÄxˆ`)Æ`Z!ˆi‰\nW«…Çcˆªt\nV«„ÆÈ!ˆÉÊ\niZ\"+‡" [start-column evi-shift-width target-column " " nil backup-point delete-backward-char 9 1 insert-char 32] 5 "\
+Move forward to the next indentation level, defined by shiftwidth." nil])
+(fset 'evi-backward-indent #[nil "i‰	¦‰ÃU«ƒ	ª\n)ŠÅÃ`Z]xˆiZ)Ç^È\"+‡" [start-column evi-shift-width toffset 0 offset " 	" furthest backward-delete-char-untabify nil] 5 "\
+Move backward to the previous indentation level, defined by shiftwidth." nil])
+(fset 'evi-replace #[nil "À ˆÁŠÂˆ`)!ˆn¬ƒÃ ˆ­„Â‰“‡" [evi-start-command-keys evi-replace-mode nil backward-char evi-replace-max] 3 "\
+Enter replace mode." nil])
+(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÂÄÅM‡" [boundp evi-replaced-string nil evi-replaced-string-index evi-replace-mode #[(max-replace-position) "¬ƒÁ \nÃ“ˆÄ`ÇÉ\nËÌ!ˆÍ ˆÎ ˆÏĞ«Ÿ\nGW«ŸŠ``G\nZ\\|ˆ\nÃOcˆ)ªˆÃ‰“ˆÑ ˆÒ ‡" [evi-replace-max make-marker max-replace-position nil replace evi-mode evi-insert-point "" evi-replaced-string 0 evi-replaced-string-index evi-change-mode-id "Replce" evi-remember-last-changed-line evi-refresh-mode-line switch-to-insert (byte-code "ÀÂ!ˆ)Ä‡" [nil evi-command-keys evi-get-commands evi-replace-map t] 2) evi-insert-mode evi-exit-input-mode] 4]] 2)
+(fset 'evi-self-replace #[nil "`Y¬Š	ÂU«gÂU«‰ÃÄ!ˆÅÆÄ\"‡GU«ˆÉg!PT``T|ˆ\n«‘`U«Œ@@Ì\nIˆÄ\n	cˆ	ÂU­‚Í ‡" [evi-replace-max last-command-char 10 evi-unread-char nil throw switch-to-insert evi-replaced-string-index evi-replaced-string char-to-string evi-overstruck-char buffer-undo-list 0 evi-maybe-indent] 3 "\
+Replace character under cursor with the command character." nil])
+(fset 'evi-replace-mode-delete-backward-char #[nil "`V«ˆÁ ˆ\nS‰‡ÃÄ!‡" [evi-insert-point backward-char evi-replaced-string-index message "Beginning of replaced text"] 2 "\
+Backup to previous character, undoing last replacement, but no further
+than insert point." nil])
+(fset 'evi-replace-char #[(char &optional count) "ÀÁÂÄ$ˆ«†ÆÇ!ˆª”È `|ˆÉ\n®Ë\"ˆn¬ƒÌ ˆÍ ‡" [evi-motion-command do-evi-forward-char horizontal count to-end evi-error-string message "Can't replace that many characters" mark insert-char char 1 backward-char evi-save-command-keys] 5 "\
+Replace the following COUNT characters with CHAR." (evi-character-arg)])
+(fset 'evi-toggle-case #[(&optional count) "ÀÁÂÄ$ˆŠ`Å Z‰ÆV«²Ç ˆg‰ÉY«ÊX«ˆË``T\"ˆª’ÌY«ŒÍX«†Î``T\"ˆ)S‰ªJ*ÏÂ!ˆĞ ‡" [evi-motion-command do-evi-forward-char horizontal count to-end mark 0 backward-char char 97 122 upcase-region 65 90 downcase-region evi-fixup-cursor evi-save-command-keys] 6 "\
+Toggle the case of the following COUNT characters." (evi-interactive-args)])
+(fset 'evi-change #[(&optional count) "À	®ÂÃÄÂ$‡" [evi-operator-command count 1 to-end (evi-change-internal)] 5 "\
+Change operator." (evi-interactive-args)])
+(fset 'evi-change-internal #[nil "ÀÁ!ˆÂ ˆÃ ˆŠÆˆÇ `V)«`Ç |ˆ`É ˆªÇÇ Sf\nŠÃ ˆ`S`|ˆËcˆAA)ÌÇ T!ˆÍ!«¤`W«`ZS`Í!|ˆÆ‰“ˆ@@\nIˆ)n¬ƒĞ ˆÑ\"‰)‡" [evi-copy-region-to-registers t evi-start-command-keys exchange-point-and-mark buffer-undo-list previous-undo-list nil mark evi-insert-point evi-insert-mode evi-overstruck-char 36 evi-replace-mode marker-position evi-replace-max overstrike-offset backward-char evi-remove-undo-boundaries] 3])
+(fset 'evi-delete #[(&optional count) "À	®ÂÃÄ#‡" [evi-operator-command count 1 to-next (evi-delete-internal)] 4 "\
+Delete operator." (evi-interactive-args)])
+(fset 'evi-delete-internal #[nil "ÀÁ!ˆÂ ˆ`Ã U«ÄÅ­ÇQ!ˆª…`Ã |ˆÈ	«ƒÊªË!‡" [evi-copy-region-to-registers t exchange-point-and-mark mark message "Nothing deleted" evi-error-string ": " evi-fixup-cursor evi-region-whole-lines vertical horizontal] 4])
+(fset 'evi-yank #[(&optional count) "ŠÀ	®ÂÃÄ#)‡" [evi-operator-command count 1 to-next (evi-yank-internal)] 4 "\
+Yank operator." (evi-interactive-args)])
+(fset 'evi-yank-internal #[nil "ÀÁ!ˆÂ `U­‰ÃÄ­ÆQ!‡" [evi-copy-region-to-registers nil mark message "Nothing to yank" evi-error-string ": "] 4])
+(fset 'evi-put-after #[nil "	@®\nH‰«§A«‘Äˆm¬ƒÄuˆŠ@cˆ)ª¢n«ƒl¬ƒÄuˆ@cˆÅ ˆª	«‰ÆÇÈ	!\"ˆª„ÆÉ!ˆ)Ê ‡" [evi-registers evi-register evi-register-unnamed register nil backward-char message "Nothing in register %c" evi-register-name "No text to put" evi-save-command-keys] 5 "\
+Put back yanked or deleted text after cursor." nil])
+(fset 'evi-put #[nil "	@®\nH‰«˜A«‹ÄyˆŠ@cˆ)ª™@cˆÅ ˆª	«‰ÆÇÈ	!\"ˆª„ÆÉ!ˆ)Ê ‡" [evi-registers evi-register evi-register-unnamed register 0 backward-char message "Nothing in register %c" evi-register-name "No text to put" evi-save-command-keys] 5 "\
+Put back yanked or deleted text." nil])
+(fset 'evi-shift-right #[(&optional count) "À	®ÂÃÄ#‡" [evi-operator-command count 1 whole-lines (evi-shift-internal 1)] 4 "\
+Shift right operator." (evi-interactive-args)])
+(fset 'evi-shift-left #[(&optional count) "À	®ÂÃÄ#‡" [evi-operator-command count 1 whole-lines (evi-shift-internal -1)] 4 "\
+Shift left operator." (evi-interactive-args)])
+(fset 'evi-shift-internal #[(direction) "À `U«ŒÁÂ­ÄQ!ˆª‹ÅÀ `_#ˆÀ bˆÈÉw‡" [mark message "Nothing shifted" evi-error-string ": " indent-rigidly evi-shift-width direction " 	" nil] 5])
+(fset 'evi-indent #[(&optional count) "À	®ÂÃÄ#‡" [evi-operator-command count 1 whole-lines (evi-indent-internal)] 4 "\
+Indent region." (evi-interactive-args)])
+(fset 'evi-indent-internal #[nil "À `U«ŒÁÂ­ÄQ!ˆª‡ÅÀ `Æ#ˆÀ bˆÇÆw‡" [mark message "Nothing indented" evi-error-string ": " indent-region nil " 	"] 4])
+(fset 'evi-shell-filter #[(&optional count) "ŠÀ	®ÂÃÄÅ$)‡" [evi-operator-command count 1 whole-lines (evi-filter-internal input-string) t] 5 "\
+Filter region thru shell command." (evi-interactive-args)])
+(fset 'evi-filter-internal #[(shell-command) "ÀÁ `\nÃ$‡" [shell-command-on-region mark shell-command t] 5])
+(fset 'evi-loop-over-lines-in-region #[(&optional count) "À	®ÂÃÄÅ$‡" [evi-operator-command count 1 whole-lines (evi-loop-lines-internal input-string) t] 5 "\
+Execute a sequence of operations on every line in a region." (evi-interactive-args)])
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [evi-loop-lines-internal #[(macro) "ÀÁ Â À“ÀÈ bˆÉyˆ`Ê!W«Ë!ˆÀˆÀuˆªkÍ\"À‰“,‡" [nil make-marker point-marker buffer-undo-list evi-prefix-count undo-start ending-mark evi-last-command-keys mark 0 marker-position execute-kbd-macro macro evi-remove-undo-boundaries] 4] evi-operator-command #[(count context operation &optional more-input) "	\nÃÄ!ÉÊ!,­ªÊ=­†ÌÎP!«†Ê=«ƒĞ ˆ«†Ò‰ª„Ó!)‡" [context count evi-motion-map evi-make-local-keymap (((char-to-string last-input-char) evi-whole-lines)) evi-vi-local-map evi-vi-map evi-prefix-count-multiplier evi-context evi-get-command t more-input evi-read-string evi-command-keys " " input-string evi-save-command-keys evi-signal-abort nil eval operation] 5] evi-right-paren (macro lambda nil 41)] 2)
+(fset 'evi-join-lines #[(&optional count) "®Á‰ÂV«¼`Äˆm¬†Äuˆm«‡bˆÅª `SÆÄwˆ`|ˆhÇU¬’gÈU¬ÉÇhÊU«ƒËªÁ\"ˆ)S‰ª@)Ì ‡" [count 1 0 starting-point nil -1 " 	" 32 41 insert-char 46 2 evi-save-command-keys] 5 "\
+Join together COUNT + 1 lines, supplying appropriate whitespace." (evi-interactive-args)])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇM‡" [evi-expand-region-to-lines #[(context) "À ˆÁyˆÀ ˆÂˆm¬ˆÄ=¬ƒÂuˆÅ‰‡" [exchange-point-and-mark 0 nil context to-end t evi-region-whole-lines] 2] evi-normalize-region #[nil "l­¨ŠÀyˆ`Á V­‰Á bˆÂÃxˆn)­’ŠÁ bˆÀyˆ)m¬ƒÃuˆÄ‰‡" [0 mark " 	" nil t evi-region-whole-lines] 2] evi-fixup-cursor #[(direction) "®¯	Â=«“m«†o¬ƒÃ ˆl­n?­šÃ ‡m«‹o¬ˆÃ ˆÄyˆÅ‡l­†n?­‚Ã ‡" [evi-internal-command direction horizontal backward-char 0 nil] 2] evi-motion-command #[(move-function direction count context &optional arg) "«ˆ	?­ğÂ‰‡	«†Ã`!ˆª™Å=¬…Æ=«Œ«‹iÂªƒÉÂ\n«Š	#ˆª†	\"ˆ	«£`Í W«ƒÎ ˆĞ=¬…	Ñ=«„Ò	!‡Â	Ô=­Õ ‡\n«…Ö\n!ˆ×!‡" [evi-signal-abort context nil set-mark move-function do-evi-next-line do-evi-previous-line evi-reset-goal-column evi-goal-column t evi-error-string arg count mark exchange-point-and-mark direction vertical whole-lines evi-expand-region-to-lines evi-region-whole-lines to-next evi-normalize-region message evi-fixup-cursor] 4]] 2)
+(fset 'evi-forward-char #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-forward-char horizontal evi-prefix-count evi-context] 5 "\
+Move right COUNT characters on the current line." nil])
+(fset 'do-evi-forward-char #[(&optional count context) "ŠÀ`!ˆÁˆ\n®Ã`Ä Z^)uˆl­ˆ?­„Æ‰‡" [set-mark nil count 1 mark context "End of line" evi-error-string] 3])
+(fset 'evi-backward-char #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-backward-char horizontal evi-prefix-count evi-context] 5 "\
+Move left COUNT characters on the current line." nil])
+(byte-code "ÀÁMˆÂÃM‡" [do-evi-backward-char #[(&optional count context) "ÀŠÁ`!ˆÂyˆ®ÄSÅ `Z^)!ˆn«…Æ‰‡À ‡" [backward-char set-mark 0 count 1 mark "Beginning of line" evi-error-string] 4] evi-next-line-internal #[(count) "ÁV­Âˆm¬†Âuˆm«hÃ=«ƒÄ ˆÅ‰‡ÇS!‡" [count 0 nil 10 backward-char "Last line in buffer" evi-error-string evi-next-line-internal] 2]] 2)
+(fset 'evi-next-line #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-next-line vertical evi-prefix-count evi-context] 5 "\
+Go to ARGth next line." nil])
+(fset 'do-evi-next-line #[(&optional count context) "À	®Â!ˆ?­ƒÄ!‡" [evi-next-line-internal count 1 context move-to-column evi-goal-column] 2])
+(fset 'evi-beginning-of-next-line #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-beginning-of-next-line vertical evi-prefix-count evi-context] 5 "\
+Go to beginning of ARGth next line." nil])
+(byte-code "ÀÁMˆÂÃM‡" [do-evi-beginning-of-next-line #[(&optional count context) "À	®Â!ˆÃÄw‡" [evi-next-line-internal count 1 " 	" nil] 2] evi-previous-line-internal #[(count) "ÁV­‘Áyˆo«„Â‰‡Ä ˆÅS!‡" [count 0 "First line in buffer" evi-error-string backward-char evi-previous-line-internal] 2]] 2)
+(fset 'evi-previous-line #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-previous-line vertical evi-prefix-count evi-context] 5 "\
+Go to ARGth previous line." nil])
+(fset 'do-evi-previous-line #[(&optional count context) "À	®Â!ˆÄ=­„Å!‡" [evi-previous-line-internal count 1 context nil move-to-column evi-goal-column] 2])
+(fset 'evi-beginning-of-previous-line #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-beginning-of-previous-line vertical evi-prefix-count evi-context] 5 "\
+Go to beginning of ARGth previous line." nil])
+(fset 'do-evi-beginning-of-previous-line #[(&optional count context) "À	®Â!ˆÃ ‡" [evi-previous-line-internal count 1 back-to-indentation] 2])
+(fset 'evi-goto-line #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-goto-line vertical evi-prefix-count evi-context] 5 "\
+Go to line number LINE, or to end of file if no count specified." nil])
+(fset 'do-evi-goto-line #[(&optional count context) "À ˆ	«•`ebˆ	SyÃV¬ƒm­„Ä\nb)‡dbˆÆy‡" [evi-push-context count p 0 "Last line in buffer" evi-error-string -1] 2])
+(fset 'evi-goto-top-of-window #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-goto-top-of-window vertical evi-prefix-count evi-context] 5 "\
+Go to the top line of the window.  With an arg, OFFSET, goes to the
+OFFSET'th line of the window." nil])
+(fset 'do-evi-goto-top-of-window #[(&optional offset context) "À	®ÂS!ˆ®ƒÄÅw‡" [move-to-window-line offset 1 context " 	" nil] 2])
+(fset 'evi-goto-middle-of-window #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-goto-middle-of-window vertical evi-prefix-count evi-context] 5 "\
+Go to the middle line of the window." nil])
+(fset 'do-evi-goto-middle-of-window #[(&optional offset context) "ÀÁ Â¥!ˆ®ƒÄÅw‡" [move-to-window-line window-height 2 context " 	" nil] 3])
+(fset 'evi-goto-bottom-of-window #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-goto-bottom-of-window vertical evi-prefix-count evi-context] 5 "\
+Go to the bottom line of the window.  With an arg, OFFSET, goes to the
+OFFSET'th line from the bottom of the window." nil])
+(fset 'do-evi-goto-bottom-of-window #[(&optional offset context) "ÀÁ S\n®ÃZ!ˆ®ƒÅÆw‡" [move-to-window-line window-height offset 1 context " 	" nil] 3])
+(fset 'evi-goto-column #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-goto-column horizontal evi-prefix-count evi-context] 5 "\
+Go to column COLUMN, or as close to that column as possible." nil])
+(fset 'do-evi-goto-column #[(&optional column context) "À	S!‡" [move-to-column column] 2])
+(fset 'evi-whole-lines #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-whole-lines vertical evi-prefix-count evi-context] 5 "\
+Go ARG - 1 lines forward." nil])
+(fset 'do-evi-whole-lines #[(&optional count context) "À	®ÂS!‡" [evi-next-line-internal count 1] 2])
+(fset 'evi-beginning-of-line #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-beginning-of-line horizontal evi-prefix-count evi-context] 5 "\
+Go to beginning of line." nil])
+(fset 'do-evi-beginning-of-line #[(&optional count context) "ÀyˆÁ‡" [0 nil] 1])
+(fset 'evi-goto-indentation #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-goto-indentation horizontal evi-prefix-count evi-context] 5 "\
+Go to beginning of indented text on current line." nil])
+(fset 'do-evi-goto-indentation #[(&optional count context) "ÀyˆÁ ‡" [0 back-to-indentation] 1])
+(fset 'evi-end-of-line #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-end-of-line horizontal evi-prefix-count evi-context] 5 "\
+Go to end of line." nil])
+(byte-code "ÀÁMˆÂÄÆÈ	ÊÌÎĞÒÔÀ‡" [do-evi-end-of-line #[(&optional count context) "À	®ÂS!ˆÃ‡" [evi-next-line-internal count 1 nil] 2] "[ 	\n][^ 	\n]\\|\n[ 	]*\n\\|[a-zA-Z0-9_][^a-zA-Z0-9_ 	\n]\\|[^a-zA-Z0-9_ 	\n][a-zA-Z0-9_]" evi-word-beginning "[a-zA-Z0-9_][^a-zA-Z0-9_ 	\n]\\|[^a-zA-Z0-9_ 	\n][a-zA-Z0-9_]\\|\\([ 	\n]\\|\\`\\)[^ 	\n]\\|\n[ 	]*$" evi-word-backwards-beginning "[ 	\n][^ 	]\\|[^ 	\n][ 	\n]\\|[a-zA-Z0-9_][^a-zA-Z0-9_ 	\n]\\|[^a-zA-Z0-9_ 	\n][a-zA-Z0-9_]" evi-word-change-beginning "[^ 	\n]?\\([ 	]+[^ 	]\\|\n\\)\\|[a-zA-Z0-9_][^a-zA-Z0-9_ 	\n]\\|[^a-zA-Z0-9_ 	\n][a-zA-Z0-9_]" evi-word-delete-beginning "[^ 	\n][ 	\n]\\|^[ 	]*\n\\|[a-zA-Z0-9_][^a-zA-Z0-9_ 	\n]\\|[^a-zA-Z0-9_ 	\n][a-zA-Z0-9_]" evi-word-ending "[ 	\n][^ 	\n]\\|\n[ 	]*\n" evi-white-word-beginning "\\([ 	\n]\\|\\`\\)[^ 	\n]\\|\n[ 	]*$" evi-white-word-backwards-beginning "[ 	\n][^ 	]\\|[^ 	\n][ 	\n]" evi-white-word-change-beginning "[^ 	\n]?\\([ 	]+[^ 	]\\|\n\\)" evi-white-word-delete-beginning "[^ 	\n][ 	\n]\\|^[ 	]*\n" evi-white-word-ending] 2)
+(fset 'evi-forward-word #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-forward-word horizontal evi-prefix-count evi-context] 5 "\
+Move to the beginning of the COUNTth next word." nil])
+(fset 'do-evi-forward-word #[(&optional count context) "À	®ÂÅ=«„ª‚$‡" [evi-forward-word-internal count 1 context evi-word-beginning to-next evi-word-delete-beginning evi-word-change-beginning] 6])
+(fset 'evi-forward-white-word #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-forward-white-word horizontal evi-prefix-count evi-context] 5 "\
+Move to the beginning of the COUNTth next white-space delimited word." nil])
+(byte-code "ÀÁMˆÂÃM‡" [do-evi-forward-white-word #[(&optional count context) "À	®ÂÅ=«„ª‚$‡" [evi-forward-word-internal count 1 context evi-white-word-beginning to-next evi-white-word-delete-beginning evi-white-word-change-beginning] 6] evi-forward-word-internal #[(count match-end pattern end-pattern) "S‰ÁV«–ÂÄÅ#«‡Á”Tbˆª‚ÆS‰ªfÁU)«‹Â	ÄÅ#«šÊ ˆ«“®“ÂÄÅ#«ˆÁ”TbˆÅª„Ë‰)‡" [count 0 re-search-forward pattern nil t -1 good-so-far match-end end-pattern backward-char "End of buffer" evi-error-string] 5]] 2)
+(fset 'evi-end-of-word #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-end-of-word horizontal evi-prefix-count evi-context] 5 "\
+Move to the end of the COUNTth next word." nil])
+(fset 'do-evi-end-of-word #[(&optional count context) "À	®Â#‡" [evi-end-of-word-internal count 1 context evi-word-ending] 4])
+(fset 'evi-end-of-white-word #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-end-of-white-word horizontal evi-prefix-count evi-context] 5 "\
+Move to the end of the COUNTth next whitespace delimited word." nil])
+(byte-code "ÀÁMˆÂÃM‡" [do-evi-end-of-white-word #[(&optional count context) "À	®Â#‡" [evi-end-of-word-internal count 1 context evi-white-word-ending] 4] evi-end-of-word-internal #[(count context pattern) "‰ÁV« ÂuˆÃÂÅ#«Æ ˆn«ƒl¬‡Æ ˆª‚ÇS‰ª\\ÁU)«‡­‡Âu‡É‰\n‡" [count 0 nil re-search-forward pattern t backward-char -1 context "End of buffer" evi-error-string] 5]] 2)
+(fset 'evi-backward-word #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-backward-word horizontal evi-prefix-count evi-context] 5 "\
+Move to the beginning of the COUNTth previous word." nil])
+(fset 'do-evi-backward-word #[(&optional count context) "À	®Â#‡" [evi-backward-word-internal count 1 context evi-word-backwards-beginning] 4])
+(fset 'evi-backward-white-word #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-backward-white-word horizontal evi-prefix-count evi-context] 5 "\
+Move to the beginning of the COUNTth previous whitespace delimited word." nil])
+(byte-code "ÀÁMˆÂÃMˆÄÆÈ	ÊÀ‡" [do-evi-backward-white-word #[(&optional count context) "À	®Â#‡" [evi-backward-word-internal count 1 context evi-white-word-backwards-beginning] 4] evi-backward-word-internal #[(count context pattern) "®Á‰ÂV«ªn«†o¬ƒÃ ˆÄÆÇ#«’Â”o«‡Á”«ƒÂªÁ\\bˆª‚ÈS‰ªRÂU)®„É‰\n‡" [count 1 0 backward-char re-search-backward pattern nil t -1 "Beginning of buffer" evi-error-string] 5] "\\([.?!][]\"')]*\\($\\|	\\| [ 	\n]\\)\\|^[ 	]*\n\\)[ 	\n]*" evi-sentence-beginning "\\([.?!][]\"')]*\\($\\|	\\| [ 	\n]\\)\\|^[ 	]*\n\\|\\`\\)[ 	\n]*[^ 	\n]" evi-sentence-backwards-beginning "\\([.?!][]\"')]*\\($\\|	\\| [ 	\n]\\)\\|^[ 	]*$\\)" evi-sentence-change-ending "\\([.?!][]\"')]*\\( ?$\\|	[ 	]*\\| [ 	]+\\)\\|^[ 	]*$\\)" evi-sentence-delete-ending] 2)
+(fset 'evi-forward-sentence #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-forward-sentence horizontal evi-prefix-count evi-context] 5 "\
+Move to the beginning of the COUNT'th next sentence." nil])
+(fset 'do-evi-forward-sentence #[(&optional count context) "`ÁÂxˆ®ÄS‰ÅV«ÆÂÈ#¬‚ÉS‰ªlÅU)\n«­ÆÌ=«„ª‚ÂÄ#«²ÁÂxˆÌ=«`X¬ƒn¬†Å•bˆªƒÏ ˆ\n«“®“ÆÂÈ#«‡m?®‡bˆĞ‰*‡" [starting-point " 	" nil count 1 0 re-search-forward evi-sentence-beginning t -1 good-so-far context to-next evi-sentence-delete-ending evi-sentence-change-ending backward-char "End of buffer" evi-error-string] 5])
+(fset 'evi-backward-sentence #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-backward-sentence horizontal evi-prefix-count evi-context] 5 "\
+Move to the beginning of the COUNT'th previous sentence." nil])
+(byte-code "ÀÁMˆÂÄÆÈ	À‡" [do-evi-backward-sentence #[(&optional count context) "®Á‰ÂV«–ÃÅÆ#«‡Â•Sbˆª‚ÇS‰ªfÂU)®„È‰	‡" [count 1 0 re-search-backward evi-sentence-backwards-beginning nil t -1 "Beginning of buffer" evi-error-string] 5] "^[ 	]*\n[ 	\n]*[^ 	\n]" evi-paragraph-beginning "\\(^[ 	]*\n\\|\\`\\)[ 	\n]*[^ 	\n]" evi-paragraph-backwards-beginning "^[ 	]*$" evi-paragraph-change-ending "\n\\([ 	]*\n\\)+" evi-paragraph-delete-ending] 2)
+(fset 'evi-forward-paragraph #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-forward-paragraph horizontal evi-prefix-count evi-context] 5 "\
+Move to the beginning of the COUNT'th next paragraph." nil])
+(fset 'do-evi-forward-paragraph #[(&optional count context) "`ÁÂxˆ®ÄS‰ÅV«ÆÂÈ#¬‚ÉS‰ªlÅU)\n«•ÆÌ=«„ª‚ÂÄ#«˜Ï ˆ\n«‘¬ÆÂÈ#«…Ï ˆªƒĞ)`W­‚b)‡" [starting-point " 	" nil count 1 0 re-search-forward evi-paragraph-beginning t -1 good-so-far context to-next evi-paragraph-delete-ending evi-paragraph-change-ending backward-char "End of buffer" evi-error-string] 5])
+(fset 'evi-backward-paragraph #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-backward-paragraph horizontal evi-prefix-count evi-context] 5 "\
+Move to the beginning of the COUNT'th previous paragraph." nil])
+(byte-code "ÀÁMˆÂÄÆÀ‡" [do-evi-backward-paragraph #[(&optional count context) "®Á‰ÂV«–ÃÅÆ#«‡Â•Sbˆª‚ÇS‰ªfÂU)®„È‰	‡" [count 1 0 re-search-backward evi-paragraph-backwards-beginning nil t -1 "Beginning of buffer" evi-error-string] 5] "\\`\\(.\\|\n\\)\\|^\\([{]\\|\\.\\(NH\\|SH\\|H\\|HU\\|nh\\|sh\\)[ 	\n]\\)" evi-section-beginning "[ 	\n]*\n\\([}]\\|\\.\\(NH\\|SH\\|H\\|HU\\|nh\\|sh\\)[ 	\n]\\)" evi-section-change-ending "^\\(}.*[ 	\n]*\\|\\.\\(NH\\|SH\\|H\\|HU\\|nh\\|sh\\)[ 	\n]\\)" evi-section-delete-ending] 2)
+(fset 'evi-forward-section #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-forward-section horizontal evi-prefix-count evi-context] 5 "\
+Move to the beginning of the COUNT'th next section." nil])
+(fset 'do-evi-forward-section #[(&optional count context) "`Áuˆ\n®ÃS‰ÄV«ÅÁÇ#¬‚È\nS‰ªl\nÄU)	\n«©Å\nË=«„ª‚ÁÃ#«µ\nË=«ˆÄyˆÎ ˆª‰hÏ=¬„Ä”bˆ	«š\n¬ ÅÁÇ#«m«…bˆª†Ä”bˆªŠĞdbˆÒÓ!ˆ)`TU?­ƒÔ!)‡" [starting-point nil count 1 0 re-search-forward evi-section-beginning t -1 good-so-far context to-next evi-section-delete-ending evi-section-change-ending backward-char 125 "End of buffer" evi-error-string evi-fixup-cursor vertical evi-push-context] 5])
+(fset 'evi-backward-section #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-backward-section horizontal evi-prefix-count evi-context] 5 "\
+Move to the beginning of the COUNT'th previous section." nil])
+(fset 'do-evi-backward-section #[(&optional count context) "`	®Â‰ÃV«•ÄÆÇ#«†Ã”bˆª‚È	S‰ªg	ÃU)¬ƒÉ\n`U?­ƒË!)‡" [starting-point count 1 0 re-search-backward evi-section-beginning nil t -1 "Beginning of buffer" evi-error-string evi-push-context] 5])
+(fset 'evi-region #[nil "`À W«ƒÁ ˆÂ‰‡" [mark exchange-point-and-mark nil evi-region-whole-lines] 2 "\
+Define region bounded by mark and point." nil])
+(fset 'evi-context-arg #[nil "C‡" [evi-context] 1])
+(fset 'evi-region-whole-lines #[(context) "`À W«ƒÁ ˆÂÄ!‡" [mark exchange-point-and-mark t evi-region-whole-lines evi-expand-region-to-lines evi-context] 2 "\
+Define whole lines region bounded by mark and point." (evi-context-arg)])
+(fset 'evi-search-forward #[nil "ÀÁÂÅÆ!%‡" [evi-motion-command do-evi-search-forward horizontal evi-prefix-count evi-context evi-read-string "/"] 7 "\
+Search forward for the ARGth occurence of a pattern.  A null string will
+repeat the previous search." nil])
+(fset 'do-evi-search-forward #[(string &optional count context) "Á˜¬‚\n«ŒÃÄ‰\n®Ç#‡È‰	‡" [string "" evi-search-pattern evi-do-search t evi-search-forward count 1 "No previous search pattern" evi-error-string] 4])
+(fset 'evi-search-backward #[nil "ÀÁÂÅÆ!%‡" [evi-motion-command do-evi-search-backward horizontal evi-prefix-count evi-context evi-read-string "?"] 7 "\
+Search backward for the ARGth occurence of a pattern.  A null string will
+repeat the previous search." nil])
+(fset 'do-evi-search-backward #[(string &optional count context) "Á˜¬‚\n«ŒÃÄ‰\n®Ç#‡È‰	‡" [string "" evi-search-pattern evi-do-search nil evi-search-forward count 1 "No previous search pattern" evi-error-string] 4])
+(fset 'evi-search-next #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-search-next horizontal evi-prefix-count evi-context] 5 "\
+Search for the next ARGth occurence of the previous search pattern." nil])
+(fset 'do-evi-search-next #[(&optional count context) "«‰Á\n®Ä#‡Å‰‡" [evi-search-pattern evi-do-search evi-search-forward count 1 "No previous search pattern" evi-error-string] 4])
+(fset 'evi-search-next-reverse #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-search-next-reverse horizontal evi-prefix-count evi-context] 5 "\
+Search for the next ARGth occurence of the previous search pattern
+but look in the opposite direction." nil])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉM‡" [do-evi-search-next-reverse #[(&optional count context) "?Á\n\")‡" [evi-search-forward do-evi-search-next count context] 3] evi-do-search #[(search-forward string count) "	«ƒ\nªƒÃ\n!`«‡È	\"ª…Ê	\"«‰Ë!ˆÌ”bª bˆ	ÍV«ƒÎªÏ«ƒÑªˆ«ƒÒªÓP‰+‡" [evi-ignore-case evi-search-magic string evi-rework-magic starting-point search-string case-fold-search search-forward evi-search-forward-count count evi-search-backward-count evi-push-context 0 1 "Nth occurrence not found" "Pattern not found" evi-search-wraparound "" " before end of file" " before beginning of file" evi-error-string] 3] evi-rework-magic #[(string) "ÀÁ\n\"‰«à\nHÄU«ÅT\nGV«¸\nH‰ÇU¬ŒÈU¬†ÉU«’\nÊOË!Ì\nTÍO!Qª\nÊTOÌ\nTÍO!P)ª\n)ª•\nÊOÎË\nH!Ì\nTÍO!Rª\n)‡" [string-match "[\\.[*]" string offset 92 next char 46 91 42 0 char-to-string evi-rework-magic nil "\\"] 8] evi-search-forward-count #[(string count) "ÁV«¤ÂuˆÃÂÅ#«†ÆS\"‡­ebˆÃÂÅ#­…ÆS\"‡Å‡" [count 0 nil re-search-forward string t evi-search-forward-count evi-search-wraparound] 4] evi-search-backward-count #[(string count) "ÁV«¡ÂÄÅ#«†ÆS\"‡­dbˆÂÄÅ#­…ÆS\"‡Å‡" [count 0 re-search-backward string nil t evi-search-backward-count evi-search-wraparound] 4]] 2)
+(fset 'evi-find-character #[(char) "«†Á\n!PÃÄÅ\n%‡" [evi-command-keys char-to-string char evi-motion-command do-evi-find-character horizontal evi-prefix-count evi-context] 6 "\
+Search for CHAR on the current line.  With COUNT find the COUNT'th occurance." "c"])
+(fset 'do-evi-find-character #[(char &optional count context) "ÂÄÆ®È	\"‡" [char evi-find-character t evi-find-forward nil evi-find-up-to evi-find-character-internal count 1 context] 3])
+(fset 'evi-find-character-backwards #[(char) "«†Á\n!PÃÄÅ\n%‡" [evi-command-keys char-to-string char evi-motion-command do-evi-find-character-backwards horizontal evi-prefix-count evi-context] 6 "\
+Search backwards for CHAR on the current line.  With COUNT find the
+COUNT'th occurance." "c"])
+(fset 'do-evi-find-character-backwards #[(char &optional count context) "ÂÂÅ®Ç\"‡" [char evi-find-character nil evi-find-forward evi-find-up-to evi-find-character-backwards-internal count 1 context] 3])
+(fset 'evi-find-character-before #[(char) "«†Á\n!PÃÄÅ\n%‡" [evi-command-keys char-to-string char evi-motion-command do-evi-find-character-before horizontal evi-prefix-count evi-context] 6 "\
+Search for CHAR on the current line and leave the cursor on the character
+before it.  With COUNT find the COUNT'th occurance." "c"])
+(fset 'do-evi-find-character-before #[(char &optional count context) "ÂÂÅ®Ç\"‡" [char evi-find-character t evi-find-forward evi-find-up-to evi-find-character-internal count 1 context] 3])
+(fset 'evi-find-character-backwards-after #[(char) "«†Á\n!PÃÄÅ\n%‡" [evi-command-keys char-to-string char evi-motion-command do-evi-find-character-backwards-after horizontal evi-prefix-count evi-context] 6 "\
+Search backwards for CHAR on the current line and leave the cursor on
+the character after it.  With COUNT find the COUNT'th occurance." "c"])
+(fset 'do-evi-find-character-backwards-after #[(char &optional count context) "ÂÄÆ®È	\"‡" [char evi-find-character nil evi-find-forward t evi-find-up-to evi-find-character-backwards-internal count 1 context] 3])
+(fset 'evi-find-next-character #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-find-next-character horizontal evi-prefix-count evi-context] 5 "\
+Search for the next COUNT'th occurence of the previous search character." nil])
+(fset 'do-evi-find-next-character #[(&optional count context) "«“	«ˆÂ®Ä\"‡Æ®Ä\"‡Ç‰‡" [evi-find-character evi-find-forward evi-find-character-internal count 1 context evi-find-character-backwards-internal "No previous search character" evi-error-string] 3])
+(fset 'evi-find-next-character-reverse #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-find-next-character-reverse horizontal evi-prefix-count evi-context] 5 "\
+Search for the next COUNT'th occurence of the previous search character
+in the opposite direction." nil])
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [do-evi-find-next-character-reverse #[(&optional count context) "?Á\n\")‡" [evi-find-forward do-evi-find-next-character count context] 3] evi-find-character-internal #[(count context) "ÀuˆÀÂÃ!ŠÀˆ`)Å$«‰«ˆÈ ˆªƒÉ\n)®‚È ‡" [nil case-fold-search search-forward char-to-string evi-find-character t count evi-find-up-to backward-char "No more occurences on this line" evi-error-string context] 5] evi-find-character-backwards-internal #[(count context) "ÀÂÃ!ŠÅyˆ`)Æ$¬ƒÈ	)\n­‚Àu‡" [nil case-fold-search search-backward char-to-string evi-find-character 0 t count "No more occurences on this line" evi-error-string evi-find-up-to] 5]] 2)
+(fset 'evi-paren-match #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-paren-match horizontal evi-prefix-count evi-context] 5 "\
+Move cursor to matching parenthesis, brace or bracket." nil])
+(fset 'do-evi-paren-match #[(&optional count context) "ŠÀˆ`)ÂÃ	Ä#«¦Å ˆÆÇ!«ŒÈÉ!ˆ\n®šÅ ª–Àuˆ\n«†ËÌ T!ˆÍÉ!ª„Î‰)‡" [nil end-point re-search-forward "[][(){}]" t backward-char looking-at "[({[]" forward-sexp 1 context set-mark mark backward-sexp "Nothing on rest of line to balance" evi-error-string] 4])
+(fset 'evi-repeat #[nil "À	!‡" [execute-kbd-macro evi-last-command-keys] 2 "\
+Repeat last modifying command." nil])
+(fset 'evi-prompt-repeat #[nil "ÀÁ\n\"Ä!ˆ‰)‡" [read-string "Repeat: " evi-last-command-keys command execute-kbd-macro] 3 "\
+Print last modifying command." nil])
+(fset 'evi-read-number #[(prefix-value) "À ‰ÂY«	ÃX«‹ÄÆ_	ÂZ\\!ª…Ç	!ˆ)‡" [evi-read-char char 48 57 evi-read-number prefix-value 10 evi-unread-char] 5])
+(fset 'evi-prefix-digit #[nil "Á\nÃZ!_Å )‡" [evi-prefix-count-multiplier evi-read-number last-input-char 48 evi-prefix-count evi-get-command] 4 "\
+Prefix count." nil])
+(fset 'evi-prefix-register #[nil "À Â	!	ÃY­ƒ	ÄX?BÆ *‡" [evi-read-char char evi-register-number 97 122 evi-register evi-get-command] 3 "\
+Prefix register." nil])
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [evi-register-number #[(char) "ÁY«…ÂX¬”ÃY«…ÄX¬ŠÅY«®ÆX«©ÁY«‹ÂX«†ÁZÇ\\‡ÃY«‹ÄX«†ÃZÇ\\‡ÉZ\\Ê¦‡ËÌ!‡" [char 97 122 65 90 48 57 10 evi-digit-register 49 9 error "Invalid register name"] 3] evi-register-name #[(register-struct) "@‰ÂV«…	Ã\\ªƒ	Ä\\)‡" [register-struct register-number 9 87 49] 3] evi-copy-region-to-registers #[(number-register-also) "À `{\n	BIˆ«\n@A«‘\n@H‰@	PA)Bªƒ	BIˆ­\n	BIˆTÉ¦‰)‡" [mark string evi-registers evi-register-unnamed evi-region-whole-lines evi-register register number-register-also evi-digit-register 9] 5]] 2)
+(fset 'evi-undo #[nil "ÀÁ!ˆÂ ˆ@¬ƒAÄ ˆÅÆ!‡" [message "undo!" undo-start pending-undo-list evi-undo-one-change evi-fixup-cursor vertical] 2 "\
+Undo previous change." nil])
+(byte-code "ÀÂÃMˆÄÅM‡" [nil evi-last-changed-line evi-remember-last-changed-line #[nil "ŠÀyˆÁ Ãˆ\n@š®…\nB‰*‡" [0 point-marker p nil evi-last-changed-line buffer-undo-list] 2] evi-tailp #[(cdr list) "À\n=«…Ä‰ª‚:«…Aªm	)?‡" [t more cdr list nil] 2]] 2)
+(fset 'evi-undo-all #[nil "Àyˆ	@	A‰«ŒpÄ!=«…`U¬…ÅÆ!ª²Ç ˆ\n=«„ÅÉ!ˆÊ\n\"¬„ÅË!ˆ«Ê\n\"«†ÌÍ!ˆªoÇ ˆÎÀyˆÎ*‡" [0 evi-last-changed-line undo-ptr p marker-buffer error "no undo information for this line" undo-start pending-undo-list "no more undo information for this line" evi-tailp "undo lost" undo-more 1 nil] 4 "\
+Undo all changes to current line" nil])
+(byte-code "ÀÁMˆÂÃM‡" [evi-undo-one-change #[nil "À ÂÃ!ˆ	­‡À ?­‚Ä )‡" [buffer-modified-p modified undo-more 1 delete-auto-save-file-if-necessary] 2] evi-remove-undo-boundaries #[(undo-list sentinal) "À‰À‰«¨@=¬Ÿ¬\n¬…Aª\nA¡ˆª‡	¬‚A‰¬X*	*‡" [nil new-undo-list prev undo-list head list sentinal] 3]] 2)
+(fset 'evi-mark #[(char) "ÁY«ÂX«ŠÁZÄ\\Å I‡Æ=­ƒÇ`!‡" [char 97 122 evi-registers 36 point-marker 46 set-mark] 3 "\
+Mark location." "c"])
+(fset 'evi-goto-mark-horizontal #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-goto-mark-horizontal horizontal evi-prefix-count evi-context] 5 "\
+Goto a mark." nil])
+(fset 'do-evi-goto-mark-horizontal #[(&optional count context) "ÀÁ \n\"‡" [evi-goto-mark-internal evi-read-char context] 3])
+(fset 'evi-goto-mark-vertical #[nil "ÀÁÂ$‡" [evi-motion-command do-evi-goto-mark-vertical vertical evi-prefix-count evi-context] 5 "\
+Goto a mark.  If an operand, define a whole lines region." nil])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËM‡" [do-evi-goto-mark-vertical #[(&optional count context) "ÀÁ \n\"ˆ\nÃ=­‚Ä ‡" [evi-goto-mark-internal evi-read-char context nil back-to-indentation] 3] evi-goto-mark-internal #[(char &optional context) "ÁY«¦ÂX«¡ÁZÄ\\HpÆ!=¬ÇÆ!!ˆ«„É`!ˆb)‡Ê=¬…Ë=«„Ì b‡Í=«„Î b‡Ï=­ƒĞ b‡" [char 97 122 evi-registers 36 marker marker-buffer switch-to-buffer context set-mark 96 39 evi-exchange-context 46 evi-pop-context 44 evi-unpop-context] 3] evi-push-context #[(&optional offset) "«‡Á Â“ª‚Ã IˆÇU«ƒÈªƒT‰)‡" [offset make-marker nil point-marker marker evi-context-ring evi-context-ring-cursor 9 0] 3] evi-pop-context #[nil "ÁU«ƒÂª‚SH‡" [evi-context-ring-cursor 0 9 evi-context-ring] 2] evi-unpop-context #[nil "ÁU«ƒÂª‚TH‡" [evi-context-ring-cursor 9 0 evi-context-ring] 2] evi-exchange-context #[nil "ÁU«ƒÂª‚SHÅ Iˆ)‡" [evi-context-ring-cursor 0 9 cursor evi-context-ring point-marker] 4]] 2)
+(fset 'evi-file-info #[nil "ÀÁ`T\"‰À`d\"\\SÄ ÆÇ®ÈÉ «ƒÊªÈ«ˆË!¬ƒÌªÈ\ni\nÍ_¥&+‡" [count-lines 1 line-number total-lines buffer-file-name name message "\"%s\"%s%s line %d of %d, column %d --%d%%--" "" buffer-modified-p " [Modified]" file-writable-p " [Read only]" 100] 11 "\
+Give information on the file associated with the current buffer." nil])
+(fset 'evi-tag #[nil "ÀÁÂÃÄ$ˆÅÆ `{!‡" [evi-motion-command do-evi-forward-word horizontal 1 to-end ex-tag mark] 5 "\
+Go to the tag which is the next word in the buffer." nil])
+(fset 'evi-redraw-selected-screen #[nil "ÀÁ!«‡ÁÂÃ !!‡Ä ‡" [fboundp redraw-screen window-screen selected-window redraw-display] 3 "\
+Clear the screen and redisplay it." nil])
+(fset 'evi-save-and-exit #[nil "ÀÁ‰\"ˆÂ ‡" [save-some-buffers t ex-exit] 3 nil nil])
+(fset 'evi-ex-command #[nil "ÀÁ !ˆÂÃ!‡" [evi-do-ex-command-string ex-read-command evi-fixup-cursor vertical] 2 "\
+Execute an ex command." nil])
+(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÂÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕMˆÖ×MˆØÙMˆÚÛMˆÜİMˆŞßMˆàáMˆâãMˆäåMˆæçMˆèéMˆêëMˆìíMˆîïMˆğñMˆòóMˆôõMˆö÷MˆøùMˆúûMˆüıMˆşÿMˆ@ A MˆB C MˆD E MˆF G MˆH I MˆJ K MˆL M MˆN O MˆP Q MˆR S MˆT U MˆV W MˆX Y MˆZ [ M‡" [boundp ex-reading-filename nil ex-restart-mark ex-read-command #[nil "ÀÀÅÆ!È\n«É\nO\nÀO\n‰ÌÆPÍÎÀ\n%P*ª‚!*‡" [nil ex-reading-filename ex-restart-mark evi-ex-map minibuffer-local-map read-string ":" command ex-filename-substitute 0 file-start initial completing-read read-file-name-internal "."] 9] ex-filename-substitute #[(string) "ƒ ÁÂÃ\"Åƒš ÁÉ\\O\nÉ\\ÅOÂË\"‰«²ÁV«…T¬™Ì ‰¬’ÍÎ!ˆÏ ‰¬‡ÍĞ!ˆÑÒ#ªEÂÓ\"«¬Šqˆed|ˆÕÅ×ÅØÙÚ\"&ˆebˆÛÃÅ×#«†Üİ!ˆª„ed{)\nP)ª+‡‡" [ex-reading-filename 0 string-match " " string nil bufname space-pos percent-place 1 cmd-string "\\(^%\\|[^\\]%\\)" buffer-file-name message "Buffer has no file associated with it" buffer-name "Buffer has no name associated with it" "noname" ex-substitute-for-percent "[^a-zA-Z0-9_.-/#+]" ex-work-space call-process ex-find-file-shell t "-cf" format "echo -n %s" search-forward error "Too many file names"] 10] ex-substitute-for-percent #[(name pos sub) "Á\nO\nÄ\\ÅOQ‡" [name 0 pos sub 1 nil] 5] ex-space #[nil "«ÁÂxˆ`SÄÅ!ˆÆ ˆÅcˆŠebˆÇ ‰­­AA‰	Ê=®œ	Ë=®–	Ì=®	Í=®Š	Î=®„	Ï=)­ƒĞ‰*‡" [ex-reading-filename "^ 	" nil ex-restart-mark evi-unread-char 32 exit-minibuffer ex-scan-command-name command function ex-change-directory ex-edit ex-edit-other-window ex-read ex-source-file ex-write t] 3 nil nil] ex-delete-backward-char #[nil "n«ƒÀ ‡	«‡hÂU«‚ÃÄÅ!‡" [exit-minibuffer ex-reading-filename 32 nil delete-backward-char 1] 2 nil nil] ex-complete #[nil "«ÁÂxˆ`SÄÅ!ˆÆ ‡Åc‡" [ex-reading-filename "^ 	" nil ex-restart-mark evi-unread-char 9 exit-minibuffer] 2 nil nil] evi-do-ex-command-file #[(filename) "À	!­–pqˆed|ˆÄ	!ˆebˆÅ ˆ\nq)‡" [file-exists-p filename ex-user-buffer ex-work-space insert-file evi-do-ex-command] 2] evi-do-ex-command-string #[(command-string) "p	qˆed|ˆ\nÃ±ˆebˆÄ ˆq)‡" [ex-user-buffer ex-work-space command-string "\n" evi-do-ex-command] 2] evi-do-ex-command #[nil "m?­—À \nqˆÃ	!ˆqˆÅÆwˆÆuˆ)ªe‡" [ex-scan-command command ex-user-buffer eval ex-work-space "^|\n" nil] 2] ex-scan-command #[nil "À Â ‰A@@@@A@AAA¬„ÈÉ!ˆÊ	!V«†ÈË#ˆÌ!Î=«‰Ï	@DBªĞ=«ˆÏ	DBª‚.B‡" [ex-scan-addresses addresses ex-scan-command-name command-struct number-of-addresses command-name command-prototype command-function error "Unknown ex command" ex-count-addresses "The %s command only needs %d addresses" ex-scan-parameter-list parameter-list 1 quote 2] 5] ex-scan-parameter-list #[(prototype-list) "­÷@A@@Á=\n«†ÄÅwˆªŠ@@Æ=«ƒÇ ˆ¬ƒÅªÎ;«…È!ªÅÉ=«†ÊË DªºÌ=«†ÊÍ Dª¯Î=«„Ï ª¦Ğ=«„Ñ ªÒ=«„Ó ª”Ô=«†ÊÕ Dª‰Ö=­„Ê× DØA!*B‡" [prototype-list t skip-white prototype " 	" nil backup backward-char ex-scan-string address quote ex-scan-address register ex-scan-register rest-of-line ex-scan-rest-of-line word ex-scan-word regular-expression ex-scan-regular-expression command ex-scan-command settings ex-scan-settings ex-scan-parameter-list] 3] ex-scan-addresses #[nil "ÀÁwˆgÂU«ŒÃÄBÅBÆÁBÅBB‡ÇÈ!«É ÀÁwˆgÊU«‹ÁuˆÀÁwˆÉ ª…Á‰BÅBB‡Á‰BÅBÁ‰BÅBB‡" [" 	" nil 37 number 1 0 dollar looking-at "[-+0-9.$'/?]" ex-scan-address 44] 3] ex-scan-address #[nil "À Á B‡" [ex-scan-linespec ex-scan-line-offset] 2] ex-scan-linespec #[nil "g‰ÁY«—ÂX«’Ã`!ˆÄÅwˆÆÇÈ `{!Bª»É=«ˆÅuˆÊÅBª®Ë=«ˆÅuˆÌÅBª¡Í=«ˆÎuˆÈhBª”Ï=«†ĞÑ Bª‰Ò=­„ÓÑ B)‡" [char 48 57 set-mark "0-9" nil number string-to-int mark 46 dot 36 dollar 39 2 47 re-forward ex-scan-regular-expression 63 re-backward] 5] ex-scan-regular-expression #[nil "ÀÁg!PÃuˆ`\nÃwˆgÅU«‰Æuˆ\nÃwˆªr`{gÇU¬ƒÃuˆ*‡" ["^\n\\\\" char-to-string skip-pattern nil start 92 2 10] 3] ex-scan-line-offset #[nil "g‰Á=¬…Â=«¢ÃuˆÄ`!ˆÅÃwˆÆÇ `{!Á=«„ªƒ[)ªÉ)‡" [char 43 45 nil set-mark "0-9" string-to-int mark offset 0] 4] ex-define-region #[(addresses whole-lines default-whole-file) "@A‰@@¬‹«ˆÄe!ˆdbªš`Æ\n!ˆÄ`!ˆbˆÆ	\"ˆ)­ƒÈÉ!*‡" [addresses end start default-whole-file set-mark starting-point ex-goto-address whole-lines evi-expand-region-to-lines ex] 4] ex-goto-address #[(address &optional starting-point) "@@@A‰Ã=«†Ä	!ˆªÚ\nÅ=«ˆdbˆÆyˆªÍ\nÇ=«†È	!ˆªÂ\nÉ=« \n«„\nbˆËyˆËÍ	!ˆ«§ÆyˆÎ!ˆª\nÏ=«˜\n«„\nbˆËĞ	!ˆ«…Î!ˆ*Ay‡" [address value token number goto-line dollar -1 mark evi-goto-mark-internal re-forward starting-point nil evi-error-string do-evi-search-forward error re-backward do-evi-search-backward] 3] ex-goto-line-after-address #[(address) "@@¬ƒÁy‡@@Â=«Š@AÃU«ƒeb‡Ä!ˆÁy‡" [address nil number 0 ex-goto-address] 2] ex-count-addresses #[(addresses) "@@@Á=«‚Â‡A@@Á=«‚Ã‡Ä‡" [addresses nil 0 1 2] 2] ex-scan-command-name #[nil "ÀÁwˆ`ÃÄ!«Áuˆh‰ÆY«…ÇX¬ŠÈY«‰ÉX«„ÊÁwˆ)Ë\n`{\")‡" [" 	" nil beg looking-at "[a-zA-Z!<=>&@]" char 97 122 65 90 "a-zA-Z" ex-lookup-command ex-commands] 5] ex-lookup-command #[(command-list command) "­Á\n@@\"«ƒ@‡ÃA\n\"‡" [command-list ex-command-eq command ex-lookup-command] 3] ex-command-eq #[(command command-cell) "@\n	˜®˜\nG‰AY­	GW­ˆ\n@Ä\nGO˜))‡" [command-cell full-command command command-length 0] 5] ex-scan-register #[nil "gÀU«”ÁuˆhÃ\n!\nÄY­ƒ\nÅX)?B‡ÇB‡" [34 2 char evi-register-number 97 122 evi-register-unnamed nil] 3] ex-scan-rest-of-line #[nil "À`!ˆÁÂwˆÃ `{‡" [set-mark "^|\n" nil mark] 2] ex-scan-word #[nil "À`!ˆÁÂwˆÃ `{‡" [set-mark "^ 	|\n" nil mark] 2] ex-scan-string #[(string) "G‰ŠÂÃwˆ`)`ZX­``	\\{˜­„	uˆÅ))‡" [string string-length "^|\n" nil buffer-string t] 4] ex-not-implemented #[(&optional arg) "ÀÁ!‡" [message "Command not implemented"] 2] ex-change-directory #[(directory-name) "À	!‰‡" [expand-file-name directory-name default-directory] 2] ex-copy #[(from-addresses to-address) "À	ÂÃ#ˆÄ `{Æ!ˆc)‡" [ex-define-region from-addresses t nil mark text ex-goto-line-after-address to-address] 4] ex-delete #[(addresses register-struct) "ÂÄÅ#ˆÆÄ!ˆÇ `W«ƒÈ ˆ`Ç |)‡" [register-struct evi-register ex-define-region addresses t nil evi-copy-region-to-registers mark exchange-point-and-mark] 4] ex-edit #[(exclam file-name) "À	\nÃ#‡" [ex-edit-internal exclam file-name nil] 4] ex-edit-other-window #[(exclam file-name) "À	\nÃ#‡" [ex-edit-internal exclam file-name t] 4] ex-edit-internal #[(exclam file-name other-window) "GÁU«¤\n¬‹¬ˆÄ «„ÅÆ!‡«ƒÇ ‡È ¬„ÅÉ!‡ÊËÌ\"ˆÍ ‡Î˜«ŸÏ ‰«‘«‡ÑÏ !ˆª‹ÒÏ !ˆª„ÅÓ!ˆ)ª«†Ô!ˆª„Õ!ˆÍ ‡" [file-name 0 exclam other-window buffer-modified-p message "Buffer modified since last save (use :edit! to override)" split-window-vertically buffer-file-name "Buffer has no file associated with it" revert-buffer nil t evi-mode "#" evi-next-file-buffer buffer switch-to-buffer-other-window switch-to-buffer "No other file to display" find-file-other-window find-file] 4] ex-file #[(file-name) "GÁU«ƒÂ ‡Ã!‡" [file-name 0 evi-file-info set-visited-file-name] 2] ex-global #[(addresses pattern command) "À	Â‰#ˆÃ ˆÅ Å Æ `ZÇV	\n«„ÌÍ!ˆ	Æ Î“ˆ`	W«£Ï	Ñ#«qÒ”bˆŠÎyˆ\n`Î“ˆ)Ó!ˆ\nbˆªW«„ÌÕ!ˆ\nÎ‰“ˆ	Î‰“,‡" [ex-define-region addresses t exchange-point-and-mark evi-ignore-case make-marker mark 5000 large-region end-line-mark next-line-mark case-fold-search message "running global command... " nil re-search-forward pattern 1 0 eval command "running global command... complete."] 5] ex-map #[(exclam char definition) "«†Á\n#‡ÁÅ#‡" [exclam evi-define-key evi-all-input-maps char definition (vi)] 4] ex-move #[(from-addresses to-address) "À	ÂÃ#ˆÄ `{ÅŠÆ!ˆ`)!	Ä `W«ƒÊ ˆ`Ä |ˆbˆ	cˆÃ‰“*‡" [ex-define-region from-addresses t nil mark copy-marker ex-goto-line-after-address to-address to-mark text exchange-point-and-mark] 4] ex-print #[(addresses) "ŠÀ	ÂÃ#ˆ`)Åp!ˆbˆÆÇ !)‡" [ex-define-region addresses t nil position switch-to-buffer-other-window select-window previous-window] 4] ex-next #[(exclam) "À	Â\"‡" [ex-next-internal exclam nil] 3] ex-next-other-window #[(exclam) "À	Â\"‡" [ex-next-internal exclam t] 3] ex-next-internal #[(exclam other-window) "À ‰«‘Âp!ˆ«…Ä	!ªˆÅ	!ªƒÆÇ!)‡" [evi-next-file-buffer next-buffer bury-buffer other-window switch-to-buffer-other-window switch-to-buffer message "All files are displayed"] 3] evi-next-file-buffer #[nil "À Á‰«“@Ä\n!¬…Å\n!¬†A‰¬m*‰­ƒ@)‡" [buffer-list nil buffer list get-buffer-window buffer-file-name rest-of-list] 3] ex-put #[(address register-struct) "À	!ˆ\n@H‰«Š@cˆA?­‚Åc)ª«‰ÇÈÉ!\"ªƒÇÊ!)‡" [ex-goto-line-after-address address evi-registers register-struct register 10 evi-register message "Nothing in register %c" evi-register-name "No text to put"] 5]] 2)
+(defvar ex-quit-should-exit-evi nil "\
+*If this is t, then the `:q' command in EVI mode will exit VI emulation.
+If this is nil (the default), then `:q' will kill the current buffer, leaving
+you in EVI mode in the previously selected buffer.  This is closer to the way
+that VI users tend to use :q in the real VI.")
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕMˆÖ×MˆØÙMˆÚÛMˆÜİMˆŞßMˆàáMˆâãMˆäåMˆæçMˆèéMˆêëMˆìíMˆîïMˆğñMˆòóMˆôõMˆ6«Í÷8ùî#ˆ÷8úô#ˆ÷8ûü#ˆ÷8ığ#ˆ÷8şò#ˆ÷8ÿ@ #ˆ÷8A B #ˆ÷8C D #ˆ÷8E F #ˆ÷8G H #ˆI J !¬…K JL M M‡" [ex-quit #[(discard) "«„ÁÂ!ˆÃ ‡" [discard set-buffer-modified-p nil ex-exit] 2] ex-exit #[nil "«ƒÁ ‡p\n=«„Ãp!p\n=«„ÄÅ!p\n=«…Æ ˆª‡Çp!ˆ\nqˆÉ=­‚Ê ‡" [ex-quit-should-exit-evi save-buffers-kill-emacs ex-user-buffer other-buffer get-buffer-create "*scratch*" erase-buffer kill-buffer major-mode fundamental-mode evi-mode] 2 nil nil] ex-read #[(address shell-command arg) "À	!ˆ\n«…ÂÄ\"‡Å!‡" [ex-goto-line-after-address address shell-command arg t evi-insert-file] 3] evi-insert-file #[(filename) "Àcˆ`S`|ˆ	AAÂ!‡" [64 buffer-undo-list insert-file-contents filename] 2] ex-set #[(settings) "«„Á!‡ÂÃ!‡" [settings ex-set-internal message "Well set!"] 2] ex-set-internal #[(settings) "­£@‰@	A‰¨«ŒÄÅ\n!!ˆÄÆ!ˆª…Ç\n\"ˆÈA!+‡" [settings setting name value princ evi-get-option " " evi-set-option ex-set-internal] 4] ex-scan-settings #[nil "ÀÁwˆÂÃ!­ÒÂÄ!«†ÅuˆÁªÆÈ`!ˆÉÁwˆÊ `{ÂÌ!«—ÍuˆÈ`!ˆÎÁwˆÊ `{BÏ Bª™ÂĞ!«ŒÍuˆÑBÏ BªˆBÏ B*‡" [" 	" nil looking-at "[^|\n]" "no" 2 t default-value set-mark "a-z" mark option "=" 1 "^ 	|\n" ex-scan-settings "?" 63] 3] evi-get-option #[(option) "À	\n\"‰A@‰Å=«‡ÆÇ\nP!ªÒ@ÉAA!\nAAÅ=«‡ÆË\"ª¸Ì=«\nÍ=«„ª©ÎPª£Ï=«ŠĞÑ\n!Qª”Ò=«ˆĞ\nQª‡ÆÓÔ!P!**‡" [evi-search-option-list evi-option-list option option-struct type nil error "invalid option: " long-name eval value "option `%s' not implemented" bool t "no" number "=" int-to-string string "invalid type: " prin1-to-string] 5] evi-set-option #[(option value) "À	\n\"‰A@‰Å=«‡ÆÇ\n\"ˆªöAAÅ=«ˆÈÉ@\"ˆªçÊ=«˜Ì=¬ÜÅ=¬ÖÆÍ\nÎ\nÏ°!ˆªÊĞ=« Ì=¬†Å=«ŒÆÑ\nÒ\nÓ°!ˆª­Ô!ª¥Õ=«˜Ì=¬†Å=«”ÆÑ\nÖ\nÓ°!ˆªˆÆ×Ø!P!ˆAA«‡AALˆÙAA!­†AA!*‡" [evi-search-option-list evi-option-list option option-struct type nil error "invalid option `%s'" message "option `%s' not implemented" bool value t "only " " or no" " allowed" number "use " "=<number> to set, or " "? to query" string-to-int string "=<string> to set, or " "invalid type: " prin1-to-string fboundp] 7] evi-search-option-list #[(option-list option) "«š@‰@Ã\n\"«‡\n@	ABª…ÅA\"*‡Æ‡" [option-list option-struct option-strings evi-string-list-match option evi-search-option-list ("")] 4] evi-string-list-match #[(string-list string) "­	@˜«‚Â‡ÃA	\"‡" [string-list string t evi-string-list-match] 3] ex-source-file #[(file-name) "À	!‡" [evi-do-ex-command-file file-name] 2] ex-substitute #[(addresses pattern replacement global query) "À	ÂÃ#ˆÄ ˆÆ Æ Ç `ZÈV	\n	«„ÍÎ!ˆ\nÇ Ã“ˆ`\nW«¯Ï\nÑ#«qÒ”bˆŠ«†Ò•bˆªƒÃyˆ`Ã“ˆ)Ô\"ˆbˆªK	«„Í×!ˆÃ‰“ˆ\nÃ‰“,‡" [ex-define-region addresses t nil exchange-point-and-mark evi-ignore-case make-marker mark 5000 large-region end-line-mark next-line-mark case-fold-search message "running substitute command... " re-search-forward pattern 1 0 global ex-replace-match query replacement "running substitute command... complete."] 5] ex-replace-match #[(query replacement) "«¬Á”Á•ŠbˆÄcˆ\nTbˆÄcˆ)ÅÆ!Š‰T|ˆ\n‰T|ˆÇ›+­‰Á”Á•|ˆ	c‡" [query 0 end beginning 36 y-or-n-p "replace? " 4 buffer-undo-list replacement] 3] ex-tag #[(tag) "GÁU«‰\n¬ˆÃÄ!ˆª‚Å\n!ˆÆ ‡" [tag 0 ex-tag error "No previous tag specified" find-tag evi-mode] 2] ex-write #[(addresses exclam append file-arg) "GÁU«„Â ªŠÄÆ‰#ˆGÁU«Ç eU«‰`dU«„È ªˆÉÇ `\n$*‡" [file-arg 0 buffer-file-name file-name ex-define-region addresses t mark basic-save-buffer write-region append] 5] ex-write-quit #[nil "À ˆÁÂ!‡" [basic-save-buffer ex-quit nil] 2] ex-save-quit #[nil "À ˆÁÂ!‡" [basic-save-buffer ex-quit nil] 2] ex-yank #[(addresses register-struct) "ŠÂÄÅ#ˆÆÅ!*‡" [register-struct evi-register ex-define-region addresses t nil evi-copy-region-to-registers] 4] ex-shell-command #[(addresses shell-command) "@@@¬„Á	!‡ÂÃÄ#ˆÅÆ `	Ã$‡" [addresses shell-command ex-define-region t nil shell-command-on-region mark] 5] ex-shift-right #[(addresses) "À	ÂÃ#ˆÄÅ `#ˆÇyˆÈÃw‡" [ex-define-region addresses t nil indent-rigidly mark evi-shift-width -1 " 	"] 4] ex-shift-left #[(addresses) "À	ÂÃ#ˆÄÅ `[#ˆÇyˆÈÃw‡" [ex-define-region addresses t nil indent-rigidly mark evi-shift-width -1 " 	"] 4] ex-null #[(addresses) "À	ÂÃ#ˆ	@‰@@¬„ÅyªƒÆ!)‡" [ex-define-region addresses t nil address -1 ex-goto-address] 5] evi-mouse-track #[(event) "À	!ˆÂÃ!ˆÂÄ!‡" [mouse-track event evi-fixup-cursor horizontal vertical] 2 nil "e"] evi-mouse-track-insert #[(event) "À	!ˆÂÃ!ˆÂÄ!‡" [mouse-track-insert event evi-fixup-cursor horizontal vertical] 2 nil "e"] evi-x-mouse-kill #[(event) "À	!ˆÂÃ!ˆÂÄ!‡" [x-mouse-kill event evi-fixup-cursor horizontal vertical] 2 nil "e"] evi-x-set-point-and-insert-selection #[(event) "À	!ˆÂÃ!ˆÂÄ!‡" [x-set-point-and-insert-selection event evi-fixup-cursor horizontal vertical] 2 nil "e"] evi-new-event-model-p evi-define-key evi-all-keymaps-but-insert button1 button2 button3 energize-popup-menu (control button1) (control button2) left evi-backward-char right evi-forward-char up evi-previous-line down evi-next-line "" evi-exit-to-emacs boundp evi-init-files-loaded nil evi-load-init-files #[nil "?­«ÁÂ!ˆÁÃ!ˆÄÅ!‰«…Ç!ˆ)ÈÉ!«„ÊÉ!ˆÈË!«„ÊË!ˆÌ‰‡" [evi-init-files-loaded evi-do-ex-command-file "~/.exrc" ".exrc" getenv "EXINIT" exinit evi-do-ex-command-string file-exists-p "~/.evirc" load-file ".evirc" t] 3]] 4)

@@ -1,0 +1,48 @@
+;;; compiled by jwz@thalidomide on Fri Feb  7 00:32:32 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/macros.el
+;;; emacs version 19.40 Lucid.
+;;; bytecomp version 2.04; 5-feb-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'name-last-kbd-macro #[(symbol) "¬„ÁÂ!ˆÃ!«K;¬‹ÅK!¬…ÁÆ\"ˆM‡" [last-kbd-macro error "No keyboard macro defined" fboundp symbol vectorp "Function %s is already defined and not a keyboard macro."] 3 "\
+Assign a name to the last keyboard macro defined.
+One arg, a symbol, which is the name to define.
+The symbol's function definition becomes the keyboard macro string.
+Such a \"function\" cannot be called from Lisp, but it is a valid command
+definition for the editor command loop." "SName for last kbd macro: "])
+(fset 'insert-kbd-macro #[(macroname &optional keys) "hÀU¬ƒÁcˆÂcˆÃp\"ˆÅcˆÃÆK!®„ÇK!p\"ˆÈcˆ	­¨ÊË\"‰	­ÌcˆÃ	@p\"ˆÍcˆÃp\"ˆÈcˆ	A‰	¬cË)‡" [10 "\n" "(fset '" prin1 macroname "\n   " keyboard-macro-to-string keyboard-macro-to-vector ")\n" keys where-is-internal nil "(global-set-key " " '"] 4 "\
+Insert in buffer the definition of kbd macro NAME, as Lisp code.
+Second argument KEYS non-nil means also record the keys it is on.
+ (This is the prefix argument, when calling interactively.)
+
+This Lisp code will, when executed, define the kbd macro with the
+same definition it has now.  If you say to record the keys,
+the Lisp code will also rebind those keys to the macro.
+Only global key bindings are recorded since executing this Lisp code
+always makes global bindings.
+
+To save a kbd macro, visit a file of Lisp code such as your ~/.emacs,
+use this command, and then save the file." "CInsert kbd macro (name): \nP"])
+(fset 'keyboard-macro-to-string #[(macro) ";«‚‡GÂ	Ã\"ÅÃÃ	W«¢ÈHÅ\"‰«‰Iˆª…	ÅT‰ªZ,‡" [macro length make-string 0 string nil c i event-to-character] 4 "\
+Given a vector of event objects, returns an equivalent string of ASCII
+characters.  Returns nil if any of the events have no ASCII equivalent."])
+(fset 'keyboard-macro-to-vector #[(macro) "GÂ!ÄÄÄÈ	È	W«Ô	HÊ!«Œ	ËÌ!DIˆª¶Í!«­Î!Ï!‰§«‰ĞÑÒ\"!	«‰ÄB¤ª‚Iˆª„ÓÔ!ˆ	T‰	ª(.‡" [macro length copy-sequence new nil event mods key 0 i menu-event-p menu-selection event-object key-press-event-p event-modifiers event-key intern make-string 1 error "Only key-press and menu-selection events may be saved in keyboard macros."] 6 "\
+Given a vector of event objects, returns an equivalent vector of symbols,
+lists, or numbers which can be written (readably) to a file."])
+(fset 'kbd-macro-query #[(flag) "¬‡	¬„ÂÃ!ˆ«ˆÅ‰Æ *‡??­ÖÇ­ÎÅ‰ÉÊ!ˆË *‰ÍU«…Åª´ÎU«‡ÅÏª§ĞU«‡ÅÇªšÑU«†ÒÅ!ˆªÓU«ˆÅ‰Æ ˆ*)ª.)‡" [executing-macro defining-kbd-macro error "Not defining or executing kbd macro" flag nil recursive-edit t loop message "Proceed with macro? (Space, DEL, C-d, C-r or C-l) " read-char char 32 127 "" 4 12 recenter 18] 3 "\
+Query user during kbd macro execution.
+With prefix argument, enters recursive edit,
+ reading keyboard commands even within a kbd macro.
+ You can give different commands each time the macro executes.
+Without prefix argument, reads a character.  Your options are:
+ Space -- execute the rest of the macro.
+ DEL -- skip the rest of the macro; start next repetition.
+ C-d -- skip rest of the macro and don't repeat it any more.
+ C-r -- enter a recursive edit, then on exit ask again for a character
+ C-l -- redisplay screen and ask again." "P"])

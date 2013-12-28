@@ -1,0 +1,222 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:37:33 1991
+;;; from file /wg1/emacs-base/lisp/xscheme.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(require 'scheme)
+(defvar scheme-program-name "scheme" "\
+*Program invoked by the `run-scheme' command.")
+(defvar scheme-band-name nil "\
+*Band loaded by the `run-scheme' command.")
+(defvar scheme-program-arguments nil "\
+*Arguments passed to the Scheme program by the `run-scheme' command.")
+(defvar xscheme-allow-pipelined-evaluation t "\
+If non-nil, an expression may be transmitted while another is evaluating.
+Otherwise, attempting to evaluate an expression before the previous expression
+has finished evaluating will signal an error.")
+(defvar xscheme-startup-message "This is the Scheme process buffer.\nType \\[advertised-xscheme-send-previous-expression] to evaluate the expression before point.\nType \\[xscheme-send-control-g-interrupt] to abort evaluation.\nType \\[describe-mode] for more information.\n\n" "\
+String to insert into Scheme process buffer first time it is started.
+Is processed with `substitute-command-keys' first.")
+(defvar xscheme-signal-death-message nil "\
+If non-nil, causes a message to be generated when the Scheme process dies.")
+(byte-code "ÀÁMˆÂÃMˆÀ!ˆÂ!‡" [xscheme-evaluation-commands #[(keymap) "À	ÂÃ#ˆÀ	ÄÅ#ˆÀ	ÆÇ#ˆÀ	ÈÃ#ˆÀ	ÉÊ#ˆÀ	ËÌ#‡" [define-key keymap "" xscheme-send-definition "" advertised-xscheme-send-previous-expression "o" xscheme-send-buffer "z" "" xscheme-send-previous-expression "" xscheme-send-region] 4] xscheme-interrupt-commands #[(keymap) "À	ÂÃ#ˆÀ	ÄÅ#ˆÀ	ÆÇ#ˆÀ	ÈÉ#ˆÀ	ÊË#‡" [define-key keymap "" xscheme-select-process-buffer "" xscheme-send-breakpoint-interrupt "" xscheme-send-control-g-interrupt "" xscheme-send-control-u-interrupt "" xscheme-send-control-x-interrupt] 4] scheme-mode-map] 2)
+(fset 'run-scheme #[(command-line) "ÂÃ!!‡" [command-line xscheme-process-command-line switch-to-buffer xscheme-start-process] 3 "\
+Run an inferior Scheme process.
+Output goes to the buffer `*scheme*'.
+With argument, asks for a command line." (byte-code "®‚Á «†ÄÅ\n\"ª\n)C‡" [xscheme-process-command-line xscheme-default-command-line default current-prefix-arg read-string "Run Scheme: "] 3)])
+(fset 'reset-scheme #[nil "ÀÁ!‰«ŒÃ\n!Ä=«…ÅÆ!­”ÇÈ!ˆ\n«…É\nÊ\"ˆË!ˆÇÍ!)‡" [get-process "scheme" process process-status run yes-or-no-p "The Scheme process is running, are you SURE you want to reset it? " message "Resetting Scheme process..." kill-process t xscheme-start-process xscheme-process-command-line "Resetting Scheme process...done"] 4 "\
+Reset the Scheme process." nil])
+(fset 'xscheme-default-command-line #[nil "Á\n«…Ã\nPªÄ«…ÆPªÄR‡" [scheme-program-name " -emacs" scheme-program-arguments " " "" scheme-band-name " -band "] 5])
+(fset 'scheme-interaction-mode #[nil "À ˆÁ ˆÂ ˆÃÄ!ˆÅÆ!‡" [kill-all-local-variables scheme-interaction-mode-initialize scheme-mode-variables make-local-variable xscheme-previous-send run-hooks scheme-interaction-mode-hook] 2 "\
+Major mode for interacting with the inferior Scheme process.
+Like  scheme-mode  except that:
+
+\\[advertised-xscheme-send-previous-expression] sends the expression before point to the Scheme process as input
+\\[xscheme-yank-previous-send] yanks the expression most recently sent to Scheme
+
+All output from the Scheme process is written in the Scheme process
+buffer, which is initially named \"*scheme*\".  The result of
+evaluating a Scheme expression is also printed in the process buffer,
+preceded by the string \";Value: \" to highlight it.  If the process
+buffer is not visible at that time, the value will also be displayed
+in the minibuffer.  If an error occurs, the process buffer will
+automatically pop up to show you the error message.
+
+While the Scheme process is running, the modelines of all buffers in
+scheme-mode are modified to show the state of the process.  The
+possible states and their meanings are:
+
+input		waiting for input
+run		evaluating
+gc		garbage collecting
+
+The process buffer's modeline contains additional information where
+the buffer's name is normally displayed: the command interpreter level
+and type.
+
+Scheme maintains a stack of command interpreters.  Every time an error
+or breakpoint occurs, the current command interpreter is pushed on the
+command interpreter stack, and a new command interpreter is started.
+One example of why this is done is so that an error that occurs while
+you are debugging another error will not destroy the state of the
+initial error, allowing you to return to it after the second error has
+been fixed.
+
+The command interpreter level indicates how many interpreters are in
+the command interpreter stack.  It is initially set to one, and it is
+incremented every time that stack is pushed, and decremented every
+time it is popped.  The following commands are useful for manipulating
+the command interpreter stack:
+
+\\[xscheme-send-breakpoint-interrupt]	pushes the stack once
+\\[xscheme-send-control-u-interrupt]	pops the stack once
+\\[xscheme-send-control-g-interrupt]	pops everything off
+\\[xscheme-send-control-x-interrupt]	aborts evaluation, doesn't affect stack
+
+Some possible command interpreter types and their meanings are:
+
+[Evaluator]	read-eval-print loop for evaluating expressions
+[Debugger]	single character commands for debugging errors
+[Where]		single character commands for examining environments
+
+Starting with release 6.2 of Scheme, the latter two types of command
+interpreters will change the major mode of the Scheme process buffer
+to scheme-debugger-mode , in which the evaluation commands are
+disabled, and the keys which normally self insert instead send
+themselves to the Scheme process.  The command character ? will list
+the available commands.
+
+For older releases of Scheme, the major mode will be be
+scheme-interaction-mode , and the command characters must be sent as
+if they were expressions.
+
+Commands:
+Delete converts tabs to spaces as it moves back.
+Blank lines separate paragraphs.  Semicolons start comments.
+\\{scheme-interaction-mode-map}
+
+Entry to this mode calls the value of scheme-interaction-mode-hook
+with no args, if that value is non-nil." nil])
+(byte-code "ÀÁMˆÂÃMˆÄÅ!¬‚Æ¬“Ç È!ˆÉ!ˆÊ!ˆÂ!ˆËÌMˆÍÎM‡" [scheme-interaction-mode-initialize #[nil "À	!ˆÂÄ‰‡" [use-local-map scheme-interaction-mode-map scheme-interaction-mode major-mode "Scheme Interaction" mode-name] 2] scheme-interaction-mode-commands #[(keymap) "À	ÂÃ#ˆÀ	ÄÅ#ˆÀ	ÆÇ#‡" [define-key keymap "" xscheme-send-current-line "" xscheme-send-proceed "" xscheme-yank-previous-send] 4] boundp scheme-interaction-mode-map nil make-keymap scheme-mode-commands xscheme-interrupt-commands xscheme-evaluation-commands xscheme-enter-interaction-mode #[nil "ŠÀ qˆ	Â=?­‹	Ã=«„Ä ª‚Â )‡" [xscheme-process-buffer major-mode scheme-interaction-mode scheme-debugger-mode scheme-interaction-mode-initialize] 2] advertised-xscheme-send-previous-expression xscheme-send-previous-expression] 2)
+(fset 'scheme-debugger-mode #[nil "ÀÁ!‡" [error "Illegal entry to scheme-debugger-mode"] 2 "\
+Major mode for executing the Scheme debugger.
+Like  scheme-mode  except that the evaluation commands
+are disabled, and characters that would normally be self inserting are
+sent to the Scheme process instead.  Typing ?  will show you which
+characters perform useful functions.
+
+Commands:
+\\{scheme-debugger-mode-map}"])
+(byte-code "ÀÁMˆÂÃMˆÄÅ!¬‚Æ¬Ç È!ˆÉ!ˆÂ!ˆÆ‡" [scheme-debugger-mode-initialize #[nil "À	!ˆÂÄ‰‡" [use-local-map scheme-debugger-mode-map scheme-debugger-mode major-mode "Scheme Debugger" mode-name] 2] scheme-debugger-mode-commands #[(keymap) "ÀÀÂW­ÃÅ	!Æ#ˆ	T‰ªn)‡" [32 char 127 define-key keymap char-to-string scheme-debugger-self-insert] 5] boundp scheme-debugger-mode-map nil make-keymap scheme-mode-commands xscheme-interrupt-commands] 2)
+(fset 'scheme-debugger-self-insert #[nil "À	!‡" [xscheme-send-char last-command-char] 2 "\
+Transmit this character to the Scheme process." nil])
+(byte-code "ÀÁMˆÂÃM‡" [xscheme-enter-debugger-mode #[(prompt-string) "ŠÀ qˆ	Â=?­Š	Ã=¬ƒÃ ˆÄ )‡" [xscheme-process-buffer major-mode scheme-debugger-mode scheme-interaction-mode scheme-debugger-mode-initialize] 2] xscheme-debugger-mode-p #[nil "À ‰­ˆŠ	qˆ\n)Ã=)‡" [xscheme-process-buffer buffer major-mode scheme-debugger-mode] 3]] 2)
+(fset 'xscheme-send-string #[(&rest strings) "À ¬™ÁÂ!­¬Ã ˆÄ ˆdbˆÅÆ\"ˆÈ!‡É «„ÊË!‡¬ˆ«„ÊÎ!‡È!‡" [xscheme-process-running-p yes-or-no-p "The Scheme process has died.  Reset it? " reset-scheme xscheme-wait-for-process apply insert-before-markers strings xscheme-send-string-1 xscheme-debugger-mode-p error "No sends allowed in debugger mode" xscheme-allow-pipelined-evaluation xscheme-running-p "No sends allowed while Scheme running"] 3 "\
+Send the string arguments to the Scheme process.
+The strings are concatenated and terminated by a newline."])
+(byte-code "ÀÁMˆÂÃM‡" [xscheme-send-string-1 #[(strings) "ÀÁ\n\"Ä!ˆÆ=­„‰)‡" [apply concat strings string xscheme-send-string-2 major-mode scheme-interaction-mode xscheme-previous-send] 3] xscheme-send-string-2 #[(string) "ÀÁ!Ã\nÅP\"ˆÆ ­†Ç\n!`È“)‡" [get-process "scheme" process send-string string "\n" xscheme-process-buffer-current-p process-mark nil] 4]] 2)
+(fset 'xscheme-yank-previous-send #[nil "À ˆ	c‡" [push-mark xscheme-previous-send] 1 "\
+Insert the most recent expression at point." nil])
+(fset 'xscheme-select-process-buffer #[nil "ÀÁ!®ƒÂÃ!Å!®ƒÂÆ!È!‰	«‡Ê	!ˆª…Ë!ˆÌ!b+‡" [get-process "scheme" error "No scheme process" process process-buffer "No process buffer" buffer get-buffer-window window select-window switch-to-buffer process-mark] 3 "\
+Select the Scheme process buffer and move to its output point." nil])
+(fset 'xscheme-send-region #[(start end) "À «Œ	bˆÂÃÄ!!	Å“ˆÆ	{!‡" [xscheme-process-buffer-current-p end process-mark get-process "scheme" nil xscheme-send-string start] 3 "\
+Send the current region to the Scheme process.
+The region is sent terminated by a newline." "r"])
+(fset 'xscheme-send-definition #[nil "À‰ŠÃ ˆ`ÄÅÀÆ#«„`ª„ÇÈ!ˆ)É\n	\"*‡" [nil end start end-of-defun re-search-backward "^\\s(" t error "Can't find definition" xscheme-send-region] 4 "\
+Send the current definition to the Scheme process.
+If the current line begins with a non-whitespace character,
+parse an expression from the beginning of the line and send that instead." nil])
+(fset 'xscheme-send-next-expression #[nil "`ÁŠÂ ˆ`)\")‡" [start xscheme-send-region forward-sexp] 3 "\
+Send the expression to the right of `point' to the Scheme process." nil])
+(fset 'xscheme-send-previous-expression #[nil "`ÁŠÂ ˆ`)\")‡" [end xscheme-send-region backward-sexp] 3 "\
+Send the expression to the left of `point' to the Scheme process." nil])
+(fset 'xscheme-send-current-line #[nil "ŠÀyˆ`Âˆ	`{*ÂˆÄcˆÅ!)‡" [0 start nil line 10 xscheme-send-string-2] 2 "\
+Send the current line to the Scheme process.
+Useful for working with debugging Scheme under adb." nil])
+(fset 'xscheme-send-buffer #[nil "À «„ÁÂ!ˆÃed\"‡" [xscheme-process-buffer-current-p error "Not allowed to send this buffer's contents to Scheme" xscheme-send-region] 3 "\
+Send the current buffer to the Scheme process." nil])
+(fset 'xscheme-send-char #[(char) "ÀÁÂ!\"‡" [send-string "scheme" char-to-string char] 4 "\
+Prompt for a character and send it to the Scheme process." "cCharacter to send: "])
+(fset 'xscheme-send-breakpoint-interrupt #[nil "ÀÁÂ\"‡" [xscheme-send-interrupt 98 nil] 3 "\
+Cause the Scheme process to enter a breakpoint." nil])
+(fset 'xscheme-send-proceed #[nil "ÀÁÂ\"‡" [send-string "scheme" "(proceed)\n"] 3 "\
+Cause the Scheme process to proceed from a breakpoint." nil])
+(fset 'xscheme-send-control-g-interrupt #[nil "À\n¬…ÃÄ!ª˜«…ÆÇ!ªÀÆÈ!ˆÃÄ!ˆÉÄÊË!\")‡" [t inhibit-quit xscheme-control-g-synchronization-p interrupt-process "scheme" xscheme-control-g-disabled-p message "Relax..." "Sending C-G interrupt to Scheme..." send-string char-to-string 0] 4 "\
+Cause the Scheme processor to halt and flush input.
+Control returns to the top level rep loop." nil])
+(fset 'xscheme-send-control-u-interrupt #[nil "ÀÁÂ\"‡" [xscheme-send-interrupt 117 t] 3 "\
+Cause the Scheme process to halt, returning to previous rep loop." nil])
+(fset 'xscheme-send-control-x-interrupt #[nil "ÀÁÂ\"‡" [xscheme-send-interrupt 120 t] 3 "\
+Cause the Scheme process to halt, returning to current rep loop." nil])
+(fset 'xscheme-send-interrupt #[(char mark-p) "ÀÁ!ˆÂÁÃ!\"ˆ­Š­†ÂÁÃÇ!\"‡" [quit-process "scheme" send-string char-to-string char mark-p xscheme-control-g-synchronization-p 0] 4 "\
+Send a ^A type interrupt to the Scheme process." "cInterrupt character to send: "])
+(defvar xscheme-process-command-line nil "\
+Command used to start the most recent Scheme process.")
+(defvar xscheme-previous-send "" "\
+Most recent expression transmitted to the Scheme process.")
+(defvar xscheme-process-filter-state 'idle "\
+State of scheme process escape reader state machine:
+idle                   waiting for an escape sequence
+reading-type           received an altmode but nothing else
+reading-string         reading prompt string")
+(defvar xscheme-running-p nil "\
+This variable, if nil, indicates that the scheme process is
+waiting for input.  Otherwise, it is busy evaluating something.")
+(defconst xscheme-control-g-synchronization-p t "\
+If non-nil, insert markers in the scheme input stream to indicate when
+control-g interrupts were signalled.  Do not allow more control-g's to be
+signalled until the scheme process acknowledges receipt.")
+(defvar xscheme-control-g-disabled-p nil "\
+This variable, if non-nil, indicates that a control-g is being processed
+by the scheme process, so additional control-g's are to be ignored.")
+(defvar xscheme-allow-output-p t "\
+This variable, if nil, prevents output from the scheme process
+from being inserted into the process-buffer.")
+(defvar xscheme-prompt "" "\
+The current scheme prompt string.")
+(defvar xscheme-string-accumulator "" "\
+Accumulator for the string being received from the scheme process.")
+(defvar xscheme-string-receiver nil "\
+Procedure to send the string argument from the scheme process.")
+(defvar xscheme-start-hook nil "\
+If non-nil, a procedure to call when the Scheme process is started.
+When called, the current buffer will be the Scheme process-buffer.")
+(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÂÀÄ!¬‚ÂÅÆMˆÇÈMˆÉÊM‡" [boundp xscheme-runlight-string nil xscheme-mode-string xscheme-filter-input xscheme-start-process #[(command-line) "ÀÁ!Ã\n!Š\nqˆ«Å!Æ>«‰Ç!dÈ“ˆªÃ«„É!ˆdbˆÊ ˆo«‡ËÌ!!ˆÈÏĞÑ\nÒ!BB\")Ç!dÈ“ˆÔÕ!ˆÖ ˆ×Ø\"ˆÙÚ\"ˆÛÜ!ˆ*\n)‡" [get-buffer-create "*scheme*" buffer get-buffer-process process process-status (run stop) process-mark nil delete-process scheme-interaction-mode insert-before-markers substitute-command-keys xscheme-startup-message process-connection-type apply start-process "scheme" xscheme-parse-command-line command-line xscheme-process-filter-initialize t xscheme-modeline-initialize set-process-sentinel xscheme-process-sentinel set-process-filter xscheme-process-filter run-hooks xscheme-start-hook] 6] xscheme-parse-command-line #[(string) "À	!ÂÃ«°ÆÇ	#‰¬Š	ÃOBÃª˜U«‡ÆÉ	#ª‹	OBT)ªMŸ*‡" [substitute-in-file-name string 0 nil result start string-match "[ 	]" index "[^ 	]"] 5] xscheme-wait-for-process #[nil "ÀÁ!ˆ\n­†ÀÃ!ˆªw‡" [sleep-for 2 xscheme-running-p 1] 2]] 2)
+(fset 'xscheme-process-running-p #[nil "ÀÁ!‰­…Ã\n!Ä=)‡" [get-process "scheme" process process-status run] 3 "\
+True iff there is a Scheme process whose status is `run'."])
+(byte-code "ÀÁMˆÂÃM‡" [xscheme-process-buffer #[nil "ÀÁ!‰­ƒÃ\n!)‡" [get-process "scheme" process process-buffer] 3] xscheme-process-buffer-window #[nil "À ‰­ƒÂ	!)‡" [xscheme-process-buffer buffer get-buffer-window] 3]] 2)
+(fset 'xscheme-process-buffer-current-p #[nil "À p=‡" [xscheme-process-buffer] 2 "\
+True iff the current buffer is the Scheme process buffer."])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑM‡" [xscheme-process-sentinel #[(proc reason) "À	Â=!ˆ	Â=«…Ã ˆª…ÄÆ	È>?­Š	­†Ê ˆËÌ!‡" [xscheme-process-filter-initialize reason run xscheme-modeline-initialize "" scheme-mode-line-process "no process" xscheme-mode-string (run stop) xscheme-signal-death-message beep message "The Scheme process has died!  Do M-x reset-scheme to restart it"] 3] xscheme-process-filter-initialize #[(running-p) "À\nÄÆÈ	Ê‰‡" [idle xscheme-process-filter-state running-p xscheme-running-p nil xscheme-control-g-disabled-p t xscheme-allow-output-p "" xscheme-prompt (": " xscheme-runlight-string) scheme-mode-line-process] 2] xscheme-process-filter #[(proc string) "	…¤ \nÃ=«¥ÄÅ	\"‰«“Ç	ÈO!ˆ	TÉOÊª†Ç	!ˆÉ)ªR\nÊ=«·	GÈU«…É‰ªC	ÈH	ÌÉOÍ\"‰«ŒĞ8A@!ˆªˆÇÑ\"ˆÃ*ª\nÒ=«¬ÄÅ	\"‰«—	ÈOP!ˆ	TÉOÃªˆ	PÉ)‚ ÕÖ!ˆ‚ )‡" [string xscheme-filter-input xscheme-process-filter-state idle string-match "" start xscheme-process-filter-output 0 nil reading-type char 1 assoc xscheme-process-filter-alist entry 2 27 reading-string xscheme-string-receiver xscheme-string-accumulator error "Scheme process filter -- bad state"] 6] xscheme-process-filter-output #[(&rest args) "­ÅÁÂ\"ŠÅ ˆÆÇ\"«²È”È•	\nËÈ\nO!ˆ\nHÌU«n¬„ËÍ!ˆËÌ!ˆªƒÎ ˆ\nTÏO*ªHË!*‡" [xscheme-allow-output-p apply concat args string xscheme-goto-output-point string-match "\\(\\|\\)" 0 end start insert-before-markers 12 10 beep nil] 4] xscheme-guarantee-newlines #[(n) "­°ŠÁ ˆÂ¬“n«So«…Å‰ªpÆ ˆªj)Á ˆÇV­ŠÈÉ!ˆS‰ªr)‡" [xscheme-allow-output-p xscheme-goto-output-point nil stop n t backward-char 0 insert-before-markers 10] 3] xscheme-goto-output-point #[nil "ÀÁ!Ã\n!qˆÄ\n!b)‡" [get-process "scheme" process process-buffer process-mark] 2] xscheme-modeline-initialize #[nil "ÀÀÃ‰‡" ["" xscheme-runlight-string xscheme-mode-string ("Scheme: " xscheme-mode-string) mode-line-buffer-identification] 2] xscheme-set-runlight #[(runlight) "Â ‡" [runlight xscheme-runlight-string xscheme-modeline-redisplay] 1] xscheme-modeline-redisplay #[nil "ŠÀ qˆ)ÁÂ !ˆÃÄ!‡" [other-buffer set-buffer-modified-p buffer-modified-p sit-for 0] 2]] 2)
+(defvar xscheme-process-filter-alist '((68 xscheme-enter-debugger-mode xscheme-process-filter:string-action) (80 xscheme-set-prompt-variable xscheme-process-filter:string-action) (82 xscheme-enter-interaction-mode xscheme-process-filter:simple-action) (98 xscheme-start-gc xscheme-process-filter:simple-action) (101 xscheme-finish-gc xscheme-process-filter:simple-action) (102 xscheme-exit-input-wait xscheme-process-filter:simple-action) (103 xscheme-enable-control-g xscheme-process-filter:simple-action) (105 xscheme-prompt-for-expression xscheme-process-filter:string-action) (109 xscheme-message xscheme-process-filter:string-action) (110 xscheme-prompt-for-confirmation xscheme-process-filter:string-action) (111 xscheme-output-goto xscheme-process-filter:simple-action) (112 xscheme-set-prompt xscheme-process-filter:string-action) (115 xscheme-enter-input-wait xscheme-process-filter:simple-action) (118 xscheme-write-value xscheme-process-filter:string-action) (119 xscheme-cd xscheme-process-filter:string-action) (122 xscheme-display-process-buffer xscheme-process-filter:simple-action) (99 xscheme-unsolicited-read-char xscheme-process-filter:simple-action)) "\
+Table used to decide how to handle process filter commands.
+Value is a list of entries, each entry is a list of three items.
+
+The first item is the character that the process filter dispatches on.
+The second item is the action to be taken, a function.
+The third item is the handler for the entry, a function.
+
+When the process filter sees a command whose character matches a
+particular entry, it calls the handler with two arguments: the action
+and the string containing the rest of the process filter's input
+stream.  It is the responsibility of the handler to invoke the action
+with the appropriate arguments, and to reenter the process filter with
+the remaining input.")
+(byte-code "ÀÁMˆÂÃM‡" [xscheme-process-filter:simple-action #[(action) " ˆÁ‰‡" [action idle xscheme-process-filter-state] 2] xscheme-process-filter:string-action #[(action) "ÂÄ‰‡" [action xscheme-string-receiver "" xscheme-string-accumulator reading-string xscheme-process-filter-state] 2]] 2)
+(defconst xscheme-runlight:running "run" "\
+The character displayed when the Scheme process is running.")
+(defconst xscheme-runlight:input "input" "\
+The character displayed when the Scheme process is waiting for input.")
+(defconst xscheme-runlight:gc "gc" "\
+The character displayed when the Scheme process is garbage collecting.")
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕMˆÖ×MˆØÙMˆÚÛM‡" [xscheme-start-gc #[nil "À	!‡" [xscheme-set-runlight xscheme-runlight:gc] 2] xscheme-finish-gc #[nil "À	«ƒ\nª!‡" [xscheme-set-runlight xscheme-running-p xscheme-runlight:running xscheme-runlight:input] 2] xscheme-enter-input-wait #[nil "À	!ˆÂ‰‡" [xscheme-set-runlight xscheme-runlight:input nil xscheme-running-p] 2] xscheme-exit-input-wait #[nil "À	!ˆÂ‰‡" [xscheme-set-runlight xscheme-runlight:running t xscheme-running-p] 2] xscheme-enable-control-g #[nil "À‰‡" [nil xscheme-control-g-disabled-p] 2] xscheme-display-process-buffer #[nil "À ®„ÁÂ !Ä‹)‡" [xscheme-process-buffer-window display-buffer xscheme-process-buffer window ((byte-code "À	!ˆÂ ˆÃ ­‚Ä ‡" [select-window window xscheme-goto-output-point xscheme-debugger-mode-p xscheme-enter-interaction-mode] 2))] 2] xscheme-unsolicited-read-char (lambda nil) xscheme-message #[(string) "GÁU?­‡ÂÃÄ\"\"‡" [string 0 xscheme-write-message-1 format ";%s"] 5] xscheme-write-value #[(string) "GÁU«…ÂÃÄ\"‡ÂÅÆ\"\"‡" [string 0 xscheme-write-message-1 "(no value)" ";No value" format ";Value: %s"] 5] xscheme-write-message-1 #[(message-string output-string) "ÀÁ!ÃÄ\n!!‰«ˆÆÇ\n!\"¬†ÈÉ\n\"ˆ*ËÌ!ˆÍ!‡" [get-process "scheme" process get-buffer-window process-buffer window pos-visible-in-window-p process-mark message "%s" message-string xscheme-guarantee-newlines 1 xscheme-process-filter-output output-string] 4] xscheme-set-prompt-variable #[(string) "‰‡" [string xscheme-prompt] 2] xscheme-set-prompt #[(string) "ÂÃ!ˆÄ!Æ ‡" [string xscheme-prompt xscheme-guarantee-newlines 2 xscheme-coerce-prompt xscheme-mode-string xscheme-modeline-redisplay] 2] xscheme-output-goto #[nil "À ˆÁÂ!‡" [xscheme-goto-output-point xscheme-guarantee-newlines 2] 2] xscheme-coerce-prompt #[(string) "ÀÁ\n\"«£Ã•\nÃO\nÅOÇ\"‰	«…	Aª‚*P)‡\n‡" [string-match "^[0-9]+ " string 0 end nil prompt assoc xscheme-prompt-alist entry] 5]] 2)
+(defvar xscheme-prompt-alist '(("[Normal REPL]" . "[Evaluator]") ("[Error REPL]" . "[Evaluator]") ("[Breakpoint REPL]" . "[Evaluator]") ("[Debugger REPL]" . "[Evaluator]") ("[Visiting environment]" . "[Evaluator]") ("[Environment Inspector]" . "[Where]")) "\
+An alist which maps the Scheme command interpreter type to a print string.")
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇ!¬ƒÈ¬É\n!ËÌÍ#ˆÍÎMˆÏĞM‡" [xscheme-cd #[(directory-string) "ŠÀ qˆÁ\n!)‡" [xscheme-process-buffer cd directory-string] 2] xscheme-prompt-for-confirmation #[(prompt-string) "ÀÁ\n!«ƒÃªÄ!‡" [xscheme-send-char y-or-n-p prompt-string 121 110] 3] xscheme-prompt-for-expression #[(prompt-string) "ÀÁ\nÃ#!‡" [xscheme-send-string-2 read-from-minibuffer prompt-string nil xscheme-prompt-for-expression-map] 5] boundp xscheme-prompt-for-expression-map nil copy-keymap minibuffer-local-map substitute-key-definition exit-minibuffer xscheme-prompt-for-expression-exit #[nil "Àed\"Á=«ƒÂ ‡ÃÄ!‡" [xscheme-region-expression-p one exit-minibuffer error "input must be a single, complete expression"] 3 nil nil] xscheme-region-expression-p #[(start end) "ŠÀ ÂÃ!ˆÅ\"‰@ÉU­›Ê8­•ÅÊ8\"Ê8«ƒËªÌ),‡" [syntax-table old-syntax-table ((set-syntax-table old-syntax-table)) set-syntax-table scheme-mode-syntax-table parse-partial-sexp start end state 0 2 many one] 5]] 4)

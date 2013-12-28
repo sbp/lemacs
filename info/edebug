@@ -1,0 +1,1554 @@
+Info file edebug, produced by Makeinfo, -*- Text -*- from input file
+edebug.texinfo.
+
+   This file documents Edebug
+
+   This is edition 1.2 of the Edebug User Manual for edebug Version
+2.6,
+
+   Copyright (C) 1991 Daniel LaLiberte
+
+   Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be stated in a
+translation approved by the Foundation.
+
+
+File: edebug,  Node: Top,  Next: Installation,  Up: (dir)
+
+Edebug
+******
+
+* Menu:
+
+* Installation::		Installation
+* Using Edebug::		Using Edebug
+* Evaluating defuns::		Evaluating defuns
+* Edebug Modes::		Edebug Modes
+* Miscellaneous::		Miscellaneous
+* Breakpoints::			Breakpoints
+* Views::			Views
+* Evaluation::			Evaluation
+* Printing::			Printing
+* The Outside Context::		The Outside Context
+* Macro Calls::			Macro Calls
+* Options::			Options
+* Todo List::			Todo List
+* Index::			Index
+
+   Edebug is a source level debugger for GNU Emacs Lisp that provides
+the following features:
+
+   * Step through the evaluation of your functions and macros, stopping
+     before and after each expression, displaying the results of
+     expressions.
+
+   * Set conditional or unconditional breakpoints.
+
+   * Go until a breakpoint is reached, or ignore breakpoints.
+
+   * Trace slow or fast stopping briefly at each stop point, or each
+     breakpoint.
+
+   * Evaluate expressions as if outside of edebug.
+
+   * Automatically reevaluate a list of expressions and display their
+     results each time edebug updates the display.
+
+   * Output tracing info on function enter and exit.
+
+   * Catch errors normally caught by debug.
+
+   * Display backtrace without edebug calls.
+
+   * Interface with the `custom-print' package.
+
+   It isn't necessary to read all of this document, or even most of
+it, in order to make use of edebug.  You should minimally read sections
+Installation, Using Edebug, and Edebug Modes; the rest can be read as
+needed.
+
+   This manual assumes you are familiar with Emacs Lisp, as described
+in the GNU Emacs Lisp Reference Manual.  You might want to review the
+chapters on Evaluation and Debugging.
+
+
+File: edebug,  Node: Installation,  Next: Using Edebug,  Prev: Top,  Up: Top
+
+Installation
+============
+
+   Put `edebug.el' in some directory in your `load-path' and
+byte-compile it.
+
+   Put the following forms in your `.emacs' file.
+
+     (define-key emacs-lisp-mode-map "\C-xx" 'edebug-defun)
+     (autoload 'edebug-defun "edebug")
+
+   If you wish to change the default edebug global command prefix,
+include the following.
+
+     (setq edebug-global-prefix "\C-xX") ; or whatever you want
+
+
+File: edebug,  Node: Using Edebug,  Next: Evaluating defuns,  Prev: Installation,  Up: Top
+
+Using Edebug
+============
+
+   To use edebug you must be editing an Emacs Lisp buffer using
+`emacs-lisp-mode', or its equivalent, since the Emacs Lisp syntax
+table must be present.
+
+   The following commands are described in this section.
+
+`C-xx'
+     (`edebug-defun') Evaluates the function or macro at or after point
+     setting it up for use by edebug.  Unlike `eval-defun' it always
+     prints `edebug: NAME' in the minibuffer and a prefix argument has
+     a different effect as described below.  If a syntax error is
+     found, point is left at the error and mark is set to the original
+     point.
+
+`?'
+     (`edebug-help') Display the help message for `edebug-mode'.
+
+`a'
+     (`abort-recursive-edit') Abort the edebug recursive edit.  This
+     only aborts one level as opposed to all the way to the top level.
+
+`q'
+     (`top-level') Exit all recursive editing levels to the top level
+     command loop.
+
+`r'
+     (`edebug-previous-result') Redisplay the result of the previous
+     expression in the echo area.
+
+   To use edebug, simply evaluate a `defun' or `defmacro' with
+`edebug-defun' (`C-xx') when the point is in or before the definition.
+  The next time your function or macro is called, edebug will be
+called.  From now on, discussion about using edebug with functions
+includes macros, unless otherwise specified.  Like `eval-defun',
+`edebug-defun' evaluates function definitions, but adds edebug calls
+to the lambda expression.
+
+   To restore a function to normal operation after the definition has
+been evaluated with `edebug-defun', simply reevaluate it with one of
+the commands that evaluate definitions (e.g., `eval-defun' (`M-C-x'),
+`eval-current-buffer', or if the buffer is unchanged, `load-library').
+ However, the behavior of most of these evaluating functions can also
+be modified by edebug, as described in *Note Evaluating defuns::.
+
+   Implementation note:  Recall that a `defun' is the source code
+definition of a function and evaluation of a definition puts the lambda
+expression for the function in the function cell of the symbol naming
+the function.  After evaluating a `defun' with `edebug-defun', the
+lambda expression stored in the function symbol's function cell
+contains a call to the function `edebug-enter' at the top level and
+individual calls to the function `edebug-before' and `edebug-after'
+for each expression that may be evaluated in the function.
+
+   When you call your function explicitly or via another function,
+edebug will be called, but it may or may not stop execution depending
+on what the current edebug mode is.  Some edebug modes only update the
+display to indicate the progress of the evaluation without stopping
+execution.  The default initial edebug mode is `step' which does stop
+execution.  The edebug modes are described in detail below (*note
+Edebug Modes::.).
+
+   Each time edebug updates the display to indicate the progress of the
+evaluation, the buffer that the function is defined in is displayed
+temporarily.  Also point is moved (temporarily) to the expression in
+the function about to be evaluated (or just evaluated) and an overlay
+arrow is displayed at the left end of the line containing point.  If
+the point is not visible in the window, the window start is changed
+(semi-permanently!) so that point is visible, while trying to display
+as much of the following code as possible.  See *Note The Outside
+Context:: for more details on how the Emacs display is affected by
+edebug.
+
+   In the example below, the definition of the `fac' function has been
+evaluated with `edebug-defun' (by positioning point within the
+definition and hitting `C-xx') and the expression `(fac 3)' has been
+evaluated.  The arrow on the first line indicates that edebug has been
+entered.  To indicate that you are stopped before the first
+expression, the cursor would be on the first left parenthesis of that
+line.
+
+     (defun fac (n)
+     =>(if (< 0 n)
+           (* n (fac (1- n)))
+         1))
+
+   When execution is stopped, you are "in edebug" in a recursive edit
+with point in the buffer defining the function, as described above. 
+This buffer, called the "edebug buffer", is made read-only and the
+`edebug-mode' minor mode is activated.  Several commands are available
+in addition to the standard `emacs-lisp-mode' bindings.  Try the `?'
+command (`edebug-help') for a list of edebug commands.  From the
+edebug recursive edit, you are permitted to call functions that invoke
+edebug again recursively.  At any time in edebug, you can quit to the
+top level with `q' (`top-level)' or abort one recursive edit level
+with `a' (`abort-recursive-edit').
+
+   Places within a function that edebug may stop, called "stop points",
+are before and after expressions that are not self-evaluating, i.e.
+list forms and symbols.  However, edebug does not stop before symbols
+(i.e., variables) unless `edebug-stop-before-symbols' is non-`nil',
+since it is not usually useful to do so.  When stopped after an
+expression, edebug displays the result of the expression in the
+minibuffer.  Use the `r' command (`edebug-previous-result') to see
+that result again.  You can control the way in which expression
+results are printed by using the `custom-print' package (*note
+Printing::.).
+
+   Edebug knows about all the special forms, interactive forms with
+expressions, anonymous lambda expressions, and embedded `defun' or
+`defmacro' calls.  It cannot know what a macro will do with the
+arguments of a macro call so you must tell it; *note Macro Calls::. for
+the details.  You can use the same mechanism to tell edebug that some
+function arguments should be functions.
+
+   Continuing the example of the `fac' function, the user may step
+through the execution of the function (with SPC) stopping in edebug at
+the stop points which are marked with a period:
+
+     (defun fac (n)
+     =>.(if .(< 0 n.).
+           .(* n. .(fac (1- n.).).).
+         1).)
+
+   Whenever a function evaluated with `edebug-defun' is active, the
+Emacs debugger named by the variable `debugger' is set to
+`edebug-debug', so it is not necessary to set it yourself.  (Currently
+there is no option to turn off this feature.)  If an error occurs and
+`debug-on-error' is non-`nil', edebug will display the error and move
+point to the last known stop point.  This applies to quit signals too,
+if `debug-on-quit' is non-`nil'.  But in any case, if no function that
+was evaluated with `edebug-defun' is currently active, `debug' is run
+normally.  Note that you can also get a full backtrace inside of
+edebug (see *Note Miscellaneous::).
+
+
+File: edebug,  Node: Evaluating defuns,  Next: Edebug Modes,  Prev: Using Edebug,  Up: Top
+
+Evaluating defuns
+=================
+
+   There are a couple other ways to evaluate a `defun' for edebug
+besides calling `edebug-defun' directly.  The variable
+`edebug-all-defuns' affects the behavior of several commands defined
+by Emacs.  `eval-defun' (`M-C-x') is redefined by `edebug.el' to use
+`edebug-defun' if `edebug-all-defuns' is non-`nil', or alternatively,
+if you supply a prefix argument.  But if `edebug-all-defuns' is
+non-`nil' and you also supply a prefix argument, `edebug-defun' will
+not be used.  In other words, the prefix argument of `eval-defun'
+reverses the effect of `edebug-all-defuns'.  The default value of
+`edebug-all-defuns' is `nil'.  Call the function `edebug-all-defuns'
+to toggle the value of the variable `edebug-all-defuns'.
+
+   Note that this version of `eval-defun' evaluates whatever top level
+form it finds, as it normally does, but only `defun's (and
+`defmacro's) are evaluated with `edebug-defun'.
+
+   `eval-region' is redefined to use `edebug-defun' when evaluating
+`defun's (if `edebug-all-defuns' is non-`nil').  The prefix argument
+for `eval-region' has the normal behavior since it is used by other
+functions (including the standard functions `eval-defun',
+`eval-print-last-sexp', and `eval-last-sexp').  If an error occurs
+during the evaluation, point is left after the expression in error. 
+Also, this `eval-region' does not use `narrow-to-region' to limit the
+scope of evaluation, and consequently there is a small difference in
+how white space is handled after an expression when the output is
+inserted in the buffer.
+
+   `eval-current-buffer' is redefined to use `eval-region', since the
+standard version does not, thus gaining all the benefits of the new
+`eval-region'.
+
+   Note that loading does not invoke `edebug-defun', since the load
+functions are subroutines that use the internal `eval-region' rather
+than the redefined one supplied by `edebug.el'.  This could be
+considered a feature since loading a file does not also visit the file
+which would be necessary if edebug were to be invoked on one of the
+functions defined in the file.
+
+   See *Note Evaluation:: for discussion of other evaluation functions
+available inside of edebug.
+
+
+File: edebug,  Node: Edebug Modes,  Next: Miscellaneous,  Prev: Evaluating defuns,  Up: Top
+
+Edebug Modes
+============
+
+   While your function is being evaluated, edebug is in one of several
+modes.  The current mode is called the "edebug mode", not to be
+confused with major or minor modes.  The current edebug mode determines
+how edebug displays the progress of the evaluation, whether it stops at
+each stop point, or continues to the next breakpoint, for example.
+
+   Each time you enter edebug, you will be in the same mode you
+specified the previous time you were in edebug.  The exception is when
+edebug is first entered for each recursive edit level; then the mode
+is changed to the value in the global variable `edebug-initial-mode',
+which defaults to "step" mode.  In the case of a command where the
+`interactive' form has an expression argument, the expression is
+evaluated before the function is really entered, so the edebug mode
+defaults to `edebug-initial-mode' both for this expression and for the
+first expression in the function body.  (In fact, this repeated
+resetting to the initial mode also occurs each time your function is
+called non-recursively before returning to the command level which
+invoked the function.)
+
+   Below is a table of the keys which change the edebug mode.  For each
+key, the mode is set and the recursive edit is exited; what happens
+next depends on which mode you selected, which code your function
+executes, and whether a breakpoint is hit.  You can also set the edebug
+mode when edebug is not running (or in a non-edebug buffer) by hitting
+`C-xX' (default value of `edebug-global-prefix') followed by the same
+key as used inside of edebug.  Most of the other edebug commands are
+available in the same manner.
+
+`SPC'
+     (`edebug-step-through') Step mode stops at the next stop point
+     encountered.
+
+`t'
+     (`edebug-trace') Trace mode pauses one second at each edebug stop
+     point.
+
+`T'
+     (`edebug-Trace-fast') Trace with zero pause time at each stop
+     point.
+
+`c'
+     (`edebug-continue') Continue after pausing for one second at each
+     breakpoint.
+
+`C'
+     (`edebug-Continue-fast') Continue with zero pause time at each
+     breakpoint.
+
+`g'
+     (`edebug-go') Go until a breakpoint.  *Note Breakpoints::.
+
+`G'
+     (`edebug-Go-nonstop') Go non-stop ignoring breakpoints.  This is
+     the fastest way to execute code that has edebug calls in it, but
+     this mode of execution is still interruptible; see below.
+
+`S'
+     (`edebug-stop') Stop executing at the first stop point
+     encountered, regardless of the mode.  This command does not
+     change the mode and does not continue execution; it is intended
+     to be used to interrupt execution.
+
+   To execute edebugged code more rapidly, use commands farther down
+in the list.  For example, Go-nonstop mode is alot faster that trace
+mode since it ignores breakpoints.  The continue modes do not stop at
+breakpoints, but merely pause at them.
+
+   While executing or tracing, you can interrupt the execution by
+hitting one of the edebug command characters, at which time the
+command is acted on.  For example, hitting SPC will stop execution at
+the first stop point because input is pending, but will then step to
+the next stop point.  Alternatively, `S' is bound to `edebug-stop'
+which does nothing but stop.  If your function happens to read input,
+a character you hit intending to interrupt execution may be read by
+the function instead, so be careful in the neighborhood of the read
+call.  Also see the discussion of errors and quit signals in *Note
+Using Edebug::.
+
+   Keyboard macros invoked within edebug will not work across edebug
+calls, so you must enter each edebug command separately.  (It doesn't
+seem worth it to save and restore keyboard macro definitions and
+executions between calls to edebug in such a way that it doesn't
+affect any outside command processing, and it may not be possible in
+any case.)
+
+
+File: edebug,  Node: Miscellaneous,  Next: Breakpoints,  Prev: Edebug Modes,  Up: Top
+
+Miscellaneous
+=============
+
+   Some miscellaneous commands are described here.
+
+`f'
+     (`edebug-forward-sexp') Proceed from the current point to the sexp
+     found by first doing `forward-sexp' and then switching to go mode. 
+     If a prefix argument is supplied, do `forward-sexp' that many
+     times.  If there are not enough sexps for `forward-sexp', call
+     `edebug-step-out' instead.  Be careful that the sexp found by
+     `forward-exp' will be executed; this will not always be the case
+     in a `condition-case', for example.  A temporary breakpoint is
+     set at the stop point, so it will be used and cleared whenever
+     execution reaches it.  See *Note Breakpoints:: for the details on
+     breakpoints.
+
+     Notice that we do the `forward-sexp' starting at the current point
+     rather than the stop point, thus providing more flexibility.  If
+     you want to start the search at the stop point, first do
+     `edebug-where' (`w').
+
+`o'
+     (`edebug-step-out') Proceed from the current point to the end of
+     the containing sexp.  If the containing sexp is the top level
+     defun, go to the end of the last sexp instead, or if that is the
+     same point, then step out of the function.  Therefore this
+     command does not exit the currently executing function unless you
+     are positioned after the last sexp of the function.
+
+     Like `edebug-forward-sexp', this command switches to go mode to
+     get to the containing sexp.  The only situation in which the
+     containing sexp will not be reached by edebug is if a non-local
+     exit by-passes it.
+
+`i'
+     (`edebug-step-in') Step into the function about to be called.  Use
+     this command before any of the arguments of the function call are
+     evaluated since otherwise it will be too late.  One side effect
+     of using `edebug-step-in' is that the next time the stepped-into
+     function is called, edebug will be called there as well.  (I may
+     try to fix this in the future.)
+
+`h'
+     (`edebug-goto-here') Proceed to the stop point near the current
+     point.  A temporary breakpoint is used.  See *Note Breakpoints::
+     for details on how the stop point is found.
+
+`d'
+     (`edebug-backtrace') A `debug'-like backtrace is displayed.  All
+     calls to edebug functions are removed to clean up the display. 
+     This backtrace does not function like the standard backtrace so
+     you cannot specify which frames to stop at, etc. - but it is
+     better than nothing.  The backtrace buffer is killed
+     automatically when you continue execution.
+
+
+File: edebug,  Node: Breakpoints,  Next: Views,  Prev: Miscellaneous,  Up: Top
+
+Breakpoints
+===========
+
+   The purpose of "breakpoints" is to let you specify significant
+places in your code where you would like edebug to stop or pause
+execution.  Breakpoints may be set at any stop points as defined in
+*Note Using Edebug::, even before symbols.  Edebug will stop or pause
+at a breakpoint except when the edebug mode is Go-nonstop.  For
+setting and unsetting breakpoints, the stop point that is affected is
+at or after the current point.  The following commands are related to
+breakpoints:
+
+`b'
+     (`edebug-set-breakpoint') Set a breakpoint at the stop point at
+     or after the current point.  With prefix-arg, the breakpoint is
+     temporary.
+
+`u'
+     (`edebug-unset-breakpoint') Unset or clear a breakpoint at the
+     stop point at or after the current point.
+
+`x'
+     (`edebug-set-conditional-breakpoint') Set a conditional
+     breakpoint.  You are asked for the conditional expression.  With
+     prefix-arg, the breakpoint is temporary.
+
+`B'
+     (`edebug-next-breakpoint') Move point to the next breakpoint in
+     the current function definition.
+
+   While in edebug, you can set a breakpoint with `b'
+(`edebug-set-breakpoint') and unset (or clear) it with `u'
+(`edebug-unset-breakpoint').  First move point to a position at or
+before the desired edebug stop point, then hit the key to change the
+breakpoint.  Unsetting a breakpoint that has not been set does nothing.
+
+   Reevaluating the defun with `edebug-defun' clears all breakpoints
+in the function.  (Let me know if you would like breakpoints preserved;
+I could use marks for breakpoints instead of relying on the offsets
+from the beginning of the defun.)
+
+   A "conditional breakpoint" is set with `x'
+(`edebug-set-conditional-breakpoint').  When you set a conditional
+breakpoint you will be asked for an expression which is evaluated each
+time the breakpoint is reached.  Edebug will only stop at a conditional
+breakpoint if the condition evaluates to non-`nil'.  But conditional
+breakpoints are not even checked if the edebug mode is Go-nonstop.
+
+   For both conditional and unconditional breakpoints, the breakpoint
+can be made into a "temporary breakpoint" if you give a prefix arg to
+the command.  After breaking at a temporary breakpoint, it is
+automatically cleared.
+
+   To find out where your breakpoints are, use the `B'
+(`edebug-next-breakpoint') command which moves point to the next
+breakpoint in the function following point, or to the first breakpoint
+if there are no following breakpoints.  (Note that this command does
+not continue execution - it just moves the point.)
+
+
+File: edebug,  Node: Views,  Next: Evaluation,  Prev: Breakpoints,  Up: Top
+
+Views
+=====
+
+   If the function you are debugging modifies the Emacs window
+environment, you may wish to check the "outside window configuration"
+as it was before edebug was called, since edebug itself also modifies
+the window environment (see *Note Outside Window Configuration:: for
+how edebug tries to restore it). The following commands relate to
+views in general.
+
+`v'
+     (`edebug-view-outside') View the outside window configuration.
+
+`p'
+     (`edebug-bounce-point') Bounce to the point in the outside current
+     buffer, and return after one second.
+
+`w'
+     (`edebug-where') Move point back to the current stop point.
+
+`W'
+     (`edebug-toggle-save-windows') Toggle the `edebug-save-windows'
+     variable.  Each time you toggle it, the inside and outside window
+     configurations become the same as the current configuration.  By
+     turning this off and on again, edebug thereafter restores the
+     outside window configuration to the current configuration.
+
+   You can view the outside window configuration with `v'
+(`edebug-view-outside') or bounce to the current point in the current
+buffer with `p' (`edebug-bounce-point'), even if it is not normally
+displayed.  After moving point or changing buffers, you may wish to
+pop back to the stop point with `w' (`edebug-where') from an edebug
+window or `C-xXw' in any window.
+
+
+File: edebug,  Node: Evaluation,  Next: Printing,  Prev: Views,  Up: Top
+
+Evaluation
+==========
+
+   This section describes commands related to the explicit and
+automatic evaluation of expressions in edebug.  Edebug attempts to
+make such evaluations while inside of edebug appear that they are
+occuring outside of edebug, as if edebug had not been invoked.  Almost
+everything about the outside context is restored (*note The Outside
+Context::. for the details).  But `M-ESC' (`eval-expression') still
+evaluates expressions normally (in the current context) since that is
+occasionally needed.  Also supported is an evaluation list window
+where expressions may be evaluated interactively or automatically.
+
+   You can control the way in which expression results are printed by
+using the `custom-print' package (*note Printing::.).
+
+`e'
+     (`edebug-eval-expression') Evaluates an expression in the
+     "outside context" of your function, rather than in the edebug
+     context as `M-ESC' does.  (These commands are therefore
+     consistent with the same commands in the standard debugger.)
+
+`C-xC-e'
+     (`edebug-eval-last-sexp') Like `eval-last-sexp' except in the
+     outside context.
+
+`E'
+     (`edebug-visit-eval-list') Jump to an evaluation list window in
+     which several other commands apply, described below.  The
+     evaluation list is reevaluated each time the edebug display is
+     updated (including tracing) and the results are displayed in a
+     temporary buffer `*edebug*'.
+
+   The following commands apply to the evaluation list which is
+displayed in the `*edebug*' buffer.  All the `lisp-interaction-mode'
+commands are also available.
+
+`LFD'
+     (`edebug-eval-print-last-sexp') Similar to `eval-print-last-sexp'
+     but in the outside context.
+
+`C-xC-e'
+     (`edebug-eval-last-sexp') Similar to `eval-last-sexp' but in the
+     outside context.
+
+`C-cC-u'
+     (`edebug-update-eval-list') Build a new evaluation list from the
+     first expression of each group, reevaluate and redisplay.  Groups
+     are separated by a line starting with a comment.
+
+`C-cC-d'
+     (`edebug-delete-eval-item') Delete the evaluation list group that
+     point is in.
+
+`C-cC-w'
+     (`edebug-where') Jump back to the edebug buffer at the current
+     stop point.
+
+   In the evaluation list window, type in expressions and evaluate them
+with `LFD' (`edebug-eval-print-last-sexp') or `C-xC-e'
+(`edebug-eval-last-sexp'), just as you would for lisp interaction mode
+but the evaluation is done in the outside context.  (Note:
+`eval-region' is not redefined to evaluate in the outside context; it
+is only redefined to use `edebug-defun' when it encounters a defun -
+see *Note Evaluating defuns::.)
+
+   The expressions you enter interactively, and their results, will be
+lost when you continue execution of your function unless you add them
+to the evaluation list.  To add any number of expressions to the
+evaluation list use `C-cC-u' (`edebug-update-eval-list').  This builds
+a new list from the first expression of each "group", where groups are
+separated by a line starting with a comment.
+
+   When the evaluation list is redisplayed, each expression is
+displayed followed by the result of evaluating it, and a comment line.
+ If an error occurs during an evaluation, the error message is
+displayed in a string as if it were the result.  Therefore expressions
+that use undefined variables will not interrupt your debugging.  Here
+is an example of what the evaluation list window looks like after
+several expressions have been added to it.
+
+     (current-buffer)
+     #<buffer *scratch*>
+     ;---------------------------------------------------------------
+     (point-min)
+     1
+     ;---------------------------------------------------------------
+     (point-max)
+     2
+     ;---------------------------------------------------------------
+     edebug-outside-point-max
+     "Symbol's value as variable is void: edebug-outside-point-max"
+     ;---------------------------------------------------------------
+     (recursion-depth)
+     0
+     ;---------------------------------------------------------------
+     this-command
+     eval-last-sexp
+     ;---------------------------------------------------------------
+
+   You can delete the group that point is positioned in with `C-cC-d'
+(`edebug-delete-eval-item'), or use normal editing commands to modify
+the text as much as you want (e.g. delete-region).  Be sure to update
+the evaluation list with `C-cC-u' before you continue evaluation of
+your function or quit to the top level, unless you want your changes
+to be lost.  Also be sure to separate each "group" with a comment
+before updating, otherwise the wrong expressions may end up in the
+list.
+
+   You can return to the source code buffer (the edebug buffer) with
+`C-cC-w' which is equivalent to `C-xXw'.  The `*edebug*' buffer is
+killed when you continue execution of your function, and recreated
+next time it is needed.
+
+   If you are concerned with exactly how the evaluation is done, you
+may need to know that the evaluation of expressions occurs in one of
+two slightly different outside contexts.  If the evaluation list is
+non-empty when edebug is entered, the context used to evaluate it is
+closest to the true outside context since nothing much has changed when
+the evaluation is done.  However, when you evaluate expressions within
+edebug using the above described interactive commands or when you
+update the evaluation list, as much of the outside context is restored
+as possible, but not everything (*note The Outside Context::.).  One
+way to observe the difference is to look at the `recursion-depth'.
+
+
+File: edebug,  Node: Printing,  Next: The Outside Context,  Prev: Evaluation,  Up: Top
+
+Printing
+========
+
+   If the results of your expressions contain circular references to
+other parts of the same structure, the standard Emacs print
+subroutines may fail to print with an error, "Apparently circular
+structure being printed".  If you only use cdr circular lists (where
+cdrs of lists point back; what is the right term here?), you can limit
+the length of printing with `print-length' and edebug does this for
+you when printing out the previous result.  But car circular lists and
+circular vectors generate the above mentioned untrappable error in
+Emacs version 18.  Version 19 will support `print-level', but it is
+often useful to get a better print representation of circular
+structures.
+
+   To handle printing of structures more generally, you can use the
+`custom-print' package which supports `print-level', `print-circle',
+and further customizations via `custom-print-list' and
+`custom-print-vector'.  See the documentation strings of these
+variables for more details.  There are two main ways to use this
+package.  First, you may replace `prin1', `princ', and some
+subroutines that use them by calling `install-custom-print-funcs' so
+that any use of these functions in lisp code will be affected. 
+Second, you could call the custom routines directly, thus only
+affecting the printing that requires them.  Edebug uses the second
+method, as described next.
+
+   To load the package and activate custom printing only for edebug,
+simply use the command `edebug-install-custom-print-funcs'.  This sets
+the function cells of `edebug-prin1', `edebug-print',
+`edebug-prin1-to-string', and `edebug-format' to the symbol names of
+the corresponding custom versions.  Therefore, any changes you make to
+the custom functions or to the variables controlling custom printing
+take effect immediately.  Notice you still need to set `print-level'
+or `print-circle'.  To restore the standard print functions, use
+`edebug-reset-print-funcs'.
+
+
+File: edebug,  Node: The Outside Context,  Next: Macro Calls,  Prev: Printing,  Up: Top
+
+The Outside Context
+===================
+
+   This section is useful for those who need to know more precisely
+what edebug is doing that might affect editing and the context of
+expression evaluation.  For the most part, edebug operates
+transparently and there should be no apparent difference running with
+edebug, except for debugging itself.  If you find any variation with
+what is described here, please let me know.
+
+   An important distinction is made between the "outside context" which
+exists before edebug is invoked, and the "inside context" which exists
+while edebug is active.  Most of the outside context is saved and
+restored each time you enter and exit from edebug.  In addition, most
+evaluations you do within edebug (see *Note Evaluation::) occur in the
+same outside context which is temporarily restored for the evaluation.
+
+   Described in this section are the aspects of the outside context
+that are saved and restored including things as diverse as window
+configurations, current buffer status, and variable values.  These
+aspects are divided into three sections, corresponding to the degree to
+which edebug has affected the outside context.  The first section,
+immediately following this, is for those things that are affected any
+time edebug is called even if the display is not updated.  The second
+section is for when edebug must update the display.  The third section
+is for when edebug stops execution and enters a recursive edit. 
+Finally, the few unavoidable side effects of using edebug are
+described.
+
+* Menu:
+
+* Just Checking::		Just Checking
+* Outside Window Configuration::  Outside Window Configuration
+* Recursive Edit::		Recursive Edit
+* Side Effects::		Side Effects
+
+
+File: edebug,  Node: Just Checking,  Next: Outside Window Configuration,  Prev: The Outside Context,  Up: The Outside Context
+
+Just Checking
+-------------
+
+   The following are saved and restored when edebug is called even if
+the display is not updated.  One reason there is anything at all to
+save and restore is that the call to `edebug-enter' must remain active
+while your function is active, and this impacts the Lisp stack.  The
+other reason is that execution may be interrupted at any time unless
+the edebug mode is Go-nonstop, but an executing keyboard macro should
+not interrupt execution.
+
+   * `max-lisp-eval-depth' and `max-specpdl-size' are both incremented
+     for each `edebug-enter' call so that your code should not be
+     impacted by edebug frames on the stack.  I believe they are
+     incremented too much currently, but that is better than not
+     enough.
+
+   * A keyboard macro executed outside of edebug should not affect the
+     operation of edebug.  Other input will be caught by edebug,
+     however, interrupting execution as described in *Note Edebug
+     Modes::.  If you are defining a keyboard macro when edebug is
+     entered, all your command input will be included in the macro,
+     but this is not much use since the macro will not be executed the
+     same way.  I don't know if it is safe to suspend definition of a
+     kbd-macro, or if it is useful to allow execution of a macro to
+     continue into edebug.  Let me know if you figure this out.
+
+
+File: edebug,  Node: Outside Window Configuration,  Next: Recursive Edit,  Prev: Just Checking,  Up: The Outside Context
+
+Outside Window Configuration
+----------------------------
+
+   One important aspect of the outside context is the "outside window
+configuration".  A full description of window configurations may be
+found in the GNU Emacs Lisp Reference Manual.  If you are running
+`epoch', the concept of a window configuration is generalized to
+include the set of current screens, though if you create or destroy
+screens while in edebug, this effect will not be reversed.
+
+   When you exit from edebug (each time you continue execution, in
+fact), the window configuration outside of edebug is restored to what
+it was before edebug was entered.  But since Emacs delays screen
+update until needed, if you then reenter edebug before a screen update
+is required, it will appear that you never left; that is, the outside
+window configuration will not be displayed even though it was in
+effect.  If your function completes normally, the outside window
+configuration will finally be displayed when you return to the command
+level, or any time a screen update is forced by some other means (e.g.
+`sit-for').
+
+   The window configuration, as defined by Emacs, does not include
+which buffer is current or where point and mark are in the current
+buffer, but edebug saves and restores these also.  Note that the
+outside window configuration restored by edebug may not be fully
+consistent with the real outside context since the selected window may
+not yet have been displayed but edebug may have forced screen update.
+
+   If the display needs to be updated by edebug, e.g. a trace mode is
+active, the following are saved and restored.  However, if an error or
+quit signal occurs, some of these are intensionally not restored for
+user convenience.
+
+   * The point of the edebug buffer (the one containing the function
+     definition) is saved and restored only if the outside current
+     buffer is the same as the edebug buffer.  (The point is also not
+     restored on error or quit.)
+
+   * The outside window configuration, as described above, is saved and
+     restored if `edebug-save-windows' is non-`nil'.  These are not
+     restored on error or quit, but the outside selected window is
+     reselected even on error or quit in case a `save-excursion' is
+     active.  The window start for the edebug buffer is not restored,
+     however, so that the next time it is displayed, the window start
+     will be in the same position it was last time.
+
+   * The current buffer, and point and mark in the current buffer are
+     normally saved and restored even if the current buffer is the
+     same as the edebug buffer.  They are not restored on error or
+     quit, but in that event the current buffer will be changed to the
+     outside selected window's buffer when you return to the command
+     loop, as it normally is.
+
+   * The points of all displayed buffers are saved and restored if
+     `edebug-save-displayed-buffer-points' is non-`nil'.  See the
+     description of that variable for more details.
+
+   * The `overlay-arrow-position' and `overlay-arrow-string' are saved
+     and restored.  Since edebug uses these variables, saving and
+     restoring also permits recursive use of edebug, or other uses of
+     the overlay arrow by the outside context.
+
+   * `cursor-in-echo-area' is locally bound to `nil' so that the
+     cursor shows up in the window.
+
+
+File: edebug,  Node: Recursive Edit,  Next: Side Effects,  Prev: Outside Window Configuration,  Up: The Outside Context
+
+Recursive Edit
+--------------
+
+   If edebug stops execution and enters a recursive-edit, the following
+additional things are saved and restored.
+
+   * The read-only status of the edebug buffer, since edebug changes
+     it to read-only.
+
+   * The current match data, for whichever buffer was current.  Note
+     that Emacs 18.56 partially fixed a bug in `match-data' so that it
+     works better with `string-search'.
+
+   * The local keymap of the edebug buffer.
+
+   * `last-command', `this-command', `last-command-char', and
+     `last-input-char'.  Commands within the recursive edit will not
+     affect these variables outside of edebug.
+
+     But note that the result of `(this-command-keys)' and the value of
+     `unread-command-char' cannot be protected, as described below.
+
+   * `standard-output' and `standard-input'.  `recursive-edit' locally
+     binds these to the default `nil' values (correct??).
+
+
+File: edebug,  Node: Side Effects,  Prev: Recursive Edit,  Up: The Outside Context
+
+Side Effects
+------------
+
+   Many other things may be changed by the user explicitly while in the
+edebug recursive edit if they are not protected against change as
+described above, and this may be considered a feature in most cases. 
+However, some possibly undesirable side effects of using edebug remain,
+most of which are unavoidable:
+
+   * Changes to the text of buffers are not undone.
+
+   * Lisp stack usage is increased, but the limits,
+     `max-lisp-eval-depth' and `max-specpdl-size', are also increased
+     proportionally.
+
+   * The key sequence returned by `this-command-keys' is changed by
+     executing commands within edebug and there appears to be no way
+     to reset the key sequence from Lisp.
+
+   * `unread-command-char' is not protected because its value appears
+     to be used even before the command loop is entered by a recursive
+     edit.  Thus storing a char in `unread-command-char' always causes
+     it to be used for a command in edebug.  I don't know of a
+     work-around.
+
+   * Complex commands executed while in edebug are added to the
+     `command-history'.  This is probably recoverable, but I havent
+     investigated it yet.
+
+   * When you update the evaluation window, the recursion depth will
+     appear one deeper than the outside context recursion depth.
+
+   * Horizontal scrolling of the edebug buffer is not recovered.  This
+     is probably recoverable, but I havent investigated it yet.
+
+   * If you discover others, please let me know.
+
+
+File: edebug,  Node: Macro Calls,  Next: Options,  Prev: The Outside Context,  Up: Top
+
+Macro Calls
+===========
+
+   This section describes a mechanism you may use to tell edebug how
+the arguments of macro calls should be evaluated.  The same mechanism
+may be used for special forms and some function calls.
+
+   To edebug your macro calls, you must specify how the arguments may
+be evaluated.  In the general case, not all macro arguments will be
+evaluated.  But if it so happens that all your macro arguments are
+"evaluatable" (i.e. they may eventually be evaluated either explicitly
+in the macro body or when the resulting expansion is evaluated), then
+you can set the `edebug-eval-macro-args' option to non-`nil'.  On the
+other hand, if you don't want any of your macro arguments to be
+evaluated by edebug then you can ensure they will not be wrapped in
+edebug calls by setting `edebug-eval-macro-args' to `nil' (the
+default).
+
+   In the more likely case that some macro arguments are to remain
+unevaluated (e.g. a symbol) and some may be evaluated, you can specify
+an `edebug-form-spec' for each macro.  Implementation note: edebug
+uses `edebug-form-spec's for special forms and some function calls as
+well as macro calls.  You can do the same, but there is not really
+much point, except for functions that take function arguments.
+
+   Use the macro `def-edebug-form-spec' to define a specification for
+a function or macro which is stored in the `edebug-form-spec' property
+of the symbol naming the function or macro.  The first argument is the
+symbol name and the second argument is the specification which may be
+one of five kinds of values.  First, if a specification for a symbol
+is `nil' or undefined, then depending on the value of
+`edebug-eval-macro-args', all the arguments will be treated as
+evaluatable (if it's non-`nil') or unevaluatable (if it's `nil').
+
+   If the specification is a quoted function (symbol or lambda
+expression), then this function is called to process the arguments of
+the calling form.
+
+   As a convenience, `def-edebug-form-spec' may be given `t' or `0' as
+its second argument.  If it is `t', then all arguments are treated as
+evaluatable; if it is `0' (not `nil'), then all arguments are treated
+as unevaluateable.  Implementation note: these values are actually
+converted by `def-edebug-form-spec' to the functions `edebug-forms'
+and `edebug-sexps' respectively.
+
+   Finally, if the `edebug-form-spec' is a list, then the elements of
+the list describe the types of the arguments of a calling form.  The
+list is processed left to right, in the same order as the arguments of
+the calling form, and the elements constrain the types of corresponding
+arguments and specify whether they may be evaluated.  Each element may
+be one of the following:
+
+`symbolp'
+     An unevaluated symbol.
+
+`integerp'
+     An unevaluated number.
+
+`stringp'
+     An unevaluated string.
+
+`vectorp'
+     An unevaluated vector.
+
+`atom'
+     An unevaluated number, string, symbol, or vector.
+
+`sexp'
+     An unevaluated sexp (atom or list); the argument may be `nil' or
+     `()' but it must not be missing.
+
+`form'
+     An evaluated sexp.
+
+`function'
+     A function argument may be a quoted (using quote or function)
+     symbol or lambda expression or a form (that should evaluate to a
+     function or lambda expression).  The body of an anonymous
+     function will be treated as evaluateable.
+
+`OTHER'
+     Any other symbol should be the name of a function; this function
+     is called on the argument as a predicate, and an error is
+     signaled if the predicate fails.  You could use this to check
+     whether a literal is of a certain custom type.
+
+`(...)'
+     A sublist of the same format as the top level, processed
+     recursively.  The actual argument must be a list as well. 
+     Special case: if the car of the element is quote, the actual
+     argument must match the quoted sexp, usually a symbol (see
+     example of `for' macro below).
+
+`[...]'
+     A sublist of the same format as the top level, processed
+     recursively.  It is processed like `(...)' except the matched
+     arguments are inserted in-line into the arguments matched by the
+     containing list, somewhat analogous to `@,' in backquoted
+     expressions.  This may be used for grouping to build complex
+     elements out of the primitives provided.
+
+`&optional'
+     All following elements in the specification list at this level
+     may or may not match arguments; as soon as one does not match,
+     processing of the specification list terminates.  To get only one
+     specification item to be optional, use `[...]'.
+
+`&rest'
+     All following elements in the specification list at this level are
+     repeated in order zero or more times.  Allowing more than one
+     `&rest' element is an extension of the normal meaning of &rest. 
+     All the `&rest' elements need not be used in every repetition,
+     however.  Only one `&rest' may appear at the same level of a
+     specification list, and `&rest' must not be followed by
+     `&optional'.  To specify that only some types arguments are to be
+     repeated until failure, followed by some other types of
+     arguments, use `[...]'.
+
+`&or'
+     Each of the following elements in the specification list at this
+     level are alternatives, processed left to right until one
+     succeeds.  To group two or more list elements as one alternative,
+     bracket them in `[...]'.  Only one `&or' may appear in a list,
+     and it may not be followed by `&optional' or `&rest'.  One of the
+     alternatives must match, unless the `&or' is preceeded by
+     `&optional' or `&rest'.
+
+   If a failure to match occurs, this does not necessarily mean a
+syntax error will be signalled; instead, "backtracking" will take place
+until all alternatives have been exhausted.  `&optional' elements need
+not match at all of course, but evenually every element of the
+argument list must be matched or an error will be signalled. 
+Non-optional elements in the specification unused when the argument
+list has been completely matched will also cause backtracking, or
+ultimately a syntax error.
+
+   The combination of backtracking, `&optional', `&rest', `&or', and
+`[...]' for grouping provides the equivalent of regular expressions. 
+The `(...)' lists require balanced parentheses, which is the only
+context free (finite state with stack) construct supported.  Dotted
+pair notation is not yet supported, but let me know if you need it.
+
+   I am considering writing a compiler for `edebug-form-spec' list
+forms that would generate elisp code to process arguments the same way
+`edebug-interpret-form-spec' now does it but alot faster.  Suggestions
+appreciated.
+
+   Here are some examples of using `edebug-form-spec'.  A `let' form
+looks like: `(let (BINDINGS ...) FORMS ...)', where each of the
+BINDINGS is either a SYMBOL or `(SYMBOL VALUE-FORM)'.  The
+`edebug-form-spec' for a `let' form is defined as follows:
+
+     (def-edebug-form-spec let
+       '((&rest
+         &or symbolp (symbolp &optional form))
+        &rest form))
+
+   A `for' loop macro is defined in the GNU Emacs Lisp Reference
+Manual (reference needed), and `cl.el' defines `case' and `do' macros.
+ Here are their edebug-form-specs.
+
+     (def-edebug-form-spec for
+       '(symbolp 'from form 'to form 'do &rest form))
+     
+     (def-edebug-form-spec case
+       '(form &rest (sexp form)))
+     
+     (def-edebug-form-spec do
+       '((&rest &or symbolp (symbolp &optional form form))
+         (form &rest form)
+         &rest body))
+
+   Finally, the functions `mapcar', `mapconcat', `mapatoms', `apply',
+and `funcall' all take function arguments, and edebug defines
+specifications like the following one for `apply'.
+
+     (def-edebug-form-spec apply '(function &rest form))
+
+   Note that backquote (``') is a macro that results in an expression
+that is not necessarily evaluated.  It is often used to simplify the
+definition of a macro where the result of the macro call is evaluated,
+but edebug does not know when this is the case.  So do not be surprised
+when you cannot step through your backquoted code.  23 On the other
+hand, one could wrap the backquoted expression in a special function,
+say `edebug-`', which would mean that the result of the backquote form
+will, in fact, be evaluated.  Then edebug could wrap evaluateable
+expressions within the backquoted expression in edebug calls.  Is it
+worth it?
+
+
+File: edebug,  Node: Options,  Next: Todo List,  Prev: Macro Calls,  Up: Top
+
+Options
+=======
+
+ * User Option: edebug-all-defuns
+     Default `nil'.  If non-`nil', all `defuns' and `defmacros'
+     evaluated will use edebug.  `eval-defun' without prefix arg and
+     `eval-region' will use `edebug-defun'.
+
+     If `nil', `eval-region' evaluates normally, but `eval-defun' with
+     prefix arg uses `edebug-defun'.  `eval-region' is called by
+     `eval-defun', `eval-last-sexp', and `eval-print-last-sexp'.
+
+     You may wish to make this variable local to each elisp buffer by
+     calling `(make-local-variable 'edebug-all-defuns)' in your
+     `emacs-lisp-mode-hook'.  You can use the function
+     `edebug-all-defuns' to toggle its value.
+
+ * User Option: edebug-eval-macro-args
+     Default `nil'.  If non-`nil', edebug will assume that all macro
+     call arguments for macros that have no `edebug-form-spec' may be
+     evaluated, otherwise it will not.  To specify exceptions for
+     macros that have some arguments evaluated and some not, you
+     should specify an `edebug-form-spec' (*note Macro Calls::.).
+
+ * User Option: edebug-stop-before-symbols
+     Default `nil'.  Non-`nil' causes edebug to stop before symbols as
+     well as after.  This option is used when the `edebug-defun' is
+     called, not when edebugging, so set the option before using
+     `edebug-defun'.
+
+ * User Option: edebug-save-windows
+     Default `t'.  If non-`nil', save and restore window configuration
+     on edebug calls.  It takes some time to save and restore, so if
+     your program does not care what happens to the window
+     configurations, it is better to set this variable to `nil'.
+
+ * User Option: edebug-save-point
+     Default `t'.  If non-`nil', save and restore the point and mark
+     in source code buffers.
+
+ * User Option: edebug-save-displayed-buffer-points
+     Default `nil'.  If non-`nil', save and restore the points of all
+     buffers, displayed or not.
+
+     Saving and restoring buffer points is necessary if you are
+     debugging code that changes the point of a buffer which is
+     displayed in a non-selected window.  If edebug or the user then
+     selects the window, the buffer's point will be changed to the
+     window's point.
+
+     Saving and restoring is an expensive operation since it visits
+     each window and each displayed buffer twice for each edebug call,
+     so it is best to avoid it if you can.
+
+ * User Option: edebug-initial-mode
+     Default `'step'.  Global initial mode for edebug, if non-`nil'. 
+     This is used when edebug is first entered for each recursive-edit
+     level.  Possible values are `nil' (meaning use the current
+     edebug-mode), `'step', `'go', `'Go-nonstop', `'trace',
+     `'Trace-fast', `'continue', and `'Continue-fast'.
+
+ * User Option: edebug-trace
+     Default `nil'.  Non-`nil' if edebug should show a trace of
+     function entry and exit.  Tracing output is displayed in a buffer
+     named `*edebug-trace*', one function entry or exit per line,
+     indented by the recursion level.  You can customize by replacing
+     functions `edebug-print-trace-entry' and
+     `edebug-print-trace-exit'.
+
+
+File: edebug,  Node: Todo List,  Prev: Options,  Up: Top
+
+Todo List
+=========
+
+   Send me your suggestions and priorities.
+
+   If you are interested in running edebug on functions in edebug.el,
+I find it easiest to first copy edebug.el into another file, say
+fdebug.el, and replace all strings "edebug" with "fdebug", then
+evaluate the fdebug buffer and run edebug on functions in fdebug.el.
+
+   * Bug: Occasionally, your elisp buffer will remain read-only after
+     quitting.  This is mostly an annoyance, but certainly should be
+     fixed.     *Let me know if you can see it - I don't see it any
+     more. *
+
+   * Bug: I've noticed that the point of some buffers was reset to the
+     point of some other buffer, but I haven't been able to repeat it
+     so perhaps it is fixed.
+
+   * Bug: "(" in the first column of doc strings messes up
+     `eval-current-buffer', and perhaps others.
+
+   * Bug: Some legal token streams are still not processed correctly by
+     `edebug-defun'.  For now, be sure there is a space before `'' and
+     don't use `""' inside strings.
+
+   * There are no other known bugs, so if you find any, please let me
+     know.  There is nothing worse than a buggy debugger!
+
+   * Let me know if you find any side effects that could or should be
+     avoided.  Also *note Side Effects::..
+
+   * Figure out how `max-lisp-eval-depth' and `max-specpdl-size'
+     should be set.
+
+   * Remember the window configuration inside debugger between edebug
+     calls and remember original configuration on the first call to
+     edebug after an interactive command at a lower level.
+
+   * Make edebug work with selective display - dont stop in hidden
+     lines.
+
+   * Handle top-level expressions (i.e. outside of defs).  Store
+     offsets in buffer-local variable?
+
+   * Debug just one or selected subexpressions of a defun - the rest is
+     evalled normally.
+
+   * Should `overlay-arrow-position' and `-string' be buffer local?
+
+   * Explicit calls to edebug in user code?
+
+   * Use copy of `current-local-map' instead of `emacs-lisp-mode-map'
+     (but only copy the first time after lower level command - to save
+     time).
+
+   * Better integration with standard debug.
+
+   * Use `inhibit-quit' while edebugging?
+
+   * Crawl mode would `sit-for' 0 or 1 in the outside window
+     configuration   between each edebug step.    Maybe it should be a
+     separate option that applies to trace as well.
+
+   * Customizable `sit-for' time.  Less than a second would be nice.
+
+   * Counting conditions - stop after n iterations.  You can do it
+     manually now with conditional breakpoints.
+
+   * minibuffer trace - show the current source line in the minibuffer
+     instead of moving point to the expression.
+
+   * Performance monitoring - summarize trace data.
+
+   * Speed up edebug-defun and edebugging - always.
+
+   * Preserve breakpoints between edebug-defun compilations?
+
+   * Backquote could be handled better, but with difficulty.
+
+   * Step into code not previously evaluated with `edebug-defun'. 
+     Restore to no edebug version after having entered.  Partially
+     implemented with `i' command.
+
+   * Optionally replace expressions with results in a separate buffer
+     from the source code.  This idea is based on discussions with
+     Carl Witty regarding his stepper debugger.  Also, unparse code
+     into its own buffer if source code is not available, or if user
+     wishes to use replace-with-results mode.
+
+   * Preserve previous bindings of local variables, and allow user to
+     jump back to previous frames, particularly binding frames (i.e.
+     `let', `condition-case', function and macro calls) to view values
+     at that frame.  What about buffer local variables?  This is very
+     complex, and it would be better to have access to the Lisp stack.
+
+   * Variables display, like the evaluation list but automatically
+     display all local variable values.
+
+
+File: edebug,  Node: Index,  Prev: Top,  Up: Top
+
+Index
+*****
+
+* Menu:
+
+* &optional:                            Macro Calls.
+* &or:                                  Macro Calls.
+* &rest:                                Macro Calls.
+* *edebug* buffer:                      Evaluation.
+* *edebug-trace*:                       Options.
+* .emacs:                               Installation.
+* ?:                                    Using Edebug.
+* B:                                    Breakpoints.
+* C:                                    Edebug Modes.
+* C-cC-d:                               Evaluation.
+* C-cC-u:                               Evaluation.
+* C-cC-w:                               Evaluation.
+* C-xC-e:                               Evaluation.
+* C-xC-e:                               Evaluation.
+* C-xx:                                 Using Edebug.
+* E:                                    Evaluation.
+* G:                                    Edebug Modes.
+* LFD:                                  Evaluation.
+* S:                                    Edebug Modes.
+* SPC:                                  Edebug Modes.
+* T:                                    Edebug Modes.
+* W:                                    Views.
+* `:                                    Macro Calls.
+* a:                                    Using Edebug.
+* abort-recursive-edit:                 Using Edebug.
+* anonymous lambda expressions:         Using Edebug.
+* autoloading edebug:                   Installation.
+* b:                                    Breakpoints.
+* backquote:                            Macro Calls.
+* backtracking:                         Macro Calls.
+* blink current buffer:                 Views.
+* breakpoints:                          Breakpoints.
+* buffer point:                         Todo List.
+* c:                                    Edebug Modes.
+* calling edebug recursively:           Using Edebug.
+* clearing breakpoints:                 Breakpoints.
+* command-history:                      Side Effects.
+* conditional breakpoints:              Breakpoints.
+* continue fast mode:                   Edebug Modes.
+* continue mode:                        Edebug Modes.
+* counting conditions:                  Todo List.
+* current buffer point and mark:        Outside Window Configuration.
+* cursor-in-echo-area:                  Outside Window Configuration.
+* d:                                    Miscellaneous.
+* debug-on-error:                       Using Edebug.
+* debug-on-quit:                        Using Edebug.
+* debugger:                             Using Edebug.
+* debugging edebug:                     Todo List.
+* def-edebug-form-spec:                 Macro Calls.
+* defmacro:                             Using Edebug.
+* defun:                                Using Edebug.
+* displayed buffer points:              Outside Window Configuration.
+* dotted pair notation:                 Macro Calls.
+* e:                                    Evaluation.
+* edebug:                               Using Edebug.
+* edebug buffer:                        Using Edebug.
+* edebug display update:                Outside Window Configuration.
+* edebug initialization:                Installation.
+* edebug installation:                  Installation.
+* edebug modes:                         Edebug Modes.
+* edebug recursive edit:                Using Edebug.
+* edebug-Continue-fast:                 Edebug Modes.
+* edebug-Go-nonstop:                    Edebug Modes.
+* edebug-Trace-fast:                    Edebug Modes.
+* edebug-all-defuns:                    Evaluating defuns.
+* edebug-all-defuns:                    Options.
+* edebug-all-defuns:                    Evaluating defuns.
+* edebug-backtrace:                     Miscellaneous.
+* edebug-bounce-point:                  Views.
+* edebug-continue:                      Edebug Modes.
+* edebug-defun:                         Using Edebug.
+* edebug-delete-eval-item:              Evaluation.
+* edebug-enter:                         Using Edebug.
+* edebug-eval-expression:               Evaluation.
+* edebug-eval-last-sexp:                Evaluation.
+* edebug-eval-last-sexp:                Evaluation.
+* edebug-eval-macro-args:               Macro Calls.
+* edebug-eval-macro-args:               Options.
+* edebug-eval-print-last-sexp:          Evaluation.
+* edebug-form-spec:                     Macro Calls.
+* edebug-forward-sexp:                  Miscellaneous.
+* edebug-global-prefix:                 Edebug Modes.
+* edebug-go:                            Edebug Modes.
+* edebug-goto-here:                     Miscellaneous.
+* edebug-help:                          Using Edebug.
+* edebug-initial-mode:                  Options.
+* edebug-initial-mode:                  Edebug Modes.
+* edebug-mode:                          Using Edebug.
+* edebug-next-breakpoint:               Breakpoints.
+* edebug-previous-result:               Using Edebug.
+* edebug-print-trace-entry:             Options.
+* edebug-print-trace-exit:              Options.
+* edebug-save-displayed-buffer-points:  Options.
+* edebug-save-displayed-buffer-points:  Outside Window Configuration.
+* edebug-save-point:                    Options.
+* edebug-save-windows:                  Options.
+* edebug-save-windows:                  Outside Window Configuration.
+* edebug-set-breakpoint:                Breakpoints.
+* edebug-set-conditional-breakpoint:    Breakpoints.
+* edebug-step-in:                       Miscellaneous.
+* edebug-step-out:                      Miscellaneous.
+* edebug-step-through:                  Edebug Modes.
+* edebug-stop:                          Edebug Modes.
+* edebug-stop-before-symbols:           Options.
+* edebug-stop-before-symbols:           Using Edebug.
+* edebug-toggle-save-windows:           Views.
+* edebug-trace:                         Options.
+* edebug-trace:                         Edebug Modes.
+* edebug-unset-breakpoint:              Breakpoints.
+* edebug-update-eval-list:              Evaluation.
+* edebug-view-outside:                  Views.
+* edebug-visit-eval-list:               Evaluation.
+* edebug-where:                         Views.
+* edebug-where:                         Evaluation.
+* edebug.el:                            Installation.
+* emacs lisp stack frames:              Just Checking.
+* emacs screen display update:          Outside Window Configuration.
+* emacs-lisp-mode:                      Using Edebug.
+* embedded defun and defmacro:          Using Edebug.
+* entering functions:                   Miscellaneous.
+* epoch screens:                        Outside Window Configuration.
+* error or quit:                        Outside Window Configuration.
+* eval-current-buffer:                  Todo List.
+* eval-current-buffer:                  Using Edebug.
+* eval-current-buffer:                  Evaluating defuns.
+* eval-defun:                           Using Edebug.
+* eval-defun:                           Evaluating defuns.
+* eval-expression:                      Evaluation.
+* eval-last-sexp:                       Evaluating defuns.
+* eval-print-last-sexp:                 Evaluating defuns.
+* eval-region:                          Evaluating defuns.
+* evaluate in outside context:          Evaluation.
+* evaluation:                           Evaluation.
+* evaluation defuns:                    Evaluating defuns.
+* evaluation list group:                Evaluation.
+* evaluation list window:               Evaluation.
+* exiting functions:                    Miscellaneous.
+* f:                                    Miscellaneous.
+* function call:                        Using Edebug.
+* function cell:                        Using Edebug.
+* function symbol:                      Macro Calls.
+* g:                                    Edebug Modes.
+* go mode:                              Edebug Modes.
+* go nonstop mode:                      Edebug Modes.
+* h:                                    Miscellaneous.
+* i:                                    Miscellaneous.
+* ignore breakpoints:                   Edebug Modes.
+* in edebug:                            Using Edebug.
+* inhibit-quit:                         Todo List.
+* input pending:                        Edebug Modes.
+* inside context:                       The Outside Context.
+* interactive expression argument:      Edebug Modes.
+* interactive forms:                    Using Edebug.
+* interrupting execution:               Edebug Modes.
+* keyboard macros:                      Edebug Modes.
+* keyboard macros:                      Just Checking.
+* lambda expression:                    Using Edebug.
+* lambda expression:                    Macro Calls.
+* last-command:                         Recursive Edit.
+* last-command-char:                    Recursive Edit.
+* last-input-char:                      Recursive Edit.
+* lisp stack:                           Side Effects.
+* lisp-interaction-mode:                Evaluation.
+* load-library:                         Using Edebug.
+* load-path:                            Installation.
+* loading:                              Evaluating defuns.
+* local keymap of edebug buffer:        Recursive Edit.
+* local variables:                      Todo List.
+* macro call argument types:            Macro Calls.
+* macro calls:                          Macro Calls.
+* match data of current buffer:         Recursive Edit.
+* max-lisp-eval-depth:                  Todo List.
+* max-lisp-eval-depth:                  Side Effects.
+* max-lisp-eval-depth:                  Just Checking.
+* max-specpdl-size:                     Just Checking.
+* max-specpdl-size:                     Side Effects.
+* max-specpdl-size:                     Todo List.
+* minibuffer:                           Todo List.
+* move to stop point:                   Views.
+* moving overlay arrow:                 Using Edebug.
+* moving point:                         Using Edebug.
+* moving window start:                  Using Edebug.
+* narrow-to-region:                     Evaluating defuns.
+* o:                                    Miscellaneous.
+* options:                              Options.
+* outside context:                      The Outside Context.
+* outside context for evaluation:       Evaluation.
+* outside window configuration:         Outside Window Configuration.
+* outside window configuration:         Views.
+* overlay-arrow-position:               Outside Window Configuration.
+* overlay-arrow-string:                 Outside Window Configuration.
+* p:                                    Views.
+* pause:                                Edebug Modes.
+* performance monitoring:               Todo List.
+* point in edebug buffer:               Outside Window Configuration.
+* preserve breakpoints:                 Todo List.
+* q:                                    Using Edebug.
+* read sexp:                            Todo List.
+* read-only:                            Using Edebug.
+* read-only bug:                        Todo List.
+* read-only edebug buffer:              Recursive Edit.
+* reading input:                        Edebug Modes.
+* recursion depth:                      Side Effects.
+* recursive-edit:                       Recursive Edit.
+* replace with results:                 Todo List.
+* save-excursion:                       Outside Window Configuration.
+* saving and restoring:                 Just Checking.
+* selective display:                    Todo List.
+* side effects:                         Todo List.
+* side effects:                         Side Effects.
+* sit-for:                              Todo List.
+* sit-for:                              Outside Window Configuration.
+* special forms:                        Using Edebug.
+* standard-input:                       Recursive Edit.
+* standard-output:                      Recursive Edit.
+* step mode:                            Edebug Modes.
+* stop execution:                       Edebug Modes.
+* stop points:                          Using Edebug.
+* symbols:                              Using Edebug.
+* syntax error:                         Macro Calls.
+* syntax error:                         Using Edebug.
+* t:                                    Edebug Modes.
+* temporary breakpoints:                Breakpoints.
+* text changes:                         Side Effects.
+* this-command:                         Recursive Edit.
+* this-command-keys:                    Side Effects.
+* this-command-keys:                    Recursive Edit.
+* top-level:                            Using Edebug.
+* top-level expressions:                Todo List.
+* trace fast mode:                      Edebug Modes.
+* trace mode:                           Edebug Modes.
+* tracing function entry and exit:      Options.
+* u:                                    Breakpoints.
+* unread-command-char:                  Recursive Edit.
+* unread-command-char:                  Side Effects.
+* using edebug:                         Using Edebug.
+* v:                                    Views.
+* variables display:                    Todo List.
+* views:                                Views.
+* w:                                    Views.
+* window configuration:                 Outside Window Configuration.
+* window start of edebug buffer:        Outside Window Configuration.
+* x:                                    Using Edebug.
+* x:                                    Breakpoints.
+
+
+
+Tag Table:
+Node: Top892
+Node: Installation2605
+Node: Using Edebug3098
+Node: Evaluating defuns9734
+Node: Edebug Modes12019
+Node: Miscellaneous15964
+Node: Breakpoints18618
+Node: Views21282
+Node: Evaluation22705
+Node: Printing28339
+Node: The Outside Context30369
+Node: Just Checking32162
+Node: Outside Window Configuration33655
+Node: Recursive Edit37124
+Node: Side Effects38161
+Node: Macro Calls39737
+Node: Options48164
+Node: Todo List51350
+Node: Index55262
+
+End Tag Table

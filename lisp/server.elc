@@ -1,0 +1,72 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:31:11 1991
+;;; from file /wg1/emacs-base/lisp/server.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar server-program "emacsserver" "\
+*The program to use as the edit server")
+(defvar server-visit-hook nil "\
+*List of hooks to call when switching to a buffer for the Emacs server.")
+(defvar server-process nil "\
+the current server process")
+(defvar server-clients nil "\
+List of current server clients.
+Each element is (CLIENTID FILES...) where CLIENTID is a string
+that can be given to the server process to identify a client.
+When a buffer is marked as \"done\", it is removed from this list.")
+(defvar server-buffer-clients nil "\
+List of clientids for clients requesting editing of current buffer.")
+(put 'server-buffer-clients 'permanent-local t)
+(defvar server-temp-file-regexp "^/tmp/Re\\|/draft$" "\
+*Regexp which should match filenames of temporary files
+which are deleted and reused after each edit
+by the programs that invoke the emacs server.")
+(byte-code "ÀÁ!ˆÂÁÃ\"ˆÁž¬„ÅBÆÇMˆÈÉM‡" [make-variable-buffer-local server-buffer-clients set-default nil minor-mode-alist (server-buffer-clients " Server") server-log #[(string) "ÀÁ!­ŠÁqˆdbˆ\ncˆo®‚Ã )‡" [get-buffer "*server*" string newline] 2] server-sentinel #[(proc msg) "À	!Â=«†ÃÄÅ!!‡À	!Æ=­…ÃÄÇ!!‡" [process-status proc exit server-log message "Server subprocess exited" signal "Server subprocess killed"] 3]] 3)
+(fset 'server-start #[(&optional leave-dead) "«ŠÁÂ\"ˆÂÃÄˆÂÅÆˆ«@A@É!ˆ)ªm\n?­«†ËÌÍ!!ˆÎÏÂ#ÁÑ\"ˆÒÓ\"ˆÔ!‡" [server-process set-process-sentinel nil (delete-process server-process) ((error)) (delete-file "~/.emacs_server") ((error)) server-clients buffer server-buffer-done leave-dead server-log message "Restarting server" start-process "server" server-program server-sentinel set-process-filter server-process-filter process-kill-without-query] 4 "\
+Allow this Emacs process to be a server for client processes.
+This starts a server communications subprocess through which
+client \"editors\" can send your editing commands to this Emacs job.
+To use the server, set up the program `etc/emacsclient' in the
+Emacs distribution as your standard \"editor\".
+
+Prefix arg means just kill any existing server communications subprocess." "P"])
+(fset 'server-process-filter #[(proc string) "À	!ˆÂÃ	\"Ä=??­î	Ä•ÅO‰ÄÂÆ	\"OCÅÇ	\n	Ä•ÅOÂË	\"«±	Ä”Ä•SO	Ä•ÅOÂÍ\"«‹ÎÇÅO!ªD	B	Ç)ªIÏ	\n\"ˆ\nBÑ\nA@!ˆÒÓÔ!!+‡" [server-log string string-match "Client: " 0 nil " " 1 lineno files client "[^ ]+ " arg "\\`\\+[0-9]+\\'" read server-visit-files server-clients switch-to-buffer message substitute-command-keys "When done with a buffer, type \\[server-edit]."] 6])
+(fset 'server-visit-files #[(files client) "À\n«ØŠ\n@@Ä!‰«¨q«¤Æ!«‘Ç!«…È!«žÉÊÀ\"ˆª—ËÌÍQ!«Î!ˆª‰Ï!qˆÐÑ!ˆ*Ò\n@A@!ˆ@Bp	B)\nA‰¬(	¤)‡" [nil client-record files filen get-file-buffer obuf file-exists-p verify-visited-file-modtime buffer-modified-p revert-buffer t y-or-n-p "File no longer exists: " ", write buffer to file? " write-file find-file-noselect run-hooks server-visit-hook goto-line client server-buffer-clients] 5 "\
+Finds FILES and returns the list CLIENT with the buffers nconc'd.
+FILES is an alist whose elements are (FILENAME LINENUMBER)."])
+(fset 'server-buffer-done #[(buffer) "À	!Â=Ã«Á@¬‰	>A@Ê	\"ˆA¬«“Ë	ÌÍ@\"\"ˆÎÌÍ@\"!ˆÊ\")A‰¬?Ï	!«‰Š	qˆÃ)Ñ	!ˆ+‡" [process-status server-process run nil server-clients old-clients next-buffer running client buffer delq send-string format "Close: %s Done\n" server-log buffer-name server-buffer-clients bury-buffer] 6 "\
+Mark BUFFER as \"done\" for its client(s).
+Buries the buffer, and returns another server buffer
+as a suggestion for what to select next."])
+(fset 'server-temp-file-p #[(buffer) "À	!­†ÂÀ	!\"‡" [buffer-file-name buffer string-match server-temp-file-regexp] 4 "\
+Return non-nil if BUFFER contains a file considered temporary.
+These are files whose names suggest they are repeatedly
+reused to pass information to another program.
+
+The variable `server-temp-file-regexp' controls which filenames
+are considered temporary."])
+(fset 'server-done #[nil "p	­©Â!«‘Ã ˆÄedÆP#ˆÇ!ˆªÈ «ŒÉÊËQ!«„Ã!ˆÌ!)‡" [buffer server-buffer-clients server-temp-file-p save-buffer write-region buffer-file-name "~" kill-buffer buffer-modified-p y-or-n-p "Save file " "? " server-buffer-done] 5 "\
+Offer to save current buffer, mark it as \"done\" for clients,
+bury it, and return a suggested buffer to select next."])
+(fset 'server-edit #[(&optional arg) "¬Š	«‡Â	!Ã>«„ÄÅ!‡ÆÇ !‡" [arg server-process process-status (signal exit) server-start nil server-switch-buffer server-done] 2 "\
+Switch to next server editing buffer; say \"Done\" for current buffer.
+If a server buffer is current, it is marked \"done\" and optionally saved.
+When all of a client's buffers are marked as \"done\", the client is notified.
+
+Temporary files such as MH <draft> files are always saved and backed up,
+no questions asked.  The variable `server-temp-file-regexp' controls
+which filenames are considered temporary.
+
+If invoked with a prefix argument, or if there is no server process running, 
+starts server process and that is all.  Invoked by \\[server-edit]." "P"])
+(fset 'server-switch-buffer #[(next-buffer) "«”Á!«‰Â!«„Ã!‡ÄÅ!!‡«ˆÄ@A@!‡ÃÇ !‡" [next-buffer bufferp buffer-name switch-to-buffer server-switch-buffer server-buffer-done server-clients other-buffer] 3 "\
+Switch to another buffer, preferably one that has a client.
+Arg NEXT-BUFFER is a suggestion; if it is a live buffer, use it."])
+(global-set-key "#" 'server-edit)

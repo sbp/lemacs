@@ -1,0 +1,30 @@
+;;; compiled by jwz@thalidomide on Thu Feb 20 19:33:53 1992
+;;; from file /u/jwz/emacs19/lisp/page.el
+;;; emacs version 19.60 Lucid.
+;;; bytecomp version 2.04; 5-feb-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'forward-page #[(&optional count) "¬‚ÁÂV«“m¬ÃÅÆ#¬ƒdbˆS‰ªiÂW«œo¬™ÇuˆÈÅÆ#«†Â•bˆªƒebˆT‰ª`Æ‰	‡" [count 1 0 re-search-forward page-delimiter nil t -1 re-search-backward zmacs-region-stays] 5 "\
+Move forward to page boundary.  With arg, repeat, or go back if negative.
+A page boundary is any line whose beginning matches the regexp  page-delimiter." "p"])
+(fset 'backward-page #[(&optional count) "¬‚ÁÂ[!‡" [count 1 forward-page] 2 "\
+Move backward to page boundary.  With arg, repeat, or go fwd if negative.
+A page boundary is any line whose beginning matches the regexp  page-delimiter." "p"])
+(fset 'mark-page #[(&optional arg) "«…Á!ªÂ‰ÂV«†Ã!ˆªŠÂW«…ÃS!ˆÃ ˆÄÅÆ\"ˆÃÇ!ˆÈ ‡" [arg prefix-numeric-value 0 forward-page push-mark nil t -1 zmacs-activate-region] 4 "\
+Put mark at end of page, point at beginning.
+A numeric arg specifies to move forward or backward by that many pages,
+thus marking a page other than the one point was originally in." "P"])
+(fset 'narrow-to-page #[(&optional arg) "«…Á!ªÂŠ~ˆÂV«†Ã!ˆªŠÂW«…ÃS!ˆÃ ˆŠÂyˆÄ!)«ƒÂyˆ`ÃÆ!ˆl«†o¬ƒÇyˆ`})‡" [arg prefix-numeric-value 0 forward-page looking-at page-delimiter -1 1] 3 "\
+Make text outside current page invisible.
+A numeric arg specifies to move forward or backward by that many pages,
+thus showing a page other than the one point was originally in." "P"])
+(fset 'count-lines-page #[nil "Š`À‰‰‰‰Ç ˆÈyˆÉ\n!¬ƒÀˆ`Ë ˆ`Ì\"Ì\"Ì\"ÍÎ\n	$ˆ.Ï‰‡" [nil after before total end beg opoint forward-page 0 looking-at page-delimiter backward-page count-lines message "Page has %d lines (%d + %d)" t zmacs-region-stays] 6 "\
+Report number of lines on current page, and how many are before or after point." nil])
+(fset 'what-page #[nil "Œ~ˆŠÀyˆÁ`ÁbˆÄ\nÆ#«…TªtÇÈÉ`\n\"T#ˆ,Æ‰\n‡" [0 1 opoint count re-search-forward page-delimiter t message "Page %d, line %d" count-lines zmacs-region-stays] 6 "\
+Print page and line number of point." nil])

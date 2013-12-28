@@ -1,0 +1,60 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:28:37 1991
+;;; from file /wg1/emacs-base/lisp/register.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar register-alist nil "\
+Alist of elements (NAME . CONTENTS), one for each Emacs register.
+NAME is a character (a number).  CONTENTS is a string, number,
+mark or list.  A list represents a rectangle; its elements are strings.")
+(fset 'get-register #[(char) "	A‡" [char register-alist] 2 "\
+Return contents of Emacs register named CHAR, or nil if none."])
+(fset 'set-register #[(char value) "	‰«†\n¡ˆªˆB‰	B)‡" [char register-alist aelt value] 3 "\
+Set contents of Emacs register named CHAR to VALUE.
+Returns VALUE."])
+(fset 'point-to-register #[(char) "À	Â \"‡" [set-register char point-marker] 3 "\
+Store current location of point in a register.
+Argument is a character, naming the register." "cPoint to register: "])
+(fset 'register-to-point 'jump-to-register)
+(fset 'jump-to-register #[(char) "À	!Ã\n!«ŠÄÅ\n!!ˆ\nbªƒÆÇ!)‡" [get-register char val markerp switch-to-buffer marker-buffer error "Register doesn't contain a buffer position"] 3 "\
+Move point to location stored in a register.
+Argument is a character, naming the register." "cJump to register: "])
+(fset 'view-register #[(char) "À	!‰¬ˆÃÄÅ	!\"ªÔÆÇÈ!ˆÇÅ	!!ˆÇÉ!ˆ\n¨«…Ç\n!ªºÊ\n!«•ÇË!ˆÇÌÍ\n!!!ˆÇÎ!ˆÇ\n!ª \n:«•ÇÏ!ˆ\n­•Ç\n@!ˆĞ ˆ\nA‰ªpÇÑ!ˆÇ\n!‘)‡" [get-register char val message "Register %s is empty" single-key-description "*Output*" princ "Register " " contains " markerp "a buffer position:\nbuffer " buffer-name marker-buffer ", position " "the rectangle:\n" terpri "the string:\n"] 6 "\
+Display what is contained in register named REGISTER.
+REGISTER is a character." "cView register: "])
+(fset 'insert-register #[(char &optional arg) "À ˆÁ\n!‰:«†Ä!ˆª;«…cˆª”¨¬…Å!«‡Æp\"ˆª„ÇÈ!ˆ)	?­‚Ê ‡" [push-mark get-register char val insert-rectangle markerp princ error "Register does not contain text" arg exchange-point-and-mark] 4 "\
+Insert contents of register REG.  REG is a character.
+Normally puts point before and mark after the inserted text.
+If optional second arg is non-nil, puts mark before and point after.
+Interactively, second arg is non-nil if prefix arg is supplied." "cInsert register: \nP"])
+(fset 'copy-to-register #[(char start end &optional delete-flag) "À	\n{\"ˆ­ƒ\n|‡" [set-register char start end delete-flag] 4 "\
+Copy region into register REG.
+With prefix arg, delete as well.
+Called from program, takes four args:
+REG, START, END and DELETE-FLAG.
+START and END are buffer positions indicating what to copy." "cCopy to register: \nr\nP"])
+(fset 'append-to-register #[(char start end &optional delete-flag) "À	!;¬„ÂÃ!ˆÄ	À	!{P\"ˆ­„|‡" [get-register char error "Register does not contain text" set-register start end delete-flag] 5 "\
+Append region to text in register REG.
+With prefix arg, delete as well.
+Called from program, takes four args:
+REG, START, END and DELETE-FLAG.
+START and END are buffer positions indicating what to append." "cAppend to register: \nr\nP"])
+(fset 'prepend-to-register #[(char start end &optional delete-flag) "À	!;¬„ÂÃ!ˆÄ	{À	!P\"ˆ­„|‡" [get-register char error "Register does not contain text" set-register start end delete-flag] 5 "\
+Prepend region to text in register REG.
+With prefix arg, delete as well.
+Called from program, takes four args:
+REG, START, END and DELETE-FLAG.
+START and END are buffer positions indicating what to prepend." "cPrepend to register: \nr\nP"])
+(fset 'copy-rectangle-to-register #[(char start end &optional delete-flag) "À	\n«†Ã\"ª„Æ\"\"‡" [set-register char delete-flag delete-extract-rectangle start end extract-rectangle] 5 "\
+Copy rectangular region into register REG.
+With prefix arg, delete as well.
+Called from program, takes four args:
+REG, START, END and DELETE-FLAG.
+START and END are buffer positions giving two corners of rectangle." "cCopy rectangle to register: \nr\nP"])

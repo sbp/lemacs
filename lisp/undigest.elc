@@ -1,0 +1,15 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:34:48 1991
+;;; from file /wg1/emacs-base/lisp/undigest.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'undigestify-rmail-message #[nil "~ˆÀÁ\n!Ã\n!{Ã\n!bˆ``}ˆcˆedS}ˆ*ÆÀÈŒebˆeÉÊ!ˆ`|ˆËcˆ`d}ˆÌÆÏŒÉĞ!ˆe`}ˆdbˆÑÒ!®ÑÓ!®ˆÑÔ!®ƒÑÕ!)®ƒÇÖ!!ŠdbˆØÀxˆÙÀÜV«œ¬˜İyˆSŞßàá!âãR!«cÆª^¬„ÇÖ!ˆ+äåæçè\"éQ!ˆêË!ˆŒ`ÉĞ!ˆ`}ˆÑÓ!¬Šebˆëì±ˆ)äĞæíè\"éQÀÆ#«¯êî!ˆŒŞï!«‰ëĞ±ˆªŠ`ÉĞÀğ#ˆ`}ˆÑÓ!¬Šebˆëì±ˆ)ªD,Àñò!ˆ\n3ô ˆõ3!ˆö ,‡" [nil rmail-msgbeg rmail-current-message rmail-msgend msg-string buffer-read-only t error ((byte-code "«edT}ˆed|ˆÁ\n!ˆÁ‡" [error rmail-show-message rmail-current-message] 2)) search-forward "\n*** EOOH ***\n" "\n0, unseen,,\n*** EOOH ***\n" "" fill-prefix case-fold-search mail-strip-quoted-names "\n\n" mail-fetch-field "Reply-To" "To" "Apparently-To" "From" "Message is not a digest" digest-name " 	\n" 10 found count 0 -1 looking-at "End of.*Digest.*\n" regexp-quote "*********" "*" "\\(\n------*\\)*" re-search-forward "^" make-string 55 45 "-*\n*" replace-match "To: " "\n" 27 "\n\n\n0, unseen,,\n*** EOOH ***\n" "End " move message "Message successfully undigestified" n rmail-forget-messages rmail-show-message rmail-delete-forward] 5 "\
+Break up a digest message into its constituent messages.
+Leaves original message, deleted, before the undigestified messages." nil])

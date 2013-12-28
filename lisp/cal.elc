@@ -1,0 +1,65 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:07:59 1991
+;;; from file /wg1/emacs-base/lisp/cal.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar calendar-hook nil "\
+List of functions called after the calendar buffer has been prepared with
+the calendar of the current month.  This can be used, for example, to highlight
+today's date with asterisks--a function star-date is included for this purpose.
+The variable offset-calendar-hook is the list of functions called when the
+calendar function was called for a past or future month.")
+(defvar offset-calendar-hook nil "\
+List of functions called after the calendar buffer has been prepared with
+the calendar of a past or future month.  The variable calendar-hook is the
+list of functions called when the calendar function was called for the
+current month.")
+(fset 'calendar #[(&optional month-offset) "«„Á!Â ŠÄÅ!qˆÆÈÉ \nËÌ\n\"«ƒÎª‰Ï\nĞ”Ğ•O!Ò\nÎ”Î•OÓ\"AÏ\nÕ”Õ•O!× ˆ«›Ø_ÎZ\\\\‰Ø¦Î\\Ø¥)ÚÎU«ƒØªƒSÎU«…Sª‚Û#ˆebˆÚÜ$È“ˆebˆÚØU«ƒÎªƒTØU«…Tª‚İ#ˆ.ŞÅ!ˆß!bˆÈ‰“ˆ)à Sáed\"\"#äÆ!¬#\"X¬ˆå#\"Z!ˆ*«„æç!‡æè!‡" [month-offset prefix-numeric-value make-marker today get-buffer-create "*Calendar*" t buffer-read-only nil current-time-string date string-match " \\([A-Z][a-z][a-z]\\) *\\([0-9]*\\) .* \\([0-9]*\\)$" garbage 1 string-to-int 2 day assoc (("Jan" . 1) ("Feb" . 2) ("Mar" . 3) ("Apr" . 4) ("May" . 5) ("Jun" . 6) ("Jul" . 7) ("Aug" . 8) ("Sep" . 9) ("Oct" . 10) ("Nov" . 11) ("Dec" . 12)) month 3 year erase-buffer 12 year-month generate-month 0 24 48 pop-to-buffer marker-position window-height count-lines l h one-window-p shrink-window run-hooks offset-calendar-hook calendar-hook] 7 "\
+Display three-month calendar in another window.
+The three months appear side by side, with the current month in the middle
+surrounded by the previous and next months.  The cursor is put on today's date.
+
+An optional prefix argument ARG causes the calendar displayed to be
+ARG months in the future if ARG is positive or in the past if ARG is
+negative; in this case the cursor goes on the first day of the month.
+
+The Gregorian calendar is assumed.
+
+After preparing the calendar window, the hooks calendar-hook are run
+when the calendar is for the current month--that is, the was no prefix
+argument.  If the calendar is for a future or past month--that is, there
+was a prefix argument--the hooks offset-calendar-hook are run.  Thus, for
+example, setting calendar-hooks to 'star-date will cause today's date to be
+replaced by asterisks to highlight it in the window." "P"])
+(fset 'leap-year-p #[(year) "Á¦ÂU«ˆÃ¦ÂU?®…Ä¦ÂU‡" [year 4 0 100 400] 2 "\
+Returns true if YEAR is a Gregorian leap year, and false if not."])
+(fset 'day-number #[(month day year) "	SÂ_\\	ÄV«“	Å_Æ\\Ç¥ZÈ	!«ƒT)‡" [day month 31 day-of-year 2 4 23 10 leap-year-p year] 3 "\
+Return day-number within year (origin-1) of the date MONTH DAY YEAR.
+For example, (day-number 1 1 1987) returns the value 1,
+while (day-number 12 31 1980) returns 366."])
+(fset 'day-of-week #[(month day year) "À	\n#SÄ_SÅ¥\\\\SÆ¥Ç_‰Å¦ÉU«†Å¥ª…Å¥T)ZÊ¦‡" [day-number month day year 365 4 100 3 correction 0 7] 5 "\
+Returns the day-of-the-week index of MONTH DAY, YEAR.
+Value is 0 for Sunday, 1 for Monday, etc."])
+(fset 'generate-month #[(month year indent &optional day) "À	Â#ÅZÇ!«ˆ	ÈU«ƒÉª„Ê	SHÌ	SHÎÏĞ#Ò#ˆÎÓÒ#ˆÎÔ\"ˆÕT‰X«…×cˆªq)ÕØT‰X«¸ÏÚ\"cˆ«ŒU«…`ÈZÅ¦Å¦U«SU¬LÎÔÕÒ#«EÎÔ\"ˆª=.‡" [day-of-week month 1 year first-day-of-month 7 first-saturday leap-year-p 2 29 [31 28 31 30 31 30 31 31 30 31 30 31] last-of-month ["January" "February" "March" "April" "May" "June" "July" "August" "September" "October" "November" "December"] month-name insert-indented format "   %s %d" indent t " S  M Tu  W Th  F  S" "" 0 i "   " nil day-marker "%2d " day] 5 "\
+Produce a calendar for MONTH, YEAR on the Gregorian calendar, inserted
+in the buffer starting at the line on which point is currently located, but
+indented INDENT spaces.  The position in the buffer of the optional
+parameter DAY is returned.  The indentation is done from the first
+character on the line and does not disturb the first INDENT characters on
+the line."])
+(fset 'insert-indented #[(string indent &optional newline) "À	!ˆi	W«ƒ	jˆ\ncˆ«Äˆm«…Ã ˆªƒÅyˆÆ‡" [move-to-column indent string newline nil 1 t] 2 "\
+Insert STRING at column INDENT.
+If the optional parameter NEWLINE is true, leave point at start of next
+line, inserting a newline if there was no next line; otherwise, leave point
+after the inserted text.  Value is always `t'."])
+(fset 'star-date #[nil "ÀÂuˆÃÄ!ˆÅcˆÆÂ!)‡" [nil buffer-read-only 1 delete-backward-char 2 "**" backward-char] 2 "\
+Replace today's date with asterisks in the calendar window.
+This function can be used with the calendar-hook run after the
+calendar window has been prepared."])

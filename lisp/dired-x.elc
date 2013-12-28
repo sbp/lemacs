@@ -1,0 +1,418 @@
+;;; compiled by devin@scylla on Mon Mar  2 17:33:37 1992
+;;; from file /wg1/emacs-base/lisp/dired-x.el
+;;; emacs version 19.67 Lucid.
+;;; bytecomp version 2.04; 5-feb-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defconst dired-extra-version (substring "$Revision: 1.182 $" 11 -2) "\
+$Id: dired-x.el,v 1.182 1992/02/14 15:59:09 sk RelBeta $")
+(byte-code "ÀÁ!ˆÂÃ!‡" [require dired provide dired-extra] 2)
+(defvar dired-mark-keys '("Z") "\
+*List of keys (strings) that insert themselves as file markers.")
+(defvar dired-dangerous-shell-command "^rm" "\
+*Regexp for dangerous shell commands that should never be the default.")
+(byte-code "À	ÂÃ#ˆÀ	ÄÅ#ˆÀ	ÆÇ#ˆÀ	ÈÉ#ˆÀ	ÊË#ˆÀ	ÌÍ#ˆÀ	ÎÏ#ˆÀ	ĞÑ#ˆÀ	ÒÓ#ˆÀ	ÔÕ#ˆÀ	Ö×#ˆÀ	ØÙ#ˆÀ	ÚÛ#ˆÀ	Üİ#ˆÀ	Şß#ˆÀ	àá#ˆÀ	âã#ˆÀ	äå#ˆÀ	æç#ˆèé*\"‡" [define-key dired-mode-map "V" dired-vm "(" dired-set-marker-char ")" dired-restore-marker-char "I" dired-do-insert-subdir "Í" dired-do-unmark "ï" dired-omit-toggle "¨" dired-mark-sexp "," dired-mark-rcs-files "¡" dired-smart-shell-command "¦" dired-smart-background-shell-command "T" dired-do-toggle "w" dired-copy-filename-as-kill "ç" dired-goto-file "Ç" dired-goto-subdir "&" dired-do-background-shell-command "A" dired-do-byte-compile-and-load "F" dired-do-find-file "S" dired-do-relsymlink "%S" dired-do-relsymlink-regexp mapcar #[(x) "À	\nÃ#‡" [define-key dired-mode-map x dired-mark-with-this-char] 4] dired-mark-keys] 4)
+(fset 'dired-add-hook #[(hook-var function) "À	!¬„	ÂLˆ	J<«‡	J@Ã=«†	‰JCLˆ	J>?­†		JBL‡" [boundp hook-var nil lambda function] 3 "\
+Add a function to a hook.
+First argument HOOK-VAR (a symbol) is the name of a hook, second
+argument FUNCTION is the function to add.
+Returns nil if FUNCTION was already present in HOOK-VAR, else new
+value of HOOK-VAR." "SAdd to hook-var (symbol): \naAdd which function to %s? "])
+(byte-code "ÀÁÂ\"ˆÀÃÄ\"‡" [dired-add-hook dired-mode-hook dired-extra-startup dired-after-readin-hook dired-omit-expunge] 3)
+(defvar dired-default-marker dired-marker-char "\
+*The value of `dired-marker-char' in effect before dired-x was
+loaded and the value which is restored if the marker stack underflows.
+This is usually the asterisk `*'.")
+(fset 'dired-extra-startup #[nil "À ˆÁ ˆÂ ‡" [dired-hack-local-variables dired-omit-startup dired-marker-stack-startup] 1 "\
+Automatically put on dired-mode-hook to get extra dired features:
+\\<dired-mode-map>
+  \\[dired-vm]	-- VM on folder
+  \\[dired-rmail]	-- Rmail on folder
+  \\[dired-do-insert-subdir]	-- insert all marked subdirs
+  \\[dired-do-find-file]	-- visit all marked files simultaneously
+  \\[dired-set-marker-char], \\[dired-restore-marker-char]	-- change and display dired-marker-char dynamically.
+  \\[dired-omit-toggle]	-- toggle omitting of files
+  \\[dired-mark-sexp]	-- mark by lisp expression
+  \\[dired-do-unmark]	-- replace existing marker with another.
+  \\[dired-mark-rcs-files]	-- mark all RCS controlled files
+  \\[dired-mark-files-compilation-buffer]	-- mark compilation files
+  \\[dired-copy-filename-as-kill]	-- copy the file or subdir names into the kill ring.
+  	   You can feed it to other commands using \\[yank].
+
+For more features, see variables
+
+  dired-omit-files
+  dired-omit-extenstions
+  dired-dangerous-shell-command
+  dired-mark-keys
+  dired-local-variables-file
+  dired-find-subdir
+  dired-guess-have-gnutar
+  dired-auto-shell-command-alist
+
+See also functions
+
+  dired-sort-on-size
+  dired-do-relsymlink
+  dired-flag-extension
+  dired-virtual
+  dired-jump-back
+  dired-jump-back-other-window
+" nil])
+(byte-code "ÀÁ!¬…ÂÃÄ\"ˆÀÁ!«ÅÆÇ#ˆÉÊMˆËÌMˆÀ‡" [fboundp read-with-history-in load "gmhist" t put dired-shell-command-history dangerous dired-dangerous-shell-command dired-read-regexp #[(prompt &optional initial) "¬‡ÁÂ#ªÄÂÅÆ#ˆÄÂÅÁÂ##‰‡" [initial read-with-history-in regexp-history prompt put default nil dired-flagging-regexp] 7] dired-read-dir-and-switches #[(str) "­„ÁÂ\"ÄÅÆÇ\"É\nÉ%DŸ‡" [current-prefix-arg read-string "Dired listing switches: " dired-listing-switches read-file-name-with-history-in file-history format "Dired %s(directory): " str nil default-directory] 7]] 4)
+(fset 'dired-mark-with-this-char #[(arg) "Â!)‡" [last-command-char dired-marker-char dired-mark-subdir-or-file arg] 2 "\
+Mark the current file or subdir with the last key you pressed to invoke
+this command.  Else like \\[dired-mark-subdir-or-file] command." "p"])
+(defvar dired-marker-stack nil "\
+List of previously used dired marker characters.")
+(defvar dired-marker-string "" "\
+String version of `dired-marker-stack'.")
+(fset 'dired-current-marker-string #[nil "ÀÁÂÃ!Å#P‰‡" [" " mapconcat char-to-string reverse dired-marker-stack "" dired-marker-string] 5 "\
+Computes and returns `dired-marker-string'."])
+(fset 'dired-marker-stack-startup #[nil "ÀÁ!ˆÀÂ!ˆÀÃ!ˆÃ®…ÅB‰‡" [make-local-variable dired-marker-char dired-del-marker dired-marker-stack minor-mode-alist (dired-marker-stack dired-marker-string)] 2])
+(fset 'dired-set-marker-char #[(c) "	BÂ ˆÄÅ !ˆÆÇ\"‡" [c dired-marker-stack dired-current-marker-string dired-marker-char set-buffer-modified-p buffer-modified-p message "New marker is %c"] 3 "\
+Set the marker character to something else.
+Use \\[dired-restore-marker-char] to restore the previous value." "cNew marker character: "])
+(fset 'dired-restore-marker-char #[nil "A‰@Â ˆÃÄ !ˆ	¬‚ÆÇ	\"‡" [dired-marker-stack dired-marker-char dired-current-marker-string set-buffer-modified-p buffer-modified-p dired-default-marker message "Marker is %c"] 4 "\
+Restore the marker character to its previous value.
+Uses `dired-default-marker' if the marker stack is empty." nil])
+(fset 'dired-sort-on-size #[nil "ÀÁ!ˆebˆÂ ˆÃyˆÄÅÆÇÈ$‡" [require sort dired-goto-next-file 0 sort-subr t forward-line end-of-line dired-get-file-size] 5 "\
+Sorts a dired listing on file size.
+If your ls cannot sort on size, this is useful as `dired-after-readin-hook':
+    (setq dired-after-readin-hook 'dired-sort-on-size)"])
+(fset 'dired-get-file-size #[nil "ÀÁ!ˆÂ”bˆÃuˆÄŠÅÂ!ˆ`)`{!‡" [re-search-forward "\\(Jan\\|Feb\\|Mar\\|Apr\\|May\\|Jun\\|Jul\\|Aug\\|Sep\\|Oct\\|Nov\\|Dec\\)" 1 -1 string-to-int backward-word] 3])
+(defvar dired-vm-read-only-folders nil "\
+*If t, \\[dired-vm] will visit all folders read-only.
+If neither nil nor t, e.g. the symbol `if-file-read-only', only
+files not writable by you are visited read-only.
+
+Read-only folders only work in VM 5, not in VM 4.")
+(fset 'dired-vm #[(&optional read-only) "À Á «‡Å\nÆ\"ˆªŸÆ=«‡Å\nÆ\"ˆª’¬†Å\n!ˆªˆÅ\nÈ\n!?\"ˆÉÊ!L*‡" [dired-current-directory dired-get-filename fil dir read-only vm-visit-folder t dired-vm-read-only-folders file-writable-p make-local-variable vm-folder-directory] 4 "\
+Run VM on this file.
+With prefix arg, visit folder read-only (this requires at least VM 5).
+See also variable `dired-vm-read-only-folders'." "P"])
+(fset 'dired-rmail #[nil "ÀÁ !‡" [rmail dired-get-filename] 2 "\
+Run RMAIL on this file." nil])
+(fset 'dired-do-insert-subdir #[nil "À ®ƒÁÂ!‰­”Ä@!«‡ŠÅ@!ˆ)A‰¬mÆ)‡" [dired-mark-get-files error "No files marked." files file-directory-p dired-maybe-insert-subdir nil] 3 "\
+Insert all marked subdirectories in situ that are not yet inserted.
+Non-directories are silently ignored." nil])
+(fset 'dired-mark-extension #[(extension &optional marker-char) "<¬ƒCÁÂÃÄÅÆ#ÇR\"‡" [extension dired-mark-files-regexp "." "\\(" mapconcat regexp-quote "\\|" "\\)$" marker-char] 7 "\
+Mark all files with a certain extension for use in later commands.
+A `.' is not automatically prepended to the string entered." "sMarking extension: \nP"])
+(fset 'dired-flag-extension #[(extension) "À	\n\"‡" [dired-mark-extension extension dired-del-marker] 3 "\
+In dired, flag all files with a certain extension for deletion.
+A `.' is not automatically prepended to the string entered." "sFlagging extension: "])
+(defvar patch-unclean-extensions '(".rej" ".orig") "\
+List of extensions of dispensable files created by the `patch' program.")
+(defvar tex-unclean-extensions '(".toc" ".log" ".aux") "\
+List of extensions of dispensable files created by TeX.")
+(defvar texinfo-unclean-extensions '(".cp" ".cps" ".fn" ".fns" ".ky" ".kys" ".pg" ".pgs" ".tp" ".tps" ".vr" ".vrs") "\
+List of extensions of dispensable files created by texinfo.")
+(fset 'dired-clean-patch #[nil "À	!‡" [dired-flag-extension patch-unclean-extensions] 2 "\
+Flag dispensable files created by patch for deletion.
+See variable `patch-unclean-extensions'." nil])
+(fset 'dired-clean-tex #[nil "ÀÁ\n\"!‡" [dired-flag-extension append texinfo-unclean-extensions tex-unclean-extensions] 4 "\
+Flag dispensable files created by tex or texinfo for deletion.
+See variable `texinfo-unclean-extensions' and `texinfo-unclean-extensions'." nil])
+(fset 'dired-do-unmark #[(unmarker) "Á˜«‚ÂÃÄOÅ ÆŠebˆÉÆÊ#­†Ë!ˆªr+‡" [unmarker "" " " 0 1 dired-marker-regexp nil buffer-read-only regexp re-search-forward t replace-match] 4 "\
+Unmark marked files by replacing the marker with another character.
+The new character defaults to a space, effectively unmarking them." "sChange marker to: "])
+(fset 'dired-jump-back #[(&optional other-window) "‰«…Â	!ªÆ=«‘«…È ˆªƒÉ ˆÊ!ª”«†Ë!ˆª„Ì!ˆ	­ƒÊ	!*‡" [buffer-file-name file file-name-directory default-directory dir major-mode dired-mode other-window dired-up-directory-other-window dired-up-directory dired-really-goto-file dired-other-window dired] 3 "\
+Jump back to dired:
+If in a file, dired the current directory and move to file's line.
+If in dired already, pop up a level and goto old directory's line.
+In case the proper dired file line cannot be found, refresh the dired
+  buffer and try again." nil])
+(fset 'dired-jump-back-other-window #[nil "ÀÁ!‡" [dired-jump-back t] 2 "\
+Like \\[dired-jump-back], but to other window." nil])
+(fset 'dired-really-goto-file #[(file) "À	!®‰ÂÃ	!!ˆÀ	!‡" [dired-goto-file file dired-insert-subdir file-name-directory] 3])
+(fset 'dired-up-directory-other-window #[nil "À ÂÃ	!!ÅÃ	!!®ŒÆ!®‡Ç!ˆÅ	!*‡" [dired-current-directory dir file-name-directory directory-file-name up dired-goto-file dired-goto-subdir dired-other-window] 3 "\
+Like `dired-up-directory', but in other window." nil])
+(fset 'dired-mark-rcs-files #[(&optional unflag-p) "ÀÁ\n«ƒÃªÄ\"ˆ\n«ƒÅª‚Ç‰‰‰‰	\nÍÎÍÏ\"\"ˆG«¤@ÑÒOAŠÓ!«†ÔÕ!ˆª‡\nB\n)ªX\n¬“ÀÖ×!\n«ƒØªÙ$ˆª¦\nG	ÚÛ\n\"ˆÀÜ×!	Z\n«ƒØªÙ	\n&ˆ\n.‡" [message "%sarking RCS controlled files..." unflag-p "Unm" "M" 32 dired-marker-char nil total count failures wf rcs-files mapcar #[(dir) "ÀÁ\n!!Ãš®¤ÄÅ\nÆÇ#ÈÃ\n\"	Ê	!­‹ËÌÅÍ	!ÎÇ#\")#‰‡" [file-name-nondirectory directory-file-name dir "RCS" append directory-files t ",v$" expand-file-name rcs-dir file-directory-p mapcar #[(x) "À	\n\"‡" [expand-file-name x dir] 3] file-name-as-directory nil rcs-files] 8] car dired-subdir-alist 0 -2 dired-goto-file dired-mark-file 1 "%d RCS file%s %smarked." dired-plural-s "un" "" dired-log-summary "RCS working file not found %s" "%d RCS file%s: %d %smarked - %d not found %s."] 8 "\
+Mark all files that are under RCS control.
+With prefix argument, unflag all those files.
+Mentions RCS files for which a working file was not found in this buffer.
+Type \\[dired-why] to see them again." "P"])
+(fset 'dired-do-toggle #[nil "ŠebˆÀm?­¤Â ¬›Ã!¬–ÅÆ``TgÇ=«†ÇDª„ÇD$ˆÉyˆªX*‡" [nil buffer-read-only dired-between-files looking-at dired-re-dot apply subst-char-in-region 32 dired-marker-char 1] 6 "\
+Toggle marks.
+That is, currently marked files become unmarked and vice versa.
+Files marked with other flags (such as `D') are not affected.
+`.' and `..' are never toggled.
+As always, hidden subdirs are not affected." nil])
+(fset 'copy-string-as-kill #[(string) "	B‰G\nV«‡\nS	›Ã¡ˆ	‰‡" [string kill-ring kill-ring-max nil kill-ring-yank-pointer] 3 "\
+Save STRING as if killed in a buffer."])
+(fset 'dired-copy-filename-as-kill #[(&optional arg) "À	¬„Â ®¤ÃÄ	«šÅ	!ÆU«„Ç ª’	¨«†ÇÈ	\"ªˆÇÉ!ªƒÇÈ!Ê#!ˆËÌ@\"‡" [copy-string-as-kill arg dired-get-subdir mapconcat identity prefix-numeric-value 0 dired-mark-get-files no-dir t " " message "%s" kill-ring] 6 "\
+Copy names of marked (or next ARG) files into the kill ring.
+The names are separated by a space.
+With a zero prefix arg, use the complete pathname of each marked file.
+With a raw (just \\[universal-argument]) prefix arg, use the relative pathname of each marked file.
+
+If on a subdir headerline and no prefix arg given, use subdirname instead.
+
+You can then feed the file name to other commands with \\[yank]." "P"])
+(fset 'dired-do-background-shell-command #[(&optional arg) "À	Â\"‡" [dired-do-shell-command arg t] 3 "\
+Like \\[dired-do-shell-command], but starts command in background.
+Note that you can type input to the command in its buffer.
+This requires background.el from the comint package to work." "P"])
+(fset 'dired-clean-up-after-deletion #[(fn) "ŠÀ	!«ƒÂ ˆ)Ã	!‰«ÅÆÇÈ	!\"!«†ŠÉ!ˆ))Ê	!Ë‰­¤ÅÆÍÎG!È	!#!­•­‘ŠÉ@!ˆ)A‰¬pË*‡" [dired-goto-subdir fn dired-kill-subdir get-file-buffer buf y-or-n-p format "Kill buffer of %s, too? " file-name-nondirectory kill-buffer dired-buffers-for-top-dir nil buf-list "Kill dired buffer%s of %s, too? " dired-plural-s] 7])
+(defvar dired-omit-files-p nil "\
+*If non-nil, \"uninteresting\" files are not listed (buffer-local).
+Use \\[dired-omit-toggle] to toggle its value.
+Uninteresting files are those whose filenames match regexp `dired-omit-files',
+plus those ending with extensions in `dired-omit-extensions'.")
+(defvar dired-omit-files "^#\\|\\.$" "\
+*Filenames matching this regexp will not be displayed (buffer-local).
+This only has effect when `dired-omit-files-p' is t.
+See also `dired-omit-extensions'.")
+(defvar dired-omit-extensions (append completion-ignored-extensions texinfo-unclean-extensions) "\
+*If non-nil, a list of extensions (strings) to omit from Dired listings.
+Defaults to the elements of `completion-ignored-extensions' and
+`texinfo-unclean-extensions'.")
+(defvar dired-omit-localp 'no-dir "\
+The LOCALP argument dired-omit-expunge passes to dired-get-filename.
+If it is 'no-dir, omitting is much faster, but you can only match
+against the basename of the file.  Set it to nil if you need to match the
+whole pathname.")
+(defvar dired-omit-marker-char 15 "\
+Temporary marker used by by dired-omit.
+Should never be used as marker by the user or other packages.")
+(fset 'dired-omit-startup #[nil "ÀÁ!ˆÁ\n®†Ã\nÄ\"‰‡" [make-local-variable dired-omit-files-p minor-mode-alist append ((dired-omit-files-p " Omit"))] 3])
+(fset 'dired-omit-toggle #[(&optional flag) "«	«…	?‰‡ÂÃ Ä‰$‡	?‰¬ƒÆ ‡Ç ‡" [flag dired-omit-files-p dired-mark-unmarked-files dired-omit-regexp nil dired-omit-localp revert-buffer dired-omit-expunge] 6 "\
+Toggle between displaying and omitting files matching `dired-omit-files'.
+With an arg, and if omitting was off, don't toggle and just mark the
+  files but don't actually omit them.
+With an arg, and if omitting was on, turn it off but don't refresh the buffer." "P"])
+(byte-code "ÀÁ!¬‚ÂÂ‡" [boundp dired-omit-silent nil] 2)
+(fset 'dired-omit-expunge #[(&optional regexp) "­»	®‚Â Ã‰Æ˜¬¬	¬„ÊË!ˆÌÃ‰$«ÎÃ	«ƒÆªÏ\"ªˆ	¬„ÊĞ!ˆ)*‡" [dired-omit-files-p regexp dired-omit-regexp nil count omit-re "" dired-omit-marker-char dired-marker-char dired-omit-silent message "Omitting..." dired-mark-unmarked-files dired-omit-localp dired-do-kill "Omitted %d line%s." "(Nothing to omit)"] 6 "\
+Erases all unmarked files matching REGEXP.
+Does nothing if global variable `dired-omit-files-p' is nil.
+If REGEXP is nil or not specified, uses `dired-omit-files', and also omits
+  filenames ending in `dired-omit-extensions'.
+If REGEXP is the empty string, this function is a no-op.
+
+This functions works by temporarily binding `dired-marker-char' to
+`dired-omit-marker-char' and calling `dired-do-kill'." "sOmit files (regexp): "])
+(fset 'dired-omit-regexp #[nil "«†ÁÂQªÃ«†«ƒÅªÃ«‹ÆÁÇÈÅ#ÉRªÃQ‡" [dired-omit-files "\\(" "\\)" "" dired-omit-extensions "\\|" "." mapconcat regexp-quote "\\)$"] 8])
+(fset 'dired-mark-unmarked-files #[(regexp msg &optional unflag-p localp) "«ƒÁª\nÃ‰ŠÆ«†ÈÉ\"ˆebˆm¬§ÊË!«ÌÎ\"‰­†Ğ\")«ŠÒÓ!ˆ\ncˆTÓyˆªV«ÈÔÕ!\nÁ=«ƒÖª×\n=«ƒÙªÚ&ˆ)ÆV­+‡" [unflag-p 32 dired-marker-char nil count buffer-read-only 0 msg message "Marking %ss..." looking-at " " dired-get-filename localp t fn string-match regexp delete-char 1 "%s %s%s %s%s." dired-plural-s "un" "" dired-del-marker "flagged" "marked"] 9 "\
+Marks unmarked files matching REGEXP, displaying MSG.
+REGEXP is matched against the complete pathname.
+Does not re-mark files which already have a mark.
+With prefix argument, unflag all those files.
+Second optional argument LOCALP is as in `dired-get-filename'." "P"])
+(byte-code "ÀÁMˆÂÃ!¬…ÃÄKMˆÄÀM‡" [dired-omit-new-add-entry #[(filename &optional marker-char) "«²Á ‰Ã˜¬ŸÄ\nÆ=«„ª‘È=«†É!ª†Ê\"\"¬ˆÌ\"ªÈ)‡Ì\"‡" [dired-omit-files-p dired-omit-regexp omit-re "" string-match dired-omit-localp no-dir filename t dired-make-relative dired-make-absolute directory dired-omit-old-add-entry marker-char] 6] fboundp dired-omit-old-add-entry dired-add-entry] 2)
+(fset 'dired-mark-sexp #[(predicate &optional unflag-p) "ÀÁ\n\"ˆ«ƒÄªÆ‰‰‰‰‰‰‰‰‰	\nÆ‰ŠÓÔÕ\n\"«ˆÀÖÔÕ\n\"\"ˆebˆm¬œŠ× ­ƒØ\n!)«ŒÙÚ!ˆcˆTÚyˆªaÔÕ\n\"«¢ÀÛÔÕ\n\"Ü!Ä=«ƒİªŞ=«ƒàªá&ˆ)ÓV­‚.‡" [message "%s" predicate unflag-p 32 dired-marker-char nil sym name time size gid uid nlink mode s inode count buffer-read-only 0 format "'%s file" "Marking %ss..." dired-parse-ls eval delete-char 1 "%s %s%s %s%s." dired-plural-s "un" "" dired-del-marker "flagged" "marked"] 11 "\
+Mark files for which PREDICATE returns non-nil.
+With a prefix arg, unflag those files instead.
+
+PREDICATE is a lisp expression that can refer to the following symbols:
+
+    inode  [integer] the inode of the file (only for ls -i output)
+    s      [integer] the size of the file for ls -s output
+	             (ususally in blocks or, with -k, in KByte)
+    mode   [string]  file permission bits, e.g. \"-rw-r--r--\"
+    nlink  [integer] number of links to file
+    uid    [string]  owner
+    gid    [string]  group  (If the gid is not displayed by ls,
+	             this will still be set (to the same as uid))
+    size   [integer] file size in bytes
+    time   [string]  the time that ls displays, e.g. \"Feb 12 14:17\"
+    name   [string]  the name of the file
+    sym    [string]  if file is a symbolic link, the linked-to name, else \"\"
+
+For example, use
+
+        (equal 0 size)
+
+to mark all zero length files." "xMark if (lisp expr): \nP"])
+(byte-code "ÀÁ!«…ÁÂÃ\"ˆÄÅMˆÆÇM‡" [fboundp gmhist-make-magic dired-mark-sexp eval-expression-history dired-parse-ls #[nil "À …  ÁÂÃÇyˆÈuˆÉ!«˜Ç•bˆÊË”Ë•{!ÊÈ”È•{!ª†ÁÁ``\\{uˆÏp!`Ëvˆ`{ÒÓ!ˆË”bˆÔuˆÊŠÕË!ˆ`‰)`{!bˆÕË!ˆŠËvˆ`)`{Ë”À S{`ÙÚ!®`{ÉÜ!«‹İuˆ`Áˆ`{ªŞ+Ú‡" [dired-move-to-filename nil 10 "\\s *\\([0-9]*\\)\\s *\\([0-9]*\\) ?" dired-re-inode-size mode-len pos 0 2 looking-at string-to-int 1 inode s mode read nlink uid re-search-forward "\\(Jan\\|Feb\\|Mar\\|Apr\\|May\\|Jun\\|Jul\\|Aug\\|Sep\\|Oct\\|Nov\\|Dec\\)" -1 backward-word size gid time dired-move-to-end-of-filename t name " -> " 4 "" sym] 3] dired-mark-these-files #[(file-list from) "ÀÁ\n\"ˆGÄ Å‰	«ªÊ@\"AŠË!«†ÌÍ!ˆªÎ!BÏĞ\"ˆ)ªS«ÑÀÒG	\n%!ªŠÀÓ	Ô	!\n$,‡" [message "Marking files %s..." from file-list dired-current-directory nil failures file cur-dir total dired-make-absolute dired-goto-file dired-mark-file 1 dired-make-relative dired-log "Cannot mark this file (not found): %s\n" dired-log-summary "Failed to mark %d of %d files %s %s" "Marked %d file%s %s." dired-plural-s] 7]] 3)
+(fset 'dired-mark-files-from-other-dired-buffer #[(buf) "À	!p=«„ÂÃ!ˆ	;¬„Ä	!Š	qˆÆ=¬…ÂÇ	\"ˆÈÉ!)\nË\nÌ	P\")‡" [get-buffer buf error "Other dired buffer is the same" buffer-name major-mode dired-mode "%s is not a dired buffer" dired-mark-get-files no-dir other-files dired-mark-these-files "from buffer "] 4 "\
+Mark files that are marked in the other Dired buffer.
+I.e, mark those files in this Dired buffer that have the same
+non-directory part as the marked files in the Dired buffer in the other window." (byte-code "ÀÁ !C‡" [window-buffer next-window] 2)])
+(fset 'dired-mark-files-compilation-buffer #[(&optional regexp buf) "À‰GÄU«„ª‚Æ¬ƒÈ;¬†É!ŠÊ!®…ËÌ\"qˆebˆÀ‰ÏÀÆ#«¯	«ˆĞ”®†Ä”ª‚Ğ”	«ˆĞ•®†Ä•ª‚Ñ”{š¬U\nBªJ+Ò\nÓP\"*‡" [nil user-regexp-p other-files regexp 0 compilation-error-regexp t buf "*compilation*" buffer-name get-buffer error "No %s buffer!" new-file file re-search-forward 1 2 dired-mark-these-files "from buffer "] 4 "\
+Mark the files mentioned in the `*compilation*' buffer.
+With an arg, you may specify the other buffer and your own regexp
+instead of `compilation-error-regexp'.
+Use `^.+$' (the default with a prefix arg) to match complete lines or
+an empty string for `compilation-error-regexp'.
+In conjunction with narrowing the other buffer you can mark an
+arbitrary list of files, one per line, with this command." (byte-code "­šÁÂÃ\"ÄÅÆÇ !‰p=«„É ª‚)\"D‡" [current-prefix-arg read-string "Use compilation regexp: " "^.+$" read-buffer "Use buffer: " window-buffer next-window next-buffer other-buffer] 6)])
+(defvar dired-keep-marker-relsymlink 83 "\
+See variable `dired-keep-marker-move'.")
+(fset 'dired-make-symbolic-link #[(name1 name2 &optional ok-if-already-exists) "À	!Â	!Ã	!\n®\n«†¬ƒÅ«…¨«—«”¨«ˆÇÈÉ	\"!¬‡ÊËÌ	B\"ˆÍ«„Ï	!ˆĞÑÒÓ	%‰­‡ÊËÒB\",‡" [expand-file-name name2 file-symlink-p file-exists-p file-or-symlink-exists 1 ok-if-already-exists yes-or-no-p format "File %s already exists; symlink anyway? " signal file-error "File already exists" nil err delete-file dired-check-process "SymLink" "ln" "-s" name1] 7 nil "FSymlink to (string): \nFMake symbolic link to `%s': \np"])
+(fset 'dired-make-relative-symlink #[(file1 file2 &optional ok-if-already-exists) "À‰‰‰ÁÀÈ	!	È\n!\n	G\nGÀÌÍ	#‰«¤T‰«œ^W«”	ÁO\nÁO˜«…ªQ\n	ÁO	ÀO)\nÍ˜«†	ª¹\nÀOÁ‰ÌÍ#‰«ŒTTªhÁV«SÑPªm+ÒÓ!#.‡" [nil 0 sub index len2 len1 name2 name1 expand-file-name file1 file2 next string-match "/" count start tem "../" dired-make-symbolic-link directory-file-name ok-if-already-exists] 6 "\
+Three arguments: FILE1 FILE2 &optional OK-IF-ALREADY-EXISTS
+Make a symbolic link (pointing to FILE1) in FILE2.
+The link is relative (if possible), for example
+
+    \"/vol/tex/bin/foo\" \"/vol/local/bin/foo\"
+
+results in
+
+    \"../../tex/bin/foo\" \"/vol/local/bin/foo\"
+" "FRelSymLink: \nFRelSymLink %s: \np"])
+(fset 'dired-do-relsymlink #[(&optional arg) "ÀÁÂÃ%‡" [dired-do-create-files relsymlink dired-make-relative-symlink "RelSymLink" arg dired-keep-marker-relsymlink] 6 "\
+Symlink all marked (or next ARG) files into a directory,
+or make a symbolic link to the current file.
+This creates relative symbolic links like
+
+    foo -> ../bar/foo
+
+not absolute ones like
+
+    foo -> /ugly/path/that/may/change/any/day/bar/foo" "P"])
+(fset 'dired-do-relsymlink-regexp #[(regexp newname &optional whole-path) "ÀÁÂÃ&‡" [dired-do-create-files-regexp dired-make-relative-symlink "RelSymLink" nil regexp newname whole-path dired-keep-marker-relsymlink] 8 "\
+RelSymlink all marked files containing REGEXP to NEWNAME.
+See functions `dired-rename-regexp' and `dired-do-relsymlink'
+  for more info." (dired-mark-read-regexp "RelSymLink")])
+(fset 'virtual-dired 'dired-virtual)
+(fset 'dired-virtual #[(dirname &optional switches) "ebˆÀÁ!¬†ÂedÃ#ˆÄÅ!!Ç!«†È!Ç!«„ª„É!\nÀ!¬…Ì\n!ˆÍ®‚\"ˆĞÒÔÕ!ÖLˆ× ˆebˆØ!‡" [looking-at "  " indent-region 2 expand-file-name directory-file-name dirname file-directory-p file-name-as-directory file-name-directory default-directory dired-subdir-regexp dired-insert-headerline dired-mode switches dired-listing-switches "Virtual Dired" mode-name dired-virtual-revert revert-buffer-function make-local-variable dired-subdir-alist nil dired-build-subdir-alist dired-initial-position] 4 "\
+Put this buffer into Virtual Dired mode.
+
+In Virtual Dired mode, all commands that do not actually consult the
+filesystem will work.
+
+This is useful if you want to peruse and move around in an ls -lR
+output file, for example one you got from an ftp server.  With
+ange-ftp, you can even dired a directory containing an ls-lR file,
+visit that file and turn on virtual dired mode.  But don't try to save
+this file, as dired-virtual indents the listing and thus changes the
+buffer.
+
+If you have save a Dired buffer in a file you can use \\[dired-virtual] to
+resume it in a later session.
+
+Type \\<dired-mode-map>\\[revert-buffer] in the
+Virtual Dired buffer and answer `y' to convert the virtual to a real
+dired buffer again.  You don't have to do this, though: you can relist
+single subdirs using \\[dired-do-redisplay].
+" (byte-code "ÀÁÂÃebˆÆ!«£”•{ÈyˆÆÉ!«ÊË•Ìˆ`{\"ª„Í!)ª’ÎÌÏ#­‹ÊÍ”•{!ĞP!*\"C‡" [read-string "Virtual Dired directory: " "^\\(  \\)?\\([^ \n]*\\)\\(:\\)[\n]" 2 subexpr regexp looking-at dir 1 "^  wildcard " expand-file-name 0 nil file-name-as-directory re-search-forward t ".."] 6)])
+(fset 'dired-virtual-revert #[(&optional arg noconfirm) "ÀÁ!¬„ÂÃ!‡ÄÆÈ ‡" [y-or-n-p "Cannot revert a Virtual Dired buffer - switch to Real Dired mode? " error "Cannot revert a Virtual Dired buffer." "Dired" mode-name dired-revert revert-buffer-function revert-buffer] 2])
+(fset 'dired-virtual-mode #[nil "ÀÁ!‡" [call-interactively dired-virtual] 2 "\
+Put current buffer into virtual dired mode (see `dired-virtual').
+Useful on `buffer-contents-mode-alist' (which see) with the regexp
+
+    \"^  \\(/[^ /]+\\)+:$\"
+
+to put saved dired buffers automatically into virtual dired mode."])
+(defvar dired-find-subdir nil "\
+*If non-nil, Dired does not make a new buffer for a directory if it
+can be found (perhaps as subdir) in some existing Dired buffer.
+
+If there are several Dired buffers for a directory, the most recently
+used is chosen.
+
+Dired avoids switching to the current buffer, so that if you have
+a normal and a wildcard buffer for the same directory, C-x d RET will
+toggle between those two.")
+(byte-code "ÀÁ!¬…ÁÂKMˆÂÃM‡" [fboundp dired-old-find-buffer-nocreate dired-find-buffer-nocreate #[(dirname) "«¤pÂ!Ÿ	>­ƒšÇ	\"ÈÉ\"@®…­	+‡Ê!‡" [dired-find-subdir cur-buf dired-buffers-for-dir-exact dirname buffers dired-directory cur-buf-matches delq sort dired-x-buffer-more-recently-used-p dired-old-find-buffer-nocreate] 3]] 2)
+(fset 'dired-x-buffer-more-recently-used-p #[(buffer1 buffer2) "	š?­ÂÃ «”@š‰¬Œ	@š¬†A‰¬l*‡" [buffer1 buffer2 nil buffer-list list more-recent] 3 "\
+Return t if BUFFER1 is more recently used than BUFFER2."])
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [dired-buffers-for-dir-exact #[(dir) "Á‰«µ@A\nAÆ!«ŸŠqˆ)š¬ÉŠqˆ\n)\"«‹Bª…Ë\n\")ªH+‡" [dired-buffers nil elt result alist buf buffer-name dir dired-directory assoc dired-subdir-alist delq] 3] dired-buffers-for-top-dir #[(dir) "À	!\nÃ‰«®@AAÈ!«“	Šqˆ	)š«ŒBª…Ê\n\")ªN+‡" [file-name-as-directory dir dired-buffers nil elt result alist buf buffer-name default-directory delq] 3] dired-initial-position #[(dirname) "Àˆ	«„Â!ˆ­‚Å ‡" [nil dired-find-subdir dired-goto-subdir dirname dired-trivial-filenames dired-goto-next-nontrivial-file] 2]] 2)
+(defconst default-directory-alist '((dired-mode if (fboundp 'dired-current-directory) (dired-current-directory) default-directory)) "\
+Alist of major modes and their opinion on default-directory, as a
+lisp expression to evaluate.  A resulting value of nil is ignored in
+favor of default-directory.")
+(fset 'default-directory #[nil "À	\nA!®‡" [eval major-mode default-directory-alist default-directory] 3 "\
+Usage like variable `default-directory', but knows about the special
+cases in variable `default-directory-alist' (which see)."])
+(fset 'find-file-read-filename-at-point #[(prompt) "ÀÁ!«–\n«Ã ÁÆ Ç%)‡ÁÆ \"‡ÈÆ \"‡" [fboundp gmhist-read-file-name current-prefix-arg filename-at-point fn prompt default-directory nil read-file-name] 6])
+(fset 'filename-at-point #[nil "ÀÁ‰‰ŠÂyˆ`)ŠÁˆ`)Šm¬ÉÊ!«‹ËÁxˆo¬„ÌÍ!ˆÎÏĞQÑg!\"«œÁxˆ`ÎÒÑh!\"«…SÁwˆª„ÓÔ!ˆÕ`{!.‡" [".a-zA-Z0-9---_/:$" nil 0 eol bol filename end start filename-chars looking-at "[] 	\n[{}()]" " \n	({[]})" backward-char 1 string-match "[" "]" char-to-string "[/~]" error "No file found around point!" expand-file-name] 6 "\
+Get the filename closest to point, but don't change your position.
+Has a preference for looking backward when not directly on a symbol."])
+(fset 'find-this-file #[(fn) "ÀÁ\n!!‡" [find-file expand-file-name fn] 3 "\
+Edit file FILENAME.
+Switch to a buffer visiting file FILENAME, creating one if none already exists.
+
+Interactively, with a prefix arg, calls `filename-at-point'.
+Useful to edit the file mentioned in the buffer you are editing, or to
+test if that file exists: use minibuffer completion after snatching the
+name or part of it." (byte-code "ÀÁ!C‡" [find-file-read-filename-at-point "Find file: "] 2)])
+(fset 'find-this-file-other-window #[(fn) "ÀÁ\n!!‡" [find-file-other-window expand-file-name fn] 3 "\
+Edit file FILENAME in other window.
+Switch to a buffer visiting file FILENAME, creating one if none already exists.
+
+Interactively, with a prefix arg, call `filename-at-point'.
+Useful to edit the file mentioned in the buffer you are editing, or to
+test if that file exists: use minibuffer completion after snatching the
+name or part of it." (byte-code "ÀÁ!C‡" [find-file-read-filename-at-point "Find file: "] 2)])
+(fset 'dired-smart-shell-command #[(cmd &optional insert) "À Á\n\")‡" [default-directory shell-command cmd insert] 3 "\
+Like function `shell-command', but in the current Tree Dired directory." "sShell command: \nP"])
+(byte-code "ÀÁ!«…ÁÂÃ\"ˆÀ‡" [fboundp gmhist-make-magic dired-smart-shell-command shell-history] 3)
+(fset 'dired-smart-background-shell-command #[(cmd) "ÀÁÂ ÃR!‡" [comint::background "cd " default-directory "; " cmd] 5 "\
+Run a shell command in the background.
+Like function `comint::background' but in the current Tree Dired directory." "s%% "])
+(byte-code "ÀÁ!«…ÁÂÃ\"ˆÀ‡" [fboundp gmhist-make-magic dired-smart-background-shell-command shell-history] 3)
+(defvar dired-local-variables-file ".dired" "\
+If non-nil, filename for local variables for Dired.
+If Dired finds a file with that name in the current directory, it will
+temporarily insert it into the dired buffer and run `hack-local-variables'.
+
+Type \\[info] and and `g' `(emacs)File Variables' `RET' for more info on
+local variables.")
+(fset 'dired-hack-local-variables #[nil "­¨Á!­£Â‰ŠdbˆÅ ÆcˆÇ!ˆ)É ˆ)d|ˆÂ‰“*‡" [dired-local-variables-file file-exists-p nil opoint buffer-read-only point-marker "\n" insert-file-contents buffer-file-name hack-local-variables] 3 "\
+Parse, and bind or evaluate as appropriate, any local variables
+for current dired buffer.
+See variable `dired-local-variables-file'."])
+(defvar dired-guess-have-gnutar nil "\
+*If non-nil, name of the GNU tar executable (e.g. \"tar\" or \"gnutar\").
+GNU tar's `z' switch is used for compressed tar files.
+If you don't have GNU tar, set this to nil: a pipe using `zcat' is then used.")
+(defvar dired-auto-shell-command-alist-default (byte-code "À	«…	ÂPªÃDÄ	«…	ÅPªƒÆ°DÇÈÉÊËÌÍÎÏÑ=«ƒÒªÓÔÕÖ×ØÙ¯‡" ["\\.tar$" dired-guess-have-gnutar " xvf" "tar xvf" "\\.tar\\.Z$" " zxvf" "zcat * | tar xvf -" ("\\.shar.Z$" "zcat * | unshar") ("\\.uu$" "uudecode") ("\\.hqx$" "mcvert") ("\\.sh$" "sh") ("\\.xbm$" "bitmap") ("\\.gp$" "gnuplot") ("\\.gif$" "xv") (".tex$" "latex" "tex") ("\\.texi\\(nfo\\)?$" "makeinfo" "texi2dvi") window-system x ("\\.dvi$" "xtex" "dvips") ("\\.dvi$" "dvips") ("\\.Z$" "uncompress") ("\\.zoo$" "zoo x//") ("\\.zip$" "unzip") ("\\.lzh$" "lharc x") ("\\.arc$" "arc x") ("\\.shar$" "unshar")] 18) "\
+Default for variable `dired-auto-shell-command-alist' (which see).
+Set this to nil to turn off shell command guessing.")
+(defvar dired-auto-shell-command-alist nil "\
+*If non-nil, an alist of file regexps and their suggested commands.
+Dired shell commands will look up the name of a file in this list
+and suggest the matching command as default.
+
+Each element of this list looks like
+
+    (REGEXP COMMAND...)
+
+where each COMMAND can either be a string or a lisp expression that
+evaluates to a string.  If several COMMANDs are given, the first one
+will be the default and minibuffer completion will use the given set.
+
+These rules take precedence over the predefined rules in the variable
+`dired-auto-shell-command-alist-default' (to which they are prepended).
+
+You can set this variable in your ~/.emacs.  For example, to add
+rules for `.foo' and `.bar' files, write
+
+(setq dired-auto-shell-command-alist
+      (list (list \"\\\\.foo$\" \"FOO-COMMAND\");; fixed rule
+             ;; possibly more rules ...
+	     (list \"\\\\.bar$\";; rule with condition test
+		   '(if condition
+			 \"BAR-COMMAND-1\"
+		       \"BAR-COMMAND-2\"))))
+")
+(byte-code "«†Á\n\"ª\nÃÄMˆÅÆM‡" [dired-auto-shell-command-alist append dired-auto-shell-command-alist-default dired-guess-default #[(files) "A®‚	??­¼@	ÄÄÄ«š@‰@AÈ\n\"«lAÄ‰¬fA¬‡É@!ª…ÊÉ\"-‡" [files dired-auto-shell-command-alist file alist nil elt re cmds string-match eval mapcar] 4] dired-guess-shell-command #[(prompt files) "À	!Â‰‰ÃÉÊ!¬’Ë<«…@ª‚\"ªÒ¬‡ÍÎ\"ªÇÏÎ!¬ƒÂ<«–@ĞÑG\"Pª…CÒÎÈ#ˆÓ\"ÔÍÎ\"Â)-‡" [dired-guess-default files nil t failed val old-history default-list default featurep gmhist read-string prompt read-with-history-in dired-shell-command-history boundp format "{%d guesses} " put append ((byte-code "\n¬Š	¢š¬„	BÄ‡" [old-history dired-shell-command-history failed val nil] 2))] 5]] 3)
+(fset 'dired-read-shell-command #[(prompt arg files) "ÀÁÂÄÅÇ\"\"&‡" [dired-mark-pop-up nil shell files dired-guess-shell-command format prompt dired-mark-prompt arg] 10 "\
+Read a dired shell command using generic minibuffer history.
+This command tries to guess a command from the filename(s)
+from the variable `dired-auto-shell-command-alist' (which see)."])
+(fset 'dired-do-byte-compile-and-load #[(&optional arg) "ÀÁ\nÃÄ$‡" [dired-mark-map-check dired-byte-compile-and-load arg byte-compile-and-load t] 5 "\
+Byte compile marked and load (or next ARG) Emacs lisp files.
+This requires jwz@lucid.com's new optimizing byte compiler." "P"])
+(fset 'dired-byte-compile-and-load #[nil "ÀÂ Ä!Æ\"¬ŠÈÉ\"ˆÊ!ª’ŠË!ˆ)Ì!ˆÀyˆÍ!ˆÀ+‡" [nil buffer-read-only dired-get-filename from-file byte-compile-dest-file new-file string-match elisp-source-extention-re dired-log "Attempt to compile non-elisp file %s\n" dired-make-relative byte-compile-and-load-file dired-remove-file dired-add-file] 3])
+(fset 'dired-do-find-file #[(&optional arg) "ÀÁÂ\"!‡" [simultaneous-find-file dired-mark-get-files nil arg] 4 "\
+Visit all marked files at once, and display them simultaneously.
+See also function `simultaneous-find-file'.
+If you want to keep the dired buffer displayed, type \\[split-window-vertically] first.
+If you want just the marked files displayed and nothing else, type \\[delete-other-windows] first." "P"])
+(fset 'simultaneous-find-file #[(file-list) "À 	G¥\nX¬„ÄÅ!ˆÆ	@!ˆ	A‰­“ÇÈÉ\n\"!ˆÆ	@!ˆ	A‰¬nÉ)‡" [window-height file-list size window-min-height error "Too many files to visit simultaneously" find-file select-window split-window nil] 5 "\
+Visit all files in FILE-LIST and display them simultaneously.
+
+The current window is split across all files in FILE-LIST, as evenly
+as possible.  Remaining lines go to the bottommost window.
+
+The number of files that can be displayed this way is restricted by
+the height of the current window and the variable `window-min-height'."])

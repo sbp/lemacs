@@ -1,0 +1,41 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:36:59 1991
+;;; from file /wg1/emacs-base/lisp/vmsx.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar display-subprocess-window nil "\
+If non-nil, the suprocess window is displayed whenever input is received.")
+(defvar command-prefix-string "$ " "\
+String to insert to distinguish commands entered by user.")
+(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚Â¬Ä ÅÆÇ#ˆÅÈÉ#ˆÂ‡" [boundp subprocess-running nil command-mode-map make-sparse-keymap define-key "" command-send-input "" command-kill-line] 4)
+(fset 'subprocess-input #[(name str) "«„Á\n!ˆp\nqˆdbˆcˆÅcˆq)‡" [display-subprocess-window display-buffer subprocess-buf old-buffer str 10] 2 "\
+Handles input from a subprocess.  Called by Emacs."])
+(fset 'subprocess-exit #[(name) "À‰‡" [nil subprocess-running] 2 "\
+Called by Emacs upon subprocess exit."])
+(fset 'start-subprocess #[nil "«„ÁÂ!ˆÃÄ!ŠqˆÆ!ˆ)ÈÉÊË#‰­„ÌÉÍ\"‡" [subprocess-running return t get-buffer-create "*COMMAND*" subprocess-buf use-local-map command-mode-map spawn-subprocess 1 subprocess-input subprocess-exit send-command-to-subprocess "ON SEVERE_ERROR THEN CONTINUE"] 5 "\
+Spawns an asynchronous subprocess with output redirected to
+the buffer *COMMAND*.  Within this buffer, use C-m to send
+the last line to the subprocess or to bring another line to
+the end."])
+(defvar subprocess-command-to-buffer-tmpdir "SYS$SCRATCH:" "\
+*Put temporary files from subprocess-command-to-buffer here.")
+(fset 'subprocess-command-to-buffer #[(command buffer) "¬ƒÁ ˆŠ\nqˆÄÅÆ!ÇRÉ!«‡Ê!ˆªsËÌÍÎQ\"ˆËÌ\"ˆËÌĞÑR\"ˆÉ!¬†ÒÓ!ˆªtÔ!*‡" [subprocess-running start-subprocess buffer subprocess-command-to-buffer-tmpdir "OUTPUT-FOR-" getenv "USER" ".LISTING" output-filename file-attributes delete-file send-command-to-subprocess 1 "DEFINE/USER SYS$OUTPUT " "-NEW" command "RENAME " "-NEW " sleep-for 2 insert-file] 6 "\
+Execute command and redirect output into buffer.
+
+BUGS: only the output up to the end of the first image activation is trapped."])
+(fset 'subprocess-command #[nil "¬ƒÁ ˆ­†Â!ˆdb‡" [subprocess-running start-subprocess pop-to-buffer subprocess-buf] 2 "\
+Starts asynchronous subprocess if not running and switches to its window." nil])
+(fset 'command-send-input #[nil "Àyˆ`Áˆ`{m«¡¬ƒÄ ˆ­¸ÀyˆÅÆ\n\"ˆ«‡ÀyˆcˆÈÆ!ª É ˆÊ ˆÈÆ!ˆ\nÀGO˜«‰\nGÁOcª‚\nc)‡" [0 nil current-line subprocess-running start-subprocess send-command-to-subprocess 1 command-prefix-string next-line end-of-buffer backward-char] 4 "\
+If at last line of buffer, sends the current line to
+the spawned subprocess.  Otherwise brings back current
+line to the last line for resubmission." nil])
+(fset 'command-kill-line #[nil "ÀyˆÁ ‡" [0 kill-line] 1 "\
+Kills the current line.  Used in command mode." nil])
+(define-key esc-map "$" 'subprocess-command)

@@ -1,0 +1,660 @@
+This is a Beta test release of Lucid's version of GNU Emacs.  It is based
+on an early version of Emacs version 19 from the Free Software Foundation.
+
+Why Another Version of Emacs?
+=============================
+
+Lucid's latest product, Energize, is a C/C++ development environment.  Rather
+than invent (and force our users to learn) a new user-interface, we chose to
+build part of our environment on top of the world's best editor, GNU Emacs.
+(Though our product is commercial, the work we did on GNU Emacs is free
+software, and is useful without having to purchase our product.)
+
+We needed a version of Emacs with mouse-sensitive regions, multiple fonts,
+the ability to mark sections of a buffer as read-only, the ability to detect
+which parts of a buffer has been modified, and many other features.
+
+Why Not Epoch?
+==============
+
+For our purposes, the existing version of Epoch was not sufficient; it did
+not allow us to put arbitrary pixmaps/icons in buffers, `undo' did not
+restore changes to regions, regions did not overlap and merge their
+attributes in the way we needed, and several other things.
+
+We could have devoted our time to making Epoch do what we needed (and, in
+fact, we spent some time doing that) but, since the FSF planned to include
+Epoch-like features in their version 19, we decided that our efforts would be
+better spent improving Emacs19 instead of Epoch.  Our original hope was that
+our changes to Emacs would be incorporated into the "official" v19.
+
+However, scheduling conflicts arose, and we found that, given the amount of
+work still remaining to be done, we didn't have time to merge with the FSF's
+code.  Consequently, we are releasing our work as a forked branch of emacs,
+instead of delaying any longer.
+
+What's Different?
+=================
+
+Lucid GNU Emacs *currently* requires X Windows to run, though it will not be
+much work to make it run on dumb ttys again.  We plan to do this soon.
+
+It's likely that our version of emacs doesn't work on anything but SunOS,
+because we haven't (yet) tried to run it under anything but SunOS 4.1 on
+SparcStations.
+
+We have reimplemented the basic input model in a more general way; instead of
+X input being a special-case of the normal ASCII input stream, emacs has a
+concept of "input events", and ASCII characters are a subset of that.  The
+events that emacs knows about are not X events, but are a generalization of
+them, so that emacs can eventually be ported to different window systems.
+
+We have reimplemented keymaps so that sequences of events can be stored into
+them instead of just ASCII codes.
+
+Our emacs has something called "extents", which describe properties of
+regions of text, which are analagous to Epoch's "buttons".  Currently the
+emacs-lisp interface to extents is lousy; we're working on it.  Emacs can
+use variable-width fonts, but all fonts must be of the same height in pixels.
+This also will be fixed soon.
+
+Emacs use the MIT "Xt" toolkit instead of raw Xlib calls, which makes it be
+a more well-behaved X citizen (and also improves portability).  A result of
+this is that it is possible to include other Xt "Widgets" in the Emacs
+window.  Also, emacs understands the standard Xt command-line arguments.
+
+Emacs understands the X11 "Selection" mechanism; it's possible to define
+and customize selection converter functions and new selection types from 
+elisp, without having to recompile emacs.
+
+Emacs now supports the Zmacs/Lispm style of region highlighting, where the
+region between the point and mark is highlighted when it its "active" state.
+
+Emacs has a menubar, whose contents are customizable from emacs-lisp.
+
+The initial load-path is computed at run-time, instead of at compile-time.
+This means that if you move the emacs executable and associated directories
+to somewhere else, you don't have to recompile anything.
+
+You can have multiple X Windows ("screens" in emacs terminology).
+
+You can specify what the title of the emacs windows and icons should be
+with the variables `screen-title-format' and `screen-icon-title-format',
+which have the same syntax as `mode-line-format'.
+
+Emacs now supports floating-point numbers.
+
+Emacs understands truenames, and can be configured to notice when you are
+visiting two names of the same file.  See the variables find-file-use-truenames
+and find-file-compare-truenames.
+
+If you're running on a sun SparcStation, you can specify sound files for
+emacs to play instead of the default X beep.  See the documentation of the
+function load-sound-file and the variable sound-alist.
+
+Random changes to the emacs-lisp library: (some of this was not written by
+us, but is included because it's free software and we think it's good stuff)
+
+  - there is a new optimizing byte-compiler
+  - there is a new abbrev-based mail-alias mechanism
+  - the -*- line can contain local-variable settings
+  - there is a new TAGS package
+  - there is a new VI-emulation mode (evi)
+  - there is a new implementation of Dired
+
+Here are some more specifics:
+
+The Input Model
+===============
+
+The fundamental unit of input is an "event" instead of a character.  An
+event is a new data type that contains several pieces of information.
+There are several kinds of event, and corresponding accessor and utility
+functions.  We tried to abstract them so that they would apply equally
+well to a number of window systems.
+
+ key_press_event	
+    event_channel	A token representing which keyboard generated it.
+			For this kind of event, this is a screen object.
+			(This is for eventual support of multiple displays.)
+    timestamp		When it happened
+    key			What keysym this is; an integer or a symbol.
+			If this is an integer, it will be in the printing
+			ASCII range: >32 and <127.
+    modifiers		Bucky-bits on that key: control, meta, etc.
+			For most keys, Shift is not a bit; that is implicit
+			in the keyboard layout.
+ button_press_event
+ button_release_event
+    event_channel	A token representing which mouse generated it.
+			For this kind of event, this is a screen object.
+    timestamp		When it happened
+    button		What button went down or up.
+    modifiers		Bucky-bits on that button: shift, control, meta, etc.
+    x, y		Where it was at the button-state-change (in pixels).
+
+ pointer_motion_event
+    event_channel	A token representing which mouse generated it.
+			For this kind of event, this is a screen object.
+    timestamp		When it happened
+    x, y		Where it was after it moved (in pixels).
+
+ process_event
+    timestamp		When it happened
+    process		the emacs "process" object in question
+
+ timeout_event
+    timestamp		Now (really, when the timeout was signalled)
+    function		The elisp function to call for this timeout.  It is
+    			called with one argument, the event.
+    object		Some lisp object associated with this timeout, to
+    			make it easier to tell them apart.
+
+ menu_event
+    timestamp		When it happened.
+    function		An elisp function to call with this event object.
+    object		Anything.
+			This kind of event is generated by selections in
+			the menubar.  It is a "command" event, like key
+			and mouse presses (and unlike mouse motion, process
+			output, and enter and leave window hooks.)
+
+ magic_event
+			No user-serviceable parts within.  This is for things
+			like KeymapNotify and ExposeRegion events and so on
+			that emacs itself doesn't care about, but which it
+			must do something with for proper interaction with
+			the window system.
+
+There is a function `next-event' that blocks, and returns one of the
+above-described event objects.  There's a function `dispatch-event' that
+takes an event and processes it in the appropriate way.  
+
+For a process-event, dispatch-event calls the process's handler; for a
+mouse-motion event, the mouse-motion-handler hook is called, and so on.
+For magic-events, dispatch-event does window-system-dependent things,
+including calling some non-window-system-dependent hooks: map-screen-hook,
+unmap-screen-hook, mouse-enter-hook, and mouse-left-hook.
+
+There is also a function `next-command-event' that calls `next-event'
+until it gets a key or button from the user (that is, not a process,
+motion, timeout, or magic event).  If it gets an event that is not a key or
+button, it calls `dispatch-event' on it immediately and reads another one.
+next-command-event could be implemented in elisp, though it isn't.
+
+Read-char calls next-command-event; if it doesn't get an event that can be
+converted to an ASCII character, it signals an error.  Otherwise it returns
+an integer.
+
+The variable `last-command-char' always contains an integer, or nil (if the
+last read event has no ASCII equivalent.)
+
+The new variable `last-command-event' holds an event object, that could be
+a non-ASCII character, a button click, a menu selection, etc.
+
+The variable `unread-command-char' no longer exists, and has been replaced
+by `unread-command-event'.  This is because, with the new event model, it
+is incorrect for code to do (setq unread-command-char (read-char)), because
+all user-input can't be represented as ASCII characters.  *** This is an
+incompatible change.  Code which sets `unread-command-char' must be updated
+to use the combination of `next-command-event' and `unread-command-event'
+instead.
+
+The functions `this-command-keys' and `recent-keys' return a vector of
+event objects, instead of a string of ASCII characters.  *** This also
+is an incompatible change.
+
+Almost nothing happens at interrupt level; the SIGIO handler does nothing
+more than look at the X event queue for KeyPress events which map to ^G,
+and set Vquit_flag.  All redisplay happens in the main thread of the 
+process.
+
+We envision the dumb-tty handler functions doing function-key handling at
+the lowest level.  So the terminal-specific code would set up some data
+structure that would cause the key sequences that some ttys generate for
+function keys to be converted to 'f1 and so on before next-event saw them.
+We haven't implemented dumb-tty handling yet, but we will soon.
+
+
+Keymaps
+=======
+
+Instead of keymaps being alists or obarrays, they are a new primary data
+type.  The only user access to the contents of a keymap is through the
+existing keymap-manipulation functions, and a new function, map-keymap.
+*** This means that existing code that manipulates keymaps may need to 
+be changed.
+
+The keys of these hash tables are pairs of a keysym (an ASCII integer, or
+a symbol) and the modifier bits (control through mod4, that we called
+control, meta, shift, super, hyper, and symbol).
+
+(Note: the current implementation is incorrect in that, like previous
+versions of emacs, it assumes that "Mod1" means "Meta", which is not
+necessarily true.  We will fix this soon.)
+
+One of our goals with the new input and keymap code was to make more
+character combinations available for binding, besides just ASCII and
+function keys.  I want to bind different commands to Control-a and
+Control-Shift-a; we also want it to be possible for the keys Control-h 
+and Backspace (and Control-M and Return, and Control-I and Tab, etc) to
+be distinct.
+
+One of the most common complaints that new emacs users have is that
+backspace is help.  The answer is to play around with the keyboard-
+translate-table, or be lucky enough to have a sysadmin who has done this
+for you already; but if it were possible to bind backspace and C-h to
+different things, then (under a window manager at least) both backspace and
+delete would delete a character, and ^H would be help.  There's no need to
+mess around with xmodmap, or the kbd-translate-table, or anything.
+
+Here are some more examples: I want to bind one function to Tab, and
+another to Control-Tab.  This can't be done if Tab and Control-I are the
+same thing.  What about control keys that have no ASCII equivalent, like
+Control-< ?  I want that to be bound to set-mark-at-point-min.  I want
+M-C-Backspace to be kill-backward-sexp.  But I want M-Backspace to be
+kill-backward-word.  Again, this can't be done if Backspace and C-h are
+indistinguishable.
+
+The user represents keys as a string of ASCII characters (when possible and
+convenient), or as a vector of event objects, or as a vector of "key 
+description lists", that looks like (control a), or (control meta delete) 
+or (shift f1).  The order of the modifier-names is not significant, so
+(meta control x) and (control meta x) are the same.
+
+Define-key knows how to take any of these and store them into a keymap.
+When emacs wants to return a key sequence (this-command-keys, recent-keys,
+keyboard-macros, and read-key-sequence, for example) it returns a vector of
+event objects.  Keyboard macros can also be represented as ASCII strings or
+as vectors of key description lists.
+
+Control-Shift-a is specified as (control A), not (control shift a), since A
+is a two-case character.  But for keys that don't have an upper case
+version, like F1, Backspace, and Escape, you use the (shift backspace) syntax.
+
+Here is the docstring for our version of define-key.  Note that when the
+KEYS argument is a string, it has the same semantics as the v18 define-key.
+
+Args KEYMAP, KEYS, DEF.  Define key sequence KEYS, in KEYMAP, as DEF.
+KEYMAP is a keymap object.
+KEYS is the sequence of keystrokes to bind, described below.
+DEF is anything that can be a key's definition:
+ nil (means key is undefined in this keymap);
+ a command (a Lisp function suitable for interactive calling);
+ a string or key sequence vector (treated as a keyboard macro);
+ a keymap (to define a prefix key);
+ a symbol; when the key is looked up, the symbol will stand for its
+    function definition, that should at that time be one of the above,
+    or another symbol whose function definition is used, and so on.
+ a cons (STRING . DEFN), meaning that DEFN is the definition
+    (DEFN should be a valid definition in its own right);
+ or a cons (KEYMAP . CHAR), meaning use definition of CHAR in map KEYMAP.
+
+Contrary to popular belief, the world is not ASCII.  When running under a
+window manager, Emacs can tell the difference between, for example, the
+keystrokes control-h, control-shift-h, and backspace.  You can, in fact,
+bind different commands to each of these.
+
+A `key sequence' is a set of keystrokes.  A `keystroke' is a keysym and some
+set of modifiers (such as control and meta).  A `keysym' is what is printed
+on the keys on your keyboard.
+
+A keysym may be represented by a symbol, or (if and only if it is equivalent
+to a printing ASCII character) by its ASCII code.  The `A' key may be
+represented by the symbol `A' or by the number 65.  The `break' key may be
+represented only by the symbol `break'.
+
+A keystroke may be represented by a list: the last element of the list is
+the key (a symbol or number, as above) and the preceding elements are the
+symbolic names of modifier keys (control, meta, super, hyper, and shift.)
+Thus, the sequence control-b is represented by the forms `(control b)' 
+and `(control 98)'.  A keystroke may also be represented by an event object,
+as returned by the `next-command-event' and `read-key-sequence' functions.
+
+Note that in this context, the keystroke `control-b' is *not* represented
+by the number 2 (the ASCII code for ^B).  See below.
+
+The `shift' modifier is somewhat of a special case.  You should not (and
+cannot) use `(meta shift a)' to mean `(meta A)', since for characters that
+have printing ASCII equivalents, the state of the shift key is implicit in
+the keysym (a vs. A).  You also cannot say `(shift =)' to mean `+', as that
+sort of thing varies from keyboard to keyboard.  The shift modifier is for
+use only with characters that do not have a second keysym on the same key,
+such as `backspace' and `tab'.
+
+A key sequence is a vector of keystrokes.  As a degenerate case, elements
+of this vector may also be keysyms if they have no modifiers.  That is,
+the `A' keystroke is represented by all of these forms:
+	A	65	(A)	(65)	[A]	[65]	[(A)]	[(65)]
+the `control-a' keystroke is represented by these forms:
+	(control A)	(control 65)	[(control A)]	[(control 65)]
+the key sequence `control-c control-a' is represented by these forms:
+	[(control c) (control a)]	[(control 99) (control 65)]
+
+Mouse button clicks work just like keypresses: (control button1) means
+pressing the left mouse button while holding down the control key.
+[(control c) (shift button3)] means control-c, hold shift, click right.
+
+Commands may be bound to the mouse-button up-stroke rather than the down-
+stroke as well.  `button1' means the down-stroke, and `button1up' means the
+up-stroke.  Different commands may be bound to the up and down strokes,
+though that is probably not what you want, so be careful.
+
+For backward compatibility, a key sequence may also be represented by a 
+string.  In this case, it represents the key sequence(s) that would
+produce that sequence of ASCII characters in a purely ASCII world.  For 
+example, a string containing the ASCII backspace character, "\^H", would
+represent two key sequences: `(control h)' and `backspace'.  Binding a
+command to this will actually bind both of those key sequences.  Likewise 
+for the following pairs:
+
+	control h   backspace		control l   clear
+	control i   tab      		control m   return
+	control j   linefeed 		control [   escape
+
+After binding a command to two key sequences with a form like
+
+	(define-key global-map "\^X\^I" 'command-1)
+
+it is possible to redefine only one of those sequences like so:
+
+	(define-key global-map [(control x) (control i)] 'command-2)
+	(define-key global-map [(control x) tab] 'command-3)
+
+Of course, all of this stuff applies only when running under a window
+system.  If you're talking to emacs through an ASCII-only channel, you
+don't get any of these features.
+
+
+Xt Integration
+==============
+
+The guts of the event loop are implemented in terms of the XtNextEvent,
+and uses Xt's concept of timeouts and file-descriptor callbacks,
+eliminating a large amount of system-dependent code (Xt does it for you.)
+
+If emacs is compiled with support for X, we plan to have it use the Xt
+event loop even when emacs is not running on an X display (the Xt event
+loop supports this.)  This will make it possible to run emacs on a dumb
+tty, and later connect it to one or more X servers.  We hope also to make
+it possible to later connect an existing emacs process to additional ttys.
+(Our intent at this point is not to have an emacs that is being used by
+multiple people at the same time; rather, it is to make it possible for
+someone to go home, log in on a dialup line, and connect to the same emacs
+process that is running under X in their office, without having to recreate
+their buffer state and so on.)
+
+If emacs is not compiled with support for X, then it will instead use
+more general code, something like what v18 does; but this way of doing
+things is a lot more modular.
+
+(Linking emacs with Xt seems to only add about 300k to the executable size.)
+
+
+X Selections
+============
+
+We have reimplemented X Selection handling to be much more general.  Almost
+all of it is implemented in emacs-lisp now, so it's possible to define new
+selection data types without having to recompile emacs.
+
+variable selection-converter-alist:
+An alist associating selection-types (such as STRING and TIMESTAMP) with
+functions.  These functions will be called with three args: the name of the
+selection (typically PRIMARY, SECONDARY, or CLIPBOARD); a desired type to
+which the selection should be converted; and the local selection value
+(whatever had been passed to `x-own-selection').  These functions should
+return the value to send to the X server (typically a string).  A return
+value of nil means that the conversion could not be done.  A return value
+that is the symbol NULL means that a side-effect was executed, and there
+is no meaningful return value.
+
+variable x-lost-selection-hooks:
+A function or functions to be called after the X server has notified us
+that we have lost the selection.  The function(s) will be called with one
+argument, a symbol naming the selection (typically PRIMARY, SECONDARY, or
+CLIPBOARD.)
+
+variable x-sent-selection-hooks:
+A function or functions to be called after we have responded to some
+other client's request for the value of a selection that we own.  The
+function(s) will be called with four arguments:
+  - the name of the selection (typically PRIMARY, SECONDARY, or CLIPBOARD);
+  - the name of the selection-type that we were requested to convert the
+    selection into before sending (for example, STRING or LENGTH);
+  - and whether we successfully transmitted the selection.
+We might have failed (and declined the request) for any number of reasons,
+including being asked for a selection that we no longer own, or being asked
+to convert into a type that we don't know about or that is inappropriate.
+This hook doesn't let you change the behavior of emacs's selection replies,
+it merely informs you that they have happened.
+
+subr x-own-selection-internal:
+Assert an X selection of the given TYPE with the given VALUE.
+TYPE is a symbol, typically PRIMARY, SECONDARY, or CLIPBOARD.
+VALUE is typically a string, or a cons of two markers, but may be
+anything that the functions on selection-converter-alist know about.
+
+subr x-get-selection-internal:
+Return text selected from some X window.
+SELECTION is a symbol, typically PRIMARY, SECONDARY, or CLIPBOARD.
+TYPE is the type of data desired, typically STRING.
+
+If this process is already the selection owner, then our local copy will
+be returned without a round-trip to the X server.  If we are not the owner,
+then this will block until all of the data has arrived from the server.
+Process and timeout events will be handled while we are waiting for the 
+selection data to arrive; ^G will interrupt the transfer.
+
+subr x-disown-selection-internal:
+If we own the named selection, then disown it (make there be no selection).
+
+
+Given the above functions, the lisp side of the selection code looks like:
+
+(defun x-get-selection ()
+  "Return text selected from some X window."
+  (x-get-selection-internal 'PRIMARY 'STRING))
+
+...
+(setq selection-converter-alist
+      '((STRING . xselect-convert-to-string)
+	(LENGTH . xselect-convert-to-length)
+        ... lots of others, like TARGETS, DELETE, FILE_NAME, LINE_NUMBER...
+	))
+
+(defun xselect-convert-to-string (selection type value)
+  (cond ((stringp value)
+	 value)
+	((and (consp value)
+	      (markerp (car value))
+	      (markerp (cdr value)))
+	 (or (eq (marker-buffer (car value)) (marker-buffer (cdr value)))
+	     (signal 'error
+		     (list "markers must be in the same buffer"
+			   (car value) (cdr value))))
+	 (save-excursion
+	   (set-buffer (or (marker-buffer (car value))
+			   (error "selection is in a killed buffer")))
+	   (buffer-substring (car value) (cdr value))))
+	(t nil)))
+
+(defun xselect-convert-to-length (selection type value)
+  (let ((value
+	 (cond ((stringp value)
+		(length value))
+	       ((and (consp value)
+		     (markerp (car value))
+		     (markerp (cdr value)))
+		(or (eq(marker-buffer (car value)) (marker-buffer (cdr value)))
+		    (signal 'error
+			    (list "markers must be in the same buffer"
+				  (car value) (cdr value))))
+		(abs (- (car value) (cdr value)))))))
+    (if value
+	;; force it to be in 32-bit format.  If we just returned a small int,
+        ;; the C side of the selection code would use a 16-bit representation
+	;; for it, which is wrong in this case.  Returning a cons of two
+	;; 16 bit ints causes a 32-bit int to be sent to the server instead.
+	(cons (ash value -16) (logand value 65535))
+      nil)))
+
+
+The functions on the selection-converter-alist are called from the
+"magic-event" handler, which is called from Fdispatch_event; this means that
+selection handling happens exactly the same as process-callbacks, instead
+of happening at interrupt level (which caused problems.)
+
+There are also functions for reading and writing the cut-buffers, for
+emacs19/emacs18 compatibility.
+
+We used all-upper-case symbols like 'PRIMARY and 'STRING so that there is
+a 1:1 mapping between symbols and X Atoms.  This is a little tasteless,
+but we think it's the closest-to-right thing.
+
+
+Region Highlighting
+===================
+
+If the variable `zmacs-regions' is true, then the region between point and
+mark will sometimes be highlighted.  Most commands (all non-motion
+commands, basically) cause it to become non-highlighted.  Commands that
+operate on the region (^W, etc) only work if the region is in the
+highlighted state.  
+
+zmacs-activate-region-hook and zmacs-deactivate-region-hook are run at the
+appropriate times; under X, zmacs-activate-region-hook makes the X selection
+be the region between point and mark, thus doing two things at once: making
+the region and the X selection be the same; and making the region highlight
+in the same way as the X selection.
+
+mark-marker: subr
+Return this buffer's mark, as a marker object.
+If `zmacs-regions' is true, then this returns nil unless the region is
+currently in the active (highlighted) state.  With an argument of t, this
+returns the mark (if there is one) regardless of the active-region state.
+You should *generally* not use the mark unless the region is active, if
+the user has expressed a preference for the active-region model.
+Watch out!  Moving this marker changes the mark position.
+If you set the marker not to point anywhere, the buffer will have no mark.
+
+In this way, the primary selection is a fairly transitory entity; but
+when something is copied to the kill ring, it is made the Clipboard
+selection.  It is also stored into CUT_BUFFER0, for compatibility with
+X applications that don't understand selections (like Emacs18).
+
+*** Compatibility note: if you have code which uses (mark) or (mark-marker),
+then you need to either: change those calls to (mark t) or (mark-marker t);
+or simply bind `zmacs-regions' to nil around the call to mark or mark-marker.
+This is probably the best solution, since it will work in Emacs18 as well.
+
+
+Menubars and Dialog Boxes
+=========================
+
+A menubar definition looks something like
+
+(defvar default-menubar
+  '(("File"	["New Screen"		x-new-screen		t]
+		["Open File..."		find-file		t]
+		["Save Buffer"		save-buffer		t]
+		["Save Buffer As..."	write-file		t]
+		["Revert Buffer"	revert-buffer		t]
+		"-----"
+		["Print Buffer"		lpr-buffer		t]
+		"-----"
+		["Delete Screen"	delete-screen		t]
+		["Kill Buffer..."	kill-buffer		t]
+		["Exit Emacs"		save-buffers-kill-emacs	t]
+		)
+    ("Edit"	["Undo"			advertised-undo		t]
+		["Cut"			kill-primary-selection	t]
+		["Copy"			copy-primary-selection	t]
+		["Paste"		yank-clipboard-selection t]
+		["Clear"		delete-primary-selection t]
+		)
+    ...))
+
+the first element of each menu item is the string to print on the menu.
+
+The second element is the callback function; if it is a symbol, it is
+invoked with `call-interactively.'  If it is a list, it is invoked with
+`eval'.  
+
+If the second element is a symbol, then the menu also displays the key that
+is bound to that command (if any.)
+
+The third element of the menu items is whether that item is selectable.
+There is a hook that is run just before a menu is exposed, that can be 
+used to change this.  For example, there is a hook that makes the "undo"
+menu item be selectable only in the cases when `advertised-undo' would
+not signal an error.
+
+Menus may have other menus nested within them; they will cascade.
+
+There are utility functions for adding items to menus, deleting items,
+disabling them, etc.
+
+The function `popup-menu' takes a menu description and pops it up.  
+
+The function `popup-dialog-box' takes a dialog-box description and pops it
+up.  Dialog box descriptions look just like menu descriptions, but they
+are interpreted differently; the items are buttons instead of menu items.
+(*** note: we aren't finished implementing this yet.)
+
+The menubar, menu, and dialog-box code is implemented as a library, with
+an interface which hides the toolkit that implements it.  Currently, we
+are using a Motif-based library, but we are currently working on an
+Athena-based library, which will make it possible to use menubars and
+dialog boxes in emacs without relying on any non-free software.
+
+
+Startup Code Changes
+====================
+
+The initial X screen is mapped before the user's .emacs file is executed.
+Without this, there is no way for the user to see any error messages
+generated by their .emacs file, any windows created by the .emacs file
+don't show up, and the copyleft notice isn't shown.
+
+The default values for load-path, exec-path, lock-directory, and
+Info-directory-list are not (necessarily) built into emacs, but are
+computed at startup time.  
+
+First, we look at the directory from which this emacs image was run:
+
+  o  If it ends in /src/, and ../lisp/ exists, then we use that for the
+     lisp library (likewise for /etc/ and /lock/).
+  o  Otherwise, if there is a subdirectory of the directory that the emacs
+     program is in called lisp/ (or etc/ or lock/), then we use that.
+  o  Otherwise, if the emacs program that was run is itself a symbolic
+     link, then we chase the link and try again on the resultant directory.
+  o  Otherwise, as a last resort, we look in /usr/local/lib/emacs/ and
+     /usr/local/emacs/.
+  
+Finally, If the lisp directory contains subdirectories, they are added to
+the default load-path as well.
+
+These heuristics fail if the emacs binary was copied from the main emacs
+tree to some other directory, and links for the lisp directory were not
+put in.  I don't think this is much of a restriction.
+
+If emacs can't find the requisite directories, it prints a message like
+this (or some appropriate subset of it) to the terminal it was invoked
+from:
+
+  WARNING:
+  couldn't find an obvious default for load-path, exec-directory, and
+  lock-directory, and there were no defaults specified in paths.h when
+  emacs was built.  Perhaps some directories don't exist, or the emacs
+  executable, /cadillac-th/jwz/somewhere/xemacs is in a strange place?
+
+  Without lock-directory set, file locking won't work.  Consider
+  creating /cadillac-th/jwz/somewhere/lock/ as a directory or symbolic
+  link for use as the lock directory.
+
+  Without both exec-directory and load-path, emacs will be very broken.
+  Consider making a symbolic link from /cadillac-th/jwz/somewhere/etc/
+  to wherever the appropriate emacs etc directory is, and from
+  /cadillac-th/jwz/somewhere/lisp/ to wherever the appropriate emacs
+  lisp library is.

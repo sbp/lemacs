@@ -1,0 +1,131 @@
+;;; compiled by eb@watergate on Fri Feb 21 09:47:53 1992
+;;; from file /wg1/emacs-base/lisp/compile.el
+;;; emacs version 19.62 Lucid.
+;;; bytecomp version 2.04; 5-feb-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'compile)
+(defvar compilation-error-list nil "\
+List of error message descriptors for visiting erring functions.
+Each error descriptor is a list of length two.
+Its car is a marker pointing to an error message.
+Its cadr is a marker pointing to the text of the line the message is about,
+  or nil if that is not interesting.
+The value may be t instead of a list;
+this means that the buffer of error messages should be reparsed
+the next time the list of errors is wanted.")
+(defvar compilation-old-error-list nil "\
+Value of `compilation-error-list' after errors were parsed.")
+(defvar compilation-last-error nil "\
+List describing the error found by last call to \\[next-error].
+A list of two markers (ERROR-POS CODE-POS),
+pointing to the error message and the erroneous code, respectively.
+CODE-POS can be nil, if the error message has no specific source location.")
+(defvar compilation-parse-errors-hook 'compilation-parse-errors "\
+Function to call (no args) to parse error messages from a compilation.
+It should read in the source files which have errors
+and set `compilation-error-list' to a list with an element
+for each error message found.  See that variable for more info.")
+(defvar compilation-error-buffer nil "\
+Current compilation buffer for compilation error processing.")
+(defvar compilation-parsing-end nil "\
+Position of end of buffer when last error messages parsed.")
+(defvar compilation-error-message nil "\
+Message to print when no more matches for compilation-error-regexp are found")
+(defvar compilation-error-regexp "\\([^ :\n]+\\(: *\\|, line \\|(\\)[0-9]+\\)\\|\\([0-9]+ *of *[^ \n]+\\)\\|\\(\"[^ \n]+\",L[0-9]+\\)" "\
+Regular expression for filename/linenumber in error in compilation log.")
+(defvar compile-window-height nil "\
+*Desired height of compilation window.  nil means use Emacs default.")
+(defvar compile-command "make -k " "\
+Last shell command used to do a compilation; default for next compilation.
+
+Sometimes it is useful for files to supply local values for this variable.
+You might also use mode hooks to specify it in certain modes, like this:
+
+    (setq c-mode-hook
+      '(lambda () (or (file-exists-p \"makefile\") (file-exists-p \"Makefile\")
+		      (progn (make-local-variable 'compile-command)
+			     (setq compile-command
+				    (concat \"make -k \"
+					    buffer-file-name))))))")
+(defvar compilation-search-path '(nil) "\
+List of directories to search for source files named in error messages.
+Elements should be directory names, not file names of directories.
+nil as an element means to try the default directory.")
+(fset 'compile #[(command) "ÂÃ‰\"ˆÄ	Å\"ˆ­’Ç È U­‹ÉÊ Ë ZZÃ\"‡" [command compile-command save-some-buffers nil compile-internal "No more errors" compile-window-height window-width screen-width enlarge-window screen-height window-height] 3 "\
+Compile the program including the current buffer.  Default: run `make'.
+Runs COMMAND, a shell command, in a separate process asynchronously
+with output going to the buffer `*compilation*'.
+You can then use the command \\[next-error] to find the next error message
+and move to the source code that caused it.
+
+To run more than one compilation at once, start one and rename the
+`*compilation*' buffer to some other name.  Then start the next one." (byte-code "ÀÁ\n\"C‡" [read-string "Compile command: " compile-command] 3)])
+(fset 'grep #[(command-args) "ÁÂÃ\"«„Á•ª‚GOÄQÆÇPÈÉ#‡" [grep-command 0 string-match "-n" " " command-args compile-internal " /dev/null" "No more grep hits" "grep"] 5 "\
+Run grep, with user-specified args, and collect output in a buffer.
+While grep runs asynchronously, you can use the \\[next-error] command
+to find the text that grep hits refer to.  It is expected that `grep-command'
+has a `-n' flag, so that line numbers are displayed for each match." (byte-code "ÀÁ\nÃÄÅ\n\"OÆQÄÇ\n\"«‡\nÃ•ÈOªÉ\"C‡" [read-string "Run " grep-command 0 string-match "[	 ]+" " (with args): " "-n[	 ]+" nil ""] 7)])
+(fset 'compile-internal #[(command error-message &optional name-of-mode parser regexp) "ŠÀÁ!qˆÂÄp!‰«—Æ!Ç=«…ÈÉ!«‡ÂÊËˆª„ÌÍ!ˆ)Î ˆ)Ï ˆĞÑÁ#ˆÁÓÔ!ˆÓ!ˆÖ ˆÓ!ˆÖ ‘ˆ®‚®‚ÜÁ!Ş!p=«ƒdbˆàÄ!á\"ˆŠqˆ\"=¬˜#ä=¬’#¬•Ä\"!«ˆÆ\"!Ç=¬‡ä#\"å ˆæe\"ˆ'®è)ê =®…ëe\".‡" [get-buffer-create "*compilation*" nil buffer-read-only get-buffer-process comp-proc process-status run yes-or-no-p "A compilation process is running; kill it? " (byte-code "À	!ˆÂÃ!ˆÄ	!‡" [interrupt-process comp-proc sit-for 1 delete-process] 2) ((error)) error "Cannot have two processes in `*compilation*' at once" kill-all-local-variables compilation-forget-errors start-process-shell-command "compilation" command princ "cd " default-directory terpri regexp compilation-error-regexp parser compilation-parse-errors-hook thisdir get-buffer outbuf get-buffer-window outwin set-process-sentinel compilation-sentinel compilation-error-buffer compilation-error-list t compilation-mode set-window-start name-of-mode "Compilation" mode-name selected-window set-window-point] 5 "\
+Run compilation command COMMAND (low level interface).
+ERROR-MESSAGE is a string to print if the user asks to see another error
+and there are no more errors.  Third argument NAME-OF-MODE is the name
+to display as the major mode in the `*compilation*' buffer.
+
+Fourth arg PARSER is the error parser function (nil means the default).
+Fifth arg REGEXP is the error message regexp to use (nil means the default).
+The defaults for these variables are the global values of
+ `compilation-parse-errors-hook' and `compilation-error-regexp'."])
+(defvar compilation-mode-map (byte-code "À Â	ÃÄ#ˆ	)‡" [make-sparse-keymap map define-key "" compile-goto-error] 4) "\
+Keymap for compilation log buffers.")
+(fset 'compilation-mode #[nil "À ˆÁ\n!ˆÃÄ!ˆÃÆ!ˆÃÈ!ˆ	Êp!ˆËÍÏ‰‡" [fundamental-mode use-local-map compilation-mode-map make-local-variable compilation-parse-errors-hook parser compilation-error-message error-message compilation-error-regexp regexp buffer-disable-undo compilation-mode major-mode "Compilation" mode-name (": %s") mode-line-process] 2 "\
+Major mode for compilation log buffers.
+\\<compilation-mode-map>To visit the source for a line-numbered error,
+move point to the error message line and type \\[compile-goto-error]." nil])
+(fset 'compilation-sentinel #[(proc msg) "ÀÁ\n!!¬…Ã\nÄ\"‡Å\n!Æ>­ÒpÄÄ	ÊÁ\n!qˆd`	dbˆËÍ±ˆÏuˆĞÑ ÒÓO±ˆÔuˆÕÖÅ\n!!PØ\n!ˆ)	«‹	W«„	bˆq+‡" [buffer-name process-buffer proc set-process-buffer nil process-status (signal exit) obuf omax opoint ((byte-code "ÀÁ !‡" [set-buffer-modified-p buffer-modified-p] 2)) 10 mode-name " " msg -1 " at " current-time-string 0 19 1 ": " symbol-name mode-line-process delete-process] 4])
+(fset 'kill-compilation #[nil "ÀÁ «ƒpªƒÂÃ!Å!­…ÆÅ!!)‡" [compilation-parse-errors-hook buffer-local-variables get-buffer "*compilation*" buffer get-buffer-process interrupt-process] 3 "\
+Kill the process made by the \\[compile] command." nil])
+(fset 'compile-reinitialize-errors #[(argp) "Á=¬‘\n:¬ÃÄ «p‰=¬†Æ ˆÇ?­¥ŠÉ!ˆÊË!ˆÇUÍÃ!ˆ«†‰ª‡¤‰*‡" [compilation-error-list t argp compilation-parse-errors-hook buffer-local-variables compilation-error-buffer compilation-forget-errors 1 compilation-parsing-end switch-to-buffer set-buffer-modified-p nil at-start run-hooks compilation-old-error-list] 3])
+(fset 'compile-goto-error #[(&optional argp) "À	!ˆŠÂyˆÃÄ \">)Ç ¬„ÈÉ!ˆÊË!‡" [compile-reinitialize-errors argp 0 assoc point-marker compilation-old-error-list compilation-error-list one-window-p other-window -1 next-error 1] 3 "\
+Visit the source for the error message point is on.
+Use this command in a compilation log buffer.
+C-u as a prefix arg means to reparse the buffer's error messages first;
+other kinds of prefix arguments are ignored." "P"])
+(fset 'next-error #[(&optional argp) "À	!ˆ	:«‚ÂGGZÅZÆ	!\\›‰@‰¬µŠ	«‘Æ	!ÉV«†ÊË!ˆª„ÊÌ!ˆqˆÎ ˆÊĞp!«ŒÑĞp!!Ò=«ƒÓªÔP!ˆ)AA@«ŸÕÖA@!!ˆA@bˆ`A@U¬ˆ~ˆA@bˆ×ÙÖ@!!Û@\"ˆÜ@\"ˆ*‰*‡" [compile-reinitialize-errors argp nil compilation-old-error-list compilation-error-list 1 prefix-numeric-value next-errors next-error 0 error "Moved past last error" "Moved back past first error" compilation-error-buffer compilation-forget-errors compilation-error-message get-buffer-process process-status run " yet" "" switch-to-buffer marker-buffer t pop-up-windows display-buffer w set-window-point set-window-start compilation-last-error] 6 "\
+Visit next compilation error message and corresponding source code.
+This operates on the output from the \\[compile] command.
+If all preparsed error messages have been processed,
+the error message buffer is checked for new ones.
+
+A prefix arg specifies how many error messages to move;
+negative means move back to previous error messages.
+Just C-u as a prefix means reparse the error message buffer
+and start at the first error.
+
+\\[next-error] normally applies to the most recent compilation started,
+but as long as you are in the middle of parsing errors from one compilation
+output buffer, you stay with that compilation output buffer.
+
+Use \\[next-error] in a compilation output buffer to switch to
+processing errors from that compilation.
+
+See variables `compilation-parse-errors-hook' and `compilation-error-regexp'
+for customization ideas.  When we return, `compilation-last-error'
+points to the error message and the erroneous code." "P"])
+(fset 'previous-error #[(&optional argp) "À	¬ƒÂª‰	§«„	[ª	!‡" [next-error argp -1] 2 "\
+\\[next-error] backwards." "P"])
+(fset 'compilation-forget-errors #[nil "«œ@‰@Â‰“ˆ	A@«‡	A@Â‰“ˆ)A‰¬dÂ‰‡" [compilation-old-error-list next-error nil compilation-error-list] 4])
+(fset 'compilation-parse-errors #[nil "ÀÂÃ!ˆÀ‰‰bˆo«ƒÈyˆÉ\nÀË#ƒÔ À‰‰‰ŒĞ”Ğ•}ˆdbˆÑÀxˆhÒU«eÓ T}ˆÀˆÔ\n!ˆÕÀxˆ`Ğ•}ˆdbˆÑÀxˆÖÑ!«Š×p!ebˆªebˆ×p!dbˆÕÀxˆØ )š«†U¬ÁĞyˆÙ š¬‹Ú!Ğ«¥ŠqˆĞU«…ÛbˆÛZyˆÙ D	B)Ûyˆ,‚ d+ÂÜ!ˆ	Ÿ‰‡" [nil compilation-error-list message "Parsing error messages..." last-linenum last-filename text-buffer compilation-parsing-end 2 re-search-forward compilation-error-regexp t text-marker error-marker filename linenum 0 "[0-9]" 40 buffer-size re-search-backward "^ 	\n" looking-at read compilation-grab-filename point-marker compilation-find-file 1 "Parsing error messages...done"] 4 "\
+Parse the current buffer as grep, cc or lint error messages.
+See variable `compilation-parse-errors-hook' for the interface it uses."])
+(fset 'compilation-find-file #[(filename) "Á‰«Ÿ\n¬œ@«†@PªÆ!­ƒÇ!)A‰¬a\n*‡" [compilation-search-path nil result dirs filename name file-exists-p find-file-noselect] 3])
+(fset 'compilation-grab-filename #[nil "gÀ=«‘Œ`ÁÂ!ˆ`}ˆebˆÃp!)‡`ÄÅwˆ`{‡" [34 forward-sexp 1 read "^ :,\n	(" nil] 3 "\
+Return a string which is a filename, starting at point.
+Ignore quotes and parentheses around it, as well as trailing colons."])
+(define-key ctl-x-map "`" 'next-error)

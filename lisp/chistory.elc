@@ -1,0 +1,62 @@
+;;; compiled by jwz@thalidomide on Wed Sep  4 17:57:25 1991
+;;; from file /wg1/emacs-base/lisp/chistory.el
+;;; emacs version 19.74.
+;;; bytecomp version 2.01 beta; 27-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'chistory)
+(fset 'repeat-matching-complex-command #[(&optional pattern) "«“ÁÂ\"®‚GÃO‰Äš«‚ÃÃ‰«³¬¯@«ŠÁÉ@!\"«•ÊËÌÍ!‰\"!«‡@ªQA‰¬M¬…ÎÏ!ª@@Ğ=«ƒAÑÒ\"+‡" [pattern string-match "[ 	]*[^ 	]" nil "" command-history what temp history symbol-name y-or-n-p format "Redo %s? " prin1-to-string error "Command history exhausted." repeat-matching-complex-command edit-and-eval-command "Redo: "] 6 "\
+Edit and re-evaluate complex command with name matching PATTERN.
+Matching occurrences are displayed, most recent first, until you
+select a form for evaluation.  If PATTERN is empty (or nil), every form
+in the command history is offered.  The form is placed in the minibuffer
+for editing and the result is evaluated." "sRedo Command (regexp): "])
+(defvar default-command-history-filter-garbage '(command-history-mode list-command-history electric-command-history) "\
+*A list of symbols.  If  default-list-command-history-filter  is
+given a list whose car is an element of this list, then it will return
+non-nil (indicating the list should be discarded from the history).
+Initially, all commands related to the command history are discarded.")
+(defvar list-command-history-filter 'default-command-history-filter "\
+If non-nil, should be the name of a function of one argument.
+It is passed each element of the command history when
+\\[list-command-history] is called.  If the filter returns non-nil for
+some element, that element is excluded from the history listing.  The
+default filter removes commands associated with the command-history.")
+(fset 'default-command-history-filter #[(frob) ":?®„@	>‡" [frob default-command-history-filter-garbage] 2 "\
+Filter commands matching  default-command-history-filter-garbage  list
+from the command history."])
+(defvar list-command-history-max 32 "\
+*If non-nil, should be a positive number which specifies the maximum
+length of the Command History listing produced by list-command-history.")
+(fset 'list-command-history #[nil "À	Â®ÄÈU¬¨«¤ÉÊ!«Œ\n«ˆ\n@!¬ŒSË@!ˆÌ ˆAªS+ŠÀqˆebˆm«…ÍÎ!ª‚Ï )‘‡" ["*Command History*" command-history nil list-command-history-max -1 count buffer-read-only history 0 boundp list-command-history-filter prin1 terpri error "No command history." Command-history-setup] 4 "\
+List history of commands typed to minibuffer.
+The number of commands listed is controlled by  list-command-history-max.
+Calls value of  list-command-history-filter  (if non-nil) on each history
+element to judge if that element should be excluded from the list.
+
+The buffer is left in Command History mode." nil])
+(fset 'Command-history-setup #[(&optional majormode modename keymap) "ÀqˆÁ\n®!ˆÄÅ!ˆÆ!ˆÈ	Á\n®!ˆ\n®Ë®Î‰‡" ["*Command History*" use-local-map keymap command-history-map lisp-mode-variables nil set-syntax-table emacs-lisp-mode-syntax-table t buffer-read-only majormode command-history-mode major-mode modename "Command History" mode-name] 2])
+(defvar command-history-hook nil "\
+If non-nil, its value is called on entry to  command-history-mode.")
+(byte-code "ÀÁ!¬‚Â	¬¤Ã Ä	\"ˆÆ	!ˆÇ	ÈÉ#ˆÇ	ÊË#ˆÇ	ÌË#ˆÇ	ÍÎ#ˆÂ‡" [boundp command-history-map nil make-sparse-keymap set-keymap-parent shared-lisp-mode-map suppress-keymap define-key "x" command-history-repeat "\n" next-line "" "" previous-line] 4)
+(fset 'command-history-repeat #[nil "ŠÀŠÁyˆÂp!)Ã Aqˆ!)‡" [eval 0 read buffer-list] 3 "\
+Repeat the command shown on the current line.
+The buffer for that command is the previous current buffer." nil])
+(fset 'command-history-mode #[nil "À ˆÁÂ!ˆÃÄ!‡" [list-command-history pop-to-buffer "*Command History*" run-hooks command-history-hook] 2 "\
+Major mode for examining commands from  command-history.
+The number of commands listed is controlled by  list-command-history-max.
+The command history is filtered by  list-command-history-filter  if non-nil.
+\\<command-history-map>Use \\[command-history-repeat] to repeat the command on the current line.
+
+Otherwise much like Emacs-Lisp Mode except that there is no self-insertion
+and digits provide prefix arguments.  Tab does not indent.
+\\{command-history-map}
+Calls the value of  command-history-hook  if that is non-nil
+The Command History listing is recomputed each time this mode is
+invoked." nil])

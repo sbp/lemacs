@@ -1,0 +1,44 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:21:36 1991
+;;; from file /wg1/emacs-base/lisp/history.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'history)
+(defvar history-last-search "" "\
+The last regexp used by history-search which resulted in a match.")
+(fset 'history-add #[(list item size) "Á\nCÃ!\"LˆÃ!‰GV­†S›Æ¡)‡" [list append item eval elist size nil] 6 "\
+At the head of LIST append ITEM.  Limit the length of LIST to SIZE elements.
+LIST should be the name of the list."])
+(fset 'history-fetch #[(list index dir &optional beg end) "ÀÁ\n!Á!§«™8‰«‡\nLˆªÍÈÉ#ˆªÄ«†Ê=«¡ËU«‡ÈÌ\"ˆª®\nSLˆÍU«ƒÎª„S8ª™TGY«‡ÈÏ\"ˆª‹\nTLˆT8Ğ!«˜«”Ğ!«†|ˆcˆbˆ+‡" [nil eval index list elist eind str dir message "No entry %d in %s." next -1 "No next entry in %s." 0 "" "No previous entry in %s." integer-or-marker-p beg end] 5 "\
+Retrieve an entry from LIST, working from INDEX in direction DIR.
+LIST should be the name of the list, for message purposes.  INDEX should be
+the name of the variable used to index the list, so it can be maintained.
+DIR non-nil means to use previous entry, unless it is the symbol ``next''
+to get the next entry or a number to get an absolute reference.  DIR
+nil is equivalent to ``next''.
+
+If optional numeric argument BEG is preset, it is taken as the point to insert
+the entry in the current buffer, leaving point at the start of the entry.
+If followed by a numeric END, the region between BEG and END will be deleted
+before the entry is inserted."])
+(fset 'history-search #[(list index dir regexp &optional beg end) "?®ƒÁ=ÃÃÆ!Æ	!\n\n«\nGZË\n!›ª†T\n›¬¨«¤Í@\"«ˆ@\n«ƒĞªÑ\\AªU¬‘ÒÓ\n«ƒÔªÕ	$ˆªŸLˆÖ!«“Ö!«†|ˆcˆbˆ.‡" [dir forward forw nil str found eval index eind list elist reverse slist string-match regexp history-last-search -1 1 error "\"%s\" not found %s in %s" "forward" "backward" integer-or-marker-p beg end] 5 "\
+In history LIST, starting at INDEX and working in direction DIR, find REGEXP.
+LIST and INDEX should be their respective symbol names.  DIR nil or 'forward
+means to search from the current index toward the most recent history entry.
+DIR non-nil means to search toward the oldest entry.  The current entry is
+not checked in either case.
+
+If an entry is found and optional numeric argument BEG exists then the entry
+will be inserted there and point left at BEG.  If numeric END also exists
+then the region will be deleted between BEG and END."])
+(fset 'history-menu #[(list buffer &optional notemp) "ÀÁÂÃÅ#	«ŒŠcˆÊ!)ªˆÌ!‘+‡" [t 0 mapconcat #[(item) "TÁ‰ÂÃG!\"#‡" [line format "%%%dd: %%s" int-to-string list item] 5] list "\n" menu line pop-up-windows notemp display-buffer buffer princ] 6 "\
+Show the history kept by LIST in BUFFER.
+This function will use ``with-output-to-temp-buffer'' unless optional third
+argument NOTEMP is non-nil."])

@@ -1,0 +1,51 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:23:50 1991
+;;; from file /wg1/emacs-base/lisp/ledit.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!¬‚ÂÂ‡" [boundp ledit-mode-map nil] 2)
+(defconst ledit-zap-file (byte-code "ÀÁ ÂQ‡" ["/tmp/" user-login-name ".l1"] 3) "\
+File name for data sent to Lisp by Ledit.")
+(defconst ledit-read-file (byte-code "ÀÁ ÂQ‡" ["/tmp/" user-login-name ".l2"] 3) "\
+File name for data sent to Ledit by Lisp.")
+(defconst ledit-compile-file (byte-code "ÀÁ ÂQ‡" ["/tmp/" user-login-name ".l4"] 3) "\
+File name for data sent to Lisp compiler by Ledit.")
+(defconst ledit-buffer "*LEDIT*" "\
+Name of buffer in which Ledit accumulates data to send to Lisp.")
+(fset 'ledit-save-defun #[nil "ŠÀ ˆ`Â ˆÃ`	#ˆ)ÅÆ!)‡" [end-of-defun end beginning-of-defun append-to-buffer ledit-buffer message "Current defun saved for Lisp"] 4 "\
+Save the current defun in the ledit buffer" nil])
+(fset 'ledit-save-region #[(beg end) "À	\n#ˆÄÅ!‡" [append-to-buffer ledit-buffer beg end message "Region saved for Lisp"] 4 "\
+Save the current region in the ledit buffer" "r"])
+(fset 'ledit-zap-defun-to-lisp #[nil "À ˆÁ ‡" [ledit-save-defun ledit-go-to-lisp] 1 "\
+Carry the current defun to lisp" nil])
+(fset 'ledit-zap-defun-to-liszt #[nil "À ˆÁ ‡" [ledit-save-defun ledit-go-to-liszt] 1 "\
+Carry the current defun to liszt" nil])
+(fset 'ledit-zap-region-to-lisp #[(beg end) "À	\n\"ˆÃ ‡" [ledit-save-region beg end ledit-go-to-lisp] 3 "\
+Carry the current region to lisp" "r"])
+(fset 'ledit-go-to-lisp #[nil "«ƒÁ ˆÂ!«‘ŠqˆebˆÄed#ˆÆ ˆ)Ç!ˆÉ\nË‰#‡" [ledit-save-files save-some-buffers get-buffer ledit-buffer write-region ledit-zap-file erase-buffer suspend-emacs ledit-go-to-lisp-string load ledit-read-file t] 4 "\
+Suspend Emacs and restart a waiting Lisp job." nil])
+(fset 'ledit-go-to-liszt #[nil "«ƒÁ ˆÂ!«•ŠqˆebˆÄcˆÅed#ˆÇ ˆ)È	!ˆÊÌ‰#‡" [ledit-save-files save-some-buffers get-buffer ledit-buffer "(declare (macros t))\n" write-region ledit-compile-file erase-buffer suspend-emacs ledit-go-to-liszt-string load ledit-read-file t] 4 "\
+Suspend Emacs and restart a waiting Liszt job." nil])
+(fset 'ledit-setup #[nil "¬‡Á Â!ˆÃÄÅ#ˆÃÆÇ#ˆÃÈÉ#ˆÃÊË#‡" [ledit-mode-map make-sparse-keymap lisp-mode-commands define-key "" ledit-save-defun "" ledit-save-region "z" ledit-go-to-lisp "" ledit-go-to-liszt] 4 "\
+Set up key bindings for the Lisp / Emacs interface"])
+(ledit-setup)
+(fset 'ledit-mode #[nil "À ˆÁ ‡" [lisp-mode ledit-from-lisp-mode] 1 "\
+Major mode for editing text and stuffing it to a Lisp job.
+Like Lisp mode, plus these special commands:
+  M-C-d	-- record defun at or after point
+	   for later transmission to Lisp job.
+  M-C-r -- record region for later transmission to Lisp job.
+  C-x z -- transfer to Lisp job and transmit saved text.
+  M-C-c -- transfer to Liszt (Lisp compiler) job
+	   and transmit saved text.
+\\{ledit-mode-map}
+To make Lisp mode automatically change to Ledit mode,
+do (setq lisp-mode-hook 'ledit-from-lisp-mode)" nil])
+(fset 'ledit-from-lisp-mode #[nil "À	!ˆÂÄÆÇ!‡" [use-local-map ledit-mode-map "Ledit" mode-name ledit-mode major-mode run-hooks ledit-mode-hook] 2])

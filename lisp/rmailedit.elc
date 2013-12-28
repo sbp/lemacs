@@ -1,0 +1,27 @@
+;;; compiled by jwz@thalidomide on Wed Sep  4 20:54:22 1991
+;;; from file /wg1/emacs-base/lisp/rmailedit.el
+;;; emacs version 19.74.
+;;; bytecomp version 2.01 beta; 27-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÃ!¬‚Ä¬•Å Æ\"ˆÈÉÊ#ˆÈËÌ#ˆÍÎÏĞ#‡" [require rmail boundp rmail-edit-map nil make-sparse-keymap set-keymap-parent text-mode-map define-key "" rmail-cease-edit "" rmail-abort-edit put rmail-edit-mode mode-class special] 4)
+(fset 'rmail-edit-mode #[nil "À	!ˆÂÄÆÇ!«‡ÈÇ!ª…ÈÉ!	ÊËÌ\"‡" [use-local-map rmail-edit-map rmail-edit-mode major-mode "RMAIL Edit" mode-name boundp mode-line-modified default-value mode-line-format run-hooks text-mode-hook rmail-edit-mode-hook] 3 "\
+Major mode for editing the contents of an RMAIL message.
+The editing commands are the same as in Text mode, together with two commands
+to return to regular RMAIL:
+  *  rmail-abort-edit cancels the changes
+     you have made and returns to RMAIL
+  *  rmail-cease-edit makes them permanent.
+\\{rmail-edit-map}"])
+(fset 'rmail-edit-current-message #[nil "À ˆÁÂ!ˆed{ÃÅÆ !ˆÇÈ!É=«‹ÇÊ!Ë=«„ÌÍ!‡ÌÎÏ!!‡" [rmail-edit-mode make-local-variable rmail-old-text nil buffer-read-only set-buffer-modified-p buffer-modified-p key-binding "" rmail-cease-edit "" rmail-abort-edit message "Editing: Type C-c C-c to return to Rmail, C-c C-] to abort" substitute-command-keys "Editing: Type \\[rmail-cease-edit] to return to Rmail, \\[rmail-abort-edit] to abort"] 3 "\
+Edit the contents of this message." nil])
+(fset 'rmail-cease-edit #[nil "ŠdbˆhÀU¬ƒÁcˆ\nTH`Ä“ˆ)ÇÈ !ˆÉ ˆGdeZU«ˆed{˜¬ÄÊËÌ\"ˆÍÎ!«SÄIˆŠÏĞ!ˆÑ ˆ))Ì‰‡" [10 "\n" rmail-message-vector rmail-current-message nil rmail-old-text old set-buffer-modified-p buffer-modified-p rmail-mode-1 rmail-set-attribute "edited" t boundp rmail-summary-vector rmail-widen-to-current-msgbeg #[nil "ÀyˆÁÂ!­‰Ã`Åyˆ`|)‡" [2 looking-at "Summary-line: " nil buffer-read-only 1] 2] rmail-show-message buffer-read-only] 3 "\
+Finish editing message; switch back to Rmail proper." nil])
+(fset 'rmail-abort-edit #[nil "ed|ˆcˆÁ ‡" [rmail-old-text rmail-cease-edit] 2 "\
+Abort edit of current message; restore original contents." nil])

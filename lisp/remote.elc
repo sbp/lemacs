@@ -1,0 +1,102 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:28:45 1991
+;;; from file /wg1/emacs-base/lisp/remote.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar default-remote-host "navier:" "\
+The host to use for remote file operations when none other is appropriate.")
+(defvar track-default-remote-host t "\
+Controls whether  default-remote-host  is changed after reading a remote file name.
+When non-nil,  default-remote-host  will have the value of the last remote host read.")
+(byte-code "ÀÁ!ˆÂÁÃ\"ˆÀÄ!ˆÅÆ!¬“ÇÈ!«ƒÈª‰ÇÉ!«ƒÉªÊËÄ\"¬†ÍBÀ‡" [make-variable-buffer-local buffer-remote-file-name set-default "" remote-editing boundp rcp file-exists-p "/bin/rcp" "/usr/bsd/rcp" "rcp" assoc minor-mode-alist (remote-editing " Remote")] 3)
+(fset 'remote-editing #[(arg) "¬„	?ª…Â!ÃVÄÅ !‡" [arg remote-editing prefix-numeric-value 0 set-buffer-modified-p buffer-modified-p] 2 "\
+Toggle remote-editing mode.
+With arg, turn on remote editing mode iff arg is positive, otherwise just toggle it.
+
+In remote editing mode, the normal bindings for find-file,
+find-file-read-only, find-alternate-file, save-buffer, write-file,
+and insert-file are changed to operate on a remote system by default.
+
+When remote editing, a prefix arg allows local file operations.  When not
+remote editing, a prefix arg allows remote file operations.
+
+It is assumed that .rhosts files are set up properly on both machines." "P"])
+(byte-code "ÀÁÂ\"ˆÃÄMˆÀÅÆ\"‡" [global-set-key "r" remote-editing def-local-or-remote (macro . #[(binding name remote local) "ÀÁ\n!!ÀÁ!!ÆÇÉ\nDEË\nÌÍÎÏĞÑÒÓ°ÔÕÖ×\nFD¯E*‡" [symbol-name eval remote local l r progn global-set-key binding quote name defun (arg) "Call either " " or " ".\nIf remote-editing (which see), call " ", else call " ".\n\nSee also the documentation for " " and " "." (interactive "P") call-interactively if (xor remote-editing arg)] 18]) "" find-local-or-remote-file] 3)
+(fset 'find-local-or-remote-file #[(arg) "ÀÁ\n\"«ƒÄªÅ!‡" [call-interactively xor remote-editing arg find-remote-file find-file] 4 "\
+Call either find-remote-file or find-file.
+If remote-editing (which see), call find-remote-file, else call find-file.
+
+See also the documentation for find-remote-file and find-file." "P"])
+(global-set-key "" 'find-local-or-remote-file-read-only)
+(fset 'find-local-or-remote-file-read-only #[(arg) "ÀÁ\n\"«ƒÄªÅ!‡" [call-interactively xor remote-editing arg find-remote-file-read-only find-file-read-only] 4 "\
+Call either find-remote-file-read-only or find-file-read-only.
+If remote-editing (which see), call find-remote-file-read-only, else call find-file-read-only.
+
+See also the documentation for find-remote-file-read-only and find-file-read-only." "P"])
+(global-set-key "" 'find-alternate-local-or-remote-file)
+(fset 'find-alternate-local-or-remote-file #[(arg) "ÀÁ\n\"«ƒÄªÅ!‡" [call-interactively xor remote-editing arg find-alternate-remote-file find-alternate-file] 4 "\
+Call either find-alternate-remote-file or find-alternate-file.
+If remote-editing (which see), call find-alternate-remote-file, else call find-alternate-file.
+
+See also the documentation for find-alternate-remote-file and find-alternate-file." "P"])
+(global-set-key "" 'save-local-or-remote-buffer)
+(fset 'save-local-or-remote-buffer #[(arg) "ÀÁ\n\"«ƒÄªÅ!‡" [call-interactively xor remote-editing arg save-remote-buffer save-buffer] 4 "\
+Call either save-remote-buffer or save-buffer.
+If remote-editing (which see), call save-remote-buffer, else call save-buffer.
+
+See also the documentation for save-remote-buffer and save-buffer." "P"])
+(global-set-key "" 'write-local-or-remote-file)
+(fset 'write-local-or-remote-file #[(arg) "ÀÁ\n\"«ƒÄªÅ!‡" [call-interactively xor remote-editing arg write-remote-file write-file] 4 "\
+Call either write-remote-file or write-file.
+If remote-editing (which see), call write-remote-file, else call write-file.
+
+See also the documentation for write-remote-file and write-file." "P"])
+(global-set-key "i" 'insert-local-or-remote-file)
+(fset 'insert-local-or-remote-file #[(arg) "ÀÁ\n\"«ƒÄªÅ!‡" [call-interactively xor remote-editing arg insert-remote-file insert-file] 4 "\
+Call either insert-remote-file or insert-file.
+If remote-editing (which see), call insert-remote-file, else call insert-file.
+
+See also the documentation for insert-remote-file and insert-file." "P"])
+(fset 'find-remote-file #[(host file) "À	\nÃ#Ä‰­ÉÇ!«†È!ª½É	Ê\n!P!È!ˆÌ!¬†ÍÎ!ˆªŒÏ!ˆĞÄ!ˆÑ!ˆ	\nPÓ ˆÔÕ!ˆ×‰**‡" [get-remote-file-or-buffer host file "retrieve" nil local-file buffer-or-file bufferp switch-to-buffer generate-new-buffer file-name-nondirectory buf file-exists-p message "(New remote file)" insert-file-contents set-buffer-modified-p delete-file buffer-file-name normal-mode remote-editing 1 buffer-remote-file-name t buffer-offer-save] 5 "\
+Edit remote file HOST:FILE (using rcp).
+This command is similiar to find-file, but uses rcp to read the file from
+a remote machine.  Also see remote-editing." (read-remote-file-name "Find remote file")])
+(fset 'find-remote-file-read-only #[nil "ÀÁ!ˆÂ‰‡" [call-interactively find-remote-file t buffer-read-only] 2 "\
+Edit remote file FILENAME, but mark buffer as read-only.
+Also see find-remote-file and remote-editing." nil])
+(fset 'find-alternate-remote-file #[nil "À «	¬ÂÃÄÅ \"!¬„ÆÇ!ˆpÅ 	ÊË!ˆÌÍÎÏĞ!\"+‡" [buffer-modified-p buffer-read-only yes-or-no-p format "Buffer %s is modified; kill anyway? " buffer-name error "Aborted" oname obuf rename-buffer " **lose**" ((byte-code "p=«†Á\n!ˆª„Ã!ˆÁ‡" [obuf rename-buffer oname kill-buffer] 2)) apply find-remote-file read-remote-file-name "Find remote alternate file"] 4 "\
+Find alternate file using rcp.
+This command is similiar to find-alternate-file, but uses rcp to read the file from
+a remote machine.  Also see remote-editing." nil])
+(fset 'save-remote-buffer #[nil "À «	GÂU«„ÃÄ!‡Å	!‡ÆÇ!‡" [buffer-modified-p buffer-remote-file-name 0 call-interactively write-remote-file do-write-remote-file message "(No changes need to be saved)"] 2 "\
+Save a file using rcp.
+This command is similiar to save-buffer, but uses rcp to write the file back
+to a remote machine.  Also see remote-editing." nil])
+(fset 'write-remote-file #[(host file) "À	\nP!‡" [do-write-remote-file host file] 3 "\
+Write a file HOST:FILE using rcp.
+This command is similiar to write-file, but uses rcp to write the file back
+to a remote machine.  Also see remote-editing." (byte-code "ÀÁÂ\"‡" [read-remote-file-name "Write remote file" no-file-ok] 3)])
+(fset 'insert-remote-file #[(host file) "À	\nÃ#‰­‘Å!«…Æ!ª‡Ç!ˆÈ!)‡" [get-remote-file-or-buffer host file "insert" f-or-b bufferp insert-buffer insert-file delete-file] 5 "\
+Insert a remote file HOST:FILE using rcp.
+This command is similiar to insert-file, but uses rcp to read the file from
+a remote machine.  Also see remote-editing." (read-remote-file-name "Insert remote file")])
+(fset 'do-write-remote-file #[(file) "ÀÁ PŠÃÄ!qÅ ˆ)ÇÉ\nŒ~ˆËed\nÉÌ%ˆ)ÍÎ\"ˆĞÑÒ\n%!‰\n«²«Õ!Ö×!!PÙ!¬…Ú!ˆÛÉ!ˆ)ÍİŞ \n#ˆß\n!ª‡àá#,‡" ["/tmp/" buffer-name temp get-buffer-create "*Rcp Output*" erase-buffer output t cursor-in-echo-area nil time write-region no-message message "Sending %s..." file process-wait start-process "rcp" rcp remote-editing host-part-only file-name-nondirectory file-part-only new-name get-buffer rename-buffer set-buffer-modified-p buffer-remote-file-name "%d bytes in %d seconds" buffer-size delete-file remote-rcp-error "update"] 7])
+(fset 'get-remote-file-or-buffer #[(host file message) "	PÂÃ	!PÄ	È	!˜«‡ÉÊ!ˆÄªÃË!®½ŠÌÍ!qÎ ˆ)ĞÉÒ\"ˆÓÔÕ%!‰«É×ØÙ!8#ˆªˆÚ	#*+‡" [host file "/tmp/" file-name-nondirectory nil time temp remote file-name-directory message "Remote directory listing not yet implemented" get-remote-buffer get-buffer-create "*Rcp Output*" erase-buffer output t cursor-in-echo-area "Retrieving %s..." process-wait start-process "rcp" rcp "%d bytes in %d seconds" 7 file-attributes remote-rcp-error] 7 "\
+Return a remote file as either a buffer or a file.
+If the file HOST:FILE already has been read in, return the buffer
+that contains it; otherwise try and rcp the file to the local machine.
+If successful, return the local file name."])
+(fset 'get-remote-buffer #[(name) "À‹‡" [((byte-code "À Á\n¬”«‘@qˆ˜«ƒ@Aªi\n*‡" [buffer-list nil found buffers name buffer-remote-file-name] 2))] 1])
+(fset 'read-remote-file-name #[(prompt &optional no-file-ok) "À	!®\n‰ÄÅ	!®Æ!PÉPÊÌ\"Í«ƒÏªĞ\"¬ŠÌ\"ªhÀ!Å!«‚«‰Ä!˜«™	Æ˜¬‡ÒÅ	!!®ˆÅÓ !®‚Ó Pª‚,D‡" [host-part-only buffer-remote-file-name default-remote-host host file-name-directory file-part-only "" result prompt " (host:file): " nil file read-no-blanks-input string-match no-file-ok ".+:" ".+:.+" track-default-remote-host file-name-nondirectory buffer-name] 6 "\
+Read a remote file specification, and return list (host file).
+Prompting with PROMPT, read a string of the form host:file.  The default
+value is derived from the remote file name, or if there is none, then
+from the global default (default-remote-host)."])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËM‡" [host-part-only #[(name) "ÀÁ\n\"­…\nÃ‰•O‡" [string-match ".+:" name 0] 3] file-part-only #[(name) "ÀÁ\n\"­†\nÃ”Ã•O‡" [string-match ".+:\\(.+\\)" name 1] 3] xor #[(a b) "?	??=‡" [a b] 2] process-wait #[(proc) "ÀÂ!Ä=«‰	TÅÆ!ˆªpÂ!Ç=­ˆÈ!À=­	)‡" [0 time process-status proc run sleep-for 1 exit process-exit-status] 2] remote-rcp-error #[(buffer file-name message) "À‹‡" [((byte-code "À	!ˆÂ ˆÃbˆÄÅ#cˆdbˆÆÈ!ˆÉ ˆÊ	!‡" [switch-to-buffer buffer delete-other-windows 1 format "Unable to %s %s\n\n" message file-name "Hit any character to continue" read-char bury-buffer] 4))] 1] increment-version #[nil "À Á˜­¥Â Ã˜­ŸŠebˆÄˆÅÆ!ˆÇuˆŠÈp!)	Ê ˆ	T°c*‡" [user-login-name "raible" buffer-name "remote.el" nil search-backward "." 1 read minor kill-line] 2 nil nil]] 2)

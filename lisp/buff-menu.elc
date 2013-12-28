@@ -1,0 +1,76 @@
+;;; compiled by jwz@thalidomide on Wed Aug 14 22:07:03 1991
+;;; from file /wg1/emacs-base/lisp/buff-menu.el
+;;; emacs version 19.60.
+;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar Buffer-menu-mode-map nil "\
+")
+(byte-code "¬ôÁ ÂÃ\"ˆÄÅÆ#ˆÄÇÈ#ˆÄÉÊ#ˆÄËÌ#ˆÄÍÎ#ˆÄÏÐ#ˆÄÑÒ#ˆÄÓÒ#ˆÄÔÕ#ˆÄÖÒ#ˆÄ×Ø#ˆÄÙÚ#ˆÄÛÜ#ˆÄÝÞ#ˆÄßà#ˆÄáâ#ˆÄãä#ˆÄåæ#ˆçèéê#‡" [Buffer-menu-mode-map make-keymap suppress-keymap t define-key "q" Buffer-menu-select "2" Buffer-menu-2-window "1" Buffer-menu-1-window "f" Buffer-menu-this-window "o" Buffer-menu-other-window "s" Buffer-menu-save "d" Buffer-menu-delete "k" "" Buffer-menu-delete-backwards "" "x" Buffer-menu-execute " " next-line "" Buffer-menu-backup-unmark "~" Buffer-menu-not-modified "?" describe-mode "u" Buffer-menu-unmark "m" Buffer-menu-mark "t" Buffer-menu-visit-tags-table put Buffer-menu-mode mode-class special] 4)
+(fset 'Buffer-menu-mode #[nil "À ˆÁ\n!ˆÃÃÆÈ	ÊË!‡" [kill-all-local-variables use-local-map Buffer-menu-mode-map t truncate-lines buffer-read-only Buffer-menu-mode major-mode "Buffer Menu" mode-name run-hooks buffer-menu-mode-hook] 2 "\
+Major mode for editing a list of buffers.
+Each line describes one of the buffers in Emacs.
+Letters do not insert themselves; instead, they are commands.
+m -- mark buffer to be displayed.
+q -- select buffer of line point is on.
+  Also show buffers marked with m in other windows.
+1 -- select that buffer in full-screen window.
+2 -- select that buffer in one window,
+  together with buffer selected before this one in another window.
+f -- select that buffer in place of the buffer menu buffer.
+o -- select that buffer in another window,
+  so the buffer menu buffer remains visible in its window.
+t -- visit-tags-table this buffer.
+~ -- clear modified-flag on that buffer.
+s -- mark that buffer to be saved, and move down.
+d or k -- mark that buffer to be deleted, and move down.
+C-d -- mark that buffer to be deleted, and move up.
+x -- delete or save marked buffers.
+u -- remove all kinds of marks from current line.
+Delete -- back up a line and remove marks.
+
+Precisely,\\{Buffer-menu-mode-map}"])
+(byte-code "ÀÁ!¬‚ÂÀ‡" [boundp Buffer-menu-buffer-column 4] 2)
+(fset 'Buffer-menu-buffer #[(error-if-non-existent-p) "ŠÀyˆ	uˆ`ÂÅÆ!ˆÇÂxˆ`{È!®ˆ	­„ÊË\"+‡" [0 Buffer-menu-buffer-column nil string start re-search-forward "	\\|  " " 	" get-buffer error-if-non-existent-p error "No buffer named \"%s\""] 3 "\
+Return buffer described by this line of buffer menu."])
+(fset 'buffer-menu #[(arg) "À	!ˆÂÃ!ˆÄyˆÅÆ!‡" [list-buffers arg pop-to-buffer "*Buffer List*" 2 message "Commands: d, s, x; 1, 2, m, u, q; delete; ~;  ? for help."] 2 "\
+Make a menu of buffers so you can save, delete or select them.
+With argument, show only buffers that are visiting files.
+Type ? after invocation to get help on commands available.
+Type q immediately to make the buffer menu go away." "P"])
+(fset 'Buffer-menu-mark #[nil "ÀyˆÁÂ!«ƒÃ ‡ÄÆÇ!ˆÈcˆÇy)‡" [0 looking-at " [-M]" ding nil buffer-read-only delete-char 1 62] 2 "\
+Mark buffer on this line for being displayed by \\[Buffer-menu-select] command." nil])
+(fset 'Buffer-menu-unmark #[nil "ÀyˆÁÂ!«…Ã ˆªµÄÅ!Ç!Šqˆ	)\nË	ÌÍ!ˆ\n«Š«ƒÎª‹Ïªˆ«ƒÐªÑcˆ,Òy‡" [0 looking-at " [-M]" ding Buffer-menu-buffer t buf buffer-modified-p mod buffer-read-only readonly nil delete-char 3 " *%" "  %" " * " "   " 1] 2 "\
+Cancel all requested operations on buffer on this line." nil])
+(fset 'Buffer-menu-backup-unmark #[nil "ÀyˆÁ ˆÀy‡" [-1 Buffer-menu-unmark] 1 "\
+Move up and cancel all requested operations on buffer on line above." nil])
+(fset 'Buffer-menu-delete #[nil "ÀyˆÁÂ!«ƒÃ ‡ÄÆÇ!ˆÈcˆÇy)‡" [0 looking-at " [-M]" ding nil buffer-read-only delete-char 1 68] 2 "\
+Mark buffer on this line to be deleted by \\[Buffer-menu-execute] command." nil])
+(fset 'Buffer-menu-delete-backwards #[nil "À ˆÁyˆÂÃ!­‚Äy‡" [Buffer-menu-delete -2 looking-at " [-M]" 1] 2 "\
+Mark buffer on this line to be deleted by \\[Buffer-menu-execute] command
+and then move up one line" nil])
+(fset 'Buffer-menu-save #[nil "ÀyˆÁuˆÂÃ!«ƒÄ ‡ÅÇÁ!ˆÈcˆÁy)‡" [0 1 looking-at " [-M]" ding nil buffer-read-only delete-char 83] 2 "\
+Mark buffer on this line to be saved by \\[Buffer-menu-execute] command." nil])
+(fset 'Buffer-menu-not-modified #[nil "ŠÀÁ!qˆÂÃ!ˆ)ŠÄyˆÅuˆÆÇ!­ŠÃÉÅ!ˆÊc))‡" [Buffer-menu-buffer t set-buffer-modified-p nil 0 1 looking-at "\\*" buffer-read-only delete-char 32] 2 "\
+Mark buffer on this line as unmodified (no changes to save)." nil])
+(fset 'Buffer-menu-execute #[nil "ŠebˆÀyˆÁÂÃÄ#«¢ÃŠÆÄ!qˆÇ ˆÈ )Ã	ÊË!ˆ«ƒÌªÍcˆ*ªW)ŠebˆÀyˆpÃ	ÏÐÃÄ#­¶ËuˆÆÃ!‰Ã=¬Ž=¬‡ŠÒ!ˆ))ÆÃ!«‰ÊÀ!ˆÍcˆªO`Àyˆ`|ˆËuˆªC+‡" [1 re-search-forward "^.S" nil t modp Buffer-menu-buffer save-buffer buffer-modified-p buffer-read-only delete-char -1 42 32 buff-menu-buffer search-forward "\nD" buf kill-buffer] 5 "\
+Save and/or delete buffers marked with \\[Buffer-menu-save] or \\[Buffer-menu-delete] commands." nil])
+(fset 'Buffer-menu-select #[nil "ÀÁ!pÂ‰ebˆÇÈÂÁ#« ÀÁ!Â	ÊË!ˆÌcˆ)=¬d>¬_BªYŸÍ SGT¥Î ˆÏ!ˆ=¬„Ð!ˆ«”ÑÂ\"ˆÒÓ!ˆÏ@!ˆA‰¬lÒÓ!,‡" [Buffer-menu-buffer t nil tem others menu buff search-forward "\n>" buffer-read-only delete-char -1 32 screen-height delete-other-windows switch-to-buffer bury-buffer split-window other-window 1] 5 "\
+Select this line's buffer; also display buffers marked with \">\".
+You can mark buffers with the \\[Buffer-menu-mark] command." nil])
+(fset 'Buffer-menu-visit-tags-table #[nil "ÀÁÂ!!‰«…Ä!ªƒÅÆ!)‡" [buffer-file-name Buffer-menu-buffer t file visit-tags-table error "Specified buffer has no file"] 4 "\
+Visit the tags table in the buffer on this line.  See `visit-tags-table'." nil])
+(fset 'Buffer-menu-1-window #[nil "ÀÁÂ!!ˆÃÄ !ˆÅ ‡" [switch-to-buffer Buffer-menu-buffer t bury-buffer other-buffer delete-other-windows] 3 "\
+Select this line's buffer, alone, in full screen." nil])
+(fset 'Buffer-menu-this-window #[nil "ÀÁÂ!!‡" [switch-to-buffer Buffer-menu-buffer t] 3 "\
+Select this line's buffer in this window." nil])
+(fset 'Buffer-menu-other-window #[nil "ÀÁÂ!!‡" [switch-to-buffer-other-window Buffer-menu-buffer t] 3 "\
+Select this line's buffer in other window, leaving buffer menu visible." nil])
+(fset 'Buffer-menu-2-window #[nil "ÀÁ!pÁÅÆ !ˆÇ!ˆÈ!+‡" [Buffer-menu-buffer t pop-up-windows menu buff switch-to-buffer other-buffer pop-to-buffer bury-buffer] 3 "\
+Select this line's buffer, with previous buffer in second window." nil])

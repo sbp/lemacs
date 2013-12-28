@@ -1,0 +1,97 @@
+;;; compiled by eb@watergate on Mon Jan  6 09:41:36 1992
+;;; from file /wg1/emacs-base/lisp/gdb.el
+;;; emacs version 19.40 Lucid.
+;;; bytecomp version 2.03; 29-oct-91.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÀÂ!‡" [require comint shell] 2)
+(defvar gdb-prompt-pattern "^(.*gdb[+]?) *" "\
+A regexp to recognize the prompt for gdb or gdb+.")
+(defvar gdb-mode-map nil "\
+Keymap for gdb-mode.")
+(byte-code "¬œÁ\n!ÃÄÅ#ˆÃÆÇ#ˆÃÈÉ#ˆÃÊË#ˆÃÍÎ#ˆÃÏĞ#ˆÑÒM‡" [gdb-mode-map copy-keymap comint-mode-map define-key "" gdb-refresh "" gdb-control-c-subjob "	" comint-dynamic-complete "¿" comint-dynamic-list-completions ctl-x-map " " gdb-break "&" send-gdb-command def-gdb (macro . #[(name key &optional doc) "ÀÁÂ\"!ÅÆÁÇÈFF	ÊËÌ®ÎÏĞ	D¯­ˆÒÓÔDFE*‡" [intern format "gdb-%s" name fun if (not (= 1 arg)) "%s %s" arg cstr progn defun (arg) doc "" (interactive "p") gdb-call key define-key gdb-mode-map quote] 8])] 4)
+(fset 'gdb-step #[(arg) "À	ÂU¬‡ÃÄÅ	#ªÅ!‡" [gdb-call arg 1 format "%s %s" "step"] 5 "\
+Step one source line with display" "p"])
+(define-key gdb-mode-map "ó" 'gdb-step)
+(fset 'gdb-stepi #[(arg) "À	ÂU¬‡ÃÄÅ	#ªÅ!‡" [gdb-call arg 1 format "%s %s" "stepi"] 5 "\
+Step one instruction with display" "p"])
+(define-key gdb-mode-map "é" 'gdb-stepi)
+(fset 'gdb-finish #[(arg) "À	ÂU¬‡ÃÄÅ	#ªÅ!‡" [gdb-call arg 1 format "%s %s" "finish"] 5 "\
+Finish executing current function" "p"])
+(define-key gdb-mode-map "" 'gdb-finish)
+(fset 'gdb-next #[(arg) "À	ÂU¬‡ÃÄÅ	#ªÅ!‡" [gdb-call arg 1 format "%s %s" "next"] 5 "\
+Step one source line (skip functions)" "p"])
+(fset 'gdb-cont #[(arg) "À	ÂU¬‡ÃÄÅ	#ªÅ!‡" [gdb-call arg 1 format "%s %s" "cont"] 5 "\
+Proceed with the program" "p"])
+(fset 'gdb-up #[(arg) "À	ÂU¬‡ÃÄÅ	#ªÅ!‡" [gdb-call arg 1 format "%s %s" "up"] 5 "\
+Go up N stack frames (numeric arg) with display" "p"])
+(define-key gdb-mode-map "<" 'gdb-up)
+(fset 'gdb-down #[(arg) "À	ÂU¬‡ÃÄÅ	#ªÅ!‡" [gdb-call arg 1 format "%s %s" "down"] 5 "\
+Go down N stack frames (numeric arg) with display" "p"])
+(define-key gdb-mode-map ">" 'gdb-down)
+(fset 'gdb-mode #[nil "À ˆÁ\n!ˆÃÄÅ\"ˆÆÆÆ	ÊÌĞÄÒ!ˆĞÓÕÖ!‡" [comint-mode use-local-map gdb-mode-map mapcar make-local-variable (gdb-last-frame-displayed-p gdb-last-frame gdb-delete-prompt-marker gdb-filter-accumulator) nil gdb-last-frame gdb-delete-prompt-marker gdb-filter-accumulator gdb-mode major-mode "Inferior GDB" mode-name gdb-prompt-pattern comint-prompt-regexp t gdb-last-frame-displayed-p shell-dirtrackp shell-directory-tracker comint-input-sentinel run-hooks gdb-mode-hook] 3 "\
+Major mode for interacting with an inferior Gdb process.
+The following commands are available:
+
+\\{gdb-mode-map}
+
+\\[gdb-display-frame] displays in the other window
+the last line referred to in the gdb buffer.
+
+\\[gdb-step],\\[gdb-next], and \\[gdb-nexti] in the gdb window,
+call gdb to step,next or nexti and then update the other window
+with the current file and position.
+
+If you are in a source file, you may select a point to break
+at, by doing \\[gdb-break].
+
+Commands:
+Many commands are inherited from comint mode. 
+Additionally we have:
+
+\\[gdb-display-frame] display frames file in other window
+\\[gdb-step] advance one line in program
+\\[send-gdb-command] used for special printing of an arg at the current point.
+C-x SPACE sets break point at current line." nil])
+(byte-code "ÀÁ!¬‚ÂÂ‡" [boundp current-gdb-buffer nil] 2)
+(defvar gdb-command-name "gdb" "\
+Pathname for executing gdb.")
+(fset 'gdb #[(path) "À	!Â	!ÄÅÆQ!ˆÇ	!n¬ƒÉ ˆÊË±ˆÌÍPÎ!ĞÑÒ&ˆÓ ˆÔÕp!Ö\"ˆ×Õp!Ø\"ˆÙ )‡" [expand-file-name path file-name-nondirectory file switch-to-buffer "*gdb-" "*" file-name-directory default-directory newline "Current directory is " "\n" make-comint "gdb-" substitute-in-file-name gdb-command-name nil "-fullname" "-cd" gdb-mode set-process-filter get-buffer-process gdb-filter set-process-sentinel gdb-sentinel gdb-set-buffer] 8 "\
+Run gdb on program FILE in buffer *gdb-FILE*.
+The directory containing FILE becomes the initial working directory
+and source-file directory for GDB.  If you wish to change this, use
+the GDB commands `cd DIR' and `directory'." "fRun gdb on file: "])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËM‡" [gdb-set-buffer #[nil "Á=­ƒp‰‡" [major-mode gdb-mode current-gdb-buffer] 2] gdb-filter #[(proc string) "À\n«ˆÃ\nP\"ª„Æ\")‡" [t inhibit-quit gdb-filter-accumulator gdb-filter-accumulate-marker proc string gdb-filter-scan-input] 4] gdb-filter-accumulate-marker #[(proc string) "À\nGÃV«Õ\nÃHÄU«¿ÅÆ\n\"‰«±ÅÈ\nÉ#\nÅÈ\n\nT#\nÉ\nOÌ\n\nTO!B*ÀÏ\nTÀO\"ªƒ\n‰)‡ÑÒ\"ˆÏ\nÃÀO\"‡\n‰‡" [nil gdb-filter-accumulator string 1 26 string-match "\n" end ":" 2 first-colon second-colon string-to-int gdb-last-frame gdb-last-frame-displayed-p gdb-filter-scan-input proc gdb-filter-insert ""] 6] gdb-filter-scan-input #[(proc string) "Áš«„Â‰‡ÄÅ\"‰«•ÇÉO\"ˆÊÂO\"ª…Ç\")‡" [string "" nil gdb-filter-accumulator string-match "" start gdb-filter-insert proc 0 gdb-filter-accumulate-marker] 6] gdb-filter-insert #[(proc string) "`À	!U`À	!WpÂÇ	!qˆÈŠÀ	!bˆ`É\n!ˆÀ	!`Â“ˆË ˆÌ®„Íp!?Î\"ˆ*­„À	!b,‡" [process-mark proc nil start old-buffer output-after-point moving process-buffer ((set-buffer old-buffer)) insert-before-markers string gdb-maybe-delete-prompt gdb-display-frame get-buffer-window t] 4] gdb-sentinel #[(proc msg) "ÀÁ\n!!¬‡ÃÅ\nÃ\"‡Æ\n!Ç>­ºÃÈÉÆ\n!!P\npÌÁ\n!qˆÍÎ !ˆm«‹ÏÑ±ˆªŠdbˆÏÑ±ˆ)Ó\n!*‡" [buffer-name process-buffer proc nil overlay-arrow-position set-process-buffer process-status (signal exit) ": " symbol-name mode-line-process obuf ((set-buffer obuf)) set-buffer-modified-p buffer-modified-p 10 mode-name " " msg delete-process] 4]] 2)
+(fset 'gdb-refresh #[(&optional arg) "À	!ˆÂ ‡" [recenter arg gdb-display-frame] 2 "\
+Fix up a possibly garbled display, and redraw the arrow." "P"])
+(fset 'gdb-display-frame #[(&optional nodisplay noauto) "À ˆ	­•\n?­‘«„?­ŠÅ	@	A\"ˆÆ‰‡" [gdb-set-buffer gdb-last-frame nodisplay gdb-last-frame-displayed-p noauto gdb-display-line t] 3 "\
+Find, obey and delete the last filename-and-line marker from GDB.
+The marker looks like \\032\\032FILENAME:LINE:CHARPOS\\n.
+Obeying it means displaying in another window the specified file and line." nil])
+(fset 'gdb-display-line #[(true-file line) "À	!Ã\nÄ\"ÆŠ\nqˆŒ~ˆÈ	!ˆ`Ê¬„Í `p“ˆ)eW¬†dV«†~ˆbˆ)Î\"+‡" [find-file-noselect true-file buffer display-buffer t window nil pos goto-line line "=>" overlay-arrow-string overlay-arrow-position make-marker set-window-point] 3])
+(fset 'gdb-call #[(command) "dbˆŠÀÁ\n!!bˆ`ÄyˆÅ `Z`{E*Ç ˆÈÁ\n!	ÊP\"‡" [process-mark get-buffer-process current-gdb-buffer pt 0 point-marker gdb-delete-prompt-marker gdb-set-buffer send-string command "\n"] 4 "\
+Invoke gdb COMMAND displaying source in other window." nil])
+(fset 'gdb-maybe-delete-prompt #[nil "­»Á8A@@\n\\bˆ`\n\\dX«‘``\n\\{˜«ˆ``\n\\|ˆªh`ÄÅ!!U?­‰@Ç‰“ˆÇ‰*‡" [gdb-delete-prompt-marker 2 length prompt process-mark get-buffer-process current-gdb-buffer nil] 4])
+(fset 'gdb-break #[(temp) "À	!Œ~ˆÂyˆÃÄ`\"T)ÇÈ	!\n«ƒËªÌÍÎ°\"*‡" [file-name-nondirectory buffer-file-name 0 count-lines 1 line file-name send-string get-buffer-process current-gdb-buffer temp "tbreak " "break " ":" "\n"] 7 "\
+Set GDB breakpoint at this source line.  With ARG set temporary breakpoint." "P"])
+(fset 'gdb-read-address #[nil "Š`À‰ÄÅÆZÇ#­`‰«Èuˆ\nÉÊ!ˆËuˆ`{ª–ÌÍ!ˆÎuˆ`ÎuˆÉÍ!ˆËuˆ	`{,‡" [nil begin found pt search-backward "0x" 7 t 2 re-search-forward "[^0-9a-f]" -1 re-search-backward "[^0-9]" 1] 5 "\
+Return a string containing the core-address found in the buffer at point."])
+(defvar gdb-commands nil "\
+List of strings or functions used by send-gdb-command.
+It is for customization by you.")
+(fset 'send-gdb-command #[(arg) "À‰«„8Å p=«„Ç`!ˆ\n«\n;«†È\n	\"ªƒ\n	!ª‚	É!ˆdbˆÊ\n!*‡" [nil addr comm arg gdb-commands gdb-read-address current-gdb-buffer set-mark format switch-to-buffer insert-string] 3 "\
+This command reads the number where the cursor is positioned.  It
+ then inserts this ADDR at the end of the gdb buffer.  A numeric arg
+ selects the ARG'th member COMMAND of the list gdb-print-command.  If
+ COMMAND is a string, (format COMMAND ADDR) is inserted, otherwise
+ (funcall COMMAND ADDR) is inserted.  eg. \"p (rtx)%s->fld[0].rtint\"
+ is a possible string to be a member of gdb-commands.  " "P"])
+(fset 'gdb-control-c-subjob #[nil "ÀÁp!Â\"‡" [process-send-string get-buffer-process ""] 3 "\
+Send a Control-C to the subprocess." nil])
+(provide 'gdb)
