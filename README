@@ -1,4 +1,5 @@
-This directory holds version 19.1 of Lucid GNU Emacs.
+This directory holds version 19 of Lucid GNU Emacs.
+The specific version is in the file lisp/version.el.
 
  The subdirectory `src' holds the C code,
  `src/lwlib' contains a multi-toolkit library for menus and dialog boxes.

@@ -1,11 +1,11 @@
 /* Functions for the X window system.
-   Copyright (C) 1989 Free Software Foundation.
+   Copyright (C) 1989, 1992 Free Software Foundation.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -679,13 +679,24 @@ maybe_set_screen_title_format (shell)
        set screen-title-format to its value.
      */
     {
-      char *results[] = { 0, 0 };
-      XtResource resources [] = {
-	{ XtNtitle, XtCTitle, XtRString, sizeof(String), 0, XtRString, 0 },
-	{ XtNiconName, XtCIconName, XtRString, sizeof(String),
-	    sizeof (char *), XtRString, 0 }
-      };
       /* No doubt there's a less stupid way to do this. */
+      char *results [2];
+      XtResource resources [2];
+      results [0] = results [1] = 0;
+      resources [0].resource_name = XtNtitle;
+      resources [0].resource_class = XtCTitle;
+      resources [0].resource_type = XtRString;
+      resources [0].resource_size = sizeof (String);
+      resources [0].resource_offset = 0;
+      resources [0].default_type = XtRString;
+      resources [0].default_addr = 0;
+      resources [1].resource_name = XtNiconName;
+      resources [1].resource_class = XtCIconName;
+      resources [1].resource_type = XtRString;
+      resources [1].resource_size = sizeof (String);
+      resources [1].resource_offset = sizeof (char *);
+      resources [1].default_type = XtRString;
+      resources [1].default_addr = 0;
       XtGetSubresources (XtParent(shell), (XtPointer)results, shell->core.name,
 			 shell->core.widget_class->core_class.class_name,
 			 resources, XtNumber (resources), 0, 0);
@@ -1524,10 +1535,10 @@ DEFUN ("x-get-resource", Fx_get_resource, Sx_get_resource, 3, 4, 0, 0)
   UNBLOCK_INPUT;
   screen_name = widget->core.name;
   screen_class = XtClass (widget)->core_class.class_name;
-  name_string = alloca (XSTRING (name)->size + strlen (app_name)
-			+ strlen (screen_name) + 3);
-  class_string = alloca (XSTRING (class)->size + strlen (app_class)
-			 + strlen (screen_class) + 3);
+  name_string = (char *) alloca (XSTRING (name)->size + strlen (app_name)
+				 + strlen (screen_name) + 3);
+  class_string = (char *) alloca (XSTRING (class)->size + strlen (app_class)
+				  + strlen (screen_class) + 3);
   strcpy (name_string, (char *) app_name);
   for (s = name_string; *s; s++) if (*s == '.') *s = '_';
   strcat (name_string, ".");
@@ -1640,6 +1651,46 @@ static int XmuCvtStringToCursor_error_handler (dpy, error)
   return 0;
 }
 
+DEFUN ("x-valid-color-name-p", Fx_valid_color_name_p, Sx_valid_color_name_p,
+       1, 2, 0,
+       "Returns true if COLOR names a color that X knows about.\n\
+Valid color names are listed in the file /usr/lib/X11/rgb.txt, or\n\
+whatever the equivalent is on your system.")
+     (color, screen)
+     Lisp_Object color, screen;
+{
+  int ok;
+  XColor c;
+  Widget widget;
+  if (NILP (screen))
+    screen = Fselected_screen ();
+  CHECK_SCREEN (screen, 0);
+  if (! SCREEN_IS_X (XSCREEN (screen)))
+    return Qnil;
+  CHECK_STRING (color, 0);
+  widget = XSCREEN (screen)->display.x->widget;
+  BLOCK_INPUT;
+  ok = XParseColor (XtDisplay (widget),
+		    DefaultColormapOfScreen (XtScreen (widget)),
+		    (char *) XSTRING (color)->data, &c);
+  UNBLOCK_INPUT;
+  return ok ? Qt : Qnil;
+}
+
+DEFUN ("x-valid-keysym-name-p", Fx_valid_keysym_name_p, Sx_valid_keysym_name_p,
+       1, 1, 0,
+  "Returns true if KEYSYM names a keysym that the X library knows about.\n\
+Valid keysyms are listed in the files /usr/include/X11/keysymdef.h and in\n\
+/usr/lib/X11/XKeysymDB, or whatever the equivalents are on your system.")
+     (keysym)
+     Lisp_Object keysym;
+{
+  CHECK_STRING (keysym, 0);
+  if (XStringToKeysym ((char *) XSTRING (keysym)->data))
+    return Qt;
+  return Qnil;
+}
+
 
 Cursor
 x_get_cursor (s, name, fg, bg, noerror)
@@ -1662,7 +1713,7 @@ x_get_cursor (s, name, fg, bg, noerror)
       if (!NILP (fg)) CHECK_STRING (fg, 0);
       if (!NILP (bg)) CHECK_STRING (bg, 0);
     }
-  cons = Fassoc (name, Vcursor_alist);
+  cons = assoc_no_quit (name, Vcursor_alist);
   if (NILP (cons))
     {
       int (*old_handler) ();
@@ -2139,6 +2190,8 @@ Beware: allowing emacs to process SendEvents opens a big security hole.");
   defsubr (&Sx_get_resource);
   defsubr (&Sx_set_screen_icon_pixmap);
   defsubr (&Sx_set_screen_pointer);
+  defsubr (&Sx_valid_color_name_p);
+  defsubr (&Sx_valid_keysym_name_p);
 
   defsubr (&Sx_EnterNotify_internal);
   defsubr (&Sx_LeaveNotify_internal);

@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Thu Apr 23 15:49:15 1992
+;;; compiled by jwz@thalidomide on Thu Jun 11 20:25:00 1992
 ;;; from file /u/jwz/emacs19/lisp/ilisp/comint-ipc.el
-;;; emacs version 19.0.2 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
+;;; emacs version 19.1 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

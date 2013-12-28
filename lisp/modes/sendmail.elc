@@ -1,0 +1,135 @@
+;;; compiled by jwz@thalidomide on Fri Jun 12 21:30:09 1992
+;;; from file /u/jwz/emacs19/lisp/sendmail.el
+;;; emacs version 19.1 Lucid.
+;;; bytecomp version 2.07; 12-jun-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(provide 'sendmail)
+(defvar mail-default-reply-to nil "\
+*Address to insert as default Reply-to field of outgoing messages.")
+(defvar mail-yank-prefix nil "\
+*Prefix insert on lines of yanked message being replied to.
+nil means use indentation.")
+(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÂÀÄ!¬‚ÂÂ‡" [boundp mail-abbrevs-loaded nil mail-mode-map mail-reply-buffer] 2)
+(defvar mail-send-actions nil "\
+A list of actions to be performed upon successful sending of a message.")
+(defvar mail-signature-file "~/.signature" "\
+File to be inserted at the end of a message. Usually, this file is called
+\"~/.signature\".")
+(defvar mail-insert-signature nil "\
+If T, insert automaticcally the file denoted by the variable
+`mail-signature-file' before sending a message.")
+(defvar mail-signature-inserted nil "\
+Non-nil means signature already inserted; don't reinsert it.")
+(defvar mail-mode-syntax-table nil "\
+Syntax table used while in mail mode.")
+(byte-code "¬ŠÁ\n!ÃÄÅ#ˆÆÇÈ\"ˆÉÊM‡" [mail-mode-syntax-table copy-syntax-table text-mode-syntax-table modify-syntax-entry 37 ". " autoload mail-aliases-setup "mail-abbrevs" mail-setup #[(to subject in-reply-to cc replybuffer actions) "Â ˆÅebˆÇcˆŠ«‘É±ˆÊÌed\"ˆ)ªƒÍ ˆ«”`ÊĞÉ±ˆÑd\"ˆ*«‡ÓÉ±ˆÔ®ÖÉ±ˆ«‡ØÉ±ˆ«‡ÚÛ É±ˆ«‡İÉ±ˆÉ±ˆ)«ƒdbˆ¬Œ¬ˆ¬„ßÅ!ˆàá!‡" [actions mail-send-actions mail-aliases-setup replybuffer mail-reply-buffer nil mail-signature-inserted "To: " to "\n" "	" fill-prefix fill-region newline cc opos "CC: " fill-region-as-paragraph in-reply-to "In-reply-to: " "Subject: " subject "" mail-default-reply-to "Reply-to: " mail-self-blind "BCC: " user-login-name mail-archive-file-name "FCC: " mail-header-separator set-buffer-modified-p run-hooks mail-setup-hook] 3]] 4)
+(fset 'mail-mode #[nil "À ˆÁÂ!ˆÃÁÄ!ˆÁÅ!ˆÆ!ˆÈ	!ˆ\nÌÎĞÁÒ!ˆÁÓ!ˆÔÖRÔÖR×ØÙ\"‡" [kill-all-local-variables make-local-variable mail-reply-buffer nil mail-send-actions mail-signature-inserted set-syntax-table mail-mode-syntax-table use-local-map mail-mode-map text-mode-abbrev-table local-abbrev-table mail-mode major-mode "Mail" mode-name t buffer-offer-save paragraph-separate paragraph-start "^" mail-header-separator "$\\|^[ 	]*[-_][-_][-_]+$\\|" run-hooks text-mode-hook mail-mode-hook] 4 "\
+Major mode for editing mail to be sent.
+Like Text Mode but with these additional commands:
+C-c C-s  mail-send (send the message)    C-c C-c  mail-send-and-exit
+C-c C-f  move to a header field (and create it if there isn't):
+	 C-c C-f C-t  move to To:	C-c C-f C-s  move to Subj:
+	 C-c C-f C-b  move to BCC:	C-c C-f C-c  move to CC:
+C-c C-t  move to message text.
+C-c C-y  mail-yank-original (insert current message, in Rmail).
+C-c C-w  mail-signature (insert signature file).
+C-c C-q  mail-fill-yanked-message (fill what was yanked).
+C-c C-v  mail-sent-via (add a sent-via field for each To or CC)
+
+Button3  Popup menu with the above commands." nil])
+(byte-code "¬ÖÁ Â\"ˆÄÅÆ#ˆÄÇÈ#ˆÄÉÊ#ˆÄËÌ#ˆÄÍÎ#ˆÄÏĞ#ˆÄÑÒ#ˆÄÓÔ#ˆÄÕÖ#ˆÄ×Ø#ˆÄÙÚ#ˆÄÛÜ#ˆÄİŞ#ˆÁ‡" [mail-mode-map make-sparse-keymap set-keymap-parent text-mode-map define-key "?" describe-mode "" mail-to "" mail-bcc "" mail-cc "" mail-subject "" mail-text "" mail-yank-original "" mail-signature "" mail-fill-yanked-message "" mail-sent-via "" mail-send-and-exit "" mail-send button3 mail-mode-menu] 4)
+(defvar mail-mode-menu '("Mail Mode" "Sending Mail:" "----" ["Send and Exit" mail-send-and-exit t] ["Send Mail" mail-send t] ["Sent Via" mail-sent-via t] "----" "Go to Field:" "----" ["To:" mail-to t] ["Subject:" mail-subject t] ["CC:" mail-cc t] ["BCC:" mail-bcc t] ["Text" mail-text t] "----" "Miscellaneous Commands:" "----" ["Yank Original" mail-yank-original t] ["Fill Yanked Message" mail-fill-yanked-message t] ["Insert Signature" mail-signature t] "----" ["Abort" kill-buffer t]) "\
+Popup menu called by the function `mail-mode-menu'.")
+(fset 'mail-mode-menu #[(event) "ÀÁ\n!!ˆÃ‰«¦È@!«š@ÉHÊ=«†@ªŒ@ÉHË=«„@A‰¬Z«‰Ì??Iˆ«Ì;­„Ï!Iˆ+ĞÄ!‡" [select-window event-window event nil mail-mode-menu rest sig yank vectorp 1 mail-yank-original mail-signature 2 mail-reply-buffer mail-signature-file file-exists-p popup-menu] 5 "\
+Pop up the mail mode menu, defined by the variable `mail-mode-menu'." "e"])
+(fset 'mail-send-and-exit #[(arg) "À ˆÁp!ˆ\n¬˜Ã ¬”ŠÄÅÆ Ç\"!qˆ)É=«ƒÊ ‡ËÌp!!‡" [mail-send bury-buffer arg one-window-p window-buffer next-window selected-window not major-mode rmail-mode delete-window switch-to-buffer other-buffer] 4 "\
+Send message like mail-send, then, if no errors, exit from mail buffer.
+Prefix arg means don't delete this window." "P"])
+(fset 'mail-send #[nil "À ¬…ÁÂ!­¸ÃÄ!ˆ¬Æ!«‡«ƒÉ ˆÊË!ˆ ˆ«ÎÏĞˆA‰¬sÑÎ!ˆÒÓ!ˆÃÔ!‡" [buffer-modified-p y-or-n-p "Message already sent; resend? " message "Sending..." mail-signature-inserted file-exists-p mail-signature-file mail-insert-signature mail-signature run-hooks mail-send-hook send-mail-function mail-send-actions nil (byte-code "À	@@	@A\"‡" [apply mail-send-actions] 3) ((error)) set-buffer-modified-p delete-auto-save-file-if-necessary t "Sending...done"] 4 "\
+Send the message in the current buffer.  If the file denoted by the variable
+`mail-signature-file' exists, and the variable `mail-insert-signature' is
+non-nil, it is inserted at the end.  If `mail-insert-signature' is nil, your
+.signature file will not be inserted unless you do it explicitly with C-c C-w.
+If `mail-interactive' is non-nil, wait for success indication or error
+messages, and inform user.  Otherwise any failure is reported in a message
+back to the user from the mailer." nil])
+(byte-code "ÀÁMˆÂÃM‡" [sendmail-send-it #[nil "«…ÁÂ!ªÃÁÄ!Å‰p	\nËŠ	qˆÌ ˆÍ!ˆdbˆhÎU¬ƒÎcˆebˆÏĞÑ!ÓQ!ˆÔÓ!ˆÕÖ!ˆ× ebˆÏØÙ#«Œ`W«†ÔÓ!ˆªlÙebˆÏÚÙ#«„ÛÜ!ˆebˆÏİÙ#«…Ş!ˆebˆÏßÙ#«Ÿàá!ˆâŒe}ˆãä!)!å ˜¬ŠÖyˆæå Ó±ˆebˆÏçÙ#«„Ôè!ˆebˆÏéÙ#«„Ôê!ˆ«‰Š\nqˆÌ ˆ))ëìíedîï!«„/ªğÅ\nÅñò¯óå D?­ô#\"ˆ­£Š\nqˆebˆÏõÅÙ#«†Ôö!ˆªs÷ ÃU?­†Ûøed{\").‡" [mail-interactive generate-new-buffer " sendmail errors" 0 " sendmail temp" nil mailbuf delimline case-fold-search tembuf errbuf ((byte-code "À	!ˆÂ!«„À!ˆÀ‡" [kill-buffer tembuf bufferp errbuf] 2)) erase-buffer insert-buffer-substring 10 re-search-forward "^" regexp-quote mail-header-separator "\n" replace-match backward-char 1 point-marker "\n\n\n*" t "^Sender:" error "Sender may not be specified." "^FCC:" mail-do-fcc "^From:" require mail-utils mail-strip-quoted-names mail-fetch-field "From" user-login-name "Sender: " "^S:" "Subject:" "^Subject:[ 	]*\n" "" apply call-process-region append boundp sendmail-program "/usr/lib/sendmail" "-oi" "-t" "-f" ("-oem" "-odb") "\n\n* *" "; " buffer-size "Sending...failed to %s"] 11] mail-do-fcc #[(header-end) "ÀpÁÂ!ÃŠebˆÈÉ\nÃ#«™`ÀˆËÀxˆ`{BÌ”Íyˆ`|ˆª_qˆÎ ˆÏĞ ÑÒ Ó±ˆÔ!ˆdbˆÕcˆÖbˆÀ×ÏÀÃ#«ˆØuˆÙcˆªq)«ıÚ@!‰«ÖpedŠqˆß TdU?­d áeß T}ˆdbˆ\"ã=«ŸÀ$À%æĞ çÒ Ó±ˆÔ#ˆècˆ)ª‰Ô#ˆ.ª”éê@!«ƒeª‚eTd@Ã$ˆ)A‰¬ë!-‡" [nil generate-new-buffer " rmail output" t case-fold-search tembuf rmailbuf fcc-list re-search-forward "^FCC:[ 	]*" header-end " 	" 0 1 erase-buffer "\nFrom " user-login-name " " current-time-string "\n" insert-buffer-substring 10 2 search-forward -5 62 get-file-buffer buffer end beg curbuf buffer-size max ((byte-code "«„e}ˆÁ‡" [max nil] 2)) major-mode rmail-mode buffer-read-only rmail-total-messages "\n0, unseen,,\n*** EOOH ***\nFrom: " "\nDate: " "\n" write-region file-exists-p kill-buffer] 6]] 2)
+(fset 'mail-sent-via #[nil "ŠebˆÀÁ\nÁQ!ˆÃyˆÄ ÅÆ	ebˆÊË	Å#­ `ÊÌ	Å#«†ÍÎ!ˆª„	bˆ`{ÏĞ\"ˆ)ªX,‡" [search-forward "\n" mail-header-separator -1 point-marker t nil to-line case-fold-search end re-search-forward "^\\(to\\|cc\\):" "^[^ 	\n]" backward-char 1 insert-before-markers "Sent-via:"] 5 "\
+Make a Sent-via header line from each To or CC header line." nil])
+(fset 'mail-to #[nil "À ˆÁÂ!‡" [expand-abbrev mail-position-on-field "To"] 2 "\
+Move point to end of To-field." nil])
+(fset 'mail-subject #[nil "À ˆÁÂ!‡" [expand-abbrev mail-position-on-field "Subject"] 2 "\
+Move point to end of Subject-field." nil])
+(fset 'mail-cc #[nil "À ˆÁÂÃ\"®†ÁÄ!ˆÅc‡" [expand-abbrev mail-position-on-field "cc" t "to" "\nCC: "] 3 "\
+Move point to end of CC-field.  Create a CC field if none." nil])
+(fset 'mail-bcc #[nil "À ˆÁÂÃ\"®†ÁÄ!ˆÅc‡" [expand-abbrev mail-position-on-field "bcc" t "to" "\nBCC: "] 3 "\
+Move point to end of BCC-field.  Create a BCC field if none." nil])
+(fset 'mail-position-on-field #[(field &optional soft) "ÀÁebˆÄÅÅQ!ˆÇ”ebˆÈÉÊ!ÌQÁ#«ÈÍÀÎ#ˆÇyˆÅÀxˆÁª“¬bˆÅÀxˆÅĞ±ˆÀ*‡" [nil t case-fold-search end search-forward "\n" mail-header-separator 0 re-search-forward "^" regexp-quote field ":" "^[^ 	]" move soft ": "] 4])
+(fset 'mail-text #[nil "ebˆÀÁ\nÁQ!‡" [search-forward "\n" mail-header-separator] 4 "\
+Move point to beginning of text field." nil])
+(fset 'mail-signature #[nil "ŠdbˆÀÁxˆÁˆ`d|ˆÂcˆÃÄ!!ˆÆ‰)‡" [" 	\n" nil "\n\n--\n" insert-file-contents expand-file-name mail-signature-file t mail-signature-inserted] 3 "\
+Sign letter with contents of the signature file, 
+which is named by the variable `mail-signature-file'." nil])
+(fset 'mail-fill-yanked-message #[(&optional justifyp) "ŠebˆÀÁ\nÁQÃÄ#ˆÅ`dÄ$)‡" [search-forward "\n" mail-header-separator nil t fill-individual-paragraphs justifyp] 5 "\
+Fill the paragraphs of a message yanked into this one.
+Numeric argument means justify as well." "P"])
+(fset 'mail-yank-original #[(arg) "­Ê`Â!ˆÃ!ˆ:¬²Å	ÆÇ!\"ˆ¬’É	ÆÇ!«…Ê!ªË#ˆª•Š	bˆ`ÆÇ!W«‰cˆÌyˆªp)Í ˆl?­‚Îc)‡" [mail-reply-buffer start delete-windows-on insert-buffer arg mail-yank-clear-headers mark t mail-yank-prefix indent-rigidly prefix-numeric-value 3 1 exchange-point-and-mark 10] 5 "\
+Insert the message being replied to, if any (in rmail).
+Puts point before the text and mark after.
+Normally, indents each nonblank line ARG spaces (default 3).
+However, if `mail-yank-prefix' is non-nil, insert that prefix on each line.
+
+Just \\[universal-argument] as argument means don't indent, insert no prefix,
+and don't delete any header fields." "P"])
+(fset 'mail-yank-clear-headers #[(start end) "ŠbˆÁÂÄ#­¤Œ`}ˆbˆÄÆÈÄ#)­Éyˆ`ÆÊ!ˆËuˆ`|ˆªe))‡" [start search-forward "\n\n" end t case-fold-search re-search-forward mail-yank-ignored-headers nil 0 "\n[^ 	]" -1] 4])
+(fset 'mail #[(&optional noerase to subject in-reply-to cc replybuffer actions) "ÀÁ«§ÅÀU«ƒÆª„ÇÈ\"!‰«ŠÉ\n!¬…Tªd\n«†Ê\n!ˆª‚Á?­ÖÅÀU«ƒÆª„ÇÈ\"!‰«ŠÉ\n!«…Tªd\n¬„ËÆ!Ê\n!ˆÌ ˆÍÎ!Ğ!ˆÒ ˆÓ&ˆ«ŠÛ!«„Üİ!ˆŞ*‡" [1 nil buffer index noerase get-buffer "*mail*" format "*mail*<%d>" buffer-modified-p switch-to-buffer generate-new-buffer erase-buffer expand-file-name "~/" default-directory auto-save-mode auto-save-default mail-mode mail-setup to subject in-reply-to cc replybuffer actions buffer-auto-save-file-name file-exists-p message "Auto save file for draft message exists; consider M-x mail-recover" t] 7 "\
+Edit a message to be sent.  Argument means resume editing (don't erase).
+Search for an existing mail buffer currently not in use and initialize it,
+or make a new one if all existing mail buffers are busy.
+With an argument, search for a busy existing mail buffer and re-select it.
+
+Returns with message buffer selected; value t if message freshly initialized.
+
+While editing message, type C-c C-c to send the message and exit.
+
+Various special commands starting with C-c are available in sendmail mode
+to move to message header fields:
+\\{mail-mode-map}
+
+If `mail-insert-signature' is non-nil, the signature file, denoted by
+the variable `mail-signature-file', is automatically inserted at the
+end of the message before sending.  (Otherwise use C-c C-w).
+
+If `mail-self-blind' is non-nil, a BCC to yourself is inserted
+when the message is initialized.
+
+If `mail-default-reply-to' is non-nil, it should be an address (a string);
+a Reply-to: field with that address is inserted.
+
+If `mail-archive-file-name' is non-nil, an FCC field with that file name
+is inserted.
+
+If `mail-setup-hook' is bound, its value is called with no arguments
+after the message is initialized.  It can add more default fields.
+
+When calling from a program, the second through fifth arguments
+ TO, SUBJECT, IN-REPLY-TO and CC specify if non-nil
+ the initial contents of those header fields.
+ These arguments should not have final newlines.
+The sixth argument REPLYBUFFER is a buffer whose contents
+ should be yanked if the user types C-c C-y.
+The seventh argument ACTIONS is a list of actions to take
+ if/when the message is sent.  Each action looks like (FUNCTION . ARGS);
+ when the message is sent, we apply FUNCTION to ARGS.
+ This is how Rmail arranges to mark messages `answered'." "P"])
+(fset 'mail-recover #[nil "À Â‹«ŒÃÅ ˆÆ	Ã\")ªƒÇÈ!)‡" [make-auto-save-file-name file-name ((byte-code "Á=¬’ÂÃ!ˆÅÆÇÇÈ	&‘ˆÊËÌ	\"!‡" [system-type vax-vms "*Directory*" buffer-disable-undo standard-output call-process "ls" nil "-l" file-name yes-or-no-p format "Recover auto save file %s? "] 8)) nil buffer-read-only erase-buffer insert-file-contents error "mail-recover cancelled."] 3 "\
+Reread contents of current buffer from its last auto-save file." nil])
+(fset 'mail-other-window #[(&optional noerase to subject in-reply-to cc replybuffer sendactions) "ÀÂÃ!ˆ)Ä	\n&‡" [t pop-up-windows pop-to-buffer "*mail*" mail noerase to subject in-reply-to cc replybuffer sendactions] 8 "\
+Like `mail' command, but display mail buffer in another window." "P"])

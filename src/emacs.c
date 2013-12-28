@@ -1,11 +1,11 @@
 /* Fully extensible Emacs, running on Unix, intended for GNU.
-   Copyright (C) 1985, 1986, 1987, 1991 Free Software Foundation, Inc.
+   Copyright (C) 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -256,6 +256,10 @@ executable_file (file)
      not interested. */
   file_exists_p = !stat (file, &finfo);
 
+#ifndef S_ISDIR
+#define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
+#endif
+
   if (!file_exists_p || S_ISDIR (finfo.st_mode))
     return (0);
 
@@ -398,9 +402,7 @@ find_executable_name ()
   char *path;
   int path_index = 0;
   struct stat dot_stat_buf;
-  char *name;
-
-  name = alloca (name_len + 1);
+  char *name = (char *) alloca (name_len + 1);
   bcopy (lname->data, name, name_len);
   name[name_len] = 0;
 
@@ -457,6 +459,10 @@ find_executable_name ()
   return 0;
 }
 
+#ifdef NeXT
+int malloc_cookie;
+#endif
+
 /* ARGSUSED */
 main (argc, argv, envp)
      int argc;
@@ -469,6 +475,13 @@ main (argc, argv, envp)
   extern sys_nerr;
   extern char *sys_errlist[];
   extern void malloc_warning ();
+
+#ifdef NeXT
+  /* this helps out unexNeXT.c */
+  if (initialized)
+    if (malloc_jumpstart (malloc_cookie) != 0)
+      printf ("malloc jumpstart failed!\n");
+#endif
 
 #ifdef ENERGIZE
   /* call static initializers for linked C++ code */
@@ -859,11 +872,17 @@ main (argc, argv, envp)
   {
     Lisp_Object full_program_name;
     char *progname = find_executable_name ();
-    full_program_name = progname ? build_string (progname) : Fcar (Vcommand_line_args);
+    full_program_name = (progname
+			 ? Fexpand_file_name (build_string (progname), Qnil)
+			 : Fcar (Vcommand_line_args));
     free (progname);
 
-    Vexecution_path = Freal_path_name (full_program_name, Qnil);
+#if 0
+    Vexecution_path = Ftruename (full_program_name, Qnil);
     if (NILP (Vexecution_path)) Vexecution_path = full_program_name;
+#else
+    Vexecution_path = full_program_name;
+#endif
     Vinvocation_name = Ffile_name_nondirectory (full_program_name);
   }
 
@@ -900,7 +919,7 @@ This will restart emacs as if it were passed no command line arguments.")
   int namesize = XSTRING(Vexecution_path)->size;
 
   if (namesize >= 255) error ("execution-path string is too long");
-  strncpy (name, XSTRING(Vexecution_path)->data, namesize);
+  strncpy (name, (char *) XSTRING(Vexecution_path)->data, namesize);
   name [namesize] = 0;
   av[ac++] = name;
 

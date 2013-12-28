@@ -1,4 +1,27 @@
 						-*- text -*-
+
+     Lucid GNU Emacs availability information.  Last Modified: 13-jun-92.
+
+Lucid GNU Emacs is available via anonymous FTP from the host
+labrea.Stanford.EDU (36.8.0.47) in the directory pub/gnu/lucid/.
+
+It is currently available only by FTP.  We don't have the manpower
+to make tapes right now. 
+
+You may find it at other sites as well, but labrea is the primary
+distribution point.  If you would like to make Lucid GNU Emacs
+available for FTP from your site, please let us know so that we
+can list your site here.
+
+There are mailing lists specifically for discussing and reporting 
+bugs in Lucid GNU Emacs; see the file MAILINGLISTS in this directory.
+
+The FTP and ordering information in the remainder of this file applies
+to the versions of GNU Emacs distributed by the Free Software Foundation,
+not to Lucid GNU Emacs.
+
+-----------------------------------------------------------------------
+
       The prices on the order form below EXPIRE in June 1991
 
 	   GNU Emacs availability information, January 1991

@@ -16,47 +16,7 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* created 16-dec-91 by jwz
-
-   form		:=  <something to pass to `eval'>
-   command	:=  <a symbol or string, to pass to `call-interactively'>
-   callback 	:=  command | form
-   active-p	:=  <t or nil, whether this thing is selectable>
-   text		:=  <a string, non selectable>
-   menu-item	:=  '['  string callback active-p  ']'
-   menu		:=  '(' string [ menu-item | menu | text ]+ ')'
-   partition	:=  'nil'
-   menubar	:=  '(' [ menu-item | menu | text | partition ]* ')'
-   
-   Or, in english...  A menu-item is a vector of three elements: a string,
-   a callback, and whether the item is selectable.  A menu is a list of
-   menu-items, strings, and submenus.  The strings are displayed in the
-   menu but are not selectable.
-
-   A menubar is just like a menu without the "name" at the front.  You
-   can put buttons and static text in the menubar.
-
-   #### This next bit isn't true because Motif is so broken.
-   If there is a `nil' in the menubar, that is where the extra whitespace
-   goes.  When the menubar is wider than the total width of the menu names,
-   the extra space normally appears on the right, with the menu names packed
-   in on the left.  If there is a `nil' in the menubar, then the menus to
-   the left of it will be flushleft, and the menus to the right of it will
-   be flushright.
-
-   Menus and menu items may be safely modified; comparisons are (effectively)
-   done with `equal.'  However, the callbacks are not copied, so don't change
-   the contents of those (that is, if the callback of an item is a list,
-   don't change the contents of that list.)
-
-   Changes to menus and menu items have no effect until `set-screen-menubar'
-   is called again.  
-
-   After the menubar is clicked upon, but before any menus are popped up,
-   the functions on the activate-menubar-hook are invoked to make changes to
-   the menus and menubar.  This is intended to implement lazy alteration of
-   the sensitivity of menu items.
- */
+/* created 16-dec-91 by jwz */
 
 #include <X11/Intrinsic.h>
 #include <X11/StringDefs.h>
@@ -404,7 +364,7 @@ menubar_selection_callback (widget, client_data)
   Lisp_Object event, fn, arg;
   Lisp_Object data = (Lisp_Object) client_data;
 
-  if (((int) client_data) == -1)
+  if (((int) client_data) == 0 || ((int) client_data) == -1)
     return;
 
   /* Flush the X and process input */
@@ -447,7 +407,55 @@ menubar_selection_callback (widget, client_data)
 }
 
 DEFUN ("set-screen-menubar", Fset_screen_menubar, Sset_screen_menubar, 1, 2, 0,
-       "Make MENUBAR be the menubar of the given SCREEN.")
+       "Make MENUBAR be the menubar of the given SCREEN.\n\
+A menubar is a list of menus and menu-items.\n\
+A menu is a list of menu items, strings, and submenus.\n\
+The first element of a menu must be a string, which is the name of the\n\
+ menu.  This is the string that will be displayed in the menubar, or in\n\
+ the parent menu.  This string is not displayed in the menu itself.\n\
+A menu item is a vector of three elements:\n\
+ the name of the menu item (a string);\n\
+ the `callback' of that item;\n\
+ and whether this item is active (selectable.)\n\
+If the `callback' of a menu item is a symbol, then it must name a\n\
+ command.  It will be invoked with `call-interactively'. If it is\n\
+ a list, then it is evaluated with `eval'.\n\
+If an element of a menu (or menubar) is a string, then that string will\n\
+ be presented in the menu (or menubar) as unselectable text.\n\
+If an element of a menu is a string consisting solely of hyphens,\n\
+ then that item will be presented as a solid horizontal line.\n\
+If an element of a menu is a list, it is treated as a submenu.\n\
+ The name of that submenu (the first element in the list) will be\n\
+ used as the name of the item representing this menu on the parent.\n\
+If an element of a menubar is `nil', then it is used to represent the\n\
+ division between the set of menubar-items which are flushleft and those\n\
+ which are flushright.  (Note: this isn't completely implemented yet.)\n\
+\n\
+Menus and menu items may be safely modified; comparisons are (effectively)\n\
+ done with `equal.'  However, the callbacks are not copied, so changing the\n\
+ contents of those could have unexpected side-effects (that is, if the\n\
+ callback of an item is a list, don't modify the conses in that list.)\n\
+Changes to menus and menu items have no effect until `set-screen-menubar'\n\
+ is called again.\n\
+After the menubar is clicked upon, but before any menus are popped up,\n\
+ the functions on the activate-menubar-hook are invoked to make changes to\n\
+ the menus and menubar.  This is intended to implement lazy alteration of\n\
+ the sensitivity of menu items.\n\
+\n\
+The syntax, More precisely:\n\
+\n\
+   form		:=  <something to pass to `eval'>\n\
+   command	:=  <a symbol or string, to pass to `call-interactively'>\n\
+   callback 	:=  command | form\n\
+   active-p	:=  <t or nil, whether this thing is selectable>\n\
+   text		:=  <a string, non selectable>\n\
+   menu-item	:=  '['  string callback active-p  ']'\n\
+   name		:=  <string>\n\
+   menu		:=  '(' name [ menu-item | menu | text ]+ ')'\n\
+   partition	:=  'nil'\n\
+   menubar	:=  '(' [ menu-item | menu | text ]* [ partition ]\n\
+		        [ menu-item | menu | text ]*\n\
+		     ')'")
      (menubar, screen)
      Lisp_Object menubar, screen;
 {
@@ -533,7 +541,41 @@ popup_down_callback (widget, client_data)
 
 
 DEFUN ("popup-menu", Fpopup_menu, Spopup_menu, 1, 1, 0,
-       "Pop up the given menu.")
+       "Pop up the given menu.\n\
+A menu is a list of menu items, strings, and submenus.\n\
+The first element of a menu must be a string, which is the name of the\n\
+ menu.  This is the string that will be displayed in the parent menu, if\n\
+ any.  For toplevel menus, it is ignored.  This string is not displayed\n\
+ in the menu itself.\n\
+If the first element of a menu is a string, then that is the name of\n\
+the menu.  The name of a menu is only used for submenus; for top-level\n\
+ menus, it is ignored.  In particular, it is not displayed in the menu\n\
+ as strings later in the menu-list are.\n\
+A menu item is a vector of three elements:\n\
+ the name of the menu item (a string);\n\
+ the `callback' of that item;\n\
+ and whether this item is active (selectable.)\n\
+If the `callback' of a menu item is a symbol, then it must name a\n\
+ command.  It will be invoked with `call-interactively'. If it is\n\
+ a list, then it is evaluated with `eval'.\n\
+If an element of a menu is a string, then that string will be\n\
+ presented in the menu as unselectable text.\n\
+If an element of a menu is a string consisting solely of hyphens,\n\
+ then that item will be presented as a solid horizontal line.\n\
+If an element of a menu is a list, it is treated as a submenu.\n\
+ The name of that submenu (the first element in the list) will be\n\
+ used as the name of the item representing this menu on the parent.\n\
+\n\
+More precisely:\n\
+\n\
+   form		:=  <something to pass to `eval'>\n\
+   command	:=  <a symbol or string, to pass to `call-interactively'>\n\
+   callback 	:=  command | form\n\
+   active-p	:=  <t or nil, whether this thing is selectable>\n\
+   text		:=  <a string, non selectable>\n\
+   menu-item	:=  '['  string callback active-p  ']'\n\
+   name		:=  <string>\n\
+   menu		:=  '(' [name] [ menu-item | menu | text ]+ ')'")
      (menu_desc)
      Lisp_Object menu_desc;
 {
@@ -551,6 +593,8 @@ DEFUN ("popup-menu", Fpopup_menu, Spopup_menu, 1, 1, 0,
       name = (char *) XSYMBOL (menu_desc)->name->data;
       menu_desc = Fsymbol_value (menu_desc);
     }
+  CHECK_CONS (menu_desc, 0);
+  CHECK_STRING (XCONS (menu_desc)->car, 0);
   data = menu_item_descriptor_to_widget_value (menu_desc);
 
   if (! data) error ("no menu");

@@ -1,0 +1,53 @@
+;;; compiled by jwz@thalidomide on Wed Jun 17 23:54:23 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/x11/x-faces.el
+;;; emacs version 19.1.1 Lucid.
+;;; bytecomp version 2.07; 12-jun-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÀÀÀÅÆ‰ÇÈÉÊÈËÌÍ‰‰ÎÌÆ‰àá°âã°	QQ.äåMˆæçM‡" [nil x-font-regexp x-font-regexp-head x-font-regexp-weight x-font-regexp-slant "[-?]" "[^-]+" "\\(bold\\|demibold\\|medium\\)" "\\([^-]*\\)" "\\([ior]\\)" "\\([^-]?\\)" "[^-]*" "[0-9]+" "[0-9][0-9]+" "[cmp?*]" encoding registry avgwidth spacing resy resx pointsize pixelsize adstyle swidth slant\? slant weight\? weight family foundry - "\\`\\*?[-?*]" "[-?*]\\*?\\'" "\\`[-?*]" "\\([-*?]\\|\\'\\)" x-frob-font-weight #[(font which) "À	\n\"¬ŒÀ\n\"¬†À\n\"­\nÅÆ”O\nÆ•ÈOQ‡" [string-match x-font-regexp font x-font-regexp-head x-font-regexp-weight 0 1 which nil] 5] x-frob-font-slant #[(font which) "À	\n\"¬†À\n\"«\nÄÅ”O\nÅ•ÇOQ‡À\n\"«\nÄÉ”O\nÉ•ÇOQ‡Ç‡" [string-match x-font-regexp font x-font-regexp-head 0 2 which nil x-font-regexp-slant 1] 5]] 27)
+(fset 'x-make-font-bold #[(font) "À	Â\"‡" [x-frob-font-weight font "bold"] 3 "\
+Given an X font specification, this attempts to make a `bold' version
+of it.  If it fails, it returns nil."])
+(fset 'x-make-font-demibold #[(font) "À	Â\"‡" [x-frob-font-weight font "demibold"] 3 "\
+Given an X font specification, this attempts to make a `demibold' version
+of it.  If it fails, it returns nil."])
+(fset 'x-make-font-unbold #[(font) "À	Â\"‡" [x-frob-font-weight font "medium"] 3 "\
+Given an X font specification, this attempts to make a non-bold version
+of it.  If it fails, it returns nil."])
+(fset 'x-make-font-italic #[(font) "À	Â\"‡" [x-frob-font-slant font "i"] 3 "\
+Given an X font specification, this attempts to make an `italic' version
+of it.  If it fails, it returns nil."])
+(fset 'x-make-font-oblique #[(font) "À	Â\"‡" [x-frob-font-slant font "o"] 3 "\
+Given an X font specification, this attempts to make an `italic' version
+of it.  If it fails, it returns nil."])
+(fset 'x-make-font-unitalic #[(font) "À	Â\"‡" [x-frob-font-slant font "r"] 3 "\
+Given an X font specification, this attempts to make a non-italic version
+of it.  If it fails, it returns nil."])
+(fset 'make-face-bold #[(face &optional screen) "¬•Á ‰­Ã\n@\"ˆ\nA‰¬tÅ)‡Æ\"‰Æ\"ÇH*®˜ÈÆ\"ÇH*®‹ÉÆ\"ÇH*Å\nÌ!‰\n«‡Í\n\"®Î!‰\n­…Í\n\"*‡" [screen screen-list screens make-face-bold face nil get-face 3 t default f2 font x-make-font-bold try-face-font x-make-font-demibold] 4 "\
+Make the font of the given face be bold, if possible.  
+Returns nil on failure." (byte-code "ÀÁ!C‡" [read-face-name "Make which face bold: "] 2)])
+(fset 'make-face-italic #[(face &optional screen) "¬•Á ‰­Ã\n@\"ˆ\nA‰¬tÅ)‡Æ\"‰Æ\"ÇH*®˜ÈÆ\"ÇH*®‹ÉÆ\"ÇH*Å\nÌ!‰\n«‡Í\n\"®Î!‰\n­…Í\n\"*‡" [screen screen-list screens make-face-italic face nil get-face 3 t default f2 font x-make-font-italic try-face-font x-make-font-oblique] 4 "\
+Make the font of the given face be italic, if possible.  
+Returns nil on failure." (byte-code "ÀÁ!C‡" [read-face-name "Make which face italic: "] 2)])
+(fset 'make-face-bold-italic #[(face &optional screen) "¬•Á ‰­Ã\n@\"ˆ\nA‰¬tÅ)‡Æ\"‰Æ\"ÇH*®˜ÈÆ\"ÇH*®‹ÉÆ\"ÇH*Å\nÌ!‰\n«Í\n!‰\n«‡Î\n\"®ÉÏ!‰\n«Í\n!‰\n«‡Î\n\"®°Ì!‰\n«Ğ\n!‰\n«‡Î\n\"®—Ï!‰\n­Ğ\n!‰\n­…Î\n\"*‡" [screen screen-list screens make-face-bold-italic face nil get-face 3 t default f2 font x-make-font-italic x-make-font-bold try-face-font x-make-font-oblique x-make-font-demibold] 4 "\
+Make the font of the given face be bold and italic, if possible.  
+Returns nil on failure." (byte-code "ÀÁ!C‡" [read-face-name "Make which face bold-italic: "] 2)])
+(fset 'make-face-unbold #[(face &optional screen) "¬•Á ‰­Ã\n@\"ˆ\nA‰¬tÅ)‡Æ\"ÇÆ\"ÈH*®˜ÉÆ\"ÈH*®‹ÊÆ\"ÈH*!‰­…Ì\")‡" [screen screen-list screens make-face-unbold face nil get-face x-make-font-unbold 3 t default font try-face-font] 5 "\
+Make the font of the given face be non-bold, if possible.  
+Returns nil on failure." (byte-code "ÀÁ!C‡" [read-face-name "Make which face non-bold: "] 2)])
+(fset 'make-face-unitalic #[(face &optional screen) "¬•Á ‰­Ã\n@\"ˆ\nA‰¬tÅ)‡Æ\"ÇÆ\"ÈH*®˜ÉÆ\"ÈH*®‹ÊÆ\"ÈH*!‰­…Ì\")‡" [screen screen-list screens make-face-unitalic face nil get-face x-make-font-unitalic 3 t default font try-face-font] 5 "\
+Make the font of the given face be non-italic, if possible.  
+Returns nil on failure." (byte-code "ÀÁ!C‡" [read-face-name "Make which face non-italic: "] 2)])
+(byte-code "ÀÁMˆÂÃM‡" [x-resource-face #[(face &optional screen set-anyway) "¬ŸÁ ‰«•ÃÅ!ÆH)\n@#ˆ\nA‰¬k)‚6ÅÅ!ÆH)\"ÈÅ!ÆH)!	Ê	ËPÌÍ$®­‹ÎÅ\"ÏH*Ê	ÑPÒÍ$®­‹ÎÅ\"ÓH*Ê	ÕPÖÍ$®­‹ÎÅ\"×H*Ê	ÙPÚÍ$®­‹ÎÅ\"ÛH*Ê	İPŞß$®­‹ÎÅ\"àH*!Å!ÆH)â=«¤¬ˆÊãäÍ$¬ˆÊåæÍ$¬ˆÊçèÍ$«…Îéêˆ«…Îëìˆ«…Îíîˆ«…Îïğˆ!¬„«’!1òó1à%ˆ+.‡" [screen screen-list screens x-resource-face face get-face 1 set-anyway symbol-name name x-get-resource ".attributeFont" "Face.AttributeFont" string nil 3 fn ".attributeForeground" "Face.AttributeForeground" 4 fg ".attributeBackground" "Face.AttributeBackground" 5 bg ".attributeBackgroundPixmap" "Face.AttributeBackgroundPixmap" 6 bgp ".attributeUnderline" "Face.AttributeUnderline" boolean 7 ulp default "font" "Font" "foreground" "Foreground" "background" "Background" (byte-code "	\nÄÃÅ\n%ˆ+Ä‡" [face fn screen font set-face-1 3] 6) ((error (message "font %s not found for face %s" fn name))) (byte-code "	\nÄÅÆ\n%ˆ+Ä‡" [face fg screen color set-face-1 foreground 4] 6) ((error (message "color %s not allocated for face %s" fg name))) (byte-code "	\nÄÅÆ\n%ˆ+Ä‡" [face bg screen color set-face-1 background 5] 6) ((error (message "color %s not allocated for face %s" bg name))) (byte-code "	\nÄÅÆ\n%ˆ+Ä‡" [face bgp screen name set-face-1 background-pixmap 6] 6) ((error (message "pixmap %s not found for face %s" bgp name))) underline-p set-face-1 underline] 7] x-initialize-screen-faces #[(screen) "ÀÁ\n\"ÀÃ\n\"Ä	\n\"¬°Å	Æ\n#¬©Å	Ç\n#¬¢Å	È\n#¬›Å	É\n#¬”Å	Ê\n#¬Å	Ë\n#¬†Å	Ì\n#ˆ	\nÀ\n\"ÎH*	\nÀ\n\"ÏH*‰«„¬ı«‡—Òš¬”«‡—Óš¬‰ÔÕÖ×\n$@«°¬“	Ò\nÙÚÎ\n%ˆ+¬Ã	Ó\nÙÛÏ\n%ˆ+ª®¬“	Ó\nÙÚÎ\n%ˆ+¬“	Ò\nÙÛÏ\n%ˆ+*Ü\n!ˆİ\n!*‡" [get-face default screen modeline face-font try-face-font "-*-courier-medium-r-*-*-*-120-*-*-*-*-iso8859-*" "-*-courier-*-r-*-*-*-120-*-*-*-*-iso8859-*" "-*-*-medium-r-*-*-*-120-*-*-m-*-iso8859-*" "-*-*-medium-r-*-*-*-120-*-*-c-*-iso8859-*" "-*-*-*-r-*-*-*-120-*-*-m-*-iso8859-*" "-*-*-*-r-*-*-*-120-*-*-c-*-iso8859-*" "-*-*-*-r-*-*-*-120-*-*-*-*-iso8859-*" face 4 5 bg fg "white" "black" x-get-resource "reverseVideo" "ReverseVideo" boolean color set-face-1 foreground background x-initialize-other-random-faces x-initialize-pointer-shape] 7]] 2)
+(fset 'x-initialize-other-random-faces #[(screen) "ÀÁ\n\"¬…ÃÁ\n\"ˆÀÄ\n\"¬…ÅÄ\n\"ˆÀÆ\n\"¬…ÇÆ\n\"ˆÈÉ!¬„ÊÉ!ˆÈË!¬„ÊË!ˆÀÌ\n\"¬¹Í «°ÎÏ\n\"«•ÌÏ\nÒÓÔ\n%ˆ+ªšÌÕ\nÒÓÔ\n%ˆ+ª…Ö×ØˆÀÉ\n\"¬Í «•ÉÙ\nÒÓÔ\n%ˆ+ª…ÖÚÛˆÀË\n\"¬¹Í «°ÎÜ\n\"«•ËÜ\nÒÓÔ\n%ˆ+ªšËÕ\nÒÓÔ\n%ˆ+ª…ÖİŞˆÀß\n\"®ßÍ «®ÎÜ\n\"«•ßÜ\nÒÓÔ\n%ˆ+ª“ßÕ\nÒÓÔ\n%ˆ+Á\nà\n\"áH*­ßÁ\nà\n\"áH*\n\"Òâ\"á\n%+‡" [face-differs-from-default-p bold screen make-face-bold italic make-face-italic bold-italic make-face-bold-italic find-face primary-selection make-face secondary-selection highlight x-color-display-p x-valid-color-name-p "darkseagreen2" color face set-face-1 background 5 "green" nil (byte-code "ÀÁ\nÅÆÇ\n%ˆ+À‡" [highlight "gray1" screen name face set-face-1 background-pixmap 6] 6) ((error (byte-code "ÀÁ\n\"‡" [invert-face highlight screen] 3))) "gray" (byte-code "ÀÁ\nÅÆÇ\n%ˆ+À‡" [primary-selection "gray3" screen name face set-face-1 background-pixmap 6] 6) ((error (byte-code "ÀÁ\n\"‡" [invert-face primary-selection screen] 3))) "paleturquoise" (byte-code "ÀÁ\nÅÆÇ\n%ˆ+À‡" [secondary-selection "gray1" screen name face set-face-1 background-pixmap 6] 6) ((error (byte-code "ÀÁ\n\"‡" [invert-face secondary-selection screen] 3))) isearch get-face 3 font] 6 "\
+Initializes the colors and fonts of the bold, italic, bold-italic, 
+primary-selection, secondary-selection, and isearch faces when each
+screen is created.  If you want to add code to do stuff like this, use
+the create-screen-hook."])
+(provide 'x-faces)

@@ -1,11 +1,11 @@
 /* Buffer manipulation primitives for GNU Emacs.
-   Copyright (C) 1985, 1986, 1987, 1988, 1989 Free Software Foundation, Inc.
+   Copyright (C) 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -170,11 +170,11 @@ If there is no such live buffer, return nil.")
 
   if (find_file_compare_truenames || find_file_use_truenames)
     {
-      Lisp_Object fn = Freal_path_name (filename, Qnil);
+      Lisp_Object fn = Ftruename (filename, Qnil);
       if (NILP (fn))
 	{
 	  Lisp_Object dn = Ffile_name_directory (filename);
-	  fn = Freal_path_name (dn, Qnil);
+	  fn = Ftruename (dn, Qnil);
 	  if (! NILP (fn)) dn = fn;
 	  fn = Fexpand_file_name (Ffile_name_nondirectory (filename), dn);
 	}
@@ -1547,6 +1547,9 @@ Automatically becomes buffer-local when set in any fashion.");
   DEFVAR_PER_BUFFER ("ctl-arrow", &current_buffer->ctl_arrow,
     "*Non-nil means display control chars with uparrow.\n\
 Nil means use backslash and octal digits.\n\
+Non-t and non-nil means display 8-bit characters (that is, characters\n\
+whose code is greater than 160 (SPC with the high bit on) will be\n\
+displayed as a single glyph.)\n\
 Automatically becomes buffer-local when set in any fashion.\n\
 This variable does not apply to characters whose display is specified\n\
 in the current display table (if there is one).");

@@ -1,25 +1,0 @@
-;;; compiled by devin@scylla on Fri Apr 24 11:45:54 1992
-;;; from file /wg1/emacs-base/lisp/old-timer.el
-;;; emacs version 19.0 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
-;;; optimization is on.
-;;; this file uses opcodes which do not exist in Emacs18.
-
-(if (and (boundp 'emacs-version)
-	 (or (and (boundp 'epoch::version) epoch::version)
-	     (string-lessp emacs-version "19")))
-    (error "This file was compiled for Emacs19."))
-
-(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÂÀÄ!¬‚ÅÂ‡" [boundp timer-process nil timer-alist timer-out ""] 2)
-(defvar timer-dont-exit nil "\
-If non-nil, don't exit the timer process when no more events are pending.")
-(fset 'run-at-time #[(time repeat function &rest args) "«‡Á!Â>« «„Ã!ˆÄÅÆÅ#ÆÈÉ\"ˆÊË\"ˆÌ!ˆª‹Á!Í=«„Î!ˆÏ ĞGQÒÔÕR\"ˆFB‰)‡" [timer-process process-status (exit signal nil) delete-process start-process "timer" nil timer-alist set-process-filter timer-process-filter set-process-sentinel timer-process-sentinel process-kill-without-query stop continue-process current-time-string "-" token send-string time "" "\n" repeat function args] 6 "\
-Run a function at a time, and optionally on a regular interval.
-Arguments are TIME, REPEAT, FUNCTION &rest ARGS.
-TIME, a string,  can be specified absolutely or relative to now.
-REPEAT, an integer number of seconds, is the interval on which to repeat
-the call to the function." "sRun at time: \nNRepeat interval: \naFunction: "])
-(byte-code "ÀÁMˆÂÃM‡" [timer-process-filter #[(proc str) "	PÂ‰‰ÆÇ\"«òÈ‰”OÉ\n\"È•ÂO«¨ËÌ8Í8\"ˆÎA@!«ÏA@Ñ@ÇR\"ˆªFÒ\n\"\nª=ÆÓ\"«7Ô”Ô•OÌ”Ì•OÉÍ”Í•O\n\"Ò\n\"\nÕÖ!ˆ×ØÌ8$ˆª\n®ˆ®„Ú!+‡" [timer-out str nil error token do string-match "\n" 0 assoc timer-alist apply 2 3 natnump send-string proc " sec" delq "timer: \\([^:]+\\): \\([^]*\\)\\(.*\\)$" 1 ding no-terminate message "%s for %s; couldn't set at \"%s\"" timer-dont-exit process-send-eof] 6] timer-process-sentinel #[(proc str) "À	!‰Ã=«…Ä	!ª™«\nÆ=¬ˆÇÈ!ˆÉÊ!ˆËËÍ‰)‡" [process-status proc stat stop continue-process timer-alist exit ding no-terminate message "Timer exited abnormally.  All events cancelled." nil timer-process "" timer-scratch] 3]] 2)
-(fset 'cancel-timer #[(function) "‰«”Â	@8=«†Ä	@\"	A‰¬l)®‡®„Æ!‡" [timer-alist alist 2 function delq timer-dont-exit process-send-eof timer-process] 4 "\
-Cancel all events scheduled by ``run-at-time'' which would run FUNCTION." "aCancel function: "])
-(provide 'timer)

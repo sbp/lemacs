@@ -1,29 +1,0 @@
-;;; compiled by jwz@thalidomide on Tue Apr 21 17:38:47 1992
-;;; from file /u/jwz/emacs19/lisp/disp-table.el
-;;; emacs version 19.0.2 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
-;;; optimization is on.
-;;; this file uses opcodes which do not exist in Emacs18.
-
-(if (and (boundp 'emacs-version)
-	 (or (and (boundp 'epoch::version) epoch::version)
-	     (string-lessp emacs-version "19")))
-    (error "This file was compiled for Emacs19."))
-
-(byte-code "ÀÁ!ˆÂÃM‡" [require case-table rope-to-vector #[(rope) "GÁ¥Ã\nÄ\"ÆÆ\nW­’È\"IˆT‰ªj+‡" [rope 2 len make-vector nil vector 0 i rope-elt] 6]] 2)
-(fset 'describe-display-table #[(DT) "ÀÁÂ!ˆÃÅH!ˆÁÆ!ˆÃÇH!ˆÁÈ!ˆÃÉH!ˆÁÊ!ˆÃËH!ˆÁÌ!ˆÃÍÎH!!ˆÁÏ!ˆĞÅÑ\"ÒÅW«¡H;«ˆÍH!ª„HIˆT‰ª[Õ!ˆ*Ö ‘‡" ["*Help*" princ "\nTruncation glyf: " prin1 dt 256 "\nWrap glyf: " 257 "\nEscape glyf: " 258 "\nCtrl glyf: " 259 "\nSelective display rope: " rope-to-vector 260 "\nCharacter display ropes:\n" make-vector nil 0 i vector describe-vector print-help-return-message] 7 "\
-Describe the display-table DT in a help buffer."])
-(fset 'describe-current-display-table #[nil "ÀÁÂ !®„®!‡" [describe-display-table window-display-table selected-window buffer-display-table standard-display-table] 3 "\
-Describe the display-table in use in the selected window and buffer." nil])
-(fset 'make-display-table #[nil "ÀÁÂ\"‡" [make-vector 261 nil] 3])
-(fset 'standard-display-8bit #[(l h) "	X­§ÂY«ÃW«Š«”ÅIˆª¬…ÆÇÅ\"‰IˆT‰ªU‡" [l h 32 127 standard-display-table nil make-vector 261] 4 "\
-Display characters in the range [L, H] literally."])
-(fset 'standard-display-ascii #[(c s) "¬…ÁÂÃ\"ÅÆÇÃ\"\"I‡" [standard-display-table make-vector 261 nil c apply make-rope append s] 7 "\
-Display character C using string S."])
-(fset 'standard-display-g1 #[(c sc) "¬…ÁÂÃ\"ÅÆÇÈ	!ÊQ!!I‡" [standard-display-table make-vector 261 nil c make-rope create-glyf "" char-to-string sc ""] 7 "\
-Display character C as character SC in the g1 character set."])
-(fset 'standard-display-graphic #[(c gc) "¬…ÁÂÃ\"ÅÆÇÈ	!ÊQ!!I‡" [standard-display-table make-vector 261 nil c make-rope create-glyf "(0" char-to-string gc "(B"] 7 "\
-Display character C as character GC in graphics character set."])
-(fset 'standard-display-underline #[(c uc) "¬…ÁÂÃ\"ÅÆÇÈ	!ÊQ!!I‡" [standard-display-table make-vector 261 nil c make-rope create-glyf "[4m" char-to-string uc "[m"] 7 "\
-Display character C as character UC plus underlining."])
-(byte-code "ÀÁMˆÂÃ!‡" [create-glyf #[(string) "ÀÀÂW«’	H«	H˜¬†	T‰ªj	ÂU«„ÅÆ!ˆ	I)‡" [256 i 65536 glyf-table string error "No free glyf codes remain"] 4] provide disp-table] 2)

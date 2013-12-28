@@ -1,11 +1,11 @@
 /* The portable interface to event_streams.
-   Copyright (C) 1991 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -802,6 +802,7 @@ Value is t if waited the full time with no input arriving.")
 }
 
 
+#ifdef LISP_FLOAT_TYPE
 DEFUN ("sleep-for-millisecs", Fsleep_for_millisecs, Ssleep_for_millisecs,
   1, 1, 0,
   "Pause, without updating display, for ARG milliseconds.\n\
@@ -814,6 +815,7 @@ This function is obsolete; call `sleep-for' with a float instead.")
   args[1] = make_number (1000);
   return Fsleep_for (Fquo (2, args));
 }
+#endif
 
 
 DEFUN ("add-timeout", Fadd_timeout, Sadd_timeout, 3, 4, 0,
@@ -1083,7 +1085,7 @@ cancel_echoing ()
    The binding found (if any) is stored in the CB's `leaf' slot.
    It may be a command or a keymap if we're not done yet.
  */
-static void find_leaf_unwind ();
+static Lisp_Object find_leaf_unwind ();
 
 static void
 command_builder_find_leaf (allow_menu_events_p)
@@ -1151,11 +1153,12 @@ command_builder_find_leaf (allow_menu_events_p)
       
 }
 
-static void
+static Lisp_Object
 find_leaf_unwind (size)
      int size;
 {
   XVECTOR (command_builder->events)->size = size;
+  return Qnil;
 }
 
 
@@ -1196,10 +1199,11 @@ int reset_this_command_keys;
    are pretty conterintuitive.
  */
 
-static void
+static Lisp_Object
 reset_this_command_keys_fn () /* need a function for unwind-protect */
 {
   reset_this_command_keys = 1;
+  return Qnil;
 }
 
 static void
@@ -1732,7 +1736,9 @@ syms_of_event_stream ()
   defsubr (&Sdiscard_input);
   defsubr (&Ssit_for);
   defsubr (&Ssleep_for);
+#ifdef LISP_FLOAT_TYPE
   defsubr (&Ssleep_for_millisecs);
+#endif
   defsubr (&Saccept_process_output);
   defsubr (&Sadd_timeout);
   defsubr (&Sdisable_timeout);

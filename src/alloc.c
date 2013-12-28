@@ -1,11 +1,11 @@
 /* Storage allocation and gc for GNU Emacs Lisp interpreter.
-   Copyright (C) 1985, 1986, 1988 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1988, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -2050,29 +2050,26 @@ Garbage collection happens automatically if you cons more than\n\
   
   gc_in_progress = 0;
 
-  return
-    Fcons
-    (Fcons (make_number (total_conses), make_number (total_free_conses)),
-     Fcons
-     (Fcons (make_number (total_symbols), make_number (total_free_symbols)),
-      Fcons
-      (Fcons (make_number (total_markers), make_number (total_free_markers)),
-       Fcons
-       (make_number (total_string_size),
-	Fcons
-	(make_number (total_vector_size),
+  {
+    Lisp_Object ret [7];
+    ret [0] = Fcons (make_number (total_conses),
+		     make_number (total_free_conses));
+    ret [1] = Fcons (make_number (total_symbols),
+		     make_number (total_free_symbols));
+    ret [2] = Fcons (make_number (total_markers),
+		     make_number (total_free_markers));
+    ret [3] = make_number (total_string_size);
+    ret [4] = make_number (total_vector_size);
 #ifdef LISP_FLOAT_TYPE
-	 Fcons
-	 (Fcons (make_number (total_floats), make_number (total_free_floats)),
-	  Fcons
-	  (Fcons (make_number (total_events), make_number (total_free_events)),
-	   Qnil))
-#else /* not LISP_FLOAT_TYPE */
-	 Fcons
-	 (Fcons (make_number (total_events), make_number (total_free_events)),
-	  Qnil)
-#endif /* not LISP_FLOAT_TYPE */
-	 )))));
+    ret [5] = Fcons (make_number (total_floats),
+		     make_number (total_free_floats));
+#else
+    ret [5] = Fcons (make_number (0), make_number (0));
+#endif
+    ret [6] = Fcons (make_number (total_events),
+		     make_number (total_free_events));
+    return Flist (7, ret);
+  }
 }
 
 /* Initialization */

@@ -20,7 +20,7 @@
 
 ;; The following line is modified automatically
 ;; by loading inc-version.el, each time a new Emacs is dumped.
-(defconst emacs-version "19.1" "\
+(defconst emacs-version "19.2" "\
 Version numbers of this version of Emacs.")
 
 (setq emacs-version (purecopy (concat emacs-version " Lucid")))

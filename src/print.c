@@ -1,11 +1,11 @@
 /* Lisp object printing and output streams.
-   Copyright (C) 1985, 1986, 1988 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1988, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -93,13 +93,14 @@ static char *printer_buffer_end;
 */ 
 
 #define PRINTPREPARE \
-   printer_buffer = alloca (PRINTER_BUFFER_SIZE); \
+   printer_buffer = (char *) alloca (PRINTER_BUFFER_SIZE); \
    printer_buffer_fill = printer_buffer; \
    printer_buffer_end = printer_buffer + PRINTER_BUFFER_SIZE; \
    original = printcharfun; \
    if (NILP (printcharfun)) printcharfun = Qt; \
    if (XTYPE (printcharfun) == Lisp_Buffer) \
-     { if (XBUFFER (printcharfun) != current_buffer) Fset_buffer (printcharfun); \
+     { if (XBUFFER (printcharfun) != current_buffer) \
+	 Fset_buffer (printcharfun); \
        printcharfun = Qnil;}\
    if (XTYPE (printcharfun) == Lisp_Marker) \
      { if (XMARKER (original)->buffer != current_buffer) \

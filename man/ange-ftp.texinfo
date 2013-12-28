@@ -16,7 +16,7 @@ between remote hosts using the FTP protocol within GNU Emacs.
 
 This info is current to Version 4.2 of Ange-ftp.
 
-Documentation version: 1.30
+Documentation version: 1.32
 
 Copyright @copyright{} 1991, 1992 Free Software Foundation, Inc.
 
@@ -45,7 +45,7 @@ permission notice identical to this one.
 @center A transparent remote file system, by Andy Norman
 @sp7
 @center This documentation by David Smith.
-@center info-version 1.30
+@center info-version 1.32
 @page
 @vskip 0pt plus 1filll
 Copyright @copyright{} 1991, 1992 Free Software Foundation, Inc.
@@ -181,12 +181,13 @@ alpha.gnu.ai.mit.edu
 @noindent
 in the file 
 @example
-ange-ftp/ange-ftp.el.Z
+ange-ftp/ange-ftp.tar.Z
 @end example
 @noindent
-In ange-ftp notation, that's 
+(which includes both @file{ange-ftp.el} and this texinfo file.) In ange-ftp
+notation, that's
 @example
-/anonymous@@alpha.gnu.ai.mit.edu:ange-ftp/ange-ftp.el.Z
+/anonymous@@alpha.gnu.ai.mit.edu:ange-ftp/ange-ftp.tar.Z
 @end example
 
 Alternatively, ange-ftp is also part of the Emacs-Lisp Archive
@@ -351,11 +352,15 @@ in your @file{.emacs} and read on.
 
 Since to get files from Z to X we need to copy from Z to Y, and then
 from Y to X, we need a place to store files on Y which is also
-accessible by X. Since we are assuming that the local host and the
-gateway machine are on the same local network, it's fairly likely that
-this is the case thanks to NFS.
+accessible by X, i.e. we need a directory which is mounted on both X and
+Y. Since we are assuming that the local host and the gateway machine are
+on the same local network, it's fairly likely that this is the case
+thanks to NFS. 
 @cindex NFS
-Unfortunately, ange-ftp requires that
+If such a directory exists, then ange-ftp can transfer files from Z to X
+simply by FTP'ing from Z to the temporary directory on Y, and then using
+a normal (local) copy from the image of the temporary directory on X to
+the destination directory. Unfortunately, ange-ftp requires that
 this temporary directory
 @cindex temporary files
 has the @emph{same} name on both the local and
@@ -431,11 +436,11 @@ Now comes a slightly tricky bit. You need to set the variable
 @code{ange-ftp-gateway-setup-term-command} to a UNIX command that will
 put the pty connected to the gateway machine into a no-echoing mode, and
 will strip off carriage-returns from output from the gateway machine.
-The default is @code{"stty -onlcr -echo"} for HP-UX machines, and
+The default is @code{"stty -onlcr -echo\n"} for HP-UX machines, and
 @cindex HP-UX
-@code{"stty -echo nl"} otherwise. So
+@code{"stty -echo nl\n"} otherwise. So
 @example
-(setq ange-ftp-gateway-setup-term-command "stty -echo nl")
+(setq ange-ftp-gateway-setup-term-command "stty -echo nl\n")
 @end example
 @vindex ange-ftp-gateway-setup-term-command
 @noindent
@@ -449,12 +454,17 @@ this case, an easy fix is to invoke @code{csh} first, and then run the
 @example 
 (setq ange-ftp-gateway-setup-term-command  "exec csh\nstty -echo nl\n")
 @end example
+or maybe
+@example
+(setq ange-ftp-gateway-setup-term-command  "(stty -echo nl; csh)\n")
+@end example
 @noindent
-which may well do the trick. Another problem is with synchronisation: if
-your gateway machine is slow in responding, when ange-ftp is ready for
-(and indeed has already sent) FTP commands, your machine may still be
-setting up. This can cause ange-ftp to think that the FTP has had an
-error, and abort. One solution is to set @code{ange-ftp-skip-msgs}
+may well do the trick. When using this method, synchronisation may be a
+problem: if your gateway machine is slow in responding, when ange-ftp is
+ready for (and indeed has already sent) FTP commands, your machine may
+still be setting up. This can cause ange-ftp to think that the FTP has
+had an error, and abort. One solution is to set
+@code{ange-ftp-skip-msgs}
 @vindex ange-ftp-skip-msgs
 (a regular expression matching messages from the ftp process that can be
 ignored) so that any line ending in @code{^M} (carriage-returns) will be
@@ -701,6 +711,7 @@ the fully qualified pathname if the local or gateway machine requires it
 to be (however hostname completion is available if it is included in
 your @file{.netrc} -- @xref{Using a .netrc}), or it may be an IP
 @cindex IP numbers
+@cindex numeric Internet addresses
 number if your nameserver can't find the site. The @code{user@@} part
 may be omitted, in which case the username is chosen on the basis of the
 variable @code{ange-ftp-default-user}
@@ -711,6 +722,14 @@ will either prompt you for it, or generate one on the basis of the
 variables @code{ange-ftp-default-password},
 @vindex ange-ftp-default-password
 and your @file{.netrc}.
+
+Thus the following are all valid ange-ftp filenames:
+@example
+/anonymous@@waldo.uranium.com:pub/games/wumpus
+/root@@127.44.3.1:/etc/passwd
+/jbrown@@freddie.ucla.edu:~mblack/
+/alpha.gnu.ai.mit.edu:ange-ftp/ange-ftp.tar.Z
+@end example
 
 @node Using Dired, Using a .netrc, Remote filenames, Using ange-ftp
 @comment  node-name,  next,  previous,  up

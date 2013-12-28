@@ -1,12 +1,12 @@
 /* Definitions for the new event model;
    created 16-jul-91 by Jamie Zawinski
-   Copyright (C) 1991 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -347,4 +347,4 @@ extern struct command_event_queue *command_event_queue;
  */
 
 /* Maybe this should be trickier */
-#define KEYSYM(x) intern (XSTRING (Fdowncase (build_string (x)))->data)
+#define KEYSYM(x) (intern (x))

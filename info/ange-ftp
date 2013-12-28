@@ -12,7 +12,7 @@ between remote hosts using the FTP protocol within GNU Emacs.
 
    This info is current to Version 4.2 of Ange-ftp.
 
-   Documentation version: 1.30
+   Documentation version: 1.32
 
    Copyright (C) 1991, 1992 Free Software Foundation, Inc.
 
@@ -140,11 +140,12 @@ anonymous FTP from
 
 in the file
 
-     ange-ftp/ange-ftp.el.Z
+     ange-ftp/ange-ftp.tar.Z
 
-In ange-ftp notation, that's
+(which includes both `ange-ftp.el' and this texinfo file.) In ange-ftp
+notation, that's
 
-     /anonymous@alpha.gnu.ai.mit.edu:ange-ftp/ange-ftp.el.Z
+     /anonymous@alpha.gnu.ai.mit.edu:ange-ftp/ange-ftp.tar.Z
 
    Alternatively, ange-ftp is also part of the Emacs-Lisp Archive on
 `archive.cis.ohio-state.edu'. The latest version should always be
@@ -290,15 +291,19 @@ in your `.emacs' and read on.
 
    Since to get files from Z to X we need to copy from Z to Y, and then
 from Y to X, we need a place to store files on Y which is also
-accessible by X. Since we are assuming that the local host and the
-gateway machine are on the same local network, it's fairly likely that
-this is the case thanks to NFS.  Unfortunately, ange-ftp requires that
-this temporary directory has the *same* name on both the local and
-gateway machines, so you might need to do some twiddling with symbolic
-links, or ask your sysadmin to set something up with NFS. Once you have
-found such a directory, set the variable
-`ange-ftp-gateway-tmp-name-template' to the name of this directory
-plus an identifying filename prefix. For example:
+accessible by X, i.e. we need a directory which is mounted on both X
+and Y. Since we are assuming that the local host and the gateway
+machine are on the same local network, it's fairly likely that this is
+the case thanks to NFS.  If such a directory exists, then ange-ftp can
+transfer files from Z to X simply by FTP'ing from Z to the temporary
+directory on Y, and then using a normal (local) copy from the image of
+the temporary directory on X to the destination directory.
+Unfortunately, ange-ftp requires that this temporary directory has the
+*same* name on both the local and gateway machines, so you might need
+to do some twiddling with symbolic links, or ask your sysadmin to set
+something up with NFS. Once you have found such a directory, set the
+variable `ange-ftp-gateway-tmp-name-template' to the name of this
+directory plus an identifying filename prefix. For example:
 
      (setq ange-ftp-gateway-tmp-name-template "/nfs/hplose/ange/ange-ftp")
 
@@ -353,10 +358,10 @@ Now comes a slightly tricky bit. You need to set the variable
 `ange-ftp-gateway-setup-term-command' to a UNIX command that will put
 the pty connected to the gateway machine into a no-echoing mode, and
 will strip off carriage-returns from output from the gateway machine. 
-The default is `"stty -onlcr -echo"' for HP-UX machines, and `"stty
--echo nl"' otherwise. So
+The default is `"stty -onlcr -echo\n"' for HP-UX machines, and `"stty
+-echo nl\n"' otherwise. So
 
-     (setq ange-ftp-gateway-setup-term-command "stty -echo nl")
+     (setq ange-ftp-gateway-setup-term-command "stty -echo nl\n")
 
 will probably work. If it does, then you're done.  There's a bit of a
 problem for `tcsh' users, though: in some versions of `tcsh', the "tty
@@ -366,16 +371,20 @@ this case, an easy fix is to invoke `csh' first, and then run the
 
      (setq ange-ftp-gateway-setup-term-command  "exec csh\nstty -echo nl\n")
 
-which may well do the trick. Another problem is with synchronisation:
-if your gateway machine is slow in responding, when ange-ftp is ready
-for (and indeed has already sent) FTP commands, your machine may still
-be setting up. This can cause ange-ftp to think that the FTP has had an
-error, and abort. One solution is to set `ange-ftp-skip-msgs' (a
-regular expression matching messages from the ftp process that can be
-ignored) so that any line ending in `^M' (carriage-returns) will be
-ignored (since the `stty' hasn't come into effect yet) and also to
-ignore any lines beginning with your prompt (since this means the
-terminal setup is still in progress):
+   or maybe
+
+     (setq ange-ftp-gateway-setup-term-command  "(stty -echo nl; csh)\n")
+
+may well do the trick. When using this method, synchronisation may be a
+problem: if your gateway machine is slow in responding, when ange-ftp
+is ready for (and indeed has already sent) FTP commands, your machine
+may still be setting up. This can cause ange-ftp to think that the FTP
+has had an error, and abort. One solution is to set
+`ange-ftp-skip-msgs' (a regular expression matching messages from the
+ftp process that can be ignored) so that any line ending in `^M'
+(carriage-returns) will be ignored (since the `stty' hasn't come into
+effect yet) and also to ignore any lines beginning with your prompt
+(since this means the terminal setup is still in progress):
 
      (setq ange-ftp-skip-msgs
        (concat "\\|^.*\C-M$\\|" ange-ftp-gateway-prompt-pattern
@@ -587,6 +596,13 @@ username is chosen on the basis of the variable `ange-ftp-default-user'
 by the FTP process, ange-ftp will either prompt you for it, or
 generate one on the basis of the variables `ange-ftp-default-password',
 and your `.netrc'.
+
+   Thus the following are all valid ange-ftp filenames:
+
+     /anonymous@waldo.uranium.com:pub/games/wumpus
+     /root@127.44.3.1:/etc/passwd
+     /jbrown@freddie.ucla.edu:~mblack/
+     /alpha.gnu.ai.mit.edu:ange-ftp/ange-ftp.tar.Z
 
 
 File: ange-ftp.info,  Node: Using Dired,  Next: Using a .netrc,  Prev: Remote filenames,  Up: Using ange-ftp
@@ -1195,21 +1211,22 @@ Concept Index
 * load path:                            Installing source.
 * multiple file transfers:              Accessing the FTP process.
 * multiple file transfers:              Using Dired.
+* numeric Internet addresses:           Remote filenames.
 * other users' home directories:        Remote filenames.
 * process buffers:                      Accessing the FTP process.
 * processes:                            Accessing the FTP process.
 * pty:                                  Bugs.
 * remote shell:                         Using a gateway.
 * smart gateways:                       Using a gateway.
-* symbolic links:                       Using ange-ftp.
 * symbolic links:                       Bugs.
+* symbolic links:                       Using ange-ftp.
 * tcsh:                                 Using a gateway.
 * temporary files:                      Other options.
 * temporary files:                      Using a gateway.
 * umask:                                Bugs.
 * virtual dired:                        Using Dired.
-* wildcards:                            Accessing the FTP process.
 * wildcards:                            Using Dired.
+* wildcards:                            Accessing the FTP process.
 
 
 File: ange-ftp.info,  Node: Variable and command index,  Prev: Concept Index,  Up: Top
@@ -1283,24 +1300,24 @@ Node: Top96
 Node: What is ange-ftp?1226
 Node: Installing ange-ftp3899
 Node: Obtaining source code5030
-Node: Installing source6875
-Node: Using a gateway8114
-Node: Other options15875
-Node: Using ange-ftp22462
-Node: Remote filenames24304
-Node: Using Dired25555
-Node: Using a .netrc27875
-Node: Ange-ftp commands30356
-Node: DL support31712
-Node: Non-Unix Hosts32679
-Node: VMS support33885
-Node: CMS support37057
-Node: MTS support38651
-Node: Completion40082
-Node: Accessing the FTP process41799
-Node: Getting help43296
-Node: Bugs44823
-Node: Concept Index51290
-Node: Variable and command index53764
+Node: Installing source6936
+Node: Using a gateway8175
+Node: Other options16345
+Node: Using ange-ftp22932
+Node: Remote filenames24774
+Node: Using Dired26258
+Node: Using a .netrc28578
+Node: Ange-ftp commands31059
+Node: DL support32415
+Node: Non-Unix Hosts33382
+Node: VMS support34588
+Node: CMS support37760
+Node: MTS support39354
+Node: Completion40785
+Node: Accessing the FTP process42502
+Node: Getting help43999
+Node: Bugs45526
+Node: Concept Index51993
+Node: Variable and command index54525
 
 End Tag Table

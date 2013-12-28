@@ -1,0 +1,17 @@
+;;; compiled by jwz@thalidomide on Thu Jun  4 16:19:44 1992
+;;; from file /u/jwz/emacs19/lisp/emacsbug.el
+;;; emacs version 19.1 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar bug-gnu-emacs "bug-gnu-emacs@lucid.com" "\
+Address of site maintaining mailing list for Gnu emacs bugs.")
+(fset 'report-emacs-bug #[(topic) "¿¡\n#àdbàƒ≈ ∆±à«»…!!á" [mail nil bug-gnu-emacs topic "\nIn " emacs-version "\n\n" message substitute-command-keys "Type \\[mail-send] to send bug report."] 4 "\
+Report a bug in Gnu emacs.
+Prompts for bug subject.  Leaves you in a mail buffer." "sBug Subject: "])

@@ -1,0 +1,130 @@
+;;; compiled by jwz@thalidomide on Thu Jun 11 19:42:04 1992
+;;; from file /u/jwz/emacs19/lisp/timer.el
+;;; emacs version 19.1 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar timer-list nil "\
+List of all active timers.")
+(defvar timer-edit-map nil "\
+Keymap used when in Timer Edit mode.")
+(byte-code "¬¿Á ÂÃÄ#ˆÂÅÆ#ˆÂÇÈ#ˆÂÉÊ#ˆÂËÌ#ˆÂÍÌ#ˆÂÎÏ#ˆÂĞÑ#ˆÂÒÓ#ˆÂÔÕ#ˆÖ×!¬ƒØÙÚMˆÛÜMˆİŞM‡" [timer-edit-map make-sparse-keymap define-key "s" timer-edit-set-field "d" timer-edit-delete-timer "q" timer-edit-quit "	" timer-edit-next-field " " next-line "n" "p" previous-line "" timer-edit-previous-field "x" start-timer "?" timer-edit-help boundp timer-edit-start-marker nil decrement (macro . #[(variable) "À	Â	DE‡" [setq variable 1-] 4]) increment (macro . #[(variable) "À	Â	DE‡" [setq variable 1+] 4]) signum (macro . #[(n) "ÀÁ\nÃEÄÀÅ\nDÃÆFF‡" [if > n 0 1 zerop -1] 7])] 4)
+(fset 'check-timer '(macro . #[(var) "À	ÂÃ	D	ÄÅÆÇ	EEFE‡" [setq var if timerp signal 'wrong-type-argument list 'timerp] 10 "\
+If VAR is not bound to a timer, signal wrong-type-argument.
+This is a macro."]))
+(fset 'check-timer-coerce-string '(macro . #[(var) "À	ÂÃ	D	DÄ	DÅ	DDÆÇÈÉÊ	EEDFE‡" [setq var cond timerp stringp get-timer t signal 'wrong-type-argument list 'string-or-timer-p] 11 "\
+If VAR is not bound to a string, look up the timer that it names and
+bind VAR to it.  Otherwise if VAR is not bound to a timer, signal
+wrong-type-argument.  This is a macro."]))
+(fset 'check-natnumber '(macro . #[(var) "À	ÂÃ	D	ÄÅÆÇ	EEFE‡" [setq var if natnump signal 'wrong-type-argument list 'natnump] 10 "\
+If VAR is not bound to a non-negative number, signal wrong-type-argument.
+This is a macro."]))
+(fset 'check-string '(macro . #[(var) "À	ÂÃ	D	ÄÅÆÇ	EEFE‡" [setq var if stringp signal 'wrong-type-argument list 'stringp] 10 "\
+If VAR is not bound to a string, signal wrong-type-argument.
+This is a macro."]))
+(fset 'timerp #[(obj) ":­‰@;­„GÁ=‡" [obj 5] 2 "\
+Returns non-nil iff OBJ is a timer."])
+(fset 'timer-name #[(timer) "À	!«ƒ	ª†ÂÃÀ	D\"‰@‡" [timerp timer signal wrong-type-argument] 5 "\
+Returns the name of TIMER."])
+(fset 'timer-value #[(timer) "À	!«ƒ	ª†ÂÃÀ	D\"‰A@‡" [timerp timer signal wrong-type-argument] 5 "\
+Returns the number of seconds until TIMER expires."])
+(fset 'timer-restart #[(timer) "À	!«ƒ	ª†ÂÃÀ	D\"Ä	8‡" [timerp timer signal wrong-type-argument 2] 4 "\
+Returns the value to which TIMER will be set at restart.
+nil is returned if this timer doesn't restart."])
+(fset 'timer-function #[(timer) "À	!«ƒ	ª†ÂÃÀ	D\"Ä	8‡" [timerp timer signal wrong-type-argument 3] 4 "\
+Returns the function of TIMER.
+This function is called each time TIMER expires."])
+(fset 'timer-id #[(timer) "À	!«ƒ	ª†ÂÃÀ	D\"Ä	8‡" [timerp timer signal wrong-type-argument 4] 4 "\
+Returns the timeout-id of TIMER."])
+(fset 'set-timer-value #[(timer value) "À	!«ƒ	ª†ÂÃÀ	D\"Ä!«ƒª†ÂÃÄD\"ÆÈ	!«„É	!ˆ	A ˆÊ	!ˆ)‡" [timerp timer signal wrong-type-argument natnump value t inhibit-quit timer-id deactivate-timer activate-timer] 4 "\
+Set the timeout value of TIMER to be VALUE.
+Timer will expire is this many seconds.
+Returns VALUE."])
+(fset 'set-timer-restart #[(timer restart) "À	!«ƒ	ª†ÂÃÀ	D\"«Å!«ƒª†ÂÃÅD\"«‹ÆW«†ÂÇC\"ˆÈ	!É\n‰«„Ì	!ˆ	AA ˆ«Œ	A ˆ«„Í	!ˆ*‡" [timerp timer signal wrong-type-argument restart natnump 1 args-out-of-range timer-id t inhibit-quit was-active deactivate-timer activate-timer] 5 "\
+Set the restart value of TIMER to be RESTART.
+If RESTART is nil, TIMER is will not restart when it expires.
+Returns RESTART."])
+(fset 'set-timer-function #[(timer function) "À	!«ƒ	ª†ÂÃÀ	D\"‰AAA ‡" [timerp timer signal wrong-type-argument function] 5 "\
+Set the function of TIMER to be FUNCTION.
+FUNCTION will be called when timer expires.
+Returns FUNCTION."])
+(fset 'set-timer-id #[(timer id) "À	!«ƒ	ª†ÂÃÀ	D\"‰AAAA ‡" [timerp timer signal wrong-type-argument id] 5])
+(fset 'get-timer #[(name) ";«ƒª†ÁÂÃD\"Ä\"‡" [name signal wrong-type-argument stringp assoc timer-list] 4 "\
+Return timer named NAME, or nil if there is none."])
+(fset 'read-timer #[(prompt &optional initial-input) "ÀÁ\nÄÅ%!‡" [get-timer completing-read prompt timer-list nil confirm initial-input] 7 "\
+Read the name of a timer from the minibuffer and return the timer
+associated with that name.  The user is prompted with PROMPT.
+Optional second arg INITIAL-INPUT non-nil is inserted into the
+  minibuffer as initial user input."])
+(fset 'delete-timer #[(timer) "À	!«ƒ	ª	;«…Â	!ª†ÃÄÅ	D\"Æ	!ˆÇ	\"‰‡" [timerp timer get-timer signal wrong-type-argument string-or-timer-p deactivate-timer delq timer-list] 4 "\
+Deletes TIMER.  TIMER may be a timer or the name of one."])
+(fset 'start-timer #[(name function value &optional restart) ";«ƒª†ÁÂÃD\"Ä!«ƒª†ÁÂÄD\"«“Ä!«„ª‡ÁÂÄD\"Ç	Ê!«	ËÌRTªl*ÍĞ¯B)Ò@!ˆ@‡" [name signal wrong-type-argument stringp natnump value restart 2 num oname get-timer "<" ">" t inhibit-quit function nil timer-list activate-timer] 5 "\
+Start a timer.
+Args are NAME, FUNCTION, VALUE &optional RESTART.
+NAME is an identifier for the timer.  It must be a string.  If a timer
+  already exists with this name, NAME will be modified slightly to until
+  it is unique.
+FUNCTION should be a function (or symbol naming one) of no arguments.  It
+  will be called each time the timer expires.  The function can access
+  timer that invoked it through the variable `current-timer'.
+VALUE is the number of seconds until this timer expires.
+Optional fourth arg RESTART non-nil means that this timer should be
+  restarted automatically after its function is called.  Normally a timer
+  is deleted at expiration after its function has returned. 
+  If non-nil RESTART should be a number indicating the value at which the
+  timer should be set at restart time.
+Returns the newly created timer." (byte-code "ÀÁ\n\"ÃÀÄÆ#!ÇÉ!¬ŠÊËÇ‰Ì$ªp)ÌÉ!¬‹ÊÎÇ‰Ì$‰¬o)F‡" [completing-read "Start timer: " timer-list read "Timer function: " obarray fboundp nil value natnump read-from-minibuffer "Timer value: " t restart "Timer restart: "] 9)])
+(fset 'list-timers #[nil "ÀÁ!`\nÅ!\nqˆÈ ˆÉ\nË ˆÌÍ±ˆ¬ƒ`«µÏĞ!ˆÑÒ@!!ˆÓ ˆÑÔ@!!ˆÓ ˆÑÕ@!!ˆÓ ˆÑÖ@!!ˆA‰¬Kbˆ`W«„bˆ×\nØ\n!,‡" [get-buffer-create "*Timer List*" buf opoint standard-output reverse timer-list timers timer-edit-mode nil buffer-read-only erase-buffer "Name                  Value     Restart   Function\n" "----                  -----     -------   --------" timer-edit-start-marker newline 1 prin1 timer-name tab-to-tab-stop timer-value timer-restart timer-function t display-buffer] 4 "\
+Pop up a buffer containing a list of all timers.
+The major mode of the buffer is Timer Edit mode.  This major mode provides
+commands to manipulate timers; see the documentation for
+`timer-edit-mode' for more information." nil])
+(fset 'edit-timers #[nil "À ˆÁÂÃ!!ˆbˆ«‡ÆÇ!ˆÈ ˆÉÊ!‡" [list-timers select-window get-buffer-window "*Timer List*" timer-edit-start-marker timer-list forward-sexp 2 backward-sexp message "type q to quit, ? for help"] 3 "\
+Display a list of all timers and select it for editing.
+The major mode of the buffer containing the listing is Timer Edit mode.
+This major mode provides commands to manipulate timers; see the documentation
+for `timer-edit-mode' for more information." nil])
+(fset 'timer-edit-mode #[nil "À ˆÁÂ!ˆÃÅÇÉÊË!ˆÌË!ˆÍp!ˆÎ!ˆ­„Ñ!‡" [kill-all-local-variables make-local-variable tab-stop-list timer-edit-mode major-mode "Timer Edit" mode-name t truncate-lines (22 32 42) abbrev-mode 0 auto-fill-mode buffer-flush-undo use-local-map timer-edit-map lisp-mode-syntax-table set-syntax-table] 2 "\
+Major mode for manipulating timers.
+Atrributes of running timers are changed by moving the cursor to the
+desired field and typing `s' to set that field.  The field will then be
+set to the value read from the minibuffer.
+
+Commands:
+TAB    move forward a field
+DEL    move backward a field
+s      set a field
+d      delete the selected timer
+x      start a new timer
+?      help"])
+(put 'timer-edit-mode 'mode-class 'special)
+(fset 'timer-edit-help #[nil "Á=«ƒÂ ‡ÃÄ!‡" [last-command timer-edit-help describe-mode message "TAB, DEL select fields, (s)et field, (d)elete timer   (type ? for more help)"] 2 "\
+Help function for Timer Edit." nil])
+(fset 'timer-edit-quit #[nil "Àp!ˆÁÂ!«†ÃÄp!!‡Å ‡" [bury-buffer one-window-p t switch-to-buffer other-buffer delete-window] 3 "\
+End Timer Edit." nil])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕMˆÖ×M‡" [timer-edit-set-field #[nil "`X«„ÁÂ!ˆÃ‰ÂŠÇyˆÈÉp!!)ŠÊ ˆ`ÇÇyˆ`Y«”ÍW«ÎÏ!ˆĞ ˆTªfÑ=«…ÁÒ!ª™Ï=«ƒÓªÔ=«ƒÕª‡Í=­Ö+‰Ó=«•×Ù!¬ŠÚÃ‰Û$ªq)ªÈÕ=«™Ü«Ù!¬‹ÚÃ‰Û$‰¬p)ªªÖ=«¥İ9«…Ş!¬˜:«†@ß>¬Éà!ŞÃ$!‰ª`)âãä!P!\"ˆÊ ˆÃ‰%&çÑ!ˆè`éÃwˆ`\"ˆêp\"ˆl¬ƒë ˆĞ -‡" [timer-edit-start-marker error "" nil field-value field timer 0 get-timer read timer-edit-beginning-of-field n opoint 4 forward-sexp 2 backward-sexp 1 "Cannot change timer name." value 3 restart function "Set timer value: " prompt natnump read-from-minibuffer t "Set timer restart: " "Set timer function: " fboundp (lambda macro) completing-read obarray intern "set-timer-" symbol-name kill-ring buffer-read-only kill-sexp kill-region " 	" prin1 tab-to-tab-stop] 7 nil nil] timer-edit-delete-timer #[nil "`X«„ÁÂ!ˆÃÄÅŠÆyˆÇp!)\"!ˆÈ ‡" [timer-edit-start-marker error "" delete-timer read-timer "Delete timer: " 0 read list-timers] 5 nil nil] timer-edit-next-field #[(count) "À ˆ	ÂV«ƒÃª‰	ÂU«ƒÂªÄÂV«©	ÂU?­ÙÅ ˆm«‡bˆÅ ˆÅ ˆÇ ˆn«‡ÅÈ!ˆÇ ˆ	S‰ªX	ÂV«ƒÃª‰	ÂU«ƒÂªÄÂW­¡	ÂU?­›Ç ˆn«ƒÇ ˆ`X«†dbˆÇ ˆ	T‰ª`‡" [timer-edit-beginning-of-field count 0 1 -1 forward-sexp timer-edit-start-marker backward-sexp 2] 3 nil "p"] timer-edit-previous-field #[(count) "À	[!‡" [timer-edit-next-field count] 2 nil "p"] timer-edit-beginning-of-field #[nil "ŠÀ ˆÁ ˆ`)ŠÁ ˆ`)‰\n=«„Á ªŠ`=«ƒÄª‚Á *‡" [forward-sexp backward-sexp back forw-back t] 3] timer-process-filter #[(process string) "ÀÁ!‡" [error "timer-process-filter is for v18 only"] 2] timer-process-sentinel #[(process message) "ÀÁ!‡" [error "timer-process-sentinel is for v18 only"] 2] timer-process-start #[nil "ÀÁ!‡" [error "timer-process-start is for v18 only"] 2] timer-process-wakeup #[nil "ÀÁ!‡" [error "timer-process-wakeup is for v18 only"] 2] activate-timer #[(timer) "ÀÂÄÅ!ÆÇ!$\"ˆ)‡" [t inhibit-quit set-timer-id timer add-timeout timer-value timer-callback timer-restart] 8] deactivate-timer #[(timer) "ÀÁ\n!«„Å!ˆÆ\nÇ\"ˆ*\n‡" [t timer-id timer id inhibit-quit disable-timeout set-timer-id nil] 3] timer-callback #[(current-timer) "À	! ‡" [timer-function current-timer] 2]] 2)
+(defvar auto-save-timeout 30 "\
+*Number of seconds idle time before auto-save.
+Zero or nil means disable auto-saving due to idleness.
+
+The actual amount of idle time between auto-saves is logarithmically related
+to the size of the current buffer.  This variable is the number of seconds
+after which an auto-save will happen when the current buffer is 50k or less;
+the timeout will be 2 1/4 times this in a 200k buffer, 3 3/4 times this in a
+1000k buffer, and 4 1/2 times this in a 2000k buffer.
+
+For this variable to have any effect, you must do (require 'timer).
+
+See also the variable `auto-save-interval', which controls auto-saving based
+on the number of characters typed.")
+(fset 'auto-save-timer #[nil "«äÁX¬ßÂ Ã =¬ØÄÅ Æ\"TÁÇ È	\n‰ÍV«’TÄÎ\"Z‰ªjÏW«ƒÏ_Ï¥	:«•\n@@U«Œ\nAAZ	V«ƒÑ ˆ,ÒÓ!‰¬„ÕÖ!ˆ«—ÏV«’×!Ï¥U¬ˆØÏ¥\"ˆ)È‡" [auto-save-timeout 0 minibuffer-window selected-window ash buffer-size -8 current-time-seconds nil delay now delay-level buf-size 64 -2 4 last-input-time do-auto-save get-timer "auto-save" self error "auto-save-timer can't find itself" timer-restart set-timer-restart] 5 "\
+For use as a timer callback function.
+Auto-saves based on the size of the current buffer and the value of
+auto-save-timeout and the current keyboard idle-time."])
+(byte-code "ÀÁ!¬“Â®ÄÅ¥]ÇÁÈ‰$ˆ)ÉÊ!‡" [get-timer "auto-save" 2 auto-save-timeout 30 4 time start-timer auto-save-timer provide timer] 5)

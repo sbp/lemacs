@@ -1,31 +1,0 @@
-;;; compiled by jwz@thalidomide on Tue Apr 21 17:48:05 1992
-;;; from file /u/jwz/emacs19/lisp/keypad.el
-;;; emacs version 19.0.2 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
-;;; optimization is on.
-;;; this file uses opcodes which do not exist in Emacs18.
-
-(if (and (boundp 'emacs-version)
-	 (or (and (boundp 'epoch::version) epoch::version)
-	     (string-lessp emacs-version "19")))
-    (error "This file was compiled for Emacs19."))
-
-(byte-code "¿¡Mà¿¬√\"à¿ƒ≈\"à¿∆«\"à¿»…\"à¿ À\"à¿ÃÕ\"à¿ŒÕ\"à¿œ–\"à¿—“\"à¿”‘\"à¿’÷\"à¿◊ÿ\"à¿Ÿâ\"à¿⁄€\"à¿‹›\"à¿ﬁﬂ\"à¿‡·\"à¿‚„\"à¿‰–\"à¿ÂÊ\"à¿ÁË\"à¿ÈÍ\"à¿ÎÏ\"à¿ÌÓ\"à¿–â\"à¿Ô\"à¿ÒÚ\"à¿ÛÙ\"á" [keypad-define #[(char definition) "	Aûâ´Ö\n°™à	B	AB°)á" [char function-keymap exist definition] 4] left-arrow backward-char right-arrow forward-char up-arrow previous-line down-arrow next-line select set-mark-command find re-search-forward search delete delete-char remove kill-region home move-to-window-line help help-for-help enter open-line undo do execute-extended-command function-1 beginning-of-line function-2 end-of-line function-3 isearch-forward function-4 kill-line keypad-period keypad-0 yank keypad-1 backward-word keypad-3 forward-word keypad-7 backward-paragraph keypad-9 forward-paragraph next-page scroll-up previous-page scroll-down clear-screen recenter] 3)
-(fset 'setup-terminal-keymap #[(map translations) "≠ì¡\n@@@AB#àAâ¨nƒá" [translations define-key map function-keymap nil] 6 "\
-Set up keymap MAP to forward to function-keymap according to TRANSLATIONS.
-TRANSLATIONS is an alist; each element of it looks like (FROMSTRING . TOCHAR).
-For each such pair, we define the key sequence FROMSTRING in MAP
-to forward to the definition of character TOCHAR in function-keymap.
-\"Forwarding\" means that subsequent redefinition of TOCHAR in
-function-keymap will be seen automatically in MAP as well.
-
-This function is used by files term/*.el to set up the mapping from the
-escape sequences sent by function keys on particular terminals (FROMSTRINGs)
-into Emacs standard function key slots (TOCHARs).
-Generally, MAP is a prefix keymap which will be attached to a key
-that is the common prefix sent by all function keys (often ESC O or ESC [)."])
-(fset 'function-key-sequence #[(char) "¿	\nB√ ƒ≈$@á" [where-is-internal function-keymap char current-local-map nil t] 5 "\
-Return key sequence for function key that on this terminal
-translates into slot CHAR in function-keymap.
-Or return nil if there is none."])
-(provide 'keypad)

@@ -1,11 +1,11 @@
 /* Keyboard input; editor command loop.
-   Copyright (C) 1985, 1986, 1987, 1988, 1989 Free Software Foundation, Inc.
+   Copyright (C) 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -34,7 +34,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "commands.h"
 #include "disptab.h"
 #include "events.h"
-#include <setjmp.h>
 #include <errno.h>
 
 extern struct event_stream *event_stream;
@@ -594,19 +593,6 @@ stop_polling ()
     }
 #endif
 }
-
-/* Input of single characters from keyboard */
-
-Lisp_Object print_help ();
-
-Lisp_Object
-print_help (object)
-     Lisp_Object object;
-{
-  Fprinc (object, Qnil);
-  return Qnil;
-}
-
 
 
 /* Set this for debugging, to have a way to get out */

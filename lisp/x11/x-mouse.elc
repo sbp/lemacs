@@ -1,0 +1,48 @@
+;;; compiled by jwz@thalidomide on Fri Jun 12 21:11:22 1992
+;;; from file /u/jwz/emacs19/lisp/x-mouse.el
+;;; emacs version 19.1 Lucid.
+;;; bytecomp version 2.07; 12-jun-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÃ!ˆÄÆÇ#ˆÄÈÉ#‡" [provide x-mouse require mouse define-key global-map button2 x-set-point-and-insert-selection (control button2) x-mouse-kill] 4)
+(fset 'x-mouse-kill #[(event) "`Á\n!ˆ`{Ä!ˆÅ!ˆ)Æ`\")‡" [old-point mouse-set-point event s x-own-clipboard x-store-cutbuffer kill-region] 3 "\
+Kill the text between the point and mouse and copy it to the clipboard and
+to the cut buffer" "@e"])
+(fset 'x-set-point-and-insert-selection #[(event) "ÀÁÂ®‚Ã ‰¬…ÅÆ!ª‡Ç!ˆc)‡" [nil (x-get-selection) ((error)) x-get-cutbuffer text error "No selection or cut buffer available" mouse-set-point event] 4 "\
+Sets point where clicked and insert the primary selection or the cut buffer" "e"])
+(fset 'mouse-track-and-copy-to-cutbuffer #[(event) "À	!ˆ\n­ŠÃ\n!qˆÄÅ\n!Æ\n!{!)‡" [mouse-track event primary-selection-extent extent-buffer x-store-cutbuffer extent-start-position extent-end-position] 4 "\
+Makes a selection like `mouse-track', but also copies it to the cutbuffer." "e"])
+(fset 'x-insert-selection #[nil "À ‰­‚	c)‡" [x-get-selection text] 2 "\
+Insert the current selection into buffer at point." nil])
+(defvar x-pointer-shape nil "\
+*The shape of the mouse-pointer when over text.
+
+This string may be any of the standard cursor names from appendix B 
+of the Xlib manual (also known as the file <X11/cursorfont.h>) minus 
+the XC_ prefix, or it may be a font name and glyph index of the form 
+\"FONT fontname index [[font] index]\", or it may be the name of a
+bitmap file acceptable to XmuLocateBitmapFile().  If it is a bitmap
+file, and if a bitmap file whose name is the name of the cursor with
+\"msk\" exists, then it is used as the mask.  For example, a pair of
+files may be named \"cursor.xbm\" and \"cursor.xbmmsk\".")
+(defvar x-nontext-pointer-shape nil "\
+*The shape of the mouse-pointer when over a buffer, but not over text.  
+If this is nil, then `x-pointer-shape' is used.")
+(defvar x-mode-pointer-shape nil "\
+*The shape of the mouse-pointer when over the modeline.
+If this is nil, then either `x-nontext-pointer-shape' or `x-pointer-shape'
+will be used.")
+(defvar x-pointer-foreground-color nil "\
+*The foreground color of the mouse pointer.")
+(defvar x-pointer-background-color nil "\
+*The background color of the mouse pointer.")
+(byte-code "ÀÁMˆÂÃMˆÄÅ!¬‚ÆÆ‡" [x-track-pointer #[(event) "À	!‰«…Ã\n!ª‚Ä \n­ƒÆ\n!‰­ƒÈ	!‰	­‡Ê	Ë#	«ƒÍª¥««ƒÎªš­–Íª“«ƒÏªŒ«ƒÎª…­ÍÑÒÓˆ«‡ÔÕ\"ª„ÔÖ‰\".‡" [event-window event window window-screen selected-screen screen window-buffer buffer event-point point extent-at highlight extent x-pointer-shape x-nontext-pointer-shape x-mode-pointer-shape var c (byte-code "J«ˆÁ\nJ$ˆÁ‡" [var x-set-screen-pointer screen x-pointer-foreground-color x-pointer-background-color] 5) ((error (x-track-pointer-damage-control c var))) highlight-extent t nil] 5] x-track-pointer-damage-control #[(c var) "A@Á˜«Œ\nÃLˆÄÅ\nÆ8#‡A@Ç˜«¥È	!¬„ÉªÈ\n!¬„Êª…ÄË\"ˆ\nÃLˆÄÌ\nÆ8#‡@Í=«®Î@J«—@J;¬@ÃLˆÄĞ@Æ8#ˆA‰¬[ÄË\")‡Ñ@A\"‡" [c "unknown cursor" var nil error "%S was %S, which is an invalid X cursor name.  Reset." 2 "unrecognised color" x-valid-color-name-p x-pointer-foreground-color x-pointer-background-color "got %S and I don't know why!" "%S was %S, which is an invalid color name.  Reset." wrong-type-argument (x-pointer-foreground-color x-pointer-background-color x-pointer-shape x-nontext-pointer-shape x-mode-pointer-shape) rest "%S was %S, not a string.  Reset." signal] 6] boundp x-pointers-initialized nil] 2)
+(fset 'x-initialize-pointer-shape #[(screen) "?­¿ÁÂÃÄ$®ÆÁÈÃÄ$®É\nÁËÃÄ$®ÌÁÎÃÄ$®ÏÁÑÒÄ$ÁÔÕÄ$×‰‡" [x-pointers-initialized x-get-resource "textPointer" "Cursor" string screen "xterm" x-pointer-shape "spacePointer" "crosshair" x-nontext-pointer-shape "modeLinePointer" "sb_v_double_arrow" x-mode-pointer-shape "gcPointer" "watch" x-gc-pointer-shape "pointerColor" "Foreground" x-pointer-foreground-color "pointerBackground" "Background" x-pointer-background-color t] 5 "\
+Initializes the mouse-pointers of the given screen from the resource
+database."])

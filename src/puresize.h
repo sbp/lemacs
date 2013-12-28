@@ -25,7 +25,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef PURESIZE
 #ifdef HAVE_X_WINDOWS
-#define PURESIZE 400000
+#define PURESIZE 500000
 #else
 #define PURESIZE 118000
 #endif

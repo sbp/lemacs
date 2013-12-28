@@ -1,45 +1,0 @@
-;;; compiled by devin@watergate on Sat May 16 14:11:53 1992
-;;; from file /wg1/emacs-base/lisp/find-dired.el
-;;; emacs version 19.0.16 Lucid.
-;;; bytecomp version 2.06; 23-apr-92.
-;;; optimization is on.
-;;; this file uses opcodes which do not exist in Emacs18.
-
-(if (and (boundp 'emacs-version)
-	 (or (and (boundp 'epoch::version) epoch::version)
-	     (string-lessp emacs-version "19")))
-    (error "This file was compiled for Emacs19."))
-
-(defconst find-dired-version (substring "$Revision: 1.12 $" 11 -2) "\
-$Id: find-dired.el,v 1.12 1992/02/17 12:39:09 sk RelBeta $")
-(byte-code "ÀÁ!ˆÂÃ!‡" [require dired provide find-dired] 2)
-(defvar find-ls-option (byte-code "Á=«‚Â‡Ã‡" [system-type berkeley-unix "-ls" "-exec ls -ldi {} \\;"] 2) "\
-*Option to `find' to produce an `ls -l'-type listing.")
-(defvar find-grep-options (byte-code "Á=«‚Â‡Ã‡" [system-type berkeley-unix "-s" "-l"] 2) "\
-*Option to grep to be as silent as possible.
-On Berkeley systems, this is `-s', for others it seems impossible to
-suppress all output, so `-l' is used to print nothing more than the
-file name.")
-(defvar find-args nil "\
-Last arguments given to `find' by \\[find-dired].")
-(fset 'find-dired #[(dir args) "ÀÁ\n!!Ã\n!¬…ÄÅ\n\"ˆÆÇÈ!!ˆ~ˆÉ ˆÊÌ ˆ\nÐÑ˜«ƒÑª…ÒÓQQÕ\nÖ\"ˆ×Ø!«…Ø ˆª‹ÙÚ!Û BCLˆÊÜ\nÝ±ˆÜÞ±ˆßàáp#â\"ˆãäp!å\"ˆæ‰'‡" [file-name-as-directory expand-file-name dir file-directory-p error "find-dired needs a directory: %s" switch-to-buffer get-buffer-create "*Find*" kill-all-local-variables nil buffer-read-only erase-buffer default-directory args find-args "find . " "" "\\( " " \\) " find-ls-option dired-mode "-gils" fboundp dired-simple-subdir-alist make-local-variable dired-subdir-alist point-min-marker "  " ":\n" "\n" set-process-filter start-process-shell-command "find" find-dired-filter set-process-sentinel get-buffer-process find-dired-sentinel (": %s") mode-line-process] 5 "\
-Run `find' and go into dired-mode on a buffer of the output.
-The command run (after changing into DIR) is
-
-    find . \\( ARGS \\) -ls" (byte-code "ÀÁÂÃÄ$ÅÆ!«†ÇÈÉ\"ª…ÊÉ\"D‡" [read-file-name "Run find in directory: " nil "" t featurep gmhist read-with-history-in find-args-history "Run find (with args): " read-string find-args] 5)])
-(fset 'find-name-dired #[(dir pattern) "À	ÂÄQ\"‡" [find-dired dir "-name '" pattern "'"] 5 "\
-Search DIR recursively for files matching the globbing pattern PATTERN,
-and run dired on those files.
-PATTERN is a shell wildcard (not an Emacs regexp) and need not be quoted.
-The command run (after changing into DIR) is
-
-    find . -name 'PATTERN' -ls" "DFind-name (directory): \nsFind-name (filename wildcard): "])
-(fset 'lookfor-dired 'find-grep-dired)
-(fset 'find-grep-dired #[(dir args) "À	ÂÄÆ°\"‡" [find-dired dir "-exec grep " find-grep-options " " args " {} \\; "] 7 "\
-Find files in DIR containing a regexp ARG and start Dired on output.
-The command run (after changing into DIR) is
-
-    find . -exec grep -s ARG {} \\; -ls
-
-Thus ARG can also contain additional grep options." "DFind-grep (directory): \nsFind-grep (grep args): "])
-(byte-code "ÀÁMˆÂÃMˆÄÅ!¬„ÅÆMˆÀ‡" [find-dired-filter #[(proc string) "À	!Ã\n!«ÃŠ\nqˆŒ~ˆŠÄdbˆcˆbˆÈÉ!¬ƒÊyˆÈÉ!«ˆËcˆÊyˆªsÌZbˆÍÎÄÏ#­ˆ``ÐZ|ˆªq-ªƒÑ	!)‡" [process-buffer proc buf buffer-name nil end buffer-read-only string looking-at "^" 1 "  " 3 search-forward " ./" t 2 delete-process] 4] find-dired-sentinel #[(proc state) "À	!Ã\n!­‹Š\nqˆÄÆÇp\"))‡" [process-buffer proc buf buffer-name nil mode-line-process message "find-dired %s finished."] 3] fboundp start-process-shell-command #[(name buffer &rest args) "Á=«ˆÂÃ$‡ÃÈÉÊËÌ#P%‡" [system-type vax-vms apply start-process name buffer args shell-file-name "-c" "exec " mapconcat identity " "] 10 "Start a program in a subprocess.  Return the process object for it.\nArgs are NAME BUFFER COMMAND &rest COMMAND-ARGS.\nNAME is name for process.  It is modified if necessary to make it unique.\nBUFFER is the buffer or (buffer-name) to associate with the process.\n Process output goes at end of that buffer, unless you specify\n an output stream or filter function to handle the output.\n BUFFER may be also nil, meaning that this process is not associated\n with any buffer\nThird arg is command name, the name of a shell command.\nRemaining arguments are the arguments for the command.\nWildcards and redirection are handle as usual in the shell."]] 2)

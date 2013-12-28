@@ -1,11 +1,11 @@
 /* Environment-hacking for GNU Emacs subprocess
-   Copyright (C) 1986 Free Software Foundation, Inc.
+   Copyright (C) 1986, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -74,7 +74,7 @@ getenv_1 (str, ephemeral)
      int ephemeral;		/* if ephmeral, don't need to gc-proof */
 {
   register Lisp_Object env;
-  int len = strlen ((const char*)str);
+  int len = strlen ((char *) str);
 
   for (env = Venvironment_alist; CONSP (env); env = XCONS (env)->cdr)
     {

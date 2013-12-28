@@ -1,11 +1,11 @@
 /* Indentation functions.
-   Copyright (C) 1985, 1986, 1987, 1988, 1990 Free Software Foundation, Inc.
+   Copyright (C) 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -298,7 +298,7 @@ and if COLUMN is in the middle of a tab character, change it to spaces.")
   register int goal;
   register int end;
   register int tab_width = XINT (current_buffer->tab_width);
-  register int ctl_arrow = !NILP (current_buffer->ctl_arrow);
+  Lisp_Object ctl_arrow = current_buffer->ctl_arrow;
   register struct Lisp_Vector *dp = buffer_display_table (current_buffer);
 
   Lisp_Object val;
@@ -337,9 +337,10 @@ and if COLUMN is in the middle of a tab character, change it to spaces.")
 	}
       else if (dp != 0 && XTYPE (DISP_CHAR_ROPE (dp, c)) == Lisp_String)
 	col += XSTRING (DISP_CHAR_ROPE (dp, c))->size / sizeof (GLYPH);
-      else if (ctl_arrow && (c < 040 || c == 0177))
+      else if (!NILP (ctl_arrow) && (c < 040 || c == 0177))
         col++;
-      else if (c < 040 || c >= 0177)
+      else if (c < 040 ||
+	       ((NILP (ctl_arrow) || EQ (ctl_arrow, Qt)) && c > 0177))
         col += 3;
       else
 	col++;

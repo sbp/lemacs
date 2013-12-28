@@ -32,7 +32,7 @@ File: dir	Node: Top	This is the top of the INFO tree
 
 * Edebug:   (edebug).	A source-level debugger for Emacs Lisp.
 
-* Lispref:  (lispref).	Emacs-Lisp technical reference for GNU Emacs 18.55.
+* Lispref:  (elisp).	Emacs-Lisp technical reference for GNU Emacs 18.
 
 * ILISP:    (ilisp).	Multi-dialect inferior LISP interface.
 

@@ -355,7 +355,7 @@ userid USER."
 		 (null type))
 	     (compute-buffer-file-truename)
 	     (if (buffer-file-name buffer)
-		 (after-find-file)
+		 (after-find-file nil t)
 	       (funcall default-major-mode))
 	     ;;(energize-source-minor-mode)
 	     )

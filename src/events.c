@@ -1,11 +1,11 @@
 /* Events: printing them, converting them to and from characters.
-   Copyright (C) 1991 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -63,6 +63,14 @@ character_to_event (c, event)
 }
 
 
+/* This variable controls what character name -> character code mapping
+   we are using.  Window-system-specific code sets this to some symbol,
+   and we use that symbol as the plist key to convert keysyms into 8-bit
+   codes.  In this way one can have several character sets predefined and
+   switch them by changing this.
+ */
+Lisp_Object Vcharacter_set_property;
+
 int
 event_to_character (event, lenient)	/* This is worthless and weak */
      struct Lisp_Event *event;
@@ -85,16 +93,17 @@ event_to_character (event, lenient)	/* This is worthless and weak */
   else if (EQ (event->event.key.key, QKspace))		c = ' ';
   else if (EQ (event->event.key.key, QKdelete))		c = 127;
 
-  /* when being lenient, handle the keypad keys */
-  else if (XTYPE (event->event.key.key) == Lisp_Symbol && /* always true */
-	   XSYMBOL (event->event.key.key)->name->size == 4 &&
-	   XSYMBOL (event->event.key.key)->name->data [0] == 'k' &&
-	   XSYMBOL (event->event.key.key)->name->data [1] == 'p' &&
-	   XSYMBOL (event->event.key.key)->name->data [2] == '_' &&
-	   XSYMBOL (event->event.key.key)->name->data [3] >= '0' &&
-	   XSYMBOL (event->event.key.key)->name->data [3] <= '9')
-    c = XSYMBOL (event->event.key.key)->name->data [3];
-  
+  else if (XTYPE (event->event.key.key) != Lisp_Symbol)
+    abort ();
+  else if (!NILP (Vcharacter_set_property))
+    {
+      /* Allow window-system-specific extensibility of the keysym->code mapping
+       */
+      Lisp_Object code = Fget (event->event.key.key, Vcharacter_set_property);
+      if (XTYPE (code) != Lisp_Int)
+	return -1;
+      c = XINT (code);
+    }
   else return -1;
 
   if (event->event.key.modifiers & MOD_CONTROL) {
@@ -111,6 +120,12 @@ event_to_character (event, lenient)	/* This is worthless and weak */
     else
       if (! lenient) return -1;
   }
+  /* I'm not sure this is right, given the keysym stuff above.
+     Once the tty interface is implemented, it might turn out to
+     be wrong to interpret the high bit as meta.  Possibly the
+     tty layer will do the meta hacking, and doing it here would
+     mean we were doing it twice.
+   */
   if (event->event.key.modifiers & MOD_META)
     c |= 0200;
   return c;
@@ -678,6 +693,15 @@ event_equal (o1, o2)			/* only Fequal() uses this */
 void
 syms_of_events ()
 {
+  DEFVAR_LISP ("character-set-property", &Vcharacter_set_property,
+   "A symbol used to look up the 8-bit character of a keysym.\n\
+To convert a keysym symbol to an 8-bit code, as when that key is\n\
+bound to self-insert-command, we will look up the property that this\n\
+variable names on the property list of the keysym-symbol.  The window-\n\
+system-specific code will set up appropriate properties and set this\n\
+variable.");
+  Vcharacter_set_property = Qnil;
+
   defsubr (&Scharacter_to_event);
   defsubr (&Sevent_to_character);
 

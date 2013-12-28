@@ -5,7 +5,7 @@ This file is part of the Lucid Widget Library.
 
 The Lucid Widget Library is free software; you can redistribute it and/or 
 modify it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 The Lucid Widget Library is distributed in the hope that it will be useful,
@@ -21,7 +21,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <stdio.h>
 #include <sys/types.h>
-#include <sys/time.h>
+#include <X11/Xos.h>
 #include <X11/IntrinsicP.h>
 #include <X11/StringDefs.h>
 #include <X11/cursorfont.h>
@@ -30,10 +30,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 static char 
 xlwMenuTranslations [] = 
-"<BtnDown>:	start()\n"
-"<BtnMotion>:	drag()\n"
-"<BtnUp>:	select()\n"
-;
+"<BtnDown>:	start()\n\
+<BtnMotion>:	drag()\n\
+<BtnUp>:	select()\n\
+";
 
 #define offset(field) XtOffset(XlwMenuWidget, field)
 static XtResource 
@@ -706,6 +706,10 @@ map_event_to_widget_value (XlwMenuWidget mw, XMotionEvent* ev,
 }
 
 /* Procedures */
+
+#define MINL(x,y) ((((unsigned long) (x)) < ((unsigned long) (y))) \
+		   ? ((unsigned long) (x)) : ((unsigned long) (y)))
+
 static void
 make_shadow_gcs (XlwMenuWidget mw, Pixmap gray_pixmap)
 {
@@ -726,9 +730,10 @@ make_shadow_gcs (XlwMenuWidget mw, Pixmap gray_pixmap)
     {
       topc.pixel = mw->core.background_pixel;
       XQueryColor (dpy, cmap, &topc);
-      topc.red   *= 1.2;
-      topc.green *= 1.2;
-      topc.blue  *= 1.2;
+      /* don't overflow/wrap! */
+      topc.red   = MINL (65535, topc.red   * 1.2);
+      topc.green = MINL (65535, topc.green * 1.2);
+      topc.blue  = MINL (65535, topc.blue  * 1.2);
       if (XAllocColor (dpy, cmap, &topc))
 	{
 	  mw->menu.top_shadow_color = topc.pixel;
@@ -754,11 +759,19 @@ make_shadow_gcs (XlwMenuWidget mw, Pixmap gray_pixmap)
     {
       int top_avg = ((topc.red / 3) + (topc.green / 3) + (topc.blue / 3));
       int bot_avg = ((botc.red / 3) + (botc.green / 3) + (botc.blue / 3));
-      Pixel tmp;
       if (bot_avg > top_avg)
-	tmp = mw->menu.top_shadow_color,
-	mw->menu.top_shadow_color = mw->menu.bottom_shadow_color,
-	mw->menu.bottom_shadow_color = tmp;
+	{
+	  Pixel tmp = mw->menu.top_shadow_color;
+	  mw->menu.top_shadow_color = mw->menu.bottom_shadow_color;
+	  mw->menu.bottom_shadow_color = tmp;
+	}
+      else if (topc.pixel == botc.pixel)
+	{
+	  if (botc.pixel == mw->menu.foreground)
+	    mw->menu.top_shadow_color = mw->core.background_pixel;
+	  else
+	    mw->menu.bottom_shadow_color = mw->menu.foreground;
+	}
     }
 
   if (!mw->menu.top_shadow_pixmap &&

@@ -7,10 +7,15 @@
  *  If you have OpenLook and want to provide support for OpenLook widgets in
  *  lwlib, then define USE_OLIT.
  *
- *  Otherwise, define USE_LUCID to use Lucid's own Motif-lookalike widgets.
+ *  Otherwise, define USE_LUCID to use Lucid's own Motif-lookalike widgets,
+ *  which are included in this directory.
  *
  *  You cannot define USE_MOTIF and USE_OLIT at the same time, but USE_LUCID
  *  may be defined along with either of the other two.
+ *
+ *  The OLIT menubar is not as good as the Motif and Lucid menubars yet.
+ *  It's slow, and possibly buggy.  I'd recommend against using it unless 
+ *  you'd like to hack on it.
  *
  *  If you have your X11 source tree online, then you should define 
  *  INCLUDE_EXTENSIONS to cause the library to contain some useful functions
@@ -50,7 +55,7 @@
 #if (ProjectX == 5)
 #include <Library.tmpl>
     EXT_DEFINES = -DTHIS_IS_X11R5 -DINCLUDE_ALLOCA_H
-        WHICH_X = x11r4
+        WHICH_X = x11r5
 #define EXT_XRDB_C xrdb-r5.c
 #define EXT_XRDB_O xrdb-r5.o
 #else /* !5 */

@@ -5,6 +5,3 @@ and the file of on-line documentation for Emacs.
 
 `termcap.dat' is for VMS.  It is a copy of the `/etc/termcap' file
 used on Unix.
-
-See the README file in the `src' directory for instructions on building
-emacs.

@@ -101,12 +101,19 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define LISP_FLOAT_TYPE
 
-/* Define GNU_MALLOC if you want to use the *new* GNU memory allocator. */
-
+/* Define GNU_MALLOC if you want to use the *new* GNU memory allocator.
+   If you have trouble with _malloc being multiply-defined, or if you're
+   on a NeXT (or possibly MACH in general) comment out the next four lines.
+ */
 #ifdef SYSTEM_MALLOC
 #undef SYSTEM_MALLOC
 #endif
 #define GNU_MALLOC
+
+/* define NEED_STRDUP if your system doesn't have the strdup() function. */
+
+/* #define NEED_STRDUP */
+
 
 /* Define REL_ALLOC if you want to use the relocating allocator for
    buffer space.  (There are too many problems with this right now.) */
@@ -127,16 +134,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define LWLIB_HAS_EXTENSIONS
 #endif
 
-
-/* These are magic */
-/* #define EMACS_BTL */
-/* #define FREE_CHECKING */
-
 /* Until we figure out a better way, this is so you can run an X-based Emacs
    from a menu entry or from a shell buffer. */
 #define INVISIBLE_TERMINAL_KLUDGE
 
-/* Sound support */
+/* Sound support.  If you are on a SparcStation and have the "sound" option
+   installed (usually in /usr/demo/SOUND/) then define this to make it 
+   possible to use arbitrary sound files as beeps.
+ */
 #ifdef sparc
 #define USE_SPARC_SOUND
 #endif
@@ -145,8 +150,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    debugging emacs) */
 #define RUNNABLE_TEMACS
 
-/* Support for truenames */
-#define HAVE_REALPATH
+/* Define this if your system does not include the realpath() system call. */
+
+/* #define NEED_REALPATH */
 
 #ifdef THIS_IS_YMAKEFILE
 
@@ -184,20 +190,23 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifdef USE_GCC
 /* Depending on how GCC is installed, you may need to add the gcc library
-   here.  This could also go in LD_SWITCH_SITE.  */
+   here.  This could also go in LD_SWITCH_SITE.  If you get errors about
+   __fixunsdfsi or__main being undefined, you probably need to do this. */
 
 /* #define LIB_GCC /cadillacgnu/lib/sun4/gcc-gnulib */
 
 #endif /* USE_GCC */
 
 
-/* If you are using SunOS 4.1 and X11r5, then you need this patch.
+/* If you are using SunOS 4.1.1 and X11r5, then you need this patch.
    There is a stupid bug in the SunOS libc.a: two functions which X11r5
    uses, mbstowcs() and wcstombs(), are unusable when programs are
    statically linked (as Emacs must be) because the static version of
    libc.a contains the *dynamic* versions of these functions.  These
    functions don't seem to be called when Emacs is running, so it's 
    enough to define stubs for them.
+
+   This appears to be fixed in SunOS 4.1.2.
  */
 #ifdef sparc
 #define OBJECTS_SYSTEM sunOS-fix.o

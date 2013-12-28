@@ -1,11 +1,11 @@
 /* Primitive operations on Lisp data types for GNU Emacs Lisp interpreter.
-   Copyright (C) 1985, 1986, 1988 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1988, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -1512,7 +1512,12 @@ Both must be numbers or markers.")
 
       f1 = XTYPE (num1) == Lisp_Float ? XFLOAT (num1)->data : XINT (num1);
       f2 = XTYPE (num2) == Lisp_Float ? XFLOAT (num2)->data : XINT (num2);
+
+#ifdef BSD /* Maybe there's a better conditional for this... */
+      return (make_float (drem (f1,f2)));
+#else
       return (make_float (remainder (f1,f2)));
+#endif
     }
 #else /* not LISP_FLOAT_TYPE */
   CHECK_NUMBER_COERCE_MARKER (num1, 0);

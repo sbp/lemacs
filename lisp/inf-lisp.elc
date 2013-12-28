@@ -1,106 +1,0 @@
-;;; compiled by jwz@thalidomide on Tue Apr 21 17:46:52 1992
-;;; from file /u/jwz/emacs19/lisp/inf-lisp.el
-;;; emacs version 19.0.2 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
-;;; optimization is on.
-;;; this file uses opcodes which do not exist in Emacs18.
-
-(if (and (boundp 'emacs-version)
-	 (or (and (boundp 'epoch::version) epoch::version)
-	     (string-lessp emacs-version "19")))
-    (error "This file was compiled for Emacs19."))
-
-(byte-code "ÀÁ!ˆÂÃ!‡" [require comint provide inf-lisp] 2)
-(defvar lisp-filter-regexp "\\`\\s *\\(:\\(\\w\\|\\s_\\)\\)?\\s *\\'" "\
-*What not to save on inferior Lisp's input history
-Input matching this regexp is not saved on the input history in lisp
-mode. Default is whitespace followed by 0 or 1 single-letter :keyword 
-(as in :a, :c, etc.)")
-(byte-code "À	ÂÃ#ˆÀ	ÄÅ#ˆÀ	ÆÇ#ˆÀ	ÈÉ#ˆÀ	ÊË#ˆÀ	ÌÍ#ˆÎÏ!¬ƒÐ¬Ñ!¤ÀÔÕ#ˆÐ‡" [define-key lisp-mode-map "" lisp-load-file "" lisp-compile-file "˜" lisp-eval-defun "" lisp-eval-region "" lisp-compile-defun "" lisp-compile-region boundp inferior-lisp-mode-map nil copy-keymap shared-lisp-mode-map comint-mode-map "" lisp-send-defun] 4)
-(defvar inferior-lisp-program "lisp" "\
-*Program name for invoking an inferior Lisp with `lisp'.
-Optionally, a list of strings the car of which is the programme to run
-and the cdr of which is command line arguments desired.")
-(defvar inferior-lisp-load-command "(load \"%s\")\n" "\
-*Format-string for building a Lisp expression to load a file.
-This format string should use %s to substitute a file name
-and should result in a Lisp expression that will command the inferior Lisp
-to load that file.  The default works acceptably on most Lisps.
-The string \"(progn (load \\\"%s\\\" :verbose nil :print t) (values))\\
-\"
-produces cosmetically superior output for this application,
-but it works only in Common Lisp.")
-(defvar inferior-lisp-prompt "^[^> ]*>+:? *" "\
-Regexp to recognise prompts in the inferior Lisp.
-Defaults to \"^[^> ]*>+:? *\", which works pretty good for Lucid, kcl,
-and franz. This variable is used to initialise comint-prompt-regexp in the 
-lisp buffer.
-
-More precise choices:
-Lucid Common Lisp: \"^\\(>\\|\\(->\\)+\\) *\"
-franz: \"^\\(->\\|<[0-9]*>:\\) *\"
-kcl: \"^>+ *\"")
-(defvar inferior-lisp-mode-hook nil "\
-*Hook for customising lisp mode")
-(fset 'inferior-lisp-mode #[nil "À ˆÁ\n!ˆÃÅÉ\nËÍÏÐ!ˆÑÒ!‡" [comint-mode use-local-map inferior-lisp-mode-map inferior-lisp-mode major-mode "Inferior Lisp" mode-name inferior-lisp-prompt comint-prompt-regexp inferior-lisp-get-old-input comint-get-old-input inferior-lisp-input-filter comint-input-filter ignore comint-input-sentinel lisp-mode-variables t run-hooks inferior-lisp-mode-hook] 2 "\
-Major mode for interacting with an inferior Lisp process.  
-Runs a Lisp interpreter as a subprocess of Emacs, with Lisp I/O through an
-Emacs buffer.  Variable inferior-lisp-program controls which Lisp interpreter
-is run.  Variables inferior-lisp-prompt, lisp-filter-regexp and
-inferior-lisp-load-command can customize this mode for different Lisp
-interpreters.
-
-\\{inferior-lisp-mode-map}
-
-Customization: Entry to this mode runs comint-mode-hook and lisp-mode-hook,
-in that order.
-
-You can send text to the inferior Lisp process from other buffers containing
-Lisp source.  
-    lisp-eval-defun sends the current defun to the Lisp process.
-    lisp-compile-defun compiles the current defun.
-    lisp-eval-region sends the current region to the Lisp process.
-    lisp-compile-region compiles the current region.
-
-Commands:
-Return after the end of the process' output sends the text from the 
-    end of process to point.
-Return before the end of the process' output copies the sexp ending at point
-    to the end of the process' output, and sends it.
-Delete converts tabs to spaces as it moves back.
-Tab indents for Lisp; with argument, shifts rest
-    of expression rigidly with the current line.
-C-M-q does Tab on each line starting within following expression.
-Paragraphs are separated only by blank lines.  Semicolons start comments.
-If you accidentally suspend your process, use \\[comint-continue-subjob]
-to continue it." nil])
-(fset 'inferior-lisp-get-old-input #[nil "Š`Á ˆ`{*‡" [end backward-sexp] 2 "\
-Snarf the sexp ending at point"])
-(fset 'inferior-lisp-input-filter #[(str) "À	\n\"?‡" [string-match lisp-filter-regexp str] 3 "\
-Don't save anything matching lisp-filter-regexp"])
-(fset 'run-lisp #[nil "ÁÂÃ!‰<«‰A@«‡Ç!È>¬ÉÊËÁ%qˆÌ ˆ+ÍÃ!‡" [inferior-lisp-program nil get-buffer-process "*lisp*" proc switches prog process-status (run stop) apply make-comint "lisp" inferior-lisp-mode switch-to-buffer] 7 "\
-Run an inferior Lisp process, input and output via buffer *lisp*.
-If there is a process already running in *lisp*, just switch to that buffer.
-Takes the program name from the variable inferior-lisp-program.
-(Type \\[describe-mode] in the process buffer for a list of commands.)" nil])
-(fset 'lisp-eval-region #[(start end) "ÀÁ!ÃÄÅ\n!\"\n«‡Ç\n!È>¬…ÉÊ!ªËÎÏ%ˆÐ\nÃ\"\"ˆÐ\nÃÒ\"\"*‡" [get-buffer-process "*lisp*" proc format "/tmp/eme%d.lisp" process-id filename process-status (run stop) error "No current lisp process" write-region start end nil nomessage send-string inferior-lisp-load-command "(delete-file %s)\n"] 6 "\
-Send the current region to the inferior Lisp process." "r"])
-(fset 'lisp-eval-defun #[nil "ŠÀ ˆ`Â ˆÃ`	\"*‡" [end-of-defun end beginning-of-defun lisp-eval-region] 3 "\
-Send the current defun to the inferior Lisp process." nil])
-(fset 'lisp-compile-region #[(start end) "ÀÁ!ÃÄÅ\n!\"\n«‡Ç\n!È>¬…ÉÊ!ª¢ËÌ{ÏQÐÐÑ%ˆÒ\nÃ\"\"ˆÒ\nÃÔ\"\"*‡" [get-buffer-process "*lisp*" proc format "/tmp/emc%d.lisp" process-id filename process-status (run stop) error "No current lisp process" write-region "(funcall (compile nil `(lambda () (progn 'compile " start end "))))\n" nil nomessage send-string inferior-lisp-load-command "(delete-file %s)\n"] 6 "\
-Compile the current region in the inferior Lisp process." "r"])
-(fset 'lisp-compile-defun #[nil "ŠÀ ˆ`Â ˆÃ`	\"*‡" [end-of-defun e beginning-of-defun lisp-compile-region] 3 "\
-Compile the current defun in the inferior Lisp process." nil])
-(defvar lisp-prev-l/c-dir/file nil "\
-Saves the (directory . file) pair used in the last lisp-load-file or
-lisp-compile-file command. Used for determining the default in the 
-next one.")
-(defvar lisp-source-modes '(lisp-mode) "\
-*Used to determine if a buffer contains Lisp source code.
-If it's loaded into a buffer that is in one of these major modes, it's
-considered a lisp source file by lisp-load-file and lisp-compile-file.
-Used by these commands to determine defaults.")
-(fset 'lisp-load-file #[(file-name) "À	!ˆÂ	!Ã	!BÅÆÇ	\"\"‡" [comint-check-source file-name file-name-directory file-name-nondirectory lisp-prev-l/c-dir/file send-string "lisp" format inferior-lisp-load-command] 5 "\
-Load a lisp file into the inferior Lisp process." (comint-get-source "Load Lisp file: " lisp-prev-l/c-dir/file lisp-source-modes nil)])
-(fset 'lisp-compile-file #[(file-name) "À	!ˆÂ	!Ã	!BÅÆÇ	ÈQ\"‡" [comint-check-source file-name file-name-directory file-name-nondirectory lisp-prev-l/c-dir/file send-string "lisp" "(compile-file \"" "\")\n"] 5 "\
-Compile a Lisp file in the inferior Lisp process." (comint-get-source "Compile Lisp file: " lisp-prev-l/c-dir/file lisp-source-modes nil)])

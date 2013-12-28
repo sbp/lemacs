@@ -1,0 +1,335 @@
+;;; compiled by jwz@thalidomide on Sat Jun  6 22:27:44 1992
+;;; from file /u/jwz/emacs19/lisp/files.el
+;;; emacs version 19.1 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defconst delete-auto-save-files t "\
+*Non-nil means delete a buffer's auto-save file
+when the buffer is saved for real.")
+(defconst directory-abbrev-alist nil "\
+*Alist of abbreviations for file directories.
+A list of elements of the form (FROM . TO), each meaning to replace
+FROM with TO when it appears in a directory name.
+This replacement is done when setting up the default directory
+of a newly visited file.  *Every* FROM string should start with `^'.
+
+Use this feature when you have directories which you normally refer to
+via absolute symbolic links.  Make TO the name of the link, and FROM
+the name it is linked to.")
+(defconst make-backup-files (byte-code "Á=?‡" [system-type vax-vms] 2) "\
+*Create a backup of each file when it is saved for the first time.
+This can be done by renaming the file or by copying.
+
+Renaming means that Emacs renames the existing file so that it is a
+backup file, then writes the buffer into a new file.  Any other names
+that the old file had will now refer to the backup file.
+The new file is owned by you and its group is defaulted.
+
+Copying means that Emacs copies the existing file into the backup file,
+then writes the buffer on top of the existing file.  Any other names
+that the old file had will now refer to the new (edited) file.
+The file's owner and group are unchanged.
+
+The choice of renaming or copying is controlled by the variables
+backup-by-copying, backup-by-copying-when-linked and
+backup-by-copying-when-mismatch.")
+(defconst backup-by-copying nil "\
+*Non-nil means always use copying to create backup files.
+See documentation of variable  make-backup-files.")
+(defconst backup-by-copying-when-linked nil "\
+*Non-nil means use copying to create backups for files with multiple names.
+This causes the alternate names to refer to the latest version as edited.
+This variable is relevant only if  backup-by-copying  is nil.")
+(defconst backup-by-copying-when-mismatch nil "\
+*Non-nil means create backups by copying if this preserves owner or group.
+Renaming may still be used (subject to control of other variables)
+when it would not result in changing the owner or group of the file;
+that is, for files which are owned by you and whose group matches
+the default for a new file created there by you.
+This variable is relevant only if  backup-by-copying  is nil.")
+(defconst buffer-offer-save nil "\
+*Non-nil in a buffer means offer to save the buffer on exit
+even if the buffer is not visiting a file.  Automatically local in
+all buffers.")
+(make-variable-buffer-local 'buffer-offer-save)
+(defconst file-precious-flag nil "\
+*Non-nil means protect against I/O errors while saving files.
+Some modes set this non-nil in particular buffers.")
+(defvar version-control nil "\
+*Control use of version numbers for backup files.
+t means make numeric backup versions unconditionally.
+nil means make them for files that have some already.
+never means do not make them.")
+(defvar dired-kept-versions 2 "\
+*When cleaning directory, number of versions to keep.")
+(defvar trim-versions-without-asking nil "\
+*If true, deletes excess backup versions silently.
+Otherwise asks confirmation.")
+(defvar kept-old-versions 2 "\
+*Number of oldest versions to keep when a new numbered backup is made.")
+(defvar kept-new-versions 2 "\
+*Number of newest versions to keep when a new numbered backup is made.
+Includes the new backup.  Must be > 0")
+(defconst require-final-newline nil "\
+*Value of t says silently ensure a file ends in a newline when it is saved.
+Non-nil but not t says ask user whether to add a newline when there isn't one.
+nil means don't add newlines.")
+(defconst auto-save-default t "\
+*Non-nil says by default do auto-saving of every file-visiting buffer.")
+(defconst auto-save-visited-file-name nil "\
+*Non-nil says auto-save a buffer in the file it is visiting, when practical.
+Normally auto-save files are written under other names.")
+(defconst save-abbrevs nil "\
+*Non-nil means save word abbrevs too when files are saved.
+Loading an abbrev file sets this to t.")
+(defconst find-file-run-dired t "\
+*Non-nil says run dired if find-file is given the name of a directory.")
+(put 'find-file-not-found-hooks 'permanent-local t)
+(defvar find-file-not-found-hooks nil "\
+List of functions to be called for find-file on nonexistent file.
+These functions are called as soon as the error is detected.
+buffer-file-name is already set up.
+The functions are called in the order given,
+until one of them returns non-nil.")
+(put 'find-file-hooks 'permanent-local t)
+(defvar find-file-hooks nil "\
+List of functions to be called after a buffer is loaded from a file.
+The buffer's local variables (if any) will have been processed before the
+functions are called.")
+(put 'write-file-hooks 'permanent-local t)
+(defvar write-file-hooks nil "\
+List of functions to be called before writing out a buffer to a file.
+If one of them returns non-nil, the file is considered already written
+and the rest are not called.")
+(put 'after-write-file-hooks 'permanent-local t)
+(defvar after-write-file-hooks nil "\
+List of functions to be called after writing out a buffer to a file.")
+(defconst enable-local-variables t "\
+*Control use of local-variables lists in files you visit.
+The value can be t, nil or something else.
+A value of t means local-variables lists are obeyed;
+nil means they are ignored; anything else means query.
+
+The command \\[normal-mode] always obeys local-variables lists
+and ignores this variable.")
+(byte-code "ÀÁ!¬„ÁÂMˆÀÃ!¬„ÃÂMˆÄÅM‡" [fboundp lock-buffer ignore unlock-buffer frob-cdlist #[(dir) "Á‰«’Ä@ÅQ‰!¬†A‰¬n­\n*‡" [cdlist nil cdpathed-dir l file-directory-p "/" dir] 5]] 2)
+(fset 'pwd #[nil "ÀÁ\n\"‡" [message "%s" default-directory] 3 "\
+Show the current default directory." nil])
+(fset 'cd #[(dir) "À	!\nÃ=¬„Ä	!Å	!¬‡ÆÇ	\"ˆªÈ	!«…		ª…ÆÊ	\"ˆË ‡" [expand-file-name dir system-type vax-vms file-name-as-directory file-directory-p error "%s is not a directory" file-executable-p default-directory "Cannot cd to %s:  Permission denied" pwd] 3 "\
+Make DIR become the current buffer's default directory." "DChange default directory: "])
+(fset 'load-file #[(file) "ÀÁ\n!Ã‰Ä$‡" [load expand-file-name file nil t] 5 "\
+Load the file FILE of Lisp code." "fLoad file: "])
+(fset 'load-library #[(library) "À	!‡" [load library] 2 "\
+Load the library named LIBRARY.
+This is an interface to the function `load'." "sLoad library: "])
+(fset 'switch-to-other-buffer #[(arg) "Á=«„Âp!ˆÃÄX«…Åp!ª…TÆ 8!‡" [arg 0 bury-buffer switch-to-buffer 1 other-buffer buffer-list] 3 "\
+Switch to the previous buffer.  With a numeric arg, n, switch to the nth
+most recent buffer.  With an arg of 0, buries the current buffer at the
+bottom of the buffer stack." "p"])
+(fset 'switch-to-buffer-other-window #[(buffer) "ÀÂÀ\")‡" [t pop-up-windows pop-to-buffer buffer] 3 "\
+Select buffer BUFFER in another window." "BSwitch to buffer in other window: "])
+(fset 'find-file #[(filename) "ÀÁ\n!!‡" [switch-to-buffer find-file-noselect filename] 3 "\
+Edit file FILENAME.
+Switch to a buffer visiting file FILENAME,
+creating one if none already exists." "FFind file: "])
+(fset 'find-file-other-window #[(filename) "ÀÁ\n!!‡" [switch-to-buffer-other-window find-file-noselect filename] 3 "\
+Edit file FILENAME, in another window.
+May create a new window, or reuse an existing one;
+see the function display-buffer." "FFind file in other window: "])
+(fset 'find-file-read-only #[(filename) "À	!ˆÂ‰‡" [find-file filename t buffer-read-only] 2 "\
+Edit file FILENAME but don't allow changes.
+Like \\[find-file] but marks buffer as read-only.
+Use \\[toggle-read-only] to permit editing." "fFind file read-only: "])
+(fset 'find-file-read-only-other-window #[(filename) "À	!ˆÂ‰‡" [find-file filename t buffer-read-only] 2 "\
+Edit file FILENAME in another window but don't allow changes.
+Like \\[find-file-other-window] but marks buffer as read-only.
+Use \\[toggle-read-only] to permit editing." "fFind file read-only other window: "])
+(fset 'find-alternate-file #[(filename) "À «ÁÂÃÄ \"!¬„ÅÆ!ˆpÄ 	\nËÌ!ˆÍÎÏ ˆĞ!ˆ)p\n=®„Ò\n!+‡" [buffer-modified-p yes-or-no-p format "Buffer %s is modified; kill anyway? " buffer-name error "Aborted" buffer-file-name oname ofile obuf rename-buffer " **lose**" nil ((byte-code "p=«‰	Ã ˆÄ!ˆÃ‡" [obuf ofile buffer-file-name lock-buffer rename-buffer oname] 2)) unlock-buffer find-file filename kill-buffer] 4 "\
+Find file FILENAME, select its buffer, kill previous buffer.
+If the current buffer now contains an empty file that you just visited
+(presumably by mistake), use this command to visit the file you really want." (byte-code "Á‰‰«ˆÅ!Æ!ÇÈ\nÁ‰%+C‡" [buffer-file-name nil file-dir file-name file file-name-nondirectory file-name-directory read-file-name "Find alternate file: "] 7)])
+(fset 'create-file-buffer #[(filename) "À	!‰Ã˜«‚	Ä\n!)‡" [file-name-nondirectory filename lastname "" generate-new-buffer] 3 "\
+Create a suitably named buffer for visiting FILENAME, and return it.
+FILENAME (sans directory) is used unchanged if that name is free;
+otherwise a string <2> or <3> or ... is appended to get an unused name."])
+(fset 'find-file-noselect #[(filename &optional nowarn) "À	!\n‰«˜Ä@@	\"«Š@A	Å•ÆOPA‰¬h)Ç	!««„É	!‡ÊË	\"‡Ì	!Æ\n‰«¡¬¬„«•Šqˆ	š¬‰ÒÓ	$ˆ)«¶¬ñÕ!¬ëÖ	!¬‡Ê×	\"ˆªßØÙÚ!«ƒÛªÜİ	!\"!«ÌŠqˆŞß‰\"ˆ)ª¿Šà	!@‰!;­„Ì!!\"ã\"!«ˆÒäå\"!\"ˆ*æ	!‰qˆç ˆÆèéˆê!+ì\n?\"ˆ)*‡" [expand-file-name filename directory-abbrev-alist tail string-match 0 nil file-directory-p find-file-run-dired dired-noselect error "%s is a directory." get-file-buffer buf nowarn find-file-compare-truenames find-file-use-truenames buffer-file-name message "%s and %s are the same file (%s)" buffer-file-truename verify-visited-file-modtime file-exists-p "File %s no longer exists!" yes-or-no-p format buffer-modified-p "File %s changed on disk.  Discard your edits? " "File %s changed on disk.  Read the new version? " file-name-nondirectory revert-buffer t file-attributes link-name linked-buf bufferp "Symbolic link to file in buffer %s" buffer-name create-file-buffer erase-buffer (insert-file-contents filename t) ((file-error (byte-code "À\n‰«‹@ ¬†A‰¬u)À‡" [t error find-file-not-found-hooks hooks] 2))) file-name-directory default-directory after-find-file] 6 "\
+Read file FILENAME into a buffer and return the buffer.
+If a buffer exists visiting FILENAME, return that one,
+but verify that the file has not changed since visited or saved.
+The buffer is not selected, just returned to the caller."])
+(fset 'after-find-file #[(&optional error warn) "À	!?¬ÚÄ«ŠÇ	!«…ÈÉª¯\n¬—\n«ŠËÌ 	\"«ƒÍªÈ­˜Îª•¬…ÈÏªŒÇĞ!!«ƒÒªÓ‰«Õ!ˆ¬…Ö×È\"ˆ*«„ÙÈ!ˆÚÈ!ˆÛÜ\"‡" [file-writable-p buffer-file-name buffer-read-only noninteractive nil not-serious error file-attributes t "File exists, but is read-protected." warn file-newer-than-file-p make-auto-save-file-name "Auto save file is newer; consider M-x recover-file" "(New file)" "File is write protected" directory-file-name default-directory "File not found and directory write-protected" "File not found and directory doesn't exist" msg message sit-for 1 auto-save-default auto-save-mode normal-mode mapcar funcall find-file-hooks] 4 "\
+Called after finding a file and by the default revert function.
+Sets buffer mode, parses local variables.
+Optional args ERROR and WARN: ERROR non-nil means there was an
+error in reading the file.  WARN non-nil means warn if there
+exists an auto-save file more recent than the visited file.
+Finishes by calling the functions in find-file-hooks."])
+(fset 'normal-mode #[(&optional find-file) "¬†	®Â ˆÃÄÅÆˆ®„ÄÇÈ)‡" [find-file default-major-mode fundamental-mode nil err (set-auto-mode) ((error (byte-code "ÀÁÂ!\"ˆÄÀ‡" [message "File mode specification error: %s" prin1-to-string err t] 4))) (byte-code "À	?!‡" [hack-local-variables find-file] 2) ((error (byte-code "ÀÁÂ!\"‡" [message "File local-variables error: %s" prin1-to-string err] 4)))] 3 "\
+Choose the major mode for this buffer automatically.
+Also sets up any specified local variables of the file.
+Uses the visited file name, the -*- line, and the local variables spec.
+
+This function is called automatically from `find-file'.  In that case,
+we may set up specified local variables depending on the value of
+`enable-local-variables': if it is t, we do; if it is nil, we don't;
+otherwise, we query.  `enable-local-variables' is ignored if you
+run `normal-mode' explicitly." nil])
+(fset 'set-auto-mode #[nil "ÀÂÀ!)®¸ÀÄ!Ç=	\n¬›\n«—Ì\n@@	\"«†\n@A\nA\nªa­ƒ ,‡" [nil enable-local-variables hack-local-variables-prop-line auto-mode-alist file-name-sans-versions buffer-file-name system-type vax-vms case-fold-search name alist mode string-match] 5 "\
+Select major mode appropriate for current buffer.
+May base decision on visited file name (see variable `auto-mode-alist') or on
+buffer contents (the -*- line), but does not look for the \"mode:\" local
+variable spec in the last page.  For that, use `hack-local-variables'."])
+(fset 'hack-local-variables #[(&optional force) "À	!ˆÂ	!‡" [hack-local-variables-prop-line force hack-local-variables-last-page] 2 "\
+Parse, and bind or evaluate as appropriate, any local variables
+for current buffer."])
+(byte-code "ÀÁMˆÂÃM‡" [hack-local-variables-last-page #[(&optional force) "ŠdbˆÀÁdÂZe]Ã#ˆÄÆÇÈÄ#­	®Œ\nÄ=®†\n­‚Ë‹)…+ÄÈ‰‰‰ÑÈwˆl¬ˆ`Èˆ`{Ò”bˆn¬ˆ`Òyˆ`{«‹GÓ!«†Ó!…*«†ÕÖ!ˆªƒ×yˆ«Ø!«†uˆª„ÙÚ!ˆÑÈwˆ`ÛÈwˆl«„ÙÜ!ˆÑÈxˆ`{Ş!È —á˜«…ÈªŞâÈwˆ×uˆŞp! ãÈxˆÑÈwˆ«†Ø!ªl¬„Ùä!ˆå=«æç !—èP! ˆª¦é=«•ê ë˜«†ìí!ˆª”Šé !ˆ)ª‹î!ˆ Lˆ+‚q -)‡" [search-backward "\n" 3000 move t case-fold-search search-forward "Local Variables:" nil force enable-local-variables ((byte-code "Àp!ˆÁÂÃÄ!\"!‡" [switch-to-buffer y-or-n-p format "Set local variables as specified at end of %s? " file-name-nondirectory buffer-file-name] 5)) beg suffix prefixlen prefix continue " 	" 0 regexp-quote selective-display re-search-forward "[\n]" 1 looking-at error "Local variables entry is missing the prefix" "^:\n" "Missing colon in local variables entry" str read var val "end" "^:" "\n" "Local variables entry is terminated incorrectly" mode intern symbol-name "-mode" eval user-login-name "root" message "Ignoring `eval:' in file's local variables" make-local-variable] 5] hack-local-variables-prop-line #[(&optional force) "ŠebˆÀÁwˆÁŠÁˆ`)ÁÅÆÇ#«×ÈÉ!«ÊËÌ”Í”{!BCªÅŠÅÆÇ#«†`ÎZª„ÏĞ!ˆ)`W«ªÈÑ!¬„ÏÒ!ˆÓ•bˆËÌ”Ì•{—!Ôp!‰BB×Áwˆ*ªQŸÁ\nÊ‰\n«–ÇØ\n\"ËÙ\nA!—ÚP! ˆªb)«±¬Ç=¬ˆ«£İ‹«Ÿ«œ@@@AŞ!ˆLˆ*A‰¬d\n,‡" [" 	\n" nil mode-p end result search-forward "-*-" t looking-at "[ 	]*\\([^ 	\n:;]\\)+\\([ 	]*-\\*-\\)" mode intern 1 2 3 error "-*- not terminated before end-of-line" "[ 	]*\\([^ 	\n:]+\\)[ 	]*:[ 	]*" "malformed -*- line" 0 read val key " 	;" delq symbol-name "-mode" force enable-local-variables ((byte-code "Àp!ˆÁÂÃÄ!\"!‡" [switch-to-buffer y-or-n-p format "Set local variables as specified in -*- line of %s? " file-name-nondirectory buffer-file-name] 5)) make-local-variable] 5]] 2)
+(fset 'set-visited-file-name #[(filename) "«ŠÁ˜?­ƒÂ!š¬Š«‡Ä!ˆÅ ˆ«ÆÆ!É=«…—Ê!Ì!p‰=¬¡«˜Ï!Ñ!Ò!ˆ)Ó!ˆª…Ó!ˆ+Ô ˆÕ× ˆØÙ!ˆØÚ!ˆØÛ!ˆ¬ˆİ­‚!ˆ­ƒßà!‡" [filename "" expand-file-name buffer-file-name lock-buffer unlock-buffer file-name-nondirectory new-name system-type vax-vms file-name-directory default-directory get-buffer current-buffer new-buffer create-file-buffer buf buffer-name kill-buffer rename-buffer compute-buffer-file-truename nil buffer-backed-up clear-visited-file-modtime kill-local-variable write-file-hooks after-write-file-hooks revert-buffer-function buffer-auto-save-file-name auto-save-mode auto-save-default set-buffer-modified-p t] 3 "\
+Change name of file visited in current buffer to FILENAME.
+The next time the buffer is saved it will go in the newly specified file.
+nil or empty string as argument means make buffer not be visiting any file.
+Remember to delete the initial contents of the minibuffer
+if you wish to pass an empty string as the argument." "FSet visited file name: "])
+(fset 'write-file #[(filename) "«‰Á˜¬„Â!ˆÃÄ!ˆÅ ‡" [filename "" set-visited-file-name set-buffer-modified-p t save-buffer] 2 "\
+Write current buffer into file FILENAME.
+Makes buffer visit that file, and marks it not modified." (byte-code "«‰ÁÂÃ‰‰‰%ªŒÁÂÄÅ AÃ‰Æ %C‡" [buffer-file-name read-file-name "Write file: " nil default-directory buffer-local-variables buffer-name] 6)])
+(fset 'backup-buffer #[nil "­ò	?­îÂ!­éÄ!ÅœÆHÇ>­ŞGÈW¬‰ÆÈOÉ˜?­ÏÊ‰‰‰‰Ñ!š?­—«‘ÓÔ!\"‰ª‚)¬XÕ!‰@AÊÖ×.‡" [make-backup-files buffer-backed-up file-exists-p buffer-file-name file-attributes 8 0 (45 108) 5 "/tmp/" nil last setmodes targets backupname backup-info real-file-name file-symlink-p tem expand-file-name file-name-directory find-backup-file-name (byte-code "­‰	®†ÂÃÄ\"!ÇÈÉˆÊ««‹ÇÌÍˆA‰¬u)‡" [targets trim-versions-without-asking y-or-n-p format "Delete excess backup versions of %s? " real-file-name delete-old-versions nil (byte-code "¬§	¬¤\n«‡Ã!ÅV¬š« Ç!É8®ˆÊ8Ë U?)«ŠÌÎ‰$ˆªÏÎ#ˆĞ!Ã‡" [file-precious-flag backup-by-copying backup-by-copying-when-linked file-nlinks real-file-name 1 backup-by-copying-when-mismatch file-attributes attr 9 2 user-uid copy-file backupname t rename-file file-modes setmodes] 5) ((file-error (byte-code "ÀÁ!ÃÄ!ˆÅÆ!ˆÇ\nÉ‰$‡" [expand-file-name "~/%backup%~" backupname message "Cannot write backup file; backing up in ~/%%backup%%~" sleep-for 1 copy-file real-file-name t] 5))) t buffer-backed-up (byte-code "À	@!‡" [delete-file targets] 2) ((file-error)) setmodes] 5) ((file-error))] 7 "\
+Make a backup of the disk file visited by the current buffer, if appropriate.
+This is normally done before saving the buffer the first time.
+If the value is non-nil, it is the result of `file-modes' on the original file;
+this means that the caller, after saving the buffer, should change the modes
+of the new file to agree with the old modes."])
+(fset 'file-name-sans-versions #[(name) "Á\nÃ=«”ÄÅ\"®œÄÆ\"«„Ç”®’GªÄÈ\"®ˆÄÉ\"®‚GO‡" [name 0 system-type vax-vms string-match ";[---+]?[0-9]*\\'" "\\.[^]>:]*\\(\\.[---+]?[0-9]*\\)\\'" 1 "\\.~[0-9]+~\\'" "~\\'"] 5 "\
+Return FILENAME sans backup versions or strings.
+This is a separate procedure so your site-init or startup file can
+redefine it."])
+(fset 'make-backup-file-name #[(file) "ÁP‡" [file "~"] 2 "\
+Create the non-numeric backup file name for FILE.
+This is a separate function so you can redefine it for customization."])
+(fset 'backup-file-name-p #[(file) "ÀÁ\n\"‡" [string-match "~$" file] 3 "\
+Return non-nil if FILE is a backup file name (numeric or not).
+This is a separate function so you can redefine it for customization.
+You may need to redefine file-name-sans-versions as well."])
+(fset 'find-backup-file-name #[(fn) "Á=«…Â!C‡Ä!ÅP‰GÈÉ!\"\nËÌÍ\n\"Î\"ĞÑÒB\"®„ÒVGZZ×Z¬†Â!Cª¦ÅÙT!ÚRÒV­–ÌÛ›S›İ¡ˆ)\"B.‡" [version-control never make-backup-file-name fn file-name-nondirectory ".~" base-versions bv-length file-name-all-completions file-name-directory possibilities sort mapcar backup-extract-version < versions apply max 0 high-water-mark deserve-versions-p kept-old-versions kept-new-versions -1 number-to-delete int-to-string "~" #[(n) "ÁÂ!ÄR‡" [fn ".~" int-to-string n "~"] 4] v nil] 6 "\
+Find a file name for a backup file, and suggestions for deletions.
+Value is a list whose car is the name for the backup file
+ and whose cdr is a list of old versions to consider deleting now."])
+(fset 'backup-extract-version #[(fn) "ÀÁ\n#«Ä”U«‡Å\nÆO!‡Ä‡" [string-match "[0-9]+~$" fn bv-length 0 string-to-int -1] 4])
+(fset 'file-nlinks #[(filename) "À	!A@‡" [file-attributes filename] 2 "\
+Return number of names file FILENAME has."])
+(fset 'save-buffer #[(&optional args) "À Á ÂV­„Å=?‰«ˆÈ>«ƒÉ\n«Š«†ËÌÍ \"ˆÎ ˆ­‰Ï>­„É‰\n+‡" [buffer-modified-p buffer-size 50000 make-backup-files args 0 large modp (16 64) nil buffer-backed-up message "Saving file %s..." buffer-file-name basic-save-buffer (4 64)] 5 "\
+Save current buffer in visited file if modified.  Versions described below.
+
+By default, makes the previous version into a backup file
+ if previously requested or if this is the first save.
+With 1 or 3 \\[universal-argument]'s, marks this version
+ to become a backup when the next save is done.
+With 2 or 3 \\[universal-argument]'s,
+ unconditionally makes the previous version into a backup file.
+With argument of 0, never makes the previous version into a backup file.
+
+If a file's name is FOO, the names of its numbered backup versions are
+ FOO.~i~ for various integers i.  A non-numbered backup file is called FOO~.
+Numeric backups (rather than FOO~) will be made if value of
+ `version-control' is not the atom `never' and either there are already
+ numeric versions of the file being backed up, or `version-control' is
+ non-nil.
+We don't want excessive versions piling up, so there are variables
+ `kept-old-versions', which tells Emacs how many oldest versions to keep,
+ and `kept-new-versions', which tells how many newest versions to keep.
+ Defaults are 2 old versions and 2 new.
+`dired-kept-versions' controls dired's clean-directory (.) command.
+If `trim-versions-without-asking' is nil, system will query user
+ before trimming versions.  Otherwise it does it silently." "p"])
+(fset 'delete-auto-save-file-if-necessary #[(&optional force) "­‘	­\n¬„Ã ­‡ÄÅÆˆÇ ‡" [buffer-auto-save-file-name delete-auto-save-files force recent-auto-save-p nil (delete-file buffer-auto-save-file-name) ((file-error)) set-buffer-auto-saved] 3 "\
+Delete the auto-save filename for the current buffer (if it has one)
+if variable `delete-auto-save-files' is non-nil.
+Normally delete only if the file was written by this Emacs
+since the last real save, but optional arg FORCE non-nil means delete anyway."])
+(fset 'basic-save-buffer #[nil "À ƒ^Á Â‰Ç=««É!˜¬¢Â\nÉ!Ë—!Í!\nÎ!ˆ)Ï\n!ˆ)¬“ĞÑÒ!Â\"Ó!Õ!ˆ×p!¬•Ø!«ÙÚÛÜ!\"!¬„İŞ!ˆŒ~ˆdßV«¢dSfàU¬›!â=¬!«‘ãÚäÍ \"!«ˆŠdbˆàcˆ)Â%Â&'('«‘'@ ‰%¬ˆ'A‰'¬o*%„Eé!¬“ÙÚêÜ!\"!«„âª„İë!ˆ,¬ƒí .«ÊâÂ‰‰/0121ó1!‰/«†/1ªq1ôP0Âõöˆ÷1!«†İø1\"ˆùú ˆûed1Ââ%ˆÂ2-ªš«¬‹ü!ış\"ˆûedÂâ%ˆ)«‡Âÿ@ ˆ)A !ˆB è!+‡C D !‡" [buffer-modified-p recent-auto-save-p nil tempsetmodes setmodes recent-save system-type vax-vms buffer-file-name file-name-sans-versions buffer-new-name create-file-buffer buf buffer-name kill-buffer rename-buffer expand-file-name read-file-name "File to save in: " file-name-directory default-directory auto-save-mode auto-save-default verify-visited-file-modtime file-exists-p yes-or-no-p format "%s has changed since visited or saved.  Save anyway? " file-name-nondirectory error "Save not confirmed" 1 10 require-final-newline t y-or-n-p "Buffer %s does not end in newline.  Add one? " done write-file-hooks hooks after-write-file-hooks file-writable-p "File %s is write-protected; try to save anyway? " "Attempt to save to a file which you aren't allowed to write" buffer-backed-up backup-buffer file-precious-flag temp tempname realname rename file-symlink-p "#" (byte-code "À	\nÃ#ˆÄ\n!À‡" [rename-file realname tempname t file-modes setmodes] 4) ((file-error (byte-code "ÀÀÀ‡" [nil rename tempname] 1))) file-directory-p "%s is a directory" ((byte-code "«‹Á\nÄ#ˆÅ ˆªˆ\n«…ÆÇÈˆÆ‡" [rename rename-file tempname realname t clear-visited-file-modtime nil (delete-file tempname) ((error))] 4)) clear-visited-file-modtime write-region file-modes set-file-modes 511 (set-file-modes buffer-file-name setmodes) ((error)) delete-auto-save-file-if-necessary run-hooks message "(No changes need to be saved)"] 7 "\
+Save the current buffer in its visited file, if it has been modified." nil])
+(fset 'save-some-buffers #[(&optional arg exiting) "ÀÁ \n«Ğ\n@Å!«ÁÆÇÈ!\"¬¹Šqˆ	¬\n«¬«¨Ì ÍV«¢Î‰«¬”Ğ	«‡ÑÒ	\"ª…ÑÓÔ \"!«…ÀÕÖˆ))\nA‰¬0«š«–Î¬‰ĞÑÙ\"!«„ÛÀ!ˆÀ«…Üİ!ªƒÜŞ!*‡" [nil buffer-list list considered buffer buffer-modified-p assoc save-buffers-skip buffer-local-variables buffer-file-name exiting buffer-offer-save buffer-size 0 t arg y-or-n-p format "Save file %s? " "Save buffer %s? " buffer-name (save-buffer) ((error)) save-abbrevs abbrevs-changed "Save abbrevs in %s? " abbrev-file-name write-abbrev-file message "" "(No files need saving)"] 5 "\
+Save some modified file-visiting buffers.  Asks user about each one.
+With argument, saves all with no questions." "P"])
+(fset 'not-modified #[(&optional arg) "À	«ƒÂªÃ!ˆÄ	!‡" [message arg "Modification-flag set" "Modification-flag cleared" set-buffer-modified-p] 2 "\
+Mark current buffer as unmodified, not needing to be saved.
+With prefix arg, mark buffer as modified, so \\[save-buffer] will save." "P"])
+(fset 'toggle-read-only #[(&optional arg) "¬„	?ª…Â!ÃVÄÅ !‡" [arg buffer-read-only prefix-numeric-value 0 set-buffer-modified-p buffer-modified-p] 2 "\
+Change whether this buffer is visiting its file read-only.
+With arg, set read-only iff arg is positive." "P"])
+(fset 'insert-file #[(filename) "À	!Ã`\nA@\\!)‡" [insert-file-contents filename tem push-mark] 3 "\
+Insert contents of file FILENAME into buffer after point.
+Set mark after the inserted text.
+
+This function is meant for the user to run interactively.
+Don't call it from programs!  Use `insert-file-contents' instead.
+(Its calling sequence is different; see its documentation)." "fInsert file: "])
+(fset 'append-to-file #[(start end filename) "À	\nÄ$‡" [write-region start end filename t] 5 "\
+Append the contents of the region to the end of file FILENAME.
+When called from a function, expects three arguments,
+START, END and FILENAME.  START and END are buffer positions
+saying what text to write." "r\nFAppend to file: "])
+(fset 'file-newest-backup #[(filename) "À	!Â	!Ä	!Æ\"È	« @PAÊ!«l	«‡Ë	\"«a	ª\\	-‡" [expand-file-name filename file-name-nondirectory file file-name-directory dir file-name-all-completions comp nil newest backup-file-name-p file-newer-than-file-p] 3 "\
+Return most recent backup file for FILENAME or nil if no backups exist."])
+(fset 'rename-uniquely #[nil "ÀÁ !Á\n!Ä\n!ˆÅ!ˆÆÇ !*‡" [generate-new-buffer buffer-name new-buf name kill-buffer rename-buffer set-buffer-modified-p buffer-modified-p] 2 "\
+Rename current buffer to a similar name not already taken.
+This function is useful for creating multiple shell process buffers
+or multiple mail buffers, etc." nil])
+(put 'revert-buffer-function 'permanent-local t)
+(defvar revert-buffer-function nil "\
+Function to use to revert this buffer, or nil to do the default.")
+(put 'revert-buffer-insert-file-contents-function 'permanent-local t)
+(defvar revert-buffer-insert-file-contents-function nil "\
+Function to use to insert contents when reverting this buffer.
+Gets two args, first the nominal file name to use,
+and second, t if reading the auto-save file.")
+(fset 'revert-buffer #[(&optional check-auto noconfirm) "«†	?\n\"‡`	­Ä ­‹­ˆÆ!­ƒÇÈ!‰	«ƒª‚\n‰¬…ÌÍ!ªâ\n¬‰ÎÏĞ\"!­Ö	¬ˆÑp!¬ƒÒÕ=¬ƒÒÒÕ«Š	\"ˆª¢Ø!¬†ÌÙ\"ˆÒ\n	¬ƒÚ ˆÛ ˆ)Ü	?\"ˆ*d^bˆİÒ!ˆÕ+‡" [revert-buffer-function check-auto noconfirm opoint recent-auto-save-p buffer-auto-save-file-name file-readable-p y-or-n-p "Buffer has been auto-saved recently.  Revert from auto-save file? " auto-save-p buffer-file-name file-name error "Buffer does not seem to be associated with any file" yes-or-no-p format "Revert buffer from file %s? " verify-visited-file-modtime nil buffer-backed-up buffer-undo-list t buffer-read-only revert-buffer-insert-file-contents-function file-exists-p "File %s no longer exists!" unlock-buffer erase-buffer insert-file-contents after-find-file] 5 "\
+Replace the buffer text with the text of the visited file on disk.
+This undoes all changes since the file was visited or saved.
+With a prefix argument, offer to revert from latest auto-save file, if
+that is more recent than the visited file.
+When called from lisp, this is the first argument, CHECK-AUTO; it is optional.
+Optional second argument NOCONFIRM means don't ask for confirmation at all.
+
+If the value of `revert-buffer-function' is non-nil, it is called to
+do the work." "P"])
+(fset 'recover-file #[(file) "À	!Â	!«…ÃÄ	\"ˆ	Æ )È	\"¬‡ÃÉ\"ª Ê‹«™ËÌ	Í\"!ˆÎĞ ˆÑÎ\"ˆ)ÒÎ!ªƒÃÓ!)‡" [expand-file-name file auto-save-file-name-p error "%s is an auto-save file" buffer-file-name make-auto-save-file-name file-name file-newer-than-file-p "Auto-save file %s not current" ((byte-code "Á=¬”ÂÃ!ˆÅÆÇÇÈ	\n&‘ˆËÌÍ\n\"!‡" [system-type vax-vms "*Directory*" buffer-disable-undo standard-output call-process "ls" nil "-l" file file-name yes-or-no-p format "Recover auto save file %s? "] 9)) switch-to-buffer find-file-noselect t nil buffer-read-only erase-buffer insert-file-contents after-find-file "Recover-file cancelled."] 4 "\
+Visit file FILE, but get contents from its last auto-save file." (byte-code "Á‰‰«ˆÅ!Æ!ÇÈ\nÁ‰%+C‡" [buffer-file-name nil file-dir file-name prompt-file file-name-nondirectory file-name-directory read-file-name "Recover file: "] 7)])
+(fset 'kill-some-buffers #[nil "À ‰­°	@Ã\n!‰Å˜¬œÆHÇU¬•ÈÉÊË\n!«ƒÌªÍ#!«„Î\n!ˆ*	A‰¬QÏ)‡" [buffer-list list buffer buffer-name name "" 0 32 yes-or-no-p format "Buffer %s %s.  Kill? " buffer-modified-p "HAS BEEN EDITED" "is unmodified" kill-buffer nil] 7 "\
+For each buffer, ask whether to kill it." nil])
+(fset 'auto-save-mode #[(arg) "¬„	?ªÂ=¬<¬‰¨­”ÃV­«Š«‡¬ƒª‚Ç t«‹ÈÉ	«ƒÊªË\"ˆ	‡" [arg buffer-auto-save-file-name t 0 buffer-file-name auto-save-visited-file-name buffer-read-only make-auto-save-file-name message "Auto-save %s (in this buffer)" "on" "off"] 3 "\
+Toggle auto-saving of contents of current buffer.
+With arg, turn auto-saving on if arg is positive, else off." "P"])
+(fset 'rename-auto-save-file #[nil "Â 	­­š˜?­”	˜?­Ä	!­‰Å ­…Æ	Ç#)‡" [buffer-auto-save-file-name osave make-auto-save-file-name buffer-file-name file-exists-p recent-auto-save-p rename-file t] 4 "\
+Adjust current buffer's auto save file name for current conditions.
+Also rename any existing auto save file, if it was made in this session."])
+(fset 'make-auto-save-file-name #[nil "«ŠÁ!ÂÃ!ÂR‡ÄÅÆÇ ÈÉ!#!‡" [buffer-file-name file-name-directory "#" file-name-nondirectory expand-file-name format "#%s#%s#" buffer-name make-temp-name ""] 6 "\
+Return file name to use for auto-saves of current buffer.
+Does not consider auto-save-visited-file-name; that is checked
+before calling this function.
+You can redefine this for customization.
+See also auto-save-file-name-p."])
+(fset 'auto-save-file-name-p #[(filename) "ÀÁ\n\"‡" [string-match "^#.*#$" filename] 3 "\
+Return non-nil if FILENAME can be yielded by make-auto-save-file-name.
+FILENAME should lack slashes.
+You can redefine this for customization."])
+(defconst list-directory-brief-switches (byte-code "Á=«‚Â‡Ã‡" [system-type vax-vms "" "-CF"] 2) "\
+*Switches for list-directory to pass to `ls' for brief listing,")
+(defconst list-directory-verbose-switches (byte-code "Á=«‚Â‡Ã‡" [system-type vax-vms "/PROTECTION/SIZE/DATE/OWNER/WIDTH=(OWNER:10)" "-l"] 2) "\
+*Switches for list-directory to pass to `ls' for verbose listing,")
+(fset 'list-directory #[(dirname &optional verbose) "«ƒ	ª\n¬‚Æ!ÇÈ	!ˆÊË!ˆÊ!ˆÌ ˆÎ=«ˆÏ	#ªÁĞ!«•ŠÇqˆÑÒÓ	ÓÔ!‰&)ª§Õ!Ö!«“ÑÓ	ÓØÙÚÛ!R&ªŠÊÜ!ˆÊ!ˆÌ )‘)‡" [verbose list-directory-verbose-switches list-directory-brief-switches switches dirname default-directory expand-file-name "*Directory*" buffer-disable-undo standard-output princ "Directory " terpri system-type vax-vms vms-read-directory file-directory-p call-process "ls" nil file-name-as-directory file-name-directory file-exists-p shell-file-name "-c" "exec ls " " " file-name-nondirectory "No such directory: "] 12 "\
+Display a list of files in or matching DIRNAME, a la `ls'.
+DIRNAME is globbed by the shell if necessary.
+Prefix arg (second arg if noninteractive) means supply -l switch to `ls'.
+Actions controlled by variables list-directory-brief-switches
+ and list-directory-verbose-switches." (byte-code "Â	«ƒÃªÄÅÅ$	)D‡" [current-prefix-arg pfx read-file-name "List directory (verbose): " "List directory (brief): " nil default-directory] 5)])
+(fset 'save-buffers-kill-emacs #[(&optional arg) "À	Â\"ˆÂÃÄÅ \">«…ÆÇ!­ÄÈÉ!«½É Ê‰«¨Í@!Î>«—Ï@!Ï@\"ˆ)«ƒÂA‰¬X?®ƒÆÑ!*­‚Ò ‡" [save-some-buffers arg t mapcar #[(buf) "À	!­ƒÂ	!‡" [buffer-file-name buf buffer-modified-p] 2] buffer-list yes-or-no-p "Modified buffers exist; exit anyway? " fboundp process-list nil active processes process-status (run stop) process-kill-without-query val "Active processes exist; kill them and exit anyway? " kill-emacs] 5 "\
+Offer to save each buffer, then kill this Emacs process.
+With prefix arg, silently save all file-visiting buffers, then kill." "P"])
+(byte-code "À	ÂÃ#ˆÀ	ÄÅ#ˆÀ	ÆÇ#ˆÀ	ÈÉ#ˆÀ	ÊË#ˆÀ	ÌÍ#ˆÀ	ÎÏ#ˆÀ	ĞÑ#ˆÀÓÔ#ˆÀ	ÕÖ#ˆÀ	×Ø#ˆÀÚÛ#ˆÀÜİ#ˆÀÂÛ#ˆÀŞß#ˆÀ áâ#‡" [define-key ctl-x-map "" find-file "" toggle-read-only "" find-file-read-only "" find-alternate-file "" save-buffer "s" save-some-buffers "" write-file "i" insert-file esc-map "~" not-modified "" list-directory "" save-buffers-kill-emacs ctl-x-4-map "f" find-file-other-window "r" find-file-read-only-other-window "b" switch-to-buffer-other-window global-map "" switch-to-other-buffer] 4)

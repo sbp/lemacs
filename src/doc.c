@@ -1,11 +1,11 @@
 /* Record indices of function doc strings stored in a file.
-   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -424,7 +424,7 @@ thus, \\=\\=\\=\\= puts \\=\\= into the output, and \\=\\=\\=\\[ puts \\=\\[ int
 	  else if (start[-1] == '<')
 	    keymap = tem;
 	  else
-	    describe_map_tree (tem, 1, Qnil, Qnil);
+	    describe_map_tree (tem, 1, Qnil, Qnil, 0);
 	  tem = Fbuffer_string ();
 	  Ferase_buffer ();
 	  internal_set_buffer (oldbuf);

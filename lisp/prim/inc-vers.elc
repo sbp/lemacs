@@ -1,0 +1,13 @@
+;;; compiled by jwz@thalidomide on Wed Jun 17 18:55:39 1992
+;;; from file /u/jwz/emacs19/lisp/prim/inc-vers.el
+;;; emacs version 19.1.1 Lucid.
+;;; bytecomp version 2.07; 12-jun-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂ ˆÃÄ!ˆÅÆ!ˆÇ”Ç•U«„Èuª‡É”bˆÊp!~ˆ¬…Ìcˆª–É”É•|ˆÍTp\"ˆÎU«ƒÏcˆ)ÐÑxˆÒÓ`ÐÑwˆ`{\"ˆÔedÄÑÕ%ˆÖ ˆ×Ñ!ˆØ ‡" [load "startup" set-default-load-path insert-file-contents "../lisp/version.el" re-search-forward "emacs-version \"[^\"0-9]*[0-9]+\\.[0-9]+\\(\\.\\([0-9]+\\)\\|\\)\"" 1 -1 2 read version ".1" prin1 75 " (Disco Inferno)" "^\"" nil message "New Emacs version will be %s" write-region nomsg erase-buffer set-buffer-modified-p kill-emacs] 6)

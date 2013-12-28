@@ -18,7 +18,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "config.h"
 
 #include <stdio.h>
-#include <sys/time.h>
 #include <sys/types.h>		/* some typedefs are used in sys/file.h */
 #include <sys/file.h>
 #include <sys/ioctl.h>		/* if not provided BLOCK_INPUT loses */

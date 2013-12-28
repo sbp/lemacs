@@ -1,11 +1,11 @@
 /* File IO for GNU Emacs.
-   Copyright (C) 1985, 1986, 1987, 1988 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1988, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -24,6 +24,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <ctype.h>
 #include <sys/dir.h>
 #include <errno.h>
+#include <sys/param.h>
 
 #ifndef VMS
 extern int errno;
@@ -748,16 +749,15 @@ See also the function `substitute-in-file-name'.")
   return make_string (target, o - target);
 }
 
-#ifdef HAVE_REALPATH
-#include <sys/param.h>
-
-DEFUN ("real-path-name", Freal_path_name, Sreal_path_name, 1, 2, 0,
-  "Convert NAME to absolute, and canonicalize it, resolving symbolic \n\
-links as in Unix system call realpath(). Second arg DEFAULT is directory \n\
-to start with if NAME is relative (does not start with slash); \n\
-if DEFAULT is nil or missing, the current buffer's value of \n\
-default-directory is used. Returns nil if the file doesn't exist of if \n\
-otherwise unable to resolve NAME.")
+DEFUN ("truename", Ftruename, Struename, 1, 2, 0,
+  "Returns the canonical name of the given FILE.\n\
+Second arg DEFAULT is directory to start with if FILE is relative\n\
+ (does not start with slash); if DEFAULT is nil or missing,\n\
+ the current buffer's value of default-directory is used.\n\
+No component of the resulting pathname will be a symbolic link, as\n\
+ in the realpath() function.\n\
+If the file does not exist, or is otherwise unable to be resolved,\n\
+ nil is returned.")
      (name, defalt)
      Lisp_Object name, defalt;
 {
@@ -777,12 +777,27 @@ otherwise unable to resolve NAME.")
 
   if (!(XTYPE (expanded_name) == Lisp_String)) return Qnil;
 
-  bzero (resolved_path, MAXPATHLEN);
+  if (XSTRING (expanded_name)->size >= sizeof (resolved_path))
+    while (1)
+      Fsignal (Qfile_error,
+	       Fcons (build_string ("Finding realpath"),
+		      Fcons (build_string ("pathame too long"),
+			     Fcons (expanded_name, Qnil))));
+
+  bzero (resolved_path, sizeof (resolved_path));
   errno = 0;
-  path = realpath ((char *) XSTRING (expanded_name)->data, resolved_path);
 
-  if (!path) return Qnil;
+#ifndef VMS
+  if (! realpath ((char *) XSTRING (expanded_name)->data, resolved_path))
+    return Qnil;
+#else
+  if (NILP (Ffile_exists_p (expanded_name)))
+    return Qnil;
+  strncpy (resolved_path, (char *) XSTRING (expanded_name)->data,
+	   XSTRING (expanded_name)->size + 1);
+#endif
 
+#ifndef VMS
   {
     /* eat my shorts */
     char *Nightmare_File_System = "/tmp_mnt/";
@@ -791,6 +806,8 @@ otherwise unable to resolve NAME.")
     int yes_it_really_does_end_in_a_slash;
 
     if (no_this_one = (char *)egetenv ("ENERGIZE_NFS_PREFIX"))
+      Nightmare_File_System = no_this_one;
+    else if (no_this_one = (char *)egetenv ("NFS_PREFIX"))
       Nightmare_File_System = no_this_one;
 
     nightmarish_length = strlen (Nightmare_File_System);
@@ -802,9 +819,9 @@ otherwise unable to resolve NAME.")
     return build_string (resolved_path + nightmarish_length
 			 - yes_it_really_does_end_in_a_slash);
   }
+#endif
   return build_string (resolved_path);
 }
-#endif /* HAVE_REALPATH */
 
 #if 0
 DEFUN ("expand-file-name", Fexpand_file_name, Sexpand_file_name, 1, 2, 0,
@@ -1965,14 +1982,14 @@ based on the current value of `buffer-file-name'.")
   if (NILP (current_buffer->filename))
     return (current_buffer->truename = Qnil);
 
-  fn = Freal_path_name (current_buffer->filename, Qnil);
+  fn = Ftruename (current_buffer->filename, Qnil);
   if (NILP (fn))
     {
       /* If the file name is resolvable, we're done.  Otherwise, the file
 	 probably doesn't exist yet.  First, resolve the file's directory...
        */
       dn = Ffile_name_directory (current_buffer->filename);
-      fn = Freal_path_name (dn, Qnil);
+      fn = Ftruename (dn, Qnil);
       if (! NILP (fn)) dn = fn;
       
       /* ...and then expand the file relative to that.
@@ -3052,9 +3069,7 @@ nil means use format `var'.  This variable is meaningful only on VMS.");
   defsubr (&Sdirectory_file_name);
   defsubr (&Smake_temp_name);
   defsubr (&Sexpand_file_name);
-#ifdef HAVE_REALPATH
-  defsubr (&Sreal_path_name);
-#endif
+  defsubr (&Struename);
   defsubr (&Ssubstitute_in_file_name);
   defsubr (&Scopy_file);
   defsubr (&Smake_directory);

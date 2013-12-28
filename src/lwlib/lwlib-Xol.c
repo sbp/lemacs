@@ -1,5 +1,4 @@
 #include "lwlib-Xol.h"
-#include "xt_extension.h"
 #include <X11/StringDefs.h>
 #include <X11/IntrinsicP.h>
 #include <X11/CompositeP.h>
@@ -106,7 +105,7 @@ destroy_all_children (Widget widget)
   unsigned int number;
   int i;
 
-  children = XtCompositeChildren (widget, &number);
+  children = (Widget *) XtCompositeChildren (widget, &number);
   if (children)
     {
       /* Unmanage all children and destroy them.  They will only be 
@@ -151,7 +150,7 @@ make_menu_in_widget (widget_instance* instance, Widget widget,
       XtSetArg (al [ac], XtNuserData, instance); ac++;
       XtSetArg (al [ac], XtNacceleratorText, cur->key); ac++;
       
-      label = resource_string (widget, cur->name);
+      label = (char *) resource_string (widget, cur->name);
       if (label)
 	{
 	  XtSetArg (al [ac], XtNlabel, label); ac++;
@@ -251,7 +250,7 @@ update_menu_widget (widget_instance* instance, Widget widget,
       int i;
       widget_value* cur;
       
-      children = XtCompositeChildren (widget, &num_children);
+      children = (Widget *) XtCompositeChildren (widget, &num_children);
       if (children)
 	{
 	  for (i = 0, cur = val->contents; i < num_children; i++)

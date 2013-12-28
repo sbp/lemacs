@@ -1,11 +1,11 @@
 /* Updating of data structures for redisplay.
-   Copyright (C) 1985, 1986, 1987, 1988, 1990 Free Software Foundation, Inc.
+   Copyright (C) 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -25,6 +25,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <ctype.h>
 #include "indent.h"
 
+#if 0			/* It shouldn't be necessary to include time.h here,
+			   because we include xterm.h, which includes
+			   X11/Intrinsic.h, which includes X11/Xos.h, which
+			   includes time.h.  Some bogon systems (like HP)
+			   don't protect their header files from double
+			   inclusion, so including time.h twice blows up!
+			 */
+
 #ifdef NEED_TIME_H
 #include <time.h>
 #else /* not NEED_TIME_H */
@@ -32,6 +40,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <sys/time.h>
 #endif /* HAVE_TIMEVAL */
 #endif /* not NEED_TIME_H */
+
+#endif /* 0 */
+
 
 #ifdef HAVE_TERMIO
 #include <termio.h>
@@ -1761,7 +1772,7 @@ pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
   int tab_offset = 0;		/* Wrong, fix this later */
   int hscroll = 0;		/* Wrong, fix this later */
   struct buffer *buffer;
-  int ctl_arrow;
+  Lisp_Object ctl_arrow;
 
   *x = 0;
   *y = 0;
@@ -1868,7 +1879,9 @@ pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
 	  c = ((bufpos > 0)
 	       ? BUF_CHAR_AT (buffer, bufpos)
 	       : minibuf_prompt[minibuf_len + bufpos - 1]);
-	  if (c >= 040 && c < 0177) /* Normal character. */
+	  if ((c >= 040 && c < 0177) || /* Normal character. */
+	      (!NILP (ctl_arrow) &&	/* 8-bit display */
+	       !EQ (ctl_arrow, Qt) && c >= 0240))
 	    {
 	    }
 	  else if (c == '\t')	/* Tab character. */
@@ -1881,7 +1894,7 @@ pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
 	      bufcol += j;
 	      this_pix += j * X_CHAR_WIDTH (this_font, ' ');
 	    }
-	  else if (c < 0200 && ctl_arrow)
+	  else if (c < 0200 && !NILP (ctl_arrow))
 	    {
 	      g++;
 	      bufcol++;
@@ -1966,7 +1979,8 @@ pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
 	  c = ((bufpos > 0)
 	       ? BUF_CHAR_AT (buffer, bufpos)
 	       : minibuf_prompt[minibuf_len + bufpos - 1]);
-	  if (c >= 040 && c < 0177) /* Normal character. */
+	  if ((c >= 040 && c < 0177) || /* Normal character. */
+	      (!NILP (ctl_arrow) && !EQ (ctl_arrow, Qt) && c >= 0240))
 	    {
 	    }
 	  else if (c == '\t')	/* Tab character. */
@@ -1979,7 +1993,7 @@ pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
 	      bufcol += j;
 	      this_pix += j * X_CHAR_WIDTH (this_font, ' ');
 	    }
-	  else if (c < 0200 && ctl_arrow)
+	  else if (c < 0200 && !NILP (ctl_arrow))
 	    {
 	      g++;
 	      bufcol++;

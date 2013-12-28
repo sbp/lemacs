@@ -1,11 +1,11 @@
 /* Interfaces to system-dependent kernel and library entries.
-   Copyright (C) 1985, 1986, 1987, 1988 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1988, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -1403,8 +1403,12 @@ start_of_text ()
   extern csrt();
   return ((char *) csrt);
 #else /* not GOULD */
+#ifdef NeXT
+  return ((char *)0); /* wrong: but nobody uses it anyway */
+#else
   extern int _start ();
   return ((char *) _start);
+#endif /* NeXT */
 #endif /* GOULD */
 #endif /* TEXT_START */
 }
@@ -1462,7 +1466,13 @@ end_of_text ()
 #ifdef TEXT_END
   return ((char *) TEXT_END);
 #else
+#ifdef __NeXT__
+  static int etext;
+
+  etext = get_etext();
+#else
   extern char etext;
+#endif       /* __NeXT__ */
   return ((char *) &etext);
 #endif
 }
@@ -1478,7 +1488,13 @@ end_of_data ()
 #ifdef DATA_END
   return ((char *) DATA_END);
 #else
+#ifdef __NeXT__
+  static int edata;
+
+  edata = get_edata();
+#else
   extern int edata;
+#endif                     /* __NeXT__ */
   return ((char *) &edata);
 #endif
 }
@@ -2235,7 +2251,6 @@ setpriority (which, who, prio)
   int nice();
 
   nice (prio - nice (0));
-  return (0);
 }
 
 #endif /* NCR486 */

@@ -1,11 +1,11 @@
 /* Lisp parsing and input streams.
-   Copyright (C) 1985, 1986, 1987, 1988, 1989 Free Software Foundation, Inc.
+   Copyright (C) 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -489,35 +489,6 @@ nil means discard it; anything else is stream for print.")
   return Qnil;
 }
 
-#if 0
-/* This is now in lisp code. */
-
-DEFUN ("eval-current-buffer", Feval_current_buffer, Seval_current_buffer, 0, 1, "",
-  "Execute the current buffer as Lisp code.\n\
-Programs can pass argument PRINTFLAG which controls printing of output:\n\
-nil means discard it; anything else is stream for print.\n\
-\n\
-If there is no error, point does not move.  If there is an error,\n\
-point remains at the end of the last character read from the buffer.")
-  (printflag)
-     Lisp_Object printflag;
-{
-  int count = specpdl_ptr - specpdl;
-  Lisp_Object tem;
-
-  if (NILP (printflag))
-    tem = Qsymbolp;
-  else
-    tem = printflag;
-  specbind (Qstandard_output, tem);
-  record_unwind_protect (save_excursion_restore, save_excursion_save ());
-  SET_PT (BEGV);
-  readevalloop (Fcurrent_buffer (), 0, Feval, !NILP (printflag));
-  unbind_to (count);
-  return Qnil;
-}
-#endif
-
 DEFUN ("eval-region", Feval_region, Seval_region, 2, 3, "r",
   "Execute the region as Lisp code.\n\
 When called from programs, expects two arguments,\n\
@@ -650,7 +621,7 @@ read_escape (readcharfun)
   switch (c)
     {
     case 'a':
-      return '\a';
+      return 7; 	/* some systems don't know '\a' */
     case 'b':
       return '\b';
     case 'e':
@@ -1533,7 +1504,8 @@ init_read ()
 
 #ifndef CANNOT_DUMP
   if (!NILP (Vpurify_flag))
-    Vload_path = Fcons (build_string ("../lisp"), Vload_path);
+    /* loadup.el will frob this some more */
+    Vload_path = Fcons (build_string ("../lisp/prim"), Vload_path);
 #endif /* not CANNOT_DUMP */
   load_in_progress = 0;
 }

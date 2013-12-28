@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Thu Apr 23 16:47:13 1992
-;;; from file /u/jwz/emacs19/lisp/ilisp/ilisp.el
-;;; emacs version 19.0.2 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
+;;; compiled by jwz@thalidomide on Wed Jun 17 20:19:31 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/ilisp/ilisp.el
+;;; emacs version 19.1.1 Lucid.
+;;; bytecomp version 2.07; 12-jun-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

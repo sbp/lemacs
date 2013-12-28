@@ -1,11 +1,11 @@
 /* Random utility Lisp functions.
-   Copyright (C) 1985, 1986, 1987 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -90,6 +90,20 @@ lisp_to_word (Lisp_Object obj)
   
   return (XUINT (high) << 16) | (XUINT (low));
 }
+
+#ifdef NEED_STRDUP
+char *
+strdup(s)
+     char *s;
+{
+    char *result = (char *) malloc (strlen (s) + 1);
+    if (result == (char *) 0)
+      return (char *) 0;
+    strcpy (result, s);
+    return result;
+}
+#endif
+
 
 /* Lucid sound change */
 Lisp_Object Vbell_volume;
@@ -649,6 +663,19 @@ The value is actually the element of LIST whose car is ELT.")
       QUIT;
     }
   return Qnil;
+}
+
+Lisp_Object
+assoc_no_quit (key, list)
+     register Lisp_Object key;
+     Lisp_Object list;
+{
+  Lisp_Object result;
+  Lisp_Object oinhibit = Vinhibit_quit;
+  Vinhibit_quit = Qt;
+  result = Fassoc (key, list);
+  Vinhibit_quit = oinhibit;
+  return result;
 }
 
 DEFUN ("rassq", Frassq, Srassq, 2, 2, 0,
@@ -1505,12 +1532,21 @@ assuming that /dev/kmem is in the group kmem.)")
       nl[0].n_un.n_name = LDAV_SYMBOL;
       nl[1].n_un.n_name = 0;
 #else /* not convex */
+#ifdef NEXT_KERNEL_FILE
+      nl[0].n_un.n_name = LDAV_SYMBOL;
+      nl[1].n_un.n_name = 0;
+#else
       nl[0].n_name = LDAV_SYMBOL;
       nl[1].n_name = 0;
+#endif /* not NEXT_KERNEL_FILE */
 #endif /* not convex */
 #endif /* NLIST_STRUCT */
 
+#ifdef NEXT_KERNEL_FILE
+      nlist (NEXT_KERNEL_FILE, nl);
+#else
       nlist (KERNEL_FILE, nl);
+#endif      /* NEXT_KERNEL_FILE */
 
 #ifdef FIXUP_KERNEL_SYMBOL_ADDR
       FIXUP_KERNEL_SYMBOL_ADDR (nl);

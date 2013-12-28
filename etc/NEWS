@@ -39,9 +39,10 @@ What's Different?
 Lucid GNU Emacs *currently* requires X Windows to run, though it will not be
 much work to make it run on dumb ttys again.  We plan to do this soon.
 
-We have not yet tried to compile this version of Emacs under anything but
-SunOS 4.1 on SparcStations.  We are very eager to get feedback about
-portability problems from those who compile it on other systems.
+We have not personally tried to compile this version of Emacs under anything
+but SunOS 4.1 on SparcStations, though others have successfully done so.  We
+are very eager to get feedback about portability problems from those who
+compile it on other systems.
 
 We have reimplemented the basic input model in a more general way; instead of
 X input being a special-case of the normal ASCII input stream, Emacs has a
@@ -51,6 +52,8 @@ them, so that Emacs can eventually be ported to different window systems.
 
 We have reimplemented keymaps so that sequences of events can be stored into
 them instead of just ASCII codes.
+
+Input and display of all ISO-8859-1 characters is supported.
 
 You can have multiple X Windows ("screens" in Emacs terminology).
 
@@ -85,7 +88,8 @@ region between the point and mark is highlighted when in its "active" state.
 Emacs has a menubar, whose contents are customizable from emacs-lisp.
 This menubar looks Motif-ish, but does not require Motif.  If you already
 own Motif, however, you can configure Emacs to use a *real* Motif menubar
-instead.  If you have OpenWindows, you can use a real OpenWindows menubar.
+instead.  If you have OLIT ("OpenLook Intrinsics"), you can use an
+OpenWindows-like menubar.
 
 The initial load-path is computed at run-time, instead of at compile-time.
 This means that if you move the Emacs executable and associated directories
@@ -627,6 +631,38 @@ You can specify resources for a particular screen with the syntax
 	Emacs.SCREEN-NAME*parameter: value
 
 
+To make the default size of all emacs be 80 columns by 55 lines, do this:
+
+	Emacs*EmacsScreen.geometry: 80x55
+
+As a special case, this geometry specification also works:
+
+	Emacs.geometry: 80x55
+
+since that is the syntax used with most other applications (since most other
+applications, unlike emacs, have only one top-level window.)  In general,
+however, the top-level shell doesn't have any interesting resources on it,
+and you should set the resources on the screens instead.
+
+To set the geometry of a particular screen named, "foo", do this:
+
+	Emacs*foo.geometry: 80x55
+
+In particular, do --NOT-- use this syntax:
+
+	Emacs*geometry: 80x55
+
+One should never use "*geometry" with any X application.  It does not say
+"make the geometry of emacs be 80 columns by 55 lines."  It really says,
+"make emacs and all subwindows thereof be 80x35 in whatever units they care
+to measure in."  In particular, that is both telling the emacs text pane
+to be 80x55 in characters, and telling the menubar pane to be 80x55 pixels,
+which is surely not what you want.
+
+The "-geometry" command-line argument sets the geometry only of the initial
+screen created by emacs.
+
+
 Emacs screens accept the following resources:
 
   iconic (class Iconic): boolean
@@ -732,8 +768,8 @@ Known Problems / TODO List
 ==========================
 
 Horizontally-split windows don't work.  Selective-display doesn't work.
-Display tables don't work.  Lucid GNU Emacs is not "8-bit clean."  We plan to
-do some extensive work on redisplay soon, which will likely fix all of this.
+Display tables don't work.  We plan to do some extensive work on redisplay
+soon, which will likely fix all of this.
 
 Most of the `screen-parameters' don't work.  I'm not convinced that the
 screen-parameters/modify-screen-parameters functions are the best interface
@@ -763,9 +799,9 @@ on the text that the mouse is now over.
 
 Everybody wants scrollbars.  They should be implemented in lwlib.a, so that
 they are toolkit-independent (that is, when the user has Motif, emacs should
-use Motif scrollbars; likewise for OpenWindows.)  There should be one scrollbar
-per emacs window, *not* one scrollbar per emacs screen.  The easiest way to
-do this would be to make emacs windows be X windows which are inferiors of the
+use Motif scrollbars; likewise for OLIT.)  There should be one scrollbar per
+emacs window, *not* one scrollbar per emacs screen.  The easiest way to do 
+this would be to make emacs windows be X windows which are inferiors of the
 X window coresponding to the emacs screen.  There would then be an intermediate
 horizontally-stacking RowColumn widget between the screen and the emacs window
 which was used to group the scrollbar and the emacs window together.
@@ -1716,6 +1752,45 @@ Play a sound of the provided type.
 See the variable sound-alist.
 
 ------------------------------
+popup-menu: (menu_desc)
+
+Pop up the given menu.
+A menu is a list of menu items, strings, and submenus.
+The first element of a menu must be a string, which is the name of the
+ menu.  This is the string that will be displayed in the parent menu, if
+ any.  For toplevel menus, it is ignored.  This string is not displayed
+ in the menu itself.
+If the first element of a menu is a string, then that is the name of
+the menu.  The name of a menu is only used for submenus; for top-level
+ menus, it is ignored.  In particular, it is not displayed in the menu
+ as strings later in the menu-list are.
+A menu item is a vector of three elements:
+ the name of the menu item (a string);
+ the `callback' of that item;
+ and whether this item is active (selectable.)
+If the `callback' of a menu item is a symbol, then it must name a
+ command.  It will be invoked with `call-interactively'. If it is
+ a list, then it is evaluated with `eval'.
+If an element of a menu is a string, then that string will be
+ presented in the menu as unselectable text.
+If an element of a menu is a string consisting solely of hyphens,
+ then that item will be presented as a solid horizontal line.
+If an element of a menu is a list, it is treated as a submenu.
+ The name of that submenu (the first element in the list) will be
+ used as the name of the item representing this menu on the parent.
+
+More precisely:
+
+   form		:=  <something to pass to `eval'>
+   command	:=  <a symbol or string, to pass to `call-interactively'>
+   callback 	:=  command | form
+   active-p	:=  <t or nil, whether this thing is selectable>
+   text		:=  <a string, non selectable>
+   menu-item	:=  '['  string callback active-p  ']'
+   name		:=  <string>
+   menu		:=  '(' [name] [ menu-item | menu | text ]+ ')'
+
+------------------------------
 process-event-p (obj)
 True if the argument is a process-output event object.
 
@@ -1952,7 +2027,56 @@ Move the mouse pointer to the center of character cell (X,Y) in SCREEN.
 
 ------------------------------
 set-screen-menubar (menubar &optional screen)
+
 Make MENUBAR be the menubar of the given SCREEN.
+A menubar is a list of menus and menu-items.
+A menu is a list of menu items, strings, and submenus.
+The first element of a menu must be a string, which is the name of the
+ menu.  This is the string that will be displayed in the menubar, or in
+ the parent menu.  This string is not displayed in the menu itself.
+A menu item is a vector of three elements:
+ the name of the menu item (a string);
+ the `callback' of that item;
+ and whether this item is active (selectable.)
+If the `callback' of a menu item is a symbol, then it must name a
+ command.  It will be invoked with `call-interactively'. If it is
+ a list, then it is evaluated with `eval'.
+If an element of a menu (or menubar) is a string, then that string will
+ be presented in the menu (or menubar) as unselectable text.
+If an element of a menu is a string consisting solely of hyphens,
+ then that item will be presented as a solid horizontal line.
+If an element of a menu is a list, it is treated as a submenu.
+ The name of that submenu (the first element in the list) will be
+ used as the name of the item representing this menu on the parent.
+If an element of a menubar is `nil', then it is used to represent the
+ division between the set of menubar-items which are flushleft and those
+ which are flushright.  (Note: this isn't completely implemented yet.)
+
+Menus and menu items may be safely modified; comparisons are (effectively)
+ done with `equal.'  However, the callbacks are not copied, so changing the
+ contents of those could have unexpected side-effects (that is, if the
+ callback of an item is a list, don't modify the conses in that list.)
+Changes to menus and menu items have no effect until `set-screen-menubar'
+ is called again.
+After the menubar is clicked upon, but before any menus are popped up,
+ the functions on the activate-menubar-hook are invoked to make changes to
+ the menus and menubar.  This is intended to implement lazy alteration of
+ the sensitivity of menu items.
+
+The syntax, More precisely:
+
+   form		:=  <something to pass to `eval'>
+   command	:=  <a symbol or string, to pass to `call-interactively'>
+   callback 	:=  command | form
+   active-p	:=  <t or nil, whether this thing is selectable>
+   text		:=  <a string, non selectable>
+   menu-item	:=  '['  string callback active-p  ']'
+   name		:=  <string>
+   menu		:=  '(' name [ menu-item | menu | text ]+ ')'
+   partition	:=  'nil'
+   menubar	:=  '(' [ menu-item | menu | text ]* [ partition ]
+		        [ menu-item | menu | text ]*
+		     ')'
 
 ------------------------------
 set-screen-position (screen xoffset yoffset)
@@ -3431,6 +3555,14 @@ point-marker; modifying the position of this marker willl move point.
 It is illegal to change the buffer of it, or make it point nowhere.
 
 ------------------------------
+read (&optional readcharfun)
+
+The `read' function no longer consumes the whitespace following an expression
+after reading it.  Point will be left immediately after the last character of
+the token that was read, instead of after any whitespace following the last
+character of the token.
+
+------------------------------
 read-char ()
 
 Read a character from the command input (keyboard or macro).
@@ -3508,6 +3640,18 @@ The variable `auto-fill-hook' has been renamed `auto-fill-function'
 ------------------------------
 blink-paren-hook
 The variable `blink-paren-hook' has been renamed `blink-paren-function'
+
+------------------------------
+ctl-arrow
+
+*Non-nil means display control chars with uparrow.
+Nil means use backslash and octal digits.
+Non-t and non-nil means display 8-bit characters (that is, characters
+whose code is greater than 160 (SPC with the high bit on) will be
+displayed as a single glyph.)
+Automatically becomes buffer-local when set in any fashion.
+This variable does not apply to characters whose display is specified
+in the current display table (if there is one).
 
 ------------------------------
 default-directory

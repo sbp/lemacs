@@ -1,11 +1,11 @@
 /* Display generation from window structure and buffer text.
-   Copyright (C) 1985, 1986, 1987, 1988, 1991 Free Software Foundation, Inc.
+   Copyright (C) 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -1534,10 +1534,12 @@ glyphs_from_char (screen, c, g, tab_width, ctl_arrow,
   char_glyphs.pixel_width = 0;
   char_glyphs.pixel_height = 0;
 
-  if (c == '\n')		/* Newline character. */
+  if (c == '\n')			/* Newline character. */
     return &char_glyphs;
 
-  if (c >= 040 && c < 0177	/* Normal character. */
+  if (((c >= 040 && c < 0177) ||	/* Normal character. */
+       (!EQ (ctl_arrow, Qnil) &&	/* 8-bit display */
+	!EQ (ctl_arrow, Qt) && c >= 0240))
       && (dp == 0
 	  || NILP (DISP_CHAR_ROPE (dp, c))))
     {
@@ -1561,7 +1563,7 @@ glyphs_from_char (screen, c, g, tab_width, ctl_arrow,
       while (i--)
 	GLYPH_SET_VALUE (*gp++, *data++);
     }
-  else if (c < 0200 && ctl_arrow)
+  else if (c < 0200 && !NILP (ctl_arrow))
     {
       if (dp && XTYPE (DISP_CTRL_GLYPH (dp)) == Lisp_Int)
 	GLYPH_SET_VALUE (*gp, XINT (DISP_CTRL_GLYPH (dp)));
@@ -1780,7 +1782,9 @@ glyphs_from_bufpos (screen, buffer, pos, dp, hscroll, columns, tab_offset,
       if (c == '\n')		/* Newline character. */
 	goto exit;
 
-      if (c >= 040 && c < 0177	/* Normal character. */
+      if (((c >= 040 && c < 0177) ||	/* Normal character. */
+	   (!EQ (buffer->ctl_arrow, Qnil) &&	/* 8-bit display */
+	    !EQ (buffer->ctl_arrow, Qt) && c >= 0240))  /* Normal + 8th bit */
 	  && (dp == 0
 	      || NILP (DISP_CHAR_ROPE (dp, c))))
 	{
@@ -2596,8 +2600,10 @@ display_text_line (w, start, vpos, hpos, taboffset)
         if (glyphs && 
             (buffer_position <= glyphs->run_pos_upper) &&
             (buffer_position >= glyphs->run_pos_lower) &&
-            /* Normal character. */
-            ((((c >= 040) && (c < 0177)) && 
+            (((((c >= 040) && (c < 0177)) ||            /* Normal character. */
+	       (!EQ (buffer->ctl_arrow, Qnil) &&	/* 8-bit display */
+		!EQ (buffer->ctl_arrow, Qt) &&
+		c >= 0240)) &&				/* Normal + 8th bit */
               (dp == 0 || NILP (DISP_CHAR_ROPE (dp, c)))) ||
              /* newline */
              (c == '\n') ||
@@ -3725,7 +3731,7 @@ get_glyph_dimensions (s, hpos, vpos)
 	register GLYPH *gp = &current_screen->glyphs[vpos][run_len];
 	XFontStruct *this_font = face_list[this_run].faceptr->font;
 
-	buf = alloca (len);
+	buf = (char *) alloca (len);
 	cp = buf;
 
 	if (this_font == 0)

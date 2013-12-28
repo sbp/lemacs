@@ -1,13 +1,0 @@
-;;; compiled by jwz@thalidomide on Tue Apr 21 17:44:56 1992
-;;; from file /u/jwz/emacs19/lisp/extents.el
-;;; emacs version 19.0.2 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
-;;; optimization is on.
-;;; this file uses opcodes which do not exist in Emacs18.
-
-(if (and (boundp 'emacs-version)
-	 (or (and (boundp 'epoch::version) epoch::version)
-	     (string-lessp emacs-version "19")))
-    (error "This file was compiled for Emacs19."))
-
-(byte-code "ÀÁ!ˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏM‡" [provide extents extentp #[(e) "<­ŽÁA@!­‡ÂA@ÃH!‡" [e vectorp intervalp 0] 3] make-extent #[(from to tag) "Á\n\"D‡" [tag make-contiguous-intervals from to] 4] delete-extent #[(e) "@A@‰GS‰ÄY­™\nHÆ	\"ˆÇ!¬„È!ˆ)S‰ªc+‡" [e s i l 0 interval iremprop interval-plist delete-interval] 4] extent-set-attributes #[(e attributes) "A@‰GS‰ÃY­Ä	\nH\"ˆ\nS‰ªo*‡" [e i l 0 set-interval-attributes attributes] 4] extent-put #[(e prop value) "A@‰GS‰ÃY­Ä	\nH#ˆ\nS‰ªm*‡" [e i l 0 interval-put prop value] 5] extent-position #[(e) "À	A@HÃ\nÄ\")‡" [0 e i interval-get position] 3] extent-length #[(e) "A@‰GSÃÄ	HÅ\"Ã\n	HÅ\"Ã\n	HÇ\"\\‰Z,‡" [e i l interval-get 0 position p1 length p2] 5]] 2)

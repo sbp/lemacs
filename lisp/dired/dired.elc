@@ -1,6 +1,6 @@
-;;; compiled by jwz@thalidomide on Tue May 19 23:00:30 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/dired/dired.el
-;;; emacs version 19.0.16 Lucid.
+;;; compiled by jwz@thalidomide on Thu Jun 11 20:24:43 1992
+;;; from file /u/jwz/emacs19/lisp/dired/dired.el
+;;; emacs version 19.1 Lucid.
 ;;; bytecomp version 2.06; 17-may-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
@@ -11,10 +11,10 @@
     (error "This file was compiled for Emacs19."))
 
 (provide 'dired)
-(defconst dired-version (substring "$Revision: 6.0 $" 11 -2) "\
+(defconst dired-version (substring "$Revision: 6.1 $" 11 -2) "\
 The revision number of Tree Dired (as string).  The complete RCS id is:
 
-  $Id: dired.el,v 6.0 1992/05/20 05:23:12 jwz Exp $
+  $Id: dired.el,v 6.0 1992/05/15 14:25:45 sk RelBeta $
 
 Don't forget to mention this when reporting bugs to:
 
@@ -375,7 +375,7 @@ Prepended to marked files in dired shell commands.")
 Appended to marked files in dired shell commands.")
 (defvar dired-mark-separator " " "\
 Separates marked files in dired shell commands.")
-(byte-code "ÀÁMˆÂÃM‡" [dired-shell-stuff-it #[(command file-list on-each &optional raw-arg) "ÀÁ\n\"«ƒÃªÄ«‹ÇÈÉ\n\"Ë#ªÇÉ\n#\nGÎV«‰Q!))‡" [string-match "\\*" command #[(x) "ÀÁ\n#‡" [dired-replace-in-string "\\*" x command] 4] #[(x) "Á\nQ‡" [command " " x] 3] stuff-it on-each mapconcat mapcar shell-quote file-list ";" dired-mark-separator fns 1 dired-mark-prefix dired-mark-postfix] 5] dired-run-shell-command #[(command &optional in-background) "¬„Á\n!‡Ã\n!‡" [in-background shell-command command comint::background] 2]] 2)
+(byte-code "ÀÁMˆÂÃM‡" [dired-shell-stuff-it #[(command file-list on-each &optional raw-arg) "ÀÁ\n\"«ƒÃªÄ«‹ÇÈÉ\n\"Ë#ªÇÉ\n#\nGÎV«‰Q!))‡" [string-match "\\*" command #[(x) "ÀÁ\n#‡" [dired-replace-in-string "\\*" x command] 4] #[(x) "Á\nQ‡" [command " " x] 3] stuff-it on-each mapconcat mapcar shell-quote file-list ";" dired-mark-separator fns 1 dired-mark-prefix dired-mark-postfix] 5] dired-run-shell-command #[(command &optional in-background) "«ŠÁÂ\"¬„ÄPÅ!‡" [in-background string-match "&[ 	]*$" command " &" shell-command] 3]] 2)
 (fset 'dired-do-print #[(&optional arg) "<¬„ÁÂ!ˆÃÄ\"ÇÈÉ#\nËÌÉ\nQÎ%ĞÑÒ#!+‡" [lpr-switches error "lpr-switches must be a *list* of strings" dired-mark-get-files t arg file-list mapconcat identity " " switches dired-mark-read-string "Print %s with: " lpr-command print command dired-run-shell-command dired-shell-stuff-it nil] 6 "\
 Print the marked (or next ARG) files.
 Uses the shell command coming from variables `lpr-command' and

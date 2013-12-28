@@ -32,11 +32,18 @@ The solution is to install Patch-ID# 100267-03 from Sun.
 Are you using an ANSI C compiler, like gcc?  The SunOS 4.1 bundled cc
 is not ANSI.
 
+If X has not been configured to compile itself using GCC (or another ANSI
+compiler) then you will have to hack the automatically-generated makefile
+in the .../src/lwlib/ directory by hand to make it use an ANSI compiler.
+
 * When using gcc, you get the error message "undefined symbol __fixunsdfsi".
+* When using gcc, you get the error message "undefined symbol __main".
 
 This means that you need to link with the gcc library.  It may be called
 "gcc-gnulib" or "libgcc.a"; figure out where it is, and define LIB_GCC in
 config.h to point to it.
+
+It may also work to use the GCC version of `ld' instead of the standard one.
 
 * When compiling with X11, you get "undefined symbol _XtStrings".
 
@@ -46,6 +53,14 @@ subdirectory with the X11r5 header files.  That doesn't work.
 
 Remember, you can't compile lwlib for r4 and emacs for r5, or vice versa.
 They must be in sync.
+
+* When compiling lwlib, you get "can't find include file IntrinsicI.h".
+
+To compile lwlib with INCLUDE_EXTENSIONS defined, you must have your X11
+source tree online, because lwlib needs to access non-public data structures.
+This error means that it can't find the sources.  Edit the Imakefile to 
+tell it where the sources are, or remove the define of INCLUDE_EXTENSIONS
+(which is not necessary for a vanilla emacs.)
 
 * Self documentation messages are garbled.
 
@@ -282,6 +297,13 @@ of its files pure after dumping, but the variables declared static and
 not initialized are not supposed to be pure.  On these systems you
 may need to add "#define static" to the m- or the s- file.
 
+* Reading and writing files is very very slow.
+
+Try evaluating the form (setq lock-directory nil) and see if that helps.
+There is a problem with file-locking on some systems (possibly related
+to NFS) that I don't understand.  Please send mail to the address 
+bug-lucid-emacs@lucid.com if you figure this one out.
+
 * Compilation errors on VMS.
 
 You will get warnings when compiling on VMS because there are
@@ -310,9 +332,9 @@ symptoms.  Some of the emacs-lisp code you are running needs to be updated
 to be compatible with Lucid GNU Emacs.
 
 We have provided modified versions of several popular emacs packages (GNUS, 
-VM, etc) which are compatible with this version of emacs.  Check to see if
-you have set your load-path so that your private copies of these packages 
-are being found before the versions in the lisp directory.
+VM, etc) which are compatible with this version of emacs.  Check to make
+sure you have not set your load-path so that your private copies of these
+packages are being found before the versions in the lisp directory.
 
 Make sure that your load-path and your $EMACSLOADPATH environment variable
 are not pointing at an Emacs18 lisp directory.  This will cripple emacs.
@@ -346,11 +368,10 @@ Some people have found that Emacs was unable to connect to the local
 host by name, as in DISPLAY=prep:0 if you are running on prep, but
 could handle DISPLAY=unix:0.  Here is what tale@rpi.edu said:
 
-      Seems as
-    though gethostbyname was bombing somewhere along the way.  Well, we
-    had just upgrade from SunOS 3.5 (which X11 was built under) to SunOS
-    4.0.1.  Any new X applications which tried to be built with the pre
-    OS-upgrade libraries had the same problems which Emacs was having.
+    Seems as though gethostbyname was bombing somewhere along the way.
+    Well, we had just upgrade from SunOS 3.5 (which X11 was built under) to
+    SunOS 4.0.1.  Any new X applications which tried to be built with the
+    pre OS-upgrade libraries had the same problems which Emacs was having.
     Missing /etc/resolv.conf for a little while (when one of the libraries
     was built?) also might have had a hand in it.
 
@@ -374,6 +395,16 @@ the s- file defines LIBS_SYSTEM as -lfoo -lbar, you could change config.h
 again to say this:
 
 #define LIBS_SYSTEM -lresolv -lfoo -lbar
+
+The reason this is sometimes a problem for Emacs and not for other programs
+is that Emacs must be statically linked, while most other programs are
+dynamically linked.  Sometimes people install patches or updates into the
+dynamic version of a library without installing them into the static version
+as well, leading to these inconsistencies.
+
+In particular, people often change the definition of `gethostbyname' in
+the dynamic version of libc.a to use a different method of host resolution,
+but forget to do the same to the static version of that library.
 
 * Emacs spontaneously displays "I-search: " at the bottom of the screen.
 

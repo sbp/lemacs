@@ -1,11 +1,11 @@
 /* Fundamental definitions for GNU Emacs Lisp interpreter.
-   Copyright (C) 1985, 1986, 1987 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -411,7 +411,9 @@ Lisp_Object;
 #define XEXTENT(a) ((EXTENT) XPNTR(a))
 #define XEXTENT_REPLICA(a) ((EXTENT_REPLICA) XPNTR(a))
 #define XPROCESS(a) ((struct Lisp_Process *) XPNTR(a))
+#ifdef LISP_FLOAT_TYPE
 #define XFLOAT(a) ((struct Lisp_Float *) XPNTR(a))
+#endif
 #define XEVENT(a) ((struct Lisp_Event *) XPNTR(a))
 #define XKEYMAP(a) ((struct Lisp_Keymap *) XPNTR(a))
 
@@ -427,7 +429,9 @@ Lisp_Object;
 #define XSETINTPTR(a, b) XSETPNTR(a, (int) (b))
 #define XSETWINDOW(a, b) XSETPNTR(a, (int) (b))
 #define XSETPROCESS(a, b) XSETPNTR(a, (int) (b))
+#ifdef LISP_FLOAT_TYPE
 #define XSETFLOAT(a, b) XSETPNTR(a, (int) (b))
+#endif
 #define XSETEVENT(a, b) XSETPNTR(a, (int) (b))
 #define XSETKEYMAP(a, b) XSETPNTR(a, (int) (b))
 

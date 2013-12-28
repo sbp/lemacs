@@ -1,11 +1,11 @@
 /* Manipulation of keymaps
-   Copyright (C) 1985, 1986, 1987, 1988 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1988, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -116,6 +116,7 @@ extern Lisp_Object Fremhash ();
 extern Lisp_Object Fhashtable_fullness ();
 extern void elisp_maphash ();
 extern Lisp_Object Qhashemptymarker;
+extern Lisp_Object Vcharacter_set_property;
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
@@ -543,6 +544,19 @@ get_keyelt (object)
 }
 
 
+static void
+copy_keymap_inverse_mapper (hash_key, hash_contents, closure)
+     void *hash_key, *hash_contents, *closure;
+{
+  Lisp_Object inverse_table = (Lisp_Object) closure;
+  Lisp_Object inverse_contents = (Lisp_Object) hash_contents;
+  Lisp_Object oiq = Vinhibit_quit;
+  inverse_contents = Fcopy_sequence (inverse_contents);
+  Vinhibit_quit = oiq;
+  Fputhash (hash_key, (void *) inverse_contents, inverse_table);
+}
+
+
 static Lisp_Object
 copy_keymap_internal (keymap)
      struct Lisp_Keymap *keymap;
@@ -553,6 +567,11 @@ copy_keymap_internal (keymap)
   new_keymap->sub_maps_cache = Qnil;
   new_keymap->table = Fcopy_hashtable (keymap->table);
   new_keymap->inverse_table = Fcopy_hashtable (keymap->inverse_table);
+  /* After copying the inverse map, we need to copy the conses which
+     are its values, lest they be shared by the copy, and mangled.
+   */
+  elisp_maphash (copy_keymap_inverse_mapper, keymap->inverse_table,
+		 (void *) keymap->inverse_table);
   return nkm;
 }
 
@@ -1583,6 +1602,7 @@ map_keymap_sort_predicate (obj1, obj2, pred)
   /* obj1 and obj2 are conses with keysyms in their cars.  Cdrs are ignored.
    */
   int bit1, bit2;
+  int sym1_p = 0, sym2_p = 0;
   obj1 = XCONS (obj1)->car;
   obj2 = XCONS (obj2)->car;
   if (obj1 == obj2) return -1;
@@ -1590,13 +1610,34 @@ map_keymap_sort_predicate (obj1, obj2, pred)
   bit1 = bucky_sym_to_bucky_bit (obj1);
   bit2 = bucky_sym_to_bucky_bit (obj2);
   
+  /* If either is a symbol with a character-set-property, then sort it by
+     that code instead of alphabetically.
+   */
+  if (! bit1 && XTYPE (obj1) == Lisp_Symbol)
+    {
+      Lisp_Object code = Fget (obj1, Vcharacter_set_property);
+      if (XTYPE (code) == Lisp_Int)
+	obj1 = code, sym1_p = 1;
+    }
+  if (! bit2 && XTYPE (obj2) == Lisp_Symbol)
+    {
+      Lisp_Object code = Fget (obj2, Vcharacter_set_property);
+      if (XTYPE (code) == Lisp_Int)
+	obj2 = code, sym2_p = 1;
+    }
+
   /* all symbols (non-ASCIIs) come after integers (ASCIIs) */
   if (XTYPE (obj1) != XTYPE (obj2))
     return ((XTYPE (obj2) == Lisp_Symbol) ? 1 : -1);
 
-  /* if they're both ASCII, just compare them */
-  if (XTYPE (obj1) == Lisp_Int)
-    return ((obj1 < obj2) ? 1 : -1);
+  if (XTYPE (obj1) == Lisp_Int) /* they're both ASCII */
+    {
+      if (obj1 == obj2 &&	/* If one started out as a symbol and the */
+	  sym1_p != sym2_p)	/* other didn't, the symbol comes last. */
+	return (sym2_p ? 1 : -1);
+
+    return ((obj1 < obj2) ? 1 : -1);	/* else just compare them */
+    }
 
   /* else they're both symbols.  If they're both buckys, then order them. */
   if (bit1 && bit2)
@@ -1801,11 +1842,9 @@ so that the KEYS increase in length.  The first element is ([] . KEYMAP).")
 	{
 	  Lisp_Object submaps = keymap_submaps (XKEYMAP (thismap));
 	  for (; !NILP (submaps); submaps = XCONS (submaps)->cdr)
-	    {
-	      accessible_keymaps_mapper (XCONS (XCONS (submaps)->car)->car,
-					 XCONS (XCONS (submaps)->car)->cdr,
-					 (void *) 0);
-	    }
+	    accessible_keymaps_mapper((void *)XCONS(XCONS (submaps)->car)->car,
+				      (void *)XCONS(XCONS (submaps)->car)->cdr,
+				      (void *) 0);
 	}
     }
   return accessible_keymaps;
@@ -2471,6 +2510,58 @@ describe_vector_sort_predicate (obj1, obj2, pred)
     return map_keymap_sort_predicate (obj1, obj2, pred);
 }
 
+/* Elide 2 or more consecutive numeric keysyms bound to the same thing,
+   or 2 or more symbolic keysyms that are bound to the same thing and
+   have consecutive character-set-properties.
+ */
+static int
+elide_next_two_p (list)
+     Lisp_Object list;
+{
+  Lisp_Object s1, s2;
+
+#define CAR(x) (XCONS(x)->car)
+#define CDR(x) (XCONS(x)->cdr)
+
+  if (NILP (CDR (list)))
+    return 0;
+
+  /* next two bindings differ */
+  if (!EQ (CDR (CAR (list)),
+	   CDR (CAR (CDR (list)))))
+    return 0;
+
+  /* next two modifier-sets differ */
+  if (!EQ (CDR (CAR (CAR (list))),
+	   CDR (CAR (CAR (CDR (list))))))
+    return 0;
+
+  s1 = CAR (CAR (CAR (list)));
+  s2 = CAR (CAR (CAR (CDR (list))));
+
+  if (XTYPE (s1) == Lisp_Symbol)
+    {
+      Lisp_Object code = Fget (s1, Vcharacter_set_property);
+      if (XTYPE (code) == Lisp_Int) s1 = code;
+      else return 0;
+    }
+  if (XTYPE (s2) == Lisp_Symbol)
+    {
+      Lisp_Object code = Fget (s2, Vcharacter_set_property);
+      if (XTYPE (code) == Lisp_Int) s2 = code;
+      else return 0;
+    }
+
+  if (XFASTINT (s1) == XFASTINT (s2) ||
+      XFASTINT (s1) + 1 == XFASTINT (s2))
+    return 1;
+  return 0;
+
+#undef CDR
+#undef CAR
+}
+
+
 static int
 describe_vector (keymap, elt_prefix, elt_describer, partial, shadow, chartab,
 		 mice_only_p)
@@ -2543,32 +2634,10 @@ describe_vector (keymap, elt_prefix, elt_describer, partial, shadow, chartab,
       insert_string ("---bad keysym---");
     }
 
-    /* Elide 2 or more consecutive numeric keysyms bound to the same thing.
-       I really don't believe I just wrote this abomination.
-       */
     {
       int k = 0;
 
-#define CAR(x) (XCONS(x)->car)
-#define CDR(x) (XCONS(x)->cdr)
-      while (!NILP (CDR (list)) &&
-	     
-	     /* next two bindings are the same */
-	     EQ (CDR (CAR (list)),
-		 CDR (CAR (CDR (list)))) &&
-
-	     /* next two modifier-sets are the same */
-	     EQ (CDR (CAR (CAR (list))),
-		 CDR (CAR (CAR (CDR (list))))) &&
-
-	     /* next two keysyms are ints */
-	     XTYPE (CAR (CAR (CAR (list)))) == Lisp_Int &&
-	     XTYPE (CAR (CAR (CAR (CDR (list))))) == Lisp_Int &&
-
-	     /* next two keysyms are consecutive */
-	     CAR (CAR (CAR (list))) + 1 ==
-	     CAR (CAR (CAR (CDR (list))))
-	     )
+      while (elide_next_two_p (list))
 	k++, list = XCONS (list)->cdr;
       
       if (k)
@@ -2580,8 +2649,6 @@ describe_vector (keymap, elt_prefix, elt_describer, partial, shadow, chartab,
 	  continue;
 	}
     }
-#undef CDR
-#undef CAR
     
     /* Print a description of the definition of this character.  */
     (*elt_describer) (XCONS (XCONS (list)->car)->cdr);

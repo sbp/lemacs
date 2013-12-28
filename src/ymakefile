@@ -68,11 +68,7 @@ CC=cadlcc -Xe $(EMACS_ENERGIZE_CONNECT)
 #endif
 
 #ifndef LIB_MATH
-# ifdef LISP_FLOAT_TYPE
-#  define LIB_MATH -lm
-# else 
-#  define LIB_MATH
-# endif
+# define LIB_MATH -lm
 #endif
 
 /* Some s- files define this to request special switches in ld.  */
@@ -151,7 +147,13 @@ LD=$(CC) -nostdlib
 #ifdef LD_CMD
 LD=LD_CMD
 #else
+#if defined(__GNUC__) && __GNUC__ >= 2
+LD=gcc -nostdlib
+#undef LIB_GCC
+#define LIB_GCC -lgcc
+#else
 LD=ld
+#endif /* GNUC >= 2 */
 #endif
 #endif
 
@@ -295,6 +297,12 @@ environobj = environ.o
 #define FREECHECKOBJS
 #endif
 
+#ifdef NEED_REALPATH
+#define REALPATH_OBJS realpath.o
+#else
+#define REALPATH_OBJS
+#endif
+
 /* lastfile must follow all files
    whose initialized data areas should be dumped as pure by dump-emacs. */
 obj=    dispnew.o screen.o scroll.o xdisp.o window.o \
@@ -308,7 +316,8 @@ obj=    dispnew.o screen.o scroll.o xdisp.o window.o \
 	eval.o floatfns.o fns.o print.o lread.o \
 	abbrev.o syntax.o UNEXEC mocklisp.o bytecode.o \
 	process.o callproc.o $(environobj) \
-	doprnt.o extents.o faces.o ENERGIZE_OBJS BTLOBJS FREECHECKOBJS
+	doprnt.o extents.o faces.o ENERGIZE_OBJS BTLOBJS FREECHECKOBJS \
+	REALPATH_OBJS
 
 #ifdef TERMINFO
 /* Used to be -ltermcap here.  If your machine needs that,
@@ -326,24 +335,29 @@ termcapobj = tparam.o
 #endif
 #endif
 
+#ifndef HAVE_ALLOCA
+#define ALLOCA_OBJ alloca.o
+#else
+#define ALLOCA_OBJ
+#endif /* No ALLOCA */
+
 #ifndef SYSTEM_MALLOC
 
 #ifdef GNU_MALLOC  /* New GNU malloc */
 #ifdef REL_ALLOC
-mallocobj = gmalloc.o ralloc.o
+mallocobj = gmalloc.o ralloc.o ALLOCA_OBJ
 #else /* !REL_ALLOC */
-mallocobj = gmalloc.o vm-limit.o
+mallocobj = gmalloc.o vm-limit.o ALLOCA_OBJ
 #endif /* !REL_ALLOC */
 #else  /* Old GNU malloc */
-mallocobj = malloc.o
+mallocobj = malloc.o ALLOCA_OBJ
 #endif /* Old GNU malloc */
 
-#endif /* not SYSTEM_MALLOC */
+#else /* not SYSTEM_MALLOC */
 
-#ifndef HAVE_ALLOCA
-foo = $(mallocobj)
-mallocobj = $(foo) alloca.o
-#endif /* No ALLOCA */
+mallocobj = ALLOCA_OBJ
+
+#endif /* not SYSTEM_MALLOC */
 
 #ifdef HAVE_X_WINDOWS
 #define LIBX11_OBJ ScreenWidget.o ColumnWidget.o EmacsShell.o
@@ -358,28 +372,37 @@ mallocobj = $(foo) alloca.o
 otherobj= $(termcapobj) lastfile.o $(mallocobj) LIBX11_OBJ
   
 #ifdef LISP_FLOAT_TYPE
-#define FLOATSUP ${lispdir}float-sup.elc
+#define FLOATSUP ${lispdir}prim/float-sup.elc
 #else
 #define FLOATSUP
+#endif
+
+#ifdef HAVE_X_WINDOWS
+#define X11LISP ${lispdir}x11/x-faces.elc ${lispdir}x11/x-iso8859-1.elc \
+		${lispdir}x11/x-mouse.elc ${lispdir}x11/xselect.elc
+#else
+#define X11LISP
 #endif
 
 /* List of Lisp files loaded into the dumped Emacs.
    Every file that is loaded from loadup.el must be enumerated
    here, or the functions won't have have docstrings.
+   This is dumb, this list should be generated automatically.
  */
-lisp=	${lispdir}simple.elc ${lispdir}help.elc \
-	${lispdir}files.elc ${lispdir}window.elc \
-	${lispdir}indent.elc ${lispdir}loaddefs.el ${lispdir}paths.el \
-	${lispdir}startup.elc ${lispdir}lisp.elc \
-	${lispdir}page.elc ${lispdir}register.elc \
-	${lispdir}paragraphs.elc ${lispdir}lisp-mode.elc \
-	${lispdir}text-mode.elc ${lispdir}fill.elc \
-	${lispdir}c-mode.elc ${lispdir}isearch.elc \
-	${lispdir}replace.elc ${lispdir}abbrev.elc \
-	FLOATSUP \
-	${lispdir}faces.elc ${lispdir}buff-menu.elc ${lispdir}subr.elc \
-	${lispdir}bytecomp-runtime.elc ${lispdir}lpr.elc \
-	${lispdir}compare-w.elc ${lispdir}novice.elc
+lisp=	${lispdir}prim/simple.elc ${lispdir}prim/help.elc \
+	${lispdir}prim/files.elc ${lispdir}prim/window.elc \
+	${lispdir}prim/indent.elc ${lispdir}prim/loaddefs.el \
+	${lispdir}paths.el ${lispdir}prim/startup.elc \
+	${lispdir}prim/lisp.elc ${lispdir}prim/page.elc \
+	${lispdir}prim/register.elc ${lispdir}prim/paragraphs.elc \
+	${lispdir}modes/lisp-mode.elc ${lispdir}modes/text-mode.elc \
+	${lispdir}prim/fill.elc ${lispdir}modes/c-mode.elc \
+	${lispdir}prim/isearch.elc ${lispdir}prim/replace.elc \
+	${lispdir}modes/abbrev.elc ${lispdir}prim/faces.elc \
+	${lispdir}packages/buff-menu.elc ${lispdir}prim/subr.elc \
+	${lispdir}bytecomp/bytecomp-runtime.elc ${lispdir}packages/lpr.elc \
+	${lispdir}packages/compare-w.elc ${lispdir}prim/novice.elc \
+	FLOATSUP X11LISP
 
 /* just to be sure the sh is used */
 SHELL=/bin/sh
@@ -410,13 +433,14 @@ LIBES = SOUND_LIBS ENERGIZE_LIBS EMACS_BTL_LIBS \
 #define OBJECTS_MACHINE
 #endif
 
-xemacs: temacs ${lisp} ${etcdir}DOC OTHER_FILES
-	./temacs -batch -l loadup.el dump
+all: release OTHER_FILES
 
 release: temacs ${lisp} ${etcdir}DOC OTHER_FILES
 	./temacs -batch -l inc-vers
 	./temacs -batch -l loadup.el dump
 
+xemacs: temacs ${lisp} ${etcdir}DOC OTHER_FILES
+	./temacs -batch -l loadup.el dump
 
 ${etcdir}DOC: ${etcdir}make-docfile ${obj} ${lisp}
 	rm -f ${etcdir}DOC
@@ -566,174 +590,167 @@ ${etcdir}emacstool: ${etcdir}emacstool.c
 
 /* Machine generated dependencies on .h files */
 
-#undef sparc
 #undef alloca
 
 ColumnWidget.o: ColumnWidgetP.h ColumnWidget.h
 EmacsShell.o: EmacsShellP.h EmacsShell.h
-LineInfoWidget.o: LineInfoWidgetP.h LineInfoWidget.h config.h s/s-sunos4.h
-LineInfoWidget.o: s/s-bsd4-2.h m/m-sparc.h  buffer.h bufslots.h
+LineInfoWidget.o: LineInfoWidgetP.h LineInfoWidget.h config.h 
+LineInfoWidget.o: buffer.h bufslots.h
 LineInfoWidget.o: screen.h dispextern.h window.h
-ScreenWidget.o: ScreenWidgetP.h ScreenWidget.h config.h s/s-sunos4.h
-ScreenWidget.o: s/s-bsd4-2.h m/m-sparc.h  xterm.h blockio.h
+ScreenWidget.o: ScreenWidgetP.h ScreenWidget.h config.h 
+ScreenWidget.o: xterm.h blockio.h
 ScreenWidget.o: dispextern.h screen.h
-abbrev.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  commands.h
+abbrev.o: config.h commands.h
 abbrev.o: buffer.h bufslots.h window.h
-alloc.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+alloc.o: config.h buffer.h puresize.h
 alloc.o: bufslots.h extents.h dispextern.h window.h events.h keymap.h xterm.h
 alloc.o: blockio.h screen.h backtrace.h
-alloca.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h
-buffer.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  window.h
+alloca.o: config.h
+buffer.o: config.h window.h
 buffer.o: commands.h buffer.h bufslots.h screen.h dispextern.h syntax.h
-bytecode.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+bytecode.o: config.h buffer.h
 bytecode.o: bufslots.h syntax.h
-cadillac-btl-emacs.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h 
-cadillac-btl-emacs.o: cadillac-btl-extern.h
-cadillac-btl-process.o: cadillac-btl.h cadillac-btl-extern.h
-cadillac-btl.o: cadillac-btl.h cadillac-btl-extern.h
-callint.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+callint.o: config.h buffer.h
 callint.o: bufslots.h commands.h window.h
-callproc.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  commands.h
+callproc.o: config.h commands.h
 callproc.o: buffer.h bufslots.h paths.h process.h
-casefiddle.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+casefiddle.o: config.h buffer.h
 casefiddle.o: bufslots.h commands.h syntax.h
-casetab.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+casetab.o: config.h buffer.h
 casetab.o: bufslots.h
-cm.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h cm.h  termhooks.h
-cmds.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  commands.h
+cm.o: config.h cm.h termhooks.h
+cmds.o: config.h commands.h
 cmds.o: buffer.h bufslots.h syntax.h
-crt0.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h
-data.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+crt0.o: config.h
+data.o: config.h buffer.h
 data.o: bufslots.h
-dired.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+dired.o: config.h buffer.h
 dired.o: bufslots.h commands.h regex.h
-dispnew.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h indent.h termchar.h
-dispnew.o: termopts.h cm.h  buffer.h bufslots.h screen.h dispextern.h
+dispnew.o: config.h indent.h termchar.h
+dispnew.o: termopts.h cm.h buffer.h bufslots.h screen.h dispextern.h
 dispnew.o: window.h commands.h disptab.h xterm.h blockio.h
-doc.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+doc.o: config.h buffer.h
 doc.o: bufslots.h
-duplicates.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+duplicates.o: config.h buffer.h
 duplicates.o: bufslots.h process.h editorside.h hash.h extents-data.h
 duplicates.o: extents.h dispextern.h
-editfns.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h pwd.h 
+editfns.o: config.h pwd.h 
 editfns.o: buffer.h bufslots.h window.h
-editorside.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+editorside.o: config.h buffer.h
 editorside.o: bufslots.h extents.h dispextern.h process.h xterm.h blockio.h
 editorside.o: screen.h window.h editorside.h hash.h extents-data.h
-editorside.o: cadillac-btl-extern.h
-elhash.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  hash.h
-emacs.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  commands.h
-environ.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h 
-eval.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  blockio.h
-eval.o: commands.h backtrace.h btl-get.h
-event-Xt.o:  ScreenWidgetP.h ScreenWidget.h config.h
-event-Xt.o: s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  process.h events.h
+elhash.o: config.h hash.h
+emacs.o: config.h commands.h
+environ.o: config.h 
+eval.o: config.h blockio.h
+eval.o: commands.h backtrace.h
+event-Xt.o: ScreenWidgetP.h ScreenWidget.h config.h
+event-Xt.o: process.h events.h
 event-Xt.o: blockio.h dispextern.h screen.h xterm.h
-event-alloc.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+event-alloc.o: config.h buffer.h
 event-alloc.o: bufslots.h window.h screen.h dispextern.h process.h events.h
 event-alloc.o: xterm.h blockio.h
-event-stream.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h 
+event-stream.o: config.h 
 event-stream.o: buffer.h bufslots.h window.h process.h events.h
-events.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+events.o: config.h buffer.h
 events.o: bufslots.h process.h events.h
-extents.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+extents.o: config.h buffer.h
 extents.o: bufslots.h process.h xterm.h blockio.h screen.h dispextern.h
 extents.o: window.h editorside.h hash.h extents-data.h extents.h faces.h
-fileio.o: pwd.h config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h 
+fileio.o: pwd.h config.h 
 fileio.o: buffer.h bufslots.h window.h
-filelock.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h pwd.h 
+filelock.o: config.h pwd.h 
 filelock.o: paths.h buffer.h bufslots.h
-floatfns.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h 
-fns.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  commands.h
+floatfns.o: config.h 
+fns.o: config.h commands.h
 fns.o: buffer.h bufslots.h extents.h dispextern.h screen.h events.h
-free-hook.o: cadillac-btl.h cadillac-btl-extern.h config.h s/s-sunos4.h
-free-hook.o: s/s-bsd4-2.h m/m-sparc.h  hash.h blockio.h
-faces.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  xterm.h
+free-hook.o: config.h hash.h blockio.h
+faces.o: config.h xterm.h
 faces.o: blockio.h buffer.h bufslots.h extents.h dispextern.h screen.h
 faces.o: window.h indent.h editorside.h hash.h extents-data.h faces.h
-gmalloc.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h
-hash.o: hash.h config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h 
-iclasses.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+gmalloc.o: config.h
+hash.o: hash.h config.h 
+iclasses.o: config.h buffer.h
 iclasses.o: bufslots.h
-indent.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+indent.o: config.h buffer.h
 indent.o: bufslots.h extents.h dispextern.h indent.h screen.h window.h
 indent.o: termchar.h termopts.h disptab.h xterm.h blockio.h
-insdel.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+insdel.o: config.h buffer.h
 insdel.o: bufslots.h extents.h dispextern.h window.h
-keyboard.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h termchar.h
-keyboard.o: termopts.h  termhooks.h macros.h buffer.h bufslots.h
+keyboard.o: config.h termchar.h
+keyboard.o: termopts.h termhooks.h macros.h buffer.h bufslots.h
 keyboard.o: screen.h dispextern.h window.h commands.h disptab.h events.h
 keyboard.o: backtrace.h
-keymap.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  keymap.h
+keymap.o: config.h keymap.h
 keymap.o: commands.h buffer.h bufslots.h events.h
 libsst.o: libsst.h
-lread.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+lread.o: config.h buffer.h
 lread.o: bufslots.h paths.h commands.h
-macros.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  events.h
+macros.o: config.h events.h
 macros.o: macros.h commands.h buffer.h bufslots.h window.h
-malloc.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h getpagesize.h
-marker.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+malloc.o: config.h getpagesize.h
+marker.o: config.h buffer.h
 marker.o: bufslots.h
-menubar.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  dispextern.h
+menubar.o: config.h dispextern.h
 menubar.o: screen.h xterm.h blockio.h events.h window.h buffer.h bufslots.h
 menubar.o: ./lwlib/lwlib.h
-menuitems.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h menuitems.h
-menuitems.o: connmemory.h  editorside.h hash.h
-minibuf.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  commands.h
+menuitems.o: config.h menuitems.h
+menuitems.o: connmemory.h editorside.h hash.h
+minibuf.o: config.h commands.h
 minibuf.o: buffer.h bufslots.h screen.h dispextern.h window.h syntax.h
-mocklisp.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+mocklisp.o: config.h buffer.h
 mocklisp.o: bufslots.h
 play.o: libsst.h
-print.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+print.o: config.h buffer.h
 print.o: bufslots.h extents.h dispextern.h screen.h window.h process.h
 print.o: events.h
-process.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  window.h
+process.o: config.h window.h
 process.o: buffer.h bufslots.h process.h termhooks.h termopts.h commands.h
 process.o: events.h
-ralloc.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  mem_limits.h
-regex.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+ralloc.o: config.h mem_limits.h
+regex.o: config.h buffer.h
 regex.o: bufslots.h syntax.h regex.h
-screen.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  dispextern.h
+screen.o: config.h dispextern.h
 screen.o: screen.h window.h xterm.h blockio.h
-scroll.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h termchar.h 
+scroll.o: config.h termchar.h 
 scroll.o: dispextern.h screen.h
-search.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  syntax.h
+search.o: config.h syntax.h
 search.o: buffer.h bufslots.h commands.h regex.h
-sunfns.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  window.h
+sunfns.o: config.h window.h
 sunfns.o: buffer.h bufslots.h termhooks.h
-syntax.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  commands.h
+syntax.o: config.h commands.h
 syntax.o: buffer.h bufslots.h syntax.h
-sysdep.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  dispextern.h
+sysdep.o: config.h dispextern.h
 sysdep.o: screen.h window.h termhooks.h termchar.h termopts.h process.h
-term.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  termhooks.h
+term.o: config.h termhooks.h
 term.o: termchar.h termopts.h cm.h dispextern.h screen.h disptab.h
-termcap.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h
-tparam.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h
-undo.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+termcap.o: config.h
+tparam.o: config.h
+undo.o: config.h buffer.h
 undo.o: bufslots.h
-unexconvex.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h getpagesize.h
-unexec.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h getpagesize.h
-unexenix.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h
-unexmips.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h filehdr.h
+unexconvex.o: config.h getpagesize.h
+unexec.o: config.h getpagesize.h
+unexenix.o: config.h
+unexmips.o: config.h filehdr.h
 unexmips.o: aouthdr.h scnhdr.h sym.h
-unexsunos4.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h
-vm-limit.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h mem_limits.h
+unexsunos4.o: config.h
+vm-limit.o: config.h mem_limits.h
 vm-limit.o: 
 vmsproc.o: ssdef.h iodef.h dvidef.h clidef.h vmsproc.h
-window.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+window.o: config.h buffer.h
 window.o: bufslots.h screen.h dispextern.h window.h commands.h indent.h
 window.o: termchar.h disptab.h
-xdisp.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  window.h
+xdisp.o: config.h window.h
 xdisp.o: termchar.h buffer.h bufslots.h extents.h dispextern.h screen.h
 xdisp.o: indent.h commands.h macros.h disptab.h xterm.h blockio.h
-xfns.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h ScreenWidgetP.h
-xfns.o: ScreenWidget.h EmacsShell.h EmacsShellP.h  xterm.h blockio.h
+xfns.o: config.h ScreenWidgetP.h
+xfns.o: ScreenWidget.h EmacsShell.h EmacsShellP.h xterm.h blockio.h
 xfns.o: window.h buffer.h bufslots.h extents.h dispextern.h screen.h events.h
-xselect.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  xterm.h
+xselect.o: config.h xterm.h
 xselect.o: blockio.h dispextern.h screen.h
-xterm.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h EmacsShellP.h
-xterm.o: EmacsShell.h  xterm.h blockio.h termhooks.h termopts.h
+xterm.o: config.h EmacsShellP.h
+xterm.o: EmacsShell.h xterm.h blockio.h termhooks.h termopts.h
 xterm.o: termchar.h buffer.h bufslots.h screen.h dispextern.h disptab.h
 xterm.o: window.h bitmaps.h events.h
-xutils.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  xterm.h
+xutils.o: config.h xterm.h
 xutils.o: blockio.h dispextern.h screen.h

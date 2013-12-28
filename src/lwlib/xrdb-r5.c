@@ -678,9 +678,9 @@ void _XtDisplayInitialize(dpy, pd, name, urlist, num_urs, argc, argv)
 	XrmHashTable* search_list;
 	int search_list_size = SEARCH_LIST_SIZE;
 
-	GetLanguage(dpy, pd);
-
 	lwlib_xrdb_initialize (dpy);
+
+	GetLanguage(dpy, pd);
 
 	/* Parse the command line and remove Xt arguments from argv */
 	_MergeOptionTables( opTable, XtNumber(opTable), urlist, num_urs,

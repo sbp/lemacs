@@ -1,0 +1,121 @@
+;;; compiled by jwz@thalidomide on Wed Jun 17 22:34:32 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/packages/auto-save.el
+;;; emacs version 19.1.1 Lucid.
+;;; bytecomp version 2.07; 12-jun-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defconst auto-save-version (substring "$Revision: 1.13 $" 11 -2) "\
+$Id: auto-save.el,v 1.13 1992/06/18 05:33:36 jwz Exp $")
+(defvar auto-save-directory nil "\
+If non-nil, fixed directory for autosaving: all autosave files go
+there.  If this directory does not yet exist at load time, it is
+created and its mode is set to 0700 so that nobody else can read your
+autosave files.
+
+If nil, each autosave files goes into the same directory as its
+corresponding visited file.
+
+A non-nil `auto-save-directory' could be on a local disk such as in
+/tmp, then auto-saves will always be fast, even if NFS or the
+automounter is slow.  In the usual case of /tmp being locally mounted,
+note that if you run emacs on two different machines, they will not
+see each other's auto-save files.
+
+The value (expand-file-name \"~/autosave/\") might be better if /tmp
+is mounted from swap (possible in SunOS, type `df /tmp' to find out)
+and thus vanishes after a reboot, or if your system is particularly
+thorough when cleaning up /tmp, clearing even non-empty subdirectories.
+
+It should never be an ange-ftp remote filename because that would
+defeat `ange-ftp-auto-save-remotely'.
+
+Unless you set `auto-save-hash-p', you shouldn't set this to a
+directory in a filesystem that does not support long filenames, since
+a file named
+
+    /home/sk/lib/emacs/lisp/auto-save.el
+
+will have a longish filename like
+
+    AUTO-SAVE-DIRECTORY/#\\!home\\!sk\\!lib\\!emacs\\!lisp\\!auto-save.el#
+
+as auto save file.
+
+See also variables `auto-save-directory-fallback', `auto-save-hash-p',
+`ange-ftp-auto-save' and `ange-ftp-auto-save-remotely'.")
+(defvar auto-save-hash-p nil "\
+If non-nil, hashed autosave names of length 14 are used.
+This is to avoid autosave filenames longer than 14 characters.
+The directory used is `auto-save-hash-directory' regardless of
+`auto-save-directory'.
+Hashing defeats `recover-all-files', you have to recover files
+individually by doing `recover-file'.")
+(defvar ange-ftp-auto-save 0 "\
+If 1, allows ange-ftp files to be auto-saved.
+If 0, suppresses auto-saving of ange-ftp files.
+Don't use any other value.")
+(defvar ange-ftp-auto-save-remotely nil "\
+*If non-nil, causes the auto-save file for an ange-ftp file to be written in
+the remote directory containing the file, rather than in a local directory.
+
+For remote files, this being true overrides a non-nil
+`auto-save-directory'.  Local files are unaffected.
+
+If you want to use this feature, you probably only want to set this
+true in a few buffers, rather than globally.  You might want to give
+each buffer its own value using `make-variable-buffer-local'.
+
+See also variable `ange-ftp-auto-save'.")
+(defvar auto-save-directory-fallback (expand-file-name "~/autosave/") "\
+Directory used for local autosaving of remote files if
+both `auto-save-directory' and `ange-ftp-auto-save-remotely' are nil.
+Also used if a working directory to be used for autosaving is not writable.
+This *must* always be the name of directory that exists or can be
+created by you, never nil.")
+(defvar auto-save-hash-directory (byte-code "ÀÁ\n®\"‡" [expand-file-name "hash/" auto-save-directory auto-save-directory-fallback] 3) "\
+If non-nil, directory used for hashed autosave filenames.")
+(byte-code "ÀÁMˆÂÀÃ\"ˆ«„ÀÅ!ˆÀ‡" [auto-save-check-directory #[(var) "J‰??­©Â	!‰LˆÃ	!?­›Ä	!ÅÆ!«†Æ	!ˆªˆÇÈÉ‰‰	%ˆÊ	Ë\")‡" [var dir expand-file-name file-directory-p directory-file-name fboundp make-directory call-process "mkdir" nil set-file-modes 448] 7] mapcar (auto-save-directory auto-save-directory-fallback) auto-save-hash-p auto-save-hash-directory] 3)
+(fset 'make-auto-save-file-name #[nil "ÀÁÂ‡" [error-data (byte-code "ÀÁ!«ƒ	®\n‰?­ƒÄÅ!®„ÇÈ !	;­ˆÊË!­ƒË!Í««†Ï	!ªœĞ	!ª–¬„«ˆĞ	\"ª†Ï	\"!,‡" [boundp buffer-file-truename buffer-file-name file-name make-temp-name "#%" name-prefix auto-save-unslashify-name buffer-name save-name fboundp ange-ftp-ftp-path remote-p expand-file-name ange-ftp-auto-save-remotely auto-save-name-in-same-directory auto-save-name-in-fixed-directory auto-save-directory auto-save-hash-p] 5) ((error (byte-code "ÀÁ\n\"ˆÃÄ!ˆ«ŠÆ!ÇÈ!ÇR‡ÉÊË ÇQ!‡" [message "make-auto-save-file-name %s" error-data sit-for 2 buffer-file-name file-name-directory "#" file-name-nondirectory expand-file-name "#%" buffer-name] 4)))] 3 "\
+Return file name to use for auto-saves of current buffer.
+Does not consider `auto-save-visited-file-name'; that is checked
+before calling this function.
+
+Offers to autosave all files in the same `auto-save-directory'.  All
+autosave files can then be recovered at once with function
+`recover-all-files'.
+
+Takes care to make autosave files for files accessed through ange-ftp
+be local files if variable `ange-ftp-auto-save-remotely' is nil.
+
+Takes care of slashes in buffer names to prevent autosave errors.
+
+Takes care that autosave files for buffers not visiting any file (such
+as `*mail*') from two simultaneous Emacses don't collide by prepending
+the Emacs pid.
+
+Uses 14 character autosave names if `auto-save-hash-p' is true.
+
+Autosaves even if the current directory is not writable, using
+directory `auto-save-directory-fallback'.
+
+You can redefine this for customization (he he :-).
+See also function `auto-save-file-name-p'."])
+(fset 'auto-save-original-name #[(savename) "À	!Â	!Å!«†ÆÇ\"«ƒÈªš	š¬†\nš«ˆËÌÍO!ª†ÌÍOP*‡" [file-name-nondirectory savename file-name-directory savedir basename auto-save-file-name-p string-match "^#%" nil auto-save-directory auto-save-directory-fallback auto-save-slashify-name 1 -1] 4 "\
+Reverse of `make-auto-save-file-name'.
+Returns nil if SAVENAME was not associated with a file (e.g., it came
+from an autosaved `*mail*' buffer) or does not appear to be an
+autosave file at all.
+Hashed files are not understood, see `auto-save-hash-p'."])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉM‡" [auto-save-name-in-fixed-directory #[(filename &optional prefix) "®ÁÂ!ÁQ«“«GÇV«‰ÈÉ!\"ª‰È\n®‚\")‡" [prefix "#" auto-save-unslashify-name filename base-name auto-save-hash-p auto-save-hash-directory 14 expand-file-name auto-save-cyclic-hash-14 auto-save-directory auto-save-directory-fallback] 3] auto-save-name-in-same-directory #[(filename &optional prefix) "À	!‰«‡Ã\n!¬‚\n®ÆÇ	!ÆR)‡" [file-name-directory filename directory file-writable-p auto-save-directory-fallback prefix "#" file-name-nondirectory] 5] auto-save-unslashify-name #[(s) "ÀÂÃ	#« À‰”OÀ”À•OÅ˜«ƒÆªÇÀ•ÈOQÀ•TªY)‡" [0 limit string-match "[/\\]" s "/" "\\!" "\\\\" nil] 5] auto-save-slashify-name #[(s) "ÀÂÃ	#‰«Å	O	THÆ=«ƒÇªÈ	É\\ÀOQ	TªZ)‡" [nil pos string-match "\\\\[\\!]" s 0 33 "/" "\\" 2] 5] auto-save-cyclic-hash-14 #[(s) "ÀÁÂ\"ÃÆÇ\"ˆÉÊÂHËHÌHÍHÎHÏHĞHÑH&	‰*‡" [make-string 8 0 nil result crc mapcar #[(new) "	ÂH\\	Â	ÃHIˆ	Ã	ÄH\\Iˆ	Ä	ÅHIˆ	Å	ÆHIˆ	Æ	ÇH\\Iˆ	Ç	ÈHIˆ	È	ÉHIˆ	ÉI‡" [new crc 7 6 5 4 3 2 1 0] 4] s format "%02x%02x%02x%02x%02x%02x%02x" 1 2 3 4 5 6 7] 12]] 2)
+(fset 'recover-all-files #[nil "À	ÂÃ#Ä‰Å‰	\n	š¬ŒÌ\nÀÂÃ#\"\n\n«û\n@	Í	!\nA\n«hÎ	\"¬ŒÏĞ	\"ˆÑÒ!ˆªTTÓÔÕÄÄ×	&‘ˆØÙÚ\"!«5pÜÂ\"qÄß ˆà	Ä\"ˆáÄ!ˆÄ\"TÏãä \"ˆqˆÑå!ˆ+ªÅU«†Ïæ!ˆª’ÏçåU«ƒèªé$ˆ-êÓ!­ƒëÓ!‡" [directory-files auto-save-directory t "^#" nil 0 count total file afile savefiles auto-save-directory-fallback append auto-save-original-name file-newer-than-file-p message "autosave file \"%s\" is not current." sit-for 2 "*Directory*" call-process "ls" standard-output "-l" yes-or-no-p format "Recover %s from auto save file? " obuf find-file-noselect buf buffer-read-only erase-buffer insert-file-contents after-find-file buffer-auto-save-file-name "Auto-save off in buffer \"%s\" till you do M-x auto-save-mode." buffer-name 1 "Nothing to recover." "%d/%d file%s recovered." "" "s" get-buffer kill-buffer] 9 "\
+Do recover-file for all autosave files which are current.
+Only works if you have a non-nil `auto-save-directory'.
+Hashed files (see `auto-save-hash-p') are not understood, use
+`recover-file' to recover them individually." nil])
+(provide 'auto-save)

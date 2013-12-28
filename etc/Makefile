@@ -5,7 +5,7 @@ MANDIR=/usr/man/man1
 MANEXT=1
 
 # add -DUSG for SysV movemail and timer
-CFLAGS= -g -Bstatic -I/cadillacgnu/gcc-include
+CFLAGS= -g
 # For Xenix.  Needed for movemail
 #  LOADLIBES= -lx
 

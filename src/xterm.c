@@ -1,11 +1,11 @@
 /* X Communication module for terminals which understand the X protocol.
-   Copyright (C) 1989, 1991 Free Software Foundation, Inc.
+   Copyright (C) 1989, 1991, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -52,6 +52,14 @@ extern Widget Xt_app_shell;
 #include <sys/types.h>
 #endif
 
+#if 0			/* It shouldn't be necessary to include time.h here,
+			   because we include xterm.h, which includes
+			   X11/Intrinsic.h, which includes X11/Xos.h, which
+			   includes time.h.  Some bogon systems (like HP)
+			   don't protect their header files from double
+			   inclusion, so including time.h twice blows up!
+			 */
+
 #ifdef NEED_TIME_H
 #include <time.h>
 #else /* not NEED_TIME_H */
@@ -59,6 +67,9 @@ extern Widget Xt_app_shell;
 #include <sys/time.h>
 #endif /* HAVE_TIMEVAL */
 #endif /* not NEED_TIME_H */
+
+#endif /* 0 */
+
 
 #ifdef O_NDELAY
 #undef O_NDELAY
@@ -432,7 +443,7 @@ x_write_glyphs (s, left, top, n, force_gc, box_p)
 
   erase_screen_cursor_if_needed_and_in_region (s, left, top, n);
 
-  buf = alloca (s->current_glyphs->used[top] + 1);
+  buf = (char *) alloca (s->current_glyphs->used[top] + 1);
   cp = buf;
 
   /* Advance to the correct run. */
@@ -2623,20 +2634,42 @@ x_focus_screen (s)
   /* Always set the Xt keyboard focus. */
   lw_set_keyboard_focus (x->widget, x->edit_widget);
 
-  /* Do the ICCCM focus change if we dont have focus already and
-     the window is still visible */
+  /* Do the ICCCM focus change if we don't have focus already and
+     the window is still visible.  The s->visible flag might not be
+     up-to-date, because we might not have processed magic events
+     recently.  So make a server round-trip to find out whether it's
+     really mapped right now.  We grab the server to do this, because
+     that's the only way to eliminate the race condition.
+   */
   if (!x->focus_p && any_screen_has_focus_p)
     {
-      /* update our notion of visibility */
+      XGrabServer (XtDisplay (x->widget));
       if (XGetWindowAttributes (XtDisplay (x->widget), XtWindow (x->widget),
 				&xwa))
 	s->visible = xwa.map_state == IsViewable;
       
       if (s->visible)
 	{
-	  XSetInputFocus (XtDisplay (x->widget), XtWindow (x->widget),
-			  RevertToParent, mouse_timestamp);
+	  Window focus;
+	  int revert_to;
+	  XGetInputFocus (XtDisplay (x->widget), &focus, &revert_to);
+	  /* Don't explicitly set the focus on this window unless the focus
+	     was on some other window (not PointerRoot).  Note that, even when
+	     running a point-to-type window manager like *twm, there is always
+	     a focus window; the window manager maintains that based on the
+	     mouse position.  If you set the "NoTitleFocus" option in these
+	     window managers, then the server itself maintains the focus via
+	     PointerRoot, and changing that to focus on the window would make
+	     the window grab the focus.  Very bad.
+	   */
+	  if (focus != PointerRoot)
+	    {
+	      XSetInputFocus (XtDisplay (x->widget), XtWindow (x->widget),
+			      RevertToParent, mouse_timestamp);
+	      XFlush (XtDisplay (x->widget));
+	    }
 	}
+      XUngrabServer (XtDisplay (x->widget));
     }
   UNBLOCK_INPUT;
 }

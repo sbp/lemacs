@@ -38,6 +38,7 @@
       (setq window-setup-hook (cons 'x-pop-initial-window window-setup-hook))
       (require 'screen)
       (require 'x-faces)
+      (require 'x-iso8859-1)
       (setq suspend-hook
 	    '(lambda ()
 	       (error "Suspending an emacs running under X makes no sense")))
@@ -82,6 +83,7 @@
   (require 'x-mouse)
   (require 'xselect)
   (setq mouse-motion-handler 'x-track-pointer)
+  (setq character-set-property 'x-iso8859/1) ; see x-iso8859-1.el
   ;; see screen.el for this function
   (pop-initial-screen ())
   (delete-screen terminal-screen)
@@ -103,27 +105,6 @@
 (define-key global-map 'undo		'undo)
 (define-key global-map 'help		'help-for-help)
 (define-key help-map 'help		'help-for-help)
-
-(define-key global-map 'kp_space	" ")
-(define-key global-map 'kp_tab		"\t")
-(define-key global-map 'kp_enter	"\r")
-(define-key global-map 'kp_equal	"=")
-(define-key global-map 'kp_multiply	"*")
-(define-key global-map 'kp_add		"+")
-(define-key global-map 'kp_separator	";")
-(define-key global-map 'kp_subtract	"-")
-(define-key global-map 'kp_decimal	".")
-(define-key global-map 'kp_divide	"/")
-(define-key global-map 'kp_0		"0")
-(define-key global-map 'kp_1		"1")
-(define-key global-map 'kp_2		"2")
-(define-key global-map 'kp_3		"3")
-(define-key global-map 'kp_4		"4")
-(define-key global-map 'kp_5		"5")
-(define-key global-map 'kp_6		"6")
-(define-key global-map 'kp_7		"7")
-(define-key global-map 'kp_8		"8")
-(define-key global-map 'kp_9		"9")
 
 
 ;; Horizontal split window do not work in this emacs

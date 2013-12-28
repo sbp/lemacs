@@ -1,11 +1,11 @@
 /* Minibuffer input and completion.
-   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -91,7 +91,7 @@ extern Lisp_Object Vglobal_minibuffer_screen;
 
 /* Actual minibuffer invocation. */
 
-void read_minibuf_unwind ();
+Lisp_Object read_minibuf_unwind ();
 Lisp_Object get_minibuffer ();
 Lisp_Object read_minibuf ();
 
@@ -247,7 +247,7 @@ get_minibuffer (depth)
 /* This function is called on exiting minibuffer, whether normally or not,
  and it restores the current window, buffer, etc. */
 
-void
+Lisp_Object
 read_minibuf_unwind (dummy)
      Lisp_Object dummy;
 {
@@ -272,6 +272,7 @@ read_minibuf_unwind (dummy)
   minibuf_prompt_pix_width = minibuf_save_vector[minibuf_level].prompt_pix_width;
   Vhelp_form = minibuf_save_vector[minibuf_level].help_form;
   Vcurrent_prefix_arg = minibuf_save_vector[minibuf_level].current_prefix_arg;
+  return Qnil;
 }
 
 DEFUN ("read-from-minibuffer", Fread_from_minibuffer, Sread_from_minibuffer, 1, 5, 0,

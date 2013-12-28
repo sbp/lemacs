@@ -1,11 +1,11 @@
 /* Primitive operations on floating point for GNU Emacs Lisp interpreter.
-   Copyright (C) 1988 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -469,7 +469,7 @@ Rounds the value toward zero.")
   return num;
 }
 
-#ifdef BSD
+#if defined (BSD) || defined (IRIX)
 static void
 float_error (signo)
      int signo;
