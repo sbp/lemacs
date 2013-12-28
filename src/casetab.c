@@ -58,7 +58,7 @@ check_case_table (obj)
   register Lisp_Object tem;
 
   while (tem = Fcase_table_p (obj), NILP (tem))
-    obj = wrong_type_argument (Qcase_table_p, obj, 0);
+    obj = wrong_type_argument (Qcase_table_p, obj);
   return (obj);
 }   
 
@@ -87,6 +87,8 @@ This is the one used for new buffers.")
 		       Fcons (Vascii_canon_table,
 			      Fcons (Vascii_eqv_table, Qnil))));
 }
+
+Lisp_Object set_case_table (Lisp_Object, int);
 
 DEFUN ("set-case-table", Fset_case_table, Sset_case_table, 1, 1, 0,
   "Select a new case table for the current buffer.\n\
@@ -202,6 +204,7 @@ compute_trt_inverse (trt, inverse)
     }
 }
 
+void
 init_casetab_once ()
 {
   register int i;
@@ -227,6 +230,7 @@ init_casetab_once ()
 	    : i));
 }
 
+void
 syms_of_casetab ()
 {
   Qcase_table_p = intern ("case-table-p");

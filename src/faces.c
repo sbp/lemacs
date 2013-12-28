@@ -33,14 +33,25 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <X11/IntrinsicP.h>
 #include <X11/CoreP.h>
 #include <X11/StringDefs.h>
+#include <X11/Xmu/Drawing.h>
 #include <X11/Xos.h>
 
-#include "extents-data.h"
+/*#include "extents-data.h"*/
 #include "faces.h"
+#include "hash.h"
 
 #ifndef ENERGIZE
 #include "hash.h"
 #endif
+
+#ifdef HAVE_XPM
+#include <X11/xpm.h>
+#endif
+
+/* The prioirty of the mouse-highlighting attributes, for extent-merging.
+ */
+int mouse_highlight_priority;
+
 
 #define FACE_DEFAULT (~0)
 
@@ -57,6 +68,8 @@ static c_hashtable face_cache_pending_flush;
 
 static int face_cache_inited;
 int face_cache_invalid;
+
+static struct face *allocate_face ();
 
 static unsigned long
 face_hash_function (void *arg)
@@ -137,7 +150,7 @@ flush_face_cache_mapper (void *hash_key, void *hash_contents, void *closure)
   Display *dpy = (Display *) closure;
   if (face->facegc)
     XFreeGC (dpy, face->facegc);
-  free (face);
+  xfree (face);
 }
 
 void
@@ -180,12 +193,17 @@ flush_face_cache ()
 }
 
 static void
-invalidate_face_cache (struct screen *s)
+invalidate_face_cache (struct screen *s, int deleting_screen_p)
 {
+  Lisp_Object tail;
   face_cache_invalid = 1;
   extent_cache_invalid = 1;
-  SET_SCREEN_GARBAGED (s);
-  compute_screen_line_height (s);
+
+  for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
+    SET_SCREEN_GARBAGED (XSCREEN (XCONS (tail)->car));
+
+  if (! deleting_screen_p)
+    compute_screen_line_height (s);
   if (face_cache_pending_flush)
     return;
   face_cache_pending_flush = face_cache;
@@ -218,6 +236,8 @@ verify_font (struct screen* s, XFontStruct *font)
 
 #define MAX(x,y) (((x)>(y))?(x):(y))
 
+extern void EmacsScreenResize (Widget);
+
 static void
 compute_screen_line_height (struct screen *s)
 {
@@ -243,7 +263,7 @@ static void
 reset_face (struct screen* s, struct face* face)
 {
   struct face* normal_face = &SCREEN_NORMAL_FACE (s);
-  bzero ((void*)face, sizeof (struct face));
+  memset ((void*)face, 0, sizeof (struct face));
   face->foreground = normal_face->foreground;
   face->background = normal_face->background;
   face->back_pixmap = normal_face->back_pixmap;
@@ -313,7 +333,7 @@ build_face (struct screen* s, struct face* face)
 /* Get a face suitable for display (ie which has a GC) for a given
    set of attributes. */
 
-struct face *
+static struct face *
 get_display_face (struct screen* s, struct face* face)
 {
   struct face *result;
@@ -377,21 +397,80 @@ setup_extent_fragment_face_ptr (struct screen *s, EXTENT_FRAGMENT extfrag)
     extfrag->fp = &SCREEN_NORMAL_FACE (s);
   else
     {
+      EXTENT ebuf [200];
+      EXTENT *extents;
+      struct extent dummy_extent;
+
+      /* Make a copy of the vector of extents... */
+      if (len < (sizeof(ebuf) / (sizeof(EXTENT)) - 1))
+	extents = ebuf; /* use a static buffer if it's small, for speed */
+      else
+	extents = (EXTENT *) alloca ((len * sizeof(EXTENT)) + 1);
+      memcpy (extents, vec, len * sizeof(EXTENT));
+
+      /* determine whether the last-highlighted-extent is present... */
+      if (EXTENTP (Vlast_highlighted_extent))
+	{
+	  EXTENT lhe = XEXTENT (Vlast_highlighted_extent);
+	  int lhe_index = -1;
+	  for (i = 0; i < len; i++)
+	    if (extents [i] == lhe)
+	      {
+		lhe_index = i;
+		break;
+	      }
+	  /* ...and if it is, make up a dummy extent of the appropriate
+	     priority, and add it to the list to be sorted with the rest.
+	   */
+	  if (lhe_index != -1)
+	    {
+	      /* memset isn't really necessary; we only deref `priority' */
+	      memset (&dummy_extent, 0, sizeof (dummy_extent));
+	      dummy_extent.priority = mouse_highlight_priority;
+	      /* put the dummy extent just after the lhe in the stack,
+		 as they're already sorted by size/starting point. */
+	      for (i = len; i > lhe_index; i--)
+		extents [i] = extents [i-1];
+	      extents [lhe_index + 1] = &dummy_extent;
+	      len++;
+	    }
+	}
+
+      /* sort our copy of the stack by extent->priority... */
+      for (i = 1; i < len; i++)
+	{
+	  int j = i - 1;
+	  while (j >= 0 && extents[j]->priority > extents[j+1]->priority)
+	    {
+	      EXTENT tmp = extents [j];
+	      extents [j] = extents [j+1];
+	      extents [j+1] = tmp;
+	      j--;
+	    }
+	}
+
+      /* Now merge the faces of the extents together in order.
+
+	 Remember that one of the extents in the list might be our dummy
+	 extent representing the highlighting that is attached to some other
+	 extent that is currently mouse-highlighted.  When an extent is
+	 mouse-highlighted, it is as if there are two extents there, of
+	 potentially different priorities: the extent being highlighted, with
+	 whatever face and priority it has; and an ephemeral extent in the
+	 `highlight' face with `mouse-highlight-priority'.
+       */
       reset_face (s, &face);
       for (i = 0; i < len; i++)
 	{
-	  EXTENT current = vec [i];
-	  /* skip 0-length extents from the merge */
-	  if (current->end != current->start)
-	    {
-	      merge_extent_face (s, vec [i], &face);
-	      
-	      if (EXTENTP (Vlast_highlighted_extent) &&
-		  (current == XEXTENT (Vlast_highlighted_extent)))
-		merge_faces (&SCREEN_HIGHLIGHT_FACE (s), &face);
-	    }
+	  EXTENT current = extents [i];
+	  if (current == &dummy_extent)
+	    /* this isn't a real extent; use the highlight face. */
+	    merge_faces (&SCREEN_HIGHLIGHT_FACE (s), &face);
+	  else if (current->end != current->start)
+	    /* Skip 0-length extents from the merge (is this necessary?) */
+	    merge_extent_face (s, current, &face);
 	}
-      
+
       face.font = verify_font (s, face.font);
       extfrag->fp = get_display_face (s, &face);
     }
@@ -399,11 +478,11 @@ setup_extent_fragment_face_ptr (struct screen *s, EXTENT_FRAGMENT extfrag)
 
 
 /* Allocate a new face */
-struct face*
+static struct face *
 allocate_face ()
 {
   struct face* result = (struct face*)xmalloc (sizeof (struct face));
-  bzero ((void*)result, sizeof (struct face));
+  memset ((void*)result, 0, sizeof (struct face));
   result->font = (XFontStruct *) FACE_DEFAULT;
   result->foreground = FACE_DEFAULT;
   result->background = FACE_DEFAULT;
@@ -496,7 +575,7 @@ unload_font (struct screen *s, XFontStruct *font)
   XFreeFont (XtDisplay (s->display.x->widget), font);
 }
 
-unsigned long
+static unsigned long
 load_pixel (struct screen *s, Lisp_Object name)
 {
   Widget widget;
@@ -528,7 +607,7 @@ load_pixel (struct screen *s, Lisp_Object name)
   return (unsigned long) color.pixel;
 }
 
-void
+static void
 unload_pixel (struct screen *s, Pixel pixel)
 {
   Widget widget;
@@ -546,26 +625,22 @@ unload_pixel (struct screen *s, Pixel pixel)
 
 static int locate_pixmap_file (char *in, char *out);
 
-unsigned long
-load_pixmap (struct screen *s, Lisp_Object name, int *wP, int *hP, int *dP)
+Pixmap
+load_pixmap_1 (Display *dpy, Window window,
+	       Lisp_Object name, unsigned int *wP, unsigned int *hP,
+	       unsigned int *dP, Pixmap *maskP)
 {
-  Widget widget;
-  Display *dpy;
   int result;
-  Pixmap new;
   char file [1024];
   int xhot, yhot;
-  int w, h, d;
+  unsigned int w, h, d;
   unsigned char *data = 0;
-
-  if (NILP (name) || !SCREEN_IS_X (s))
-    {
-      *wP = *hP = *dP = 0;
-      return FACE_DEFAULT;
-    }
-
-  widget = s->display.x->widget;
-  dpy = XtDisplay (widget);
+  Pixmap new;
+  Pixmap mask = 0;
+#ifdef HAVE_XPM
+  XpmAttributes xpmattrs;
+  int retry_in_mono = 0;
+#endif /* HAVE_XPM */
 
   if (CONSP (name))
     {
@@ -592,33 +667,117 @@ load_pixmap (struct screen *s, Lisp_Object name, int *wP, int *hP, int *dP)
 			  Fcons (name, Qnil)));
       data = (unsigned char *) XSTRING (Fcar (Fcdr (Fcdr (name))))->data;
       xhot = yhot = 0;
-      new = XCreatePixmapFromBitmapData (XtDisplay (widget),
-					 XtWindow (widget),
+      new = XCreatePixmapFromBitmapData (dpy, window,
 					 (char *) data, w, h, 1, 0, 1);
-      d = 1;		/* always 1 plane for now */
+      d = 0;
     }
   else
     {
       CHECK_STRING (name, 0);
       if (! locate_pixmap_file ((char *) XSTRING (name)->data, file))
-	return
-	  Fsignal (Qfile_error,
-		   Fcons (build_string ("Opening bitmap file"),
-			  Fcons (build_string ("no such file or directory"),
-				 Fcons (name, Qnil))));
+	return Fsignal (Qfile_error,
+			list3 (build_string ("Opening pixmap file"),
+			       build_string ("no such file or directory"),
+			       name));
       name = build_string (file);
+
+#ifdef HAVE_XPM
+      xpmattrs.valuemask = 0;
+    RETRY:
       BLOCK_INPUT;
-      result = XmuReadBitmapDataFromFile (file, &w, &h, &data, &xhot, &yhot);
+      result = XpmReadFileToPixmap (dpy, window, file, &new, &mask, &xpmattrs);
+      w = xpmattrs.width;
+      h = xpmattrs.height;
+      XpmFreeAttributes (&xpmattrs);
       UNBLOCK_INPUT;
 
       switch (result)
 	{
+	case XpmSuccess:
+	  /* XpmReadFileToPixmap() doesn't return the depth (bogus!) so we
+	     need to get it ourself. */
+#if 1
+	  /* Actually, we might as well just assume that Xpm did the right
+	     thing and gave us a pixmap of the same depth as the window we
+	     passed it. */
+	  /* #### but we shouldn't be using selected_screen here */
+	  d = selected_screen->display.x->widget->core.depth;
+#else
+	  {
+	    Window root;
+	    int x, y;
+	    unsigned int w2, h2, bw;
+	    BLOCK_INPUT;
+	    if (!XGetGeometry (dpy, new, &root, &x, &y, &w2, &h2, &bw, &d))
+	      abort ();
+	    if (w != w2 || h != h2) abort ();
+	    UNBLOCK_INPUT;
+	  }
+#endif
+	  
+	  goto SUCCESS;
+
+	case XpmFileInvalid:
+	  /* Ok, we'll try to read it as an XBM and error if that fails */
+	  break;
+	  
+	case XpmColorFailed:
+	  /* If we couldn't allocate any colors for this image, then silently
+	     retry in monochrome.  If that fails too, then signal an error.
+	   */
+	  if (retry_in_mono) /* second time; blow out. */
+	    return Fsignal (Qfile_error,
+			    list3 (build_string ("Reading pixmap file"),
+				   build_string ("color allocation failed"),
+				   name));
+	  /* else... */
+	  retry_in_mono = 1;
+	  xpmattrs.depth = 1;
+	  xpmattrs.valuemask |= XpmDepth;
+	  goto RETRY;
+
+	case XpmColorError:
+	  {
+	    /* Maybe we should just read it in monochrome instead of
+	       allowing the colors to be substituted?
+	     */
+	    char buf [2000];
+	    sprintf (buf, "color substitution performed for file \"%s\"",
+		     (char *) XSTRING (name)->data);
+	    message (buf);
+	  }
+	case XpmNoMemory:
+	  return Fsignal (Qfile_error,
+			  list3 (build_string ("Reading pixmap file"),
+				 build_string ("out of memory"),
+				 name));
+	case XpmOpenFailed:
+	  return
+	    Fsignal (Qfile_error,
+		     Fcons (build_string ("Opening pixmap file"),
+			    Fcons (build_string ("no such file or directory"),
+				   Fcons (name, Qnil))));
+	default:
+	  return Fsignal (Qfile_error,
+			  list4 (build_string ("Reading pixmap file"),
+				 build_string ("unknown error code"),
+				 make_number (result), name));
+	}
+#endif /* HAVE_XPM */
+      
+      BLOCK_INPUT;
+      result = XmuReadBitmapDataFromFile (file, &w, &h, &data, &xhot, &yhot);
+      UNBLOCK_INPUT;
+      
+      switch (result)
+	{
 	case BitmapSuccess:
-	  new = XCreatePixmapFromBitmapData (XtDisplay (widget),
-					     XtWindow (widget),
+	  BLOCK_INPUT;
+	  new = XCreatePixmapFromBitmapData (dpy, window,
 					     (char *) data, w, h, 1, 0, 1);
-	  d = 1;		/* always 1 plane for now */
+	  d = 0;
 	  XFree ((char *)data);
+	  UNBLOCK_INPUT;
 	  break;
 	case BitmapOpenFailed:
 	  return
@@ -628,32 +787,55 @@ load_pixmap (struct screen *s, Lisp_Object name, int *wP, int *hP, int *dP)
 				   Fcons (name, Qnil))));
 	case BitmapFileInvalid:
 	  return Fsignal (Qfile_error,
-			  Fcons (build_string ("Reading bitmap file"),
-				 Fcons (build_string ("invalid bitmap data"),
-					Fcons (name, Qnil))));
+			  list3 (build_string ("Reading bitmap file"),
+				 build_string ("invalid bitmap data"),
+				 name));
 	case BitmapNoMemory:
 	  return Fsignal (Qfile_error,
-			  Fcons (build_string ("Reading bitmap file"),
-				 Fcons (build_string ("out of memory"),
-					Fcons (name, Qnil))));
+			  list3 (build_string ("Reading bitmap file"),
+				 build_string ("out of memory"),
+				 name));
 	default:
 	  return Fsignal (Qfile_error,
-			  Fcons (build_string ("Reading bitmap file"),
-				 Fcons (build_string ("unknown error code"),
-					Fcons (make_number (result),
-					       Fcons (name, Qnil)))));
-
+			  list4 (build_string ("Reading bitmap file"),
+				 build_string ("unknown error code"),
+				 make_number (result), name));
 	}
     }
+  
+ SUCCESS:
   *wP = w;
   *hP = h;
   *dP = d;
-  return (unsigned long) new;
+  if (maskP) *maskP = mask;
+  return new;
+}
+
+
+unsigned long
+load_pixmap (struct screen *s, Lisp_Object name,
+	     unsigned int *wP, unsigned int *hP, unsigned int *dP,
+	     unsigned long *maskP)
+{
+  if (NILP (name) || !SCREEN_IS_X (s))
+    {
+      *wP = *hP = *dP = 0;
+      return FACE_DEFAULT;
+    }
+  else if (!SCREEN_IS_X (s))
+    abort ();
+  else
+    {
+      Widget widget = s->display.x->widget;
+      return (unsigned long)
+	load_pixmap_1 (XtDisplay (widget), XtWindow (widget),
+		       name, wP, hP, dP, (Pixmap *) maskP);
+    }
 }
 
 
 void
-unload_pixmap (struct screen *s, unsigned long pix, int w, int h,int  d)
+unload_pixmap (struct screen *s, unsigned long pix)
 {
   if (!pix || pix == FACE_DEFAULT)
     return;
@@ -663,11 +845,9 @@ unload_pixmap (struct screen *s, unsigned long pix, int w, int h,int  d)
 }
 
 
-#ifndef BITMAPDIR
-#define BITMAPDIR "/usr/include/X11/bitmaps"
-#endif
-
 extern Lisp_Object Vx_bitmap_file_path;
+
+extern void initialize_x_bitmap_file_path (void);
 
 static int
 locate_pixmap_file (char *in, char *out)
@@ -678,29 +858,10 @@ locate_pixmap_file (char *in, char *out)
       strcpy (out, in);
       return 1;
     }
-  /* Compute the x-bitmap-file-path if it's not already set */
+  
   if (NILP (Vx_bitmap_file_path))
-    {
-      Lisp_Object path = Fx_get_resource (build_string ("bitmapFilePath"),
-					  build_string ("BitmapFilePath"),
-					  intern ("string"), Qnil);
-      if (!NILP (path))
-	{
-	  char *s1, *s2, *p = (char *) XSTRING (path)->data;
-	  s1 = p;
-	  for (s2 = p; *s2; s2++)
-	    if (*s2 == ':' && s1 != s2)
-	      {
-		Vx_bitmap_file_path = Fcons (make_string (s1, s2 - s1),
-					     Vx_bitmap_file_path);
-		s1 = s2 + 1;
-	      }
-	}
-      Vx_bitmap_file_path = Fnreverse (Fcons (build_string (BITMAPDIR),
-					      Vx_bitmap_file_path));
-    }
-
-  /* search the x-bitmap-file-path */
+    initialize_x_bitmap_file_path ();
+  
   for (rest = Vx_bitmap_file_path; CONSP (rest); rest = Fcdr (rest))
     {
       struct stat st;
@@ -741,21 +902,9 @@ init_screen_faces (struct screen *s)
 	}
     }
 
-  /* If this is not the first X screen, then make the face_alist a copy of
-     the face_alist of some other screen.  Copy the values of the alist as
-     well as the aconses.
-   */
   if (other_screen)
-    {
-      Lisp_Object rest;
-      Widget widget = s->display.x->widget;
-      int i;
-
-      s->n_faces = 0;
-      s->faces = 0;
-      ensure_face_ready (s, other_screen->n_faces);
-    }
-
+    /* make sure this screen's face vector is as big as the others */
+    ensure_face_ready (s, other_screen->n_faces);
 
     {
       struct screen *oss = selected_screen;
@@ -788,10 +937,46 @@ init_screen_faces (struct screen *s)
     }
 }
 
+
+void
+free_screen_faces (struct screen *s)	/* called from Fdelete_screen() */
+{
+  Display *dpy = XtDisplay (s->display.x->widget);
+  int i;
+
+  /* This may be able to free some GCs, but unfortunately it will cause
+     all screens to redisplay. */
+  invalidate_face_cache (s, 1);
+
+  /* elts 0 and 1 of the face array are the only ones with GCs */
+  XFreeGC (dpy, SCREEN_NORMAL_FACE (s).facegc);
+  XFreeGC (dpy, SCREEN_MODELINE_FACE (s).facegc);
+  SCREEN_NORMAL_FACE (s).facegc = 0;
+  SCREEN_MODELINE_FACE (s).facegc = 0;
+
+  for (i = 0; i < s->n_faces; i++)
+    {
+      struct face *face = s->faces [i];
+      if (! face)
+        continue;
+      if (face->facegc)
+	abort ();
+      unload_font (s, face->font);
+      unload_pixel (s, face->foreground);
+      unload_pixel (s, face->background);
+      unload_pixmap (s, face->back_pixmap);
+      xfree (face);
+    }
+  xfree (s->faces);
+  s->faces = 0;
+  s->n_faces = 0;
+}
+
 
 /* Lisp interface */
 
-DEFUN ("screen-face-alist", Fscreen_face_alist, Sscreen_face_alist, 1, 1, 0, 0)
+DEFUN ("screen-face-alist", Fscreen_face_alist, Sscreen_face_alist, 1, 1, 0,
+       "")
      (screen)
      Lisp_Object screen;
 {
@@ -800,7 +985,7 @@ DEFUN ("screen-face-alist", Fscreen_face_alist, Sscreen_face_alist, 1, 1, 0, 0)
 }
 
 DEFUN ("set-screen-face-alist", Fset_screen_face_alist, Sset_screen_face_alist,
-       2, 2, 0, 0)
+       2, 2, 0, "")
      (screen, value)
      Lisp_Object screen, value;
 {
@@ -811,7 +996,7 @@ DEFUN ("set-screen-face-alist", Fset_screen_face_alist, Sset_screen_face_alist,
 
 
 DEFUN ("make-face-internal", Fmake_face_internal, Smake_face_internal,
-       3, 3, 0, 0)
+       3, 3, 0, "")
      (name, object, id_number)
      Lisp_Object name, object, id_number;
 {
@@ -853,7 +1038,7 @@ DEFUN ("make-face-internal", Fmake_face_internal, Smake_face_internal,
 
 
 DEFUN ("set-face-attribute-internal", Fset_face_attribute_internal,
-       Sset_face_attribute_internal, 4, 4, 0, 0)
+       Sset_face_attribute_internal, 4, 4, 0, "")
      (face_id, attr_name, attr_value, screen)
      Lisp_Object face_id, attr_name, attr_value, screen;
 {
@@ -888,7 +1073,7 @@ DEFUN ("set-face-attribute-internal", Fset_face_attribute_internal,
 
 #if 0
       if (face->font_name)
-	free (face->font_name);
+	xfree (face->font_name);
       if (font && font != ((XFontStruct *) FACE_DEFAULT))
 	face->font_name =
 	  (char *) strdup ((char *) XSTRING (attr_value)->data);
@@ -901,9 +1086,11 @@ DEFUN ("set-face-attribute-internal", Fset_face_attribute_internal,
 	  Arg av[10];
 	  int ac = 0;
 	  XtSetArg (av[ac], XtNfont, font); ac++;
+	  BLOCK_INPUT;
 	  XtSetValues (s->display.x->edit_widget, av, ac);
+	  UNBLOCK_INPUT;
 	}
-      invalidate_face_cache (s);
+      invalidate_face_cache (s, 0);
 #endif /* HAVE_X_WINDOWS */
     }
   else if (EQ (attr_name, intern ("foreground")))
@@ -915,13 +1102,15 @@ DEFUN ("set-face-attribute-internal", Fset_face_attribute_internal,
       new_pixel = load_pixel (s, attr_value);
       unload_pixel (s, face->foreground);
       face->foreground = new_pixel;
-      invalidate_face_cache (s);
+      invalidate_face_cache (s, 0);
       if (id == 0) /* the "default" face; update the ScreenWidget as well */
 	{	   /* Possibly this isn't necessary for "foreground". */
 	  Arg av[10];
 	  int ac = 0;
 	  XtSetArg (av[ac], XtNforeground, new_pixel); ac++;
+	  BLOCK_INPUT;
 	  XtSetValues (s->display.x->edit_widget, av, ac);
+	  UNBLOCK_INPUT;
 	}
 #endif /* HAVE_X_WINDOWS */
     }
@@ -934,36 +1123,37 @@ DEFUN ("set-face-attribute-internal", Fset_face_attribute_internal,
       new_pixel = load_pixel (s, attr_value);
       unload_pixel (s, face->background);
       face->background = new_pixel;
-      invalidate_face_cache (s);
+      invalidate_face_cache (s, 0);
       if (id == 0) /* the "default" face; update the ScreenWidget as well */
 	{
 	  Arg av[10];
 	  int ac = 0;
 	  XtSetArg (av[ac], XtNbackground, new_pixel); ac++;
+	  BLOCK_INPUT;
 	  XtSetValues (s->display.x->edit_widget, av, ac);
+	  UNBLOCK_INPUT;
 	}
 #endif /* HAVE_X_WINDOWS */
     }
   else if (EQ (attr_name, intern ("background-pixmap")))
     {
 #ifdef HAVE_X_WINDOWS
-      int w, h, d;
-      unsigned long new_pixmap = load_pixmap (s, attr_value, &w, &h, &d);
-      unload_pixmap (s, face->back_pixmap, face->pixmap_w, face->pixmap_h,
-		     face->pixmap_depth);
+      unsigned int w, h, d;
+      unsigned long new_pixmap = load_pixmap (s, attr_value, &w, &h, &d, 0);
+      unload_pixmap (s, face->back_pixmap);
       if (magic_p) new_pixmap = 0;
       face->back_pixmap = new_pixmap;
       face->pixmap_w = w;
       face->pixmap_h = h;
-      face->pixmap_depth = d;
-      invalidate_face_cache (s);
+/*      face->pixmap_depth = d; */
+      invalidate_face_cache (s, 0);
 #endif /* HAVE_X_WINDOWS */
     }
   else if (EQ (attr_name, intern ("underline")))
     {
       int new = !NILP (attr_value);
       if (face->underline != new)
-	invalidate_face_cache (s);
+	invalidate_face_cache (s, 0);
       face->underline = new;
     }
   else
@@ -983,4 +1173,10 @@ syms_of_faces ()
   defsubr (&Sset_screen_face_alist);
   defsubr (&Smake_face_internal);
   defsubr (&Sset_face_attribute_internal);
+
+  DEFVAR_INT ("mouse-highlight-priority", &mouse_highlight_priority,
+"The priority to use for the mouse-highlighting pseudo-extent\n\
+that is used to highlight extents with the `highlight' attribute set.\n\
+See `set-extent-priority'.");
+  mouse_highlight_priority = 10;
 }

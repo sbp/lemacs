@@ -1,11 +1,11 @@
 /* Definitions file for GNU Emacs running on Silicon Graphics Irix system 3.3.
-   Copyright (C) 1987,1990 Free Software Foundation, Inc.
+   Copyright (C) 1987,1990, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -69,8 +69,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  */
 
 #define BROKEN_UNAME
-
-#define HAVE_DREM
 
 /* `utime' system call doesn't understand timevals.  */
 
@@ -188,3 +186,5 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define C_ALLOCA
 /* #define HAVE_ALLOCA */
+
+#define FLOAT_CATCH_SIGILL

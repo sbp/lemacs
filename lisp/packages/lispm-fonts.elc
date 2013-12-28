@@ -1,0 +1,16 @@
+;;; compiled by jwz@thalidomide on Tue Aug 18 17:19:25 1992
+;;; from file /u/jwz/emacs19/lisp/packages/lispm-fonts.el
+;;; emacs version 19.2.2 Lucid.
+;;; bytecomp version 2.08;  2-aug-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!¬—ÂÁ!ˆÁÃÄÈÆÉ%ˆ+ÀÊ!¬“ÊËÄÈÆÉ%ˆ+ÀÌ!¬ÍÊÌ\"ˆÎÌ!ˆÏÌ!ˆÀÐ!¬‰ÍÊÐ\"ˆÏÐ!ˆÄ‡" [find-face variable make-face "-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*" nil screen font face set-face-1 3 variable-bold "-*-helvetica-bold-r-*-*-*-100-*-*-*-*-*-*" variable-italic copy-face make-face-unbold make-face-italic variable-bold-italic] 6)
+(defconst lispm-font-to-face '(("tvfont" . default) ("cptfont" . default) ("cptfontb" . bold) ("cptfonti" . italic) ("cptfontbi" . bold-italic) ("base-font" . default) ("bigfnt" . bold) ("cmb8" . variable-bold) ("higher-medfnb" . bold) ("higher-tr8" . default) ("medfnb" . bold) ("medfnt" . normal) ("medfntb" . bold) ("wider-font" . bold) ("wider-medfnt" . bold) ("mets" . variable-large) ("metsb" . variable-large-bold) ("metsbi" . variable-large-bold-italic) ("metsi" . variable-large-italic) ("cmr5" . variable) ("cmr10" . variable) ("cmr18" . variable) ("cmold" . variable) ("cmdunh" . variable) ("hl10" . variable) ("hl10b" . variable-bold) ("hl12" . variable) ("hl12b" . variable-bold) ("hl12bi" . variable-bold-italic) ("hl12i" . variable-italic) ("hl6" . variable) ("hl7" . variable) ("tr10" . variable) ("tr10b" . variable-bold) ("tr10bi" . variable-bold-italic) ("tr10i" . variable-italic) ("tr12" . variable) ("tr12b" . variable-bold) ("tr12bi" . variable-bold-italic) ("tr12i" . variable-italic) ("tr18" . variable-large) ("tr18b" . variable-large-bold) ("tr8" . variable) ("tr8b" . variable-bold) ("tr8i" . variable-italic) ("5x5" . small) ("tiny" . small) ("43vxms" . variable-large) ("courier" . bold) ("adobe-courier10" . default) ("adobe-courier14" . bold) ("adobe-courier10b" . bold) ("adobe-courier14b" . bold) ("adobe-hl12" . variable) ("adobe-hl14" . variable) ("adobe-hl14b" . variable-bold)) "\
+Alist of LISPM font names to Emacs face names.")
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [lispm-font-to-face #[(lispm-font) "9«„Á!ÂÃ—ÆÇ\"«†È•ÃOÉ\n\"A‰«Ë!«ƒªÌÍ\"ˆÎª‡ÌÏ–\"ˆÎ*‡" [lispm-font symbol-name t nil face case-fold-search string-match "^fonts:+" 0 assoc lispm-font-to-face find-face message "warning: unknown face %s" default "warning: unknown Lispm font %s"] 3] lispm-fontify-hack-local-variables #[nil "ÀÂÃ!­ƒÂÄ!)­žŠŒÅˆe`}ˆebˆÆÇÅÀ#«ˆÈ”È•|ˆªqÉ *‡" [t case-fold-search looking-at "[ 	]*;.*-\\*-.*fonts[ 	]*:.*-\\*-" ".*" nil re-search-forward "[0-9a-zA-Z*]" 0 hack-local-variables] 4] lispm-fontify-buffer #[nil "ŠebˆÀ ˆÁ`ÁÅÆÁÇ#«äÈÉ!ˆgÈÊ!ˆ\nËU«…Æcˆªe\nÌU«˜«Ž`U¬‰ÍÎ`\"@\"ˆ`AªH\nÏW¬C\nÐV¬>\nÏZ‰GY¬3«Ž`U¬‰ÍÎ`\"@\"ˆÒ\n8!B`ª­Ž`U?­ˆÍÎ`\"@\",‡" [lispm-fontify-hack-local-variables nil c p font-stack search-forward "" t delete-char -1 1 6 42 set-extent-face make-extent 48 90 fonts lispm-font-to-face] 4]] 2)

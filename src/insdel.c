@@ -1,5 +1,5 @@
 /* Buffer insertion/deletion and gap motion for GNU Emacs.
-   Copyright (C) 1985, 1986, 1991, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1991, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -23,6 +23,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "buffer.h"
 #include "extents.h"
 #include "window.h"
+#include "insdel.h"
 
 
 /* Routines for dealing with the gap. */
@@ -33,7 +34,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    of adjustment, are first moved back to the near end of the range
    and then adjusted by `amount'.  */
 
-void
+static void
 adjust_markers (from, to, amount)
      int from, to, amount;
 {
@@ -67,7 +68,7 @@ adjust_markers (from, to, amount)
 /* Move the gap to POS, which is less than the current GPT.   If NEWGAP
    is nonzero, then don't update beg_unchanged and end_unchanged.  */
 
-void
+static void
 gap_left (pos, newgap)
      register int pos;
      int newgap;
@@ -75,9 +76,6 @@ gap_left (pos, newgap)
   register unsigned char *to, *from;
   register int i;
   int new_s1;
-  int old_gap = GPT;
-  int new_gap = pos;
-
   pos--;
 
   if (!newgap)
@@ -134,16 +132,13 @@ gap_left (pos, newgap)
   QUIT;
 }
 
-void
+static void
 gap_right (pos)
      register int pos;
 {
   register unsigned char *to, *from;
   register int i;
   int new_s1;
-  int old_gap = GPT;
-  int new_gap = pos;
-
   pos--;
 
   if (unchanged_modified == MODIFF)
@@ -250,6 +245,8 @@ make_gap (increment)
   Vinhibit_quit = tem;
 }
 
+void signal_before_change (int, int);
+
 /* Check that it is okay to modify the buffer between START and END.
    Run the before-change-function, if any.  */
 
@@ -322,13 +319,14 @@ after_change_function_restore (value)
    START and END are the bounds of the text to be changed,
    as Lisp objects.  */
 
+void
 signal_before_change (start, end)
      int start, end;
 {
   /* Now in any case run the before-change-function if any.  */
   if (!NILP (Vbefore_change_function))
     {
-      int count = specpdl_ptr - specpdl;
+      int count = specpdl_depth;
       Lisp_Object function, s, e;
 
       function = Vbefore_change_function;
@@ -342,7 +340,7 @@ signal_before_change (start, end)
       XSET (s, Lisp_Int, start);
       XSET (e, Lisp_Int, end);
       safe_funcall_hook (function, 2, s, e, 0);
-      unbind_to (count);
+      unbind_to (count, Qnil);
     }
 }
 
@@ -352,12 +350,13 @@ signal_before_change (start, end)
    (Not the whole buffer; just the part that was changed.)
    LENINS is the number of characters in the changed text.  */
 
+void
 signal_after_change (pos, lendel, lenins)
      int pos, lendel, lenins;
 {
   if (!NILP (Vafter_change_function))
     {
-      int count = specpdl_ptr - specpdl;
+      int count = specpdl_depth;
       Lisp_Object function;
       function = Vafter_change_function;
 
@@ -370,7 +369,7 @@ signal_after_change (pos, lendel, lenins)
 
       safe_funcall_hook (function, 3, make_number (pos),
 			 make_number (pos + lenins), make_number (lendel));
-      unbind_to (count);  
+      unbind_to (count, Qnil);
     }
 }
 
@@ -379,7 +378,7 @@ signal_after_change (pos, lendel, lenins)
 void
 insert_relocatable_raw_string (string, length, obj)
      Lisp_Object obj;
-     unsigned char *string;
+     const char *string;
      int length;
 {
   struct gcpro gcpro1;
@@ -410,9 +409,9 @@ insert_relocatable_raw_string (string, length, obj)
 
   /* string may have been relocated up to this point */
   if (STRINGP (obj))
-    string = XSTRING (obj) -> data;
+    string = (char *) XSTRING (obj) -> data;
 
-  bcopy (string, GPT_ADDR, length);
+  memcpy (GPT_ADDR, string, length);
 
   process_extents_for_insertion (opoint, length, current_buffer);
 
@@ -466,7 +465,7 @@ insert_from_string (obj, pos, length)
   if (STRINGP (obj))
     string = XSTRING (obj) -> data;
 
-  bcopy (string, GPT_ADDR, length);
+  memcpy (GPT_ADDR, string, length);
 
   process_extents_for_insertion (opoint, length, current_buffer);
 
@@ -486,7 +485,7 @@ insert_from_string (obj, pos, length)
 
 void
 insert_raw_string (string, length)
-     unsigned char *string;
+     const char *string;
      int length;
 {
   insert_relocatable_raw_string (string, length, 0);
@@ -495,7 +494,7 @@ insert_raw_string (string, length)
 
 void
 insert (string, length)
-     unsigned char *string;
+     const char *string;
      int length;
 {
   insert_relocatable_raw_string (string, length, 0);
@@ -506,16 +505,15 @@ insert (string, length)
 
 void
 insert_string (s)
-     char *s;
+     const char *s;
 {
-  insert_raw_string ((unsigned char *) s, strlen (s));
+  insert_raw_string (s, strlen (s));
 }
 
 /* Insert the character C before point */
 
 void
-insert_char (c)
-     unsigned char c;
+insert_char (char c)
 {
   insert_raw_string (&c, 1);
 }
@@ -525,7 +523,7 @@ insert_char (c)
 
 void
 insert_before_markers (string, length)
-     unsigned char *string;
+     const char *string;
      register int length;
 {
   register int opoint = point;
@@ -555,7 +553,7 @@ insert_buffer_string (b, index, length)
      int index, length;
 {
   struct gcpro gcpro1;
-  Lisp_Object str = make_string_from_buffer (b, index, length, 0);
+  Lisp_Object str = make_string_from_buffer (b, index, length);
   GCPRO1 (str);
   insert_from_string (str, 0, XSTRING (str)->size);
   UNGCPRO;
@@ -563,6 +561,10 @@ insert_buffer_string (b, index, length)
 
 /* Delete characters in current buffer
    from FROM up to (but not including) TO.  */
+
+#ifdef ENERGIZE
+extern int inside_parse_buffer; /* total kludge */
+#endif
 
 void
 del_range (from, to)
@@ -598,10 +600,8 @@ del_range (from, to)
 
 #ifdef ENERGIZE
   if (!inside_parse_buffer)
-    record_delete (from, numdel);
-#else
-  record_delete (from, numdel);
 #endif
+    record_delete (from, numdel);
 
   MODIFF++;
 

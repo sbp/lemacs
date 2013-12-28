@@ -84,7 +84,12 @@
       ;; normal case
       (if valid
 	  (set-extent-endpoints previous-extent start end)
-	(set-extent-face (make-extent start end buffer) face)))))
+	(setq previous-extent (make-extent start end buffer))
+	;; use same priority as mouse-highlighting so that conflicts between
+	;; the selection extent and a mouse-highlighted extent are resolved
+	;; by the usual size-and-endpoint-comparison method.
+	(set-extent-priority previous-extent mouse-highlight-priority)
+	(set-extent-face previous-extent face)))))
 
 
 (defun x-own-selection (selection &optional type)

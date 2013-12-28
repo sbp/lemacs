@@ -21,8 +21,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <stdio.h>		/* For sprintf */
 #include <signal.h>
 
-#include "puresize.h"
 #include "config.h"
+#include "puresize.h"
 #include "lisp.h"
 
 #ifndef standalone
@@ -38,10 +38,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 Lisp_Object Qnil, Qt, Qquote, Qlambda, Qsubr, Qunbound;
 Lisp_Object Qerror_conditions, Qerror_message, Qtop_level;
 Lisp_Object Qerror, Qquit, Qwrong_type_argument, Qargs_out_of_range;
-Lisp_Object Qvoid_variable, Qvoid_function;
+Lisp_Object Qvoid_variable, Qvoid_function, Qcyclic_function_indirection;
 Lisp_Object Qsetting_constant, Qinvalid_read_syntax;
 Lisp_Object Qinvalid_function, Qwrong_number_of_arguments, Qno_catch;
-Lisp_Object Qend_of_file, Qarith_error;
+Lisp_Object Qend_of_file, Qarith_error, Qrange_error, Qdomain_error;
+Lisp_Object Qsingularity_error, Qoverflow_error, Qunderflow_error;
 Lisp_Object Qbeginning_of_buffer, Qend_of_buffer, Qbuffer_read_only;
 Lisp_Object Qintegerp, Qnatnump, Qsymbolp, Qlistp, Qconsp;
 Lisp_Object Qstringp, Qarrayp, Qsequencep, Qbufferp;
@@ -72,7 +73,7 @@ wrong_type_argument (predicate, value)
 	 if (STRINGP (value) &&
 	     (EQ (predicate, Qintegerp)
 	      || EQ (predicate, Qinteger_or_marker_p)))
-	   return Fstring_to_int (value, Qt);
+	   return Fstring_to_int (value);
 	 if (FIXNUMP (value) && EQ (predicate, Qstringp))
 	   return Fint_to_string (value);
 	}
@@ -84,6 +85,7 @@ wrong_type_argument (predicate, value)
   return value;
 }
 
+void
 pure_write_error ()
 {
   error ("Attempt to modify read-only object");
@@ -276,6 +278,7 @@ DEFUN ("subrp", Fsubrp, Ssubrp, 1, 1, 0, "T if OBJECT is a built-in function.")
 DEFUN ("compiled-function-p", Fcompiled_function_p, Scompiled_function_p, 1, 1, 0, 
        "T if OBJECT is a compiled function object (as returned by make-byte-code.)")
      (obj)
+     Lisp_Object obj;
 {
   if (COMPILEDP (obj))
     return Qt;
@@ -457,6 +460,7 @@ DEFUN ("boundp", Fboundp, Sboundp, 1, 1, 0, "T if SYMBOL's value is not void.")
     case Lisp_Buffer_Local_Value:
     case Lisp_Some_Buffer_Local_Value:
       valcontents = swap_in_symval_forwarding (sym, valcontents);
+    default:;
     }
 
   return (XTYPE (valcontents) == Lisp_Void || EQ (valcontents, Qunbound)
@@ -553,7 +557,7 @@ DEFUN ("setplist", Fsetplist, Ssetplist, 2, 2, 0,
    This does not handle buffer-local variables; use
    swap_in_symval_forwarding for that.  */
 
-Lisp_Object
+static Lisp_Object
 do_symval_forwarding (valcontents)
      register Lisp_Object valcontents;
 {
@@ -578,6 +582,8 @@ do_symval_forwarding (valcontents)
 
     case Lisp_Buffer_Objfwd:
       return *(Lisp_Object *)(XUINT (valcontents) + (char *)current_buffer);
+
+    default:;
     }
   return valcontents;
 }
@@ -672,7 +678,7 @@ DEFUN ("symbol-value", Fsymbol_value, Ssymbol_value, 1, 1, 0,
   (sym)
      Lisp_Object sym;
 {
-  register Lisp_Object valcontents, tem1;
+  register Lisp_Object valcontents;
   register Lisp_Object val;
   CHECK_SYMBOL (sym, 0);
   valcontents = XSYMBOL (sym)->value;
@@ -711,6 +717,8 @@ DEFUN ("symbol-value", Fsymbol_value, Ssymbol_value, 1, 1, 0,
       /* drops through! */
     case Lisp_Void:
       return Fsignal (Qvoid_variable, Fcons (sym, Qnil));
+
+    default:;
     }
 
   return valcontents;
@@ -799,7 +807,7 @@ DEFUN ("set", Fset, Sset, 2, 2, 0,
 /* Return the default value of SYM, but don't check for voidness.
    Return Qunbound or a Lisp_Void object if it is void.  */
 
-Lisp_Object
+static Lisp_Object
 default_value (sym)
      Lisp_Object sym;
 {
@@ -1073,6 +1081,57 @@ From now on the default value will apply in this buffer.")
 
   return sym;
 }
+
+/* Find the function at the end of a chain of symbol function indirections.  */
+
+/* If OBJECT is a symbol, find the end of its function chain and
+   return the value found there.  If OBJECT is not a symbol, just
+   return it.  If there is a cycle in the function chain, signal a
+   cyclic-function-indirection error.
+
+   This is like Findirect_function, except that it doesn't signal an
+   error if the chain ends up unbound.  */
+Lisp_Object
+indirect_function (object, error)
+     register Lisp_Object object;
+     int error;
+{
+  Lisp_Object tortise = object; 
+  Lisp_Object hare = object;
+
+  for (;;)
+    {
+      if (!SYMBOLP (hare) || EQ (hare, Qunbound))
+	break;
+      hare = XSYMBOL (hare)->function;
+      if (!SYMBOLP (hare) || EQ (hare, Qunbound))
+	break;
+      hare = XSYMBOL (hare)->function;
+
+      tortise = XSYMBOL (tortise)->function;
+
+      if (EQ (hare, tortise))
+	return (Fsignal (Qcyclic_function_indirection, list1 (object)));
+    }
+
+  if (EQ (hare, Qunbound) && error)
+    return Fsignal (Qvoid_function, list1 (object));
+  return hare;
+}
+
+DEFUN ("indirect-function", Findirect_function, Sindirect_function, 1, 1, 0,
+  "Return the function at the end of OBJECT's function chain.\n\
+If OBJECT is a symbol, follow all function indirections and return\n\
+the final function binding.\n\
+If OBJECT is not a symbol, just return it.\n\
+Signal a void-function error if the final symbol is unbound.\n\
+Signal a cyclic-function-indirection error if there is a loop in the\n\
+function chain of symbols.")
+  (object)
+    register Lisp_Object object;
+{
+  return indirect_function (object, 1);
+}
 
 /* Extract and set vector and string elements */
 
@@ -1143,7 +1202,7 @@ Farray_length (array)
 
 enum comparison { equal, notequal, less, grtr, less_or_equal, grtr_or_equal };
 
-Lisp_Object
+static Lisp_Object
 arithcompare (num1, num2, comparison)
      Lisp_Object num1, num2;
      enum comparison comparison;
@@ -1291,7 +1350,7 @@ Uses a minus sign if negative.")
   return build_string (buffer);
 }
 
-DEFUN ("string-to-int", Fstring_to_int, Sstring_to_int, 1, 2, 0,
+DEFUN ("string-to-int", Fstring_to_int, Sstring_to_int, 1, 1, 0,
   "Convert STRING to an integer by parsing it as a decimal number.")
   (str)
      register Lisp_Object str;
@@ -1299,7 +1358,7 @@ DEFUN ("string-to-int", Fstring_to_int, Sstring_to_int, 1, 2, 0,
   CHECK_STRING (str, 0);
 
 #ifdef LISP_FLOAT_TYPE
-  if (isfloat_string (XSTRING (str)->data))
+  if (isfloat_string ((char *) XSTRING (str)->data))
     return make_float (atof ((char *)XSTRING (str)->data));
 #endif /* LISP_FLOAT_TYPE */
 
@@ -1309,7 +1368,11 @@ DEFUN ("string-to-int", Fstring_to_int, Sstring_to_int, 1, 2, 0,
 enum arithop
   { Aadd, Asub, Amult, Adiv, Alogand, Alogior, Alogxor, Amax, Amin };
 
-Lisp_Object
+#ifdef LISP_FLOAT_TYPE
+static Lisp_Object float_arith_driver (double, int, enum arithop, int, Lisp_Object *);
+#endif
+
+static Lisp_Object
 arith_driver
   (code, nargs, args)
      enum arithop code;
@@ -1327,15 +1390,12 @@ arith_driver
   switch (code)
 #endif
     {
-    case Alogior:
-    case Alogxor:
-    case Aadd:
-    case Asub:
-      accum = 0; break;
     case Amult:
       accum = 1; break;
     case Alogand:
       accum = -1; break;
+    default:
+      accum = 0; break;
     }
 
   for (argnum = 0; argnum < nargs; argnum++)
@@ -1379,7 +1439,7 @@ arith_driver
 }
 
 #ifdef LISP_FLOAT_TYPE
-Lisp_Object
+static Lisp_Object
 float_arith_driver (accum, argnum, code, nargs, args)
      double accum;
      register int argnum;
@@ -1502,16 +1562,7 @@ Both must be numbers or markers.")
 
       f1 = FLOATP (num1) ? XFLOAT (num1)->data : XINT (num1);
       f2 = FLOATP (num2) ? XFLOAT (num2)->data : XINT (num2);
-
-#ifdef HAVE_DREM
-      return (make_float (drem (f1,f2)));
-#else
-#ifdef HAVE_REMAINDER
-      return (make_float (remainder (f1,f2)));
-#else
-      return (make_float (fmod (f1,f2)));
-#endif
-#endif
+      return (make_float (fmod (f1,f2))); /* fmod is ANSI. */
     }
 #endif /* LISP_FLOAT_TYPE */
 
@@ -1664,6 +1715,7 @@ syms_of_data ()
   Qwrong_type_argument = intern ("wrong-type-argument");
   Qargs_out_of_range = intern ("args-out-of-range");
   Qvoid_function = intern ("void-function");
+  Qcyclic_function_indirection = intern ("cyclic-function-indirection");
   Qvoid_variable = intern ("void-variable");
   Qsetting_constant = intern ("setting-constant");
   Qinvalid_read_syntax = intern ("invalid-read-syntax");
@@ -1673,6 +1725,11 @@ syms_of_data ()
   Qno_catch = intern ("no-catch");
   Qend_of_file = intern ("end-of-file");
   Qarith_error = intern ("arith-error");
+  Qrange_error = intern ("range-error");
+  Qdomain_error = intern ("domain-error");
+  Qsingularity_error = intern ("singularity-error");
+  Qoverflow_error = intern ("overflow-error");
+  Qunderflow_error = intern ("underflow-error");
   Qbeginning_of_buffer = intern ("beginning-of-buffer");
   Qend_of_buffer = intern ("end-of-buffer");
   Qbuffer_read_only = intern ("buffer-read-only");
@@ -1736,6 +1793,12 @@ syms_of_data ()
   Fput (Qvoid_function, Qerror_message,
 	build_string ("Symbol's function definition is void"));
 
+  Fput (Qcyclic_function_indirection, Qerror_conditions,
+	list2 (Qcyclic_function_indirection, Qerror));
+  Fput (Qcyclic_function_indirection, Qerror_message,
+	build_string
+	("Symbol's chain of function indirections contains a loop"));
+
   Fput (Qvoid_variable, Qerror_conditions,
 	Fcons (Qvoid_variable, Fcons (Qerror, Qnil)));
   Fput (Qvoid_variable, Qerror_message,
@@ -1775,6 +1838,31 @@ syms_of_data ()
 	Fcons (Qarith_error, Fcons (Qerror, Qnil)));
   Fput (Qarith_error, Qerror_message,
 	build_string ("Arithmetic error"));
+
+  Fput (Qdomain_error, Qerror_conditions,
+	list3 (Qdomain_error, Qarith_error, Qerror));
+  Fput (Qdomain_error, Qerror_message,
+	build_string ("Arithmetic domain error"));
+
+  Fput (Qrange_error, Qerror_conditions,
+	list3 (Qrange_error, Qarith_error, Qerror));
+  Fput (Qrange_error, Qerror_message,
+	build_string ("Arithmetic range error"));
+
+  Fput (Qsingularity_error, Qerror_conditions,
+	list4 (Qsingularity_error, Qdomain_error, Qarith_error, Qerror));
+  Fput (Qsingularity_error, Qerror_message,
+	build_string ("Arithmetic singularity error"));
+
+  Fput (Qoverflow_error, Qerror_conditions,
+	list4 (Qoverflow_error, Qdomain_error, Qarith_error, Qerror));
+  Fput (Qoverflow_error, Qerror_message,
+	build_string ("Arithmetic overflow error"));
+
+  Fput (Qunderflow_error, Qerror_conditions,
+	list4 (Qunderflow_error, Qdomain_error, Qarith_error, Qerror));
+  Fput (Qunderflow_error, Qerror_message,
+	build_string ("Arithmetic underflow error"));
 
   Fput (Qbeginning_of_buffer, Qerror_conditions,
 	Fcons (Qbeginning_of_buffer, Fcons (Qerror, Qnil)));
@@ -1927,7 +2015,7 @@ syms_of_data ()
   defsubr (&Slognot);
 }
 
-void
+static void
 arith_error (signo)
      int signo;
 {
@@ -1949,6 +2037,7 @@ arith_error (signo)
   Fsignal (Qarith_error, Qnil);
 }
 
+void
 init_data ()
 {
   /* Don't do this if just dumping out.

@@ -287,7 +287,7 @@ If the third argument is incorrect, Emacs may crash.")
   CHECK_FIXNUM (maxdepth, 2);
 
   stackp = (Lisp_Object *) alloca (XFASTINT (maxdepth) * sizeof (Lisp_Object));
-  bzero (stackp, XFASTINT (maxdepth) * sizeof (Lisp_Object));
+  memset (stackp, 0, XFASTINT (maxdepth) * sizeof (Lisp_Object));
   GCPRO3 (bytestr, vector, *stackp);
   gcpro3.nvars = XFASTINT (maxdepth);
 
@@ -361,6 +361,7 @@ If the third argument is incorrect, Emacs may crash.")
 		case Lisp_Buffer_Objfwd:
 		case Lisp_Void:
 		  v2 = Fsymbol_value (v1);
+		default:;
 		}
 	    }
 	  PUSH (v2);
@@ -421,12 +422,7 @@ If the third argument is incorrect, Emacs may crash.")
 		}
 	    }
 #endif
-	  /* Remove protection from the args we are giving to Ffuncall.
-	     FFuncall will protect them, and double protection would
-	     cause disasters.  */
-	  gcpro3.nvars = &TOP - stack - 1;
 	  TOP = Ffuncall (op + 1, &TOP);
-	  gcpro3.nvars = XFASTINT (maxdepth);
 	  break;
 
 	case Bunbind+6:
@@ -441,13 +437,13 @@ If the third argument is incorrect, Emacs may crash.")
 	case Bunbind+4: case Bunbind+5:
 	  op -= Bunbind;
 	dounbind:
-	  unbind_to (specpdl_ptr - specpdl - op);
+	  unbind_to (specpdl_depth - op, Qnil);
 	  break;
 
 	case Bunbind_all:
 	  /* To unbind back to the beginning of this frame.  Not used yet,
 	     but will be needed for tail-recursion elimination. */
-	  unbind_to (count);
+	  unbind_to (count, Qnil);
 	  break;
 
 	case Bgoto:
@@ -573,17 +569,18 @@ If the third argument is incorrect, Emacs may crash.")
 
 	case Bunwind_protect:
 	  record_unwind_protect (0, POP);
-	  (specpdl_ptr - 1)->symbol = Qnil;
+          /* record_unwind_protect does this for us.
+	  (specpdl_ptr - 1)->symbol = Qnil; */
 	  break;
 
 	case Bcondition_case:
-	  v1 = POP;
-	  v1 = Fcons (POP, v1);
-	  TOP = Fcondition_case (Fcons (TOP, v1));
+          v1 = POP;           /* handlers */
+          v2 = POP;           /* bodyform */
+          TOP = Fcondition_case_3 (v2, TOP, v1);
 	  break;
 
 	case Btemp_output_buffer_setup:
-	  temp_output_buffer_setup (XSTRING (TOP)->data);
+	  temp_output_buffer_setup ((char *) XSTRING (TOP)->data);
 	  TOP = Vstandard_output;
 	  break;
 
@@ -591,8 +588,9 @@ If the third argument is incorrect, Emacs may crash.")
 	  v1 = POP;
 	  temp_output_buffer_show (TOP, Qnil);
 	  TOP = v1;
+          /* >>>> GAG ME!! */
 	  /* pop binding of standard-output */
-	  unbind_to (specpdl_ptr - specpdl - 1);
+	  unbind_to (specpdl_depth - 1, Qnil);
 	  break;
 
 	case Bnth:
@@ -927,7 +925,7 @@ If the third argument is incorrect, Emacs may crash.")
 	  break;
 
 	case Bread_char:
-	  PUSH (Fread_char ());
+	  PUSH (call0 (Qread_char));
 	  QUIT;
 	  break;
 
@@ -1033,6 +1031,7 @@ If the third argument is incorrect, Emacs may crash.")
 	      /* Exchange args and then do nth.  */
 	      v2 = POP;
 	      v1 = TOP;
+              /* >>>> BUG!!! Should err on index out-of-range! */
 	      goto nth_entry;
 	    }
 	  v1 = POP;
@@ -1124,7 +1123,7 @@ If the third argument is incorrect, Emacs may crash.")
  exit:
   UNGCPRO;
   /* Binds and unbinds are supposed to be compiled balanced.  */
-  if (specpdl_ptr - specpdl != count)
+  if (specpdl_depth != count)
 #ifdef BYTE_CODE_SAFE
     error ("binding stack not balanced (serious byte compiler bug)");
 #else
@@ -1133,6 +1132,7 @@ If the third argument is incorrect, Emacs may crash.")
   return v1;
 }
 
+void
 syms_of_bytecode ()
 {
   Qbytecode = intern ("byte-code");

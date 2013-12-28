@@ -758,12 +758,16 @@ the hash tables.")
 
 ;;(put 'gnus-eval-in-buffer-window 'lisp-indent-hook 1)
 
+(defun gnus-pop-to-buffer (buffer)
+  (let ((pre-display-buffer-function nil)) ; don't use a new screen
+    (pop-to-buffer buffer)))
+
 (defmacro gnus-eval-in-buffer-window (buffer &rest forms)
   "Pop to BUFFER, evaluate FORMS, and then returns to original window."
   (` (let ((GNUSStartBufferWindow (selected-window)))
        (unwind-protect
 	   (progn
-	     (pop-to-buffer (, buffer))
+	     (gnus-pop-to-buffer (, buffer))
 	     (,@ forms))
 	 (select-window GNUSStartBufferWindow)))))
 
@@ -2046,7 +2050,7 @@ initially."
 		    (beginning-of-line)
 		    (search-forward ":" nil t)))
 	    (gnus-configure-windows 'SelectNewsgroup)
-	    (pop-to-buffer gnus-Subject-buffer)
+	    (gnus-pop-to-buffer gnus-Subject-buffer)
 	    (gnus-Subject-set-mode-line)
 	    ;; I sometime get confused with the old Article buffer.
 	    (if (get-buffer gnus-Article-buffer)
@@ -2407,14 +2411,14 @@ If optional argument UNREAD is non-nil, only unread article is selected."
   "Expand Subject window to show headers full window."
   (interactive)
   (gnus-configure-windows 'ExpandSubject)
-  (pop-to-buffer gnus-Subject-buffer))
+  (gnus-pop-to-buffer gnus-Subject-buffer))
 
 (defun gnus-Subject-display-article (article &optional all-header)
   "Display ARTICLE in Article buffer."
   (if (null article)
       nil
     (gnus-configure-windows 'SelectArticle)
-    (pop-to-buffer gnus-Subject-buffer)
+    (gnus-pop-to-buffer gnus-Subject-buffer)
     (gnus-Article-prepare article all-header)
     (gnus-Subject-recenter)
     (gnus-Subject-set-mode-line)
@@ -2433,7 +2437,7 @@ Optional argument ALL-HEADERS is non-nil, show all headers."
 	;; The selected subject is different from that of the current article.
 	(gnus-Subject-display-article article all-headers)
       (gnus-configure-windows 'SelectArticle)
-      (pop-to-buffer gnus-Subject-buffer))
+      (gnus-pop-to-buffer gnus-Subject-buffer))
     ))
 
 (defun gnus-Subject-set-current-mark (&optional current-mark)
@@ -2624,7 +2628,7 @@ Argument LINES specifies lines to be scrolled up."
 	;; Selected subject is different from current article's.
 	(gnus-Subject-display-article article)
       (gnus-configure-windows 'SelectArticle)
-      (pop-to-buffer gnus-Subject-buffer)
+      (gnus-pop-to-buffer gnus-Subject-buffer)
       (gnus-eval-in-buffer-window gnus-Article-buffer
 	(setq endp (gnus-Article-next-page lines)))
       (cond ((and endp lines)
@@ -2643,7 +2647,7 @@ Argument LINES specifies lines to be scrolled down."
 	;; Selected subject is different from current article's.
 	(gnus-Subject-display-article article)
       (gnus-configure-windows 'SelectArticle)
-      (pop-to-buffer gnus-Subject-buffer)
+      (gnus-pop-to-buffer gnus-Subject-buffer)
       (gnus-eval-in-buffer-window gnus-Article-buffer
 	(gnus-Article-prev-page lines))
       )))
@@ -2783,8 +2787,7 @@ NOTE: This command may not work with nnspool.el."
   (interactive)
   (gnus-Subject-select-article)
   (gnus-eval-in-buffer-window gnus-Article-buffer
-    (call-interactively 'isearch-forward)
-    ))
+    (isearch-forward)))
 
 (defun gnus-Subject-search-article-forward (regexp)
   "Search for an article containing REGEXP forward.
@@ -3139,7 +3142,7 @@ Argument COUNT specifies number of articles unmarked"
       (let ((buffer-read-only nil))
 	(save-excursion
 	  (goto-char (point-min))
-	  (delete-non-matching-lines "^[ ---]"))
+	  (delete-non-matching-lines "^[-@ ]"))
 	;; Adjust point.
 	(if (eobp)
 	    (gnus-Subject-prev-subject 1)
@@ -3536,21 +3539,21 @@ is non-nil. The hook is intended to customize Rmail mode."
 	  (run-hooks 'gnus-Rmail-digest-hook)
 	  ;; Take all windows safely.
 	  (gnus-configure-windows '(1 0 0))
-	  (pop-to-buffer gnus-Group-buffer)
+	  (gnus-pop-to-buffer gnus-Group-buffer)
 	  ;; Use Subject and Article windows for Digest summary and
 	  ;; Digest buffers.
 	  (if gnus-digest-show-summary
 	      (let ((gnus-Subject-buffer gnus-Digest-summary-buffer)
 		    (gnus-Article-buffer gnus-Digest-buffer))
 		(gnus-configure-windows 'SelectArticle)
-		(pop-to-buffer gnus-Digest-buffer)
+		(gnus-pop-to-buffer gnus-Digest-buffer)
 		(rmail-summary)
-		(pop-to-buffer gnus-Digest-summary-buffer)
+		(gnus-pop-to-buffer gnus-Digest-summary-buffer)
 		(message (substitute-command-keys
 			  "Type \\[rmail-summary-quit] to return to GNUS")))
 	    (let ((gnus-Subject-buffer gnus-Digest-buffer))
 	      (gnus-configure-windows 'ExpandSubject)
-	      (pop-to-buffer gnus-Digest-buffer)
+	      (gnus-pop-to-buffer gnus-Digest-buffer)
 	      (message (substitute-command-keys
 			"Type \\[rmail-quit] to return to GNUS")))
 	    )
@@ -3847,7 +3850,7 @@ gnus-Exit-group-hook is called with no arguments if that value is non-nil."
     (if (get-buffer gnus-Article-buffer)
 	(bury-buffer gnus-Article-buffer))
     (gnus-configure-windows 'ExitNewsgroup)
-    (pop-to-buffer gnus-Group-buffer))))
+    (gnus-pop-to-buffer gnus-Group-buffer))))
 
 (defun gnus-Subject-quit ()
   "Quit reading current newsgroup without updating read article info."
@@ -3861,7 +3864,7 @@ gnus-Exit-group-hook is called with no arguments if that value is non-nil."
 	(if (get-buffer gnus-Article-buffer)
 	    (bury-buffer gnus-Article-buffer))
 	(gnus-configure-windows 'ExitNewsgroup)
-	(pop-to-buffer gnus-Group-buffer)
+	(gnus-pop-to-buffer gnus-Group-buffer)
 	(gnus-Group-jump-to-group gnus-newsgroup-name) ;Make sure where I was.
 	(gnus-Group-next-group 1)	;(gnus-Group-next-unread-group 1)
 	)))
@@ -4182,7 +4185,7 @@ Set mark at end of digested message."
   "Reconfigure windows to show headers."
   (interactive)
   (gnus-configure-windows 'SelectArticle)
-  (pop-to-buffer gnus-Subject-buffer)
+  (gnus-pop-to-buffer gnus-Subject-buffer)
   (gnus-Subject-goto-subject gnus-current-article))
 
 (defun gnus-Article-describe-briefly ()
@@ -4298,16 +4301,16 @@ If NEWSGROUP is nil, the global KILL file is selected."
     ;; Hack windows.
     (let ((buffer (find-file-noselect file)))
       (cond ((get-buffer-window buffer)
-	     (pop-to-buffer buffer))
+	     (gnus-pop-to-buffer buffer))
 	    ((eq major-mode 'gnus-Group-mode)
 	     (gnus-configure-windows '(1 0 0)) ;Take all windows.
-	     (pop-to-buffer gnus-Group-buffer)
+	     (gnus-pop-to-buffer gnus-Group-buffer)
 	     (let ((gnus-Subject-buffer buffer))
 	       (gnus-configure-windows '(1 1 0)) ;Split into two.
-	       (pop-to-buffer buffer)))
+	       (gnus-pop-to-buffer buffer)))
 	    ((eq major-mode 'gnus-Subject-mode)
 	     (gnus-configure-windows 'SelectArticle)
-	     (pop-to-buffer gnus-Article-buffer)
+	     (gnus-pop-to-buffer gnus-Article-buffer)
 	     (bury-buffer gnus-Article-buffer)
 	     (switch-to-buffer buffer))
 	    (t				;No good rules.
@@ -4355,7 +4358,7 @@ If NEWSGROUP is nil, the global KILL file is selected."
       (let ((string (concat "(progn \n" (buffer-string) "\n)" )))
 	(save-excursion
 	  (save-window-excursion
-	    (pop-to-buffer gnus-Subject-buffer)
+	    (gnus-pop-to-buffer gnus-Subject-buffer)
 	    (eval (car (read-from-string string))))))
     (ding) (message "No newsgroup is selected.")))
 
@@ -4370,7 +4373,7 @@ If NEWSGROUP is nil, the global KILL file is selected."
 	      (save-excursion (forward-sexp -1) (point)) (point))))
 	(save-excursion
 	  (save-window-excursion
-	    (pop-to-buffer gnus-Subject-buffer)
+	    (gnus-pop-to-buffer gnus-Subject-buffer)
 	    (eval (car (read-from-string string))))))
     (ding) (message "No newsgroup is selected.")))
 
@@ -5554,10 +5557,10 @@ configuration list is got from the variable gnus-window-configuration."
   ;; Enlarge info window if needed.
   (cond ((eq major-mode 'gnus-Group-mode)
 	 (gnus-configure-windows '(1 0 0)) ;Take all windows.
-	 (pop-to-buffer gnus-Group-buffer))
+	 (gnus-pop-to-buffer gnus-Group-buffer))
 	((eq major-mode 'gnus-Subject-mode)
 	 (gnus-configure-windows '(0 1 0)) ;Take all windows.
-	 (pop-to-buffer gnus-Subject-buffer)))
+	 (gnus-pop-to-buffer gnus-Subject-buffer)))
   (let ((Info-directory (expand-file-name gnus-Info-directory nil)))
     (Info-goto-node (cdr (assq major-mode gnus-Info-nodes)))))
 

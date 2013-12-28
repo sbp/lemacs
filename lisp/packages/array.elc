@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Jun 30 22:30:53 1992
-;;; from file /wg1/emacs-base/lisp/packages/array.el
-;;; emacs version 19.2.1 Lucid.
-;;; bytecomp version 2.07; 17-jun-92.
+;;; compiled by jwz@thalidomide on Thu Oct 29 18:59:29 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/packages/array.el
+;;; emacs version 19.3.5 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -13,10 +13,10 @@
 (fset 'array-cursor-in-array-range #[nil "	¦Y®_Y®•T¦ÈU­Œ\nÈU?­†\n	_Y)?‡" [max-column columns-per-line columns-last-line buffer-column line-length buffer-line lines-per-row max-row 0 field-width] 3 "\
 Returns t if the cursor is in a valid array cell.
 Its okay to be on a row number line."])
-(fset 'array-current-row #[nil "À ­…Á\n\"T‡" [array-cursor-in-array-range floor buffer-line lines-per-row] 3 "\
+(fset 'array-current-row #[nil "À ­…Á\n\"T‡" [array-cursor-in-array-range array-mode-floor buffer-line lines-per-row] 3 "\
 Return the array row of the field in which the cursor is
 currently located."])
-(fset 'array-current-column #[nil "À ­¡	­…\n¦ÄU?­–	«†\n¦Sªƒ\n¦_ÆT\"\\‡" [array-cursor-in-array-range rows-numbered buffer-line lines-per-row 0 columns-per-line ceiling buffer-column field-width] 4 "\
+(fset 'array-current-column #[nil "À ­¡	­…\n¦ÄU?­–	«†\n¦Sªƒ\n¦_ÆT\"\\‡" [array-cursor-in-array-range rows-numbered buffer-line lines-per-row 0 columns-per-line array-mode-ceiling buffer-column field-width] 4 "\
 Return the array column of the field in which the cursor is
 currently located."])
 (fset 'array-update-array-position #[(&optional a-row a-column) "®‚Á ®‚Ä ‰‡" [a-row array-current-row array-row a-column array-current-column array-column] 2 "\
@@ -33,13 +33,13 @@ Optional argument GO-THERE, if non-nil, means go there too."])
 (fset 'array-end-of-field #[(&optional go-there) "‰	¦Z	\\«…Ä\n!ª\n)‡" [buffer-column field-width goal-column go-there move-to-column-untabify] 3 "\
 Return the column of the end of the current array field.
 If optional argument GO-THERE is non-nil, go there too."])
-(fset 'array-move-to-cell #[(a-row a-column) "	S_\n«ƒÃªÄÅS\"\\\\S¦_	\nebˆ\nyˆË	!*‡" [lines-per-row a-row rows-numbered 1 0 floor a-column columns-per-line field-width goal-column goal-line move-to-column-untabify] 5 "\
+(fset 'array-move-to-cell #[(a-row a-column) "	S_\n«ƒÃªÄÅS\"\\\\S¦_	\nebˆ\nyˆË	!*‡" [lines-per-row a-row rows-numbered 1 0 array-mode-floor a-column columns-per-line field-width goal-column goal-line move-to-column-untabify] 5 "\
 Move to array row A-ROW and array column A-COLUMN.  
 Leave point at the beginning of the field and return the new buffer column."])
 (fset 'array-move-to-row #[(a-row) "	S_\n¦\\‰¦Z‰\nZyˆÇ!ˆ	*‡" [lines-per-row a-row buffer-line buffer-column field-width goal-column goal-line move-to-column-untabify] 5 "\
 Move to array row A-ROW preserving the current array column.
 Leave point at the beginning of the field and return the new array row."])
-(fset 'array-move-to-column #[(a-column) "‰	¦Z\n«ƒÃªÄÅS\"\\\\S¦_	‰\nZyˆË	!ˆ*‡" [buffer-line lines-per-row rows-numbered 1 0 floor a-column columns-per-line field-width goal-column goal-line move-to-column-untabify] 6 "\
+(fset 'array-move-to-column #[(a-column) "‰	¦Z\n«ƒÃªÄÅS\"\\\\S¦_	‰\nZyˆË	!ˆ*‡" [buffer-line lines-per-row rows-numbered 1 0 array-mode-floor a-column columns-per-line field-width goal-column goal-line move-to-column-untabify] 6 "\
 Move to array column A-COLUMN preserving the current array row.
 Leave point at the beginning of the field and return the new array column."])
 (fset 'array-move-one-row #[(sign) "À Á ®ƒÂÃ!U«‹ÈU«…ÂÉ!ªŸÈU«‹ÊU«…ÂË!ª_yˆÍ!ˆ\\*‡" [array-beginning-of-field array-current-row error "Cursor is not in a valid array cell." array-row goal-column max-row sign 1 "End of array." -1 "Beginning of array." lines-per-row move-to-column-untabify] 3 "\
@@ -55,13 +55,13 @@ Move the cursor to the first non-whitespace character in the field and,
 if necessary, scroll horizontally to keep the cursor in view."])
 (fset 'array-maybe-scroll-horizontally #[nil "À Á Y«Š\n\\X«ƒÅª›\n\\V«‹ÆZ\nÇ¥Z!ª‰ÈZ\nÇ¥\\!*‡" [window-hscroll window-width w-width w-hscroll buffer-column nil scroll-left 2 scroll-right] 4 "\
 If necessary, scroll horizontally to keep the cursor in view."])
-(fset 'array-next-row #[(&optional arg) "À iÃ!ÅU«†Æ!ˆªÇÈÉ ®ƒÊË!\\\"!ˆ*Í ‡" [current-line buffer-column buffer-line abs arg 1 array-move-one-row array-move-to-row limit-index array-current-row error "Cursor is not in an array cell." max-row array-normalize-cursor] 4 "\
+(fset 'array-next-row #[(&optional arg) "À iÃ!ÅU«†Æ!ˆªÇÈÉ ®ƒÊË!\\\"!ˆ*Í ‡" [current-line buffer-column buffer-line abs arg 1 array-move-one-row array-move-to-row array-mode-limit-index array-current-row error "Cursor is not in an array cell." max-row array-normalize-cursor] 4 "\
 Move down one array row, staying in the current array column.
 If optional ARG is given, move down ARG array rows." "p"])
 (fset 'array-previous-row #[(&optional arg) "À	[!‡" [array-next-row arg] 2 "\
 Move up one array row, staying in the current array column.
 If optional ARG is given, move up ARG array rows." "p"])
-(fset 'array-forward-column #[(&optional arg) "À iÃ!ÅU«†Æ!ˆªÇÈÉ ®ƒÊË!\\\"!ˆ*Í ‡" [current-line buffer-column buffer-line abs arg 1 array-move-one-column array-move-to-column limit-index array-current-column error "Cursor is not in an array cell." max-column array-normalize-cursor] 4 "\
+(fset 'array-forward-column #[(&optional arg) "À iÃ!ÅU«†Æ!ˆªÇÈÉ ®ƒÊË!\\\"!ˆ*Í ‡" [current-line buffer-column buffer-line abs arg 1 array-move-one-column array-move-to-column array-mode-limit-index array-current-column error "Cursor is not in an array cell." max-column array-normalize-cursor] 4 "\
 Move forward one field, staying in the current array row.
 If optional ARG is given, move forward ARG array columns.
 If necessary, keep the cursor in the window by scrolling right or left." "p"])
@@ -69,7 +69,7 @@ If necessary, keep the cursor in the window by scrolling right or left." "p"])
 Move backward one field, staying in the current array row.
 If optional ARG is given, move backward ARG array columns.
 If necessary, keep the cursor in the window by scrolling right or left." "p"])
-(fset 'array-goto-cell #[(a-row a-column) "ÀÁ\n\"Á\"\"ˆÆ ‡" [array-move-to-cell limit-index a-row max-row a-column max-column array-normalize-cursor] 5 "\
+(fset 'array-goto-cell #[(a-row a-column) "ÀÁ\n\"Á\"\"ˆÆ ‡" [array-move-to-cell array-mode-limit-index a-row max-row a-column max-column array-normalize-cursor] 5 "\
 Go to array row A-ROW and array column A-COLUMN." "nArray row: \nnArray column: "])
 (fset 'array-field-string #[nil "ŠÀÁ!ˆ`)ŠÂÁ!ˆ`){‡" [array-beginning-of-field t array-end-of-field] 3 "\
 Return the field string at the current cursor location."])
@@ -90,25 +90,25 @@ Leave point at the beginning of the field."])
 (fset 'array-copy-to-cell #[(a-row a-column) "À	\n\"ˆÃ ˆ`ŠÄÅ!ˆ`)|ˆcˆÇ!‡" [array-move-to-cell a-row a-column array-update-buffer-position array-end-of-field t copy-string move-to-column buffer-column] 3 "\
 Copy the current field into the cell at A-ROW, A-COLUMN.
 Leave point at the beginning of the field."])
-(fset 'array-copy-down #[(&optional arg) "À iÃ ®ƒÄÅ!Ç É\n!ËU«‡Ì\n!ˆªŒÍÎ\n\\\"!ˆ,Ğ ‡" [current-line buffer-line buffer-column array-current-row error "Cursor is not in a valid array cell." array-row array-field-string copy-string abs arg 1 array-copy-once-vertically array-copy-to-row limit-index max-row array-normalize-cursor] 4 "\
+(fset 'array-copy-down #[(&optional arg) "À iÃ ®ƒÄÅ!Ç É\n!ËU«‡Ì\n!ˆªŒÍÎ\n\\\"!ˆ,Ğ ‡" [current-line buffer-line buffer-column array-current-row error "Cursor is not in a valid array cell." array-row array-field-string copy-string abs arg 1 array-copy-once-vertically array-copy-to-row array-mode-limit-index max-row array-normalize-cursor] 4 "\
 Copy the current field one array row down.
 If optional ARG is given, copy down through ARG array rows." "p"])
 (fset 'array-copy-up #[(&optional arg) "À	[!‡" [array-copy-down arg] 2 "\
 Copy the current field one array row up.
 If optional ARG is given, copy up through ARG array rows." "p"])
-(fset 'array-copy-forward #[(&optional arg) "À iÃ ®ƒÄÅ!Ç É\n!ËU«‡Ì\n!ˆªŒÍÎ\n\\\"!ˆ,Ğ ‡" [current-line buffer-line buffer-column array-current-column error "Cursor is not in a valid array cell." array-column array-field-string copy-string abs arg 1 array-copy-once-horizontally array-copy-to-column limit-index max-column array-normalize-cursor] 4 "\
+(fset 'array-copy-forward #[(&optional arg) "À iÃ ®ƒÄÅ!Ç É\n!ËU«‡Ì\n!ˆªŒÍÎ\n\\\"!ˆ,Ğ ‡" [current-line buffer-line buffer-column array-current-column error "Cursor is not in a valid array cell." array-column array-field-string copy-string abs arg 1 array-copy-once-horizontally array-copy-to-column array-mode-limit-index max-column array-normalize-cursor] 4 "\
 Copy the current field one array column to the right.
 If optional ARG is given, copy through ARG array columns to the right." "p"])
 (fset 'array-copy-backward #[(&optional arg) "À	[!‡" [array-copy-forward arg] 2 "\
 Copy the current field one array column to the left.
 If optional ARG is given, copy through ARG array columns to the left." "p"])
-(fset 'array-copy-column-forward #[(&optional arg) "À ˆÁ ˆ\n¬„ÃÄ!ˆÅÆ!ˆÇ	W«¯TÊ\n\"ˆÀ ˆË Í!ÏU«‡Ğ!ˆª‹ÑÒ\n\\\"!ˆ)ªJ)ÅÔ!ˆÕ!ˆ× ‡" [array-update-buffer-position array-update-array-position array-column error "Cursor is not in a valid array cell." message "Working..." 0 this-row max-row array-move-to-cell array-field-string copy-string abs arg 1 array-copy-once-horizontally array-copy-to-column limit-index max-column "Working...done" array-move-to-row array-row array-normalize-cursor] 4 "\
+(fset 'array-copy-column-forward #[(&optional arg) "À ˆÁ ˆ\n¬„ÃÄ!ˆÅÆ!ˆÇ	W«¯TÊ\n\"ˆÀ ˆË Í!ÏU«‡Ğ!ˆª‹ÑÒ\n\\\"!ˆ)ªJ)ÅÔ!ˆÕ!ˆ× ‡" [array-update-buffer-position array-update-array-position array-column error "Cursor is not in a valid array cell." message "Working..." 0 this-row max-row array-move-to-cell array-field-string copy-string abs arg 1 array-copy-once-horizontally array-copy-to-column array-mode-limit-index max-column "Working...done" array-move-to-row array-row array-normalize-cursor] 4 "\
 Copy the entire current column in to the column to the right.
 If optional ARG is given, copy through ARG array columns to the right." "p"])
 (fset 'array-copy-column-backward #[(&optional arg) "À	[!‡" [array-copy-column-forward arg] 2 "\
 Copy the entire current column one column to the left.
 If optional ARG is given, copy through ARG columns to the left." "p"])
-(fset 'array-copy-row-down #[(&optional arg) "À ˆÁ ˆ\n¬„ÃÄ!ˆ\nÅU«ÇU«‡ÃÈ!ˆ‚® \n	U«ŒÅU«†ÃÊ!ˆªıŠË\nÅ\"ˆ`)ŠË\n\"ˆÅyˆ`){\nÏ\\	\"‰ZÒ!‰ÔU?­…¥ÔV«­\\ËÅ\"ˆÖ`ŠË\"ˆÅyˆ`)|ˆcˆ)S‰ªOË®Å\"ˆ.Ù ‡" [array-update-buffer-position array-update-array-position array-row error "Cursor is not in a valid array cell." 1 arg -1 "Beginning of array." max-row "End of array." array-move-to-cell max-column copy-string this-row limit-index goal-row num abs count 0 sign t inhibit-quit array-column array-normalize-cursor] 5 "\
+(fset 'array-copy-row-down #[(&optional arg) "À ˆÁ ˆ\n¬„ÃÄ!ˆ\nÅU«ÇU«‡ÃÈ!ˆ‚® \n	U«ŒÅU«†ÃÊ!ˆªıŠË\nÅ\"ˆ`)ŠË\n\"ˆÅyˆ`){\nÏ\\	\"‰ZÒ!‰ÔU?­…¥ÔV«­\\ËÅ\"ˆÖ`ŠË\"ˆÅyˆ`)|ˆcˆ)S‰ªOË®Å\"ˆ.Ù ‡" [array-update-buffer-position array-update-array-position array-row error "Cursor is not in a valid array cell." 1 arg -1 "Beginning of array." max-row "End of array." array-move-to-cell max-column copy-string this-row array-mode-limit-index goal-row num abs count 0 sign t inhibit-quit array-column array-normalize-cursor] 5 "\
 Copy the entire current row one row down.
 If optional ARG is given, copy through ARG rows down." "p"])
 (fset 'array-copy-row-up #[(&optional arg) "À	[!‡" [array-copy-row-down arg] 2 "\
@@ -118,24 +118,20 @@ If optional ARG is given, copy through ARG rows up." "p"])
 Copy the field at mark into every cell between mark and point." nil])
 (fset 'array-make-template #[nil "ÀÁ«£ÄÅ!‰G‰U¬ÈÉÊ\n\"!«g\nÁ‰ª`Á‰¬]*ebˆËÌ!ˆÍX«¾«‡ÉÑ\"cˆÍÍX«Ÿcˆ¦ÕU«ŠU¬ƒÖ ˆT‰ª\\)TÖ ˆª;)Ë×!ˆØÍ‰\"‡" [t nil len check read-input "Initial field value: " init-field field-width y-or-n-p format "Change field width to %d? " message "Working..." 1 this-row max-row rows-numbered "%d:\n" this-column max-column columns-per-line 0 newline "Working...done" array-goto-cell] 5 "\
 Create the template of an array." nil])
-(fset 'array-reconfigure-rows #[(new-columns-per-line new-rows-numbered) "À	«š\nÃY«Š\nX«…Å‰ªoÆÇÈÉ\"!!ªc)\nË=«…À\nª\nÌ=«…Å\nª…ÍÎ!\nÏĞ!ˆÑ ˆÒp!ÔÕ! !\"#Ã$å ˆæed#ˆqˆebˆ$Xƒ«„\n¬¬„\n«–«Š\n¬†çÃ!ˆªˆèÈé$\"!ˆ\nU««ƒÃªêZyˆªÓëS\"êëS\n\"ê,-././W«•ğ.T#_!ˆçÃ!ˆ.T‰.ªfêyˆ,-W«’ğ!\n_!ˆñ ˆ,T‰,ªiÃyˆ,$T‰$‚} À2qˆó ˆô!ˆ\n\n!\n_\"õ\n\"\n«ƒÃªê\\ö7®Ã8®Ã\"ˆ)ù!ˆ.\nÏú!‡" [t check new-columns-per-line 1 max-column nil string-to-int read-input format "Columns per line (1 - %d): " new-rows-numbered 121 110 y-or-n-p "Rows numbered? " message "Working..." array-update-buffer-position buffer-name main-buffer make-temp-name "Array" temp-buffer max-row temp-max-row temp-max-column rows-numbered old-rows-numbered columns-per-line old-columns-per-line lines-per-row old-lines-per-row field-width old-field-width line-length old-line-length this-row array-update-array-position copy-to-buffer kill-line insert-string "%d:\n" 0 floor newlines-added newlines-to-be-added newlines-removed newlines-to-be-removed move-to-column-untabify newline inhibit-quit erase-buffer insert-buffer ceiling array-goto-cell array-row array-column kill-buffer "Working...done"] 6 "\
+(fset 'array-reconfigure-rows #[(new-columns-per-line new-rows-numbered) "À	«š\nÃY«Š\nX«…Å‰ªoÆÇÈÉ\"!!ªc)\nË=«…À\nª\nÌ=«…Å\nª…ÍÎ!\nÏĞ!ˆÑ ˆÒp!ÔÕ! !\"#Ã$å ˆæed#ˆqˆebˆ$Xƒ«„\n¬¬„\n«–«Š\n¬†çÃ!ˆªˆèÈé$\"!ˆ\nU««ƒÃªêZyˆªÓëS\"êëS\n\"ê,-././W«•ğ.T#_!ˆçÃ!ˆ.T‰.ªfêyˆ,-W«’ğ!\n_!ˆñ ˆ,T‰,ªiÃyˆ,$T‰$‚} À2qˆó ˆô!ˆ\n\n!\n_\"õ\n\"\n«ƒÃªê\\ö7®Ã8®Ã\"ˆ)ù!ˆ.\nÏú!‡" [t check new-columns-per-line 1 max-column nil string-to-int read-input format "Columns per line (1 - %d): " new-rows-numbered 121 110 y-or-n-p "Rows numbered? " message "Working..." array-update-buffer-position buffer-name main-buffer make-temp-name "Array" temp-buffer max-row temp-max-row temp-max-column rows-numbered old-rows-numbered columns-per-line old-columns-per-line lines-per-row old-lines-per-row field-width old-field-width line-length old-line-length this-row array-update-array-position copy-to-buffer kill-line insert-string "%d:\n" 0 array-mode-floor newlines-added newlines-to-be-added newlines-removed newlines-to-be-removed move-to-column-untabify newline inhibit-quit erase-buffer insert-buffer array-mode-ceiling array-goto-cell array-row array-column kill-buffer "Working...done"] 6 "\
 Reconfigure the state of row-numbering and columns-per-line.
 NEW-COLUMNS-PER-LINE is the desired value of columns-per-line and
 NEW-ROWS-NUMBERED (a character, either ?y or ?n) is the desired value
 of rows-numbered." "nColumns per line: \ncRows numbered? (y or n) "])
 (fset 'array-expand-rows #[nil "À	Â\"‡" [array-reconfigure-rows max-column 110] 3 "\
 Expand the rows so each fits on one line and remove row numbers." nil])
-(fset 'limit-index #[(index limit) "ÁW«‚Á‡\nV«‚\n‡‡" [index 1 limit] 2])
-(fset 'abs #[(int) "ÁW«ƒ[‡‡" [int 0] 2 "\
-Return the absolute value of INT."])
-(fset 'floor #[(int1 int2) "ÁW«‡Â[\"[‡¥‡" [int1 0 ceiling int2] 3 "\
+(fset 'array-mode-limit-index #[(index limit) "ÁW«‚Á‡\nV«‚\n‡‡" [index 1 limit] 2])
+(fset 'array-mode-floor #[(int1 int2) "ÁW«‡Â[\"[‡¥‡" [int1 0 array-mode-ceiling int2] 3 "\
 Returns the floor of INT1 divided by INT2.
 INT1 may be negative.  INT2 must be positive."])
-(fset 'ceiling #[(int1 int2) "	¥	¦ÂU«ƒÂªÃ\\‡" [int1 int2 0 1] 3 "\
+(fset 'array-mode-ceiling #[(int1 int2) "	¥	¦ÂU«ƒÂªÃ\\‡" [int1 int2 0 1] 3 "\
 Returns the ceiling of INT1 divided by INT2.
 Assumes that both arguments are nonnegative."])
-(fset 'xor #[(pred1 pred2) "¬ƒ	­…­	?‡" [pred1 pred2] 1 "\
-Returns the logical exclusive or of predicates PRED1 and PRED2."])
 (fset 'current-line #[nil "ŠÀyˆÁe`\")‡" [0 count-lines] 3 "\
 Return the current buffer line at point.  The first line is 0."])
 (fset 'move-to-column-untabify #[(column) "Á!U«ƒ®\n«„ÃÄ!‡Å ˆÁ!‡" [column move-to-column respect-tabs error "There is a TAB character in the way." untabify-backward] 3 "\
@@ -222,5 +218,5 @@ Initialize the value of field-width."])
 Initialize the value of rows-numbered."])
 (fset 'array-init-line-length #[(&optional arg) "®ƒ	\n_‰‡" [arg field-width columns-per-line line-length] 2 "\
 Initialize the value of line-length."])
-(fset 'array-init-lines-per-row #[(&optional arg) "®ŒÁ\n\"«ƒÅªÆ\\‰‡" [arg ceiling max-column columns-per-line rows-numbered 1 0 lines-per-row] 3 "\
+(fset 'array-init-lines-per-row #[(&optional arg) "®ŒÁ\n\"«ƒÅªÆ\\‰‡" [arg array-mode-ceiling max-column columns-per-line rows-numbered 1 0 lines-per-row] 3 "\
 Initialize the value of lines-per-row."])

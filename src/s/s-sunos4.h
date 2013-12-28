@@ -1,21 +1,25 @@
+/* For building Lucid Emacs under SunOS 4.1.* with static libraries. */
+
 #include "s-bsd4-2.h"
 
-#if 0  /* This may have been needed for an earlier version of Sun OS 4.
-	  It seems to cause warnings in 4.0.3 and 4.1.  */
-#define O_NDELAY        FNDELAY /* Non-blocking I/O (4.2 style) */
+#ifdef THIS_IS_YMAKEFILE
+  /* The new sunOS unexec eliminates the need for a custom crt0.o, so we
+     can just let the compiler invoke the linker and don't have to guess
+     what options it might have passed it. */
+# define START_FILES
+# define LD_CMD $(CC)
+# ifndef LD_SWITCH_SYSTEM
+#  define LD_SWITCH_SYSTEM -Bstatic
+# endif
+# define UNEXEC unexsunos4.o
 #endif
-
-#ifdef __GNUC__
-#define LD_SWITCH_SYSTEM -e __start -static
-#else
-#define LD_SWITCH_SYSTEM -e __start -Bstatic
-#endif
-
-/* In SunOS 4.1, a static function called by tzsetwall reportedly
-   clears the byte just past an eight byte region it mallocs, corrupting
-   GNU malloc's memory pool.  But Sun's malloc doesn't seem to mind. */
-
-#define SYSTEM_MALLOC
 
 /* Sun4s running SunOS 4+ usually have sound support. */
 #define USE_SOUND
+
+#define RUN_TIME_REMAP
+
+/* these don't matter, but we have to define something to keep
+   sysdep.c from introducing bogus symbols */
+#define TEXT_START 0
+#define DATA_START 0

@@ -1,12 +1,12 @@
 ;; Electric Command History Mode
-;; Copyright (C) 1985 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 ;; Principal author K. Shane Hartman
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -66,7 +66,9 @@ With prefix argument NOCONFIRM, execute current line as is without editing."
   (define-key electric-history-map "\C-c\C-c" 'Electric-history-quit)
   (define-key electric-history-map "\C-]" 'Electric-history-quit)
   (define-key electric-history-map "\C-z" 'suspend-emacs)
-  (define-key electric-history-map "\C-h" 'Helper-help)
+;;  (define-key electric-history-map "\C-h" 'Helper-help)
+  (define-key electric-history-map '(control h) 'Helper-help)
+  (define-key electric-history-map 'backspace 'previous-line)
   (define-key electric-history-map "?" 'Helper-describe-bindings)
   (define-key electric-history-map "\e>" 'end-of-buffer)
   (define-key electric-history-map "\e<" 'beginning-of-buffer)

@@ -1,0 +1,22 @@
+;;; compiled by jwz@thalidomide on Tue Jan 19 04:18:39 1993
+;;; from file /u/jwz/emacs19/lisp/energize/energize-windows.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 16-jan-93.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍM‡" [energize-request-kill-buffer-if-dead #[(buffer) "À	!¬‚Â‡Ã	!¬‹Ä	!«„Å	!ˆÂ‡Æ‡" [bufferp buffer t buffer-name energize-buffer-p energize-request-kill-buffer nil] 2] energize-prune-killed-buffers-from-list #[(buffer-extent-list) "Á‰«¥@A@AATÇ!«\nTÈ\"È\"*ªX\nÁV«§ÉÊË\nÌV«†ÊÍ\n\"ª‰ÌV«ƒÎªÏÌV«ƒĞªÑ#!ˆÒÓ!ˆ+‡" [buffer-extent-list 0 deleted-count buffer-count rest buffer extent energize-request-kill-buffer-if-dead delq message format "Oops, confused about %s selected %s -- please try again." 1 "%d of the" "one of the" "the" "buffers" "buffer" ding t] 6] energize-scroll-window-at-extent #[(window extent only-one) "À	!Ã\n!«ÖÆ!È	\"ˆÉš«“Ê	Š\nqˆbˆËyˆ`)\"ˆª²«®Í\n!Î=«§Ê	Š\nqˆbˆËyˆÏ	!V«‰Ñ[	\"ˆª…ÑÒ	\"ˆ`)\"ˆ)Óš¬…Éš­ŒÈ	Š\nqˆÔ Õ\\)\"*‡" [window-buffer window buffer buffer-name name extent extent-start-position pos set-window-point "Error Log" set-window-start 0 only-one energize-buffer-type energize-source-buffer window-height next-screen-context-lines vertical-motion -1 "*Debugger*" buffer-size 1] 5] energize-show-all-buffers #[(buffer-extent-list) "ÀÁ‰‰\nAA?\n«±@A@	ÊË \"‰«–Í\"ˆBÎ	#ˆAA+ªL«†Ï@!ˆ\n«¿@A@	Ğ!ˆÑ!«ƒÀÓ ¬ƒÍ\"ˆBÎ	#ˆ)AA*ª>«Í@Á\"ˆA‰¬qÏ!ˆË ­•Ö!«‡×!?­ˆØÙ!ˆÚ!.‡" [t nil buffer-extent-list only-one window-to-select buffer-extent-current dedicated-windows pop-up-windows buffer extent get-buffer-window selected-screen window set-window-buffer-dedicated energize-scroll-window-at-extent select-window pop-to-buffer energize-edit-buffer-externally-p buffer-read-only selected-window screen energize-auto-raise-screen screen-visible-p screen-totally-visible-p sit-for 0 make-screen-visible] 6] energize-main-buffer-of-list #[(list) "À‰‰«™@\nÅ>¬ŠŠqˆ)AA‰¬g	+‡" [nil result mode buffer list (energize-debugger-mode) major-mode] 4] energize-make-buffers-visible #[(buffer-extent-list) "À	!Â	AA¬Å!«ˆÆ	A@\"ª¹ÂÈ!«É\n«\nÂ‰#ˆª”ËÉ\"‰«Œ«‰ÉÌÍ!!ˆ?­‚\n\nÎ	!**‡" [energize-main-buffer-of-list buffer-extent-list nil window main-buffer energize-edit-buffer-externally-p energize-edit-buffer-externally-1 hacked-screen get-screen-name-for-buffer t pre-display-buffer-function get-buffer-window select-screen window-screen energize-show-all-buffers] 4] energize-make-many-buffers-visible-function #[(arg) "@AÃ\n!‰­›	«…Ä\n!ª“Å ÇÈ!\"ˆÉÄ\n!**‡" [arg go-there buffer-extent-list energize-prune-killed-buffers-from-list energize-make-buffers-visible selected-window window set-window-buffer-dedicated window-buffer ((byte-code "À	Â\"ˆÃ	!‡" [set-window-buffer-dedicated window nil select-window] 3))] 5]] 2)
+(defvar energize-make-many-buffers-visible-should-enqueue-event t "\
+Special variable bound by energize-execute-command to allow the
+buffers to be selected while the command is executed")
+(fset 'energize-make-many-buffers-visible #[(buffer-extent-list go-there) "«‡ÁÂB\"‡ÂÅB!‡" [energize-make-many-buffers-visible-should-enqueue-event enqueue-eval-event energize-make-many-buffers-visible-function buffer-extent-list go-there t] 4 "\
+First arg is a list of buffers and extents. All those should be
+made visible at the same time.  If the second argument is T then point
+should be moved to the first character of the extent of the first
+buffer, or to the buffer if no extent is specified for this buffer.  
+If second argument is NIL point should not change."])

@@ -17,15 +17,18 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-#include "lwlib-Xm.h"
-#include "lwlib-utils.h"
-
+#include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
+#include <stdio.h>
 
 #include <X11/StringDefs.h>
 #include <X11/IntrinsicP.h>
 #include <X11/CoreP.h>
 #include <X11/CompositeP.h>
+
+#include "lwlib-Xm.h"
+#include "lwlib-utils.h"
 
 #include <Xm/BulletinB.h>
 #include <Xm/CascadeB.h>
@@ -48,16 +51,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <Xm/DialogS.h>
 #include <Xm/Form.h>
 
-static void
-xm_pull_down_callback (Widget widget, XtPointer closure, XtPointer call_data);
-static void
-xm_internal_update_other_instances (Widget widget, XtPointer closure,
-				    XtPointer call_data);
-static void
-xm_generic_callback (Widget widget, XtPointer closure, XtPointer call_data);
-static void
-xm_pop_down_callback (Widget widget, XtPointer closure, XtPointer call_data);
-
+static void xm_pull_down_callback (Widget, XtPointer, XtPointer);
+static void xm_internal_update_other_instances (Widget, XtPointer,
+						XtPointer);
+static void xm_generic_callback (Widget, XtPointer, XtPointer);
+static void xm_nosel_callback (Widget, XtPointer, XtPointer);
+static void xm_pop_down_callback (Widget, XtPointer, XtPointer);
 
 static void
 xm_update_menu (widget_instance* instance, Widget widget, widget_value* val,
@@ -155,7 +154,7 @@ destroy_all_children (Widget widget)
 	      XtDestroyWidget (child);
 	    }
 	}
-      XtFree (children);
+      XtFree ((char *) children);
     }
 }
 
@@ -202,6 +201,27 @@ xm_update_label (widget_instance* instance, Widget widget, widget_value* val)
 
   if (key_string)
     XmStringFree (key_string);
+}
+
+/* update of list */
+static void
+xm_update_list (widget_instance* instance, Widget widget, widget_value* val)
+{
+  widget_value* cur;
+  int i;
+  XtRemoveAllCallbacks (widget, XmNdefaultActionCallback);
+  XtAddCallback (widget, XmNdefaultActionCallback, xm_generic_callback,
+		 instance);
+  for (cur = val->contents, i = 0; cur; cur = cur->next)
+    if (cur->value)
+      {
+	XmString xmstr = XmStringCreate (cur->value, XmSTRING_DEFAULT_CHARSET);
+	i += 1;
+	XmListAddItem (widget, xmstr, 0);
+	if (cur->selected)
+	  XmListSelectPos (widget, i, False);
+	XmStringFree (xmstr);
+      }
 }
 
 /* update of buttons */
@@ -368,7 +388,7 @@ make_menu_in_widget (widget_instance* instance, Widget widget,
       XtSetValues (widget, al, ac);
     }
 
-  XtFree (children);
+  XtFree ((char *) children);
 }
 
 static void
@@ -456,7 +476,7 @@ xm_update_menu (widget_instance* instance, Widget widget, widget_value* val,
 	      update_one_menu_entry (instance, children [i], cur, deep_p);
 	      cur = cur->next;
 	    }
-	  XtFree (children);
+	  XtFree ((char *) children);
 	}
       if (cur)
 	abort ();
@@ -548,6 +568,10 @@ xm_update_one_widget (widget_instance* instance, Widget widget,
     {
       xm_update_text_field (instance, widget, val);
     }
+  else if (class == xmListWidgetClass)
+    {
+      xm_update_list (instance, widget, val);
+    }
 }
 
 /* getting the value back */
@@ -556,7 +580,16 @@ xm_update_one_value (widget_instance* instance, Widget widget,
 		     widget_value* val)
 {
   WidgetClass class = XtClass (widget);
+  widget_value *old_wv;
 
+  /* copy the call_data slot into the "return" widget_value */
+  for (old_wv = instance->info->val->contents; old_wv; old_wv = old_wv->next)
+    if (!strcmp (val->name, old_wv->name))
+      {
+	val->call_data = old_wv->call_data;
+	break;
+      }
+  
   if (class == xmToggleButtonWidgetClass || class == xmToggleButtonGadgetClass)
     {
       XtVaGetValues (widget, XmNset, &val->selected, 0);
@@ -605,6 +638,31 @@ xm_update_one_value (widget_instance* instance, Widget widget,
 	  val->edited = True;
 	}
     }
+  else if (class == xmListWidgetClass)
+    {
+      int pos_cnt;
+      int* pos_list;
+      if (XmListGetSelectedPos (widget, &pos_list, &pos_cnt))
+	{
+	  int i;
+	  widget_value* cur;
+	  for (cur = val->contents, i = 0; cur; cur = cur->next)
+	    if (cur->value)
+	      {
+		int j;
+		cur->selected = False;
+		i += 1;
+		for (j = 0; j < pos_cnt; j++)
+		  if (pos_list [j] == i)
+		    {
+		      cur->selected = True;
+		      val->value = strdup (cur->name);
+		    }
+	      }
+	  val->edited = 1;
+	  XtFree ((char *) pos_list);
+	}
+    }
 }
 
 
@@ -614,7 +672,8 @@ xm_update_one_value (widget_instance* instance, Widget widget,
 static Widget
 make_dialog (char* name, Widget parent, Boolean pop_up_p,
 	     char* shell_title, char* icon_name, Boolean text_input_slot,
-	     Boolean radio_box, int left_buttons, int right_buttons)
+	     Boolean radio_box, Boolean list,
+	     int left_buttons, int right_buttons)
 {
   Widget result;
   Widget form;
@@ -624,13 +683,12 @@ make_dialog (char* name, Widget parent, Boolean pop_up_p,
   Widget message;
   Widget value;
   Widget separator;
-  Widget button;
+  Widget button = 0;
   Widget children [16];		/* for the final XtManageChildren */
   int	 n_children;
   Arg 	al[64];			/* Arg List */
   int 	ac;			/* Arg Count */
   int 	i;
-  int	sep_buttons = 1;
   
   if (pop_up_p)
     {
@@ -655,8 +713,7 @@ make_dialog (char* name, Widget parent, Boolean pop_up_p,
   ac = 0;
   XtSetArg(al[ac], XmNpacking, XmPACK_COLUMN); ac++;
   XtSetArg(al[ac], XmNorientation, XmVERTICAL); ac++;
-  XtSetArg(al[ac], XmNnumColumns,
-	   left_buttons + sep_buttons + right_buttons); ac++;
+  XtSetArg(al[ac], XmNnumColumns, left_buttons + right_buttons + 1); ac++;
   XtSetArg(al[ac], XmNmarginWidth, 0); ac++;
   XtSetArg(al[ac], XmNmarginHeight, 0); ac++;
   XtSetArg(al[ac], XmNspacing, 13); ac++;
@@ -697,13 +754,11 @@ make_dialog (char* name, Widget parent, Boolean pop_up_p,
       n_children++;
     }
 
-  for (i = 0; i < sep_buttons; i++)
-    {
-      ac = 0;
-      XtSetArg (al[ac], XmNmappedWhenManaged, FALSE); ac++;
-      children [n_children] = XmCreateLabel (row, "separator_button", al, ac);
-      n_children++;
-    }
+  /* invisible seperator button */
+  ac = 0;
+  XtSetArg (al[ac], XmNmappedWhenManaged, FALSE); ac++;
+  children [n_children] = XmCreateLabel (row, "separator_button", al, ac);
+  n_children++;
   
   for (i = 0; i < right_buttons; i++)
     {
@@ -712,6 +767,7 @@ make_dialog (char* name, Widget parent, Boolean pop_up_p,
       ac = 0;
       XtSetArg(al[ac], XmNnavigationType, XmTAB_GROUP); ac++;
       children [n_children] = XmCreatePushButton (row, button_name, al, ac);
+      if (! button) button = children [n_children];
       n_children++;
     }
   
@@ -793,6 +849,21 @@ make_dialog (char* name, Widget parent, Boolean pop_up_p,
       children [i++] = radio_butt;
       XtManageChildren (children, i);
     }
+  else if (list)
+    {
+      ac = 0;
+      XtSetArg(al[ac], XmNvisibleItemCount, 5); ac++;
+      XtSetArg(al[ac], XmNtopAttachment, XmATTACH_NONE); ac++;
+      XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_WIDGET); ac++;
+      XtSetArg(al[ac], XmNbottomOffset, 13); ac++;
+      XtSetArg(al[ac], XmNbottomWidget, separator); ac++;
+      XtSetArg(al[ac], XmNleftAttachment, XmATTACH_WIDGET); ac++;
+      XtSetArg(al[ac], XmNleftOffset, 13); ac++;
+      XtSetArg(al[ac], XmNleftWidget, icon); ac++;
+      XtSetArg(al[ac], XmNrightAttachment, XmATTACH_FORM); ac++;
+      XtSetArg(al[ac], XmNrightOffset, 13); ac++;
+      value = XmCreateScrolledList (form, "list", al, ac);
+    }
   
   ac = 0;
   XtSetArg(al[ac], XmNalignment, XmALIGNMENT_BEGINNING); ac++;
@@ -801,7 +872,7 @@ make_dialog (char* name, Widget parent, Boolean pop_up_p,
   XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_WIDGET); ac++;
   XtSetArg(al[ac], XmNbottomOffset, 13); ac++;
   XtSetArg(al[ac], XmNbottomWidget,
-	   text_input_slot || radio_box ? value : separator); ac++;
+	   text_input_slot || radio_box || list ? value : separator); ac++;
   XtSetArg(al[ac], XmNleftAttachment, XmATTACH_WIDGET); ac++;
   XtSetArg(al[ac], XmNleftOffset, 13); ac++;
   XtSetArg(al[ac], XmNleftWidget, icon); ac++;
@@ -809,6 +880,9 @@ make_dialog (char* name, Widget parent, Boolean pop_up_p,
   XtSetArg(al[ac], XmNrightOffset, 13); ac++;
   message = XmCreateLabel (form, "message", al, ac);
   
+  if (list)
+    XtManageChild (value);
+
   i = 0;
   children [i] = row; i++;
   children [i] = separator; i++;
@@ -821,7 +895,7 @@ make_dialog (char* name, Widget parent, Boolean pop_up_p,
   children [i] = icon_separator; i++;
   XtManageChildren (children, i);
   
-  if (text_input_slot)
+  if (text_input_slot || list)
     {
       XtInstallAccelerators (value, button);
       XtSetKeyboardFocus (result, value);
@@ -957,11 +1031,13 @@ xm_create_dialog (widget_instance* instance)
 {
   char* 	name = instance->info->type;
   Widget 	parent = instance->parent;
+  Widget	widget;
   Boolean 	pop_up_p = instance->pop_up_p;
   char*		shell_name;
   char* 	icon_name;
   Boolean	text_input_slot = False;
   Boolean	radio_box = False;
+  Boolean	list = False;
   int		total_buttons;
   int		left_buttons = 0;
   int		right_buttons = 1;
@@ -985,6 +1061,12 @@ xm_create_dialog (widget_instance* instance)
   case 'I': case 'i':
     icon_name = "dbox-info";
     shell_name = "Information";
+    break;
+
+  case 'L': case 'l':
+    list = True;
+    icon_name = "dbox-question";
+    shell_name = "Prompt";
     break;
 
   case 'P': case 'p':
@@ -1011,9 +1093,13 @@ xm_create_dialog (widget_instance* instance)
   
   left_buttons = total_buttons - right_buttons;
   
-  return make_dialog (name, parent, pop_up_p,
-		      shell_name, icon_name, text_input_slot, radio_box,
-		      left_buttons, right_buttons);
+  widget = make_dialog (name, parent, pop_up_p,
+			shell_name, icon_name, text_input_slot, radio_box,
+			list, left_buttons, right_buttons);
+
+  XtAddCallback (widget, XmNpopdownCallback, xm_nosel_callback,
+		 (XtPointer) instance);
+  return widget;
 }
 
 static Widget
@@ -1046,41 +1132,31 @@ make_popup_menu (widget_instance* instance)
 }
 
 /* Table of functions to create widgets */
+
+#ifdef ENERGIZE
+
 /* interface with the XDesigner generated functions */
-typedef Widget
-(*widget_maker) (Widget);
-
-extern Widget
-create_project_p_sheet (Widget parent);
-
-extern Widget
-create_debugger_p_sheet (Widget parent);
-
-extern Widget
-create_breaklist_p_sheet (Widget parent);
-
-extern Widget
-create_le_browser_p_sheet (Widget parent);
-
-extern Widget
-create_class_browser_p_sheet (Widget parent);
-
-extern Widget
-create_call_browser_p_sheet (Widget parent);
+typedef Widget (*widget_maker) (Widget);
+extern Widget create_project_p_sheet (Widget parent);
+extern Widget create_debugger_p_sheet (Widget parent);
+extern Widget create_breaklist_p_sheet (Widget parent);
+extern Widget create_le_browser_p_sheet (Widget parent);
+extern Widget create_class_browser_p_sheet (Widget parent);
+extern Widget create_call_browser_p_sheet (Widget parent);
+extern Widget create_build_dialog (Widget parent);
 
 static Widget
 make_one (widget_instance* instance, widget_maker fn)
 {
   Widget result;
-  Widget shell;
   Arg 	al [64];
   int 	ac = 0;
 
   if (instance->pop_up_p)
     {
       XtSetArg (al [ac], XmNallowShellResize, TRUE); ac++;
-      shell = XmCreateDialogShell (instance->parent, "dialog", NULL, 0);
-      result = (*fn) (shell);
+      result = XmCreateDialogShell (instance->parent, "dialog", NULL, 0);
+      (*fn) (result);
     }
   else
     {
@@ -1126,18 +1202,28 @@ make_call_browser_p_sheet (widget_instance* instance)
   return make_one (instance, create_call_browser_p_sheet);
 }
 
+static Widget
+make_build_dialog (widget_instance* instance)
+{
+  return make_one (instance, create_build_dialog);
+}
+
+#endif /* ENERGIZE */
 
 widget_creation_entry
 xm_creation_table [] = 
 {
   {"menubar", 			make_menubar},
   {"popup",			make_popup_menu},
+#ifdef ENERGIZE
   {"project_p_sheet",		make_project_p_sheet},
   {"debugger_p_sheet",		make_debugger_p_sheet},
   {"breaklist_psheet",		make_breaklist_p_sheet},
   {"leb_psheet",       		make_le_browser_p_sheet},
   {"class_browser_psheet",	make_class_browser_p_sheet},
   {"ctree_browser_psheet",	make_call_browser_p_sheet},
+  {"build",			make_build_dialog},
+#endif /* ENERGIZE */
   {NULL, NULL}
 };
 
@@ -1255,7 +1341,7 @@ do_call (Widget widget, XtPointer closure, enum do_call_type type)
   XtPointer user_data;
   widget_instance* instance = (widget_instance*)closure;
   Widget instance_widget;
-  BITS32 id;
+  LWLIB_ID id;
 
   if (!instance)
     return;
@@ -1290,7 +1376,7 @@ do_call (Widget widget, XtPointer closure, enum do_call_type type)
 	instance->info->post_activate_cb (widget, id, user_data);
       break;
     default:
-      exit (-69);
+      abort ();
     }
 }
 
@@ -1317,6 +1403,12 @@ xm_generic_callback (Widget widget, XtPointer closure, XtPointer call_data)
 {
   lw_internal_update_other_instances (widget, closure, call_data);
   do_call (widget, closure, selection);
+}
+
+static void
+xm_nosel_callback (Widget widget, XtPointer closure, XtPointer call_data)
+{
+  do_call (widget, closure, no_selection);
 }
 
 static void

@@ -214,10 +214,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 
 
-
-struct Lisp_Event;	/* assert that these are global... */
-struct Lisp_Process;
-
 struct event_stream {
   int  (*event_pending_p)	(int);
   void (*next_event_cb)		(struct Lisp_Event *);
@@ -348,3 +344,5 @@ extern struct command_event_queue *command_event_queue;
 
 /* Maybe this should be trickier */
 #define KEYSYM(x) (intern (x))
+
+int event_to_character (struct Lisp_Event *, int);

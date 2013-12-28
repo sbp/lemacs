@@ -24,6 +24,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "commands.h"
 #include "buffer.h"
 #include "syntax.h"
+#include "insdel.h"
 
 Lisp_Object Qkill_forward_chars, Qkill_backward_chars, Vblink_paren_function;
 
@@ -203,6 +204,8 @@ ARG was explicitly specified.")
 
 extern Lisp_Object Vlast_command_char, Vlast_command_event;
 
+void internal_self_insert (int c1, int noautofill);
+
 DEFUN ("self-insert-command", Fself_insert_command, Sself_insert_command, 1, 1, "p",
   "Insert the character you type.\n\
 Whichever character you type to run this command is inserted.")
@@ -266,15 +269,19 @@ In Auto Fill mode, if no numeric arg, break the preceding line if it's long.")
   return Qnil;
 }
 
+void
 internal_self_insert (c1, noautofill)
-     char c1;
+     int c1;
      int noautofill;
 {
   extern Lisp_Object Fexpand_abbrev ();
   int hairy = 0;
   Lisp_Object tem;
   register enum syntaxcode synt;
-  register int c = c1;
+  register int c = (int) c1;
+  char s1[1];
+
+  s1[0] = c;
 
 #if 0
   /* No, this is very bad, it makes undo *always* undo a character at a time
@@ -309,14 +316,14 @@ internal_self_insert (c1, noautofill)
       && current_column () > XFASTINT (current_buffer->fill_column))
     {
       if (c1 != '\n')
-	insert_raw_string (&c1, 1);
+	insert_raw_string (s1, 1);
       call0 (current_buffer->auto_fill_function);
       if (c1 == '\n')
-	insert_raw_string (&c1, 1);
+	insert_raw_string (s1, 1);
       hairy = 1;
     }
   else
-    insert_raw_string (&c1, 1);
+    insert_raw_string (s1, 1);
   synt = SYNTAX (c);
   if ((synt == Sclose || synt == Smath)
       && !NILP (Vblink_paren_function) && INTERACTIVE)
@@ -324,11 +331,11 @@ internal_self_insert (c1, noautofill)
       call0 (Vblink_paren_function);
       hairy = 1;
     }
-  return hairy;
 }
 
 /* module initialization */
 
+void
 syms_of_cmds ()
 {
   Qkill_backward_chars = intern ("kill-backward-chars");
@@ -355,19 +362,3 @@ More precisely, a char with closeparen syntax is self-inserted.");
   defsubr (&Snewline);
 }
 
-keys_of_cmds ()
-{
-  int n;
-
-  initial_define_key (global_map, Ctl('M'), "newline");
-  initial_define_key (global_map, Ctl('I'), "self-insert-command");
-  for (n = 040; n < 0177; n++)
-    initial_define_key (global_map, n, "self-insert-command");
-
-  initial_define_key (global_map, Ctl ('A'), "beginning-of-line");
-  initial_define_key (global_map, Ctl ('B'), "backward-char");
-  initial_define_key (global_map, Ctl ('D'), "delete-char");
-  initial_define_key (global_map, Ctl ('E'), "end-of-line");
-  initial_define_key (global_map, Ctl ('F'), "forward-char");
-  initial_define_key (global_map, 0177, "delete-backward-char");
-}

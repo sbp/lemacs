@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Sun Aug  2 16:58:14 1992
-;;; from file /wg1/emacs-base/lisp/prim/indent.el
-;;; emacs version 19.2.5 Lucid.
-;;; bytecomp version 2.07; 15-jul-92.
+;;; compiled by jwz@thalidomide on Sun Jan 17 16:08:33 1993
+;;; from file /cadillac-th/jwz/emacs19/lisp/prim/indent.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 16-jan-93.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -58,4 +58,3 @@ Use \\[edit-tab-stops] to edit them interactively." nil])
 Move point to next defined tab-stop column.
 The variable `tab-stop-list' is a list of columns at which there are tab stops.
 Use \\[edit-tab-stops] to edit them interactively." nil])
-(byte-code "À	ÂÃ#ˆÀÅÆ#ˆÀÂÈ#ˆÀÉÊ#‡" [define-key global-map "	" indent-for-tab-command esc-map "" indent-region ctl-x-map indent-rigidly "i" tab-to-tab-stop] 4)

@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Jun 30 21:57:52 1992
-;;; from file /wg1/emacs-base/lisp/comint/shell.el
-;;; emacs version 19.2.1 Lucid.
-;;; bytecomp version 2.07; 17-jun-92.
+;;; compiled by jwz@thalidomide on Wed Dec 16 10:00:16 1992
+;;; from file /u/jwz/emacs19/lisp/comint/shell.el
+;;; emacs version 19.4 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -26,7 +26,7 @@ Value is a list of strings, which may be nil.")
 List of directories saved by pushd in this buffer's shell.")
 (defvar shell-dirstack-query "dirs" "\
 Command used by shell-resync-dirlist to query shell.")
-(byte-code "ÀÁ!¬‚Â	¬–Ã!Å	ÆÇ#ˆÅ	ÈÇ#ˆÅ	ÉÊ#ˆÂ‡" [boundp shell-mode-map nil full-copy-sparse-keymap comint-mode-map define-key "‰" comint-dynamic-complete "	" "¿" comint-dynamic-list-completions] 4)
+(byte-code "ÀÁ!¬‚Â	¬ºÃÄ!«–Å Ä\"ˆÈÁ\"ˆ)ª„É!ÊËÌ#ˆÊÍÌ#ˆÊÎÏ#ˆ)Â‡" [boundp shell-mode-map nil fboundp set-keymap-parent make-keymap map comint-mode-map set-keymap-name full-copy-sparse-keymap define-key "‰" comint-dynamic-complete "	" "¿" comint-dynamic-list-completions] 4)
 (defvar shell-mode-hook nil "\
 *Hook for customising shell mode")
 (fset 'shell-mode #[nil "À ˆ	ÃÅÇ!ˆÉÊ!ˆË\nÉÌ!ˆÍÎÐÑ!‡" [comint-mode shell-prompt-pattern comint-prompt-regexp shell-mode major-mode "shell" mode-name use-local-map shell-mode-map make-local-variable shell-dirstack nil shell-dirtrackp t shell-directory-tracker comint-input-sentinel run-hooks shell-mode-hook] 2 "\
@@ -100,7 +100,9 @@ new directory stack -- you lose. If this happens, just do the
 command again." nil])
 (fset 'comint-cd #[(d) "ÀÁ\n!!‡" [cd substitute-in-file-name d] 3 "\
 Substitute environment variables before calling cd."])
-(fset 'shell-dirstack-message #[nil "À	\nB«¨@ÆÇÈÉÊ!\"\"«ˆËÌ•ÍOPË˜«‚ÎÏQA)ªUÐ!*‡" ["" default-directory shell-dirstack ds msg dir string-match format "^%s\\(/\\|$\\)" getenv "HOME" "~/" 0 nil "~" " " message] 5])
+(defvar shell-dirstack-message-hook nil "\
+Hook to run after a cd, pushd or popd event")
+(fset 'shell-dirstack-message #[nil "À	\nB«¨@ÆÇÈÉÊ!\"\"«ˆËÌ•ÍOPË˜«‚ÎÏQA)ªUÐÑ!ˆÒ!*‡" ["" default-directory shell-dirstack ds msg dir string-match format "^%s\\(/\\|$\\)" getenv "HOME" "~/" 0 nil "~" " " run-hooks shell-dirstack-message-hook message] 5])
 (defvar shell-load-hook nil "\
 This hook is run when shell is loaded in.
 This is a good place to put keybindings.")

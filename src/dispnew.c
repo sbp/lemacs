@@ -154,9 +154,9 @@ struct screen_glyphs *desired_glyphs;
 /* This is a vector, made larger whenever it isn't large enough,
    which is used inside `update_screen' to hold the old contents
    of the SCREEN_PHYS_LINES of the screen being updated.  */
-struct screen_glyphs **ophys_lines;
+/*struct screen_glyphs **ophys_lines;*/
 /* Length of vector currently allocated.  */
-int ophys_lines_length;
+/*int ophys_lines_length;*/
 
 FILE *termscript;	/* Stdio stream being used for copy of all output.  */
 
@@ -177,8 +177,8 @@ make_screen_glyphs (screen, empty)
      int empty;
 {
   register int i;
-  register width = SCREEN_WIDTH (screen);
-  register height = SCREEN_HEIGHT (screen);
+  register int width = SCREEN_WIDTH (screen);
+  register int height = SCREEN_HEIGHT (screen);
   register struct screen_glyphs *new =
     (struct screen_glyphs *) xmalloc (sizeof (struct screen_glyphs));
 
@@ -191,11 +191,11 @@ make_screen_glyphs (screen, empty)
   new->highlight = (char *) xmalloc (height * sizeof (char));
 #endif
   new->enable = (char *) xmalloc (height * sizeof (char));
-  bzero (new->enable, height * sizeof (char));
+  memset (new->enable, 0, height * sizeof (char));
   new->bufp = (int *) xmalloc (height * sizeof (int));
-  bzero (new->bufp, height * sizeof (int));
+  memset (new->bufp, 0, height * sizeof (int));
   new->nruns = (int *) xmalloc (height * sizeof (int));
-  bzero(new->nruns, height * sizeof (int));
+  memset (new->nruns, 0, height * sizeof (int));
   new->face_list =
     (struct run **) xmalloc (height * sizeof (struct run *));
 
@@ -217,7 +217,7 @@ make_screen_glyphs (screen, empty)
       unsigned int total_glyphs = (width + 2) * sizeof (GLYPH);
 
       new->total_contents = (GLYPH *) xmalloc (total_glyphs);
-      bzero (new->total_contents, total_glyphs);
+      memset (new->total_contents, 0, total_glyphs);
 
       new->faces = 0;
     }
@@ -227,14 +227,14 @@ make_screen_glyphs (screen, empty)
       unsigned int total_glyphs = height * padded_width;
 
       new->total_contents = (GLYPH *) xmalloc (total_glyphs * sizeof (GLYPH));
-      bzero (new->total_contents, total_glyphs * sizeof (GLYPH));
+      memset (new->total_contents, 0, total_glyphs * sizeof (GLYPH));
       for (i = 0; i < height; i++)
 	new->glyphs[i] = new->total_contents + i * padded_width;
 
       new->faces = 
         (struct run *) xmalloc (total_glyphs * sizeof (struct run));
 
-      bzero (new->faces, total_glyphs * sizeof (struct run));
+      memset (new->faces, 0, total_glyphs * sizeof (struct run));
       for (i = 0; i < height; i++)
 	new->face_list[i] = new->faces + i * padded_width;
     }
@@ -248,33 +248,33 @@ free_screen_glyphs (screen, glyphs)
      struct screen_glyphs *glyphs;
 {
   if (glyphs->total_contents)
-    free (glyphs->total_contents);
+    xfree (glyphs->total_contents);
 
-  free (glyphs->used);
-  free (glyphs->glyphs);
+  xfree (glyphs->used);
+  xfree (glyphs->glyphs);
 #if 0
-  free (glyphs->highlight);
+  xfree (glyphs->highlight);
 #endif
-  free (glyphs->enable);
-  free (glyphs->bufp);
-  free (glyphs->nruns);
-  free (glyphs->face_list);
+  xfree (glyphs->enable);
+  xfree (glyphs->bufp);
+  xfree (glyphs->nruns);
+  xfree (glyphs->face_list);
 
   if (glyphs->faces)
-    free ((char *)glyphs->faces);
+    xfree ((char *)glyphs->faces);
 
 #ifdef HAVE_X_WINDOWS
   if (SCREEN_IS_X (screen))
     {
-      free (glyphs->top_left_x);
-      free (glyphs->top_left_y);
-      free (glyphs->pix_width);
-      free (glyphs->pix_height);
-      free (glyphs->max_ascent);
+      xfree (glyphs->top_left_x);
+      xfree (glyphs->top_left_y);
+      xfree (glyphs->pix_width);
+      xfree (glyphs->pix_height);
+      xfree (glyphs->max_ascent);
     }
 #endif
 
-  free (glyphs);
+  xfree (glyphs);
 }
 
 static void
@@ -305,6 +305,29 @@ remake_screen_glyphs (screen)
   SCREEN_DESIRED_GLYPHS (screen) = make_screen_glyphs (screen, 0);
   SCREEN_TEMP_GLYPHS (screen) = make_screen_glyphs (screen, 1);
   SET_SCREEN_GARBAGED (screen);
+}
+
+
+void
+free_screen_display_glyphs (screen)	/* called from Fdelete_screen() */
+     SCREEN_PTR screen;
+{
+  if (SCREEN_CURRENT_GLYPHS (screen))
+    free_screen_glyphs (screen, SCREEN_CURRENT_GLYPHS (screen));
+  if (SCREEN_DESIRED_GLYPHS (screen))
+    free_screen_glyphs (screen, SCREEN_DESIRED_GLYPHS (screen));
+  if (SCREEN_TEMP_GLYPHS (screen))
+    free_screen_glyphs (screen, SCREEN_TEMP_GLYPHS (screen));
+
+  if (echo_area_glyphs == SCREEN_MESSAGE_BUF (screen))
+    echo_area_glyphs = 0;
+  if (SCREEN_MESSAGE_BUF (screen))
+    xfree (SCREEN_MESSAGE_BUF (screen));
+
+  SCREEN_CURRENT_GLYPHS (screen) = 0;
+  SCREEN_DESIRED_GLYPHS (screen) = 0;
+  SCREEN_TEMP_GLYPHS (screen) = 0;
+  SCREEN_MESSAGE_BUF (screen) = 0;
 }
 
 /* Return the hash code of display_line p.  */
@@ -416,7 +439,7 @@ void
 clear_screen_records (screen)
      register SCREEN_PTR screen;
 {
-  bzero (SCREEN_CURRENT_GLYPHS (screen)->enable, SCREEN_HEIGHT (screen));
+  memset (SCREEN_CURRENT_GLYPHS (screen)->enable, 0, SCREEN_HEIGHT (screen));
 }
 
 /* Prepare to display on line VPOS starting at HPOS within it.
@@ -551,7 +574,7 @@ safe_bcopy (from, to, size)
       return;
     }
 
-  bcopy (from, to, size);
+  memcpy (to, from, size);
 }
 
 /* Rotate a vector of SIZE bytes, by DISTANCE bytes.
@@ -568,9 +591,9 @@ rotate_vector (vector, size, distance)
   if (distance < 0)
     distance += size;
 
-  bcopy (vector, temp + distance, size - distance);
-  bcopy (vector + size - distance, temp, distance);
-  bcopy (temp, vector, size);
+  memcpy (temp + distance, vector, size - distance);
+  memcpy (temp, vector + size - distance, distance);
+  memcpy (vector, temp, size);
 }
 
 void update_begin ();
@@ -618,7 +641,7 @@ scroll_screen_lines (screen, from, end, amount)
 		  current_screen->enable + from + amount,
 		  (end - from) * sizeof current_screen->enable[0]);
 
-      bzero (current_screen->enable + from,
+      memset (current_screen->enable + from, 0,
 	     amount * sizeof current_screen->enable[0]);
 
       safe_bcopy ((char*)(current_screen->bufp + from),
@@ -691,7 +714,7 @@ scroll_screen_lines (screen, from, end, amount)
 		  current_screen->enable + from + amount,
 		  (end - from) * sizeof current_screen->enable[0]);
 
-      bzero (current_screen->enable + end + amount,
+      memset (current_screen->enable + end + amount, 0,
 	     - amount * sizeof current_screen->enable[0]);
 
       safe_bcopy ((char*)(current_screen->bufp + from),
@@ -765,8 +788,9 @@ preserve_other_columns (w)
 	    {
 	      int len;
 
-	      bcopy (current_screen->glyphs[vpos],
-		     desired_screen->glyphs[vpos], start);
+	      memcpy (desired_screen->glyphs[vpos],
+		      current_screen->glyphs[vpos],
+		      start);
 	      len = min (start, current_screen->used[vpos]);
 	      if (desired_screen->used[vpos] < len)
 		desired_screen->used[vpos] = len;
@@ -777,9 +801,9 @@ preserve_other_columns (w)
 	      while (desired_screen->used[vpos] < end)
 		desired_screen->glyphs[vpos][desired_screen->used[vpos]++]
 		  = SPACEGLYPH;
-	      bcopy (current_screen->glyphs + end,
-		     desired_screen->glyphs + end,
-		     current_screen->used[vpos] - end);
+	      memcpy (desired_screen->glyphs + end,
+		      current_screen->glyphs + end,
+		      current_screen->used[vpos] - end);
 	      desired_screen->used[vpos] = current_screen->used[vpos];
 	    }
 	}
@@ -819,7 +843,6 @@ cancel_my_columns (w)
 }
 
 
-int fflush ();
 void write_glyphs ();
 
 /* These functions try to perform directly and immediately on the screen
@@ -905,7 +928,7 @@ direct_output_for_insert (g)
 
 	  font = current_screen->face_list[vpos][last_run].faceptr->font;
 	  if (!font)
-	    font = screen->display.x->font;
+	    font = SCREEN_NORMAL_FACE (screen).font;
 	  width = X_CHAR_WIDTH (font, g);
 	  current_screen->face_list[vpos][last_run].pix_length += width;
 	  current_screen->pix_width[vpos] += width;
@@ -1355,6 +1378,11 @@ update_line (screen, vpos)
 }
 
 #ifdef HAVE_X_WINDOWS
+
+extern void x_clear_display_line (int, int);
+extern int x_write_glyphs (struct screen *, int, int, int, GC, int);
+extern void x_clear_display_line_end (int);
+
 static void
 x_update_line (screen, vpos, pix_y)
      register SCREEN_PTR screen;
@@ -1552,7 +1580,7 @@ update_screen (s, force, inhibit_hairy_id)
   input_pending = detect_input_pending ();
   if (input_pending && !force)
     {
-      bzero (desired_screen->enable, SCREEN_HEIGHT (s));
+      memset (desired_screen->enable, 0, SCREEN_HEIGHT (s));
       pause = 1;
       goto do_pause;
     }
@@ -1644,7 +1672,7 @@ update_screen (s, force, inhibit_hairy_id)
 				     0));
     }
 
-  bzero (desired_screen->enable, SCREEN_HEIGHT (s));
+  memset (desired_screen->enable, 0, SCREEN_HEIGHT (s));
   update_end (s);
 
   if (termscript)
@@ -1741,8 +1769,6 @@ scrolling (screen)
 }
 
 #ifdef HAVE_X_WINDOWS
-
-extern void abort ();
 
 int
 pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
@@ -1869,7 +1895,7 @@ pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
 	  int c_width;
 	  this_font = current_screen->face_list[line][run].faceptr->font;
 	  if (!this_font)
-	    this_font = s->display.x->font;
+	    this_font = SCREEN_NORMAL_FACE (s).font;
 	  c = current_screen->glyphs[line][g];
 	  c_width = X_CHAR_WIDTH (this_font, c == TABGLYPH ? ' ' : c);
 	  this_pix += c_width;
@@ -1883,8 +1909,8 @@ pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
 	      (!NILP (ctl_arrow) &&	/* 8-bit display */
 	       !EQ (ctl_arrow, Qt) &&
 	       (FIXNUMP (ctl_arrow)
-		? c >= 0240
-		: c >= XINT (ctl_arrow))))
+		? c >= XINT (ctl_arrow)
+		: c >= 0240)))
 	    {
 	    }
 	  else if (c == '\t')	/* Tab character. */
@@ -1961,7 +1987,7 @@ pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
 	      this_font
 		= current_screen->face_list[line][run].faceptr->font;
 	      if (!this_font)
-		this_font = s->display.x->font;
+		this_font = SCREEN_NORMAL_FACE (s).font;
 	    }
 	  
 	  switch (current_screen->face_list[line][run].type)
@@ -1972,7 +1998,7 @@ pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
 	  int c_width;
 	  this_font = current_screen->face_list[line][run].faceptr->font;
 	  if (!this_font)
-	    this_font = s->display.x->font;
+	    this_font = SCREEN_NORMAL_FACE (s).font;
 	  c = current_screen->glyphs[line][g];
 	  c_width = X_CHAR_WIDTH (this_font, c == TABGLYPH ? ' ' : c);
 	  this_pix += c_width;
@@ -2077,7 +2103,9 @@ FILE = nil means just close any termscript file currently open.")
 
 #ifdef SIGWINCH
 extern int interrupt_input;
-int fclose ();
+
+extern void request_sigio (void);
+extern void unrequest_sigio (void);
 
 void
 window_change_signal ()
@@ -2123,6 +2151,8 @@ window_change_signal ()
 
 /* Change the screen height and/or width.  Values may be given as zero to
    indicate no change is to take place. */
+
+extern void calculate_costs (SCREEN_PTR);
 
 void
 change_screen_size (screen, newlength, newwidth, pretend)
@@ -2237,7 +2267,9 @@ bitch_at_user (sound)
 }
 
 
-/* Lucid fix (so that .emacs can be loaded after screen is created) */
+extern void initialize_first_screen (void);
+
+/* so that .emacs can be loaded after screen is created */
 DEFUN ("initialize-first-screen", Finitialize_first_screen,
        Sinitialize_first_screen,
   0, 0, 0, "Make redisplay work on the first screen (do this early.)")
@@ -2256,6 +2288,9 @@ char *terminal_type;
    Then invoke its decoding routine to set up variables
    in the terminal package */
 
+extern int initial_screen_is_tty (void);
+extern void term_init (char *);
+
 void
 init_display ()
 {
@@ -2267,11 +2302,7 @@ init_display ()
   /* Look at the TERM variable */
   terminal_type = (char *) getenv ("TERM");
 
-  if (!terminal_type
-#ifdef HAVE_X_WINDOWS
-      && (inhibit_window_system || !egetenv ("DISPLAY"))
-#endif
-      )
+  if (!terminal_type && initial_screen_is_tty())
     {
 #ifdef VMS
       fprintf (stderr, "Please specify your terminal type.\n\
@@ -2317,7 +2348,7 @@ For types not defined in VMS, use  define emacs_term \"TYPE\".\n\
 #endif
 
 #ifdef HAVE_X_WINDOWS
-  if (inhibit_window_system || !egetenv ("DISPLAY"))
+  if (initial_screen_is_tty ())
 #endif
     remake_screen_glyphs (selected_screen);
 
@@ -2326,7 +2357,7 @@ For types not defined in VMS, use  define emacs_term \"TYPE\".\n\
   SCREEN_CURSOR_Y (selected_screen) = 0;
 
 #ifdef HAVE_X_WINDOWS
-  if (!inhibit_window_system && egetenv ("DISPLAY"))
+  if (!initial_screen_is_tty ())
     {
       Vwindow_system = intern ("x");
       Vwindow_system_version = make_number (11);
@@ -2344,6 +2375,7 @@ For types not defined in VMS, use  define emacs_term \"TYPE\".\n\
 #endif /* SIGWINCH */
 }
 
+void
 syms_of_display ()
 {
   defsubr (&Sopen_termscript);

@@ -59,7 +59,8 @@
   "Name of user's primary mail file.")
 
 (defconst rmail-spool-directory
-  (if (memq system-type '(hpux usg-unix-v unisoft-unix rtu irix))
+  (if (memq system-type '(dgux-unix hpux usg-unix-v unisoft-unix rtu irix
+			  silicon-graphics-unix))
       "/usr/mail/"
     "/usr/spool/mail/")
   "Name of directory used by system mailer for delivering new mail.
@@ -76,7 +77,7 @@ Its name should end with a slash.")
 You may set this variable to nil in your `.emacs' file if you do not wish
 the terminal-initialization file to be loaded.")
 
-(defconst manual-program (if (eq system-type 'berkeley-unix)
+(defconst manual-program (if (memq system-type '(berkeley-unix next-mach))
 			     "/usr/ucb/man" "/usr/bin/man")
   "Program to run to print man pages.")
 
@@ -141,3 +142,18 @@ Append a section-number or section-name to get a directory name.")
       "~/abbrev.def"
     "~/.abbrev_defs")
   "*Default name of file to read abbrevs from.")
+
+(defconst directory-abbrev-alist
+  '(;;
+    ;; This matches the default Sun automounter temporary mount points.  These
+    ;; temporary mount points may go away, so it's important that we only try
+    ;; to read files under the "advertised" mount point, rather than the
+    ;; temporary one, or it will look like files have been deleted on us.
+    ;; Whoever came up with this design is clearly a moron of the first order,
+    ;; but now we're stuck with it, no doubt until the end of time.
+    ;;
+    ;; For best results, automounter junk should go near the front of this
+    ;; list, and other user translations should come after it.
+    ;;
+    ("\\`/tmp_mnt/net/" . "/net/")
+    ))

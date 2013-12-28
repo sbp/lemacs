@@ -1,55 +1,13 @@
 ;;; -*- Mode:Emacs-Lisp -*-
+;;; Copyright © 1991-1993 by Lucid, Inc.  All Rights Reserved.
 
 (require 'gdb)
+(require 'compile)
+(or (and (fboundp 'ask-user-about-lock)
+	 (not (eq 'autoload
+		  (car-safe (symbol-function 'ask-user-about-lock)))))
+    (load-library "userlock"))
 
-(defun energize-advise-function (fun)
-  "Replace FUN's function definition with energize-FUN's, saving the
-original definition as energize-orig-FUN (which energize-FUN may call.)
-The documentation string of energize-orig-FUN is prepended to the 
-documentation string of energize-FUN with an intervening newline."
-  (let* ((name (symbol-name fun))
-	 (saved (intern (concat "energize-orig-" name)))
-	 (new (intern (concat "energize-" name)))
-	 (exec-directory (if (or (equal (nth 3 command-line-args) "dump")
-				 (equal (nth 4 command-line-args) "dump"))
-			     "../etc/"
-			   exec-directory)))
-
-    ;; don't lose on autoloads
-    (if (and (consp (symbol-function fun))
-	     (eq 'autoload (car (symbol-function fun))))
-	(let ((lib (car (cdr (symbol-function fun)))))
-	  (load-library lib)
-	  (if (and (consp (symbol-function fun))
-		   (eq 'autoload (car (symbol-function fun))))
-	      (error "autoloading %s failed to define %s" lib fun))))
-    
-    (or (fboundp saved)
-	(fset saved (symbol-function fun)))
-    (let* ((nfun (symbol-function new))
-	   (ndoc (documentation new))
-	   (doc-str (documentation saved))
-	   (ndoc-str
-	    (concat doc-str (and doc-str (not (equal "" doc-str)) "\n")
-	     (or ndoc
-		 "This function has been augumented for Energize."))))
-      (if (listp nfun)
-	  ;; it's a lambda.
-	  (let ((ndoc-cdr (cdr (cdr (setq nfun (copy-sequence nfun))))))
-	    (if (stringp (car ndoc-cdr))
-		(setcar ndoc-cdr ndoc-str)
-	      (setcdr (cdr nfun) (cons ndoc-str (cdr (cdr nfun)))))
-	    (fset new nfun))
-	;; it's an emacs19 compile-code object
-	(let ((new-code (append nfun nil))) ; turn it into a list
-	  (if (nthcdr 4 new-code)
-	      (setcar (nthcdr 4 new-code) ndoc-str)
-	    (setcdr (nthcdr 3 new-code) (cons ndoc-str nil)))
-	  (fset new (apply 'make-byte-code new-code))))
-      (fset fun new))))
-
-
-
 ;;; Energize advised functions
 
 (defun energize-next-error (&optional arg)
@@ -82,16 +40,21 @@ use the original definition of previous-error."
 
 
 (defun energize-find-file-noselect (filename &optional nowarn)
-  "When connected to energize, if the visited file is one that Energize knows
-about, it will be correctly annotated."
+  "When connected to Energize, if the visited file is one that
+Energize knows about, it will be correctly annotated."
   (if (and (connected-to-energize-p)
 	   (not (file-directory-p filename))
 	   (energize-query-buffer filename t))
+      ;; after-find-file and abbreviate-file-name are called from
+      ;; energize-buffer-creation-hook-function, which is run from
+      ;; editorside.c (way down under energize-query-buffer).
+      ;; This is a mess...
       (energize-query-buffer filename)
     (energize-orig-find-file-noselect filename nowarn)))
 
 
 (defun energize-ask-user-about-lock (fn opponent)
+  "Energize buffers do this by asking the server."
   (if (energize-buffer-p (current-buffer))
       t
     (energize-orig-ask-user-about-lock fn opponent)))
@@ -100,14 +63,18 @@ about, it will be correctly annotated."
   (if (= 0 (energize-bits 1024))
       (energize-announce (get 'energize 'energize))))
 
+;; true if current-buffer is an energize buffer that does not support
+;; the real write-file and so has to do the special energize way of doing
+;; write-file that loses the annotations.
 (defun energize-write-file-buffer-p ()
-  (and (energize-buffer-p (current-buffer))
-       (not (eq major-mode 'energize-project-mode))))
+;;  (and (energize-buffer-p (current-buffer)
+;;       (not (eq major-mode 'energize-project-mode)))
+  (energize-buffer-p (current-buffer)))
 
 (defun energize-write-file (filename)
-  "When executed on an Energize buffer, this will cause all annotations
-to be lost (that is, the buffer will become a normal buffer, not one that
-the Energize server knows about.)"
+  "When executed on an Energize buffer, this will cause all 
+annotations to be lost (that is, the buffer will become a normal
+buffer, not one that the Energize server knows about.)"
   (interactive
    (list (let ((prompt (if (energize-write-file-buffer-p)
 			   "Write Energize buffer to file: "
@@ -135,14 +102,35 @@ the Energize server knows about.)"
 
 
 (defun energize-gdb-break (arg)
-  "If the current buffer is a Energize buffer, then this works by talking to
-the server.
-#### You can't set a temporary breakpoint in this way with Energize."
+  "If the current buffer is a Energize buffer, then this works by talking 
+to the server."
   (interactive "P")
   (if (not (energize-buffer-p (current-buffer)))
       (energize-orig-gdb-break arg)
     (energize-execute-command "setbreakpoint")))
 
+(defun energize-gdb-step (arg)
+  "If the current buffer is a Energize buffer, then this works by talking to
+the server."
+  (interactive "p")
+  (if (not (energize-buffer-p (current-buffer)))
+      (energize-orig-gdb-step arg)
+    (while (> arg 0)
+      (energize-execute-command "steponce")
+      (setq arg (1- arg)))))
+
+(defun energize-gdb-stepi (arg)
+  "If the current buffer is a Energize buffer, then this works by talking to
+the server."
+  (interactive "p")
+  (if (not (energize-buffer-p (current-buffer)))
+      (energize-orig-gdb-step arg)
+    ;; there's no energize command for this, so do it this way...
+    (save-excursion
+      (set-buffer "*Debugger*")
+      (goto-char (point-max))
+      (insert (format "stepi %d" arg))
+      (comint-send-input))))
 
 (defun energize-beginning-of-defun (&optional arg)
   "Move point to the beginning of the current top-level form.
@@ -190,18 +178,14 @@ With a numeric argument, move forward over that many forms."
            (current-buffer) (point) (point) nil t))
         (setq arg (1- arg))))))
 
-;;; install the advice...
+(defun energize-normal-mode (&optional find-file)
+"If this is an Energize buffer, then the Energize modes are turned on as well."
+  (interactive)
+  (energize-orig-normal-mode find-file)
+  (if (and (energize-buffer-p (current-buffer))
+	   (not inside-energize-buffer-creation-hook-function))
+      (funcall energize-create-buffer-hook (current-buffer))))
 
-(energize-advise-function 'set-visited-file-name)
-(energize-advise-function 'ask-user-about-lock)
-(energize-advise-function 'next-error)
-(energize-advise-function 'previous-error)
-(energize-advise-function 'gdb-break)
-(energize-advise-function 'find-file-noselect)
-(energize-advise-function 'write-file)
-;; bad news to change the behavior of these in any way...
-;;(energize-advise-function 'end-of-defun)
-;;(energize-advise-function 'beginning-of-defun)
 
 
 ;;; Patching Energize into file I/O via the standard hooks.
@@ -309,40 +293,40 @@ With a numeric argument, move forward over that many forms."
   t)
 
 
-
-;;; An importing version of find-file.
-
-(fset 'find-file-in-energize 'energize-find-file)
-(defun energize-find-file (name)
-  "When connected to energize, energize will know about this file."
-  (interactive (list (read-file-name 
-		      (if (connected-to-energize-p)
-			  "Energize find file: "
-			"Find file: "))))
-  (if (and (connected-to-energize-p)
-	   (not (file-directory-p name))
-	   (or (energize-query-buffer name t)
-	       (y-or-n-p (format "Import \"%s\" into energize? " name))))
-      (let ((buffer (energize-query-buffer name))) ; create if necessary
-	(or (bufferp buffer) (error "couldn't import %s" name))
-	;; change name, as energize might have trunamed it.
-	(setq name (or (buffer-file-name buffer) (error "no name?")))
-	;; if it was in a buffer already, give it the energize keybindings.
-	(save-excursion
-	  (set-buffer buffer)
-	  (if (not energize-source-mode)
-	      (energize-source-minor-mode)))
-	))
-  ;; find-file will switch to the buffer if we created it above.
-  (find-file name))
+; 
+; ;;; An importing version of find-file.
+; 
+; (fset 'find-file-in-energize 'energize-find-file)
+; (defun energize-find-file (name)
+;   "When connected to energize, energize will know about this file."
+;   (interactive (list (read-file-name 
+; 		      (if (connected-to-energize-p)
+; 			  "Energize find file: "
+; 			"Find file: "))))
+;   (if (and (connected-to-energize-p)
+; 	   (not (file-directory-p name))
+; 	   (or (energize-query-buffer name t)
+; 	       (y-or-n-p (format "Import \"%s\" into Energize? " name))))
+;       (let ((buffer (energize-query-buffer name))) ; create if necessary
+; 	(or (bufferp buffer) (error "couldn't import %s" name))
+; 	;; change name, as energize might have trunamed it.
+; 	(setq name (or (buffer-file-name buffer) (error "no name?")))
+; 	;; if it was in a buffer already, give it the energize keybindings.
+; 	(save-excursion
+; 	  (set-buffer buffer)
+; 	  (if (not energize-source-mode)
+; 	      (energize-source-minor-mode)))
+; 	))
+;   ;; find-file will switch to the buffer if we created it above.
+;   (find-file name))
 
 
 ;;; 
 
 ;;; This prompts in the minibuffer, ##### with no completion.
 (defun energize-edit-definition (def)
-  "If the current buffer is a Energize buffer, prompts for a name with a 
-dialog box and edits its definition.  Otherwise, invokes `find-tag'."
+  "If the current buffer is a Energize buffer, the Energize database is used.
+Otherwise, invokes `find-tag'."
   (interactive
    (progn
      (or (and (fboundp 'find-tag-tag) (fboundp 'find-tag-default))
@@ -379,42 +363,73 @@ dialog box and edits its definition.  Otherwise, invokes `find-tag'."
 
 
 ;;; Functions to add commands to the project buffers
-(defun energize-insert-slots (l)
+(defun energize-insert-slots (got-to-top-p l)
   (if (not (eq major-mode 'energize-project-mode))
       (error "Command available only in project buffers"))
-  (beginning-of-line)
+  ;; move to a suitable place
+  (if got-to-top-p
+      (beginning-of-buffer)
+    (beginning-of-line))
+  ;; go before "Associated Projects" and "Related Files"
+  (if (or (search-backward "Related Projects:" () t)
+	  (search-backward "Associated Files:" () t)
+	  (looking-at "Related Projects:")
+	  (looking-at "Associated Files:"))
+      (previous-line 2))
+  ;; find empty space
   (while (and (not (looking-at "$"))
 	      (not (eq (point) (point-max))))
     (next-line 1))
-  (let ((pad 20) i)
-    (newline)
-    (save-excursion
-      (mapcar '(lambda (i)
-		 (insert-char 32 (- pad (length i)))
-		 (insert i)
-		 (insert 32)
-		 (newline))
-	      l))
-    (end-of-line)))
+  (newline)
+  (save-excursion
+    (mapcar '(lambda (i) (insert i) (newline)) l))
+  ;; this is magic
+  (forward-char 18))
+
+(defun energize-insert-rule ()
+  (interactive)
+  (energize-insert-slots
+   t
+   '("           Rules:"
+     "          <rule>: lcc -Xez -c -g -Xa -o $object $source")))
 
 (defun energize-insert-file-target ()
   (interactive)
-  (energize-insert-slots '("Object File:"
-			   "Build Options: incremental compile"
-			   "Compiler Switches:"
-			   "Using:")))
+  (energize-insert-slots
+   ()
+   '("     Object File: <object-file>"
+     "          Source: <source-file>"
+     "      Build Rule: <rule>")))
 
 (defun energize-insert-executable-target ()
   (interactive)
-  (energize-insert-slots '("Executable:" "Build Options:" "Using:")))
+  (energize-insert-slots
+   ()
+   '("      Executable: <executable>"
+     "   Build Command: lcc -Xf -Xez -o $object <object-file> ...")))
 
 (defun energize-insert-library-target ()
   (interactive)
-  (energize-insert-slots '("Library:" "Build Options:" "Using:")))
+  (energize-insert-slots
+   ()
+   '("         Library: <library>"
+     "   Build Command: energize_ar -Xez -remove -ranlib clq $object \\"
+     "                    <object-file> ...")))
 
 (defun energize-insert-collection-target ()
   (interactive)
-  (energize-insert-slots '("Collection:" "Build Options:" "Using:")))
+  (energize-insert-slots
+   ()
+   '("      Collection: <collection>"
+     "   Build Command: energize_collect -Xez -o $object <object-file> ...")))
+
+(defun energize-insert-target-target ()
+  (interactive)
+  (energize-insert-slots
+   ()
+   '("          Target: <target>"
+     "    Dependencies: <target> ..."
+     "   Build Command: <shell-command>")))
 
 
 
@@ -422,11 +437,14 @@ dialog box and edits its definition.  Otherwise, invokes `find-tag'."
 
 (defvar energize-map nil "*Parent keymap for all Energize buffers")
 (defvar energize-top-level-map nil "*Keymap for the Energize top-level buffer")
-(defvar energize-user-input-map nil "*Parent keymap for Energize input buffers")
+(defvar energize-user-input-map nil
+  "*Parent keymap for Energize input buffers")
 (defvar energize-debugger-map nil "*Keymap for Energize debugger buffers")
 (defvar energize-breakpoint-map nil "*Keymap for Energize breakpoint-lists")
 (defvar energize-browser-map nil "*Keymap for Energize browser buffers")
 (defvar energize-project-map nil "*Keymap for Energize project buffers")
+(defvar energize-no-file-project-map nil
+  "*Keymap for Energize project buffers not associated with a file")
 (defvar energize-source-map nil "*Keymap for Energize source buffers")
 
 (defvar energize-mode-hook nil
@@ -435,6 +453,8 @@ dialog box and edits its definition.  Otherwise, invokes `find-tag'."
   "Hook called when the energize top-level buffer is created.")
 (defvar energize-project-mode-hook nil
   "Hook called when a energize project buffer is created.")
+(defvar energize-no-file-project-mode-hook nil
+  "Hook called when a energize project buffer with no file is created.")
 (defvar energize-breakpoint-mode-hook nil
   "Hook called when a energize breakpoint-list buffer is created.")
 (defvar energize-browser-mode-hook nil
@@ -451,11 +471,9 @@ dialog box and edits its definition.  Otherwise, invokes `find-tag'."
   (define-key energize-map "\^C\^B\^L"	'energize-browse-language-elt)
   (define-key energize-map "\^C\^B\^T"	'energize-browse-tree)
   (define-key energize-map "\^C\^B\^C"	'energize-browse-class)
-  (define-key energize-map "\^C\^B\^S"	'energize-browse-toolstat)
-  ;; maybe these should be in source-mode only
-  (define-key energize-map "\M-C" 'energize-build) ; M-Sh-C
-  (define-key energize-map "\M-B" 'energize-build-and-debug) ; M-Sh-B
-  (define-key energize-map "\M-E" 'energize-check-for-errors) ; M-Sh-E
+;;  (define-key energize-map "\^C\^B\^S"	'energize-browse-toolstat)
+  (define-key energize-map "\M-B" 'energize-build-a-target) ; M-Sh-B
+  (define-key energize-map "\M-C" 'energize-default-compile-file) ; M-Sh-C
   (define-key energize-map 'button3 'energize-popup-menu)
   )
 
@@ -476,15 +494,9 @@ dialog box and edits its definition.  Otherwise, invokes `find-tag'."
 
   (define-key energize-top-level-map "Q" 'disconnect-from-energize-query)
 
-  (define-key energize-top-level-map "b" 'energize-top-build-and-debug)
-  (define-key energize-top-level-map "B" 'energize-top-build)
   (define-key energize-top-level-map "d" 'energize-top-debug)
   (define-key energize-top-level-map "\^D" 'energize-top-delete-project)
   (define-key energize-top-level-map "e" 'energize-top-edit-project)
-  (define-key energize-top-level-map "i" 'energize-top-import-file)
-  (define-key energize-top-level-map "\^C\^I" 'energize-top-import-file)
-  (define-key energize-top-level-map "r" 'energize-top-rename-project)
-  (define-key energize-top-level-map "q" 'energize-top-quit-debugger)
   )
 
 (if energize-project-map
@@ -492,9 +504,9 @@ dialog box and edits its definition.  Otherwise, invokes `find-tag'."
   (setq energize-project-map (make-sparse-keymap))
   (set-keymap-parent energize-project-map energize-map)
   ;;(suppress-keymap energize-project-map)
-  (define-key energize-project-map "\t" 'energize-project-next-field)
-  (define-key energize-project-map '(shift tab) 'energize-project-prev-field)
-  (define-key energize-project-map '(control I) 'energize-project-prev-field)
+  ;;(define-key energize-project-map "\t" 'energize-project-next-field)
+  ;;(define-key energize-project-map '(shift tab) 'energize-project-prev-field)
+  ;;(define-key energize-project-map '(control I) 'energize-project-prev-field)
 
   (define-key energize-project-map "\^C\^I" 'energize-import-file)
   (define-key energize-project-map "\^C\^E" 'energize-project-edit-file)
@@ -504,6 +516,12 @@ dialog box and edits its definition.  Otherwise, invokes `find-tag'."
 ;  (define-key energize-project-map "\^C\^V\^L" 'energize-project-view-long)
   (define-key energize-project-map "\^C\^V\^C" 'energize-project-view-options)
   )
+
+
+(if energize-no-file-project-map
+    nil
+  (setq energize-no-file-project-map (make-sparse-keymap))
+  (set-keymap-parent energize-no-file-project-map energize-map))
 
 (if energize-breakpoint-map
     nil
@@ -548,8 +566,9 @@ Automatically updated by the kernel when the state changes")
 (defun energize-mode-internal ()
   ;; initialize stuff common to all energize buffers (hooks, etc).
   (make-local-variable 'write-file-hooks)
-  (setq write-file-hooks
-	(append write-file-hooks (list 'energize-write-file-hook)))
+  (if (consp write-file-hooks)
+      (setq write-file-hooks (copy-sequence write-file-hooks)))
+  (add-hook 'write-file-hooks 'energize-write-file-hook t)
   ;;
   (make-local-variable 'revert-buffer-insert-file-contents-function)
   (setq revert-buffer-insert-file-contents-function
@@ -574,7 +593,7 @@ Automatically updated by the kernel when the state changes")
 ;       "This buffer is associated with a file, it can't be placed in %s mode"
 ;       mode-name))
   ;; hack so that save-file doesn't prompt for a filename.
-  (setq buffer-file-name mode-name)
+  (setq buffer-file-name (buffer-name))
   (set (make-local-variable 'version-control) 'never)
   nil)
 
@@ -588,6 +607,9 @@ In addition to normal cursor-motion commands, the following keys are bound:
   (setq major-mode 'energize-top-level-mode
 	mode-name "Energize")
   (energize-non-file-mode-internal)
+  ;; the default of "energize: Energize" is not very attractive.
+  (if (equal screen-title-format "%S: %b")
+      (set (make-local-variable 'screen-title-format) "%S: Top-Level"))
   (run-hooks 'energize-top-level-mode-hook))
 
 
@@ -604,6 +626,18 @@ In addition to the normal editing commands, the following keys are bound:
   (if (< (cdr (energize-protocol-level)) 8)
       (energize-non-file-mode-internal))
   (run-hooks 'energize-project-mode-hook))
+
+(defun energize-no-file-project-mode ()
+  "Major mode for the Energize Project buffers not associated with a file.
+In addition to the normal editing commands, the following keys are bound:
+\\{energize-no-file-project-map}"
+  (interactive)
+  (energize-mode-internal)
+  (use-local-map energize-no-file-project-map)
+  (setq major-mode 'energize-no-file-project-mode
+	mode-name "NoFileProject")
+  (energize-non-file-mode-internal)
+  (run-hooks 'energize-no-file-project-mode-hook))
 
 (defun energize-breakpoint-mode ()
   "Major mode for the Energize Breakpoint-list buffers.
@@ -629,6 +663,18 @@ In addition to the normal editing commands, the following keys are bound:
   (energize-non-file-mode-internal)
   (run-hooks 'energize-browser-mode-hook))
 
+(defun energize-log-mode ()
+  "Major mode for the Energize Error Log and System Log buffers.
+In addition to the normal editing commands, the following keys are bound:
+\\{energize-map}"
+  (interactive)
+  (energize-mode-internal)
+  (use-local-map energize-map)
+  (setq major-mode 'energize-log-mode
+	mode-name "Energize-Log")
+  (energize-non-file-mode-internal)
+  (run-hooks 'energize-log-mode-hook))
+
 (defvar energize-source-mode nil)
 ;;(put 'energize-source-mode 'permanent-local t) ; persists beyond mode-change
 
@@ -652,11 +698,13 @@ In addition to the normal editing commands, the following keys are bound:
       (append find-file-hooks '(maybe-turn-on-energize-minor-mode)))
 
 (defun maybe-turn-on-energize-minor-mode ()
-  (if (energize-buffer-p (current-buffer))
+  (if (and (energize-buffer-p (current-buffer))
+	   (eq (energize-buffer-type (current-buffer))
+	       'energize-source-buffer))
       (energize-source-minor-mode))
   ;; if evi mode is loaded and in use, put the new buffer in evi mode.
   (if (and (boundp 'evi-install-undo-list) evi-install-undo-list)
-      (evi-mode))
+      (energize-evi-mode))
   )
 
 (defun energize-source-minor-mode ()
@@ -703,22 +751,6 @@ turn it off."
   (recenter 1))
 
 (define-key global-map "\M-\C-r" 'recenter-definition)
-
-;; #### This function should be unnecessary: the kernel code for
-;; "buildanddebug" should do "incrementalbuild" if "buildanddebug" isn't 
-;; an option.
-(defun energize-build-and-debug-dwim (p)
-  "If the ``Build and Debug'' menu option is available, execute that.
-Otherwise, execute the ``Build Target'' option.  With a prefix argument,
-always use ``Build Target''."
-  (interactive "P")
-  (or (and (not p)
-	   (condition-case nil
-	       (progn
-		 (energize-execute-command "buildanddebug")
-		 t)
-	     (error nil)))
-      (energize-execute-command "incrementalbuild")))
 
 ;;; Dired-like commands
 
@@ -781,16 +813,6 @@ always use ``Build Target''."
 			command "' Energize command.")))))
     (energize-execute-command command e)))
 
-(defun energize-top-build-and-debug ()
-  "Execute the `Build and Debug' command on the project at or following point."
-  (interactive)
-  (energize-top-execute-command "buildanddebug"))
-
-(defun energize-top-build ()
-  "Execute the `Build' command on the project at or following point."
-  (interactive)
-  (energize-top-execute-command "buildprogram"))
-
 (defun energize-top-debug ()
   "Execute the `Debug' command on the project at or following point."
   (interactive)
@@ -805,22 +827,6 @@ always use ``Build Target''."
   "Edit the project at or following point."
   (interactive)
   (energize-top-execute-command "editproject"))
-
-(defun energize-top-import-file ()
-  "Import a file into the project at or following point."
-  (interactive)
-  (energize-top-execute-command "import"))
-
-(defun energize-top-rename-project ()
-  "Rename the project at or following point."
-  (interactive)
-  (energize-top-execute-command "renameproject"))
-
-(defun energize-top-quit-debugger ()
-  "Execute the `QuitDebugger' command on the project at or following point."
-  (interactive)
-  (energize-top-execute-command "quitdebugger"))
-
 
 ;;; commands in the project buffer
 

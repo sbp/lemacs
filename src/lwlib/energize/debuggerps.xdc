@@ -13,6 +13,7 @@
 #include <Xm/Xm.h>
 #include <Xm/DialogS.h>
 #include <Xm/Frame.h>
+#include <Xm/Label.h>
 #include <Xm/PushB.h>
 #include <Xm/RowColumn.h>
 
@@ -23,7 +24,7 @@ create_widget0( parent )
 Widget parent;
 {
 	Display *display = XtDisplay ( parent );
-	Widget children[11];      /* Children to manage */
+	Widget children[14];      /* Children to manage */
 	Arg al[64];           /* Arg List */
 	register int ac = 0;      /* Arg Count */
 	char from_s [256];    /* For font list conversion */
@@ -36,7 +37,8 @@ Widget parent;
 	Widget widget0;
 	Widget widget1;
 	Widget widget2;
-	Widget widget3;
+	Widget widget17;
+	Widget widget18;
 	Widget widget4;
 	Widget widget5;
 	Widget widget6;
@@ -47,6 +49,8 @@ Widget parent;
 	Widget widget11;
 	Widget widget12;
 	Widget widget13;
+	Widget widget14;
+	Widget widget15;
 
 	XtSetArg(al[ac], XmNallowShellResize, TRUE); ac++;
 	widget0 = XmCreateDialogShell ( parent, "widget0", al, ac );
@@ -60,7 +64,8 @@ Widget parent;
 	XtSetArg(al[ac], XmNorientation, XmHORIZONTAL); ac++;
 	widget2 = XmCreateRowColumn ( widget1, "panel", al, ac );
 	ac = 0;
-	widget3 = XmCreatePushButton ( widget2, "start", al, ac );
+	widget17 = XmCreateLabel ( widget2, "target", al, ac );
+	widget18 = XmCreatePushButton ( widget2, "start", al, ac );
 	widget4 = XmCreatePushButton ( widget2, "run", al, ac );
 	widget5 = XmCreatePushButton ( widget2, "stop", al, ac );
 	widget6 = XmCreatePushButton ( widget2, "continue", al, ac );
@@ -69,9 +74,12 @@ Widget parent;
 	widget9 = XmCreatePushButton ( widget2, "finish", al, ac );
 	widget10 = XmCreatePushButton ( widget2, "backtrace", al, ac );
 	widget11 = XmCreatePushButton ( widget2, "up", al, ac );
-	widget12 = XmCreatePushButton ( widget2, "down", al, ac );
-	widget13 = XmCreatePushButton ( widget2, "print", al, ac );
-	children[ac++] = widget3;
+	widget12 = XmCreatePushButton ( widget2, "frame", al, ac );
+	widget13 = XmCreatePushButton ( widget2, "down", al, ac );
+	widget14 = XmCreatePushButton ( widget2, "print", al, ac );
+	widget15 = XmCreatePushButton ( widget2, "printStar", al, ac );
+	children[ac++] = widget17;
+	children[ac++] = widget18;
 	children[ac++] = widget4;
 	children[ac++] = widget5;
 	children[ac++] = widget6;
@@ -82,6 +90,8 @@ Widget parent;
 	children[ac++] = widget11;
 	children[ac++] = widget12;
 	children[ac++] = widget13;
+	children[ac++] = widget14;
+	children[ac++] = widget15;
 	XtManageChildren(children, ac);
 	ac = 0;
 	children[ac++] = widget2;

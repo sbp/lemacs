@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Jul 29 17:12:00 1992
-;;; from file /wg1/emacs-base/lisp/prim/screen.el
-;;; emacs version 19.2.3 Lucid.
-;;; bytecomp version 2.07; 15-jul-92.
+;;; compiled by jwz@thalidomide on Mon Dec 21 20:50:53 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/prim/screen.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.08; 13-dec-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,7 +10,7 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(byte-code "ÀÁ!ˆÂÃ!‡" [provide screen require menubar] 2)
+(provide 'screen)
 (defvar select-screen-hook nil "\
 Function or functions to run just after a new screen is selected.")
 (defvar deselect-screen-hook nil "\
@@ -26,13 +26,13 @@ Alist of switches for the appearance of the detached minibuffer screen.")
 Hook to run after initial screen startup.")
 (defvar screen-creation-func '-no-window-system-yet- "\
 Window-system dependent function for creating new screens.")
-(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇ!¬ƒÈÆÉ!¬ƒÈ	ÊËM‡" [detached-minibuffer-startup #[(window-system-switches) "À	Â	ÃÇ¬†Ç	CÊ¬‰ËÊ	C\"Ì¬‰ËÌ	C\"«‡Ë\"«‡Í¡ˆª…Ë	Î\"«†Ï¡ˆª…Ë	Ğ\"+!ÓËÔ	\"!!‡" [minibuffer screen-default-alist name nil extras screen-names mini-type foreground-color minibuffer-alist window-system-switches background-color append font none ((minibuffer . none)) "*emacs screen*" ((name . "*emacs screen*")) screen-creation-func global-minibuffer-screen select-screen ((minibuffer . none) (name . "*emacs screen*"))] 5] attached-minibuffer-startup #[(window-system-switches) "À	\n!‰!‡" [select-screen screen-creation-func window-system-switches global-minibuffer-screen] 3] multi-minibuffer-startup #[(window-system-switches) "À	ÂBB!!‡" [select-screen screen-creation-func menubar default-menubar window-system-switches] 4] boundp first-screen-user-positioned nil separate-minibuffer-screen pop-initial-screen #[(window-system-switches) "À	Ã	­ƒÄ	Æ	!ˆ)ÇÈ!‡" [minibuffer window-system-switches mini top left first-screen-user-positioned multi-minibuffer-startup run-hooks initial-screen-hooks] 2]] 2)
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇ!¬ƒÈÆÉ!¬ƒÈ	ÊËM‡" [detached-minibuffer-startup #[(window-system-switches) "À	Â	ÃÇ¬†Ç	CÊ¬‰ËÊ	C\"Ì¬‰ËÌ	C\"«‡Ë\"«‡Í¡ˆª…Ë	Î\"«†Ï¡ˆª…Ë	Ğ\"+!ÓËÔ	\"!!‡" [minibuffer screen-default-alist name nil extras screen-names mini-type foreground-color minibuffer-alist window-system-switches background-color append font none ((minibuffer . none)) "*emacs screen*" ((name . "*emacs screen*")) screen-creation-func global-minibuffer-screen select-screen ((minibuffer . none) (name . "*emacs screen*"))] 5] attached-minibuffer-startup #[(window-system-switches) "À	\n!‰!‡" [select-screen screen-creation-func window-system-switches global-minibuffer-screen] 3] multi-minibuffer-startup #[(window-system-switches) "À	\n!!‡" [select-screen screen-creation-func window-system-switches] 3] boundp first-screen-user-positioned nil separate-minibuffer-screen pop-initial-screen #[(window-system-switches) "À	Ã	­ƒÄ	Æ	!ˆ)ÇÈ!‡" [minibuffer window-system-switches mini top left first-screen-user-positioned multi-minibuffer-startup run-hooks initial-screen-hooks] 2]] 2)
 (defvar new-screen-x-delta 50 "\
 Horizontal displacement (in pixels) for position of new screen.")
 (defvar new-screen-y-delta 50 "\
 Vertical displacement (in pixels) for position of new screen.")
 (byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇ!¬†È	PÆÊ!¬ƒË\nÌÍMˆÎÏM‡" [new-screen-position #[(top left width height) "	\\\n\\ÀÂ«‘\n«¡«ˆ\n¡«ƒ®ÇÀBÂBD\"‰,‡" [top new-screen-y-delta left new-screen-x-delta screen-default-alist new-left new-top append] 5] new-screen #[nil "«®Á ÃÄ\n!ÆÄ\n!È\n!	Ê\n!««ŒÌAA	$ˆ-!‡" [first-screen-user-positioned selected-screen s top screen-parameters this-top left this-left x-pixel-width this-width x-pixel-height this-height new-screen-position screen-creation-func screen-default-alist] 5] get-screen #[nil "ÀÁ !Á š«ƒÂ ‡ÀÁ !‡" [next-screen selected-screen new-screen] 3] boundp icon-name "emacs @ " system-name iconification-data nil iconify-emacs #[nil "«„ÁÂ!ˆÃ ‰Æ È	« @		Ê	!B ˆ	=¬…Ë	!ˆA‰¬`ÌÍ!¬ƒÈEĞÑ!,‡" [iconification-data error "already iconified?" screen-list screens rest selected-screen me nil screen screen-visible-p make-screen-invisible boundp map-screen-hook screen-icon-title-format icon-name deiconify-emacs iconify-screen] 5 nil nil] deiconify-emacs #[(&optional ignore) "¬„ÁÂ!ˆ@A@AA@‰­—@A‰Æ=«†Ç@@!ˆ)A‰¬jÈ‡" [iconification-data error "not iconified?" screen-icon-title-format map-screen-hook visibility t make-screen-visible nil] 3]] 2)
-(fset 'other-window-any-screen #[(n) "À	Â\"‡" [other-window n t] 3 "\
+(fset 'other-window-any-screen #[(n) "À	Â\"ˆÃÄ !‡" [other-window n t raise-screen selected-screen] 3 "\
 Select the ARG'th different window on any screen.
 All windows on current screen are arranged in a cyclic order.
 This command selects the window ARG steps away in that order.
@@ -64,14 +64,21 @@ For use as the value of `select-screen-hook'."])
 (fset 'default-deselect-screen-hook #[nil "­„ÁÂ !‡" [auto-lower-screen lower-screen selected-screen] 2 "\
 Implements the `auto-lower-screen' variable.
 For use as the value of `deselect-screen-hook'."])
-(byte-code "¬…ÁÀÂ\"ˆ¬…ÁÃÄ\"ˆÅÆM‡" [select-screen-hook add-hook default-select-screen-hook deselect-screen-hook default-deselect-screen-hook get-screen-name-for-buffer #[(buffer) "Šqˆ	)‰ÃN)‡" [buffer major-mode mode screen-name] 3]] 3)
-(fset 'get-screen-for-buffer #[(buffer &optional ignored) "À	!‰¬…Ã ‚¦ \nÄN\nÅNÆ Ç‰‰	\nÎ\n!«¬@	\nÏ	!š«—Ğ		\"«‰	Çª‡	\nB\nA‰¬T«‰Ñ!ˆªÀ\n«’Ò=¬Œ«¥\nGW«Â\nBÔ\"B!Ñ!ˆ×	!ˆ)ªÑ\n@!ˆ×	!ˆ\n@.)‡" [get-screen-name-for-buffer buffer name selected-screen instance-limit screen-defaults screen-list nil already-visible screen matching-screens screens defaults limit symbol-name screen-name get-buffer-window select-screen 0 screen-creation-func append screen-default-alist sc switch-to-buffer] 7 "\
+(byte-code "¬…ÁÀÂ\"ˆ¬…ÁÃÄ\"ˆÁ‡" [select-screen-hook add-hook default-select-screen-hook deselect-screen-hook default-deselect-screen-hook] 3)
+(defvar get-screen-for-buffer-default-screen-name nil "\
+The default screen to select; see doc of `get-screen-for-buffer'.")
+(fset 'get-screen-name-for-buffer #[(buffer) "Šqˆ	)‰ÃN®)‡" [buffer major-mode mode screen-name get-screen-for-buffer-default-screen-name] 3])
+(fset 'get-screen-for-buffer #[(buffer &optional not-this-window-p on-screen) "®…Á Â =?…Ñ Ã!‰¬…Æ ‚Ğ ÇNÈNÉ Ê‰‰ÑÒ\"Æ ÓÆ \"BÔ!«¬@Õ!š«—Ö\"«‰Êª‡BA‰¬T«×!ˆØ!ˆªÇ«’Ù=¬Œ«ªGW«¢ÅBÛ\"B!×!ˆØ!ˆŞ!ˆ)ª×@!ˆØ@!ˆ@.)‡" [on-screen selected-window minibuffer-window get-screen-name-for-buffer buffer name selected-screen instance-limit screen-defaults screen-list nil already-visible screen matching-screens screens defaults limit sort #[(s1 s2) "À	!«‚Â‡Ã	!¬„Ã!‡À	!?­ˆÃ!­ƒÀ!‡" [screen-totally-visible-p s2 nil screen-visible-p s1] 2] delq symbol-name screen-name get-buffer-window select-screen make-screen-visible 0 screen-creation-func append screen-default-alist sc switch-to-buffer] 7 "\
 Select and return a screen in which to display BUFFER.
 Normally, the buffer will simply be displayed in the current screen.
 But if the symbol naming the major-mode of the buffer has a 'screen-name
 property (which should be a symbol), then the buffer will be displayed in
 a screen of that name.  If there is no screen of that name, then one is
 created.  
+
+If the major-mode doesn't have a 'screen-name property, then the screen
+named by `get-screen-for-buffer-default-screen-name' will be used.  If
+that is nil (the default) then the currently selected screen will used.
 
 If the screen-name symbol has an 'instance-limit property (an integer)
 then each time a buffer of the mode in question is displayed, a new screen
@@ -88,4 +95,9 @@ first time.
 This function may be used as the value of `pre-display-buffer-hook', to 
 cause the display-buffer function and its callers to exhibit the above
 behavior."])
-(byte-code "ÀÀ‡" [get-screen-for-buffer pre-display-buffer-function] 1)
+(fset 'show-temp-buffer-in-current-screen #[(buffer) "ÀÂ!Å Æ!=¬„ÇÈ!ˆ	ÊË\"ˆÌË\"ˆ*À‡" [nil pre-display-buffer-function display-buffer buffer window selected-screen window-screen error "display-buffer switched screens on its own!!" minibuffer-scroll-window set-window-start 1 set-window-point] 3 "\
+For use as the value of temp-buffer-show-function:
+always displays the buffer in the current screen, regardless of the behavior
+that would otherwise be introduced by the `pre-display-buffer-function', which
+is normally set to `get-screen-for-buffer' (which see.)"])
+(byte-code "ÀÂÀ‡" [get-screen-for-buffer pre-display-buffer-function show-temp-buffer-in-current-screen temp-buffer-show-function] 1)

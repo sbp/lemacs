@@ -26,6 +26,12 @@
 ;; startup.el will then examine startup files, and eventually call the hooks
 ;; which create the first window (s).
 
+
+;;; If you want to change this variable, this is the place you must do it.
+;;; Do not set it to a string containing periods.  X doesn't like that.
+;(setq x-emacs-application-class "Emacs")
+
+
 ;; The daemon stuff isn't really useful at the moment.
 (defvar x-daemon-mode nil
   "When set, means initially create just a minibuffer.")

@@ -1,5 +1,5 @@
 /* Interfaces to system-dependent kernel and library entries.
-   Copyright (C) 1985, 1986, 1987, 1988, 1990, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -17,13 +17,12 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#include "config.h"
+#include "lisp.h"
 
 #include <stdio.h>		/* For sprintf */
 #include <signal.h>
 #include <setjmp.h>
-
-#include "config.h"
-#include "lisp.h"
 
 #define min(x,y) ((x) > (y) ? (y) : (x))
 
@@ -88,6 +87,11 @@ extern char *sys_errlist[];
 #ifdef BSD /* this is done this way to avoid defined (BSD) || defined (USG)
 	      because the vms compiler doesn't grok `defined' */
 #include <fcntl.h>
+#ifdef USG5_4
+#undef FASYNC
+#include <sys/file.h>
+#include <sys/filio.h>
+#endif /* USG5_4 */
 #endif
 #ifdef USG
 #include <fcntl.h>
@@ -95,9 +99,9 @@ extern char *sys_errlist[];
 #endif /* not 4.1 bsd */
 
 /* Get DGUX definition for FASYNC - DJB */
-#ifdef DGUX
+#if defined(DGUX) || defined(SOLARIS2)
 #include <sys/file.h>
-#endif /* DGUX */
+#endif /* DGUX or Solaris 2 */
 
 #ifdef BSD
 #include <sys/ioctl.h>
@@ -350,6 +354,7 @@ static struct sensemode {
 #define TABS_OK(str) ((str.tt_char & TT$M_MECHTAB) != 0)
 #endif /* VMS */
 
+void
 discard_tty_input ()
 {
   TERMINAL buf;
@@ -386,6 +391,7 @@ discard_tty_input ()
 
 #ifdef SIGTSTP
 
+void
 stuff_char (c)
      char c;
 {
@@ -399,6 +405,7 @@ stuff_char (c)
 
 #endif /* SIGTSTP */
 
+void
 init_baud_rate ()
 {
   TERMINAL sg;
@@ -424,6 +431,7 @@ init_baud_rate ()
 }
 
 /*ARGSUSED*/
+void
 set_exclusive_use (fd)
      int fd;
 {
@@ -452,6 +460,7 @@ int wait_debugging;   /* Set nonzero to make following function work under dbx
 /* Wait for subprocess with process id `pid' to terminate and
    make sure it will get eliminated (not remain forever as a zombie) */
 
+void
 wait_for_termination (pid)
      int pid;
 {
@@ -537,6 +546,7 @@ wait_for_termination (pid)
  *      (may flush input as well; it does not matter the way we use it)
  */
  
+void
 flush_pending_output (channel)
      int channel;
 {
@@ -558,6 +568,7 @@ flush_pending_output (channel)
     It should not echo or do line-editing, since that is done
     in Emacs.  No padding needed for insertion into an Emacs buffer.  */
 
+void
 child_setup_tty (out)
      int out;
 {
@@ -573,8 +584,8 @@ child_setup_tty (out)
   s.c_iflag &= ~IUCLC;		/* Disable map of upper case to lower on input */
   s.c_oflag &= ~OLCUC;		/* Disable map of lower case to upper on output */
 /* said to be unnecesary
-  s.c_cc[VMIN] = 1;		/* minimum number of characters to accept
-  s.c_cc[VTIME] = 0;		/* wait forever for at least 1 character
+  s.c_cc[VMIN] = 1;		/ * minimum number of characters to accept * /
+  s.c_cc[VTIME] = 0;		/ * wait forever for at least 1 character * /
 */
   s.c_lflag |= ICANON;		/* Enable erase/kill and eof processing */
   s.c_cc[VEOF] = 04;		/* insure that EOF is Control-D */
@@ -643,6 +654,7 @@ child_setup_tty (out)
 #endif /* subprocesses */
 
 /*ARGSUSED*/
+void
 setpgrp_of_tty (pid)
      int pid;
 {
@@ -666,6 +678,7 @@ struct save_signal
 
 /* Suspend the Emacs process; give terminal to its superior.  */
 
+void
 sys_suspend ()
 {
 #ifdef VMS
@@ -686,7 +699,7 @@ sys_suspend ()
 #ifdef BSD
   killpg (getpgrp (0), SIGTSTP);
 #else
-  kill (-getpgrp (0), SIGTSTP);
+  kill (-getpgrp (), SIGTSTP);
 #endif
 
 #else /* No SIGTSTP */
@@ -761,6 +774,7 @@ sys_suspend ()
 #endif /* not VMS */
 }
 
+void
 save_signal_handlers (saved_handlers)
      struct save_signal *saved_handlers;
 {
@@ -772,6 +786,7 @@ save_signal_handlers (saved_handlers)
     }
 }
 
+void
 restore_signal_handlers (saved_handlers)
      struct save_signal *saved_handlers;
 {
@@ -790,6 +805,10 @@ extern int x_file_descriptor;
 
 int old_fcntl_flags;
 
+extern void request_sigio (void);
+extern void unrequest_sigio (void);
+
+void
 init_sigio ()
 {
 #ifdef FASYNC
@@ -804,6 +823,7 @@ init_sigio ()
   request_sigio ();
 }
 
+void
 reset_sigio ()
 {
   unrequest_sigio ();
@@ -811,9 +831,10 @@ reset_sigio ()
 
 #ifdef FASYNC		/* F_SETFL does not imply existance of FASYNC */
 
+void
 request_sigio ()
 {
-#ifdef SIGWINCH
+#if defined(SIGWINCH) && defined(SIGIO) && !defined(titan) && !defined(USG5_4)
   sigunblock (sigmask (SIGWINCH));
 #endif
 #ifdef HAVE_X_WINDOWS
@@ -826,9 +847,10 @@ request_sigio ()
   interrupts_deferred = 0;
 }
 
+void
 unrequest_sigio ()
 {
-#ifdef SIGWINCH
+#if defined(SIGWINCH) && defined(SIGIO) && !defined(titan) && !defined(USG5_4)
   sigblock (sigmask (SIGWINCH));
 #endif
 #ifdef HAVE_X_WINDOWS
@@ -842,8 +864,10 @@ unrequest_sigio ()
 }
 
 #else /* no FASYNC */
-#ifdef STRIDE		/* Stride doesn't have FASYNC - use FIOASYNC */
+#if defined(STRIDE) || defined(HPUX)
+/* Stride and HP-UX don't have FASYNC - use FIOASYNC */
 
+void
 request_sigio ()
 {
   int on = 1;
@@ -851,6 +875,7 @@ request_sigio ()
   interrupts_deferred = 0;
 }
 
+void
 unrequest_sigio ()
 {
   int off = 0;
@@ -859,13 +884,15 @@ unrequest_sigio ()
   interrupts_deferred = 1;
 }
 
-#else /* not FASYNC, not STRIDE */
+#else /* not FASYNC, not STRIDE, not HPUX */
  
+void
 request_sigio ()
 {
   croak ("request_sigio");
 }
  
+void
 unrequest_sigio ()
 {
   croak ("unrequest_sigio");
@@ -899,7 +926,7 @@ int lmode;			/* Current lmode value. */
    but if so, this does no harm,
    and using the same name avoids wasting the other one's space.  */
 
-#if defined (USG) || defined (DGUX)
+#if ((defined(USG) || defined(DGUX)) && !defined(__STDC__)) || defined(SOLARIS2)
 unsigned char _sobuf[BUFSIZ+8];
 #else
 char _sobuf[BUFSIZ];
@@ -912,6 +939,11 @@ static struct ltchars new_ltchars = {-1,-1,-1,-1,-1,-1};
   static struct tchars new_tchars = {-1,-1,-1,-1,-1,-1};
 #endif 
 
+extern void set_terminal_modes (void);
+
+extern int direct_output_forward_char (int);
+
+void
 init_sys_modes ()
 {
   TERMINAL tty;
@@ -1150,7 +1182,7 @@ init_sys_modes ()
   /* This symbol is defined on recent USG systems.
      Someone says without this call USG won't really buffer the file
      even with a call to setbuf. */
-  setvbuf (stdout, _sobuf, _IOFBF, sizeof _sobuf);
+  setvbuf (stdout, (char *) _sobuf, _IOFBF, sizeof _sobuf);
 #else
   setbuf (stdout, _sobuf);
 #endif
@@ -1174,6 +1206,7 @@ init_sys_modes ()
 /* Return nonzero if safe to use tabs in output.
    At the time this is called, init_sys_modes has not been done yet.  */
    
+int
 tabs_safe_p ()
 {
   TERMINAL tty;
@@ -1192,6 +1225,7 @@ tabs_safe_p ()
    Store number of lines into *heightp and width into *widthp.
    If zero or a negative number is stored, the value is not valid.  */
 
+void
 get_screen_size (widthp, heightp)
      int *widthp, *heightp;
 {
@@ -1229,6 +1263,12 @@ get_screen_size (widthp, heightp)
 #endif /* not TIOCGWINSZ */
 }
 
+extern void cursor_to (int, int);
+extern void clear_end_of_line (int);
+extern void reset_terminal_modes (void);
+
+extern int cmputc (char c);
+
 void
 reset_sys_modes ()
 {
@@ -1438,6 +1478,7 @@ kbd_input_ast ()
 
 /* Wait until there is something in kbd_buffer.  */
 
+void
 wait_for_kbd_input ()
 {
   extern int have_process_input, process_exited;
@@ -1555,21 +1596,25 @@ sys_sleep (timeval)
     SYS$WAITFR (timer_ef);	  /* Wait for timer expiry only */
 }
 
+void
 init_sigio ()
 {
   request_sigio ();
 }
 
+void
 reset_sigio ()
 {
   unrequest_sigio ();
 }
 
+void
 request_sigio ()
 {
   croak ("request sigio");
 }
 
+void
 unrequest_sigio ()
 {
   croak ("unrequest sigio");
@@ -1656,8 +1701,13 @@ start_of_data ()
 #ifdef DATA_START
   return ((char *) DATA_START);
 #else
+#ifdef USG5_4
+  extern etext;
+  return &etext;
+#else
   extern int data_start;
   return ((char *) &data_start);
+#endif
 #endif
 }
 #endif /* NEED_STARTS (not CANNOT_DUMP or not SYSTEM_MALLOC) */
@@ -1734,7 +1784,7 @@ get_system_name ()
 #ifdef BSD4_1
   return sysname;
 #else /* not USG, not 4.1 */
-  static char system_name_saved[32];
+  static char system_name_saved[256];
 #ifdef VMS
   char *sp;
   if ((sp = egetenv ("SYS$NODE")) == 0)
@@ -1748,7 +1798,8 @@ get_system_name ()
     }
   strcpy (system_name_saved, sp);
 #else /* not VMS */
-  gethostname (system_name_saved, sizeof (system_name_saved));
+  if (gethostname (system_name_saved, sizeof (system_name_saved)) != 0)
+    sprintf (system_name_saved, "gethostname: %s", sys_errlist[errno]);
 #endif /* not VMS */
   return system_name_saved;
 #endif /* not USG, not 4.1 */
@@ -1980,6 +2031,7 @@ sys_open (path, oflag, mode)
     return open (path, oflag);
 }
 
+void
 init_sigio ()
 {
   if (noninteractive)
@@ -1988,6 +2040,7 @@ init_sigio ()
   ioctl (0, TIOCLSET, &lmode);
 }
 
+void
 reset_sigio ()
 {
   if (noninteractive)
@@ -1996,6 +2049,7 @@ reset_sigio ()
   ioctl (0, TIOCLSET, &lmode);
 }
 
+void
 request_sigio ()
 {
   sigrelse (SIGTINT);
@@ -2003,6 +2057,7 @@ request_sigio ()
   interrupts_deferred = 0;
 }
 
+void
 unrequest_sigio ()
 {
   sighold (SIGTINT);
@@ -2207,10 +2262,26 @@ srandom (arg)
 #endif /* BSD4_1 */
 
 #ifdef HPUX
-#ifdef X11
+#ifdef HAVE_X_WINDOWS
 #define HAVE_RANDOM
 #endif
 #endif
+
+#ifdef __hpux
+long
+random ()
+{
+  return (lrand48 ());
+}
+
+void
+srandom (arg)
+     int arg;
+{
+  srand48 ((long) arg);
+}
+
+#else /* ! __hpux */
 
 #ifdef USG
 #ifndef HAVE_RANDOM
@@ -2234,8 +2305,9 @@ srandom (arg)
   srand (arg);
 }
 
-#endif /* HAVE_RANDOM */
+#endif /* ! HAVE_RANDOM */
 #endif /* USG */
+#endif /* ! __hpux */
 
 
 #ifdef VMS
@@ -2380,7 +2452,7 @@ sys_close (fd)
 int
 sys_read (fildes, buf, nbyte)
      int fildes;
-     char *buf;
+     void *buf;
      unsigned int nbyte;
 {
   register int rtnval;
@@ -2393,7 +2465,7 @@ sys_read (fildes, buf, nbyte)
 int
 sys_write (fildes, buf, nbyte)
      int fildes;
-     char *buf;
+     const void *buf;
      unsigned int nbyte;
 {
   register int rtnval;
@@ -2421,6 +2493,7 @@ sys_write (fildes, buf, nbyte)
  *	always negligible.   Fred Fish, Unisoft Systems Inc.
  */
 
+#ifndef HAVE_SIGLIST
 char *sys_siglist[NSIG + 1] =
 {
 #ifdef AIX
@@ -2481,6 +2554,7 @@ char *sys_siglist[NSIG + 1] =
 #endif /* not AIX */
   0
   };
+#endif /* HAVE_SIGLIST */
 
 /*
  *	Warning, this function may not duplicate 4.2 action properly
@@ -2539,7 +2613,7 @@ rename (from, to)
 #endif /* not HAVE_RENAME */
 
 #ifndef HAVE_SETPRIORITY
-/* We are picking setpriority up in /usr/ucblib/libucb.a. -- MLC *
+/* We are picking setpriority up in /usr/ucblib/libucb.a. -- MLC */
 
 /* Set priority value to PRIO.  */
 
@@ -2560,6 +2634,9 @@ setpriority (which, who, prio)
  *	Substitute fork(2) for vfork(2) on USG flavors.
  */
 
+#if defined(sun) && defined(USG)
+pid_t
+#endif
 vfork ()
 {
   return (fork ());
@@ -4239,13 +4316,9 @@ hft_init ()
   /* If we're not on an HFT we shouldn't do any of this.  We determine
      if we are on an HFT by trying to get an HFT error code.  If this
      call fails, we're not on an HFT. */ 
-#ifdef IBMR2AIX
+
   if (ioctl (0, HFQERROR, &junk) < 0)
     return;
-#else /* not IBMR2AIX */
-  if (ioctl (0, HFQEIO, 0) < 0)
-    return;
-#endif /* not IBMR2AIX */
 
   /* On AIX the default hft keyboard mapping uses backspace rather than delete
      as the rubout key's ASCII code.  Here this is changed.  The bug is that
@@ -4281,7 +4354,7 @@ hft_init ()
   /* The HFT system on AIX doesn't optimize for scrolling, so it's really ugly
      at times.  Here we determine if we are on an HFT by trying to get an
      HFT error code.  If this call works, we must be on an HFT. */
-  if (ioctl (0, HFQEIO, 0) != -1)
+  if (ioctl (0, HFQERROR, 0) != -1)
     line_ins_del_ok = char_ins_del_ok = 0;
 }
 
@@ -4293,13 +4366,8 @@ hft_reset ()
   struct hfkeymap keymap;
   int junk;
 
-#ifdef IBMR2AIX
   if (ioctl (0, HFQERROR, &junk) < 0)
     return;
-#else /* not IBMR2AIX */
-  if (ioctl (0, HFQEIO, 0) < 0)
-    return;
-#endif /* not IBMR2AIX */
 
   buf.hf_bufp = (char *)&keymap;
   buf.hf_buflen = sizeof (keymap);

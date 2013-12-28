@@ -34,7 +34,7 @@ to the cut buffer"
       (x-store-cutbuffer s))
     (kill-region old-point (point))))
 
-(defun x-insert-selection (&optional check-cutbuffer-p)
+(defun x-insert-selection (&optional check-cutbuffer-p move-point-event)
   "Insert the current selection into buffer at point."
   (interactive)
   (let ((text (if check-cutbuffer-p
@@ -42,6 +42,7 @@ to the cut buffer"
 		      (x-get-cutbuffer)
 		      (error "No selection or cut buffer available"))
 		(x-get-selection))))
+    (if move-point-event (mouse-set-point move-point-event))
     (push-mark (point))
     (insert text)
 ;;    (if zmacs-regions (zmacs-activate-region))
@@ -50,8 +51,7 @@ to the cut buffer"
 (defun x-set-point-and-insert-selection (event)
   "Sets point where clicked and insert the primary selection or the cut buffer"
   (interactive "e")
-  (mouse-set-point event)
-  (x-insert-selection t))
+  (x-insert-selection t event))
 
 (defun mouse-track-and-copy-to-cutbuffer (event)
   "Makes a selection like `mouse-track', but also copies it to the cutbuffer."

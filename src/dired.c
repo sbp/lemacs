@@ -106,12 +106,13 @@ If FILES-ONLY is the symbol t, then only the \"files\" in the directory\n\
     }
 
   dirname = Fexpand_file_name (dirname, Qnil);
-  if (!(d = opendir (XSTRING (Fdirectory_file_name (dirname))->data)))
+  if (!(d = opendir ((char *)
+		     XSTRING (Fdirectory_file_name (dirname))->data)))
     report_file_error ("Opening directory", Fcons (dirname, Qnil));
 
   name_as_dir = Ffile_name_as_directory (dirname);
-  bcopy (((char *) XSTRING (name_as_dir)->data), statbuf,
-	 XSTRING (name_as_dir)->size);
+  memcpy (statbuf, ((char *) XSTRING (name_as_dir)->data),
+	  XSTRING (name_as_dir)->size);
   statbuf_tail = statbuf + XSTRING (name_as_dir)->size;
 
   list = tail_cons = Qnil;
@@ -140,7 +141,7 @@ If FILES-ONLY is the symbol t, then only the \"files\" in the directory\n\
 		{
 		  int dir_p;
 
-		  bcopy (filename, statbuf_tail, len);
+		  memcpy (statbuf_tail, filename, len);
 		  statbuf_tail [len] = 0;
 
 		  if (stat (statbuf, &st) < 0)
@@ -175,7 +176,7 @@ If FILES-ONLY is the symbol t, then only the \"files\" in the directory\n\
   return Fsort (Fnreverse (list), Qstring_lessp);
 }
 
-Lisp_Object file_name_completion ();
+static Lisp_Object file_name_completion ();
 
 DEFUN ("file-name-completion", Ffile_name_completion, Sfile_name_completion,
   2, 2, 0,
@@ -220,13 +221,14 @@ DEFUN ("file-name-all-versions", Ffile_name_all_versions,
 
 #endif /* VMS */
 
-Lisp_Object
+static int file_name_completion_stat (Lisp_Object, DIRENTRY *, struct stat *);
+
+static Lisp_Object
 file_name_completion (file, dirname, all_flag, ver_flag)
      Lisp_Object file, dirname;
      int all_flag, ver_flag;
 {
   DIR *d;
-  DIRENTRY *dp;
   int bestmatchsize, skip;
   register int compare, matchsize;
   unsigned char *p1, *p2;
@@ -263,7 +265,8 @@ file_name_completion (file, dirname, all_flag, ver_flag)
 
   for (passcount = !!all_flag; NILP (bestmatch) && passcount < 2; passcount++)
     {
-      if (!(d = opendir (XSTRING (Fdirectory_file_name (dirname))->data)))
+      if (!(d = opendir ((char *)
+			 XSTRING (Fdirectory_file_name (dirname))->data)))
 	report_file_error ("Opening directory", Fcons (dirname, Qnil));
 
       /* Loop reading blocks */
@@ -286,7 +289,8 @@ file_name_completion (file, dirname, all_flag, ver_flag)
 	    goto quit;
 	  if (!dp->d_ino
 	      || len < XSTRING (file)->size
-	      || 0 <= scmp (dp->d_name, XSTRING (file)->data,
+	      || 0 <= scmp (dp->d_name,
+			    (char *) XSTRING (file)->data,
 			    XSTRING (file)->size))
 	    continue;
 
@@ -310,7 +314,7 @@ file_name_completion (file, dirname, all_flag, ver_flag)
 		    if (skip < 0) continue;
 
 		    if (0 <= scmp (dp->d_name + skip,
-				   XSTRING (elt)->data,
+				   (char *) XSTRING (elt)->data,
 				   XSTRING (elt)->size))
 		      continue;
 		    break;
@@ -366,7 +370,7 @@ file_name_completion (file, dirname, all_flag, ver_flag)
       closedir (d);
     }
 
-  unbind_to (count);
+  unbind_to (count, Qnil);
 
   if (all_flag || NILP (bestmatch))
     return bestmatch;
@@ -379,6 +383,7 @@ file_name_completion (file, dirname, all_flag, ver_flag)
   return Fsignal (Qquit, Qnil);
 }
 
+static int
 file_name_completion_stat (dirname, dp, st_addr)
      Lisp_Object dirname;
      DIRENTRY *dp;
@@ -388,25 +393,28 @@ file_name_completion_stat (dirname, dp, st_addr)
   int pos = XSTRING (dirname)->size;
   char *fullname = (char *) alloca (len + pos + 2);
 
-  bcopy (XSTRING (dirname)->data, fullname, pos);
+  memcpy (fullname, XSTRING (dirname)->data, pos);
 #ifndef VMS
   if (fullname[pos - 1] != '/')
     fullname[pos++] = '/';
 #endif
 
-  bcopy (dp->d_name, fullname + pos, len);
+  memcpy (fullname + pos, dp->d_name, len);
   fullname[pos + len] = 0;
 
   return stat (fullname, st_addr);
 }
 
-Lisp_Object
+static Lisp_Object
 make_time (time)
      int time;
 {
   return Fcons (make_number (time >> 16),
 		Fcons (make_number (time & 0177777), Qnil));
 }
+
+
+extern void filemodestring (struct stat *, char *);
 
 DEFUN ("file-attributes", Ffile_attributes, Sfile_attributes, 1, 1, 0,
   "Return a list of attributes of file FILENAME.\n\
@@ -479,6 +487,7 @@ If file does not exists, returns nil.")
   return Flist (11, values);
 }
 
+void
 syms_of_dired ()
 {
   defsubr (&Sdirectory_files);

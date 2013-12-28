@@ -156,11 +156,17 @@ Value is a list of strings, which may be nil.")
   "Command used by shell-resync-dirlist to query shell.")
 
 (defvar shell-mode-map '())
-(cond ((not shell-mode-map)
-       (setq shell-mode-map (full-copy-sparse-keymap comint-mode-map))
-       (define-key shell-mode-map "\M-\t" 'comint-dynamic-complete)
-       (define-key shell-mode-map "\t" 'comint-dynamic-complete)
-       (define-key shell-mode-map "\M-?"  'comint-dynamic-list-completions)))
+(if (not shell-mode-map)
+    (let ((map (if (fboundp 'set-keymap-parent)
+                   (let ((map (make-keymap)))
+                     (set-keymap-parent map comint-mode-map)
+                     (set-keymap-name map 'shell-mode-map)
+                     map)
+		 (full-copy-sparse-keymap comint-mode-map))))
+      (define-key map "\M-\t" 'comint-dynamic-complete)
+      (define-key map "\t" 'comint-dynamic-complete)
+      (define-key map "\M-?"  'comint-dynamic-list-completions)
+      (setq shell-mode-map map)))
 
 (defvar shell-mode-hook '()
   "*Hook for customising shell mode")
@@ -476,6 +482,9 @@ command again."
   "Substitute environment variables before calling cd."
   (cd (substitute-in-file-name d)))
 
+(defvar shell-dirstack-message-hook nil
+  "Hook to run after a cd, pushd or popd event")
+
 ;;; Show the current dirstack on the message line.
 ;;; Pretty up dirs a bit by changing "/usr/jqr/foo" to "~/foo".
 ;;; (This isn't necessary if the dirlisting is generated with a simple "dirs".)
@@ -491,6 +500,7 @@ command again."
 	(if (string-equal dir "~/") (setq dir "~"))
 	(setq msg (concat msg dir " "))
 	(setq ds (cdr ds))))
+    (run-hooks 'shell-dirstack-message-hook)
     (message msg)))
 
 

@@ -1,11 +1,11 @@
 /* Definitions file for GNU Emacs running on bsd 4.3
-   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -79,6 +79,39 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define HAVE_SOCKETS
 
 /*
+ *	Define NEED_STRDUP if your C library doesn't have strdup().
+ */
+/* #define NEED_STRDUP */
+
+/*	Define HAVE_INVERSE_HYPERBOLIC if you math library contains definitions
+ *	of acosh, asinh, and atanh.  Define HAVE_CBRT and HAVE_RINT if your 
+ *	math library contains cbrt and rint.  Otherwise, they will be
+ *	simulated.
+ */
+#define HAVE_INVERSE_HYPERBOLIC
+#define HAVE_CBRT
+#define HAVE_RINT
+
+/*	Define FLOAT_CATCH_SIGILL if your floating point library routines
+ *	can generate SIGILL conditions.
+ */
+#define FLOAT_CATCH_SIGILL
+
+/*	Define FLOAT_CHECK_ERRNO if the float library routines set errno, as
+ *	the ANSI C spec requires.  (This has no effect on machines which use
+ *	the SysV `matherr' mechanism.)
+ */
+#define FLOAT_CHECK_ERRNO
+
+/*	Define FLOAT_CHECK_DOMAIN if the float library doesn't handle errors by
+ *	either setting errno, or signalling SIGFPE/SIGILL (for example, some
+ *	systems write a message to stderr.)  Otherwise, domain and range
+ *	checking will happen before calling the float routines.  This has no
+ *	effect on machines which use the SysV `matherr' mechanism.
+ */
+#define FLOAT_CHECK_DOMAIN
+
+/*
  *	Define NONSYSTEM_DIR_LIBRARY to make Emacs emulate
  *      The 4.2 opendir, etc., library functions.
  */
@@ -127,3 +160,5 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    is named _avenrun.  */
 
 #define LDAV_SYMBOL "_avenrun"
+
+#define FLOAT_CATCH_SIGILL

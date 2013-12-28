@@ -1,3 +1,4 @@
+;;; Id: elib-dll.el,v 1.4 1992/03/18 04:07:20 ceder Exp 
 ;;; elib-dll.el -- Some primitives for Doubly linked lists.
 ;;; Copyright (C) 1991, 1992  Per Cederqvist
 ;;;

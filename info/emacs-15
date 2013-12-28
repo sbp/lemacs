@@ -293,11 +293,11 @@ Error Messages
      appear in the echo area, accompanied by a beep.
 
 ESC
-     ESC is a character, used to end incremental searches and as a
-     prefix for typing Meta characters on keyboards lacking a META
-     key.  Unlike the META key (which, like the SHIFT key, is held
-     down while another character is typed), the ESC key is pressed
-     and released, and applies to the next character typed.
+     ESC is a character used as a prefix for typing Meta characters on
+     keyboards lacking a META key.  Unlike the META key (which, like
+     the SHIFT key, is held down while another character is typed),
+     the ESC key is pressed and released, and applies to the next
+     character typed.
 
 Fill Prefix
      The fill prefix is a string that is Emacs enters at the beginning

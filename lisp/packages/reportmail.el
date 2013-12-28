@@ -34,7 +34,7 @@
 ;    (setq display-time-my-addresses
 ;     '("Benjamin.Pierce" "bcp" "Benjamin Pierce" "Benjamin C. Pierce"))
 ; 
-;    ;; By default, mail arrival is reported with a message but no beep  
+;    ;; By default, mail arrival is reported with a message but no beep
 ;    (setq display-time-mail-ring-bell t)
 ; 
 ;    (display-time)
@@ -99,12 +99,13 @@
 ; ---------------
 ;
 ; If you normally keep your emacs window iconified, reportmail can 
-; maintain an xbiff display as well.  The xbiff window will only be 
-; highlighted when non-junk mail is waiting to be read.  For example:
+; maintain an xbiff or xbiff++ display as well.  The xbiff window will only
+; be highlighted when non-junk mail is waiting to be read.  For example:
 ;
 ;    (if window-system-version
 ;        (setq display-time-use-xbiff t))
 ;    (setq display-time-xbiff-arg-list '("-update" "30" "-geometry" "+0+0"))
+;    (setq display-time-xbiff-program "xbiff++")
 ;
 ; Other
 ; -----
@@ -116,6 +117,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; HISTORY
+;
+; 15 oct 92	Benjamin Pierce (bcp@cs.cmu.edu)
+;	Merged recent changes
+;
+; 14 oct 92	Jamie Zawinski <jwz@lucid.com>
+;	Added support for xbiff++.
+;
+; 17 sep 92	Benjamin Pierce (bcp@cs.cmu.edu)
+;	Improvements to message display code.
+;
+; 15 sep 92	Benjamin Pierce (bcp@cs.cmu.edu)
+;	Minor bug fixes.
 ;
 ; 1 may 92	Jamie Zawinski <jwz@lucid.com>
 ;	Converted to work with Kyle Jones' timer.el package.
@@ -130,10 +143,10 @@
 ;	Added compatibility with Emacs 18.57.
 ;
 ; 25 Jan 91	Benjamin Pierce (bcp@cs.cmu.edu)
-;       Added facility for regular-expression matching of junk-mail
-;       checklist.  Set inhibit-local-variables to t inside of 
-;       display-time-process-new-mail to prevent letterbombs 
-;       (suggested by jwz).
+;	Added facility for regular-expression matching of junk-mail
+;	checklist.  Set inhibit-local-variables to t inside of 
+;	display-time-process-new-mail to prevent letterbombs 
+;	(suggested by jwz).
 ;
 ; 15 feb 91	Jamie Zawinski <jwz@lucid.com>
 ;	Made the values of display-time-message-separator and 
@@ -152,32 +165,32 @@
 ;	Made the junk-mail checklist use a member-search rather than a 
 ;	prefix-search.
 ;
-; 22 Jul 90     Benjamin Pierce (bcp@cs.cmu.edu)
-;       Added support for debugging.
+; 22 Jul 90	Benjamin Pierce (bcp@cs.cmu.edu)
+;	Added support for debugging.
 ;
-; 19 Jul 90     Benjamin Pierce (bcp@cs.cmu.edu)
-;       Improved user documentation and eliminated known CMU dependencies.
+; 19 Jul 90	Benjamin Pierce (bcp@cs.cmu.edu)
+;	Improved user documentation and eliminated known CMU dependencies.
 ;
 ; 13 Jul 90	Mark Leone (mleone@cs.cmu.edu)
 ;	Added display-time-use-xbiff option.  Various layout changes.
 ;
-; 20 May 90     Benjamin Pierce (bcp@proof)
-;       Fixed a bug that occasionally caused fields to be extracted
-;       from the wrong buffer.
+; 20 May 90	Benjamin Pierce (bcp@proof)
+;	Fixed a bug that occasionally caused fields to be extracted
+;	from the wrong buffer.
 ;
-; 14 May 90     Benjamin Pierce (bcp@proof)
-;       Added concept of junk mail and ability to display message
-;       recipient in addition to sender and subject.  (Major internal
-;       reorganization was needed to implement this cleanly.)
+; 14 May 90	Benjamin Pierce (bcp@proof)
+;	Added concept of junk mail and ability to display message
+;	recipient in addition to sender and subject.  (Major internal
+;	reorganization was needed to implement this cleanly.)
 ;
-; 18 Nov 89     Benjamin Pierce (bcp@proof)
-;       Fixed to work when display-time is called with 
-;       global-mode-string not a list
+; 18 Nov 89	Benjamin Pierce (bcp@proof)
+;	Fixed to work when display-time is called with 
+;	global-mode-string not a list
 ;
 ; 15 Jan 89	David Plaut (dcp@k)
 ;	Added ability to discard load from displayed string
 ;
-;	To use:	(setq display-time-load nil)
+;	To use: (setq display-time-load nil)
 ;
 ;	Added facility for reporting incoming mail (modeled after gosmacs
 ;	reportmail.ml package written by Benjamin Pierce).
@@ -268,6 +281,8 @@ automatically cleared when display-time-interval has expired.")
 (defvar display-time-use-xbiff nil
   "*If set, display-time uses xbiff to announce new mail.")
 
+(defvar display-time-xbiff-program "xbiff") ; xbiff++ if you're cool
+
 (defvar display-time-xbiff-arg-list nil
   "*List of arguments passed to xbiff.  Useful for setting geometry, etc.")
 ;;; For example: 
@@ -275,7 +290,12 @@ automatically cleared when display-time-interval has expired.")
 
 (defvar display-time-mail-arrived-file nil
   "New mail announcements saved in this file if xbiff used.  Deleted when 
-mail is read.  Xbiff used to monitor existence of this file.")
+mail is read.  Xbiff is used to monitor existence of this file.
+This file will contain the headers (and only the headers) of all of the
+messages in your inbox.  If you do not wish this to be readable by others, 
+you should name a file here which is in a protected directory.  Protecting
+the file itself is not sufficient, because the file gets deleted and
+recreated, and emacs does not make it easy to create protected files.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;                       Internal Variables                      ;;;
@@ -290,11 +310,11 @@ mail is read.  Xbiff used to monitor existence of this file.")
 (defvar display-time-string nil
   "Time displayed in mode line")
 
-(defvar display-time-mail-buffer-name "*Mail*"
+(defvar display-time-mail-buffer-name "*reportmail*"
   "Name of buffer used for announcing mail.")
 
 (defvar display-time-may-need-to-reset t
-  "Set to NIL when display-time-reset-mail-processing has not been called 
+  "Set to NIL when display-time-total-reset has not been called 
 since the last time we changed from having mail in the queue to an empty
 queue.")
 
@@ -309,6 +329,9 @@ long after displaying each debugging message in mode line")
 (defvar display-time-debugging-buffer "*Reportmail-Debugging*"
   "Status messages are appended here.")
   
+(defvar display-time-max-debug-info 20000
+  "Maximum size of debugging buffer")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;                       Macros                                  ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -347,7 +370,7 @@ long after displaying each debugging message in mode line")
   ;;
   (or display-time-mail-arrived-file
       (setq display-time-mail-arrived-file
-	    (concat (getenv "HOME") "/.mail-arrived")))
+	    (expand-file-name ".mail-arrived" (getenv "HOME"))))
   )
 
 
@@ -359,6 +382,7 @@ long after displaying each debugging message in mode line")
   "Kill all display-time processes.  Done automatically if display-time
 is re-invoked."
   (interactive)
+  (display-time-debug "display-time-kill")
   (if display-time-loadst-process (delete-process display-time-loadst-process))
   (if display-time-xbiff-process (delete-process display-time-xbiff-process))
 )
@@ -368,8 +392,9 @@ is re-invoked."
   "Displays current time, date, load level, and incoming mail status in 
 mode line of each buffer (if corresponding user variables are set)."
   (interactive)
+  (display-time-debug "display-time")
   (display-time-init)
-  (let ((process-connection-type nil))  ; UIUCDCS mod
+  (let ((process-connection-type nil))	; UIUCDCS mod
     (save-excursion
       (display-time-kill)
       (if (or (string-equal "" display-time-incoming-mail-file)
@@ -379,7 +404,7 @@ mode line of each buffer (if corresponding user variables are set)."
 	     (message "Reportmail: mail spool file \"%s\" not found" 
 		      display-time-incoming-mail-file)
 	     (sit-for 1)
-	     (ding nil)))
+	     (beep)))
       (if (not global-mode-string) (setq global-mode-string '("")))
       (if (not (listp global-mode-string))
 	  (setq global-mode-string (list global-mode-string "  ")))
@@ -407,7 +432,7 @@ mode line of each buffer (if corresponding user variables are set)."
 	(set-process-sentinel display-time-loadst-process 
 			      'display-time-sentinel)
 	(set-process-filter display-time-loadst-process
-			    (if (string-match "18\\.5[0-5]" (emacs-version))
+			    (if (string-match "^18\\.5[0-5]" (emacs-version))
 				'display-time-filter-18-55
 			      'display-time-filter-18-57)))
       
@@ -416,28 +441,27 @@ mode line of each buffer (if corresponding user variables are set)."
 	    (display-time-del-file display-time-mail-arrived-file)
 	    (setq display-time-xbiff-process
 		  (apply 'start-process "display-time-xbiff" nil
-			 "xbiff" "-file" display-time-mail-arrived-file
+			 display-time-xbiff-program
+			 "-file" display-time-mail-arrived-file
 			 display-time-xbiff-arg-list))
 	    (process-kill-without-query display-time-xbiff-process)
 	    (sit-for 1)			; Need time to see if xbiff fails.
 	    (if (/= 0 (process-exit-status display-time-xbiff-process))
 		(error "Display time: xbiff failed.  Check xbiff-arg-list"))))))
-  (display-time-reset-mail-processing))
+  (display-time-total-reset))
 
 
 (defun display-time-sentinel (proc reason)
   ;; notice if the process has died an untimely death...
+  (display-time-debug "display-time-sentinel")
   (cond ((memq (process-status proc) '(stop exit closed signal))
 	 (if (and (stringp reason) (string-match "\n?\n*\\'" reason))
 	     (setq reason (substring reason 0 (match-beginning 0))))
-	 (ding)
+	 (beep)
 	 (setq display-time-string (format "%s" reason))
 	 (display-time-message "")
 	 (message "process %s: %s (%s)" proc reason (process-status proc))))
-  ;; Force mode-line updates
-  (save-excursion (set-buffer (other-buffer)))
-  (set-buffer-modified-p (buffer-modified-p))
-  (sit-for 0))
+  (display-time-force-redisplay))
 
 (defun display-time-filter-18-55 (proc string)
   (if display-time-flush-echo-area (display-time-message ""))
@@ -445,6 +469,7 @@ mode line of each buffer (if corresponding user variables are set)."
   ;; so save time by flushing the rest.
   ;; This way, if we have many different times all collected at once,
   ;; we can discard all but the last few very fast.
+  (display-time-debug "display-time-filter-18-55")
   (if (> (length string) 30) (setq string (substring string -30)))
   ;; Now discard all but the very last one.
   (while (and (> (length string) 4)
@@ -456,7 +481,7 @@ mode line of each buffer (if corresponding user variables are set)."
   (if display-time-announce-mail
       (if (string-match "Mail" string)
 	  (display-time-process-new-mail)
-	  (display-time-reset-mail-processing)))
+	  (display-time-total-reset)))
   ;; Format the mode line time display
   (let ((time-string (if (string-match "Mail" string)
 			 (if display-time-announce-mail 
@@ -478,21 +503,21 @@ mode line of each buffer (if corresponding user variables are set)."
 		      " ")))
     ;; Install the new time for display.
     (setq display-time-string time-string)
-    ;; Force redisplay of all buffers' mode lines to be considered.
-    (save-excursion (set-buffer (other-buffer)))
-    (set-buffer-modified-p (buffer-modified-p))
-    ;; Do redisplay right now, if no input pending.
-    (sit-for 0)))
+    (display-time-force-redisplay)))
 
 (defun display-time-filter-18-57 (proc string) ; args are ignored
-  (if display-time-flush-echo-area (display-time-message ""))
+  (display-time-debug "display-time-filter-18-57")
+  (if display-time-flush-echo-area
+      (progn
+	(display-time-debug "flush echo area")
+	(display-time-message "")))
   (let ((mailp (and (file-exists-p display-time-incoming-mail-file)
 		    (not (eq 0 (nth 7 (file-attributes
 				       display-time-incoming-mail-file)))))))
     (if display-time-announce-mail
 	(if mailp
 	    (display-time-process-new-mail)
-	    (display-time-reset-mail-processing)))
+	    (display-time-total-reset)))
     ;; Format the mode line time display
     (let ((time-string (if mailp
 			   (if display-time-announce-mail
@@ -523,14 +548,18 @@ mode line of each buffer (if corresponding user variables are set)."
 		      " ")))
       ;; Install the new time for display.
       (setq display-time-string time-string)
-      ;; Force redisplay of all buffers' mode lines to be considered.
-      (save-excursion (set-buffer (other-buffer)))
-      (set-buffer-modified-p (buffer-modified-p))
-      ;; Do redisplay right now, if no input pending.
-      (sit-for 0))))
+
+      (display-time-force-redisplay))))
 
 (defun display-time-timer-function ()
   (display-time-filter-18-57 nil nil))
+
+(defun display-time-force-redisplay ()
+  "Force redisplay of all buffers' mode lines to be considered."
+  (save-excursion (set-buffer (other-buffer)))
+  (set-buffer-modified-p (buffer-modified-p))
+  ;; Do redisplay right now, if no input pending.
+  (sit-for 0))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;                       Mail processing                         ;;;
@@ -551,6 +580,8 @@ mode line of each buffer (if corresponding user variables are set)."
 (defvar display-time-junk-msg-count 0
   "How many junk messages have arrived")
 
+(defvar display-time-last-message nil) ; enormous hack
+
 
 ;; A test procedure for trying out new display-time features
 ;(defun display-time-test ()
@@ -558,7 +589,14 @@ mode line of each buffer (if corresponding user variables are set)."
 ;  (display-time-reset-mail-processing)
 ;  (display-time-process-new-mail))
 
-(defun display-time-reset-mail-processing ()
+(defun display-time-manual-reset ()
+  "Utility function to be called externally to make reportmail notice
+that things may have changed."
+  (display-time-debug "Manual reset")
+  (display-time-timer-function))
+
+(defun display-time-total-reset ()
+  (display-time-debug "display-time-total-reset")
   (if display-time-may-need-to-reset
    (progn
     (setq display-time-may-need-to-reset nil)
@@ -569,68 +607,105 @@ mode line of each buffer (if corresponding user variables are set)."
 	;; This function is only called when no mail is in the spool.
 	;; Hence we should delete the mail-arrived file.
 	(display-time-del-file display-time-mail-arrived-file))
-    (display-time-reset-mail-processing-vars)
-    (display-time-message "") ; clear the echo-area.
+    (display-time-reset)
     )))
 
-(defun display-time-reset-mail-processing-vars ()
+(defun display-time-reset ()
+  (display-time-debug "display-time-reset")
   (setq display-time-msg-count 0)
   (setq display-time-junk-msg-count 0)
   (setq display-time-mail-who-from "Junk mail")
-  (setq display-time-previous-mail-buffer-max 1))
+  (setq display-time-mail-modeline "")
+  (setq display-time-previous-mail-buffer-max 1)
+  (display-time-message "") ; clear the echo-area.
+  )
 
 (defun display-time-process-new-mail ()
   (setq display-time-may-need-to-reset t)
   (let ((mail-buffer (get-buffer display-time-mail-buffer-name))
-	(inhibit-local-variables t))
+	(inhibit-local-variables t)
+	(enable-local-variables nil))
     (if (not (and mail-buffer (verify-visited-file-modtime mail-buffer)))
       (save-window-excursion
        (save-excursion
-	(display-time-debug "\n\nProcessing new mail")
+	(display-time-debug "Spool file has changed... rereading...")
 	(if mail-buffer (kill-buffer mail-buffer))
 	;; Change to pop-to-buffer when we're debugging:
-	(set-buffer (find-file-noselect display-time-incoming-mail-file))
-	(rename-buffer display-time-mail-buffer-name)
+	(set-buffer (get-buffer-create display-time-mail-buffer-name))
+	(buffer-flush-undo (current-buffer))
+	(erase-buffer)
+	(condition-case nil
+	    ;; I wish we didn't have to mark the buffer as visiting the file,
+	    ;; since that interferes with the user's ability to use find-file
+	    ;; on their spool file, but there's no way to simulate what
+	    ;; verify-visited-file-modtime does.  Lose lose.
+	    (insert-file-contents display-time-incoming-mail-file t)
+	  (file-error nil))
 	(display-time-process-mail-buffer))))))
 
 (defun display-time-process-mail-buffer ()
-  (let (start)
-    (if (< display-time-previous-mail-buffer-max (point-max))
-	(let ((case-fold-search nil))
-	  (goto-char display-time-previous-mail-buffer-max)
-	  (if (not (looking-at
-		    (regexp-quote display-time-message-separator)))
-	      (display-time-reset-mail-processing-vars)))
-      (display-time-reset-mail-processing-vars))
-    (goto-char display-time-previous-mail-buffer-max)
-    (if (not (eobp))
-	(forward-char 1))
+  (if (< display-time-previous-mail-buffer-max (point-max))
+      (let ((case-fold-search nil))
+	(goto-char display-time-previous-mail-buffer-max)
+	(if (not (looking-at
+		  (regexp-quote display-time-message-separator)))
+	    (display-time-reset)))
+    (display-time-reset))
+  (goto-char display-time-previous-mail-buffer-max)
+  (if display-time-use-xbiff
+      (save-excursion
+	(set-buffer (get-buffer-create " *reportmail-tmp*"))
+	(erase-buffer)))
+  (let ((case-fold-search nil)
+	(start (point))
+	end junkp ring-bell)
     (while (not (eobp))
-      (setq start (point))
-      (if (not (let ((case-fold-search nil))
-		 (search-forward 
-		  (concat "\n" display-time-message-separator) nil t)))
-	  (goto-char (point-max)))
-      (narrow-to-region start (point))
-      (display-time-process-this-message)
-      (goto-char (point-max))
-      (widen))
-    (setq display-time-previous-mail-buffer-max (point-max))))
+      (if (search-forward (concat "\n" display-time-message-separator)
+			  nil 'end)
+	  (setq end (1+ (match-beginning 0)))
+	(setq end (point-max)))
+      (narrow-to-region start end)
+      (setq junkp (display-time-process-this-message))
+      (if (and display-time-mail-ring-bell (not ring-bell))
+	  (setq ring-bell (if junkp display-time-junk-mail-ring-bell t)))
+      (widen)
+      (goto-char (if (= end (point-max)) (point-max) (1+ end)))
+      (setq start end))
+
+    (if ring-bell
+	(if (string-match "Lucid" emacs-version)
+	    (beep nil 'reportmail)
+	  (beep))))
+  
+  (if display-time-use-xbiff
+      (save-excursion
+	(set-buffer (get-buffer-create " *reportmail-tmp*"))
+	(if (zerop (buffer-size))
+	    nil
+	  (append-to-file (point-min) (point-max)
+			  display-time-mail-arrived-file)
+	  (erase-buffer)
+	  ;; there's no way to get append-to-file to not dump the message
+	  ;; "Wrote file ..." in the echo area, so re-write the last message
+	  ;; we intended to write.
+	  (if display-time-last-message
+	      (display-time-message "%s" display-time-last-message)))))
+  
+  (setq display-time-previous-mail-buffer-max (point-max)))
 
 (defun display-time-process-this-message ()
-  (display-time-debug "\nProcessing a message")
-
-  (if (display-time-junk-message)
-      (display-time-process-junk-message)
+  (display-time-debug "display-time-process-this-message")
+  (let ((junk-p (display-time-junk-message)))
+    (if junk-p
+	(display-time-process-junk-message)
       (display-time-process-good-message))
-  
-  ;; Update mode line contents
-  (setq display-time-mail-modeline 
-	(concat "[" (display-time-format-msg-count) 
-		display-time-mail-who-from
-		"] "))
-  (display-time-debug "New mode line: %s " display-time-mail-modeline)
-  )
+    ;; Update mode line contents
+    (setq display-time-mail-modeline 
+	  (concat "[" (display-time-format-msg-count) 
+		  display-time-mail-who-from
+		  "] "))
+    (display-time-debug "New mode line: %s " display-time-mail-modeline)
+    junk-p))
 
 (defun display-time-junk-message ()
   "Check to see whether this message is interesting"
@@ -650,10 +725,13 @@ mode line of each buffer (if corresponding user variables are set)."
 (defun display-time-message (&rest message-args)
   (let ((str (apply 'format message-args))
 	(in-echo-area-already (eq (selected-window) (minibuffer-window))))
+    (setq display-time-last-message str)
+    ;; don't stomp the echo-area-buffer if reading from the minibuffer now.
+    (display-time-debug "display-time-message (%s)" str)
     (if (not in-echo-area-already)
-	;; don't stomp the echo-area-buffer if reading from the minibuffer now.
 	(save-excursion
 	  (save-window-excursion
+	    (display-time-debug "Overwriting echo area with message")
 	    (select-window (minibuffer-window))
 	    (delete-region (point-min) (point-max))
 	    (insert str))))
@@ -674,7 +752,7 @@ mode line of each buffer (if corresponding user variables are set)."
   (let* ((subject (display-time-get-field "Subject" ""))
 	 (from (display-time-get-field "From" ""))
 	 (to (display-time-get-field "To" ""))
-         (print-subject (if (string= subject "")
+	 (print-subject (if (string= subject "")
 			    ""
 			    (concat " (" subject ")")))
 	 (print-from (display-time-truncate from display-time-max-from-length))
@@ -696,18 +774,20 @@ mode line of each buffer (if corresponding user variables are set)."
 		   print-subject)))
       (if display-time-use-xbiff
 	  (save-excursion
-	    (let ((tmp-buf (generate-new-buffer "*Tmp*")))
+	    (let* ((tmp-buf (get-buffer-create " *reportmail-tmp*"))
+		   (buf (current-buffer))
+		   (start (point-min))
+		   (end (save-excursion
+			  (goto-char start)
+			  (search-forward "\n\n" nil 0)
+			  (point))))
 	      (set-buffer tmp-buf)
-	      (insert msg)
-	      (newline)
-	      (append-to-file (point-min) (point-max) 
-			      display-time-mail-arrived-file)
-	      (kill-buffer tmp-buf))))
+	      (goto-char (point-max))
+	      (insert-buffer-substring buf start end)
+	      (insert "\n\n")
+	      )))
       (display-time-debug "Message: %s" msg)
       (display-time-message "%s" msg))
-
-    (if display-time-mail-ring-bell (ding))
-    
     ;; Update mode line information
     (setq display-time-mail-who-from short-from)))
 
@@ -721,7 +801,7 @@ mode line of each buffer (if corresponding user variables are set)."
   (let* ((subject (display-time-get-field "Subject" ""))
 	 (from (display-time-get-field "From" ""))
 	 (to (display-time-get-field "To" ""))
-         (print-subject (if (string= subject "")
+	 (print-subject (if (string= subject "")
 			    ""
 			    (concat " (" subject ")")))
 	 (print-from (display-time-truncate from display-time-max-from-length))
@@ -742,20 +822,8 @@ mode line of each buffer (if corresponding user variables are set)."
 			(concat "to " print-to " "))
 		      "from " print-from 
 		      print-subject)))
-	    (if display-time-use-xbiff
-		(save-excursion
-		  (let ((tmp-buf (generate-new-buffer "*Tmp*")))
-		    (set-buffer tmp-buf)
-		    (insert msg)
-		    (newline)
-		    (append-to-file (point-min) (point-max) 
-				    display-time-mail-arrived-file)
-		    (kill-buffer tmp-buf))))
 	    (display-time-message "%s" msg)
-	    (display-time-debug "Message: %s" msg)
-	    (if (and display-time-mail-ring-bell
-		     display-time-junk-mail-ring-bell)
-		(ding))))))
+	    (display-time-debug "Message: %s" msg)))))
 
 (defun display-time-format-msg-count ()
    (if (> (+ display-time-msg-count display-time-junk-msg-count) 1) 
@@ -774,7 +842,8 @@ mode line of each buffer (if corresponding user variables are set)."
 	     display-time-mail-buffer-name)
     (sit-for 2)))
   (goto-char (point-min))
-  (let ((result
+  (let* ((case-fold-search t)
+	 (result
 	 (if (re-search-forward (concat "^" field ":[ |\C-i]*") nil t)
 	     (let ((start (point)))
 	       (end-of-line)
@@ -791,7 +860,7 @@ mode line of each buffer (if corresponding user variables are set)."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun display-time-member (e l)
-  "Is string E matched by an element of list L?  
+  "Is string E matched by an element of list L?
 When an element of L begins with ^, match it as a regexp.  Otherwise,
 ignore case and match exactly.  If display-time-match-using-regexps is
 non-nil, always match using regexps."
@@ -840,20 +909,26 @@ non-nil, always match using regexps."
 ;;;                       Debugging Support                       ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (defvar display-time-debugging-messages t
-;;   "When non-NIL, reportmail displays status messages in real time.")
+(defvar display-time-debugging-messages nil
+  "When non-NIL, reportmail displays status messages in real time.")
 
 (defun display-time-debug-mesg (mesg)
-  ;; (if display-time-debugging-messages
-  ;;     (progn 
-  ;;	(message "Reportmail: %s" mesg)
-  ;;	(sit-for 1)
-  ;;	))
+  (if display-time-debugging-messages
+      (progn 
+	(message "Reportmail: %s" mesg)
+	(sit-for 1)
+	))
   (save-excursion
     (save-window-excursion
       (set-buffer (get-buffer-create display-time-debugging-buffer))
       (goto-char (point-max))
-      (insert mesg "\n")))
+      (insert (substring (current-time-string) 11 16) "  " mesg "\n")
+      ;; Make sure the debugging buffer doesn't get out of hand
+      (if (> (point-max) display-time-max-debug-info)
+	  (delete-region (point-min) 
+			 (- (point-max) display-time-max-debug-info)))))
   (if display-time-debugging-delay
       (progn (message "Reportmail: %s" mesg)
 	     (sit-for display-time-debugging-delay))))
+
+(provide 'reportmail)

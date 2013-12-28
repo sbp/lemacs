@@ -318,7 +318,7 @@ x      start a new timer
 	tab-stop-list '(22 32 42))
   (abbrev-mode 0)
   (auto-fill-mode 0)
-  (buffer-flush-undo (current-buffer))
+  (buffer-disable-undo (current-buffer))
   (use-local-map timer-edit-map)
   (and lisp-mode-syntax-table (set-syntax-table lisp-mode-syntax-table)))
 
@@ -542,9 +542,12 @@ auto-save-timeout and the current keyboard idle-time."
 	    (set-timer-restart self (/ auto-save-timeout 4)))))
   nil)
 
-(or (get-timer "auto-save")
-    (let ((time (max 2 (/ (or auto-save-timeout 30) 4))))
-      (start-timer "auto-save" 'auto-save-timer time time)))
+(if purify-flag ; loading into temacs
+    (message "WARNING: if timer.el is preloaded, auto-save-timeout won't work.")
+  (or noninteractive ; batch mode, but not temacs
+      (get-timer "auto-save")
+      (let ((time (max 2 (/ (or auto-save-timeout 30) 4))))
+	(start-timer "auto-save" 'auto-save-timer time time))))
 
 
 (provide 'timer)

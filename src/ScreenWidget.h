@@ -64,7 +64,6 @@ extern WidgetClass emacsScreenWidgetClass;
 extern struct _DisplayContext* display_context;
 
 /* Special entrypoints */
-void
-EmacsScreenSetCharSize (EmacsScreenWidget ew, int rows, int cols);
+void EmacsScreenSetCharSize (Widget widget, int rows, int cols);
 
 #endif /* _ScreenWidget_h */

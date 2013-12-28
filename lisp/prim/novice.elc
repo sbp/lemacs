@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Sun Aug 30 14:51:12 1992
-;;; from file /wg1/emacs-base/lisp/prim/novice.el
-;;; emacs version 19.2.13 Lucid.
-;;; bytecomp version 2.08;  7-aug-92.
+;;; compiled by jwz@thalidomide on Fri Jan 15 03:27:10 1993
+;;; from file /cadillac-th/jwz/emacs19/lisp/prim/novice.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 12-jan-93.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,7 +10,7 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(fset 'disabled-command-hook #[(&rest ignore) "ÀÂ‹ˆ	ÃU«“ÄÅ!«‡Æ!ˆª‡ÈÉÀ#ˆ	ÊU?­„Ë!)‡" [nil char ((byte-code "ÀÁÂ ÃH!Ä=«†ÅÆ!ˆªÅÇ!ˆÅÈÂ !!ˆÅÉ!ˆÅ\n!ˆÅË!ˆ\nÌN;«‡Å\nÌN!ˆÅÍÎÏ®Ð!ˆŠÀqˆebˆÑÒÍÓ#«‡`Sd|ˆªƒdbˆ)ÅÒ!ˆÅÔ!‘ˆÕÖ!ˆÓ× ÁÚ!!—‰Ü>¬‰Ý ˆÕÞ!ˆªi*Í‡" ["*Help*" event-to-character this-command-keys 0 13 princ "You have invoked the disabled command " "You have typed " key-description ", invoking disabled command " this-command ":\n" disabled nil (documentation this-command) ((error)) "<< not documented >>" search-forward "\n\n" t "You can now type\nSpace to try the command just this once,\n      but leave it disabled,\nY to try it and enable it (no questions if you use it again),\nN to do nothing (command remains disabled)." message "Type y, n or Space: " allocate-event event cursor-in-echo-area next-command-event char (32 121 110) ding "Please type y, n or Space: "] 5)) 121 y-or-n-p "Enable command for future editing sessions also? " enable-command this-command put disabled 110 call-interactively] 4])
+(fset 'disabled-command-hook #[(&rest ignore) "ÀÂ‹ˆ	ÃU«“ÄÅ!«‡Æ!ˆª‡ÈÉÀ#ˆ	ÊU?­„Ë!)‡" [nil char ((byte-code "ÀÁÂ ÃH!Ä=«†ÅÆ!ˆªÅÇ!ˆÅÈÂ !!ˆÅÉ!ˆÅ\n!ˆÅË!ˆ\nÌN;«‡Å\nÌN!ˆÅÍÎÏ®Ð!ˆŠÀqˆebˆÑÒÍÓ#«‡`Sd|ˆªƒdbˆ)ÅÒ!ˆÅÔ!‘ˆÕÖ!ˆÓ× ÁÚ!!—‰Ü>¬ŽÝÍÞ\"ˆß ˆÕà!ˆªd*Í‡" ["*Help*" event-to-character this-command-keys 0 13 princ "You have invoked the disabled command " "You have typed " key-description ", invoking disabled command " this-command ":\n" disabled nil (documentation this-command) ((error)) "<< not documented >>" search-forward "\n\n" t "You can now type\nSpace to try the command just this once,\n      but leave it disabled,\nY to try it and enable it (no questions if you use it again),\nN to do nothing (command remains disabled)." message "Type y, n or Space: " allocate-event event cursor-in-echo-area next-command-event char (32 121 110) ding y-or-n-p discard-input "Please type y, n or Space: "] 5)) 121 y-or-n-p "Enable command for future editing sessions also? " enable-command this-command put disabled 110 call-interactively] 4])
 (fset 'enable-command #[(command) "À	ÂÃ#ˆŠÄÅÆ!!qˆebˆÇÈÉ	!ÊQÃË#«ŒÌyˆ`Íyˆ`|ˆª‹dbˆÎÉ	!Ï±ˆÐ )‡" [put command disabled nil find-file-noselect substitute-in-file-name "~/.emacs" search-forward "(put '" symbol-name " " t 0 1 "\n(put '" " 'disabled nil)\n" save-buffer] 4 "\
 Allow COMMAND to be executed without special confirmation from now on.
 The user's .emacs file is altered so that this will apply

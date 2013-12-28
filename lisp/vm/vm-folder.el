@@ -976,8 +976,13 @@ visited folder."
      (t (describe-mode)))))
 
 (defun vm-move-mail (source destination)
-  (call-process vm-movemail-program nil nil nil
-		(expand-file-name source) (expand-file-name destination)))
+  (let ((status
+	 (call-process vm-movemail-program nil nil nil
+		       (expand-file-name source)
+		       (expand-file-name destination))))
+    (if (not (= 0 status))
+	(error "vm: %s exited with code %s" vm-movemail-program status))
+    status))
 
 (defun vm-gobble-crash-box ()
   (save-excursion

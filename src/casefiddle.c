@@ -26,7 +26,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 enum case_action {CASE_UP, CASE_DOWN, CASE_CAPITALIZE, CASE_CAPITALIZE_UP};
 
-Lisp_Object
+static Lisp_Object
 casify_object (flag, obj)
      enum case_action flag;
      Lisp_Object obj;
@@ -65,7 +65,7 @@ casify_object (flag, obj)
 	    }
 	  return obj;
 	}
-      obj = wrong_type_argument (Qchar_or_string_p, obj, 0);
+      obj = wrong_type_argument (Qchar_or_string_p, obj);
     }
 }
 
@@ -101,9 +101,12 @@ The argument object is not altered.")
   return casify_object (CASE_CAPITALIZE, obj);
 }
 
+extern void signal_after_change (int, int, int);
+
 /* flag is CASE_UP, CASE_DOWN or CASE_CAPITALIZE or CASE_CAPITALIZE_UP.
    b and e specify range of buffer to operate on. */
 
+static void
 casify_region (flag, b, e)
      enum case_action flag;
      Lisp_Object b, e;
@@ -186,7 +189,7 @@ upcase_initials_region (b, e)
   return Qnil;
 }
 
-Lisp_Object
+static Lisp_Object
 operate_on_word (arg)
      Lisp_Object arg;
 {
@@ -245,6 +248,7 @@ With negative argument, capitalize previous words but do not move.")
   return Qnil;
 }
 
+void
 syms_of_casefiddle ()
 {
   defsubr (&Supcase);
@@ -256,13 +260,4 @@ syms_of_casefiddle ()
   defsubr (&Supcase_word);
   defsubr (&Sdowncase_word);
   defsubr (&Scapitalize_word);
-}
-
-keys_of_casefiddle ()
-{
-  initial_define_key (control_x_map, Ctl('U'), "upcase-region");
-  initial_define_key (control_x_map, Ctl('L'), "downcase-region");
-  initial_define_key (meta_map, 'u', "upcase-word");
-  initial_define_key (meta_map, 'l', "downcase-word");
-  initial_define_key (meta_map, 'c', "capitalize-word");
 }

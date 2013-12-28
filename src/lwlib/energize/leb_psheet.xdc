@@ -29,7 +29,7 @@ create_widget0( parent )
 Widget parent;
 {
 	Display *display = XtDisplay ( parent );
-	Widget children[18];      /* Children to manage */
+	Widget children[17];      /* Children to manage */
 	Arg al[64];           /* Arg List */
 	register int ac = 0;      /* Arg Count */
 	char from_s [256];    /* For font list conversion */
@@ -53,10 +53,9 @@ Widget parent;
 	Widget widget11;
 	Widget widget12;
 	Widget widget13;
-	Widget widget14;
 	Widget widget15;
-	Widget widget16;
 	Widget widget17;
+	Widget widget25;
 	Widget widget18;
 	Widget widget19;
 	Widget widget20;
@@ -93,10 +92,9 @@ Widget parent;
 	widget11 = XmCreateToggleButton ( widget2, "macros", al, ac );
 	widget12 = XmCreateToggleButton ( widget2, "variables", al, ac );
 	widget13 = XmCreateToggleButton ( widget2, "types", al, ac );
-	widget14 = XmCreateToggleButton ( widget2, "doc", al, ac );
 	widget15 = XmCreateToggleButton ( widget2, "whereDeclared", al, ac );
-	widget16 = XmCreateToggleButton ( widget2, "highlightUses", al, ac );
 	widget17 = XmCreateToggleButton ( widget2, "verbose", al, ac );
+	widget25 = XmCreateLabel ( widget2, "separator", al, ac );
 	XtSetArg(al[ac], XmNmarginWidth, 0); ac++;
 	XtSetArg(al[ac], XmNmarginHeight, 0); ac++;
 	XtSetArg(al[ac], XmNorientation, XmHORIZONTAL); ac++;
@@ -105,13 +103,10 @@ Widget parent;
 	widget19 = XmCreateToggleButtonGadget ( widget18, "nameOnly", al, ac );
 	widget20 = XmCreateToggleButtonGadget ( widget18, "prototype", al, ac );
 	widget21 = XmCreateToggleButtonGadget ( widget18, "mangled", al, ac );
-	XtSetArg(al[ac], XmNwidth, 300); ac++;
+	XtSetArg(al[ac], XmNwidth, 346); ac++;
 	widget22 = XmCreateSeparator ( widget2, "separator", al, ac );
 	ac = 0;
 	widget23 = XmCreatePushButton ( widget2, "apply", al, ac );
-	XtSetArg(al[ac], XmNdefaultButton, widget23); ac++;
-        XtSetValues ( widget2,al, ac );
-	ac = 0;
 
 	XtSetArg(al[ac], XmNtopAttachment, XmATTACH_FORM); ac++;
 	XtSetArg(al[ac], XmNtopOffset, 5); ac++;
@@ -236,54 +231,44 @@ Widget parent;
 	ac = 0;
 
 	XtSetArg(al[ac], XmNtopAttachment, XmATTACH_WIDGET); ac++;
-	XtSetArg(al[ac], XmNtopOffset, 0); ac++;
+	XtSetArg(al[ac], XmNtopOffset, 2); ac++;
 	XtSetArg(al[ac], XmNtopWidget, widget22); ac++;
 	XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_NONE); ac++;
 	XtSetArg(al[ac], XmNleftAttachment, XmATTACH_FORM); ac++;
 	XtSetArg(al[ac], XmNleftOffset, 2); ac++;
 	XtSetArg(al[ac], XmNrightAttachment, XmATTACH_NONE); ac++;
-        XtSetValues ( widget14,al, ac );
-	ac = 0;
-
-	XtSetArg(al[ac], XmNtopAttachment, XmATTACH_WIDGET); ac++;
-	XtSetArg(al[ac], XmNtopOffset, 0); ac++;
-	XtSetArg(al[ac], XmNtopWidget, widget22); ac++;
-	XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_NONE); ac++;
-	XtSetArg(al[ac], XmNleftAttachment, XmATTACH_WIDGET); ac++;
-	XtSetArg(al[ac], XmNleftOffset, 2); ac++;
-	XtSetArg(al[ac], XmNleftWidget, widget14); ac++;
-	XtSetArg(al[ac], XmNrightAttachment, XmATTACH_NONE); ac++;
         XtSetValues ( widget15,al, ac );
 	ac = 0;
 
 	XtSetArg(al[ac], XmNtopAttachment, XmATTACH_WIDGET); ac++;
-	XtSetArg(al[ac], XmNtopOffset, 0); ac++;
+	XtSetArg(al[ac], XmNtopOffset, 2); ac++;
 	XtSetArg(al[ac], XmNtopWidget, widget22); ac++;
 	XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_NONE); ac++;
 	XtSetArg(al[ac], XmNleftAttachment, XmATTACH_WIDGET); ac++;
 	XtSetArg(al[ac], XmNleftOffset, 2); ac++;
 	XtSetArg(al[ac], XmNleftWidget, widget15); ac++;
 	XtSetArg(al[ac], XmNrightAttachment, XmATTACH_NONE); ac++;
-        XtSetValues ( widget16,al, ac );
-	ac = 0;
-
-	XtSetArg(al[ac], XmNtopAttachment, XmATTACH_WIDGET); ac++;
-	XtSetArg(al[ac], XmNtopOffset, 0); ac++;
-	XtSetArg(al[ac], XmNtopWidget, widget22); ac++;
-	XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_NONE); ac++;
-	XtSetArg(al[ac], XmNleftAttachment, XmATTACH_WIDGET); ac++;
-	XtSetArg(al[ac], XmNleftOffset, 2); ac++;
-	XtSetArg(al[ac], XmNleftWidget, widget16); ac++;
-	XtSetArg(al[ac], XmNrightAttachment, XmATTACH_NONE); ac++;
         XtSetValues ( widget17,al, ac );
 	ac = 0;
 
 	XtSetArg(al[ac], XmNtopAttachment, XmATTACH_WIDGET); ac++;
-	XtSetArg(al[ac], XmNtopOffset, 0); ac++;
-	XtSetArg(al[ac], XmNtopWidget, widget14); ac++;
+	XtSetArg(al[ac], XmNtopOffset, 2); ac++;
+	XtSetArg(al[ac], XmNtopWidget, widget22); ac++;
 	XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_NONE); ac++;
-	XtSetArg(al[ac], XmNleftAttachment, XmATTACH_FORM); ac++;
-	XtSetArg(al[ac], XmNleftOffset, 0); ac++;
+	XtSetArg(al[ac], XmNleftAttachment, XmATTACH_WIDGET); ac++;
+	XtSetArg(al[ac], XmNleftOffset, 2); ac++;
+	XtSetArg(al[ac], XmNleftWidget, widget17); ac++;
+	XtSetArg(al[ac], XmNrightAttachment, XmATTACH_NONE); ac++;
+        XtSetValues ( widget25,al, ac );
+	ac = 0;
+
+	XtSetArg(al[ac], XmNtopAttachment, XmATTACH_WIDGET); ac++;
+	XtSetArg(al[ac], XmNtopOffset, 2); ac++;
+	XtSetArg(al[ac], XmNtopWidget, widget22); ac++;
+	XtSetArg(al[ac], XmNbottomAttachment, XmATTACH_NONE); ac++;
+	XtSetArg(al[ac], XmNleftAttachment, XmATTACH_WIDGET); ac++;
+	XtSetArg(al[ac], XmNleftOffset, 2); ac++;
+	XtSetArg(al[ac], XmNleftWidget, widget25); ac++;
 	XtSetArg(al[ac], XmNrightAttachment, XmATTACH_NONE); ac++;
         XtSetValues ( widget18,al, ac );
 	ac = 0;
@@ -324,10 +309,9 @@ Widget parent;
 	children[ac++] = widget11;
 	children[ac++] = widget12;
 	children[ac++] = widget13;
-	children[ac++] = widget14;
 	children[ac++] = widget15;
-	children[ac++] = widget16;
 	children[ac++] = widget17;
+	children[ac++] = widget25;
 	children[ac++] = widget18;
 	children[ac++] = widget22;
 	children[ac++] = widget23;

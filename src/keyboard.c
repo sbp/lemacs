@@ -1,5 +1,5 @@
 /* Keyboard input; editor command loop.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -88,8 +88,6 @@ Lisp_Object Vhelp_form;
 Lisp_Object Vpre_command_hook, Vpost_command_hook;
 Lisp_Object Qpre_command_hook, Qpost_command_hook;
 
-Lisp_Object Vmouse_grabbed_buffer;
-
 extern struct Lisp_Keymap *current_global_map;
 extern Lisp_Object Vglobal_function_map;
 extern int minibuf_level;
@@ -128,12 +126,6 @@ Lisp_Object Vthis_command;
  */
 Lisp_Object Vlast_input_time;
 
-Lisp_Object Vmouse_left_hook;
-Lisp_Object Vmouse_enter_hook;
-Lisp_Object Vmap_screen_hook;
-Lisp_Object Vunmap_screen_hook;
-Lisp_Object Vmouse_motion_handler;
-
 Lisp_Object Qself_insert_command;
 Lisp_Object Qforward_char;
 Lisp_Object Qbackward_char;
@@ -146,7 +138,7 @@ Lisp_Object Vkeyboard_translate_table;
 
 /* File in which we write all commands we read */
 /* #### there is exactly zero chance that this works right now */
-FILE *dribble;
+static FILE *dribble;
 
 /* #### this should be a property of the tty event_stream */
 /* Nonzero if should obey 0200 bit in input chars as "Meta" */
@@ -155,13 +147,11 @@ int meta_key;
 /* Address (if not 0) of word to zero out
  if a SIGIO interrupt happens */
 /* #### whatever this is, I'm sure it doesn't work */
-long *input_available_clear_word;
+static long *input_available_clear_word;
 
 /* Nonzero means use SIGIO interrupts; zero means use CBREAK mode.
    Default is 1 if INTERRUPT_INPUT is defined.  */
 int interrupt_input;
-
-void interrupt_signal ();
 
 /* Nonzero while interrupts are temporarily deferred during redisplay.  */
 int interrupts_deferred;
@@ -197,19 +187,24 @@ int flow_control;
 /* Function for init_keyboard to call with no args (if nonzero).  */
 void (*keyboard_init_hook) ();
 
-static int read_avail_input ();
-static void get_input_pending ();
-
 #define	min(a,b)	((a)<(b)?(a):(b))
 #define	max(a,b)	((a)>(b)?(a):(b))
 
-extern init_sys_modes ();
+extern void init_sys_modes (void);
 
 
-Lisp_Object
+static Lisp_Object command_loop (void);
+
+static Lisp_Object unwind_init_sys_modes (Lisp_Object ignore)
+{
+  init_sys_modes();
+  return Qnil;
+}
+
+static Lisp_Object
 recursive_edit_1 ()
 {
-  int count = specpdl_ptr - specpdl;
+  int count = specpdl_depth;
   Lisp_Object val;
 
   if (command_loop_level > 0)
@@ -222,11 +217,10 @@ recursive_edit_1 ()
   if (EQ (val, Qt))
     Fsignal (Qquit, Qnil);
 
-  unbind_to (count);
-  return Qnil;
+  return unbind_to (count, Qnil);
 }
 
-Lisp_Object recursive_edit_unwind (), command_loop ();
+static Lisp_Object recursive_edit_unwind (Lisp_Object);
 
 DEFUN ("recursive-edit", Frecursive_edit, Srecursive_edit, 0, 0, "",
   "Invoke the editor command loop recursively.\n\
@@ -236,9 +230,7 @@ Alternately, `(throw 'exit t)' makes this function signal an error.\n\
 This function is called by the editor initialization to begin editing.")
   ()
 {
-  int count = specpdl_ptr - specpdl;
-  Lisp_Object val;
-
+  int count = specpdl_depth;
   command_loop_level++;
   redraw_mode_line++;
 
@@ -248,12 +240,10 @@ This function is called by the editor initialization to begin editing.")
 			 ? Fcurrent_buffer ()
 			 : Qnil);
   recursive_edit_1 ();
-  unbind_to (count);
-
-  return Qnil;
+  return unbind_to (count, Qnil);
 }
 
-Lisp_Object
+static Lisp_Object
 recursive_edit_unwind (buffer)
      Lisp_Object buffer;
 {
@@ -266,9 +256,8 @@ recursive_edit_unwind (buffer)
   return Qnil;
 }
 
-Lisp_Object
-cmd_error (data)
-     Lisp_Object data;
+static Lisp_Object
+cmd_error (Lisp_Object data, Lisp_Object dummy)
 {
   Lisp_Object errmsg, tail, errname, file_error;
   struct gcpro gcpro1;
@@ -347,13 +336,13 @@ cmd_error (data)
 
 Lisp_Object command_loop_1 ();
 Lisp_Object command_loop_2 ();
-Lisp_Object top_level_1 ();
+static Lisp_Object top_level_1 ();
 
 /* Entry to editor-command-loop.
    This level has the catches for exiting/returning to editor command loop.
    It returns nil to exit recursive edit, t to abort it.  */
 
-Lisp_Object
+static Lisp_Object
 command_loop ()
 {
   if (command_loop_level > 0 || minibuf_level > 0)
@@ -385,29 +374,41 @@ command_loop_2 (dummy)
   register Lisp_Object val;
 
   do
-    val = internal_condition_case (command_loop_1, Qerror, cmd_error);
+    val = condition_case_1 (Qerror,
+                            command_loop_1, Qnil,
+                            cmd_error, Qnil);
   while (!NILP (val));
 
   return Qnil;
 }
 
-Lisp_Object
+static Lisp_Object
 top_level_2 ()
 {
   return Feval (Vtop_level);
 }
 
-Lisp_Object
+static Lisp_Object
 top_level_1 (dummy)
      Lisp_Object dummy;
 {
   /* On entry to the outer level, run the startup file */
   if (!NILP (Vtop_level))
-    internal_condition_case (top_level_2, Qerror, cmd_error);
+    condition_case_1 (Qerror, top_level_2, Qnil, cmd_error, Qnil);
+#if 1
+  else
+    {
+      fprintf (stderr, "\ntemacs can only be run in -batch mode.\n");
+      noninteractive = 1; /* prevent things under kill-emacs from blowing up */
+      Fkill_emacs (make_number (-1));
+    }
+#else
   else if (!NILP (Vpurify_flag))
     message ("Bare impure Emacs (standard Lisp code not loaded)");
   else
     message ("Bare Emacs (standard Lisp code not loaded)");
+#endif
+
   return Qnil;
 }
 
@@ -543,6 +544,7 @@ input_poll_signal ()
 /* Begin signals to poll for input, if they are appropriate.
    This function is called unconditionally from various places.  */
 
+void
 start_polling ()
 {
 #ifdef POLL_FOR_INPUT
@@ -561,6 +563,7 @@ start_polling ()
 
 /* Turn off polling.  */
 
+void
 stop_polling ()
 {
 #ifdef POLL_FOR_INPUT
@@ -577,9 +580,6 @@ stop_polling ()
 }
 
 
-/* Set this for debugging, to have a way to get out */
-int stop_character;
-
 extern int screen_garbaged;
 
 #ifdef HAVE_X_WINDOWS
@@ -594,7 +594,7 @@ extern struct _XDisplay* x_current_display;
 
 /* Note SIGIO has been undef'd if FIONREAD is missing.  */
 
-void
+static void
 input_available_signal (signo)
      int signo;
 {
@@ -622,26 +622,6 @@ input_available_signal (signo)
   errno = old_errno;
 }
 #endif /* SIGIO */
-
-/* Return the prompt-string of a sparse keymap.
-   This is the first element which is a string.
-   Return nil if there is none.  */
-
-Lisp_Object
-map_prompt (map)
-     Lisp_Object map;
-{
-  while (CONSP (map))
-    {
-      register Lisp_Object tem;
-      tem = Fcar (map);
-      if (STRINGP (tem))
-	return tem;
-      map = Fcdr (map);
-    }
-  return Qnil;
-}
-
 
 DEFUN ("command-execute", Fcommand_execute, Scommand_execute, 1, 2, 0,
  "Execute CMD as an editor command.\n\
@@ -712,45 +692,6 @@ Otherwise, that is done only if an arg is read using the minibuffer.")
 					? Fcons (cmd, Qnil)
 					: Fcons (cmd, Fcons (final, Qnil))));
   return Qnil;
-}
-
-DEFUN ("execute-extended-command", Fexecute_extended_command, Sexecute_extended_command,
-  1, 1, "P",
-  "Read function name, then read its arguments and call it.")
-  (prefixarg)
-     Lisp_Object prefixarg;
-{
-  Lisp_Object function;
-  char buf[40];
-  Lisp_Object saved_keys;
-  struct gcpro gcpro1;
-
-  saved_keys = Fthis_command_keys ();
-  buf[0] = 0;
-  GCPRO1 (saved_keys);
-
-  if (EQ (prefixarg, Qminus))
-    strcpy (buf, "- ");
-  else if (CONSP (prefixarg) && XINT (XCONS (prefixarg)->car) == 4)
-    strcpy (buf, "C-u ");
-  else if (CONSP (prefixarg) && FIXNUMP (XCONS (prefixarg)->car))
-    sprintf (buf, "%d ", XINT (XCONS (prefixarg)->car));
-  else if (FIXNUMP (prefixarg))
-    sprintf (buf, "%d ", XINT (prefixarg));
-
-  /* This isn't strictly correct if execute-extended-command
-     is bound to anything else */
-  strcat (buf, "M-x ");
-
-  function = Fcompleting_read (build_string (buf), Vobarray, Qcommandp, Qt, Qnil, Qnil);
-
-  UNGCPRO;
-
-  function = Fintern (function, Vobarray);
-  Vprefix_arg = prefixarg;
-  Vthis_command = function;
-
-  return Fcommand_execute (function, Qt);
 }
 
 extern Lisp_Object recent_keys_ring;
@@ -825,6 +766,9 @@ DEFUN ("open-dribble-file", Fopen_dribble_file, Sopen_dribble_file, 1, 1,
   return Qnil;
 }
 
+extern void reset_sys_modes (void);
+extern void sys_suspend (void);
+
 DEFUN ("suspend-emacs", Fsuspend_emacs, Ssuspend_emacs, 0, 1, "",
   "Stop Emacs and return to superior process.  You can resume later.\n\
 If optional arg STUFFSTRING is non-nil, its characters are stuffed\n\
@@ -837,7 +781,7 @@ Otherwise, suspend normally and after resumption call\n\
      Lisp_Object stuffstring;
 {
   register Lisp_Object tem;
-  int count = specpdl_ptr - specpdl;
+  int count = specpdl_depth;
   struct gcpro gcpro1;
 
   if (!NILP (stuffstring))
@@ -855,10 +799,10 @@ Otherwise, suspend normally and after resumption call\n\
   reset_sys_modes ();
   /* sys_suspend can get an error if it tries to fork a subshell
      and the system resources aren't available for that.  */
-  record_unwind_protect (init_sys_modes, 0);
+  record_unwind_protect (unwind_init_sys_modes, Qnil);
   stuff_buffered_input (stuffstring);
   sys_suspend ();
-  unbind_to (count);
+  unbind_to (count, Qnil);
 
   /* Call value of suspend-resume-hook
      if it is bound and value is non-nil.  */
@@ -871,6 +815,9 @@ Otherwise, suspend normally and after resumption call\n\
 /* If STUFFSTRING is a string, stuff its contents as pending terminal input.
    Then in any case stuff anthing Emacs has read ahead and not used.  */
 
+extern void stuff_char (char);
+
+void
 stuff_buffered_input (stuffstring)
      Lisp_Object stuffstring;
 {
@@ -902,6 +849,7 @@ stuff_buffered_input (stuffstring)
 #endif /* BSD and not BSD4_1 */
 }
 
+#if 0 /* Unused in Lucid Emacs */
 set_waiting_for_input (word_to_clear)
      long *word_to_clear;
 {
@@ -923,6 +871,7 @@ clear_waiting_for_input ()
   waiting_for_input = 0;
   input_available_clear_word = 0;
 }
+#endif /* Unused */
 
 /* This routine is called at interrupt level in response to C-G.
  If interrupt_input, this is the handler for SIGINT.
@@ -932,14 +881,13 @@ clear_waiting_for_input ()
  This causes  eval  to throw, when it gets a chance.
  If  quit-flag  is already non-nil, it stops the job right away.  */
 
-void
+SIGTYPE
 interrupt_signal (dummy)
      int dummy;
 {
   char c;
   /* Must preserve main program's value of errno.  */
   int old_errno = errno;
-  extern Lisp_Object Vwindow_system;
 
 #ifdef USG
   /* USG systems forget handlers when they are used;
@@ -982,7 +930,7 @@ interrupt_signal (dummy)
       printf ("Auto-save? (y or n) ");
       fflush (stdout);
       if (((c = getchar ()) & ~040) == 'Y')
-	Fdo_auto_save (Qnil, Qnil);
+	Fdo_auto_save (Qnil);
       while (c != '\n') c = getchar ();
 #ifdef VMS
       printf ("Abort (and enter debugger)? (y or n) ");
@@ -1069,6 +1017,7 @@ variable `interrupt-char'.")
 }
 
 
+void
 init_keyboard ()
 {
   /* This is correct before outermost invocation of the editor loop */
@@ -1105,6 +1054,7 @@ init_keyboard ()
     (*keyboard_init_hook) ();
 }
 
+void
 syms_of_keyboard ()
 {
   Qself_insert_command = intern ("self-insert-command");
@@ -1134,7 +1084,6 @@ syms_of_keyboard ()
   defsubr (&Sopen_dribble_file);
   defsubr (&Sset_input_mode);
   defsubr (&Sset_interrupt_character);
-  defsubr (&Sexecute_extended_command);
 
   DEFVAR_LISP ("disabled-command-hook", &Vdisabled_command_hook,
     "Value is called instead of any command that is disabled,\n\
@@ -1200,14 +1149,14 @@ will be in `last-command' during the following command.");
     "Character to recognize as meaning Help.\n\
 When it is read, do `(eval help-form)', and display result if it's a string.\n\
 If the value of `help-form' is nil, this char can be read normally.");
-  help_char = Ctl ('H');
+  help_char = 8; /* C-h */
 
   DEFVAR_INT ("interrupt-char", &interrupt_char,
     "Character which interrupts emacs.\n\
 Do not setq this variable: use the function `set-interrupt-character' instead.\n\
 Depending on the system you are on, this may need to do magic like changing\n\
 interrupt handlers.");
-  interrupt_char = Ctl ('G');
+  interrupt_char = 7; /* C-g */
 
   DEFVAR_LISP ("help-form", &Vhelp_form,
     "Form to execute when character help-char is read.\n\
@@ -1245,45 +1194,4 @@ This is the right thing to use only if you are on a dumb tty, as it cannot\n\
 handle input which cannot be represented as ASCII.  If you are running emacs\n\
 under X, you should do the translations with the `xmodmap' program instead.");
   Vkeyboard_translate_table = Qnil;
-
-#ifdef HAVE_X_WINDOWS
-  DEFVAR_LISP ("mouse-left-hook", &Vmouse_left_hook,
-     "Function to call when mouse leaves screen.  One arg, the screen.");
-  Vmouse_left_hook = Qnil;
-
-  DEFVAR_LISP ("mouse-enter-hook", &Vmouse_enter_hook,
-     "Function to call when mouse enters a screen.  One arg, the screen.");
-  Vmouse_enter_hook = Qnil;
-
-  DEFVAR_LISP ("map-screen-hook", &Vmap_screen_hook,
-    "Function to call when screen is mapped.  One arg, the screen.");
-  Vmap_screen_hook = Qnil;
-
-  DEFVAR_LISP ("unmap-screen-hook", &Vunmap_screen_hook,
-    "Function to call when screen is unmapped.  One arg, the screen.");
-  Vunmap_screen_hook = Qnil;
-
-  DEFVAR_LISP ("mouse-motion-handler", &Vmouse_motion_handler,
-    "Handler for motion events.  One arg, the event.\n\
-For most applications, you should use `mode-motion-hook' instead of this.");
-  Vmouse_motion_handler = Qnil;
-
-  DEFVAR_LISP ("mouse-grabbed-buffer", &Vmouse_grabbed_buffer,
-    "A buffer which should be consulted first for all mouse activity.\n\
-When a mouse-clicked it processed, it will first be looked up in the\n\
-local-map of this buffer, and then through the normal mechanism if there\n\
-is no binding for that click.  This buffer's value of `mode-motion-hook'\n\
-will be consulted instead of the `mode-motion-hook' of the buffer of the\n\
-window under the mouse.  You should *bind* this, not set it.");
-  Vmouse_grabbed_buffer = Qnil;
-#endif
-}
-
-keys_of_keyboard ()
-{
-  initial_define_key (global_map, Ctl ('Z'), "suspend-emacs");
-  initial_define_key (control_x_map, Ctl ('Z'), "suspend-emacs");
-  initial_define_key (meta_map, Ctl ('C'), "exit-recursive-edit");
-  initial_define_key (global_map, Ctl (']'), "abort-recursive-edit");
-  initial_define_key (meta_map, 'x', "execute-extended-command");
 }

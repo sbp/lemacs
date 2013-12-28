@@ -1,10 +1,10 @@
-;; Copyright (C) 1986 Free Software Foundation, Inc.
+;; Copyright (C) 1986, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -267,7 +267,8 @@ will select it.)"
 			 (set-buffer b)
 			 (set-buffer-modified-p t)))
 		  (fset 'print-help-return-message 'ignore)
-		  (call-interactively fun)
+		  (let ((temp-buffer-show-function 'ignore))
+		    (call-interactively fun))
 		  (and (get-buffer name)
 		       (get-buffer-window (get-buffer name))
 		       (or (not b)

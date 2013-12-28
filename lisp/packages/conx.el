@@ -4,7 +4,7 @@
 ;;; Original design by Skef Wholey <skef@cs.cmu.edu>;
 ;;; ported to Emacs-Lisp by Jamie Zawinski <jwz@lucid.com>, 5-mar-91.
 ;;;
-(defconst conx-version "1.3, 10-may-92.")
+(defconst conx-version "1.4, 28-dec-92.")
 ;;;
 ;;; Run this compiled.  It will be an order of magnitude faster.
 ;;;
@@ -411,6 +411,318 @@ This clears the database currently in memory."
 	(function setq))
   (let ((obarray conx-words-hashtable))
     (load file)))
+
+
+;;; Emitting C code
+
+(defun conx-emit-c-data ()
+  (let ((all '())
+	(standard-output (current-buffer))
+	(float-output-format "%.2f")
+	count total total100)
+    (or conx-words-hashtable (error "no words"))
+    (let ((i 0))
+      (mapatoms (function (lambda (x)
+			    (if (boundp x)
+				(setq all (cons (cons i x) all)
+				      i (1+ i)))))
+		conx-words-hashtable))
+    (setq all (nreverse all))
+    (setq total (* 4 (length all))
+	  total100 (max 1 (if (featurep 'lisp-float-type)
+			      (/ (float total) 100)
+			    (/ total 100)))
+	  count 0)
+    (let ((rest all)
+	  (i 5)
+	  rest2
+	  word)
+      (princ "static unsigned short D[] = {")
+      (while rest
+	(setq word (symbol-value (cdr (car rest))))
+	(setq rest2 (conx-pred word))
+	(setq count (1+ count))
+	(while rest2
+	  (princ (cdr (car rest2))) (princ ",")
+	  (princ (car (rassq (car (car rest2)) all)))
+	  (princ ",")
+	  (setq i (1+ i))
+	  (if (> i 10)
+	      (progn (princ "\n") (setq i 0)))
+	  (setq rest2 (cdr rest2)))
+	(message "Writing C code... %s%%" (/ count total100))
+	(setq count (1+ count))
+	(setq rest2 (conx-succ word))
+	(while rest2
+	  (princ (cdr (car rest2))) (princ ",")
+	  (princ (car (rassq (car (car rest2)) all)))
+	  (princ ",")
+	  (setq i (1+ i))
+	  (if (> i 10)
+	      (progn (princ "\n") (setq i 0)))
+	  (setq rest2 (cdr rest2)))
+	(message "Writing C code... %s%%" (/ count total100))
+	(setq count (1+ count))
+	(setq rest (cdr rest))))
+    (princ "0};\nstatic char T[] = \"")
+    (let ((rest all)
+	  (i 0) (j 20)
+	  k word)
+      (while rest
+	(setq word (symbol-name (cdr (car rest))))
+	(setq k (1+ (length word))
+	      i (+ i k)
+	      j (+ j k 3))
+	(if (> j 78)
+	    (progn (princ "\\\n") (setq j (+ k 3))))
+	(princ word)			; assumes word has no chars needing backslashes
+	(princ "\\000")
+	(message "Writing C code... %s%%" (/ count total100))
+	(setq count (1+ count))
+	(setq rest (cdr rest))))
+    (princ "\";\nstatic struct conx_word words [] = {")
+    (let ((rest all)
+	  (i 0) (j 0)
+	  cons name word)
+      (while rest
+	(setq cons (car rest)
+	      name (symbol-name (cdr cons))
+	      word (symbol-value (cdr cons)))
+	(princ "{") (princ (conx-count word))
+	(princ ",") (princ (conx-cap word))
+	(princ ",") (princ (conx-comma word))
+	(princ ",") (princ (conx-period word))
+	(princ ",") (princ (conx-quem word))
+	(princ ",") (princ (conx-bang word))
+	(if (null (conx-pred word))
+	    (princ ",0")
+	  (princ ",")
+	  (princ i)
+	  (setq i (+ i (* 2 (length (conx-pred word))))))
+	(if (null (conx-succ word))
+	    (princ ",0,")
+	  (princ ",")
+	  (princ i) (princ ",")
+	  (setq i (+ i (* 2 (length (conx-succ word))))))
+	(princ (conx-pred-c word)) (princ ",")
+	(princ (conx-succ-c word)) (princ ",")
+	(princ j)
+	(setq j (+ j (length name) 1))
+	(princ (if (cdr rest) (if (= 0 (% (car cons) 2)) "},\n" "},") "}"))
+	(message "Writing C code... %s%%" (/ count total100))
+	(setq count (1+ count))
+	(setq rest (cdr rest))
+	))
+    (princ "};\n#define conx_bounce ")
+    (princ conx-bounce)
+    (princ "\n")
+    (message "Writing C code... done.")
+    ))
+
+(defvar conx-c-prolog "\
+#if __STDC__
+#include <stddef.h>
+#include <unistd.h>
+extern long random (void);
+extern void srandom (int);
+extern void abort (void);
+#endif
+#include <stdio.h>
+#include <time.h>
+
+struct conx_word {
+  unsigned short count;
+  unsigned short cap;
+  unsigned short comma;
+  unsigned short period;
+  unsigned short quem;
+  unsigned short bang;
+  unsigned short pred;
+  unsigned short succ;
+  unsigned short npred;
+  unsigned short nsucc;
+  unsigned short text;
+};
+")
+
+(defvar conx-c-code "\
+#define countof(x) (sizeof((x)) / sizeof(*(x)))
+#define conx_rand(n) (random()%(n))
+
+static struct conx_word *
+conx_random_related (count, which_list)
+     unsigned short count, which_list;
+{
+  unsigned short *list = D + which_list;
+  int i = 0;
+  unsigned short foll = (count == 0 ? 0 : conx_rand (count));
+  while (1)
+    {
+      if (foll <= list [i * 2])
+	{
+	  if ((list [i * 2 + 1]) > countof (words))
+	    abort ();
+	  return &words [list [i * 2 + 1]];
+	}
+      foll -= list [i * 2];
+      i++;
+    }
+}
+
+static struct conx_word *
+conx_random_succ (word)
+     struct conx_word *word;
+{
+  if (word->nsucc == 0)
+    return word;
+  else
+    {
+      struct conx_word *next = conx_random_related (word->nsucc, word->succ);
+      if (conx_rand (conx_bounce) != 0)
+	return next;
+      return conx_random_succ (conx_random_related (next->npred, next->pred));
+    }
+}
+
+static void
+conx_sentence ()
+{
+  static int x = 0;
+  struct conx_word *word = 0;
+  int first_p = 1;
+  int done = 0;
+  int count = 0;
+  while (!done)
+    {
+      int punc;
+      char *text;
+      int L;
+      if (word)
+	word = conx_random_succ (word);
+      else
+	word = &words [conx_rand (countof (words))];
+      count++;
+      punc = conx_rand (word->count);
+      text = T + word->text;
+      L = strlen (text);
+      if (x + L > 70)
+	{
+	  putchar ('\\n');
+	  x = 0;
+	}
+      x += L+1;
+
+      if (first_p || (word->count == word->cap))
+	{
+	  putchar ((*text >= 'a' && *text <= 'z') ? *text + ('A'-'a') : *text);
+	  fputs (text+1, stdout);
+	  first_p = 0;
+	}
+      else
+	fputs (text, stdout);
+
+      if (punc < word->comma)
+	{
+	  fputs (\", \", stdout);
+	  x++;
+	}
+      else if ((punc -= word->comma) < word->period)
+	{
+	  x++;
+	  if (count > 120 || conx_rand (5) != 0)
+	    {
+	      done = 1;
+	      fputs (\".  \", stdout);
+	      x++;
+	    }
+	  else
+	    {
+	      word = 0;
+	      if (conx_rand (4) == 0)
+		fputs (\": \", stdout);
+	      else
+		fputs (\"; \", stdout);
+	    }
+	}
+      else if ((punc -= word->period) < word->quem)
+	{
+	  done = 1;
+	  fputs (\"?  \", stdout);
+	  x += 2;
+	}
+      else if ((punc -= word->quem) < word->bang)
+	{
+	  done = 1;
+	  fputs (\"!  \", stdout);
+	  x += 2;
+	}
+      else
+	{
+	  if (word->nsucc == 0)
+	    {
+	      fputs (\".  \", stdout);
+	      x += 2;
+	      done = 1;
+	    }
+	  else
+	    putchar (' ');
+	}
+    }
+  if (conx_rand (3) == 0)
+    {
+      fputs (\"\\n\\n\", stdout);
+      x = 0;
+    }
+}
+
+main (argc, argv)
+     int argc;
+     char **argv;
+{
+  unsigned int howmany, delay;
+  char dummy;
+  if (argc == 1)
+    {
+      howmany = 1;
+      delay = 0;
+    }
+  else if (argc == 2 &&
+      1 == sscanf (argv[1], \"%ud%c\", &howmany, &dummy))
+    delay = 0;
+  else if (argc == 3 &&
+	   1 == sscanf (argv[1], \"%ud%c\", &howmany, &dummy) &&
+	   1 == sscanf (argv[2], \"%ud%c\", &delay, &dummy))
+    ;
+  else
+    {
+      fprintf (stderr, \"usage: %s [count [delay]]\\n\", argv [0]);
+      exit (1);
+    }
+
+  srandom (time (0));
+  if (howmany == 0)
+    howmany = ~0;
+  while (howmany > 0)
+    {
+      conx_sentence ();
+      fflush (stdout);
+      howmany--;
+      if (delay) sleep (delay);
+    }
+  putchar ('\\n');
+  exit (0);
+}
+")
+
+(defun conx-emit-c (file)
+  (interactive "FWrite C file: ")
+  (find-file file)
+  (erase-buffer)
+  (let ((buffer-undo-list t))
+    (insert conx-c-prolog)
+    (conx-emit-c-data)
+    (insert conx-c-code))
+  (goto-char (point-min)))
 
 
 ;;; Reporting stats

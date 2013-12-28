@@ -391,7 +391,7 @@ edit."
 	    (beginning-of-line)
 	    (search-forward ":" nil t)))
     (gnus-configure-windows 'SelectNewsgroup)
-    (pop-to-buffer gnus-Subject-buffer)
+    (gnus-pop-to-buffer gnus-Subject-buffer)
     (gnus-Subject-set-mode-line)
     ;; I sometime get confused with the old Article buffer.
     (if (get-buffer gnus-Article-buffer)

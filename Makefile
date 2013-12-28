@@ -37,10 +37,7 @@ COPYDIR= etc info lisp
 # Subdirectories to clean
 CLEANDIR= ${COPYDIR} lisp/term
 
-all:	src/paths.h ${SUBDIR}
-
-src/paths.h: Makefile src/paths.h-dist
-	/bin/sed 's;/usr/local/emacs;${LIBDIR};g' < src/paths.h-dist > src/paths.h
+all:	${SUBDIR}
 
 src:	etc
 

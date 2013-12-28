@@ -1,10 +1,10 @@
-/* Copyright (C) 1985, 1986, 1987, 1988 Free Software Foundation, Inc.
+/* Copyright (C) 1985, 1986, 1987, 1988, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -157,6 +157,35 @@ pointer looks like an int) but not on all machines.
 #define PERROR(file) report_error (file, new)
 #endif
 
+#if __STDC__
+
+/* I don't know how correct this attempt to get more prototypes is... */
+# if defined(sun) && defined(_POSIX_SOURCE)
+#  undef _POSIX_SOURCE
+# endif
+
+# if defined(__lucid) && !defined(__STDC_EXTENDED__)
+#  define __STDC_EXTENDED__ 1
+# endif
+
+# include <stdlib.h>
+# include <unistd.h>
+# include <string.h>
+
+# ifdef __lucid
+#  include <sysent.h>
+# endif
+
+#endif
+
+/* I don't understand this, but it's necessary to get some slots in struct exec
+   from /usr/include/sys/exec.h when running LCC in strict ANSI mode.  We don't
+   need this in K&R mode...
+ */
+#if defined(__lucid) && defined(__sparc) && !defined(sun)
+# define sun 1
+#endif
+
 #ifndef CANNOT_DUMP  /* all rest of file!  */
 
 #ifndef CANNOT_UNEXEC /* most of rest of file */
@@ -265,6 +294,8 @@ static int pagemask;
 
 #ifdef emacs
 
+extern void error();
+
 static void
 report_error (file, fd)
      char *file;
@@ -305,6 +336,7 @@ static void mark_x ();
  *
  * driving logic.
  */
+int
 unexec (new_name, a_name, data_start, bss_start, entry_address)
      char *new_name, *a_name;
      unsigned data_start, bss_start, entry_address;
@@ -331,7 +363,7 @@ unexec (new_name, a_name, data_start, bss_start, entry_address)
       )
     {
       close (new);
-      /* unlink (new_name);	    	/* Failed, unlink new a.out */
+      /* unlink (new_name);	    	/ * Failed, unlink new a.out */
       return -1;	
     }
 
@@ -355,7 +387,6 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
      char *a_name;
      char *new_name;
 {
-  int tem;
 #ifdef COFF
   auto struct scnhdr f_thdr;		/* Text section header */
   auto struct scnhdr f_dhdr;		/* Data section header */
@@ -561,7 +592,7 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
   /* Get symbol table info from header of a.out file if given one. */
   if (a_out >= 0)
     {
-      if (read (a_out, &ohdr, sizeof hdr) != sizeof hdr)
+      if (read (a_out, (char *) &ohdr, sizeof hdr) != sizeof hdr)
 	{
 	  PERROR (a_name);
 	}
@@ -574,7 +605,7 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
     }
   else
     {
-      bzero ((void *)&hdr, sizeof hdr);
+      memset ((void *)&hdr, 0, sizeof hdr);
     }
 
   unexec_text_start = (long) start_of_text ();
@@ -603,7 +634,7 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
 
 #endif /* not NO_REMAP */
 
-  if (write (new, &hdr, sizeof hdr) != sizeof hdr)
+  if (write (new, (char *) &hdr, sizeof hdr) != sizeof hdr)
     {
       PERROR (new_name);
     }
@@ -617,6 +648,8 @@ make_hdr (new, a_out, data_start, bss_start, entry_address, a_name, new_name)
 #endif /* not COFF */
 }
 
+static void write_segment (int, char *, char *);
+
 /* ****************************************************************
  * copy_text_and_data
  *
@@ -677,6 +710,7 @@ copy_text_and_data (new)
   return 0;
 }
 
+static void
 write_segment (new, ptr, end)
      int new;
      register char *ptr, *end;
@@ -686,7 +720,7 @@ write_segment (new, ptr, end)
   extern int errno;
   char zeros[128];
 
-  bzero (zeros, sizeof zeros);
+  memset (zeros, 0, sizeof zeros);
 
   for (i = 0; ptr < end;)
     {

@@ -20,7 +20,6 @@ object '' : XmForm {
 	arguments {
 	name = 'panel';
 	XmNautoUnmanage = false;
-	XmNdefaultButton = 'widget23';
 	};
 object '' : XmLabel {
 	arguments {
@@ -85,22 +84,17 @@ object '' : XmToggleButton {
 };
 object '' : XmToggleButton {
 	arguments {
-	name = 'doc';
-	};
-};
-object '' : XmToggleButton {
-	arguments {
 	name = 'whereDeclared';
 	};
 };
 object '' : XmToggleButton {
 	arguments {
-	name = 'highlightUses';
+	name = 'verbose';
 	};
 };
-object '' : XmToggleButton {
+object '' : XmLabel {
 	arguments {
-	name = 'verbose';
+	name = 'separator';
 	};
 };
 object '' : XmRadioBox {
@@ -129,7 +123,7 @@ object '' : XmToggleButton GADGET {
 object '' : XmSeparator {
 	arguments {
 	name = 'separator';
-	XmNwidth=300;
+	XmNwidth=346;
 	};
 };
 object '' : XmPushButton {
@@ -145,7 +139,7 @@ object '' : XmPushButton {
 	XmNtopAttachment = 1 0 5;
     };
     attachment {
-	XmNrightAttachment = 3 18 2;
+	XmNrightAttachment = 3 17 2;
 	XmNleftAttachment = 3 1 2;
 	XmNbottomAttachment = 0 0 0;
 	XmNtopAttachment = 4 1 -4;
@@ -157,7 +151,7 @@ object '' : XmPushButton {
 	XmNtopAttachment = 4 4 4;
     };
     attachment {
-	XmNrightAttachment = 3 18 2;
+	XmNrightAttachment = 3 17 2;
 	XmNleftAttachment = 4 2 0;
 	XmNbottomAttachment = 0 0 0;
 	XmNtopAttachment = 3 2 2;
@@ -169,7 +163,7 @@ object '' : XmPushButton {
 	XmNtopAttachment = 4 6 4;
     };
     attachment {
-	XmNrightAttachment = 3 18 2;
+	XmNrightAttachment = 3 17 2;
 	XmNleftAttachment = 4 4 0;
 	XmNbottomAttachment = 0 0 0;
 	XmNtopAttachment = 3 4 2;
@@ -208,31 +202,25 @@ object '' : XmPushButton {
 	XmNrightAttachment = 0 0 0;
 	XmNleftAttachment = 1 0 2;
 	XmNbottomAttachment = 0 0 0;
-	XmNtopAttachment = 3 17 0;
+	XmNtopAttachment = 3 16 2;
     };
     attachment {
 	XmNrightAttachment = 0 0 0;
 	XmNleftAttachment = 3 12 2;
 	XmNbottomAttachment = 0 0 0;
-	XmNtopAttachment = 3 17 0;
+	XmNtopAttachment = 3 16 2;
     };
     attachment {
 	XmNrightAttachment = 0 0 0;
 	XmNleftAttachment = 3 13 2;
 	XmNbottomAttachment = 0 0 0;
-	XmNtopAttachment = 3 17 0;
+	XmNtopAttachment = 3 16 2;
     };
     attachment {
 	XmNrightAttachment = 0 0 0;
 	XmNleftAttachment = 3 14 2;
 	XmNbottomAttachment = 0 0 0;
-	XmNtopAttachment = 3 17 0;
-    };
-    attachment {
-	XmNrightAttachment = 0 0 0;
-	XmNleftAttachment = 1 0 0;
-	XmNbottomAttachment = 0 0 0;
-	XmNtopAttachment = 3 12 0;
+	XmNtopAttachment = 3 16 2;
     };
     attachment {
 	XmNrightAttachment = 1 0 0;

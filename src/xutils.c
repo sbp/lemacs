@@ -1,11 +1,11 @@
 /* Random utilities used by X.
-   Copyright (C) 1991 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -22,22 +22,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "xterm.h"
 #include "dispextern.h"
 #include "screen.h"
-
-XFontStruct *
-x_new_font (name)
-     register Lisp_Object name;
-{
-  char *fontname = (char *) XSTRING (name)->data;
-  XFontStruct *font;
-
-  BLOCK_INPUT;
-  font = XLoadQueryFont (x_current_display, fontname);
-  UNBLOCK_INPUT;
-  if (font == 0)
-    error ("Can't load font %s", fontname);
-
-  return font;
-}
 
 #define NO_CHAR_INFO(ch) (((ch)->width == 0) &&    \
 			  ((ch)->rbearing == 0) && \
@@ -93,66 +77,9 @@ x_read_mouse_position (s, x, y)
   UNBLOCK_INPUT;
 
 #ifdef LINE_INFO_COLUMN
-  *x = (ix - (ibw + licw)) / FONT_WIDTH (s->display.x->font);
+  *x = (ix - (ibw + licw)) / FONT_WIDTH (SCREEN_NORMAL_FACE (s).font);
 #else
-  *x = (ix - ibw) / FONT_WIDTH (s->display.x->font);
+  *x = (ix - ibw) / FONT_WIDTH (SCREEN_NORMAL_FACE (s).font);
 #endif
   *y = (iy - ibw) / (s->display.x->text_height + x_interline_space);
-}
-
-/* Draw a pixmap specified by IMAGE_DATA of dimensions WIDTH and HEIGHT
-   on the screen S at position X, Y. */
-
-void
-x_draw_pixmap (s, x, y, image_data, width, height)
-     struct screen *s;
-     int x, y, width, height;
-     char *image_data;
-{
-#if 0
-  Pixmap image;
-
-  image = XCreateBitmapFromData (x_current_display,
-				 XtWindow (s->display.x->edit_widget),
-				 image_data,
-				 width, height);
-  XCopyPlane (x_current_display, image, XtWindow (s->display.x->edit_widget),
-	      s->display.x->normal_gc, 0, 0, width, height, x, y);
-#endif
-}
-
-/* Draw a rectangle on the screen with left top corner including
-   the character specified by LEFT_CHAR and TOP_CHAR.  The rectangle is
-   CHARS by LINES wide and long and is the color of the cursor. */
-
-void
-x_rectangle (s, gc, left_char, top_char, chars, lines)
-     register struct screen *s;
-     GC gc;
-     register int top_char, left_char, chars, lines;
-{
-  int width;
-  int height;
-  int left = (left_char * FONT_WIDTH (s->display.x->font)
-#ifdef LINE_INFO_COLUMN
-	      + s->display.x->internal_border_width
-	      + s->display.x->line_info_column_width);
-#else
-		    + s->display.x->internal_border_width);
-#endif
-  int top = (top_char *  (s->display.x->text_height + x_interline_space)
-		   + s->display.x->internal_border_width);
-
-  if (chars < 0)
-    width = FONT_WIDTH (s->display.x->font) / 2;
-  else
-    width = FONT_WIDTH (s->display.x->font) * chars;
-  if (lines < 0)
-    height = FONT_HEIGHT (s->display.x->font) / 2;
-  else
-    height = FONT_HEIGHT (s->display.x->font) * lines;
-
-  XDrawRectangle (x_current_display,
-		  XtWindow (s->display.x->edit_widget),
-		  gc, left, top, width, height);
 }

@@ -1,7 +1,7 @@
-;;; compiled by devin@scylla on Fri Jul 10 12:13:25 1992
-;;; from file /wg1/emacs-base/lisp/modes/sendmail.el
-;;; emacs version 19.2.2 Lucid.
-;;; bytecomp version 2.07;  5-jul-92.
+;;; compiled by jwz@thalidomide on Sat Jan  9 00:05:02 1993
+;;; from file /cadillac-th/jwz/emacs19/lisp/modes/sendmail.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 29-dec-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -52,7 +52,7 @@ Pop up the mail mode menu, defined by the variable `mail-mode-menu'." "e"])
 (fset 'mail-send-and-exit #[(arg) "À ˆÁp!ˆ\n¬˜Ã ¬”ŠÄÅÆ Ç\"!qˆ)É=«ƒÊ ‡ËÌp!!‡" [mail-send bury-buffer arg one-window-p window-buffer next-window selected-window not major-mode rmail-mode delete-window switch-to-buffer other-buffer] 4 "\
 Send message like mail-send, then, if no errors, exit from mail buffer.
 Prefix arg means don't delete this window." "P"])
-(fset 'mail-send #[nil "À ¬…ÁÂ!­¸ÃÄ!ˆ¬Æ!«‡«ƒÉ ˆÊË!ˆ ˆ«ÎÏĞˆA‰¬sÑÎ!ˆÒÓ!ˆÃÔ!‡" [buffer-modified-p y-or-n-p "Message already sent; resend? " message "Sending..." mail-signature-inserted file-exists-p mail-signature-file mail-insert-signature mail-signature run-hooks mail-send-hook send-mail-function mail-send-actions nil (byte-code "À	@@	@A\"‡" [apply mail-send-actions] 3) ((error)) set-buffer-modified-p delete-auto-save-file-if-necessary t "Sending...done"] 4 "\
+(fset 'mail-send #[nil "À ¬…ÁÂ!­ÒÃÄ!ˆ¬Æ!«‡«ƒÉ ˆÊË!ˆ ˆ«ÎÏĞˆA‰¬sÀ «–«’¬‰ÁÓÔ\"!«Õ ˆªˆÖÎ!ˆ×Ø!ˆÃÙ!‡" [buffer-modified-p y-or-n-p "Message already sent; resend? " message "Sending..." mail-signature-inserted file-exists-p mail-signature-file mail-insert-signature mail-signature run-hooks mail-send-hook send-mail-function mail-send-actions nil (byte-code "À	@@	@A\"‡" [apply mail-send-actions] 3) ((error)) buffer-file-name noninteractive format "Save file %s? " save-buffer set-buffer-modified-p delete-auto-save-file-if-necessary t "Sending...done"] 5 "\
 Send the message in the current buffer.  If the file denoted by the variable
 `mail-signature-file' exists, and the variable `mail-insert-signature' is
 non-nil, it is inserted at the end.  If `mail-insert-signature' is nil, your

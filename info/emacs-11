@@ -226,6 +226,9 @@ sending the message.
      Fill all paragraphs of yanked old messages, each individually
      (`mail-fill-yanked-message').
 
+`button3'
+     Pops up a menu of useful mail-mode commands.
+
    There are two ways to send a message.  `C-c C-c'
 (`mail-send-and-exit') is the usual way to send the message.  It sends
 the message and then deletes the window (if there is another window)
@@ -264,6 +267,9 @@ to select another.
 (`mail-fill-yanked-message') to fill the paragraphs of the yanked old
 message or messages.  One use of `C-c C-q' fills all such paragraphs,
 each one separately.
+
+   Clicking the right mouse button in a mail buffer pops up a menu of
+the above commands, for easy access.
 
    Turning on Mail mode (which `C-x m' does automatically) calls the
 value of `text-mode-hook', if it is not void or `nil', and then calls

@@ -1,5 +1,5 @@
 /* GNU Emacs routines to deal with syntax tables; also word and list parsing.
-   Copyright (C) 1985, 1987, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -44,7 +44,7 @@ Any vector of 256 elements will do.")
   return Qnil;
 }
 
-Lisp_Object
+static Lisp_Object
 check_syntax_table (obj)
      Lisp_Object obj;
 {
@@ -90,8 +90,8 @@ It is a copy of the TABLE, which defaults to the standard syntax table.")
     return val;
   else table = Vstandard_syntax_table;
 
-  bcopy (XVECTOR (table)->contents,
-	 XVECTOR (val)->contents, 0400 * sizeof (Lisp_Object));
+  memcpy (XVECTOR (val)->contents, XVECTOR (table)->contents,
+	  0400 * sizeof (Lisp_Object));
   return val;
 }
 
@@ -153,11 +153,52 @@ are listed in the documentation of `modify-syntax-entry'.")
   return make_number (syntax_code_spec[(int) SYNTAX (0xFF & XINT (ch))]);
 }
 
+#ifdef NEW_SYNTAX
+
 /* This comment supplies the doc string for modify-syntax-entry,
    for make-docfile to see.  We cannot put this in the real DEFUN
    due to limits in the Unix cpp.
 
 DEFUN ("modify-syntax-entry", foo, bar, 0, 0, 0,
+  "Set syntax for character CHAR according to string S.\n\
+The syntax is changed only for table TABLE, which defaults to\n\
+ the current buffer's syntax table.\n\
+The first character of S should be one of the following:\n\
+  Space    whitespace syntax.    w   word constituent.\n\
+  _        symbol constituent.   .   punctuation.\n\
+  (        open-parenthesis.     )   close-parenthesis.\n\
+  \"        string quote.         \\   character-quote.\n\
+  $        paired delimiter.     '   expression quote or prefix operator.\n\
+  <	   comment starter.	 >   comment ender.\n\
+Only single-character comment start and end sequences are represented thus.\n\
+Two-character sequences are represented as described below.\n\
+The second character of S is the matching parenthesis,\n\
+ used only if the first character is `(' or `)'.\n\
+Any additional characters are flags.\n\
+Defined flags are the characters 1, 2, 3, 4, 5, 6, 7, 8, p, a, and b.\n\
+ 1 means C is the first of a two-char comment start sequence of style a.\n\
+ 2 means C is the second character of such a sequence.\n\
+ 3 means C is the first of a two-char comment end sequence of style a.\n\
+ 4 means C is the second character of such a sequence.\n\
+ 5 means C is the first of a two-char comment start sequence of style b.\n\
+ 6 means C is the second character of such a sequence.\n\
+ 7 means C is the first of a two-char comment end sequence of style b.\n\
+ 8 means C is the second character of such a sequence.\n\
+ p means C is a prefix character for `backward-prefix-chars';\n\
+   such characters are treated as whitespace when they occur\n\
+   between expressions.\n\
+ a means C is comment starter or comment ender for comment style a (default)\n\
+ b means C is comment starter or comment ender for comment style b.")
+  (c, newentry, syntax_table)
+*/
+
+#else /* !NEW_SYNTAX */
+
+/* This comment supplies the doc string for modify-syntax-entry,
+   for make-docfile to see.  We cannot put this in the real DEFUN
+   due to limits in the Unix cpp.
+
+****DEFUN ("modify-syntax-entry", foo, bar, 0, 0, 0,
   "Set syntax for character CHAR according to string S.\n\
 The syntax is changed only for table TABLE, which defaults to\n\
  the current buffer's syntax table.\n\
@@ -183,6 +224,7 @@ Defined flags are the characters 1, 2, 3, 4, and p.\n\
    between expressions.")
   (c, newentry, syntax_table)
 */
+#endif /* NEW_SYNTAX */
 
 DEFUN ("modify-syntax-entry", Fmodify_syntax_entry, Smodify_syntax_entry, 2, 3, 
   /* I really don't know why this is interactive
@@ -196,6 +238,10 @@ DEFUN ("modify-syntax-entry", Fmodify_syntax_entry, Smodify_syntax_entry, 2, 3,
   register unsigned char *p, match;
   register enum syntaxcode code;
   Lisp_Object val;
+
+#ifdef NEW_SYNTAX
+  int b_flag_seen_p = 0;
+#endif /* NEW_SYNTAX */
 
   CHECK_FIXNUM (c, 0);
   CHECK_STRING (newentry, 1);
@@ -214,9 +260,68 @@ DEFUN ("modify-syntax-entry", Fmodify_syntax_entry, Smodify_syntax_entry, 2, 3,
   if (match == ' ') match = 0;
 
   XFASTINT (val) = (match << 8) + (int) code;
+  
   while (*p)
     switch (*p++)
       {
+
+#ifdef NEW_SYNTAX
+
+      case '1':
+	XFASTINT (val) |= SYNTAX_FIRST_OF_START_A << 16;
+	break;
+
+      case '2':
+	XFASTINT (val) |= SYNTAX_SECOND_OF_START_A << 16;
+	break;
+
+      case '3':
+	XFASTINT (val) |= SYNTAX_FIRST_OF_END_A << 16;
+	break;
+
+      case '4':
+	XFASTINT (val) |= SYNTAX_SECOND_OF_END_A << 16;
+	break;
+
+      case '5':
+	XFASTINT (val) |= SYNTAX_FIRST_OF_START_B << 16;
+	break;
+
+      case '6':
+	XFASTINT (val) |= SYNTAX_SECOND_OF_START_B << 16;
+	break;
+
+      case '7':
+	XFASTINT (val) |= SYNTAX_FIRST_OF_END_B << 16;
+	break;
+
+      case '8':
+	XFASTINT (val) |= SYNTAX_SECOND_OF_END_B << 16;
+	break;
+
+      case 'a':
+	if (code == Scomment)
+	  XFASTINT (val) |= SYNTAX_FIRST_OF_START_A << 16;
+	else if (code == Sendcomment)
+	  XFASTINT (val) |= SYNTAX_FIRST_OF_END_A << 16;
+
+	break;
+
+      case 'b':
+	if (code == Scomment)
+	  XFASTINT (val) |= SYNTAX_FIRST_OF_START_B << 16;
+	else if (code == Sendcomment)
+	  XFASTINT (val) |= SYNTAX_FIRST_OF_END_B << 16;
+
+	b_flag_seen_p = 1;
+	break;
+
+      case 'p':
+	XFASTINT (val) |= 1 << 24;
+	break;
+
+#else /* !NEW_SYNTAX */
+
       case '1':
 	XFASTINT (val) |= 1 << 16;
 	break;
@@ -236,8 +341,22 @@ DEFUN ("modify-syntax-entry", Fmodify_syntax_entry, Smodify_syntax_entry, 2, 3,
       case 'p':
 	XFASTINT (val) |= 1 << 20;
 	break;
+
+#endif /* NEW_SYNTAX */
+
       }
 	
+#ifdef NEW_SYNTAX
+
+  /* default single char style is a if b has not been seen */
+  if (!b_flag_seen_p)
+    if (code == Scomment)
+      XFASTINT (val) |= SYNTAX_FIRST_OF_START_A << 16;
+    else if (code == Sendcomment)
+      XFASTINT (val) |= SYNTAX_FIRST_OF_END_A << 16;
+
+#endif /* NEW_SYNTAX */
+
   XVECTOR (syntax_table)->contents[0xFF & XINT (c)] = val;
 
   return Qnil;
@@ -245,12 +364,16 @@ DEFUN ("modify-syntax-entry", Fmodify_syntax_entry, Smodify_syntax_entry, 2, 3,
 
 /* Dump syntax table to buffer in human-readable format */
 
+static void
 describe_syntax (value)
     Lisp_Object value;
 {
   register enum syntaxcode code;
   char desc, match, start1, start2, end1, end2, prefix;
   char str[2];
+#ifdef NEW_SYNTAX
+  char start1b, start2b, end1b, end2b;
+#endif /* NEW_SYNTAX */
 
   Findent_to (make_number (16), make_number (1));
 
@@ -262,11 +385,29 @@ describe_syntax (value)
 
   code = (enum syntaxcode) (XINT (value) & 0377);
   match = (XINT (value) >> 8) & 0377;
+
+#ifdef NEW_SYNTAX
+
+  start1 = (XINT (value) >> 16) & SYNTAX_FIRST_OF_START_A;
+  start2 = (XINT (value) >> 16) & SYNTAX_SECOND_OF_START_A;
+  end1 = (XINT (value) >> 16) & SYNTAX_FIRST_OF_END_A;
+  end2 = (XINT (value) >> 16) & SYNTAX_SECOND_OF_END_A;
+  start1b = (XINT (value) >> 16) & SYNTAX_FIRST_OF_START_B;
+  start2b = (XINT (value) >> 16) & SYNTAX_SECOND_OF_START_B;
+  end1b = (XINT (value) >> 16) & SYNTAX_FIRST_OF_END_B;
+  end2b = (XINT (value) >> 16) & SYNTAX_SECOND_OF_END_B;
+  
+  prefix = (XINT (value) >> 24) & 1;
+
+#else /* !NEW_SYNTAX */
+
   start1 = (XINT (value) >> 16) & 1;
   start2 = (XINT (value) >> 17) & 1;
   end1 = (XINT (value) >> 18) & 1;
   end2 = (XINT (value) >> 19) & 1;
   prefix = (XINT (value) >> 20) & 1;
+
+#endif /* NEW_SYNTAX */
 
   if ((int) code < 0 || (int) code >= (int) Smax)
     {
@@ -281,6 +422,45 @@ describe_syntax (value)
   str[0] = match ? match : ' ';
   insert_raw_string (str, 1);
 
+#ifdef NEW_SYNTAX
+
+  if (start1)
+    if (code==Scomment)
+      insert_raw_string ("a", 1);
+    else
+      insert_raw_string ("1", 1);
+
+  if (start2)
+    insert_raw_string ("2", 1);
+
+  if (end1)
+    if (code==Sendcomment)
+      insert_raw_string ("a", 1);
+    else
+      insert_raw_string ("3", 1);
+
+  if (end2)
+    insert_raw_string ("4", 1);
+
+  if (start1b)
+    if (code==Scomment)
+      insert_raw_string ("b", 1);
+    else
+      insert_raw_string ("5", 1);
+
+  if (start2b)
+    insert_raw_string ("6", 1);
+
+  if (end1b)
+    if (code==Sendcomment)
+      insert_raw_string ("b", 1);
+    else
+      insert_raw_string ("7", 1);
+
+  if (end2b)
+    insert_raw_string ("8", 1);
+
+#else /* !NEW_SYNTAX */
 
   if (start1)
     insert_raw_string ("1", 1);
@@ -291,6 +471,8 @@ describe_syntax (value)
     insert_raw_string ("3", 1);
   if (end2)
     insert_raw_string ("4", 1);
+
+#endif /* NEW_SYNTAX */
 
   if (prefix)
     insert_raw_string ("p", 1);
@@ -342,6 +524,46 @@ describe_syntax (value)
       insert_raw_string (str, 1);
     }
 
+#ifdef NEW_SYNTAX
+
+  if (start1)
+    if (code==Scomment)
+      insert_string (",\n\t  starts comment style a");
+    else
+      insert_string (",\n\t  is the first char of a style a, comment-start sequence");
+
+  if (start2)
+    insert_string (",\n\t  is the second char of a style a, comment-start sequence");
+
+  if (end1)
+    if (code==Sendcomment)
+      insert_string (",\n\t  ends comment style a");
+    else
+      insert_string (",\n\t  is the first char of a style a, comment-end sequence");
+
+  if (end2)
+    insert_string (",\n\t  is the second char of a style a, comment-end sequence");
+
+  if (start1b)
+    if (code==Scomment)
+      insert_string (",\n\t  starts comment style b");
+    else
+      insert_string (",\n\t  is the first char of a style b, comment-start sequence");
+
+  if (start2b)
+    insert_string (",\n\t  is the second char of a style b, comment-start sequence");
+
+  if (end1b)
+    if (code==Sendcomment)
+      insert_string (",\n\t  ends comment style b");
+    else
+      insert_string (",\n\t  is the first char of a style b, comment-end sequence");
+
+  if (end2b)
+    insert_string (",\n\t  is the second char of a style b, comment-end sequence");
+
+#else /* !NEW_SYNTAX */
+
   if (start1)
     insert_string (",\n\t  is the first character of a comment-start sequence");
   if (start2)
@@ -351,6 +573,9 @@ describe_syntax (value)
     insert_string (",\n\t  is the first character of a comment-end sequence");
   if (end2)
     insert_string (",\n\t  is the second character of a comment-end sequence");
+
+#endif /* NEW_SYNTAX */
+
   if (prefix)
     insert_string (",\n\t  is a prefix character for `backward-prefix-chars'");
 
@@ -358,16 +583,22 @@ describe_syntax (value)
 }
 
 
-Lisp_Object
+static Lisp_Object
 describe_syntax_1 (vector)
      Lisp_Object vector;
 {
   struct buffer *old = current_buffer;
   int i, size = XVECTOR (vector)->size, range_start = 0;
   Lisp_Object string, current_code = XVECTOR (vector)->contents[0];
+  int top;
 
   internal_set_buffer (XBUFFER (Vstandard_output));
 
+  top = ((NILP (current_buffer->ctl_arrow) ||
+	  EQ (current_buffer->ctl_arrow, Qt))
+	 ? size : (FIXNUMP (current_buffer->ctl_arrow)
+		   ? XINT (current_buffer->ctl_arrow)
+		   : 0240));
   for (i = 1; i <= size; i++)
     {
       QUIT;
@@ -376,26 +607,35 @@ describe_syntax_1 (vector)
 	  (XINT (current_code) != XINT (XVECTOR (vector)->contents[i])))
 	/* end of vector or end of range */
 	{
-	if (i - range_start > 1)
-	  /* Really was a range */
-	  {
-	    string = Fsingle_key_description (make_number (range_start));
-	    insert_raw_string (XSTRING (string)->data, XSTRING (string)->size);
-	    insert_string (" .. ");
-	    string = Fsingle_key_description (make_number (i - 1));
-	    insert_raw_string (XSTRING (string)->data, XSTRING (string)->size);
-	    describe_syntax (current_code);
-	  }
-	else
-	  /* Actually only one char */
-	  {
-	    string = Fsingle_key_description (make_number (range_start));
-	    insert_raw_string (XSTRING (string)->data, XSTRING (string)->size);
-	    describe_syntax (current_code);
-	  }
-	range_start = i;
+	  unsigned char c = range_start;
+	  if (c >= top)
+	    insert_raw_string ((char *) &c, 1);
+	  else
+	    {
+	      string = Fsingle_key_description (make_number (range_start));
+	      insert_raw_string ((char *) XSTRING (string)->data,
+				 XSTRING (string)->size);
+	    }
+	  
+	  if (i - range_start > 1)	/* Really was a range */
+	    {
+	      insert_string (" .. ");
+	      c = i - 1;
+	      if (c >= top)
+		insert_raw_string ((char *) &c, 1);
+	      else
+		{
+		  string = Fsingle_key_description (make_number (i - 1));
+		  insert_raw_string ((char *) XSTRING (string)->data,
+				     XSTRING (string)->size);
+		}
+	      describe_syntax (current_code);
+	    }
+	  describe_syntax (current_code);
+	}
+      range_start = i;
+      if (i < size)
 	current_code = XVECTOR (vector)->contents[i];
-      }
     }
 
   internal_set_buffer (old);
@@ -405,11 +645,11 @@ describe_syntax_1 (vector)
 DEFUN ("describe-syntax", Fdescribe_syntax, Sdescribe_syntax, 0, 0, "",
   "Describe the syntax specifications in the syntax table.\n\
 The descriptions are inserted in a buffer, which is then displayed.")
-  ()
+     ()
 {
   internal_with_output_to_temp_buffer
-     ("*Help*", describe_syntax_1, current_buffer->syntax_table, Qnil);
-
+    ("*Help*", describe_syntax_1, current_buffer->syntax_table, Qnil);
+  
   return Qnil;
 }
 
@@ -417,16 +657,17 @@ The descriptions are inserted in a buffer, which is then displayed.")
    If that many words cannot be found before the end of the buffer, return 0.
    COUNT negative means scan backward and stop at word beginning.  */
 
+int
 scan_words (from, count)
      register int from, count;
 {
   register int beg = BEGV;
   register int end = ZV;
-  register int code;
-
+  register enum syntaxcode code;
+  
   immediate_quit = 1;
   QUIT;
-
+  
   while (count > 0)
     {
       while (1)
@@ -514,6 +755,232 @@ and nil is returned.")
 
 int parse_sexp_ignore_comments;
 
+static int char_quoted (int);
+
+#ifdef NEW_SYNTAX
+
+static int 
+find_end_of_comment (from, stop, comstyle)
+     int from, stop, comstyle;
+{
+  register int c;
+  register enum syntaxcode code;
+  int stylemask = (comstyle ? SYNTAX_COMMENT_STYLE_B : SYNTAX_COMMENT_STYLE_A);
+  int stylesmatch;
+
+  while (from < stop)
+    {
+      c = CHAR_AT (from);
+      code = SYNTAX (c);
+      stylesmatch = (comstyle ? SYNTAX_SINGLE_CHAR_STYLE_B (c)
+		     : SYNTAX_SINGLE_CHAR_STYLE_A (c));
+
+      /* ignore 1 char comment sequences with non-matching comstyle */
+      if (code == Sendcomment && stylesmatch && !char_quoted (from))
+	break;
+
+      from++;
+      if (from < stop && SYNTAX_PREFIX (c))
+	{ from++; continue; }
+
+      /* only break on comment end sequence with matching comstyle */
+      if (from < stop && SYNTAX_END_SEQUENCE (c, CHAR_AT (from), stylemask))
+	break;
+    }
+  return from;
+}
+
+
+static int 
+find_start_of_comment (from, stop, comstyle)
+     int from, stop, comstyle;
+{
+  /* Look back, counting the parity of string-quotes,
+     and recording the comment-starters seen.
+     When we reach a safe place, assume that's not in a string;
+     then step the main scan to the earliest comment-starter seen
+     an even number of string quotes away from the safe place.
+     
+     OFROM[I] is position of the earliest comment-starter seen
+     which is I+2X quotes from the comment-end.
+     PARITY is current parity of quotes from the comment end.  */
+  {
+    int ofrom[2];
+    int parity = 0;
+    int stylesmatch;
+    int c;
+    enum syntaxcode code;
+    int matching_start_found=0;
+    
+    ofrom[0] = ofrom[1] = from;
+    
+    /* At beginning of range to scan, we're outside of strings;
+       that determines quote parity to the comment-end.  */
+    while (from != stop)
+      {
+	/* Move back and examine a character.  */
+	from--;
+	
+	c = CHAR_AT (from);
+	code = SYNTAX (c);
+	
+	/* check to see if this character is part of a comment sequence 
+	   of the appropriate style. if so, record the style of the comment
+	   found so that it can be matched later on */
+	if (code == Scomment || code == Sendcomment)
+	  stylesmatch = (comstyle ? SYNTAX_SINGLE_CHAR_STYLE_B (c) :
+			 SYNTAX_SINGLE_CHAR_STYLE_A (c));
+
+	/* If this char is the second of a 2-char comment sequence,
+	   back up and give the pair the appropriate syntax.  */
+	else if (from > stop && SYNTAX_START (CHAR_AT (from-1), c))
+	  {
+	    stylesmatch = SYNTAX_START_SEQUENCE 
+	      (CHAR_AT (from-1), c, 
+	       (comstyle ? SYNTAX_COMMENT_STYLE_B : SYNTAX_COMMENT_STYLE_A));
+	    code = Scomment;
+	    from--;
+	  }
+	else if (from > stop && SYNTAX_END (CHAR_AT (from-1), c))
+	  {
+	    stylesmatch = SYNTAX_END_SEQUENCE 
+	      (CHAR_AT (from-1), c,
+	       (comstyle ? SYNTAX_COMMENT_STYLE_B : SYNTAX_COMMENT_STYLE_A));
+	    code = Sendcomment;
+	    from--;
+	  }
+
+	/* Ignore escaped characters.  */
+	if (char_quoted (from))
+	  continue;
+	
+	/* Track parity of quotes between here and comment-end.  */
+	if (code == Sstring)
+	  parity ^= 1;
+	
+	/* Record comment-starters according to that
+	   quote-parity to the comment-end.  */
+	if (code == Scomment && stylesmatch)
+	  {
+	    ofrom[parity] = from;
+	    matching_start_found = 1;
+	  }
+	
+	/* If we come to another comment-end, assume it's not inside a 
+	   string. note that if we've found a comment start of the matching
+	   style, any subsequent preceding endcoment satisfies.
+	   That determines the quote parity to the comment-end.  */
+	if (code == Sendcomment && 
+	    (matching_start_found ? 1 : stylesmatch))
+	  break;
+      }
+    return ofrom[parity];
+  }
+}
+
+
+DEFUN ("backward-syntactic-ws", Fbackward_syntactic_ws, Sbackward_syntactic_ws,
+  0, 0, 0,
+  "Move point backward over all syntactic whitespace.\n\
+This includes all chars with \"whitespace\" syntax (Space), and, if\n\
+parse-sexp-ignore-comments is non-nil, all characters within comments.")
+  ()
+{
+  int beg = BEGV;
+  register int pos = point;
+  int c;
+  enum syntaxcode code;
+  int comstyle;
+  int stylemask = SYNTAX_COMMENT_STYLE_B;
+
+  while (pos > beg)
+    {
+      pos--;
+      if (char_quoted (pos))
+	{ pos--; continue; }
+
+      c = CHAR_AT (pos);
+      code = SYNTAX (c);
+
+      if (code == Scomment || code == Sendcomment)
+	comstyle = SYNTAX_SINGLE_CHAR_STYLE_B (c);
+
+      else if (pos > beg
+	       && SYNTAX_END (CHAR_AT (pos-1), c)
+	       && !char_quoted (pos-1)
+	       && parse_sexp_ignore_comments)
+	{
+	  code = Sendcomment;
+	  comstyle = SYNTAX_END_SEQUENCE (CHAR_AT (pos-1), c, stylemask);
+	  pos--;
+	}
+
+      if (code == Sendcomment && parse_sexp_ignore_comments)
+	pos = find_start_of_comment (pos, beg, comstyle);
+
+      else if (code != Swhitespace && 
+	       SYNTAX (c) != Scomment &&
+	       SYNTAX (c) != Sendcomment)
+	break;
+    }
+
+  SET_PT (pos);
+  return Qnil;
+}
+
+DEFUN ("forward-syntactic-ws", Fforward_syntactic_ws, Sforward_syntactic_ws,
+  0, 0, 0,
+  "Move point forward over all syntactic whitespace.\n\
+This includes all chars with \"whitespace\" syntax (Space), and, if\n\
+parse-sexp-ignore-comments is non-nil, all characters within comments.")
+  ()
+{
+  int end = ZV;
+  register int pos = point;
+  int c;
+  enum syntaxcode code;
+  int comstyle;
+  int stylemask = SYNTAX_COMMENT_STYLE_B;
+
+  while (pos < end)
+    {
+      if (char_quoted (pos))
+	{ pos++; continue; }
+
+      c = CHAR_AT (pos);
+      code = SYNTAX (c);
+
+      if (code == Scomment)
+	comstyle = SYNTAX_SINGLE_CHAR_STYLE_B (c);
+
+      else if (pos < end
+	       && SYNTAX_START (c, (CHAR_AT (pos+1)))
+	       && !char_quoted (pos+1)
+	       && parse_sexp_ignore_comments)
+	{
+	  code = Scomment;
+	  comstyle = SYNTAX_START_SEQUENCE (c, (CHAR_AT (pos+1)), stylemask);
+	  pos++;
+	}
+
+      if (code == Scomment && parse_sexp_ignore_comments)
+	pos = find_end_of_comment (pos, end, comstyle);
+
+      else if (code != Swhitespace && 
+	       SYNTAX (c) != Scomment && 
+	       SYNTAX (c) != Sendcomment )
+	break;
+
+      pos++;
+    }
+
+  SET_PT (pos);
+  return Qnil;
+}
+
+#endif /* NEW_SYNTAX */
+
+
 Lisp_Object
 scan_lists (from, count, depth, sexpflag)
      register int from;
@@ -527,6 +994,10 @@ scan_lists (from, count, depth, sexpflag)
   int mathexit = 0;
   register enum syntaxcode code;
   int min_depth = depth;    /* Err out if depth gets less than this. */
+#ifdef NEW_SYNTAX
+  int comstyle;			/* for keeping track of comment style */
+  int stylemask = SYNTAX_COMMENT_STYLE_B;
+#endif /* NEW_SYNTAX */
 
   if (depth > 0) min_depth = 0;
 
@@ -540,11 +1011,32 @@ scan_lists (from, count, depth, sexpflag)
 	{
 	  c = CHAR_AT (from);
 	  code = SYNTAX(c);
+
 	  from++;
+
+#ifdef NEW_SYNTAX
+	  
+	  if (code == Scomment || code == Sendcomment)
+	    comstyle = SYNTAX_SINGLE_CHAR_STYLE_B (c);
+
+	  else if (from < stop
+		   && SYNTAX_START (c, (CHAR_AT (from)))
+		   && parse_sexp_ignore_comments)
+	    {
+	      code = Scomment;
+	      comstyle = SYNTAX_START_SEQUENCE(c, (CHAR_AT (from)), stylemask);
+	      from++;
+	    }
+
+#else /* !NEW_SYNTAX */
+
 	  if (from < stop && SYNTAX_COMSTART_FIRST (c)
 	      && SYNTAX_COMSTART_SECOND (CHAR_AT (from))
 	      && parse_sexp_ignore_comments)
 	    code = Scomment, from++;
+
+#endif /* NEW_SYNTAX */
+
 	  if (SYNTAX_PREFIX (c))
 	    continue;
 
@@ -589,6 +1081,10 @@ scan_lists (from, count, depth, sexpflag)
 
 	    case Scomment:
 	      if (!parse_sexp_ignore_comments) break;
+#ifdef NEW_SYNTAX
+	      from = find_end_of_comment (from, stop, comstyle);
+	      if (from == stop) goto done;
+#else /* !NEW_SYNTAX */
 	      while (1)
 		{
 		  if (from == stop) goto done;
@@ -599,6 +1095,7 @@ scan_lists (from, count, depth, sexpflag)
 		       && SYNTAX_COMEND_SECOND (CHAR_AT (from)))
 		    { from++; break; }
 		}
+#endif /* NEW_SYNTAX */
 	      break;
 
 	    case Smath:
@@ -667,13 +1164,35 @@ scan_lists (from, count, depth, sexpflag)
 	  from--;
 	  if (quoted = char_quoted (from))
 	    from--;
+
 	  c = CHAR_AT (from);
 	  code = SYNTAX (c);
+
+#ifdef NEW_SYNTAX
+
+	  if (code == Scomment || code == Sendcomment)
+	    comstyle = SYNTAX_SINGLE_CHAR_STYLE_B (c);
+
+	  else if (from > stop
+		   && SYNTAX_END (CHAR_AT (from-1), c)
+		   && !char_quoted (from-1)
+		   && parse_sexp_ignore_comments)
+	    {
+	      code = Sendcomment;
+	      comstyle = SYNTAX_END_SEQUENCE (CHAR_AT (from-1), c, stylemask);
+	      from--;
+	    }
+
+#else /* !NEW_SYNTAX */
+
 	  if (from > stop && SYNTAX_COMEND_SECOND (c)
 	      && SYNTAX_COMEND_FIRST (CHAR_AT (from - 1))
 	      && !char_quoted (from - 1)
 	      && parse_sexp_ignore_comments)
 	    code = Sendcomment, from--;
+
+#endif /* NEW_SYNTAX */
+
 	  if (SYNTAX_PREFIX (c))
 	    continue;
 
@@ -686,7 +1205,8 @@ scan_lists (from, count, depth, sexpflag)
 	    case Sword:
 	    case Ssymbol:
 	      if (depth || !sexpflag) break;
-	      /* This word counts as a sexp; count object finished after passing it. */
+	      /* This word counts as a sexp; count object finished after 
+		 passing it. */
 	      while (from > stop)
 		{
 		  quoted = char_quoted (from - 1);
@@ -726,6 +1246,12 @@ scan_lists (from, count, depth, sexpflag)
 	    case Sendcomment:
 	      if (!parse_sexp_ignore_comments)
 		break;
+#ifdef NEW_SYNTAX
+
+	      from = find_start_of_comment (from, stop, comstyle);
+
+#else /* !NEW_SYNTAX */
+
 	      /* Look back, counting the parity of string-quotes,
 		 and recording the comment-starters seen.
 		 When we reach a safe place, assume that's not in a string;
@@ -781,6 +1307,9 @@ scan_lists (from, count, depth, sexpflag)
 		  }
 		from = ofrom[parity];
 	      }
+
+#endif /* NEW_SYNTAX */
+
 	      break;
 
 	    case Sstring:
@@ -817,8 +1346,10 @@ scan_lists (from, count, depth, sexpflag)
  lose:
   error ("Unbalanced parentheses");
   /* NOTREACHED */
+  return Qnil; /* warning suppression */
 }
 
+static int
 char_quoted (pos)
      register int pos;
 {
@@ -901,6 +1432,9 @@ struct lisp_parse_state
     int depth;		/* Depth at end of parsing */
     int instring;	/* -1 if not within string, else desired terminator. */
     int incomment;	/* Nonzero if within a comment at end of parsing */
+#ifdef NEW_SYNTAX
+    int comstyle;	/* comment style: a or b */
+#endif /* NEW_SYNTAX */
     int quoted;		/* Nonzero if just after an escape char at end of parsing */
     int thislevelstart;	/* Char number of most recent start-of-expression at current level */
     int prevlevelstart; /* Char number of start of containing expression */
@@ -912,9 +1446,9 @@ struct lisp_parse_state
    assuming that FROM is the start of a function, 
    and return a description of the state of the parse at END. */
 
-struct lisp_parse_state val_scan_sexps_forward;
+static struct lisp_parse_state val_scan_sexps_forward;
 
-struct lisp_parse_state *
+static struct lisp_parse_state *
 scan_sexps_forward (from, end, targetdepth, stopbefore, oldstate)
      register int from;
      int end, targetdepth, stopbefore;
@@ -935,6 +1469,10 @@ scan_sexps_forward (from, end, targetdepth, stopbefore, oldstate)
   int start_quoted = 0;		/* Nonzero means starting after a char quote */
   Lisp_Object tem;
 
+#ifdef NEW_SYNTAX
+  int stylemask = SYNTAX_COMMENT_STYLE_B;
+#endif /* NEW_SYNTAX */
+
   immediate_quit = 1;
   QUIT;
 
@@ -943,6 +1481,9 @@ scan_sexps_forward (from, end, targetdepth, stopbefore, oldstate)
       depth = 0;
       state.instring = -1;
       state.incomment = 0;
+#ifdef NEW_SYNTAX
+      state.comstyle = 0;	/* default comstyle is a */
+#endif /* NEW_SYNTAX */
     }
   else
     {
@@ -965,6 +1506,17 @@ scan_sexps_forward (from, end, targetdepth, stopbefore, oldstate)
       oldstate = Fcdr (oldstate);
       tem = Fcar (oldstate);
       start_quoted = !NILP (tem);
+
+#ifdef NEW_SYNTAX
+      /* if eighth element of the list is nil, we are in comment style
+	 a. if it is non-nil, we are in comment style b */
+      oldstate = Fcdr (oldstate);
+      oldstate = Fcdr (oldstate);
+      oldstate = Fcdr (oldstate);
+      tem = Fcar (oldstate);
+      state.comstyle = !NILP (tem);
+#endif /* NEW_SYNTAX */
+
     }
   state.quoted = 0;
   mindepth = depth;
@@ -986,9 +1538,28 @@ scan_sexps_forward (from, end, targetdepth, stopbefore, oldstate)
     {
       code = SYNTAX(CHAR_AT (from));
       from++;
+
+#ifdef NEW_SYNTAX
+
+      if (code == Scomment || code == Sendcomment)
+	state.comstyle = SYNTAX_SINGLE_CHAR_STYLE_B (CHAR_AT (from-1));
+
+      else if (from < end && SYNTAX_START (CHAR_AT (from-1), (CHAR_AT (from))))
+	{
+	  code = Scomment;
+	  state.comstyle = 
+	    SYNTAX_START_SEQUENCE(CHAR_AT (from-1), CHAR_AT (from), stylemask);
+	  from++;
+	}
+
+#else /* !NEW_SYNTAX */
+
       if (from < end && SYNTAX_COMSTART_FIRST (CHAR_AT (from - 1))
 	   && SYNTAX_COMSTART_SECOND (CHAR_AT (from)))
 	code = Scomment, from++;
+
+#endif /* NEW_SYNTAX */
+
       if (SYNTAX_PREFIX (CHAR_AT (from - 1)))
 	continue;
 #ifdef SWITCH_ENUM_BUG
@@ -1040,6 +1611,14 @@ scan_sexps_forward (from, end, targetdepth, stopbefore, oldstate)
 	case Scomment:
 	  state.incomment = 1;
 	startincomment:
+
+#ifdef NEW_SYNTAX
+
+	  from = find_end_of_comment (from, end, state.comstyle);
+	  if (from == end) goto done;
+
+#else /* !NEW_SYNTAX */
+
 	  while (1)
 	    {
 	      if (from == end) goto done;
@@ -1050,6 +1629,9 @@ scan_sexps_forward (from, end, targetdepth, stopbefore, oldstate)
 		   && SYNTAX_COMEND_SECOND (CHAR_AT (from)))
 		{ from++; break; }
 	    }
+
+#endif /* NEW_SYNTAX */
+
 	  state.incomment = 0;
 	  break;
 
@@ -1128,11 +1710,44 @@ scan_sexps_forward (from, end, targetdepth, stopbefore, oldstate)
   return &val_scan_sexps_forward;
 }
 
+#ifdef NEW_SYNTAX
+
 /* This comment supplies the doc string for parse-partial-sexp,
    for make-docfile to see.  We cannot put this in the real DEFUN
    due to limits in the Unix cpp.
 
-DEFUN ("parse-partial-sexp", Ffoo, Sfoo, 0, 0, 0,
+DEFUN ("parse-partial-sexp", Ffoo, Sfoo, 2, 5, 0,
+  "Parse Lisp syntax starting at FROM until TO; return status of parse at TO.\n\
+Parsing stops at TO or when certain criteria are met;\n\
+ point is set to where parsing stops.\n\
+If fifth arg STATE is omitted or nil,\n\
+ parsing assumes that FROM is the beginning of a function.\n\
+Value is a list of eight elements describing final state of parsing:\n\
+ 1. depth in parens.\n\
+ 2. character address of start of innermost containing list; nil if none.\n\
+ 3. character address of start of last complete sexp terminated.\n\
+ 4. non-nil if inside a string.\n\
+    (it is the character that will terminate the string.)\n\
+ 5. t if inside a comment.\n\
+ 6. t if following a quote character.\n\
+ 7. the minimum paren-depth encountered during this scan.\n\
+ 8. nil if in comment style a, or not in a comment; t if in comment style b\n\
+If third arg TARGETDEPTH is non-nil, parsing stops if the depth\n\
+in parentheses becomes equal to TARGETDEPTH.\n\
+Fourth arg STOPBEFORE non-nil means stop when come to\n\
+ any character that starts a sexp.\n\
+Fifth arg STATE is a seven-list like what this function returns.\n\
+It is used to initialize the state of the parse.")
+  (from, to, targetdepth, stopbefore, oldstate)
+*/
+
+#else /* !NEW_SYNTAX */
+
+/* This comment supplies the doc string for parse-partial-sexp,
+   for make-docfile to see.  We cannot put this in the real DEFUN
+   due to limits in the Unix cpp.
+
+****DEFUN ("parse-partial-sexp", Ffoo, Sfoo, 2, 5, 0,
   "Parse Lisp syntax starting at FROM until TO; return status of parse at TO.\n\
 Parsing stops at TO or when certain criteria are met;\n\
  point is set to where parsing stops.\n\
@@ -1155,6 +1770,8 @@ Fifth arg STATE is a seven-list like what this function returns.\n\
 It is used to initialize the state of the parse.")
   (from, to, targetdepth, stopbefore, oldstate)
 */
+
+#endif /* NEW_SYNTAX */
 
 DEFUN ("parse-partial-sexp", Fparse_partial_sexp, Sparse_partial_sexp, 2, 5, 0,
   0 /* See immediately above */)
@@ -1184,9 +1801,16 @@ DEFUN ("parse-partial-sexp", Fparse_partial_sexp, Sparse_partial_sexp, 2, 5, 0,
 	       Fcons (state.instring >= 0 ? make_number (state.instring) : Qnil,
 		 Fcons (state.incomment ? Qt : Qnil,
 		   Fcons (state.quoted ? Qt : Qnil,
+#ifdef NEW_SYNTAX
+		     Fcons (make_number (state.mindepth), 
+		       Fcons (state.comstyle ? Qt : Qnil,
+			    Qnil))))))));
+#else /* !NEW_SYNTAX */
 			  Fcons (make_number (state.mindepth), Qnil)))))));
+#endif /* NEW_SYNTAX */
 }
 
+void
 init_syntax_once ()
 {
   register int i;
@@ -1225,6 +1849,7 @@ init_syntax_once ()
     XFASTINT (v->contents[".,;:?!#@~^'`"[i]]) = (int) Spunct;
 }
 
+void
 syms_of_syntax ()
 {
   Qsyntax_table_p = intern ("syntax-table-p");
@@ -1251,5 +1876,11 @@ syms_of_syntax ()
   defsubr (&Sscan_lists);
   defsubr (&Sscan_sexps);
   defsubr (&Sbackward_prefix_chars);
+
+#ifdef NEW_SYNTAX
+  defsubr (&Sbackward_syntactic_ws);
+  defsubr (&Sforward_syntactic_ws);
+#endif /* NEW_SYNTAX */
+
   defsubr (&Sparse_partial_sexp);
 }

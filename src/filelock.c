@@ -54,7 +54,6 @@ lock_file_owner_name (lfname)
 {
   struct stat s;
   struct passwd *the_pw;
-  extern struct passwd *getpwuid ();
 
   if (lstat (lfname, &s) == 0)
     the_pw = getpwuid (s.st_uid);
@@ -123,7 +122,7 @@ lock_file (fn)
       CHECK_STRING (Vsuperlock_path, 0);
       lock_superlock (lfname);
       lock_file_1 (lfname, O_WRONLY);
-      unlink (XSTRING (Vsuperlock_path)->data);
+      unlink ((char *) XSTRING (Vsuperlock_path)->data);
       return;
     }
   /* User says ignore the lock */
@@ -261,7 +260,7 @@ unlock_file (fn)
   if (current_lock_owner_1 (lfname) == getpid ())
     unlink (lfname);
 
-  unlink (XSTRING (Vsuperlock_path)->data);
+  unlink ((char *) XSTRING (Vsuperlock_path)->data);
 }
 
 static void
@@ -283,7 +282,7 @@ lock_superlock (lfname)
   if (fd >= 0)
     {
 #ifdef USG
-      chmod (XSTRING (Vsuperlock_path)->data, 0666);
+      chmod ((char *) XSTRING (Vsuperlock_path)->data, 0666);
 #else
       fchmod (fd, 0666);
 #endif
@@ -342,6 +341,7 @@ if it should normally be locked.")
 
 /* Unlock the file visited in buffer BUFFER.  */
 
+void
 unlock_buffer (buffer)
      struct buffer *buffer;
 {
@@ -378,6 +378,7 @@ t if it is locked by you, else a string of the name of the locker.")
   return (lock_file_owner_name (lfname));
 }
 
+void
 syms_of_filelock ()
 {
   defsubr (&Sunlock_buffer);

@@ -97,7 +97,7 @@ extern void play_sound_data (unsigned char *, int, int);
 
 /* Imports */
 
-extern void report_file_error (char *, Lisp_Object);
+extern void report_file_error (const char *, Lisp_Object);
 
 /* Data structures */
 
@@ -181,14 +181,14 @@ AudioContextRec;
 
 /* Forward declarations */
 
-static void close_sound_file (Lisp_Object);
+static Lisp_Object close_sound_file (Lisp_Object);
 static AudioContext audio_initialize (unsigned char *, int, int);
 static void play_internal (unsigned char *, int, AudioContext);
 static void drain_audio_port (AudioContext);
 static void write_mulaw_8_chunk (void *, void *, AudioContext);
 static void write_linear_chunk (void *, void *, AudioContext);
 static void write_linear_32_chunk (void *, void *, AudioContext);
-static void restore_audio_port (Lisp_Object);
+static Lisp_Object restore_audio_port (Lisp_Object);
 static AudioContext initialize_audio_port (AudioContext);
 static int open_audio_port (AudioContext, AudioContext);
 static void adjust_audio_volume (AudioDevice);
@@ -201,11 +201,12 @@ static int parse_snd_header (void*, long, AudioContext);
 #define LOOKING_AT_SND_HEADER_P(address) \
   (!strncmp(".snd", (char *)(address), 4))
 
-static void
+static Lisp_Object
 close_sound_file (closure)
      Lisp_Object closure;
 {
   close (XFASTINT (closure));
+  return Qnil;
 }
 
 void
@@ -244,7 +245,7 @@ play_sound_file (sound_file, volume)
       play_internal (buffer, bytes_read, ac);
     }
   drain_audio_port (ac);
-  unbind_to (count);
+  unbind_to (count, Qnil);
 }
 
 static long
@@ -254,7 +255,7 @@ saved_device_state[] = {
   AL_RIGHT_SPEAKER_GAIN, 0,
 };
 
-static void
+static Lisp_Object
 restore_audio_port (closure)
      Lisp_Object closure;
 {
@@ -263,6 +264,7 @@ restore_audio_port (closure)
   saved_device_state[3] = XFASTINT (contents[1]);
   saved_device_state[5] = XFASTINT (contents[2]);
   ALsetparams (AL_DEFAULT_DEVICE, saved_device_state, 6);
+  return Qnil;
 }
 
 void
@@ -279,7 +281,7 @@ play_sound_data (data, length, volume)
     return;
   play_internal (data, length, ac);
   drain_audio_port (ac);
-  unbind_to (count);
+  unbind_to (count, Qnil);
 }
 
 static AudioContext
@@ -611,8 +613,10 @@ static void
 adjust_audio_volume (device)
      AudioDevice device;
 {
-  long params[4] = {AL_LEFT_SPEAKER_GAIN, 0, AL_RIGHT_SPEAKER_GAIN, 0};
+  long params[4];
+  params[0] = AL_LEFT_SPEAKER_GAIN;
   params[1] = device->left_speaker_gain;
+  params[2] = AL_RIGHT_SPEAKER_GAIN;
   params[3] = device->right_speaker_gain;
   ALsetparams (device->device, params, 4);
 }
@@ -621,7 +625,9 @@ static void
 get_current_volumes (device)
      AudioDevice device;
 {
-  long params[4] = { AL_LEFT_SPEAKER_GAIN, 0, AL_RIGHT_SPEAKER_GAIN, 0 };
+  long params[4];
+  params[0] = AL_LEFT_SPEAKER_GAIN;
+  params[2] = AL_RIGHT_SPEAKER_GAIN;
   ALgetparams (device->device, params, 4);
   device->left_speaker_gain = params[1];
   device->right_speaker_gain = params[3];

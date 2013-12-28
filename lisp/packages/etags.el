@@ -730,6 +730,8 @@ The function is called with no args.")
 ;;				      (match-beginning 0))))))
 ;;  pattern)
 
+(defvar find-tag-history nil "History list for find-tag-tag")
+
 (defun find-tag-tag (prompt)
   (let* ((default (find-tag-default))
 	 (buffer-tag-table-list (buffer-tag-table-symbol-list))
@@ -739,7 +741,8 @@ The function is called with no args.")
 	   (if default
 	       (format "%s(default %s) " prompt default)
 	     prompt)
-	   tag-completion-table 'tag-completion-predicate nil nil))
+	   tag-completion-table 'tag-completion-predicate nil nil
+	   'find-tag-history))
     (if (string-equal tag-name "")
 	(list default)			;indicate exact symbol match
       tag-name)))

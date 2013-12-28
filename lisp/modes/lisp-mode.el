@@ -1,5 +1,5 @@
 ;; Lisp mode, and its idiosyncratic commands.
-;; Copyright (C) 1985, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -62,9 +62,18 @@
     nil
   (setq lisp-mode-syntax-table
 	(copy-syntax-table emacs-lisp-mode-syntax-table))
-  (modify-syntax-entry ?\| "\"   " lisp-mode-syntax-table)
   (modify-syntax-entry ?\[ "_   " lisp-mode-syntax-table)
-  (modify-syntax-entry ?\] "_   " lisp-mode-syntax-table))
+  (modify-syntax-entry ?\] "_   " lisp-mode-syntax-table)
+
+  ;;
+  ;; If emacs was compiled with NEW_SYNTAX, then do CL's #| |# block comments.
+  ;;
+  (if (= 8 (length (parse-partial-sexp (point) (point))))
+      (progn
+	(modify-syntax-entry ?#  "' 58" lisp-mode-syntax-table)
+	(modify-syntax-entry ?|  ". 67" lisp-mode-syntax-table))
+    ;; else, old style
+    (modify-syntax-entry ?\| "\"   " lisp-mode-syntax-table)))
 
 (define-abbrev-table 'lisp-mode-abbrev-table ())
 

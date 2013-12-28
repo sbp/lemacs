@@ -310,23 +310,27 @@ DEFUN ("eventp", Feventp, Seventp, 1, 1, 0,
 DEFUN ("key-press-event-p", Fkey_press_event_p, Skey_press_event_p, 1, 1, 0,
        "True if the argument is a key-press event object.")
      (obj)
+     Lisp_Object obj;
 { EVENT_PRED (key_press_event); }
 
 DEFUN ("button-press-event-p", Fbutton_press_event_p, Sbutton_press_event_p,
        1, 1, 0, "True if the argument is a mouse-button-press event object.")
      (obj)
+     Lisp_Object obj;
 { EVENT_PRED (button_press_event); }
 
 DEFUN ("button-release-event-p", Fbutton_release_event_p,
        Sbutton_release_event_p, 1, 1, 0,
        "True if the argument is a mouse-button-release event object.")
      (obj)
+     Lisp_Object obj;
 { EVENT_PRED (button_release_event); }
 
 DEFUN ("button-event-p", Fbutton_event_p,
        Sbutton_event_p, 1, 1, 0,
        "True if the argument is a button-press or button-release event object.")
      (obj)
+     Lisp_Object obj;
 {
   return ((EVENTP (obj) &&
 	   (XEVENT (obj)->event_type == button_press_event ||
@@ -337,26 +341,31 @@ DEFUN ("button-event-p", Fbutton_event_p,
 DEFUN ("motion-event-p", Fmotion_event_p, Smotion_event_p, 1, 1, 0,
        "True if the argument is a mouse-motion event object.")
      (obj)
+     Lisp_Object obj;
 { EVENT_PRED (pointer_motion_event); }
 
 DEFUN ("process-event-p", Fprocess_event_p, Sprocess_event_p, 1, 1, 0,
        "True if the argument is a process-output event object.")
      (obj)
+     Lisp_Object obj;
 { EVENT_PRED (process_event); }
 
 DEFUN ("timeout-event-p", Ftimeout_event_p, Stimeout_event_p, 1, 1, 0,
        "True if the argument is a timeout event object.")
      (obj)
+     Lisp_Object obj;
 { EVENT_PRED (timeout_event); }
 
 DEFUN ("menu-event-p", Fmenu_event_p, Smenu_event_p, 1, 1, 0,
        "True if the argument is a menu event object.")
      (obj)
+     Lisp_Object obj;
 { EVENT_PRED (menu_event); }
 
 DEFUN ("eval-event-p", Feval_event_p, Seval_event_p, 1, 1, 0,
        "True if the argument is an `eval' or `menu' event object.")
      (obj)
+     Lisp_Object obj;
 {
   return ((EVENTP (obj) &&
 	   (XEVENT (obj)->event_type == menu_event ||
@@ -375,6 +384,7 @@ DEFUN ("eval-event-p", Feval_event_p, Seval_event_p, 1, 1, 0,
 DEFUN ("event-timestamp", Fevent_timestamp, Sevent_timestamp, 1, 1, 0,
   "Returns the timestamp of the given event object.")
      (event)
+     Lisp_Object event;
 {
   CHECK_EVENT_SAFE (event);
   /* This junk is so that timestamps don't get to be negative, but contain
@@ -400,6 +410,7 @@ DEFUN ("event-key", Fevent_key, Sevent_key, 1, 1, 0,
        "Returns the KeySym of the given key-press event.  This will be the\n\
 ASCII code of a printing character, or a symbol.")
      (event)
+     Lisp_Object event;
 {
   CHECK_EVENT_TYPE (event, key_press_event, Qkey_press_event_p);
   return XEVENT (event)->event.key.key;
@@ -408,6 +419,7 @@ ASCII code of a printing character, or a symbol.")
 DEFUN ("event-button", Fevent_button, Sevent_button, 1, 1, 0,
        "Returns the button-number of the given mouse-button-press event.")
      (event)
+     Lisp_Object event;
 {
   CHECK_EVENT_TYPE2 (event, button_press_event, button_release_event,
 		     Qbutton_event_p);
@@ -420,8 +432,8 @@ DEFUN ("event-modifier-bits", Fevent_modifier_bits, Sevent_modifier_bits,
 when the given mouse or keyboard event was produced.  See also the function\n\
 event-modifiers.")
      (event)
+     Lisp_Object event;
 {
-  Lisp_Object result;
   CHECK_EVENT_SAFE (event);
   if (XEVENT (event)->event_type != key_press_event &&
       XEVENT (event)->event_type != button_press_event &&
@@ -437,6 +449,7 @@ DEFUN ("event-modifiers", Fevent_modifiers, Sevent_modifiers, 1, 1, 0,
 were down when the given mouse or keyboard event was produced.\n\
 See also the function event-modifier-bits.")
      (event)
+     Lisp_Object event;
 {
   int mod = XINT (Fevent_modifier_bits (event));
   Lisp_Object result = Qnil;
@@ -453,6 +466,7 @@ DEFUN ("event-x-pixel", Fevent_x_pixel, Sevent_x_pixel, 1, 1, 0,
  "Returns the X position of the given mouse-motion, button-press, or\n\
 button-release event in pixels.")
      (event)
+     Lisp_Object event;
 {
   CHECK_EVENT_SAFE (event);
   if (XEVENT (event)->event_type == pointer_motion_event)
@@ -461,13 +475,14 @@ button-release event in pixels.")
 	   XEVENT (event)->event_type == button_release_event)
     return make_number (XEVENT (event)->event.button.x);
   else
-    wrong_type_argument (Qmouse_event_p, event);
+    return wrong_type_argument (Qmouse_event_p, event);
 }
 
 DEFUN ("event-y-pixel", Fevent_y_pixel, Sevent_y_pixel, 1, 1, 0,
  "Returns the Y position of the given mouse-motion, button-press, or\n\
 button-release event in pixels.")
      (event)
+     Lisp_Object event;
 {
   CHECK_EVENT_SAFE (event);
   if (XEVENT (event)->event_type == pointer_motion_event)
@@ -475,11 +490,12 @@ button-release event in pixels.")
   else if (XEVENT (event)->event_type == button_press_event ||
 	   XEVENT (event)->event_type == button_release_event)
     return make_number (XEVENT (event)->event.button.y);
-  wrong_type_argument (Qmouse_event_p, event);
+  else
+    return wrong_type_argument (Qmouse_event_p, event);
 }
 
 
-void
+static void
 event_pixel_translation (event, char_x, char_y, w, bufp, class, the_hard_way)
      Lisp_Object event, *class;
      int *char_x, *char_y, *bufp;
@@ -488,7 +504,7 @@ event_pixel_translation (event, char_x, char_y, w, bufp, class, the_hard_way)
 {
   int pix_x, pix_y, begin_p;
   int glyph, res;
-  Lisp_Object window, screen;
+  Lisp_Object screen;
   
   CHECK_EVENT_SAFE (event);
   if (XEVENT (event)->event_type == pointer_motion_event) {
@@ -546,6 +562,7 @@ DEFUN ("event-window", Fevent_window, Sevent_window, 1, 1, 0,
 and return the window on which that event occurred.  This may be nil if\n\
 the event did not occur in an emacs window (in the border or modeline.)")
      (event)
+     Lisp_Object event;
 {
   int char_x, char_y, bufp;
   struct window *w;
@@ -563,6 +580,7 @@ or button-release event.  If the event did not occur over a window, or did\n\
 not occur over text, then this returns nil.  Otherwise, it returns an index\n\
 into the buffer visible in the event's window.")
      (event)
+     Lisp_Object event;
 {
   int char_x, char_y, bufp, class;
   struct window *w;
@@ -576,6 +594,7 @@ DEFUN ("event-x", Fevent_x, Sevent_x, 1, 1, 0,
  "Returns the X position of the given mouse-motion, button-press, or\n\
 button-release event in characters.")
      (event)
+     Lisp_Object event;
 {
   int char_x, char_y, bufp, class;
   struct window *w;
@@ -588,6 +607,7 @@ DEFUN ("event-y", Fevent_y, Sevent_y, 1, 1, 0,
  "Returns the Y position of the given mouse-motion, button-press, or\n\
 button-release event in characters.")
      (event)
+     Lisp_Object event;
 {
   int char_x, char_y, bufp, class;
   struct window *w;
@@ -601,6 +621,7 @@ DEFUN ("event-glyph", Fevent_glyph, Sevent_glyph, 1, 1, 0,
  "If the given mouse-motion, button-press, or button-release event happened\n\
 on top of a glyph, this returns it; else nil.")
      (event)
+     Lisp_Object event;
 {
   int char_x, char_y, bufp;
   Lisp_Object class;
@@ -615,6 +636,7 @@ on top of a glyph, this returns it; else nil.")
 DEFUN ("event-process", Fevent_process, Sevent_process, 1, 1, 0,
  "Returns the process of the given proces-output event.")
      (event)
+     Lisp_Object event;
 {
   CHECK_EVENT_TYPE (event, process_event, Qprocess_event_p);
   return (XEVENT (event)->event.process.process);
@@ -623,6 +645,7 @@ DEFUN ("event-process", Fevent_process, Sevent_process, 1, 1, 0,
 DEFUN ("event-function", Fevent_function, Sevent_function, 1, 1, 0,
  "Returns the callback function of the given timeout, menu, or eval event.")
      (event)
+     Lisp_Object event;
 {
   CHECK_EVENT_SAFE (event);
   switch (XEVENT (event)->event_type) {
@@ -632,7 +655,7 @@ DEFUN ("event-function", Fevent_function, Sevent_function, 1, 1, 0,
   case eval_event:
     return (XEVENT (event)->event.eval.function);
   default:
-    wrong_type_argument (intern ("timeout-or-eval-event-p"), event);
+    return wrong_type_argument (intern ("timeout-or-eval-event-p"), event);
   }
 }
 
@@ -640,6 +663,7 @@ DEFUN ("event-object", Fevent_object, Sevent_object, 1, 1, 0,
  "Returns the callback function argument of the given timeout, menu, or\n\
 eval event.")
      (event)
+     Lisp_Object event;
 {
   CHECK_EVENT_SAFE (event);
   switch (XEVENT (event)->event_type) {
@@ -649,7 +673,7 @@ eval event.")
   case eval_event:
     return (XEVENT (event)->event.eval.object);
   default:
-    wrong_type_argument (intern ("timeout-or-eval-event-p"), event);
+    return wrong_type_argument (intern ("timeout-or-eval-event-p"), event);
   }
 }
 
@@ -657,7 +681,6 @@ Lisp_Object
 event_equal (o1, o2)			/* only Fequal() uses this */
      Lisp_Object o1, o2;
 {
-  int size;
   if (XEVENT (o1)->event_type != XEVENT (o2)->event_type) return Qnil;
   if (XEVENT (o1)->channel != XEVENT (o2)->channel) return Qnil;
 /*  if (XEVENT (o1)->timestamp != XEVENT (o2)->timestamp) return Qnil; */
@@ -703,13 +726,14 @@ event_equal (o1, o2)			/* only Fequal() uses this */
       return Qnil;
     return Qt;
   case magic_event:
-    return (bcmp ((char*) &(XEVENT (o1)->event.magic),
-		  (char*) &(XEVENT (o2)->event.magic),
-		  sizeof (struct magic_data))
+    return (memcmp ((char*) &(XEVENT (o1)->event.magic),
+		    (char*) &(XEVENT (o2)->event.magic),
+		    sizeof (struct magic_data))
 	    ? Qnil : Qt);
 
   default:
     error ("unknown event type");
+    return Qnil; /* not reached; warning suppression */
   }
 }
 

@@ -213,9 +213,11 @@ struct buffer
 #undef MARKED_SLOT
 #define MARKED_SLOT(x) Lisp_Object x
 #include "bufslots.h"
+#undef MARKED_SLOT
 };
 
 extern struct buffer *current_buffer;
+extern struct buffer *all_buffers;
 
 /* This structure holds the default values of the buffer-local variables
    defined with DefBufferLispVar, that have special slots in each buffer.
@@ -299,3 +301,7 @@ whatever you like.  */
 #define BUFFER_REALLOC(data,size) ((unsigned char *) xrealloc ((data), (size)))
 #define BUFFER_FREE(data) (free ((data)))
 #endif
+
+extern Lisp_Object Vbuffer_alist;
+#define internal_set_buffer(b) set_buffer_internal((b)) /*Compatibility*/
+extern void set_buffer_internal (struct buffer *b);

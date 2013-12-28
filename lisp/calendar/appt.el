@@ -1,6 +1,6 @@
 ;;; -*- Mode:Emacs-Lisp -*-
 ;; Appointment notification functions.
-;; Copyright (C) 1989, 1990, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1989, 1990, 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -160,6 +160,11 @@
  the warnings will be given.  That is, if this were the list '(5 3 1),
  then a notification would be given five minutes, three minutes, and
  one minute before the appointment.")
+
+(defvar appt-check-time-syntax nil
+  "*Whether all diary entries are intended to beging with time specifications.
+Appt will beep and issue a warning message when encountering unparsable 
+lines.")
 
 (defvar appt-audible t
   "*Controls whether appointment announcements should beep.")
@@ -451,7 +456,7 @@ selects that one."
 		      (calendar-current-date) (car (car entry-list))))
 	  (let ((time-string (car (cdr (car entry-list)))))
 	    (while (string-match
-		     "^[ \t]*\\([0-9]?[0-9]\\(:[0-9][0-9]\\)?[ \t]*\\(am\\|pm\\)?\\|noon\\|midnight\\|midnite\\).*$"
+		    "\\`[ \t\n]*\\([0-9]?[0-9]\\(:[0-9][0-9]\\)?[ \t]*\\(am\\|pm\\)?\\|noon\\|midnight\\|midnite\\).*$"
 		     time-string)
 	      (let* ((eol (match-end 0))
 		     (appt-time-string
@@ -464,7 +469,17 @@ selects that one."
 		      new-appts (cons (cons appt-time
 					    (list (concat appt-time-string ":"
 							  appt-msg-string)))
-				      new-appts)))))
+				      new-appts))))
+	    (if appt-check-time-syntax
+		(while (string-match "\n*\\([^\n]+\\)$" time-string)
+		  (beep)
+		  (message "Unparsable time: %s"
+			   (substring time-string (match-beginning 1)
+				      (match-end 1)))
+		  (sit-for 3)
+		  (setq time-string (substring time-string (match-end 0)))))
+					       
+	    )
 	  (setq entry-list (cdr entry-list)))
 	(setq appt-time-msg-list ; seems we can't nconc this list...
 	      (append (nreverse new-appts) appt-time-msg-list))))

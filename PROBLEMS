@@ -27,14 +27,31 @@ The problem is in the Sun shared C library, not in GNU ld.
 
 The solution is to install Patch-ID# 100267-03 from Sun.
 
+* Random other SunOS 4.1.[12] link errors.
+
+  The X headers and libraries that Sun ships in /usr/{include,lib}/X11 are
+  broken.  Use the ones in /usr/openwin/{include,lib} instead.
+
+  Apparently the SunOS 4.1.2 libXmu.so.a is hosed: it's missing some stuff 
+  that is in libXmu.a, so you may need to change the link command from
+  "-lXmu" to "-Bstatic -lXmu -Bdynamic" if you want to link dynamically.
+
+* Bus errors on startup when compiled with Sun's "acc" (in the routine
+  make_string_internal() called from initialize_environment_alist())
+
+  The Sun ANSI compiler doesn't place uninitialized static variables in BSS
+  space like other compilers do.  This breaks emacs.  If you want to use acc,
+  you need to make the file "lastfile.o" be the *first* file in the link 
+  command.  Better yet, use Lucid C or GCC.
+
 * The compiler generates lots and lots of syntax errors.
 
-Are you using an ANSI C compiler, like gcc?  The SunOS 4.1 bundled cc
+Are you using an ANSI C compiler, like lcc or gcc?  The SunOS 4.1 bundled cc
 is not ANSI.
 
-If X has not been configured to compile itself using GCC (or another ANSI
-compiler) then you will have to hack the automatically-generated makefile
-in the .../src/lwlib/ directory by hand to make it use an ANSI compiler.
+If X has not been configured to compile itself using lcc, gcc, or another ANSI
+compiler, then you will have to hack the automatically-generated makefile in
+the .../src/lwlib/ directory by hand to make it use an ANSI compiler.
 
 * When using gcc, you get the error message "undefined symbol __fixunsdfsi".
 * When using gcc, you get the error message "undefined symbol __main".
@@ -99,6 +116,19 @@ if ("`tty`" == "/dev/console")
 
 Even better, move things that set up terminal sections out of .cshrc
 and into .login.
+
+* With process-connection-type set to t, each line of subprocess output is
+  terminated with a ^M, making ange-ftp and GNUS not work.
+
+On SunOS systems, this problem has been seen to be a result of an incomplete
+installation of gcc 2.2 which allowed some non-ANSI compatible include files
+into the compilation.  In particular this affected virtually all ioctl() calls.
+
+* Once you pull down a menu from the menubar, it won't go away.
+
+It has been claimed that this is caused by a bug in certain very old (1990?)
+versions of the twm window manager.  It doesn't happen with recent vintages,
+or with other window managers.
 
 * Emacs starts in a directory other than the one that is current in the shell.
 
@@ -281,6 +311,28 @@ You may have forgotten to recompile them into .elc files.
 Then the old .elc files will be loaded, and your changes
 will not be seen.  To fix this, do M-x byte-recompile-directory
 and specify the directory that contains the Lisp files.
+
+* Things which should be bold or italic (such as the initial copyright notice)
+  are not.
+
+The fonts of the "bold" and "italic" faces are generated from the font of
+the "default" face; in this way, your bold and italic fonts will have the
+appropriate size and family.  However, emacs can only be clever in this
+way if you have specified the default font using the XLFD (X Logical Font
+Description) format, which looks like
+
+	*-courier-medium-r-*-*-*-120-*-*-*-*-*-*
+
+if you use any of the other, less strict font name formats, some of which
+look like
+		lucidasanstypewriter-12
+and		fixed
+and		9x13
+
+then emacs won't be able to guess the names of the "bold" and "italic"
+versions.  All X fonts can be referred to via XLFD-style names, so you
+should use those forms.  See the man pages for X(1), xlsfonts(1), and
+xfontsel(1).
 
 * The dumped Emacs (xemacs) crashes when run, trying to write pure data.
 

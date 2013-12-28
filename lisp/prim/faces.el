@@ -117,7 +117,8 @@ If NAME is already a face, it is simply returned."
 	 (prompt (concat "Set " what " of face"))
 	 (face (read-face-name (concat prompt ": ")))
 	 (default (if (fboundp fn)
-		      (funcall fn face (selected-screen))))
+		      (or (funcall fn face (selected-screen))
+			  (funcall fn 'default (selected-screen)))))
 	 (value (if bool
 		    (y-or-n-p (concat "Should face " (symbol-name face)
 				      " be " bool "? "))
@@ -241,10 +242,11 @@ or makes an already-existing face be exactly like another."
 	      (face-background-pixmap face2 screen))))
 
 (defun face-differs-from-default-p (face &optional screen)
-  "True if the given face will display the same as the default face.
-This may mean either that the face is specified in the same way as the 
-default face, or that the face is fully unspecified, and thus will
-inherit the attributes of any face it is displayed on top of."
+  "True if the given face will display differently from the default face.
+A face is considered to be ``the same'' as the default face if it is 
+actually specified in the same way (equivalent fonts, etc) or if it is 
+fully unspecified, and thus will inherit the attributes of any face it 
+is displayed on top of."
   (let ((default (get-face 'default screen)))
     (setq face (get-face face screen))
     (not (and (or (equal (face-foreground default screen)

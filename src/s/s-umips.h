@@ -17,6 +17,8 @@
 #undef MAIL_USE_FLOCK  /* Someone should check this.  */
 #undef HAVE_UNION_WAIT
 
+#define FLOAT_CATCH_SIGILL
+
 #else /* not BSD */
 
 #include "s-usg5-2-2.h"

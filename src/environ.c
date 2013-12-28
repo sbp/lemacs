@@ -1,5 +1,5 @@
 /* Environment-hacking for GNU Emacs subprocess
-   Copyright (C) 1986, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1986-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -31,7 +31,7 @@ you lose -- this is un*x-only
 Lisp_Object Venvironment_alist;
 extern char **environ;
 
-void
+static void
 set_environment_alist (str, val)
      register Lisp_Object str, val;
 {
@@ -55,12 +55,11 @@ set_environment_alist (str, val)
 static void
 initialize_environment_alist ()
 {
-  register unsigned char **e, *s;
-  extern char *index ();
+  register char **e, *s;
 
-  for (e = (unsigned char **) environ; *e; e++)
+  for (e = (char **) environ; *e; e++)
     {
-      s = (unsigned char *) index (*e, '=');
+      s = (char *) index (*e, '=');
       if (s)
 	set_environment_alist (make_string (*e, s - *e),
 			       build_string (s + 1));
@@ -68,9 +67,9 @@ initialize_environment_alist ()
 }
 
 
-unsigned char *
+static char *
 getenv_1 (str, ephemeral)
-     register unsigned char *str;
+     register const char *str;
      int ephemeral;		/* if ephmeral, don't need to gc-proof */
 {
   register Lisp_Object env;
@@ -82,13 +81,13 @@ getenv_1 (str, ephemeral)
       register Lisp_Object tem = XCONS (car)->car;
 
       if ((len == XSTRING (tem)->size) &&
-	  (!bcmp (str, XSTRING (tem)->data, len)))
+	  (!memcmp (str, XSTRING (tem)->data, len)))
 	{
 	  /* Found it in the lisp environment */
 	  tem = XCONS (car)->cdr;
 	  if (ephemeral)
 	    /* Caller promises that gc won't make him lose */
-	    return XSTRING (tem)->data;
+	    return (char*) XSTRING (tem)->data;
 	  else
 	    {
 	      register unsigned char **e;
@@ -97,7 +96,7 @@ getenv_1 (str, ephemeral)
 
 	      /* Look for element in the original unix environment */
 	      for (e = (unsigned char **) environ; *e; e++)
-		if (!bcmp (str, *e, len) && *(*e + len) == '=')
+		if (!memcmp (str, *e, len) && *(*e + len) == '=')
 		  {
 		    s = *e + len + 1;
 		    if (strlen ((const char *)s) >= ll)
@@ -118,24 +117,24 @@ getenv_1 (str, ephemeral)
 		 have frobbed the environment. */
 	      s = (unsigned char *) xmalloc (ll + 1);
 	    copy:
-	      bcopy (XSTRING (tem)->data, s, ll + 1);
-	      return (s);
+	      memcpy (s, XSTRING (tem)->data, ll + 1);
+	      return ((char *) s);
 	    }
 	}
     }
-  return ((unsigned char *) 0);
+  return ((char *) 0);
 }
 
 char *
 getenv (str)
-     register unsigned char *str;
+     register const char *str;
 {
   return ((char *) getenv_1 (str, 0));
 }
 
-unsigned char *
+char *
 egetenv (str)
-     register unsigned char *str;
+     register const char *str;
 {
   return (getenv_1 (str, 1));
 }
@@ -169,9 +168,9 @@ size_of_current_environ ()
 
 void
 get_current_environ (memory_block)
-     unsigned char **memory_block;
+     char **memory_block;
 {
-  register unsigned char **e, *s;
+  register char **e, *s;
   register int len;
   register Lisp_Object tem;
 
@@ -179,8 +178,7 @@ get_current_environ (memory_block)
 
   tem = Flength (Venvironment_alist);
   
-  s = (unsigned char *) memory_block
-		+ (XINT (tem) + 1) * sizeof (unsigned char *);
+  s = (char *) memory_block + (XINT (tem) + 1) * sizeof (unsigned char *);
 
   for (tem = Venvironment_alist; !NILP (tem); tem = XCONS (tem)->cdr)
     {
@@ -191,11 +189,11 @@ get_current_environ (memory_block)
 
       *e++ = s;
       len = XSTRING (str)->size;
-      bcopy (XSTRING (str)->data, s, len);
+      memcpy (s, XSTRING (str)->data, len);
       s += len;
       *s++ = '=';
       len = XSTRING (val)->size;
-      bcopy (XSTRING (val)->data, s, len);
+      memcpy (s, XSTRING (val)->data, len);
       s += len;
       *s++ = '\000';
     }
@@ -289,8 +287,6 @@ Both args must be strings.  Returns VALUE.")
      Lisp_Object str;
      Lisp_Object val;
 {
-  Lisp_Object tem;
-
   CHECK_STRING (str, 0);
   if (!NILP (val))
     CHECK_STRING (val, 0);
@@ -300,6 +296,7 @@ Both args must be strings.  Returns VALUE.")
 }
 
 
+void
 syms_of_environ ()
 {
   staticpro (&Venvironment_alist);
@@ -307,6 +304,7 @@ syms_of_environ ()
   defsubr (&Sgetenv);
 }
 
+void
 init_environ ()
 {
   Venvironment_alist = Qnil;

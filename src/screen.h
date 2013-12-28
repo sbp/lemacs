@@ -1,5 +1,5 @@
 /* Define screen-object for GNU Emacs.
-   Copyright (C) 1988, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -24,10 +24,6 @@ enum output_method
 { output_termcap, output_x_window };
 
 #include "dispextern.h"
-
-#ifdef ENERGIZE
-#include <cdisplayctx.h>
-#endif
 
 struct screen
 {
@@ -151,10 +147,6 @@ struct screen
 
   /* the lisp data (shadowing the C data) */
   Lisp_Object face_alist;
-
-#ifdef ENERGIZE
-  DisplayContext*	display_context;
-#endif
 };
 
 typedef struct screen *SCREEN_PTR;
@@ -203,8 +195,8 @@ extern struct screen *selected_screen;
 
 extern struct screen *make_terminal_screen ();
 extern struct screen *make_screen ();
-extern struct screen *make_minibuffer_screen ();
-extern struct screen *make_screen_without_minibuffer ();
+/*extern struct screen *make_minibuffer_screen ();*/
+/*extern struct screen *make_screen_without_minibuffer ();*/
 
 extern Lisp_Object Vscreen_list;
 extern Lisp_Object Vglobal_minibuffer_screen;
@@ -262,3 +254,15 @@ extern int cursX, cursY;
 #endif /* not MULTI_SCREEN */
 
 extern SCREEN_PTR choose_minibuf_screen ();
+
+extern int scroll_screen_lines (SCREEN_PTR, int, int, int);
+extern int update_screen (SCREEN_PTR, int, int);
+extern int scroll_cost (SCREEN_PTR, int, int, int);
+extern void do_line_insertion_deletion_costs (SCREEN_PTR, 
+					      char *, char *,
+					      char *, char *,
+					      char *, char *,
+					      int);
+extern void get_screen_size (int *, int *);
+
+extern void select_screen (struct screen *);

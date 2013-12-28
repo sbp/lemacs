@@ -1,5 +1,5 @@
 /* Indentation functions.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -25,6 +25,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "indent.h"
 #include "screen.h"
 #include "window.h"
+#include "insdel.h"
 #include "termchar.h"
 #include "termopts.h"
 #include "disptab.h"
@@ -50,13 +51,13 @@ int indent_tabs_mode;
 int last_known_column;
 
 /* Last buffer searched by current_column */
-struct buffer *last_known_column_buffer;
+static struct buffer *last_known_column_buffer;
 
 /* Value of point when current_column was called */
 int last_known_column_point;
 
 /* Value of MODIFF when current_column was called */
-int last_known_column_modified;
+static int last_known_column_modified;
 
 extern int minibuf_prompt_width;
 
@@ -81,6 +82,7 @@ buffer_display_table (struct buffer* buffer)
   return 0;
 }
 
+#if 0
 static int
 list_length (list)
      Lisp_Object list;
@@ -94,6 +96,7 @@ list_length (list)
     }
   return length;
 }
+#endif
 
 int
 current_column ()
@@ -103,9 +106,8 @@ current_column ()
   register int col;
   register int tab_seen;
   register int tab_width = XINT (buffer->tab_width);
-  register int stop, pos;
+  register int pos;
   int post_tab;
-  int stopchar;
   struct glyphs_from_chars *displayed_glyphs;
 
   if (buffer == last_known_column_buffer
@@ -118,8 +120,6 @@ current_column ()
 
   while (1)
     {
-      register int width;
-
       if (pos == BUF_BEGV (buffer))
 	break;
 
@@ -371,7 +371,7 @@ and if COLUMN is in the middle of a tab character, change it to spaces.")
   return val;
 }
 
-struct position val_compute_motion;
+static struct position val_compute_motion;
 
 /* Note that `cpos' is CURRENT_VPOS << SHORTBITS + CURRENT_HPOS,
    and that CURRENT_HPOS may be negative.  Use these macros
@@ -445,7 +445,7 @@ compute_motion (window, from, fromvpos, fromhpos, to,
   register UCHAR c;
   register int pos;
   int prevcpos, pix_width, nextcpos;
-  struct glyphs_from_chars *displayed_glyphs, *newline_glyphs;
+  struct glyphs_from_chars *displayed_glyphs;
   int overlay_arrow_seen = 0;
 
 #ifdef HAVE_X_WINDOWS
@@ -490,7 +490,7 @@ compute_motion (window, from, fromvpos, fromhpos, to,
 	  && ! overlay_arrow_seen)
 	{
 	  cpos++;
-	  pix_width += x_bitmaps[RARROW_BITMAP].width;
+	  pix_width += builtin_rarrow_pixmap.width;
 	  overlay_arrow_seen = 1;
 	}
 
@@ -697,6 +697,8 @@ compute_motion (window, from, fromvpos, fromhpos, to,
 #undef HPOS
 #undef VPOS
 
+int pos_tab_offset (struct window *, int);
+
 DEFUN ("motion", Fmotion, Smotion, 3, 3, 0,
   "Move forward from point by N characters.  Stop if we reach\n\
 TOHPOS, TOVPOS first.")
@@ -753,7 +755,7 @@ pos_tab_offset (w, pos)
    zero except for the minibuffer window,
    where it is the width of the prompt.  */
 
-struct position val_vmotion;
+static struct position val_vmotion;
 
 struct position *
 vmotion (from, vtarget, width, hscroll, window)
@@ -882,6 +884,7 @@ Optional second argument is WINDOW to move in.")
   }
 }
 
+void
 syms_of_indent ()
 {
   DEFVAR_BOOL ("indent-tabs-mode", &indent_tabs_mode,

@@ -1,5 +1,5 @@
 ;; Help commands for Emacs
-;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -21,10 +21,9 @@
 (defvar help-map (make-sparse-keymap)
   "Keymap for characters following the Help key.")
 
-(define-key global-map "\C-h" 'help-command)
 (fset 'help-command help-map)
 
-(define-key help-map "\C-h" 'help-for-help)
+(define-key help-map '(control h) 'help-for-help)
 (define-key help-map "?" 'help-for-help)
 
 (define-key help-map "\C-c" 'describe-copying)
@@ -58,9 +57,9 @@
 
 (define-key help-map "v" 'describe-variable)
 
-;; This is a grody hack of the same genotype as `advertised-undo'; we want
-;; the default bindings of Backspace and C-h to be the same, but we want
-;; the menubar to claim that `info' in invoked with `C-h i', not `BS i'.
+;; This is a grody hack of the same genotype as `advertised-undo'; if the
+;; bindings of Backspace and C-h are the same, we want the menubar to claim
+;; that `info' in invoked with `C-h i', not `BS i'.
 
 (defun deprecated-help-command ()
   (interactive)
@@ -68,7 +67,7 @@
       (setq unread-command-event (character-to-event ?\C-h (allocate-event)))
     (help-for-help)))
 
-(define-key global-map 'backspace 'deprecated-help-command)
+;;(define-key global-map 'backspace 'deprecated-help-command)
 
 (defun help-with-tutorial ()
   "Select the Emacs learn-by-doing tutorial."
@@ -332,10 +331,10 @@ not an autoload.")
         (if (cond ((eq 'autoload (car-safe def))
                    nil)
                   ((eq 'lambda (car-safe def))
-                   (princ (or (nth 1 def) "()" stream))
+                   (princ (or (nth 1 def) "()") stream)
                    t)
                   ((compiled-function-p def)
-                   (princ (or (aref def 0) "()" stream))
+                   (princ (or (aref def 0) "()") stream)
                    t)
                   ((and (subrp def)
                         (string-match "[\n\t ]*\narguments: ?\\((.*)\\)\n?\\'"

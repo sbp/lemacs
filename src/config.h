@@ -1,11 +1,11 @@
 /* GNU Emacs site configuration template file.
-   Copyright (C) 1986, 1988, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1986-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifndef _CONFIG_H_
+#define _CONFIG_H_
 
 /* Allow Emacses larger than 16 megabytes.  */
 
@@ -40,7 +42,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    the s- files to use for them.  See s-template.h for documentation on 
    writing s- files.
  */
-#include "s/s-sunos4.h"
+#include "s/s-sunos4shr.h"
 
 /* Include here a m- file that describes the machine and system you use.
    See the file ../etc/MACHINES for a list of machines and the names of 
@@ -69,6 +71,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 #endif
 
+/* Define HAVE_XPM if you have the `xpm' library and want emacs to use it. */
+#define HAVE_XPM
+
 /* Define `subprocesses' if you want to have code for asynchronous
    subprocesses (as used in M-x compile and M-x shell).  These do not
    work for some USG systems yet; for the ones where they work, the
@@ -78,6 +83,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef USG
 #define subprocesses
 #endif
+#endif
+
+/* Define the return type of signal handlers if the s-xxx file
+   did not already do so.  */
+#ifndef SIGTYPE
+#define SIGTYPE void
 #endif
 
 /* Define USER_FULL_NAME to return a string
@@ -111,6 +122,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define LISP_FLOAT_TYPE
 
+/* Define this for new syntax parsing code that works with C++ mode. */
+#define NEW_SYNTAX
+
 /* Define GNU_MALLOC if you want to use the *new* GNU memory allocator.
    If you have trouble with _malloc being multiply-defined, or if you're
    on a NeXT (or possibly MACH in general) comment out the next four lines.
@@ -120,18 +134,23 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 #define GNU_MALLOC
 
+/* The SunOS 4.1 version of localtime() allocates 8 bytes and writes to 9,
+   which causes predictably bad problems unless you use the SunOS version
+   of malloc, which doesn't mind.  This turns on a workaround in gmalloc.c.
+   This is allegedly fixed by Sun patch 100267-04.  Its official designation
+   is "1038500: localtime or tzsetwall corrupts malloc space."
+ */
+#if defined(GNU_MALLOC) && defined(sparc) && !defined(__svr4__)
+# define SUNOS_LOCALTIME_BUG
+#endif
+
 /* Define NEED_STRDUP if your system doesn't have a strdup() function.
    Define NEED_REALPATH if your system does not include a realpath() function.
-   If you system doesn't have the fmod() function, then you need to define
-   either HAVE_DREM or HAVE_REMAINDER, as appropriate.
-
    These flags really should be in the appropriate s- file, so if you need 
    to do this, let us know and we'll put them there in the next release.
  */
 /* #define NEED_STRDUP */
 /* #define NEED_REALPATH */
-/* #define HAVE_DREM */
-/* #define HAVE_REMAINDER */
 
 
 /* Define REL_ALLOC if you want to use the relocating allocator for
@@ -163,20 +182,22 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Compile in support for running emacs directly from temacs (useful for
    debugging emacs) */
-#define RUNNABLE_TEMACS
+/* #define RUNNABLE_TEMACS */
 
-
-#ifdef THIS_IS_YMAKEFILE
 
 /* If you have defined USE_MOTIF in the lwlib Imakefile, then you must define
    LWLIB_USES_MOTIF here.  Similarly, if you have defined USE_OLIT in the
    lwlib Imakefile, you must define LWLIB_USES_OLIT here.  This is because
    emacs must be linked with the Motif or OpenLook libraries if lwlib has
    been configured to use them.  (Note: you cannot define both.)
+
+   See the comments in lwlib/Imakefile for more info.
  */
 /* #define LWLIB_USES_MOTIF */
 /* #define LWLIB_USES_OLIT */
 
+
+#ifdef THIS_IS_YMAKEFILE
 
 /* Define LD_SWITCH_SITE to contain any special flags your loader may
    need.  For instance, if you've defined HAVE_X_WINDOWS above and your
@@ -199,8 +220,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* #define LIB_GCC /cadillacgnu/lib/sun4/gcc-gnulib */
 
-#endif /* USE_GCC */
+/* this kludge is because gcc uses "-static" and "-dynamic", while everyone
+   else in the world uses "-Bstatic" and "-Bdynamic". */
+# define Bstatic  static
+# define Bdynamic dynamic
 
+#endif /* USE_GCC */
 
 /* If you are using SunOS 4.1.1 and X11r5, then you need this patch.
    There is a stupid bug in the SunOS libc.a: two functions which X11r5
@@ -215,9 +240,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    Also, SunOS 4.1.1 contains buggy versions of strcmp and strcpy that
    sometimes reference memory past the end of the string, which can segv.
  */
-#ifdef sparc
+#if defined(sparc) && !defined(__svr4__)
 #define OBJECTS_SYSTEM sunOS-fix.o strcmp.o strcpy.o
 #endif
 
 
 #endif /* THIS_IS_YMAKEFILE */
+#endif /* _CONFIG_H_ */

@@ -1,5 +1,5 @@
 ;; Mouse support that is independent of window systems.
-;; Copyright (C) 1988, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1988-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -302,11 +302,13 @@ Display cursor at that position for a second."
 				((null symbolp) "\\w")
 				(t "[^ \t\n]")))
 	(white-space "[ \t]"))
-    (cond ((looking-at word-constituent)
+    (cond ((bobp) nil)
+	  ((looking-at word-constituent)
 	   (backward-char)
-	   (while (looking-at word-constituent)
+	   (while (and (not (bobp)) (looking-at word-constituent))
 	     (backward-char))
-	   (forward-char))
+	   (if (or (not (bobp)) (not (looking-at word-constituent)))
+	       (forward-char)))
 	  ((looking-at white-space)
 	   (backward-char)
 	   (while (looking-at white-space)
@@ -340,8 +342,8 @@ Display cursor at that position for a second."
   (let ((anchor (if (<= (point) min-anchor) max-anchor min-anchor)))
     (mouse-track-normalize-point mouse-track-type (> (point) anchor))
     (if (<= anchor (point))
-	(update-extent extent anchor (point))
-      (update-extent extent (point) anchor))))
+	(set-extent-endpoints extent anchor (point))
+      (set-extent-endpoints extent (point) anchor))))
 
 (defun mouse-track-has-selection-p (buffer)
   (and (or (not (eq window-system 'x))
@@ -371,10 +373,17 @@ Display cursor at that position for a second."
   (or (button-press-event-p event)
       (error "%s must be invoked by a mouse-press" this-command))
   (let* ((window (event-window event))
-	 (extent (set-extent-face (make-extent 1 1 (window-buffer window))
-				  face))
+	 (extent (make-extent 1 1 (window-buffer window)))
 	 (mouse-down t)
 	 min-anchor max-anchor result previous-point)
+    (set-extent-face extent face)
+    ;; While the selection is being dragged out, give the selection extent
+    ;; slightly higher priority than any mouse-highlighted extent, so that
+    ;; the exact endpoints of the selection will be visible while the mouse
+    ;; is down.  Normally, the selection and mouse highlighting have the same
+    ;; priority, so that conflicts between the two of them are resolved by
+    ;; the usual size-and-endpoint-comparison method.
+    (set-extent-priority extent (1+ mouse-highlight-priority))
     ;;
     ;; process double and triple clicks
     (cond ((and (< (- (event-timestamp event) mouse-track-up-time)
@@ -484,9 +493,16 @@ See also the `mouse-track-adjust' command, on \\[mouse-track-adjust]."
   (interactive "e")
   (if (eq window-system 'x)
       (x-focus-screen (window-screen (event-window event))))
-  (mouse-track-maybe-own-selection
-   (mouse-track-select event nil 'primary-selection)
-   'PRIMARY))
+  (let ((p (point))
+	(b (current-buffer))
+	(pair (mouse-track-select event nil 'primary-selection)))
+    ;; if no region was selected, but point has changed, but current
+    ;; buffer has not, push a mark at the previous point.
+    (if (and (equal (car pair) (cdr pair))
+	     (eq b (current-buffer))
+	     (not (equal p (car pair))))
+	(push-mark p))
+    (mouse-track-maybe-own-selection pair 'PRIMARY)))
 
 (defun mouse-track-adjust (event)
   "Extend the existing selection.  This should be bound to a mouse button.

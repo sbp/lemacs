@@ -1,11 +1,11 @@
 /* Calculate what line insertion or deletion to do, and do it,
-   Copyright (C) 1985, 1986, 1990 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1990, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -87,6 +87,7 @@ calculate_scrolling (screen, matrix, window_size, lines_below,
      /* matrix is of size window_size + 1 on each side.  */
      struct matrix_elt *matrix;
      int window_size;
+     int lines_below;
      int *draw_cost;
      int *old_hash;
      int *new_hash;
@@ -225,6 +226,11 @@ calculate_scrolling (screen, matrix, window_size, lines_below,
  according to the costs in the matrix.
  Updates the contents of the screen to record what was done. */
 
+extern void set_terminal_window (int);
+extern void ins_del_lines (int, int);
+extern int per_line_cost (char *);
+extern int string_cost (char *);
+
 static void
 do_scrolling (screen, matrix, window_size, unchanged_at_top)
      SCREEN_PTR screen;
@@ -249,35 +255,35 @@ do_scrolling (screen, matrix, window_size, unchanged_at_top)
   current_screen = SCREEN_CURRENT_GLYPHS (screen);
   temp_screen = SCREEN_TEMP_GLYPHS (screen);
 
-  bcopy (current_screen->glyphs, temp_screen->glyphs,
+  memcpy (temp_screen->glyphs, current_screen->glyphs,
 	 current_screen->height * sizeof (GLYPH *));
-  bcopy (current_screen->used, temp_screen->used,
+  memcpy (temp_screen->used, current_screen->used,
 	 current_screen->height * sizeof (int));
 #if 0
-  bcopy (current_screen->highlight, temp_screen->highlight,
+  memcpy (temp_screen->highlight, current_screen->highlight, 
 	 current_screen->height * sizeof (char));
 #endif
-  bzero (temp_screen->enable, temp_screen->height * sizeof (char));
+  memset (temp_screen->enable, 0, temp_screen->height * sizeof (char));
   
-  bcopy (current_screen->bufp, temp_screen->bufp,
+  memcpy (temp_screen->bufp, current_screen->bufp,
+	  current_screen->height * sizeof (int));
+  memcpy (temp_screen->nruns, current_screen->nruns, 
 	 current_screen->height * sizeof (int));
-  bcopy (current_screen->nruns, temp_screen->nruns,
-	 current_screen->height * sizeof (int));
-  bcopy (current_screen->face_list, temp_screen->face_list,
+  memcpy (temp_screen->face_list, current_screen->face_list,
 	 current_screen->height * sizeof (struct run *));
 
 #ifdef HAVE_X_WINDOWS
   if (SCREEN_IS_X (screen))
     {
-      bcopy (current_screen->top_left_x, temp_screen->top_left_x,
+      memcpy (temp_screen->top_left_x, current_screen->top_left_x, 
+	      current_screen->height * sizeof (short));
+      memcpy (temp_screen->top_left_y, current_screen->top_left_y, 
+	      current_screen->height * sizeof (short));
+      memcpy (temp_screen->pix_width, current_screen->pix_width, 
 	     current_screen->height * sizeof (short));
-      bcopy (current_screen->top_left_y, temp_screen->top_left_y,
+      memcpy (temp_screen->pix_height, current_screen->pix_height, 
 	     current_screen->height * sizeof (short));
-      bcopy (current_screen->pix_width, temp_screen->pix_width,
-	     current_screen->height * sizeof (short));
-      bcopy (current_screen->pix_height, temp_screen->pix_height,
-	     current_screen->height * sizeof (short));
-      bcopy (current_screen->max_ascent, temp_screen->max_ascent,
+      memcpy (temp_screen->max_ascent, current_screen->max_ascent, 
 	     current_screen->height * sizeof (short));
     }
 #endif
@@ -409,7 +415,7 @@ scrolling_max_lines_saved (start, end, oldhash, newhash, cost)
   avg_length /= end - start;
   threshold = avg_length / 4;
 
-  bzero (lines, sizeof lines);
+  memset (lines, 0, sizeof lines);
 
   /* Put new lines' hash codes in hash table.
      Ignore lines shorter than the threshold.
@@ -449,6 +455,7 @@ scrolling_max_lines_saved (start, end, oldhash, newhash, cost)
    These are the same arguments that might be given to
    scroll_screen_lines to perform this scrolling.  */
 
+int
 scroll_cost (screen, from, to, amount)
      SCREEN_PTR screen;
      int from, to, amount;
@@ -568,6 +575,7 @@ ins_del_costs (screen,
    Deletion is essentially the same as insertion.
  */
 
+void
 do_line_insertion_deletion_costs (screen,
 				  ins_line_string, multi_ins_string,
 				  del_line_string, multi_del_string,
@@ -615,4 +623,17 @@ do_line_insertion_deletion_costs (screen,
 		 setup_string, cleanup_string,
 		 SCREEN_DELETEN_COST (screen), SCREEN_DELETE_COST (screen),
 		 coefficient);
+}
+
+void
+free_line_insertion_deletion_costs (SCREEN_PTR screen)
+{
+  if (SCREEN_INSERT_COST (screen))
+    xfree (SCREEN_INSERT_COST (screen));
+  if (SCREEN_DELETEN_COST (screen))
+    xfree (SCREEN_DELETEN_COST (screen));
+  if (SCREEN_INSERTN_COST (screen))
+    xfree (SCREEN_INSERTN_COST (screen));
+  if (SCREEN_DELETE_COST (screen))
+    xfree (SCREEN_DELETE_COST (screen));
 }

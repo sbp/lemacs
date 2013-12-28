@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Jun 30 22:41:51 1992
-;;; from file /wg1/emacs-base/lisp/prim/timer.el
-;;; emacs version 19.2.1 Lucid.
-;;; bytecomp version 2.07; 17-jun-92.
+;;; compiled by jwz@thalidomide on Tue Dec 15 19:52:44 1992
+;;; from file /u/jwz/emacs19/lisp/prim/timer.el
+;;; emacs version 19.4 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -90,7 +90,7 @@ Display a list of all timers and select it for editing.
 The major mode of the buffer containing the listing is Timer Edit mode.
 This major mode provides commands to manipulate timers; see the documentation
 for `timer-edit-mode' for more information." nil])
-(fset 'timer-edit-mode #[nil "À ˆÁÂ!ˆÃÅÇÉÊË!ˆÌË!ˆÍp!ˆÎ!ˆ­„Ñ!‡" [kill-all-local-variables make-local-variable tab-stop-list timer-edit-mode major-mode "Timer Edit" mode-name t truncate-lines (22 32 42) abbrev-mode 0 auto-fill-mode buffer-flush-undo use-local-map timer-edit-map lisp-mode-syntax-table set-syntax-table] 2 "\
+(fset 'timer-edit-mode #[nil "À ˆÁÂ!ˆÃÅÇÉÊË!ˆÌË!ˆÍp!ˆÎ!ˆ­„Ñ!‡" [kill-all-local-variables make-local-variable tab-stop-list timer-edit-mode major-mode "Timer Edit" mode-name t truncate-lines (22 32 42) abbrev-mode 0 auto-fill-mode buffer-disable-undo use-local-map timer-edit-map lisp-mode-syntax-table set-syntax-table] 2 "\
 Major mode for manipulating timers.
 Atrributes of running timers are changed by moving the cursor to the
 desired field and typing `s' to set that field.  The field will then be
@@ -127,4 +127,4 @@ on the number of characters typed.")
 For use as a timer callback function.
 Auto-saves based on the size of the current buffer and the value of
 auto-save-timeout and the current keyboard idle-time."])
-(byte-code "ÀÁ!¬“Â®ÄÅ¥]ÇÁÈ‰$ˆ)ÉÊ!‡" [get-timer "auto-save" 2 auto-save-timeout 30 4 time start-timer auto-save-timer provide timer] 5)
+(byte-code "«†ÁÂ!ˆªœ¬™ÄÅ!¬”Æ®ÈÉ¥]\nËÅÌ\n‰$ˆ)ÍÎ!‡" [purify-flag message "WARNING: if timer.el is preloaded, auto-save-timeout won't work." noninteractive get-timer "auto-save" 2 auto-save-timeout 30 4 time start-timer auto-save-timer provide timer] 5)

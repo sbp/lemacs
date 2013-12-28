@@ -1,7 +1,7 @@
-;;; compiled by jwz@watergate on Tue Aug 18 17:18:46 1992
-;;; from file /wg1/emacs-base/lisp/packages/lpr.el
-;;; emacs version 19.2.2 Lucid.
-;;; bytecomp version 2.08;  7-aug-92.
+;;; compiled by jwz@thalidomide on Fri Nov 13 02:08:54 1992
+;;; from file /u/jwz/emacs19/lisp/packages/lpr.el
+;;; emacs version 19.3.4 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,7 +10,7 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(defvar lpr-command (byte-code "Á=«‚Â‡Ã‡" [system-type usg-unix-v "lp" "lpr"] 2) "\
+(defvar lpr-command (byte-code "Á>«‚Â‡Ã‡" [system-type (usg-unix-v hpux silicon-graphics-unix) "lp" "lpr"] 2) "\
 Shell command for printing a file")
 (fset 'lpr-buffer #[nil "Àed	Â$‡" [print-region-1 lpr-switches nil] 5 "\
 Print buffer contents as with Unix command `lpr'.

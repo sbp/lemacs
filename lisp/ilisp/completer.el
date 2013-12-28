@@ -515,7 +515,8 @@ for exit."
 	   (eq pred completer-pred)
 	   (not file-p)
 	   (or (eq mode completer-mode)
-	       (not (eq table 'read-file-name-internal))))
+	       (memq table '(read-file-name-internal
+			     read-directory-name-internal))))
       completer-result
       (setq 
        completer-string ""
@@ -900,6 +901,8 @@ twice in a row.  If called with a prefix, undo the last completion."
   (interactive "P")
   (if undo
       (completer-undo)
+    ;; added by jwz: don't cache completions in shell buffer!
+    (setq completer-string nil)
       (completer-complete-goto 
        "^ \t\n\""
        completer-words

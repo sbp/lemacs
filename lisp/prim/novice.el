@@ -1,5 +1,5 @@
 ;; Handling of disabled commands ("novice mode") for Emacs.
-;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -60,7 +60,8 @@ N to do nothing (command remains disabled)."))
        (while (not (memq (setq char (downcase (event-to-character
 					       (next-command-event event))))
 			 '(?  ?y ?n)))
-	 (ding)
+	 (ding nil 'y-or-n-p)
+	 (discard-input)
 	 (message "Please type y, n or Space: "))))
     (if (= char ?y)
 	(if (y-or-n-p "Enable command for future editing sessions also? ")

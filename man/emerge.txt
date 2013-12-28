@@ -1,21 +1,67 @@
-From drw@kutta.mit.edu Fri Dec 13 12:14:57 1991
-From: drw@kutta.mit.edu (Dale R. Worley)
-Subject: New version of Emerge file merging utility (documentation), part 2 of 3
-Organization: MIT Dept. of Tetrapilotomy, Cambridge, MA, USA
-Date: Fri, 13 Dec 1991 16:30:19 GMT
 
-This is the documentation for version 4 of "emerge.el", an Emacs
+This is the documentation for version 5 of "emerge.el", an Emacs
 package that allows you to combine two versions of a file by
 selecting, for each place where they differ, which version of the
 difference you prefer.  It is similar to Sun's "filemerge".
 
 Written by Dale R. Worley <drw@math.mit.edu>.
-Copyright 1989, 1990, 1991 by Dale R. Worley.  Do what you will with it.
+
+WARRANTY DISCLAIMER
+
+This software was created by Dale R. Worley and is
+distributed free of charge.  It is placed in the public domain and
+permission is granted to anyone to use, duplicate, modify and redistribute
+it provided that this notice is attached.
+
+Dale R. Worley provides absolutely NO WARRANTY OF ANY KIND
+with respect to this software.  The entire risk as to the quality and
+performance of this software is with the user.  IN NO EVENT WILL DALE
+R. WORLEY BE LIABLE TO ANYONE FOR ANY DAMAGES ARISING OUT THE
+USE OF THIS SOFTWARE, INCLUDING, WITHOUT LIMITATION, DAMAGES RESULTING FROM
+LOST DATA OR LOST PROFITS, OR FOR ANY SPECIAL, INCIDENTAL OR CONSEQUENTIAL
+DAMAGES.
 
 ;; LCD Archive Entry:
 ;; emerge|Dale R. Worley|drw@math.mit.edu
 ;; |File merge documentation
-;; |91-12-13|version 4|~/packages/emerge.doc.Z
+;; |92-12-11|version 5 gamma|~/packages/emerge.doc.Z
+
+- Changes from version 4 to version 5
+
+Put in improved disclaimer of copyright and warranty.
+
+Document autoload for emerge-execute-line.
+
+Changes to support use with Ange-FTP.
+
+Allow filenames containing shell metacharacters to be handled unscathed.
+
+Certain internal problems were fixed so that bugs in "x s", "x j", and
+"x t" were eliminated.
+
+Non-existent and non-readable file names are rejected, even if Emerge
+is called non-interactively.
+
+Add code to process the local-variables list in newly created merge
+buffers.
+
+Add changes made by David Gudeman to allow the default directory for
+arguments to the emerge-files commands to be the directory of the
+argument of that type to the last emerge-files command.  See "Default
+directories" below.
+
+Add emerge-process-line command to allow semi-automatic batching of
+merges.
+
+Add David Gudeman's facility for merging RCS revisions of a file.
+
+Add a few hooks to make customization easier.
+
+Still no Epoch support in this version, though.  Talk to Dan Pierson
+<pierson@xenna.encore.com> or check epoch-emerge-patch.el in the Emacs
+Lisp Directory if you want Epoch support.
+
+And the document still isn't in TeXinfo format.
 
 - Changes from version 3 to version 4
 
@@ -27,9 +73,9 @@ documentation of emerge-make-auto-save-file-name to see how to
 activate it.
 
 Emerge now works with Gnu diff3, which can produce the groups of lines
->from the various files in the order 1, 2, 3 or 1, 3, 2.
+from the various files in the order 1, 2, 3 or 1, 3, 2.
 
-Added x f command to show what files or buffers are being operated on.
+Add "x f" command to show what files or buffers are being operated on.
 
 The merge buffer now starts read-only, which being in fast mode it
 should be.
@@ -37,18 +83,18 @@ should be.
 When merging buffers, Emerge writes their contents into temporary
 files in the directory $TMPDIR (if it is defined), or /tmp by default.
 
-Added x j command to join two differences.
+Add "x j" command to join two differences.
 
-Added x s command to split a difference into two differences.
+Add "x s" command to split a difference into two differences.
 
-Added emerge-version variable and function to report the version of Emerge
+Add emerge-version variable and function to report the version of Emerge
 being run.
 
-Added x t command to trim unchanged lines off top and bottom of
+Add "x t" command to trim unchanged lines off top and bottom of
 difference region.
 
-Added x d, x a, and x b commands to locate the differences at or near
-a given location in one of the buffers.
+Add "x d", "x a", and "x b" commands to locate the differences at or
+near a given location in one of the buffers.
 
 Emerge no longer tries to copy the minor modes from the A buffer to
 the merge buffer, only the major mode.
@@ -70,25 +116,26 @@ that understands '~', for instance.
 If the diff/diff3 program reports errors, the user is notified and the
 errors are displayed.
 
-The command "0j" can be used to suppress the flags from showing in the buffers.
+The command "0j" can be used to suppress the flags from showing in the
+buffers.
 
 A discussion of the effect of the merge flags on indentation of code
 has been added to the documentation.
 
-If kill-fix.el is loaded, Emerge control variables new have their
+If kill-fix.el is loaded, Emerge control variables now have their
 'preserved' property set, so setting the major mode in the merge
 buffer doesn't destroy Emerge's state.
 
-Added x c, x C, and x x commands to allow the A and B versions to be
+Add "x c", "x C", and "x x" commands to allow the A and B versions to be
 combined into #ifdef - #endif forms.
 
 Replaced calls of "ding" to calls of "error" where appropriate.
 
-Added x m command to allow major mode of merge buffer to be changed.
+Add "x m" command to allow major mode of merge buffer to be changed.
 
-Added x 1 command to shrink the merge window to one line.
+Add "x 1" command to shrink the merge window to one line.
 
-Added emerge-startup-hooks to allow customization.
+Add emerge-startup-hooks to allow customization.
 
 Fixed a bug that is activated when a remote merge request is made when
 the minibuffer window is selected.
@@ -210,6 +257,39 @@ error message.)
 After the merge has been set up, Emerge runs the hooks in
 emerge-startup-hooks.
 
+The major mode of the merge buffer is set from the major mode of the A
+file or buffer.  You should not use the major-mode-setting commands
+(like c-mode or lisp-mode) to alter the major mode of the merge
+buffer, since they damage the state information of the merge.
+(Emerge's information is maintained as local variables of the merge
+buffer.)  You can use the "x m" command to change the major mode of
+the merge buffer safely.
+
+- Default directories
+
+If the variable emerge-default-last-directories is not set, the
+default directory for all filename arguments to the emerge-files
+commands is the default directory of the current buffer, like any
+other Emacs command.  This can be inconvenient if you are merging
+files in two different directories, since you cannot arrange for the
+default directories for all of the various arguments to be the
+directories you want.
+
+The default directories for filename arguments can be changed by
+setting the variable emerge-default-last-directories.  When it is set,
+the default directory for each filename argument is the directory of
+the previous argument of that type.  Thus, when merging files in two
+directories, the full filenames need only be entered for the first
+emerge-files command; the arugments to later emerge-files commands
+will default to the same directories as the first one.
+
+In this mode of operation, when the default directory for a filename
+argument is not the same as the directory of the file given as the A
+file, the argument acquires a default filename which is the filename
+of the A file appended to the default directory for the argument.
+This simplifies the usual case when several sets of files with
+corresponding names in different directories are being merged.
+
 - Merging
 
 Once you have started the merge, you manipulate the merge buffer with
@@ -221,7 +301,10 @@ except those for which B is preferred (because A agrees with the
 ancestor), which show the B version.  Emerge always has its attention
 focused on one particular difference, which is marked off in the three
 buffers by "vvvvvvvvvvvvvvvvvvvv" above and "^^^^^^^^^^^^^^^^^^^^"
-below.  The number of the difference is shown in the mode line.
+below.  The number of the difference is shown in the mode line.  If
+you are positioned before the first difference (that's where you
+start) or after the last difference, it displays as "diff 0 of nnn" or
+"diff nnn+1 of nnn".
 
 A merge buffer can be in two modes: "fast" mode and "edit" mode.  In
 fast mode, emerge commands are single characters, and ordinary Emacs
@@ -290,8 +373,8 @@ The Emerge commands are:
 
 * - more details on these commands are given below
 
-emerge-version is a variable giving the version number of Emerge.  It
-is also a function which displays emerge-version (when called
+The variable emerge-version gives the version number of Emerge.  The
+emerge-version function displays emerge-version (when called
 interactively) or returns it (when called from a program).
 
 - Differences and their states
@@ -332,19 +415,25 @@ line of the merge window:
 
 - Select default commands (d a and d b)
 
-The d a and d b commands change all default-A's to default-B's (or
+The "d a" and "d b" commands change all default-A's to default-B's (or
 vice-versa) from the selected difference on down to the end of the
-file to default-A or default-B, respectively.  (Since a difference
-that has been selected can not have state default-A or default-B, it
-will never be affected by d a or d b.  This leads to the unexpected
-result that d a or d b never affects the difference selected at the
-moment, but prevents differences that you have already looked at from
-changing unexpectedly.)
+file to default-A or default-B, respectively.  But remember, any
+difference that you have ever selected isn't in the default-A or
+default-B state, so it will never be affected by "d a" or "d b".  This
+leads to the unexpected result that "d a" or "d b" never affects the
+difference selected at the moment, but prevents differences that you
+have already looked at from changing unexpectedly.
 
-If you work your way down from the top of the file, using d a and d b
-at judicious points, you can effectivly make the A version the default
-for some sections of the merge buffer and the B version the default
-for others.
+If you work your way down from the top of the file, using "d a" and
+"d b" at judicious points, you can effectivly make the A version the
+default for some sections of the merge buffer and the B version the
+default for others.
+
+Giving the "d a" or "d b" command a prefix argument causes it to change
+differences from the current point down that are in the B state (for d
+a) or A state (for "d b") as well.  (Thus, the selected difference may
+be changed also.)  Differences for which there is a preference will
+not be affected.  (Selecting a difference won't erase its preference.)
 
 - Exiting (q)
 
@@ -477,10 +566,10 @@ This allows one to use multiple templates conveniently.
 - Changing the major mode of the edit buffer (x m)
 
 The "x m" command prompts for the name of a major-mode-setting command
-and executes it.  Ordinarily, major-mode-setting commands change the
-mode line and local keymap, so the "x m" command then resets the
-Emerge mode line and the fast or edit mode local keymap, as
-appropriate.
+(such as "c-mode" or "emacs-lisp-mode") and executes it.  Ordinarily,
+major-mode-setting commands change the mode line and local keymap, so
+the "x m" command then resets the Emerge mode line and the fast or
+edit mode local keymap, as appropriate.
 
 If you have already changed the major mode of the merge buffer and
 lost the Emerge keymap, you can use M-x emerge-set-merge-mode to
@@ -488,6 +577,12 @@ execute this command.
 
 Beware that "x m" accepts any command name, not just
 major-mode-setting commands.
+
+In order to use "x m", the kill-fix.el package of improvements to the
+kill-all-local-variables function must be installed.  It can be
+obtained from the Emacs Lisp archives by anonymous FTP from file
+/pub/gnu/emacs/elisp-archive/as-is/kill-fix.el.Z on
+archive.cis.ohio-state.edu.
 
 - Writing the merge buffer manually
 
@@ -565,4 +660,127 @@ autoloading.  Make sure that "emerge" is in a directory on load-path.
 (autoload 'emerge-files-with-ancestor-command "emerge")
 (autoload 'emerge-files-remote "emerge")
 (autoload 'emerge-files-with-ancestor-remote "emerge")
+(autoload 'emerge-revisions "emerge"
+	  "Emerge two RCS revisions of a file."
+	  t)
+(autoload 'emerge-revisions-with-ancestor
+	  "Emerge two RCS revisions of a file, giving another revision as
+the ancestor."
+	  t)
 
+(autoload 'emerge-execute-line "emerge"
+  "Process the current line.  Based on entries found, call emerge correctly
+on the files files listed."
+	t)
+
+- Use with Ange-FTP
+
+The Ange-FTP package allows Emacs to access files using FTP much as if
+they are local files.  However, diff/diff3 cannot access non-local
+files, and so Emerge needs to provide additional support if non-local
+files are being used.  Emerge uses the function emerge-remote-file-p
+to test a file name to see whether that file name can be given
+directly to diff/diff3.  If not, Emerge saves the file contents into a
+temporary file, and gives the temporary file name to diff/diff3.  The
+temporary file is deleted after diff/diff3 is done running.
+
+The function emerge-remote-file-p by default causes temporary files to
+be generated only for files read using Ange-FTP (which are
+distinguished via the variable ange-ftp-path-format).  If Ange-FTP is
+not loaded, it causes no temporary files to be generated.  The
+function emerge-remote-file-p can be modified for customization.
+
+- Filenames containing shell metacharacters
+
+Emerge handles filenames containing shell metacharacters by quoting
+them with \ before passing them to the shell.  This is normally not a
+problem, except that Emacs auto-save files begin with #, which is
+normally used to start comments.  Which characters are considered
+metacharacters is governed by the variable emerge-metachars, whose
+default value is suitable when the shell is sh, csh, or compatible
+shells.
+
+- Local variables lists
+
+Normally, Emerge ignores any local-variables list that is created in
+the merge buffer.  However, sometimes it may be useful to have a
+local-variables list processed.  This can be done manually by
+executing the function "(hack-local-variables)".  If the variable
+emerge-process-local-variables is true, when Emerge is started it
+will process any local variables list in the newly-created merge
+buffer.  (If the merge has an ancestor, the selecting of default
+versions of differences is done before the local variables list is
+processed.)
+
+- Semi-automatic batching of merges
+
+If you have a large number of merges to execute, the function
+emerge-execute-line can reduce the amount of work.  To use it, create
+a buffer containing lines that describe the merges to be done.  Each
+line describes a single merge by means of fields of the form:
+
+	A=file1
+	B=file2
+	ancestor=file3
+	output=file4
+
+The fields are seperated by whitespace, and the filenames given should
+be absolute, not relative.  The buffer's contents can be generated by
+a program and read in as a file, or they can be generated by an Emacs
+function.  (See the sample function emerge-merge-directories, which
+produces specifications to merge the entire contents of two
+directories, possibly with an ancestor directory and an output
+directory.)
+
+If you position the cursor on one line of the buffer and execute
+emerge-execute-line, the information on that line will be read and an
+appropriate merge will be started.  When the merge is finished (or
+aborted), the original buffer will be displayed again, with the cursor
+at the beginning of the next line, ready for the next invocation of
+emerge-execute-line.  In this way, it is easy to start a sequence of
+merges that are described by a buffer of specifications.
+
+To perform a two-way merge, provide an "A" and a "B" field.  To
+perform a merge with an ancestor file, provide "A", "B", and
+"ancestor" fields.  In either case, if an "output" field is provided,
+the results of a successful merge will be written into the designated
+file, just as if a prefix argument had been given to the Emerge
+command.
+
+In addition, emerge-process-line attempts to handle situations where
+one of the "A" or "B" fields are missing, showing that one version or
+another of the file does not exist.  (In all cases, files that are
+specified in the "A", "B", or "ancestor" fields must exist.
+Non-existent files are specified by omitting the appropriate field.)
+The principles governing these cases are: (1) If no "output" file is
+specified, it is an error.  (2) If an "output" file is specified, then
+the "A" or "B" file (whichever is present) is copied into the output
+file.  (3) If an "ancestor" file is given, it is assumed that the file
+in question has been deleted in one or another of the versions, and so
+should be deleted from the "merged" version of the files.  Case (3) is
+sufficiently dangerous that it is only activated if the variable
+emerge-execute-line-deletions is set; otherwise case (3) will be
+handled as case (2), that is, the one existing version will be copied
+to the output file.
+
+In all cases, the goal is to simplify the usual case of "merging two
+directories that contain two versions of a system of software".
+
+- Merging RCS versions of a file
+
+You can merge RCS versions of a file using the commands
+emerge-revisions and emerge-revisions-with-ancestor.  For both
+commands, all of the input files are RCS versions of one base file,
+which are checked out automatically.  If you provide a prefix
+argument, upon successful completion the merged file is checked in.
+
+- Use with Lucid Emacs
+
+Under Lucid Emacs, Emerge highlights the selected difference rather
+that bordering it with character flags.  This is probably more
+natural, but it has the problem that insertions made at the very ends
+of the difference may go either inside or outside of the difference,
+at Emacs' discretion.  The Lucid features should be disablable by
+setting emerge-lucid-p to nil, but that variable is also used to
+activate workarounds to bugs in Lucid Emacs, so the user shouldn't
+change its value.

@@ -1,5 +1,5 @@
 /* Unexec for MIPS (including IRIS4D).
-   Copyright (C) 1988 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1992 Free Software Foundation, Inc.
 
    Note that the GNU project considers support for MIPS operation
    a peripheral activity which should not be allowed to divert effort
@@ -10,7 +10,7 @@
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 1, or (at your option)
+    the Free Software Foundation; either version 2, or (at your option)
     any later version.
 
     This program is distributed in the hope that it will be useful,
@@ -143,20 +143,23 @@ unexec (new_name, a_name, data_start, bss_start, entry_address)
       exit(1);
     }
 
+/*
+ * The headers are no longer in text-init-rdata-data order. Therefore we 
+ * have to do a linear search for each section in the section list.
+ */
 #define CHECK_SCNHDR(ptr, name, flags) \
+  i = 0; ptr = NULL; \
+  while(i < hdr.fhdr.f_nscns && !ptr) { \
   if (strcmp(hdr.section[i].s_name, name) == 0) { \
     if (hdr.section[i].s_flags != flags) { \
       fprintf(stderr, "unexec: %x flags where %x expected in %s section.\n", \
 	      hdr.section[i].s_flags, flags, name); \
     } \
     ptr = hdr.section + i; \
-    i += 1; \
   } \
-  else { \
-    ptr = NULL; \
-    }
+  i += 1; \
+  }
 
-  i = 0;
   CHECK_SCNHDR(text_section,  _TEXT,  STYP_TEXT);
   CHECK_SCNHDR(init_section,  _INIT,  STYP_INIT);
   CHECK_SCNHDR(rdata_section, _RDATA, STYP_RDATA);
@@ -189,6 +192,12 @@ unexec (new_name, a_name, data_start, bss_start, entry_address)
 
   hdr.aout.bss_start = hdr.aout.data_start + hdr.aout.dsize;
   rdata_section->s_size = data_start - DATA_START;
+
+  /* adjust start and virtual addresses of rdata_section, too */
+  rdata_section->s_vaddr = DATA_START;
+  rdata_section->s_paddr = DATA_START;
+  rdata_section->s_scnptr = text_section->s_scnptr + hdr.aout.tsize;
+
   data_section->s_vaddr = data_start;
   data_section->s_paddr = data_start;
   data_section->s_size = brk - data_start;
@@ -231,9 +240,9 @@ unexec (new_name, a_name, data_start, bss_start, entry_address)
       bss_section->s_scnptr = scnptr;
     }
 
-  WRITE(new, TEXT_START, hdr.aout.tsize,
+  WRITE(new, (void *) TEXT_START, hdr.aout.tsize,
 	"writing text section to %s", new_name);
-  WRITE(new, DATA_START, hdr.aout.dsize,
+  WRITE(new, (void *) DATA_START, hdr.aout.dsize,
 	"writing text section to %s", new_name);
 
   SEEK(old, hdr.fhdr.f_symptr, "seeking to start of symbols in %s", a_name);

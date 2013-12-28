@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Sep  8 23:32:11 1992
-;;; from file /wg1/emacs-base/lisp/modes/c-mode.el
-;;; emacs version 19.2.23 Lucid.
-;;; bytecomp version 2.08; 27-aug-92.
+;;; compiled by jwz@thalidomide on Sun Jan 17 16:06:47 1993
+;;; from file /cadillac-th/jwz/emacs19/lisp/modes/c-mode.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 16-jan-93.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

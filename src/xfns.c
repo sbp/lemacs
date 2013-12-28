@@ -1,5 +1,5 @@
 /* Functions for the X window system.
-   Copyright (C) 1989, 1992 Free Software Foundation.
+   Copyright (C) 1989, 1992, 1993 Free Software Foundation.
 
 This file is part of GNU Emacs.
 
@@ -19,19 +19,23 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Substantially rewritten for Lucid GNU Emacs.  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <signal.h>
-#include "config.h"
 
 #include <X11/IntrinsicP.h>	/* CoreP.h needs this */
 #include <X11/CoreP.h>		/* foul, but we need this to use our own
 				   window inside a widget instead of one 
 				   that Xt creates... */
 #include <X11/StringDefs.h>
+#include <X11/Xresource.h>
 #include <X11/Shell.h>
 
 #include <X11/Xaw/Paned.h>
 #include <X11/Xaw/Label.h>
+
+#include <X11/Xos.h>
 
 #include "ScreenWidgetP.h"
 
@@ -65,74 +69,26 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifdef HAVE_X_WINDOWS
 extern void abort ();
 
-void x_set_screen_param ();
-
 #define min(a,b) ((a) < (b) ? (a) : (b))
 #define max(a,b) ((a) > (b) ? (a) : (b))
 #define COLOR_SCREEN_P(d) (XCellsOfScreen (DefaultScreenOfDisplay (d)) > 2)
-
-/* X Resource data base */
-static XrmDatabase xrdb;
-
-/* Title name and application name for X stuff. */
-extern char *id_name;
 
 Lisp_Object Vx_gc_pointer_shape;
 
 /* If non-nil, use vertical bar cursor. */
 Lisp_Object Vbar_cursor;
 
-/* The X Visual we are using for X windows (the default) */
-Visual *screen_visual;
-
-/* How many screens this X display has. */
-int x_screen_count;
-
-/* The vendor supporting this X server. */
-Lisp_Object Vx_vendor;
-
-/* The vendor's release number for this X server. */
-int x_release;
-
-/* Height of this X screen in pixels. */
-int x_screen_height;
-
-/* Height of this X screen in millimeters. */
-int x_screen_height_mm;
-
-/* Width of this X screen in pixels. */
-int x_screen_width;
-
-/* Width of this X screen in millimeters. */
-int x_screen_width_mm;
-
-/* Does this X screen do backing store? */
-Lisp_Object Vx_backing_store;
-
-/* Does this X screen do save-unders? */
-int x_save_under;
-
-/* Number of planes for this screen. */
-int x_screen_planes;
-
-/* X Visual type of this screen. */
-Lisp_Object Vx_screen_visual;
-
 /* Where bitmaps are; initialized from resource database */
 Lisp_Object Vx_bitmap_file_path;
 
-Atom Xatom_WM_TAKE_FOCUS, Xatom_WM_SAVE_YOURSELF, Xatom_WM_DELETE_WINDOW,
- Xatom_WM_PROTOCOLS, Xatom_CLIPBOARD;
+/* The application class of Emacs. */
+Lisp_Object Vx_emacs_application_class;
 
-static char *x_visual_strings[] =
-  {
-    "StaticGray",
-    "GrayScale",
-    "StaticColor",
-    "PseudoColor",
-    "TrueColor",
-    "DirectColor"
-  };
+/* The screen on which we have placed a WM_COMMAND property.  Only one. */
+Lisp_Object WM_COMMAND_screen;
+
+Atom Xatom_WM_TAKE_FOCUS, Xatom_WM_SAVE_YOURSELF, Xatom_WM_DELETE_WINDOW,
+ Xatom_WM_PROTOCOLS;
 
 Lisp_Object Qundefined_color;
 Lisp_Object Qx_resource_name;
@@ -144,6 +100,10 @@ Lisp_Object Vx_screen_defaults;
 
 /* Do we accept events send by other clients? */
 int x_allow_sendevents;
+
+extern Lisp_Object Qmouse_enter_screen_hook, Qmouse_leave_screen_hook;
+extern Lisp_Object Qmap_screen_hook, Qunmap_screen_hook;
+extern Lisp_Object Qcreate_screen_hook;
 
 
 /* Return the Emacs screen-object corresponding to an X window */
@@ -207,6 +167,7 @@ Lisp_Object modeline_part_sym;
    X Resource Manager names.  The name of a parameter, as a Lisp symbol,
    has an `x-resource-name' property which is a Lisp_String. */
 
+static void
 init_x_parm_symbols ()
 {
   register Lisp_Object propname;
@@ -232,9 +193,9 @@ init_x_parm_symbols ()
   def ("minibuffer", XtNminibuffer);
   def ("unsplittable", XtNunsplittable);
   defi("inter-line-space", XtNinterline);
-  def ("bar-cursor", XtNbarCursor);
-  def ("visual-bell", XtNvisualBell);
-  defi("bell-volume", XtNbellVolume);
+/*  def ("bar-cursor", XtNbarCursor); */
+/*  def ("visual-bell", XtNvisualBell); */
+/*  defi("bell-volume", XtNbellVolume); */
   
 #undef def
 }
@@ -263,6 +224,9 @@ color_to_string (w, pixel, buf)
 }
 
 
+extern void store_in_alist (Lisp_Object *, char *, Lisp_Object);
+
+void
 x_report_screen_params (s, alistptr)
      struct screen *s;
      Lisp_Object *alistptr;
@@ -291,8 +255,8 @@ x_report_screen_params (s, alistptr)
   store_int ("inter-line-space", w->emacs_screen.interline);
   store_bool ("minibuffer", w->emacs_screen.minibuffer);
   store_bool ("unsplittable", w->emacs_screen.minibuffer);
-  store_bool ("visual-bell", w->emacs_screen.visual_bell); 
-  store_bool ("bar-cursor",  w->emacs_screen.bar_cursor);
+/*  store_bool ("visual-bell", w->emacs_screen.visual_bell); */
+/*  store_bool ("bar-cursor",  w->emacs_screen.bar_cursor); */
   sprintf (buf, "0x%x", XtWindow (w));
   store_str ("window-id", buf);
 }
@@ -300,20 +264,6 @@ x_report_screen_params (s, alistptr)
 
 /* Functions called only from `x_set_screen_param' to set
 ** individual parameters. */
-
-static void
-x_set_internal_border_width (s, arg)
-     struct screen *s;
-     Lisp_Object arg;
-{
-  CHECK_FIXNUM (arg, 0);
-
-  BLOCK_INPUT;
-  XtVaSetValues (s->display.x->edit_widget, 
-		 XtNinternalBorderWidth, XINT (arg));
-  UNBLOCK_INPUT;
-}
-
 
 void 
 x_set_title_from_char (struct screen* s, char* name)
@@ -351,6 +301,8 @@ x_set_icon_name_from_char (struct screen* s, char* name)
    If the parameter is not specially recognized, do nothing.
  */
 
+extern void store_screen_param (struct screen *s, Lisp_Object, Lisp_Object);
+
 void
 x_set_screen_values (s, alist)
      struct screen *s;
@@ -386,14 +338,8 @@ x_set_screen_values (s, alist)
 	{
 	  Lisp_Object str = Fget (prop, Qx_resource_name);
 	  int int_p = !NILP (Fget (prop, Qintegerp));
-
-	  if (NILP (str))
-	    {
-	      if (!EQ (prop, intern ("menubar")))
-		store_screen_param (s, prop, val);
-	      continue;
-	    }
-
+	  if (NILP (prop) || NILP (str))
+	    continue;
 	  CHECK_STRING (str, 0);
 	  BLOCK_INPUT;
 	  if (int_p)
@@ -434,11 +380,10 @@ fix_pane_constraints (w)
   UNBLOCK_INPUT;
 }
 
-/* remove this when we do not use uilib anymore */
-void
-sheet_callback (){}
-
 #ifdef ENERGIZE
+
+/* #### remove this when we do not use uilib anymore */
+void sheet_callback () {}
 
 extern int *get_psheets_for_buffer ();
 
@@ -462,7 +407,6 @@ make_psheets_desired (s, buffer)
 {
   struct x_display *x = s->display.x;
   int count;
-  int i;
   int *psheets;
 
   if (NILP (buffer) || !(psheets = get_psheets_for_buffer (buffer, &count)))
@@ -581,7 +525,6 @@ void energize_buffer_hidden_hook (window)
      struct window *window;
 {
   struct screen *s;
-  Lisp_Object old_buffer;
   s = XSCREEN (window->screen);
 
   if (! SCREEN_IS_X (s)) return;
@@ -633,7 +576,6 @@ energize_show_menubar_of_buffer (screen, buffer, psheets_too)
 {
   struct screen* s;
   struct x_display *x;
-  Lisp_Object menubar;
   
   if (NILP (screen))
     s = selected_screen;
@@ -716,6 +658,10 @@ resources/values to use for the screen.  (ignored right now).
 reslisp_window_id is a Lisp description of an X window or Xt widget to
 resParse.  (ignored right now).  */
 
+extern void maybe_store_wm_command (struct screen *);
+
+static void hack_wm_protocols (Widget);
+
 static void
 x_create_widgets (s, parms, lisp_window_id)
      struct screen *s;
@@ -728,7 +674,6 @@ x_create_widgets (s, parms, lisp_window_id)
   char* name;
   Arg al [25];
   int ac = 0;
-  Atom properties [1];
 
   BLOCK_INPUT;
 
@@ -774,20 +719,16 @@ x_create_widgets (s, parms, lisp_window_id)
   XtManageChild (screen_widget);
   XtManageChild (pane_widget);
   XtRealizeWidget (shell_widget);
-
-  properties [0] = Xatom_WM_TAKE_FOCUS;
-  XChangeProperty (XtDisplay (shell_widget), XtWindow (shell_widget),
-		   Xatom_WM_PROTOCOLS, XA_ATOM, 32, PropModeAppend,
-		   (unsigned char*)properties, 1);
+  maybe_store_wm_command (s);
+  hack_wm_protocols (shell_widget);
 
   /* Do a stupid property change to force the server to generate a
      propertyNotify event so that the event_stream server timestamp will
      be initialized to something relevant to the time we created the window.
      */
-  properties [0] = Xatom_WM_TAKE_FOCUS;
   XChangeProperty (XtDisplay (screen_widget), XtWindow (screen_widget),
 		   Xatom_WM_PROTOCOLS, XA_ATOM, 32, PropModeAppend,
-		   (unsigned char*)NULL, 0);
+		   (unsigned char*) NULL, 0);
 
   XtMapWidget (screen_widget);
 
@@ -816,6 +757,50 @@ x_create_widgets (s, parms, lisp_window_id)
 #endif
 }
 
+
+/* If the WM_PROTOCOLS property does not already contain WM_TAKE_FOCUS
+   and WM_DELETE_WINDOW, then add them.  (They may already be present
+   because of the toolkit (Motif adds them, for example, but Xt doesn't.)
+ */
+static void hack_wm_protocols (Widget widget)
+{
+  Display *dpy = XtDisplay (widget);
+  Window w = XtWindow (widget);
+  int need_delete = 1;
+  int need_focus = 1;
+  BLOCK_INPUT;
+  {
+    Atom type, *atoms = 0;
+    int format = 0;
+    unsigned long nitems = 0;
+    unsigned long bytes_after;
+
+    if (Success == XGetWindowProperty (dpy, w, Xatom_WM_PROTOCOLS,
+				       0, 100, False, XA_ATOM,
+				       &type, &format, &nitems, &bytes_after,
+				       (unsigned char **) &atoms)
+	&& format == 32 && type == XA_ATOM)
+      while (nitems > 0)
+	{
+	  nitems--;
+	  if (atoms [nitems] == Xatom_WM_DELETE_WINDOW)   need_delete = 0;
+	  else if (atoms [nitems] == Xatom_WM_TAKE_FOCUS) need_focus = 0;
+	}
+    if (atoms) XFree ((char *) atoms);
+  }
+  {
+    Atom props [10];
+    int count = 0;
+    if (need_delete) props [count++] = Xatom_WM_DELETE_WINDOW;
+    if (need_focus)  props [count++] = Xatom_WM_TAKE_FOCUS;
+    if (count)
+      XChangeProperty (dpy, w, Xatom_WM_PROTOCOLS, XA_ATOM, 32, PropModeAppend,
+		       (unsigned char *) props, count);
+  }
+  UNBLOCK_INPUT;
+}
+
+
 static void
 allocate_x_display_struct (s)
      struct screen* s;
@@ -824,10 +809,14 @@ allocate_x_display_struct (s)
   s->display.x = (struct x_display *)xmalloc (sizeof (struct x_display));
 
   /* zero out all slots. */
-  bzero (s->display.x, sizeof (struct x_display));
+  memset (s->display.x, 0, sizeof (struct x_display));
 }
 
-Lisp_Object Vcreate_screen_hook;
+Lisp_Object Vdefault_screen_name;
+
+extern void x_format_screen_title (struct screen *);
+
+extern void run_hooks_1_arg (Lisp_Object, Lisp_Object);
 
 DEFUN ("x-create-screen", Fx_create_screen, Sx_create_screen,
        1, 2, 0,
@@ -840,12 +829,7 @@ Optional second argument is the numerical ID of the X window to use for this\n\
 screen (in order to run Emacs on a window created by some other program).\n\
 Since this ID number is an unsigned long, you must pass it as a string.\n\
 It may be a string of decimal numbers, or a string of hex numbers beginning\n\
-with \"0x\"."
-#ifdef ENERGIZE
-"\nIn Energize it can be the address of a parent widget to\n\
-use, it then has to begin with \"w\"."
-#endif
-)
+with \"0x\".")
   (parms, lisp_window_id)
      Lisp_Object parms, lisp_window_id;
 {
@@ -868,6 +852,8 @@ use, it then has to begin with \"w\"."
       name = Fcdr (name);
       CHECK_STRING (name, 0);
     }
+  else if (STRINGP (Vdefault_screen_name))
+    name = Vdefault_screen_name;
   else
     name = build_string ("emacs");
 
@@ -888,14 +874,9 @@ use, it then has to begin with \"w\"."
    */
   if (selected_screen == XSCREEN (Vterminal_screen))
     select_screen (s);
-
   init_screen_faces (s);
-
   x_format_screen_title (s);
-
-  if (!NILP (Vcreate_screen_hook))
-    call1 (Vcreate_screen_hook, screen);
-  
+  run_hooks_1_arg (Qcreate_screen_hook, screen);
   UNGCPRO;
   return screen;
 }
@@ -923,12 +904,14 @@ DEFUN ("x-focus-screen", Fx_focus_screen, Sx_focus_screen, 1, 2, 0,
 }
 
 
+#if 0
 void
 map_psheets (screen)
      struct screen *screen;
 {
   /* #### obsolete */
 }
+#endif
 
 
 DEFUN ("x-show-lineinfo-column",
@@ -939,7 +922,9 @@ DEFUN ("x-show-lineinfo-column",
 {
   struct screen* s;
   struct x_display *x;
+#ifdef LINE_INFO_WIDGET
   int just_created;
+#endif
   
   if (NILP (screen))
     s = selected_screen;
@@ -1003,6 +988,7 @@ DEFUN ("x-hide-lineinfo-column",
        Fx_hide_lineinfo_column, Sx_hide_lineinfo_column, 0, 1, 0,
        "Make the given emacs screen not have a lineinfo column.")
      (screen)
+     Lisp_Object screen;
 {
   struct screen *s;
   
@@ -1030,45 +1016,170 @@ DEFUN ("x-hide-lineinfo-column",
 }
 
 
-DEFUN ("x-color-display-p", Fx_color_display_p, Sx_color_display_p, 0, 0, 0,
-  "Return t if the X display used currently supports color.")
-  ()
-{
-  if (XINT (x_screen_planes) <= 2)
-    return Qnil;
+#define GET_X_SCREEN(s, screen) { \
+  if (NILP (screen))		 \
+    s = selected_screen;	 \
+  else				 \
+    {				 \
+      CHECK_SCREEN (screen, 0);	 \
+      s = XSCREEN (screen);	 \
+    }				 \
+  if (!SCREEN_IS_X (s))		 \
+    error ("not an X display"); }
 
-  switch (screen_visual->class)
+
+DEFUN ("x-display-visual-class", Fx_display_visual_class,
+       Sx_display_visual_class, 0, 1, 0,
+       "Returns the visual class of the display `screen' is on.\n\
+The returned value will be one of the symbols StaticGray, GrayScale,\n\
+StaticColor, PseudoColor, TrueColor, or DirectColor.")
+	(screen)
+     Lisp_Object screen;
+{
+  struct screen *s;
+  Display *dpy;
+  GET_X_SCREEN (s, screen);
+  dpy = XtDisplay (s->display.x->widget);
+  switch (DefaultVisual (dpy, DefaultScreen (dpy))->class)
+    {
+    case StaticGray:  return (intern ("StaticGray"));
+    case GrayScale:   return (intern ("GrayScale"));
+    case StaticColor: return (intern ("StaticColor"));
+    case PseudoColor: return (intern ("PseudoColor"));
+    case TrueColor:   return (intern ("TrueColor"));
+    case DirectColor: return (intern ("DirectColor"));
+    default:
+      error ("display has an unknown visual class");
+    }
+}
+
+DEFUN ("x-color-display-p", Fx_color_display_p, Sx_color_display_p, 0, 1, 0,
+       "Returns t if the X display of the given screen supports color.")
+     (screen)
+     Lisp_Object screen;
+{
+  struct screen *s;
+  Display *dpy;
+  GET_X_SCREEN (s, screen);
+  dpy = XtDisplay (s->display.x->widget);
+  if (DisplayCells (dpy, DefaultScreen (dpy)) <= 2)
+    return Qnil;
+  switch (DefaultVisual (dpy, DefaultScreen (dpy))->class)
     {
     case StaticColor:
     case PseudoColor:
     case TrueColor:
     case DirectColor:
       return Qt;
-
     default:
       return Qnil;
     }
 }
 
-DEFUN ("x-pixel-width", Fx_pixel_width, Sx_pixel_width, 1, 1, 0,
-  "Return the width in pixels of screen S.")
+DEFUN ("x-pixel-width", Fx_pixel_width, Sx_pixel_width, 0, 1, 0,
+  "Returns the width in pixels of the given screen.")
   (screen)
      Lisp_Object screen;
 {
-  CHECK_SCREEN (screen, 0);
-  return make_number (PIXEL_WIDTH (XSCREEN (screen)));
+  struct screen *s;
+  GET_X_SCREEN (s, screen);
+  return make_number (PIXEL_WIDTH (s));
 }
 
-DEFUN ("x-pixel-height", Fx_pixel_height, Sx_pixel_height, 1, 1, 0,
-  "Return the height in pixels of screen S.")
+DEFUN ("x-pixel-height", Fx_pixel_height, Sx_pixel_height, 0, 1, 0,
+  "Returns the height in pixels of the given screen.")
   (screen)
      Lisp_Object screen;
 {
-  CHECK_SCREEN (screen, 0);
-  return make_number (PIXEL_HEIGHT (XSCREEN (screen)));
+  struct screen *s;
+  GET_X_SCREEN (s, screen);
+  return make_number (PIXEL_HEIGHT (s));
+}
+
+DEFUN ("x-display-pixel-width", Fx_display_pixel_width, Sx_display_pixel_width,
+       0, 1, 0,
+       "Returns the width in pixels of the display `screen' is on.")
+     (screen)
+{
+  struct screen *s;
+  Display *dpy;
+  GET_X_SCREEN (s, screen);
+  dpy = XtDisplay (s->display.x->widget);
+  return make_number (DisplayWidth (dpy, DefaultScreen (dpy)));
+}
+
+DEFUN ("x-display-pixel-height", Fx_display_pixel_height,
+       Sx_display_pixel_height,
+       0, 1, 0,
+       "Returns the height in pixels of the display `screen' is on.")
+     (screen)
+{
+  struct screen *s;
+  Display *dpy;
+  GET_X_SCREEN (s, screen);
+  dpy = XtDisplay (s->display.x->widget);
+  return make_number (DisplayHeight (dpy, DefaultScreen (dpy)));
+}
+
+DEFUN ("x-display-planes", Fx_display_planes, Sx_display_planes,
+       0, 1, 0,
+       "Returns the number of bitplanes of the display `screen' is on.")
+     (screen)
+{
+  struct screen *s;
+  Display *dpy;
+  GET_X_SCREEN (s, screen);
+  dpy = XtDisplay (s->display.x->widget);
+  return make_number (DisplayPlanes (dpy, DefaultScreen (dpy)));
+}
+
+DEFUN ("x-display-color-cells", Fx_display_color_cells, Sx_display_color_cells,
+       0, 1, 0,
+       "Returns the number of color cells of the display `screen' is on.")
+     (screen)
+{
+  struct screen *s;
+  Display *dpy;
+  GET_X_SCREEN (s, screen);
+  dpy = XtDisplay (s->display.x->widget);
+  return make_number (DisplayCells (dpy, DefaultScreen (dpy)));
+}
+
+DEFUN ("x-server-vendor", Fx_server_vendor, Sx_server_vendor, 0, 1, 0,
+       "Returns the vendor ID string of the X server `screen' is on.")
+     (screen)
+{
+  struct screen *s;
+  Display *dpy;
+  char *vendor;
+  GET_X_SCREEN (s, screen);
+  dpy = XtDisplay (s->display.x->widget);
+  vendor = ServerVendor (dpy);
+  if (! vendor) vendor = "";
+  return build_string (vendor);
+}
+
+DEFUN ("x-server-version", Fx_server_version, Sx_server_version, 0, 1, 0,
+       "Returns the version numbers of the X server `screen' is on.\n\
+The returned value is a list of three integers: the major and minor\n\
+version numbers of the X Protocol in use, and the vendor-specific release\n\
+number.  See also `x-server-vendor'.")
+     (screen)
+{
+  struct screen *s;
+  Display *dpy;
+  GET_X_SCREEN (s, screen);
+  dpy = XtDisplay (s->display.x->widget);
+  return list3 (make_number (ProtocolVersion (dpy)),
+		make_number (ProtocolRevision (dpy)),
+		make_number (VendorRelease (dpy)));
 }
 
 
+extern unsigned long load_pixmap (struct screen *, Lisp_Object,
+				  unsigned int *, unsigned int *,
+				  unsigned int *);
+
 DEFUN ("x-set-screen-icon-pixmap", Fx_set_screen_icon_pixmap,
        Sx_set_screen_icon_pixmap, 2, 3, 0,
        "Set the icon-pixmap of the given screen.\n\
@@ -1084,7 +1195,7 @@ of this screen (if any) is currently not freed.")
   struct screen *s;
   Arg av [10];
   int ac = 0;
-  int w, h, d;
+  unsigned int w, h, d;
   Pixmap p, m;
   if (NILP (screen))
     s = selected_screen;
@@ -1172,48 +1283,6 @@ DEFUN ("x-ungrab-pointer", Fx_ungrab_pointer, Sx_ungrab_pointer, 0, 0, 0,
   return Qnil;
 }
 
-/* These keep track of the rectangle following the pointer. */
-int mouse_rectangle_x, mouse_rectangle_y, mouse_rectangle_width;
-
-#define DRAW_MOUSE_RECTANGLE x_rectangle(s, s->display.x->cursor_gc, \
-					 mouse_rectangle_x,	     \
-					 mouse_rectangle_y,	     \
-					 mouse_rectangle_width, 1)
-
-#define ERASE_MOUSE_RECTANGLE {                                           \
-				 x_rectangle(s, s->display.x->reverse_gc, \
-					     mouse_rectangle_x,	          \
-					     mouse_rectangle_y,	          \
-					     mouse_rectangle_width, 1);   \
-			      }
-
-static Lisp_Object
-highlightable_class_at_mouse (mouse_class, window, buffer_offset)
-     Lisp_Object mouse_class;
-     struct window *window;
-     int buffer_offset;
-{
-  EXTENT extent;
-
-  if (extent_highlightable_p (mouse_class))
-    return mouse_class;
-
-  if (window && buffer_offset)
-    {
-      extent = extent_at 
-        (buffer_offset, XBUFFER (window->buffer), EF_HIGHLIGHT);
-      if (!extent)
-	return Qnil;
-      else
-        {
-          Lisp_Object tmp;
-          XSET (tmp, Lisp_Extent, extent);
-          return tmp;
-        }
-    }
-  return Qnil;
-}
-
 
 /* handlers for the eval-events pushed on the queue by event-Xt.c */
 
@@ -1222,18 +1291,15 @@ Lisp_Object Qx_FocusIn_internal, Qx_FocusOut_internal;
 Lisp_Object Qx_VisibilityNotify_internal, Qx_non_VisibilityNotify_internal;
 Lisp_Object Qx_MapNotify_internal, Qx_UnmapNotify_internal;
 
-extern Lisp_Object Vmouse_enter_hook, Vmouse_left_hook;
-extern Lisp_Object Vmap_screen_hook, Vunmap_screen_hook;
-
 DEFUN ("x-EnterNotify-internal", Fx_EnterNotify_internal,
        Sx_EnterNotify_internal, 1, 1, 0, "hands off")
      (screen)
      Lisp_Object screen;
 {
   CHECK_SCREEN (screen, 0);
-  XSCREEN (screen)->display.x->mouse_p = 1;
-  if (! NILP (Vmouse_enter_hook))
-    call1 (Vmouse_enter_hook, screen);
+  if (! SCREEN_IS_X (XSCREEN (screen))) return Qnil; /* may be deleted */
+/*  XSCREEN (screen)->display.x->mouse_p = 1; */
+  run_hooks_1_arg (Qmouse_enter_screen_hook, screen);
   return Qnil;
 }
 
@@ -1243,9 +1309,9 @@ DEFUN ("x-LeaveNotify-internal", Fx_LeaveNotify_internal,
      Lisp_Object screen;
 {
   CHECK_SCREEN (screen, 0);
-  XSCREEN (screen)->display.x->mouse_p = 0;
-  if (! NILP (Vmouse_left_hook))
-    call1 (Vmouse_left_hook, screen);
+  if (! SCREEN_IS_X (XSCREEN (screen))) return Qnil; /* may be deleted */
+/*  XSCREEN (screen)->display.x->mouse_p = 0; */
+  run_hooks_1_arg (Qmouse_leave_screen_hook, screen);
   return Qnil;
 }
 
@@ -1273,6 +1339,8 @@ int any_screen_has_focus_p;
 
 extern Lisp_Object Qselect_screen_hook, Qdeselect_screen_hook;
 
+extern void x_screen_redraw_cursor (struct screen *);
+
 DEFUN ("x-FocusIn-internal", Fx_FocusIn_internal,
        Sx_FocusIn_internal, 1, 1, 0, "hands off")
      (screen)
@@ -1280,6 +1348,7 @@ DEFUN ("x-FocusIn-internal", Fx_FocusIn_internal,
 {
   int getting_focus = !any_screen_has_focus_p;
   CHECK_SCREEN (screen, 0);
+  if (! SCREEN_IS_X (XSCREEN (screen))) return Qnil; /* may be deleted */
   any_screen_has_focus_p = 1;
   XSCREEN (screen)->display.x->focus_p = 1;
   if (XSCREEN (screen) == selected_screen)
@@ -1301,6 +1370,7 @@ DEFUN ("x-FocusOut-internal", Fx_FocusOut_internal,
      Lisp_Object screen;
 {
   CHECK_SCREEN (screen, 0);
+  if (! SCREEN_IS_X (XSCREEN (screen))) return Qnil; /* may be deleted */
   any_screen_has_focus_p = 0;
   XSCREEN (screen)->display.x->focus_p = 0;
   if (XSCREEN (screen) == selected_screen)
@@ -1317,6 +1387,7 @@ DEFUN ("x-VisibilityNotify-internal", Fx_VisibilityNotify_internal,
      Lisp_Object screen;
 {
   CHECK_SCREEN (screen, 0);
+  if (! SCREEN_IS_X (XSCREEN (screen))) return Qnil; /* may be deleted */
   XSCREEN (screen)->display.x->totally_visible_p = 1;
   return Qnil;
 }
@@ -1327,6 +1398,7 @@ DEFUN ("x-non-VisibilityNotify-internal", Fx_non_VisibilityNotify_internal,
      Lisp_Object screen;
 {
   CHECK_SCREEN (screen, 0);
+  if (! SCREEN_IS_X (XSCREEN (screen))) return Qnil; /* may be deleted */
   XSCREEN (screen)->display.x->totally_visible_p = 0;
   return Qnil;
 }
@@ -1337,14 +1409,13 @@ DEFUN ("x-MapNotify-internal", Fx_MapNotify_internal,
      Lisp_Object screen;
 {
   CHECK_SCREEN (screen, 0);
-
+  if (! SCREEN_IS_X (XSCREEN (screen))) return Qnil; /* may be deleted */
   XSCREEN (screen)->display.x->totally_visible_p = 1;
   if (! XSCREEN (screen)->visible)
     {
       XSCREEN (screen)->visible = 1;
       SET_SCREEN_GARBAGED (XSCREEN (screen));
-      if (! NILP (Vmap_screen_hook))
-	call1 (Vmap_screen_hook, screen);
+      run_hooks_1_arg (Qmap_screen_hook, screen);
     }
   return Qnil;
 }
@@ -1356,13 +1427,12 @@ DEFUN ("x-UnmapNotify-internal", Fx_UnmapNotify_internal,
      Lisp_Object screen;
 {
   CHECK_SCREEN (screen, 0);
-
+  if (! SCREEN_IS_X (XSCREEN (screen))) return Qnil; /* may be deleted */
   XSCREEN (screen)->display.x->totally_visible_p = 0;
   if (XSCREEN (screen)->visible)
     {
       XSCREEN (screen)->visible = 0;
-      if (! NILP (Vunmap_screen_hook))
-	call1 (Vunmap_screen_hook, screen);
+      run_hooks_1_arg (Qunmap_screen_hook, screen);
     }
   return Qnil;
 }
@@ -1489,7 +1559,7 @@ The call\n\
 \n\
 is an interface to the C call\n\
 \n\
-    XrmGetResource (db, \"Emacs.this_screen_name.font\",\n\
+    XrmGetResource (db, \"emacs.this_screen_name.font\",\n\
 			\"Emacs.EmacsScreen.Font\",\n\
 			\"String\");\n\
 \n\
@@ -1500,7 +1570,7 @@ in the class path:\n\
 \n\
 which is equivalent to 
 \n\
-    XrmGetResource (db, \"Emacs.screen_name.foo.foreground\",\n\
+    XrmGetResource (db, \"emacs.screen_name.foo.foreground\",\n\
 			\"Emacs.EmacsScreen.Thing.Foreground\",\n\
 			\"String\");\n\
 
@@ -1630,6 +1700,39 @@ DEFUN ("x-get-resource", Fx_get_resource, Sx_get_resource, 3, 4, 0, 0)
 }
 
 
+#ifndef BITMAPDIR
+#define BITMAPDIR "/usr/include/X11/bitmaps"
+#endif
+
+void
+initialize_x_bitmap_file_path ()
+{
+  Display *dpy = x_current_display;
+  char *type = 0;
+  XrmValue value;
+  if (XrmGetResource (XtDatabase (dpy),
+		      "bitmapFilePath", "BitmapFilePath", &type, &value)
+      && !strcmp (type, "String"))
+    {
+      char *s1, *s2;
+      char *p = (char *) value.addr;
+      s1 = p;
+      for (s2 = p; *s2; s2++)
+	if (*s2 == ':' && s1 != s2)
+	  {
+	    Vx_bitmap_file_path = Fcons (make_string (s1, s2 - s1),
+					 Vx_bitmap_file_path);
+	    s1 = s2 + 1;
+	  }
+      if (s1 != s2)
+	Vx_bitmap_file_path = Fcons (make_string (s1, s2 - s1),
+				     Vx_bitmap_file_path);
+    }
+  Vx_bitmap_file_path = Fnreverse (Fcons (build_string (BITMAPDIR),
+					  Vx_bitmap_file_path));
+}
+
+
 /* Cursors.  Once emacs allocates an X cursor, it never frees it.
    Presumably cursors are very lightweight, and this it ok.  If
    this turns out not to be the case, we should only cache the 
@@ -1696,7 +1799,7 @@ Valid keysyms are listed in the files /usr/include/X11/keysymdef.h and in\n\
 }
 
 
-Cursor
+static Cursor
 x_get_cursor (s, name, fg, bg, noerror)
      struct screen *s;
      Lisp_Object name, fg, bg;
@@ -1722,7 +1825,7 @@ x_get_cursor (s, name, fg, bg, noerror)
     {
       int (*old_handler) ();
       XrmValue arg, from, to;
-      int nargs = 1;
+      Cardinal nargs = 1;
       Screen *screen = XtScreen (s->display.x->widget);
       arg.addr = (XtPointer) &screen;
       arg.size = sizeof (Screen *);
@@ -1818,6 +1921,7 @@ a pair of files may be named \"cursor.xbm\" and \"cursor.xbmmsk\".")
   XDefineCursor (XtDisplay (XSCREEN (screen)->display.x->edit_widget),
 		 XtWindow (XSCREEN (screen)->display.x->edit_widget),
 		 cursor);
+  XFlush (XtDisplay (XSCREEN (screen)->display.x->edit_widget));
   UNBLOCK_INPUT;
   store_screen_param (XSCREEN (screen), intern ("pointer"), cursor_name);
   return Qnil;
@@ -1845,6 +1949,8 @@ x_show_normal_cursor (s)
   return change_cursor_for_gc (s, 0);
 }
 
+
+extern Lisp_Object get_screen_param (struct screen *, Lisp_Object);
 
 static int
 change_cursor_for_gc (s, gc_p)
@@ -1885,45 +1991,11 @@ change_cursor_for_gc (s, gc_p)
 
 
 
-Visual *
-select_visual (screen, depth)
-     Screen *screen;
-     unsigned int *depth;
-{
-  Visual *v;
-  XVisualInfo *vinfo, vinfo_template;
-  int n_visuals;
-
-  BLOCK_INPUT;
-  v = DefaultVisualOfScreen (screen);
-  vinfo_template.visualid = XVisualIDFromVisual (v);
-  vinfo = XGetVisualInfo (x_current_display, VisualIDMask, &vinfo_template,
-			  &n_visuals);
-  UNBLOCK_INPUT;
-  if (n_visuals == 0)
-    fatal ("Can't get proper X visual info");
-
-  if ((1 << vinfo->depth) == vinfo->colormap_size)
-    *depth = vinfo->depth;
-  else
-    {
-      int i = 0;
-      int n = vinfo->colormap_size - 1;
-      while (n)
-	{
-	  n = n >> 1;
-	  i++;
-	}
-      *depth = i;
-    }
-
-  XFree ((char *) vinfo);
-  return v;
-}
-
 #ifdef USE_SOUND
 extern int not_on_console;  /* defined in fns.c */
 #endif
+
+extern Lisp_Object x_term_init (Lisp_Object);
 
 DEFUN ("x-open-connection", Fx_open_connection, Sx_open_connection,
        1, 1, 0, "Open a connection to an X server.\n\
@@ -1934,8 +2006,6 @@ to open the connect have been removed.")
 	Lisp_Object argv_list;
 {
   Lisp_Object argv_rest;
-  unsigned int n_planes;
-  register Screen *x_screen;
 
   if (x_current_display != 0)
     error ("X server connection is already initialized");
@@ -1948,46 +2018,6 @@ to open the connect have been removed.")
   modeline_part_sym = intern ("modeline-part");
   
   XFASTINT (Vwindow_system_version) = 11;
-  
-  x_screen = DefaultScreenOfDisplay (x_current_display);
-
-  x_screen_count = make_number (ScreenCount (x_current_display));
-  Vx_vendor = build_string (ServerVendor (x_current_display));
-  x_release = make_number (VendorRelease (x_current_display));
-                    
-  x_screen_height = make_number (HeightOfScreen (x_screen));
-  x_screen_height_mm = make_number (HeightMMOfScreen (x_screen));
-  x_screen_width = make_number (WidthOfScreen (x_screen));
-  x_screen_width_mm = make_number (WidthMMOfScreen (x_screen));
-
-  switch (DoesBackingStore (x_screen))
-    {
-    case Always:
-      Vx_backing_store = intern ("Always");
-      break;
-
-    case WhenMapped:
-      Vx_backing_store = intern ("WhenMapped");
-      break;
-
-    case NotUseful:
-      Vx_backing_store = intern ("NotUseful");
-      break;
-
-    default:
-      error ("Strange value for BackingStore.");
-      break;
-    }
-
-  if (DoesSaveUnders (x_screen) == True)
-    x_save_under = Qt;
-  else
-    x_save_under = Qnil;
-
-  screen_visual = select_visual (x_screen, &n_planes);
-  x_screen_planes = make_number (n_planes);
-  Vx_screen_visual = intern (x_visual_strings [screen_visual->class]);
-
   Xatoms_of_xfns ();
   Xatoms_of_xselect ();
 
@@ -2113,12 +2143,16 @@ Do not simply call XSynchronize() from gdb; that won't work.")
 }
 
 
+void
 syms_of_xfns ()
 {
   init_x_parm_symbols ();
 
   /* This is zero if not using X windows.  */
   x_current_display = 0;
+
+  WM_COMMAND_screen = Qnil;
+  staticpro (&WM_COMMAND_screen);
 
   DEFVAR_LISP ("x-gc-pointer-shape", &Vx_gc_pointer_shape,
    "The shape of the mouse-pointer during garbage collection.\n\
@@ -2136,38 +2170,25 @@ These override what is specified in `~/.Xdefaults' but are overridden\n\
 by the arguments to the particular call to `x-create-screen'.");
   Vx_screen_defaults = Qnil;
 
-  DEFVAR_INT ("x-screen-count", &x_screen_count,
-	      "The number of screens associated with the current display.");
-  DEFVAR_INT ("x-release", &x_release,
-	      "The release number of the X server in use.");
-  DEFVAR_LISP ("x-vendor", &Vx_vendor,
-	       "The vendor supporting the X server in use.");
-  DEFVAR_INT ("x-screen-height", &x_screen_height,
-	      "The height of this X screen in pixels.");
-  DEFVAR_INT ("x-screen-height-mm", &x_screen_height_mm,
-	      "The height of this X screen in millimeters.");
-  DEFVAR_INT ("x-screen-width", &x_screen_width,
-	      "The width of this X screen in pixels.");
-  DEFVAR_INT ("x-screen-width-mm", &x_screen_width_mm,
-	      "The width of this X screen in millimeters.");
-  DEFVAR_LISP ("x-backing-store", &Vx_backing_store,
-	       "The backing store capability of this screen.\n\
-Values can be the symbols Always, WhenMapped, or NotUseful.");
-  DEFVAR_BOOL ("x-save-under", &x_save_under,
-	       "Non-nil means this X screen supports the SaveUnder feature.");
-  DEFVAR_INT ("x-screen-planes", &x_screen_planes,
-	      "The number of planes this monitor supports.");
-  DEFVAR_LISP ("x-screen-visual", &Vx_screen_visual,
-	       "The default X visual for this X screen.");
+  DEFVAR_LISP ("default-screen-name", &Vdefault_screen_name,
+    "The default name to assign to newly-created screens.\n\
+This can be overridden by arguments to `x-create-screen'.\n\
+This must be a string.");
+  Vdefault_screen_name = Fpurecopy (build_string ("emacs"));
+
+  DEFVAR_LISP ("x-emacs-application-class", &Vx_emacs_application_class,
+	       "The X application class of the Emacs process.\n\
+This controls, among other things, the name of the `app-defaults' file\n\
+that emacs will use.  For changes to this variable to take effect, they\n\
+must be made before the connection to the X server is initialized, that is,\n\
+this variable may only be changed before emacs is dumped, or by setting it\n\
+in the file lisp/term/x-win.el.");
+  Vx_emacs_application_class = Fpurecopy (build_string ("Emacs"));
 
   DEFVAR_LISP ("x-bitmap-file-path", &Vx_bitmap_file_path,
        "A list of the directories in which X bitmap files may be found.\n\
 If nil, this is initialized from the \"*bitmapFilePath\" resource.");
   Vx_bitmap_file_path = Qnil;
-
-  DEFVAR_LISP ("create-screen-hook", &Vcreate_screen_hook,
-   "A function of one argument, called with each newly-created screen.");
-  Vcreate_screen_hook = Qnil;
 
   DEFVAR_BOOL ("x-allow-sendevents", &x_allow_sendevents,
     "*Non-nil means to allow synthetic events.  Nil means they are ignored.\n\
@@ -2177,10 +2198,17 @@ Beware: allowing emacs to process SendEvents opens a big security hole.");
   staticpro (&Vcursor_alist);
   Vcursor_alist = Qnil;
 
+  defsubr (&Sx_display_visual_class);
+  defsubr (&Sx_color_display_p);
   defsubr (&Sx_pixel_width);
   defsubr (&Sx_pixel_height);
+  defsubr (&Sx_display_pixel_width);
+  defsubr (&Sx_display_pixel_height);
+  defsubr (&Sx_display_planes);
+  defsubr (&Sx_display_color_cells);
+  defsubr (&Sx_server_vendor);
+  defsubr (&Sx_server_version);
   defsubr (&Sx_window_id);
-  defsubr (&Sx_color_display_p);
   defsubr (&Sx_grab_pointer);
   defsubr (&Sx_ungrab_pointer);
   defsubr (&Sx_create_screen);
@@ -2218,6 +2246,7 @@ Beware: allowing emacs to process SendEvents opens a big security hole.");
   Qx_non_VisibilityNotify_internal = intern("x-non-VisibilityNotify-internal");
 }
 
+void
 Xatoms_of_xfns ()
 {
 #define ATOM(x) XInternAtom(x_current_display, (x), False)
@@ -2231,4 +2260,3 @@ Xatoms_of_xfns ()
 }
 
 #endif /* HAVE_X_WINDOWS */
-

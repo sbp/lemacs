@@ -1,7 +1,7 @@
-;;; compiled by jwz@watergate on Tue Aug 18 17:14:16 1992
-;;; from file /wg1/emacs-base/lisp/dired/dired-x.el
-;;; emacs version 19.2.2 Lucid.
-;;; bytecomp version 2.08;  7-aug-92.
+;;; compiled by jwz@thalidomide on Sun Dec 13 16:55:48 1992
+;;; from file /u/jwz/emacs19/lisp/dired/dired-x.el
+;;; emacs version 19.4 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -65,7 +65,7 @@ See also functions
   dired-jump-back
   dired-jump-back-other-window
 " nil])
-(byte-code "ÀÁ!¬…ÂÃÄ\"ˆÀÁ!«ÅÆÇ#ˆÉÊMˆËÌMˆÀ‡" [fboundp read-with-history-in load "gmhist" t put dired-shell-command-history dangerous dired-dangerous-shell-command dired-read-regexp #[(prompt &optional initial) "¬‡ÁÂ#ªÄÂÅÆ#ˆÄÂÅÁÂ##‰‡" [initial read-with-history-in regexp-history prompt put default nil dired-flagging-regexp] 7] dired-read-dir-and-switches #[(str) "­„ÁÂ\"ÄÅÆÇ\"É\nÉ%DŸ‡" [current-prefix-arg read-string "Dired listing switches: " dired-listing-switches read-file-name-with-history-in file-history format "Dired %s(directory): " str nil default-directory] 7]] 4)
+(byte-code "ÀÁ!¬‹ÂÃK!«…ÄÅÆ\"ˆÀÁ!«ÇÈÉ\n#ˆËÌMˆÍÎMˆÀ‡" [fboundp read-with-history-in subrp read-from-minibuffer load "gmhist" t put dired-shell-command-history dangerous dired-dangerous-shell-command dired-read-regexp #[(prompt &optional initial) "¬‡ÁÂ#ªÄÂÅÆ#ˆÄÂÅÁÂ##‰‡" [initial read-with-history-in regexp-history prompt put default nil dired-flagging-regexp] 7] dired-read-dir-and-switches #[(str) "­„ÁÂ\"ÄÅÆÇ\"É\nÉ%DŸ‡" [current-prefix-arg read-string "Dired listing switches: " dired-listing-switches read-file-name-with-history-in file-history format "Dired %s(directory): " str nil default-directory] 7]] 4)
 (fset 'dired-mark-with-this-char #[(arg) "Â!)‡" [last-command-char dired-marker-char dired-mark-subdir-or-file arg] 2 "\
 Mark the current file or subdir with the last key you pressed to invoke
 this command.  Else like \\[dired-mark-subdir-or-file] command." "p"])

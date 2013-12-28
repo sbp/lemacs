@@ -1,5 +1,5 @@
 
-     Lucid GNU Emacs Electronic Mailing Lists.  Last Modified:  7-jul-92.
+     Lucid GNU Emacs Electronic Mailing Lists.  Last Modified: 17-jan-93.
 
 Lucid GNU Emacs has its own set of mailing lists and newsgroups which
 are distinct from the FSF GNU Emacs mailing lists and newsgroups.  They are
@@ -28,7 +28,7 @@ mailing lists most likely are not interested in hearing about problems
 with it.
 
 The bug-lucid-emacs and help-lucid-emacs mailing lists are archived on the
-machine labrea.Stanford.EDU (36.8.0.47) in the directory pub/gnu/lucid/.
+machine labrea.Stanford.EDU (36.8.0.112) in the directory pub/gnu/lucid/.
 
 Aside from the names of the mailing lists and newsgroups corresponding
 to this version of emacs, the guidelines enumerated below still apply.

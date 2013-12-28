@@ -20,14 +20,15 @@
 (defconst default-menubar
   '(("File"	["New Screen"		x-new-screen		t]
 		["Open File..."		find-file		t]
-		["Save Buffer"		save-buffer		t]
+		["Save Buffer"		save-buffer		t  nil]
 		["Save Buffer As..."	write-file		t]
-		["Revert Buffer"	revert-buffer		t]
+		["Revert Buffer"	revert-buffer		t  nil]
 		"-----"
-		["Print Buffer"		lpr-buffer		t]
+		["Print Buffer"		lpr-buffer		t  nil]
 		"-----"
 		["Delete Screen"	delete-screen		t]
-		["Kill Buffer..."	kill-buffer		t]
+;;		["Kill Buffer..."	kill-buffer		t]
+		["Kill Buffer"		kill-this-buffer	t  nil]
 		["Exit Emacs"		save-buffers-kill-emacs	t]
 		)
     ("Edit"	["Undo"			advertised-undo		   t]
@@ -55,10 +56,17 @@
     ))
 
 
-(defun x-new-screen ()
+(defun kill-this-buffer ()	; for the menubar
+  "Kills the current buffer."
+  (interactive)
+  (kill-buffer (current-buffer)))
+
+(defun x-new-screen (&optional screen-name)
   "Creates a new emacs screen (that is, a new X window.)"
   (interactive)
-  (select-screen (x-create-screen nil))
+  (select-screen (x-create-screen (if screen-name
+				      (list (cons 'name screen-name))
+				    nil)))
   (switch-to-buffer (get-buffer-create "*scratch*"))
   ;; hack: if evi mode is loaded and in use, put the new screen in evi mode.
   (if (and (boundp 'evi-install-undo-list) evi-install-undo-list)
@@ -118,6 +126,7 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
     (or item
 	(signal 'error (list (if menu "No such menu item" "No such menu")
 			     path)))
+    (if (consp item) (error "can't disable menus, only menu items"))
     (aset item 2 nil)
     (set-menubar-dirty-flag)
     item))
@@ -136,6 +145,7 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
     (or item
 	(signal 'error (list (if menu "No such menu item" "No such menu")
 			     path)))
+    (if (consp item) (error "%S is a menu, not a menu item" path))
     (aset item 2 t)
     (set-menubar-dirty-flag)
     item))
@@ -154,7 +164,11 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
 	(let ((rest menu-path)
 	      (so-far menubar))
 	  (while rest
-	    (setq menu (car (find-menu-item (cdr so-far) (list (car rest)))))
+;;;	    (setq menu (car (find-menu-item (cdr so-far) (list (car rest)))))
+	    (setq menu
+		  (if (eq so-far menubar)
+		      (car (find-menu-item so-far (list (car rest))))
+		    (car (find-menu-item (cdr so-far) (list (car rest))))))
 	    (or menu
 		(let ((rest2 so-far))
 		  (while (and (cdr rest2) (car (cdr rest2)))
@@ -181,8 +195,13 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
 		(setcdr rest (cons item (cdr rest)))
 		(setq rest nil added-before t))
 	    (setq rest (cdr rest))))
-	(if (not added-before) ; add the item to the end.
-	    (nconc menu (list item)))))
+	(if (not added-before)
+	    ;; adding before the first item on the menubar itself is harder
+	    (if (and (eq menu menubar) (eq before (car menu)))
+		(setq menu (cons item menu)
+		      current-menubar menu)
+	      ;; otherwise, add the item to the end.
+	      (nconc menu (list item))))))
     (if item-p
 	(progn
 	  (aset item 1 item-data)
@@ -224,7 +243,11 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
 	 (menu (or (cdr pair) menubar)))
     (if (not item)
 	nil
-      (delq item menu) ; menus begin with name, so this is ok.
+      ;; the menubar is the only special case, because other menus begin
+      ;; with their name.
+      (if (eq menu current-menubar)
+	  (setq current-menubar (delq item menu))
+	(delq item menu))
       (set-menubar-dirty-flag)
       item)))
 
@@ -236,6 +259,8 @@ the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
 under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
 menu item called \"Item\" under the \"Foo\" submenu of \"Menu\".
 NEW-NAME is the string that the menu item will be printed as from now on."
+  (or (stringp new-name)
+      (setq new-name (signal 'wrong-type-argument (list 'stringp new-name))))
   (let* ((menubar current-menubar)
 	 (pair (find-menu-item menubar path))
 	 (item (car pair))
@@ -243,7 +268,10 @@ NEW-NAME is the string that the menu item will be printed as from now on."
     (or item
 	(signal 'error (list (if menu "No such menu item" "No such menu")
 			     path)))
-    (aset item 0 new-name)
+    (if (and (consp item)
+	     (stringp (car item)))
+	(setcar item new-name)
+      (aset item 0 new-name))
     (set-menubar-dirty-flag)
     item))
 
@@ -269,24 +297,44 @@ BEFORE, if provided, is the name of a menu before which this menu should
 
 
 
-(defun sensitize-edit-menu-hook (nothing)
+(defvar put-buffer-names-in-file-menu t)
+
+(defun sensitize-file-and-edit-menus-hook ()
   "For use as a value of activate-menubar-hook.
-This function changes the sensitivity of the Edit menu items:
-  Cut   sensitive only when emacs owns the primary X Selection.
-  Copy  sensitive only when emacs owns the primary X Selection.
-  Clear sensitive only when emacs owns the primary X Selection.
-  Paste sensitive only when there is an owner for the X Clipboard Selection."
+This function changes the sensitivity of these File and Edit menu items:
+
+  Cut    sensitive only when emacs owns the primary X Selection.
+  Copy   sensitive only when emacs owns the primary X Selection.
+  Clear  sensitive only when emacs owns the primary X Selection.
+  Paste  sensitive only when there is an owner for the X Clipboard Selection.
+  Undo   sensitive only when there is undo information.
+         While in the midst of an undo, this is changed to \"Undo More\".
+
+  Kill Buffer    has the name of the current buffer appended to it.
+  Print Buffer   has the name of the current buffer appended to it.
+  Save Buffer    has the name of the current buffer appended to it, and is
+                 sensitive only when the current buffer is modified.
+  Revert Buffer  has the name of the current buffer appended to it, and is
+                 sensitive only when the current buffer has a file.
+  Delete Screen  sensitive only when there is more than one visible screen."
   ;;
   ;; the hair in here to not update the menubar unless something has changed
   ;; isn't really necessary (the menubar code is fast enough) but it makes
   ;; me feel better (and creates marginally less list garbage.)
-  (let* ((edit-menu (cdr (car (find-menu-item current-menubar '("Edit")))))
+  (let* ((file-menu (cdr (car (find-menu-item current-menubar '("File")))))
+	 (edit-menu (cdr (car (find-menu-item current-menubar '("Edit")))))
+	 (save	(car (find-menu-item file-menu '("Save Buffer"))))
+	 (rvt   (car (find-menu-item file-menu '("Revert Buffer"))))
+	 (del   (car (find-menu-item file-menu '("Delete Screen"))))
+	 (print (car (find-menu-item file-menu '("Print Buffer"))))
+	 (kill  (car (find-menu-item file-menu '("Kill Buffer"))))
 	 (cut   (car (find-menu-item edit-menu '("Cut"))))
 	 (copy  (car (find-menu-item edit-menu '("Copy"))))
 	 (paste (car (find-menu-item edit-menu '("Paste"))))
 	 (clear (car (find-menu-item edit-menu '("Clear"))))
 	 (undo  (or (car (find-menu-item edit-menu '("Undo")))
 		    (car (find-menu-item edit-menu '("Undo More")))))
+	 (name (buffer-name))
 	 (emacs-owns-selection-p (x-selection-owner-p))
 	 (clipboard-exists-p (x-selection-exists-p 'CLIPBOARD))
 	 undo-available undoing-more
@@ -301,12 +349,27 @@ This function changes the sensitivity of the Edit menu items:
 	  (or (and cut   (not (eq emacs-owns-selection-p (aref cut 2))))
 	      (and copy  (not (eq emacs-owns-selection-p (aref copy 2))))
 	      (and clear (not (eq emacs-owns-selection-p (aref clear 2))))
-	      (and paste (not (eq clipboard-exists-p (aref paste 2)))))))
+	      (and paste (not (eq clipboard-exists-p (aref paste 2))))
+	      (and save  (not (eq (buffer-modified-p) (aref save 2))))
+	      (and rvt   (not (eq (not (not buffer-file-name)) (aref rvt 2))))
+	      (and del   (eq (eq (next-screen nil nil t) (selected-screen))
+			     (aref del 2)))
+	      )))
+    (if (not put-buffer-names-in-file-menu)
+	nil
+      (if (= (length save)  4) (progn (aset save  3 name) (setq change-p t)))
+      (if (= (length rvt)   4) (progn (aset rvt   3 name) (setq change-p t)))
+      (if (= (length print) 4) (progn (aset print 3 name) (setq change-p t)))
+      (if (= (length kill)  4) (progn (aset kill  3 name) (setq change-p t))))
+    (if save  (aset save  2 (buffer-modified-p)))
+    (if rvt   (aset rvt   2 (not (not buffer-file-name))))
+    (if del   (aset del   2 (not (eq (next-screen () () t) (selected-screen)))))
     (if cut   (aset cut   2 emacs-owns-selection-p))
     (if copy  (aset copy  2 emacs-owns-selection-p))
     (if clear (aset clear 2 emacs-owns-selection-p))
     (if paste (aset paste 2 clipboard-exists-p))
 
+    ;; we could also do this with the third field of the item.
     (if (eq last-command 'undo)
 	(setq undo-name "Undo More"
 	      undo-state (not (null (and (boundp 'pending-undo-list)
@@ -350,27 +413,84 @@ nil means the buffer shouldn't be listed.  You can redefine this."
       nil
     buffer))
 
-(defun build-buffers-menu-hook (nothing)
+(defvar buffers-menu-max-size 10
+  "*Maximum number of entries which may appear on the \"Buffers\" menu.
+If this is 10, then only the ten most-recently-selected buffers will be
+shown.  If this is nil, then all buffers will be shown.  Setting this to
+a large number or nil will slow down menu responsiveness.")
+
+(defvar complex-buffers-menu-p nil
+  "*If true, the buffers menu will contain several commands, as submenus
+of each buffer line.  If this is false, then there will be only one command:
+select that buffer.")
+
+(defvar buffers-menu-switch-to-buffer-function 'switch-to-buffer
+  "*The function to call to select a buffer from the buffers menu.
+`switch-to-buffer' is a good choice, as is `pop-to-buffer'.")
+
+
+(defun buffer-menu-save-buffer (buffer)
+  (save-excursion
+    (set-buffer buffer)
+    (save-buffer)))
+
+(defun buffer-menu-write-file (buffer)
+  (save-excursion
+    (set-buffer buffer)
+    (write-file (read-file-name
+		 (concat "Write " (buffer-name (current-buffer))
+			 " to file: ")))))
+
+
+(defsubst build-buffers-menu-internal (buffers)
+  (let (name line)
+    (mapcar
+     (if complex-buffers-menu-p
+	 (function
+	  (lambda (buffer)
+	    (if (setq line (format-buffers-menu-line buffer))
+		(list line
+		      (vector "Switch to Buffer"
+			      (list buffers-menu-switch-to-buffer-function
+				    (setq name (buffer-name buffer)))
+			      t)
+		      (if (and (buffer-modified-p buffer)
+			       (buffer-file-name buffer))
+			  (vector "Save Buffer"
+				  (list 'buffer-menu-save-buffer name) t)
+			["Save Buffer" nil nil])
+		      (vector "Save Buffer As..."
+			      (list 'buffer-menu-write-file name) t)
+		      (vector "Kill Buffer" (list 'kill-buffer name) t)))))
+       (function (lambda (buffer)
+		   (if (setq line (format-buffers-menu-line buffer))
+		       (vector line
+			       (list buffers-menu-switch-to-buffer-function
+				     (buffer-name buffer))
+			       t)))))
+     buffers)))
+
+(defun build-buffers-menu-hook ()
   "For use as a value of activate-menubar-hook.
 This function changes the contents of the \"Buffers\" menu to correspond
-to the current set of buffers.  You can control how the text of the menu
-items are generated by redefining the function `format-buffers-menu-line'."
+to the current set of buffers.  Only the most-recently-used few buffers
+will be listed on the menu, for efficiency reasons.  You can control how
+many buffers will be shown by setting `buffers-menu-max-size'.
+You can control the text of the menu items by redefining the function
+`format-buffers-menu-line'."
   (let ((buffer-menu (car (find-menu-item current-menubar '("Buffers"))))
 	name
 	buffers)
     (if (not buffer-menu)
 	nil
       (setq buffers (buffer-list))
-      (if (> (length buffers) 10)
-	  (setcdr (nthcdr 10 buffers) nil))
-      (setq buffers
-	    (mapcar (function
-		     (lambda (buffer)
-		       (if (setq name (format-buffers-menu-line buffer))
-			   (vector name
-			     (list 'switch-to-buffer (buffer-name buffer))
-			     t))))
-		    buffers))
+
+      (if (and (integerp buffers-menu-max-size)
+	       (> buffers-menu-max-size 1))
+	  (if (> (length buffers) buffers-menu-max-size)
+	      (setcdr (nthcdr buffers-menu-max-size buffers) nil)))
+
+      (setq buffers (build-buffers-menu-internal buffers))
       (setq buffers (nconc (delq nil buffers)
 			   '("----" ["List All Buffers" list-buffers t])))
       ;; slightly (only slightly) more efficient to not install the menubar
@@ -378,17 +498,70 @@ items are generated by redefining the function `format-buffers-menu-line'."
       (if (equal buffers (cdr buffer-menu))
 	  t  ; return t meaning "no change"
 	(setcdr buffer-menu buffers)
-	;; return the now-modified menubar to install.
 	nil))))
 
-(or (memq 'build-buffers-menu-hook activate-menubar-hook)
-    (setq activate-menubar-hook
-	  (cons 'build-buffers-menu-hook activate-menubar-hook)))
-
-(or (memq 'sensitize-edit-menu-hook activate-menubar-hook)
-    (setq activate-menubar-hook
-	  (cons 'sensitize-edit-menu-hook activate-menubar-hook)))
+(add-hook 'activate-menubar-hook 'build-buffers-menu-hook)
+(add-hook 'activate-menubar-hook 'sensitize-file-and-edit-menus-hook)
 
 (set-menubar default-menubar)
 
+
+
+(defun yes-or-no-p-dialog-box (prompt)
+  "Ask user a \"y or n\" question with a popup dialog box.
+Returns t if answer is \"yes\".
+Takes one argument, which is the string to display to ask the question."
+  (let ((event (allocate-event))
+	(echo-keystrokes 0))	 
+    (popup-dialog-box
+     (cons prompt '(["Yes" yes t] ["No" no t] nil ["Abort" abort t])))
+    (catch 'ynp-done
+      (while t
+	(next-command-event event)
+	(cond ((and (menu-event-p event) (eq (event-object event) 'yes))
+	       (throw 'ynp-done t))
+	      ((and (menu-event-p event) (eq (event-object event) 'no))
+	       (throw 'ynp-done nil))
+	      ((and (menu-event-p event)
+		    (or (eq (event-object event) 'abort)
+			(eq (event-object event) 'menu-no-selection-hook)))
+	       (signal 'quit nil))
+	      ((button-release-event-p event) ;; don't beep twice
+	       nil)
+	      (t
+	       (beep)
+	       (message "please answer the dialog box")))))))
+
+(defun yes-or-no-p-maybe-dialog-box (prompt)
+  "Ask user a yes-or-no question.  Return t if answer is yes.
+The question is asked with a dialog box or the minibuffer, as appropriate.
+Takes one argument, which is the string to display to ask the question.
+It should end in a space; `yes-or-no-p' adds `(yes or no) ' to it.
+The user must confirm the answer with RET,
+and can edit it until it as been confirmed."
+  (if (or (button-press-event-p last-command-event)
+	  (button-release-event-p last-command-event)
+	  (menu-event-p last-command-event))
+      (yes-or-no-p-dialog-box prompt)
+    (yes-or-no-p-minibuf prompt)))
+
+(defun y-or-n-p-maybe-dialog-box (prompt)
+  "Ask user a \"y or n\" question.  Return t if answer is \"y\".
+Takes one argument, which is the string to display to ask the question.
+The question is asked with a dialog box or the minibuffer, as appropriate.
+It should end in a space; `y-or-n-p' adds `(y or n) ' to it.
+No confirmation of the answer is requested; a single character is enough.
+Also accepts Space to mean yes, or Delete to mean no."
+  (if (or (button-press-event-p last-command-event)
+	  (button-release-event-p last-command-event)
+	  (menu-event-p last-command-event))
+      (yes-or-no-p-dialog-box prompt)
+    (y-or-n-p-minibuf prompt)))
+
+(if (fboundp 'popup-dialog-box)
+    (progn
+      (fset 'yes-or-no-p 'yes-or-no-p-maybe-dialog-box)
+      (fset 'y-or-n-p 'y-or-n-p-maybe-dialog-box)))
+
+
 (provide 'menubar)

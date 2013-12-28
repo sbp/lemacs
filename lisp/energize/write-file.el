@@ -7,10 +7,10 @@
 ; 
 ; semantic 1: If it is assumed that C-x C-w _should_ rename the
 ;             buffer as well as writing to the _new_ file, 
-;             Cadillac is concerned, this should look as if I had copied the
+;             Energize is concerned, this should look as if I had copied the
 ;             buffer, reverted the original to the disk image, and killed the
 ;             reverted buffer, leaving only the new buffer without
-;             Cadillac dependencies or attachments.
+;             Energize dependencies or attachments.
 ; 
 ; semantic 2: ... I would
 ;             either want it to simply create the new file, leaving the buffer
@@ -21,15 +21,15 @@
 ;             file.
 
 
-(defun cadillac-write-file (filename)
+(defun energize-write-file (filename)
   "Write the current buffer into file FILENAME.
 Revert and kill the current buffer and replaces it by a new buffer 
 showing FILENAME."
   (interactive
    (list (if buffer-file-name
-	     (read-file-name "Cadillac write file: "
+	     (read-file-name "Energize write file: "
 			     nil nil nil nil)
-	   (read-file-name "Cadillac write file: "
+	   (read-file-name "Energize write file: "
 			   (cdr (assq 'default-directory
 				      (buffer-local-variables)))
 			   nil nil (buffer-name)))))
@@ -50,7 +50,7 @@ showing FILENAME."
 
 ; Pick just one of the following
 ;   This uses the new function for all buffers
-(define-key ctl-x-map '(control w) 'cadillac-write-file)
-;   This preserves old behavior for non-cadillac buffers
-; (cadillac-advise-function 'write-file)
+(define-key ctl-x-map '(control w) 'energize-write-file)
+;   This preserves old behavior for non-energize buffers
+; (energize-advise-function 'write-file)
 

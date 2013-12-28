@@ -1,3 +1,6 @@
+#ifndef _HASH_H_
+#define _HASH_H_
+
 typedef struct{
  void*	key;
  void*	contents;
@@ -31,6 +34,9 @@ extern c_hashtable make_strings_hashtable ( /* unsigned int hsize */ );
 /* clears the hash table. A freshly created hashtable is already cleared up */
 extern void clrhash (c_hashtable hash);
 
+/* frees the table and substructures */
+extern void free_hashtable (c_hashtable hash);
+
 /* returns a hentry whose key is 0 if the entry does not exist in hashtable */
 extern void* gethash (void* key, c_hashtable hash, void** ret_value);
 
@@ -54,9 +60,16 @@ typedef void (*generic_hashtable_op)
 extern void 
 maphash (maphash_function fn, c_hashtable hash, void* arg);
 
+/* delete objects from the table which satisfy the predicate */
+extern void 
+map_remhash (remhash_predicate predicate, c_hashtable hash, void *arg);
+
 /* copies all the entries of src into dest -- dest is modified as needed
    so it is as big as src. */ 
 extern void copy_hash (c_hashtable dest, c_hashtable src);
 
+#ifdef emacs	/* for elhash.c */
+extern unsigned int compute_harray_size (unsigned int);
+#endif
 
-
+#endif /* _HASH_H_ */

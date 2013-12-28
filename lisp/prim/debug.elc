@@ -1,6 +1,6 @@
-;;; compiled by jwz@thalidomide on Fri Aug 21 00:55:24 1992
-;;; from file /wg1/emacs-base/lisp/prim/debug.el
-;;; emacs version 19.2.9 Lucid.
+;;; compiled by jwz@thalidomide on Wed Aug 26 01:23:03 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/prim/debug.el
+;;; emacs version 19.2.12 Lucid.
 ;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.

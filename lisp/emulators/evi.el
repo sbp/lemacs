@@ -325,6 +325,14 @@
 	    (t (deallocate-event event)
 	       char)))))
 
+;(defun evi-read-char ()
+;  (let ((event (allocate-event))
+;	char)
+;    (next-command-event event)
+;    (while (null (setq char (event-to-character event nil)))
+;      (dispatch-event event)
+;      (next-command-event event))
+;    char))
 
 (defun evi-event-to-character (event)
   (if evi-new-event-model-p
@@ -451,62 +459,74 @@ time a non-relative motion is performed.")
 ; If you think the use of keymaps here has gotten a little out of hand,
 ; you're probably right...
 
-(defun evi-make-empty-keymap ()
+(defun evi-make-empty-keymap (name)
   "Makes a keymap and shadows everything that is in global map."
   (let ((map (make-keymap)))
     (if (vectorp map)
 	(fillarray map 'undefined)
       ; Lucid Emacs
-      (map-keymap (current-global-map)
-		  (function (lambda (key value)
-			      (define-key map key 'undefined)))))
+      (let ((meta-prefix-char -1)
+	    (gm (current-global-map)))
+	;; We need to copy the global map instead of making a new one because
+	;; there's no other way to duplicate the exact structure of the global
+	;; map from lisp (it shares a meta keymap with the `esc-map' variable
+	;; which is stupid and shouldn't have been allowed in the first place
+	;; but is necesssary for compatibility.)  Another way of doing this
+	;; would be to bind all of the global-map's "meta" keys in the "empty"
+	;; keymap that we are creating, but this way is less wasteful.
+	(setq map (copy-keymap gm))
+	(if name (set-keymap-name map name))
+	(map-keymap gm
+		    (function (lambda (key value)
+				(or (and (consp key) (member 'meta key))
+				    (define-key map key 'undefined)))))))
     map))
 
 ; ZZ - maybe should be buffer local after it's initialized?
-(defvar evi-vi-map (evi-make-empty-keymap)
+(defconst evi-vi-map (evi-make-empty-keymap 'evi-vi-map)
   "The keymap used in vi mode.")
 
-(defvar evi-vi-local-map nil
+(defconst evi-vi-local-map nil
   "The local keymap used in evi-get-commmand.")
 
-(defvar evi-internal-map (evi-make-empty-keymap)
+(defconst evi-internal-map (evi-make-empty-keymap 'evi-internal-map)
   "A subkeymap of vi-map, used to hard-code standard modification operations
 for use in defining command macros.")
 
-(defvar evi-motion-map (evi-make-empty-keymap)
+(defconst evi-motion-map (evi-make-empty-keymap 'evi-motion-map)
   "The keymap used for operand motions.")
 
-(defvar evi-insert-map (let ((map (evi-make-empty-keymap))
-			     (meta-prefix-char -1)
-			     (i 128))
-			 (while (<= 0 (setq i (1- i)))
-			   (define-key map (make-string 1 i)
-			     'self-insert-command))
-			 map)
+(defconst evi-insert-map (let ((map (evi-make-empty-keymap 'evi-insert-map))
+			       (meta-prefix-char -1)
+			       (i 128))
+			   (while (<= 0 (setq i (1- i)))
+			     (define-key map (make-string 1 i)
+			       'self-insert-command))
+			   map)
   "The keymap used in insert mode.")
 
-(defvar evi-replace-map (let ((map (evi-make-empty-keymap))
-			     (meta-prefix-char -1)
-			     (i 128))
-			 (while (<= 0 (setq i (1- i)))
-			   (define-key map (make-string 1 i)
-			     'evi-self-replace))
-			 map)
+(defconst evi-replace-map (let ((map (evi-make-empty-keymap 'evi-replace-map))
+				(meta-prefix-char -1)
+				(i 128))
+			    (while (<= 0 (setq i (1- i)))
+			      (define-key map (make-string 1 i)
+				'evi-self-replace))
+			    map)
   "The keymap used in replace mode.")
 
-(defvar evi-minibuffer-map (copy-keymap evi-insert-map)
+(defconst evi-minibuffer-map (copy-keymap evi-insert-map)
   "The keymap used when reading from the minibuffer.")
 
-(defvar evi-minibuffer-completion-map (copy-keymap evi-insert-map)
+(defconst evi-minibuffer-completion-map (copy-keymap evi-insert-map)
   "The keymap used when reading with completion from the minibuffer.")
 
-(defvar evi-minibuffer-must-match-map (copy-keymap evi-insert-map)
+(defconst evi-minibuffer-must-match-map (copy-keymap evi-insert-map)
   "The keymap used when reading with must match completion from the minibuffer.")
 
-(defvar evi-minibuffer-no-space-map (copy-keymap evi-insert-map)
+(defconst evi-minibuffer-no-space-map (copy-keymap evi-insert-map)
   "The keymap used when reading from the minibuffer with no spaces.")
 
-(defvar evi-ex-map (copy-keymap evi-insert-map)
+(defconst evi-ex-map (copy-keymap evi-insert-map)
   "The keymap used when reading ex commands from the minibuffer")
 
 (defconst evi-all-input-maps
@@ -619,10 +639,10 @@ in insert mode.")
   (if value
     (evi-define-key '(vi) "\e" 'nil)
     (progn (evi-define-key '(vi) "\e" esc-map)
-	   (define-key function-keymap "l" 'evi-backward-char)
-	   (define-key function-keymap "r" 'evi-forward-char)
-	   (define-key function-keymap "u" 'evi-previous-line)
-	   (define-key function-keymap "d" 'evi-next-line)
+;	   (define-key function-keymap "l" 'evi-backward-char)
+;	   (define-key function-keymap "r" 'evi-forward-char)
+;	   (define-key function-keymap "u" 'evi-previous-line)
+;	   (define-key function-keymap "d" 'evi-next-line)
 	   ;; ZZ should save \e\e binding and use that in :set timeout
 	   (evi-define-key '(vi) "\e\e" 'nil))))
 
@@ -886,7 +906,9 @@ in insert mode.")
 (evi-define-key '(vi internal motion) "j" 'evi-next-line)
 (evi-define-key '(vi internal motion) "\C-j" 'evi-next-line)
 (evi-define-key '(vi internal motion) "\C-n" 'evi-next-line)
-(evi-define-key '(vi internal motion) "\C-m" 'evi-beginning-of-next-line)
+;;(evi-define-key '(vi internal motion) "\C-m" 'evi-beginning-of-next-line)
+(evi-define-key '(vi internal motion) "\C-m"
+		'evi-beginning-of-next-line-or-send-input)
 (evi-define-key '(vi internal motion) "+" 'evi-beginning-of-next-line)
 (evi-define-key '(vi internal motion) "k" 'evi-previous-line)
 (evi-define-key '(vi internal motion) "\C-p" 'evi-previous-line)
@@ -967,6 +989,7 @@ in insert mode.")
 (evi-define-key '(insert) "\C-h" 'evi-insert-mode-delete-backward-char)
 (if (fboundp 'map-keymap)
     (evi-define-key '(insert) 'backspace 'evi-insert-mode-delete-backward-char))
+(evi-define-key '(insert) "\C-m" 'evi-insert-newline-or-send-input)
 (evi-define-key '(insert) "\C-t" 'evi-forward-indent)
 (evi-define-key '(insert) "\C-w" "\C-_d\C-_b")
 ;(evi-define-key (insert replace) "\e" 'evi-exit-input-mode)
@@ -1205,7 +1228,8 @@ in insert mode.")
 		     evi-minibuffer-completion-map)
     (evi-install-var 'minibuffer-local-must-match-map
 		     evi-minibuffer-must-match-map)
-    (evi-install-var 'minibuffer-local-ns-map evi-minibuffer-no-space-map)
+    (if (boundp 'minibuffer-local-ns-map) ; obsolete -- gone in 19.4
+	(evi-install-var 'minibuffer-local-ns-map evi-minibuffer-no-space-map))
     (setq evi-orig-interrupt-char interrupt-char)
     (set-interrupt-character ?\^C)
     (evi-load-init-files)
@@ -1232,11 +1256,12 @@ in insert mode.")
   (evi-refresh-mode-line)
   (setq buffer-read-only nil)  ; vi lets you edit read-only files
   (run-hooks 'evi-mode-hook)
+  (if (evi-comint-p)
+      (evi-insert))
   )
 
-(defun evi-exit-to-emacs ()
-  "Stop vi emulation."
-  (interactive)
+(defun evi-exit-to-emacs-1 ()
+  "Stop vi emulation.  You must call `top-level' at some point after this."
   (let ((inhibit-quit t))
     (set-interrupt-character evi-orig-interrupt-char)
     (mapcar '(lambda (cons)
@@ -1261,7 +1286,12 @@ in insert mode.")
 		(fundamental-mode))))
 	(setq rest (cdr rest)))))
   (evi-refresh-mode-line)
-  (run-hooks 'evi-exit-hook)
+  (run-hooks 'evi-exit-hook))
+
+(defun evi-exit-to-emacs ()
+  "Stop vi emulation."
+  (interactive)
+  (evi-exit-to-emacs-1)
   (top-level))
 
 ;; Minibuffer
@@ -1419,20 +1449,29 @@ With a prefix count, position that line."
   (evi-insert-mode count)
   (if (not (bolp)) (backward-char)))
 
+(defvar evi-buffer-on-insert-exit nil) ; kludge for mouse-clicks
+
 (defun evi-insert-mode (&optional count)
   (setq evi-mode 'insert)
   (if (eobp) (progn (newline 1) (backward-char 1)))
-  (if evi-auto-indent
-    (define-key evi-insert-map "\C-m" 'evi-newline-and-indent)
-    (define-key evi-insert-map "\C-m" 'newline))
+  (or (evi-comint-p)
+      (if evi-auto-indent
+	  (define-key evi-insert-map "\C-m" 'evi-newline-and-indent)
+	(define-key evi-insert-map "\C-m" 'newline)))
   (evi-change-mode-id "Insert")
   (evi-remember-last-changed-line)
   (evi-refresh-mode-line)
+  (setq evi-buffer-on-insert-exit nil)
   ; don't want to record *every* keystroke here... just want the final result
   (let ((evi-command-keys nil))
     (evi-get-commands evi-insert-map))
   (evi-maybe-kill-indentation)
-  (evi-exit-input-mode count))
+  (evi-exit-input-mode count)
+;  (if evi-buffer-on-insert-exit
+;      (progn
+;	(switch-to-buffer evi-buffer-on-insert-exit)
+;	(setq evi-buffer-on-insert-exit nil)))
+  )
 
 (defun evi-exit-input-mode (&optional count)
   "Exit from an input mode."
@@ -1460,6 +1499,28 @@ With a prefix count, position that line."
   (if (> (point) evi-insert-point)
     (delete-backward-char 1)
     (message "Beginning of inserted text")))
+
+(defvar evi-hack-comint-p nil)
+
+(defun evi-comint-p ()
+  (and evi-hack-comint-p
+       (boundp 'comint-last-input-start)
+       comint-last-input-start))
+
+(defun evi-insert-newline-or-send-input ()
+  "Insert newline or send input to subprocess, depending on mode."
+  (interactive)
+  (if evi-auto-indent
+      (progn
+	(evi-maybe-kill-indentation)
+	(if (evi-comint-p)
+	    (comint-send-input)
+	  (insert ?\n))
+	(indent-according-to-mode)
+	(setq evi-current-indentation (current-column)))
+    (if (evi-comint-p)
+	(comint-send-input)
+      (newline))))
 
 (defun evi-maybe-indent ()
   (interactive)
@@ -1939,6 +2000,17 @@ than insert point."
   "Go to beginning of ARGth next line."
   (evi-next-line-internal (or count 1))
   (skip-chars-forward " \t"))
+
+(defmotion vertical evi-beginning-of-next-line-or-send-input (&optional
+							      count context)
+  "Go to beginning of ARGth next line, or send input to the subprocess."
+  (if (and (null count) (evi-comint-p))
+      (progn
+	(comint-send-input)
+	(evi-insert))
+    (progn
+      (evi-next-line-internal (or count 1))
+      (skip-chars-forward " \t"))))
 
 (defun evi-previous-line-internal (count)
   (if (> count 0)
@@ -3528,24 +3600,28 @@ that VI users tend to use :q in the real VI.")
 (defun evi-mouse-track (event)
   (interactive "e")
   (mouse-track event)
+  (setq evi-buffer-on-insert-exit (current-buffer))
   (evi-fixup-cursor 'horizontal)
   (evi-fixup-cursor 'vertical))
 
 (defun evi-mouse-track-insert (event)
   (interactive "e")
   (mouse-track-insert event)
+  (setq evi-buffer-on-insert-exit (current-buffer))
   (evi-fixup-cursor 'horizontal)
   (evi-fixup-cursor 'vertical))
 
 (defun evi-x-mouse-kill (event)
   (interactive "e")
   (x-mouse-kill event)
+  (setq evi-buffer-on-insert-exit (current-buffer))
   (evi-fixup-cursor 'horizontal)
   (evi-fixup-cursor 'vertical))
 
 (defun evi-x-set-point-and-insert-selection (event)
   (interactive "e")
   (x-set-point-and-insert-selection event)
+  (setq evi-buffer-on-insert-exit (current-buffer))
   (evi-fixup-cursor 'horizontal)
   (evi-fixup-cursor 'vertical))
 

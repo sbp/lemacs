@@ -1,10 +1,10 @@
 ;;; -*- Mode: Emacs-Lisp -*-
 ;;; Compilation of Lisp code into byte code.
-;;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+;;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; By Jamie Zawinski <jwz@lucid.com> and Hallvard Furuseth <hbf@ulrik.uio.no>.
 
-(defconst byte-compile-version "2.08; 27-aug-92.")
+(defconst byte-compile-version "2.09; 16-jan-93.")
 
 ;; This file is part of GNU Emacs.
 
@@ -24,8 +24,9 @@
 
 ;;; ========================================================================
 ;;; Entry points:
-;;;	byte-recompile-directory, byte-compile-file, 
-;;;	byte-compile-and-load-file byte-compile-buffer, batch-byte-compile,
+;;;	byte-compile-file, byte-compile-and-load-file,
+;;;	byte-compile-buffer, byte-recompile-directory,
+;;;	batch-byte-compile, batch-byte-recompile-directory,
 ;;;	byte-compile, byte-compile-sexp, elisp-compile-defun,
 ;;;	byte-compile-report-call-tree
 
@@ -1098,8 +1099,10 @@ But a prefix argument (optional second arg) means ask user,
 for each such `.el' file, whether to compile it.  Prefix argument 0 means
 don't ask and compile the file anyway."
   (interactive "DByte recompile directory: \nP")
-  (save-some-buffers)
-  (set-buffer-modified-p (buffer-modified-p))  ;Update the mode line.
+  (if noninteractive
+      nil
+    (save-some-buffers)
+    (set-buffer-modified-p (buffer-modified-p)))  ;Update the mode line.
   (let ((directories (list (expand-file-name directory)))
 	(file-count 0)
 	(dir-count 0)
@@ -1107,18 +1110,18 @@ don't ask and compile the file anyway."
     (displaying-byte-compile-warnings
      (while directories
        (setq directory (car directories))
-       (message "Checking %s..." directory)
+       (or noninteractive (message "Checking %s..." directory))
        (let ((files (directory-files directory))
 	     source dest)
 	 (while files
 	   (setq source (expand-file-name (car files) directory))
 	   (if (and (not (member (car files) '("." ".." "RCS" "CVS")))
 		    (file-directory-p source))
-	       (if (or (null arg)
-		       (eq arg 0)
-		       (y-or-n-p (concat "Check " source "? ")))
-		   (setq directories
-			 (nconc directories (list source))))
+;	       (if (or (null arg)
+;		       (eq arg 0)
+;		       (y-or-n-p (concat "Check " source "? ")))
+		   (setq directories (nconc directories (list source)))
+;	     )
 	     (if (and (string-match emacs-lisp-file-regexp source)
 		      (not (auto-save-file-name-p source))
 		      (setq dest (byte-compile-dest-file source))
@@ -1127,7 +1130,9 @@ don't ask and compile the file anyway."
 			(and arg
 			     (or (eq 0 arg)
 				 (y-or-n-p (concat "Compile " source "? "))))))
-		 (progn (byte-compile-file source)
+		 (progn (if (and noninteractive (not byte-compile-verbose))
+			    (message "Compiling %s..." source))
+			(byte-compile-file source)
 			(setq file-count (1+ file-count))
 			(if (not (eq last-dir directory))
 			    (setq last-dir directory
@@ -1684,6 +1689,8 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 ;; The value is usually a compiled function but may be the original
 ;; lambda-expression.
 (defun byte-compile-lambda (fun)
+  (or (eq 'lambda (car-safe fun))
+      (error "not a lambda -- %s" (prin1-to-string fun)))
   (let* ((arglist (nth 1 fun))
 	 (byte-compile-bound-variables
 	  (nconc (and (memq 'free-vars byte-compile-warnings)
@@ -2643,16 +2650,28 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 	    byte-compile-bound-variables)))
     (or (symbolp var)
 	(byte-compile-warn
-	 "%s is not a variable-name or nil (in condition-case)" var))
+	 "%s is not a variable-name or nil (in condition-case)"
+	 (prin1-to-string var)))
     (byte-compile-push-constant var)
     (byte-compile-push-constant (byte-compile-top-level
 				 (nth 2 form) for-effect))
     (let ((clauses (cdr (cdr (cdr form))))
 	  compiled-clauses)
       (while clauses
-	(let ((clause (car clauses)))
+	(let* ((clause (car clauses))
+               (condition (car clause)))
+          (cond ((not (symbolp condition))
+                 (byte-compile-warn
+                   "%s is not a symbol naming a condition (in condition-case)"
+                   (prin1-to-string condition)))
+                ((not (or (eq condition 't)
+			  (and (stringp (get condition 'error-message))
+			       (consp (get condition 'error-conditions)))))
+                 (byte-compile-warn
+                   "%s is not a known condition name (in condition-case)" 
+                   condition)))
 	  (setq compiled-clauses
-		(cons (cons (car clause)
+		(cons (cons condition
 			    (byte-compile-top-level-body
 			     (cdr clause) for-effect))
 		      compiled-clauses)))
@@ -2966,16 +2985,16 @@ For example, invoke \"emacs -batch -f batch-byte-compile $emacs/ ~/*.el\""
 		       (setq dest (byte-compile-dest-file source))
 		       (file-exists-p dest)
 		       (file-newer-than-file-p source dest))
-		  (if (null (batch-byte-compile-file source))
+		  (if (null (batch-byte-compile-1 source))
 		      (setq error t)))
 	      (setq files (cdr files))))
-	(if (null (batch-byte-compile-file (car command-line-args-left)))
+	(if (null (batch-byte-compile-1 (car command-line-args-left)))
 	    (setq error t)))
       (setq command-line-args-left (cdr command-line-args-left)))
     (message "Done")
     (kill-emacs (if error 1 0))))
 
-(defun batch-byte-compile-file (file)
+(defun batch-byte-compile-1 (file)
   (condition-case err
       (progn (byte-compile-file file) t)
     (error
@@ -2987,12 +3006,28 @@ For example, invoke \"emacs -batch -f batch-byte-compile $emacs/ ~/*.el\""
 	      (prin1-to-string (cdr err)))
      nil)))
 
+(defun batch-byte-recompile-directory ()
+  "Runs `byte-recompile-directory' on the dirs remaining on the command line.
+Must be used only with -batch, and kills emacs on completion.
+For example, invoke \"emacs -batch -f batch-byte-recompile-directory .\""
+  ;; command-line-args-left is what is left of the command line (startup.el)
+  (defvar command-line-args-left)	;Avoid 'free variable' warning
+  (if (not noninteractive)
+      (error "batch-byte-recompile-directory is to be used only with -batch"))
+  (or command-line-args-left
+      (setq command-line-args-left '(".")))
+  (while command-line-args-left
+    (byte-recompile-directory (car command-line-args-left))
+    (setq command-line-args-left (cdr command-line-args-left)))
+  (kill-emacs 0))
+
 
 (make-obsolete 'mod '%)
 (make-obsolete 'dot 'point)
 (make-obsolete 'dot-max 'point-max)
 (make-obsolete 'dot-min 'point-min)
 (make-obsolete 'dot-marker 'point-marker)
+(make-obsolete 'read-no-blanks-input 'read-string) ; mocklisp crud
 
 (cond ((not (or (and (boundp 'epoch::version) epoch::version)
 		(string-lessp emacs-version "19")))

@@ -185,4 +185,6 @@
 
 (set-standard-case-table (mapcar 'copy-sequence iso8859/1-case-table))
 
+(setq-default ctl-arrow 'iso-8859/1)
+
 (provide 'iso8859-1)

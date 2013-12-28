@@ -1010,13 +1010,21 @@ required to cause echoing to start, or zero meaning don't echo at all.
 
    If the variable `ctl-arrow' is `nil', control characters in the
 buffer are displayed with octal escape sequences, all except newline
-and tab.  Altering the value of `ctl-arrow' makes it local to the
-current buffer; until then, the default value is in effect.
+and tab.  If its value is `t', then control characters will be printed
+with an uparrow, for example `^A'.
 
-   If the variable `ctl-arrow' is set to anything other than `t' or
-`nil', then characters above 160 will be displayed normally instead of
-in octal - this is useful if you are using a font which contains
-non-US characters there.  This is the default.  *Note Locals::.
+   If its value is not `t' and not `nil', then characters whose code
+is greater than 160 (that is, the space character (32) with its high
+bit set) will be assumed to be printable, and will be displayed
+without alteration.  This is the default when running under X Windows,
+since Lucid Emacs assumes an ISO/8859-1 character set (also known as
+"Latin1").  The `ctl-arrow' variable may also be set to an integer, in
+which case all characters whose codes are greater than or equal to
+that value will be assumed to be printable.
+
+   Altering the value of `ctl-arrow' makes it local to the current
+buffer; until that time, the default value is in effect.  *Note
+Locals::.
 
    Normally, a tab character in the buffer is displayed as whitespace
 which extends to the next display tab stop position, and display tab

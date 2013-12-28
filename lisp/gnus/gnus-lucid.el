@@ -1,5 +1,5 @@
 ;;; Mouse and font support for GNUS running in Lucid GNU Emacs
-;; Copyright (C) 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -37,6 +37,7 @@
     ["Mail Reply (Citing Original)" gnus-Subject-mail-reply-with-original t]
     ["Post Reply" gnus-Subject-post-reply t]
     ["Post Reply (Citing Original)" gnus-Subject-post-reply-with-original t]
+    ["Forward Article" gnus-Subject-mail-forward t]
     "----"
     ["Mark Article as Read" gnus-Subject-mark-as-read-forward t]
     ["Mark Article as Unread" gnus-Subject-mark-as-unread-backward t]
@@ -64,6 +65,14 @@
     ["Quit GNUS" gnus-Group-exit t]
     ))
 
+(defvar gnus-Article-menu 
+  '("GNUS Article Commands"
+    ["Next Page" gnus-Article-next-page t]
+    ["Previous Page" gnus-Article-prev-page t]
+    ["Pop Article History" gnus-Article-pop-article t]
+    ["Show Referenced Article" gnus-Article-refer-article t]
+    ["Show Subjects" gnus-Article-show-subjects t]))
+
 (defun gnus-Subject-menu (e)
   (interactive "e")
   (mouse-set-point e)
@@ -77,6 +86,10 @@
   (beginning-of-line)
   (search-forward ":" nil t)
   (popup-menu gnus-Group-menu))
+
+(defun gnus-Article-menu (e)
+  (interactive "@e")
+  (popup-menu gnus-Article-menu))
 
 (defun gnus-Group-mouse-read-group (e)
   (interactive "e")
@@ -97,76 +110,18 @@
 
 (define-key gnus-Subject-mode-map 'button3 'gnus-Subject-menu)
 (define-key gnus-Group-mode-map   'button3 'gnus-Group-menu)
+(define-key gnus-Article-mode-map 'button3 'gnus-Article-menu)
 
 
 ;;; Put message headers in boldface, etc...
 
 (defun gnus-fontify-headers ()
-  (let* ((current 'italic)
-	 p)
+  (save-excursion
+    (set-buffer gnus-Article-buffer)
     (save-excursion
-      (set-buffer gnus-Article-buffer)
-      (goto-char (point-min))
-      (while (and (not (eobp)) (not (looking-at "\n")))
-	(cond
-	 ((looking-at "^[^ \t\n]+[ \t]*:")
-	  (set-extent-face
-	   (make-extent (match-beginning 0) (match-end 0))
-	   'bold)
-	  (setq p (match-end 0))
-	  (cond
-	   ((looking-at "Subject[ \t]*:")
-	    (setq current 'bold-italic)
-	    (end-of-line)
-	    (set-extent-face (make-extent p (point)) current))
-	   ((looking-at "\\(From\\|Resent-From\\)[ \t]*:")
-	    (setq current 'bold-italic)
-	    (goto-char (match-end 0))
-	    (or (looking-at ".*(\\(.*\\))")
-		(looking-at "\\(.*\\)<")
-		(looking-at "\\(.*\\)[@%]")
-		(looking-at "\\(.*\\)"))
-	    (end-of-line)
-	    (set-extent-face (make-extent p (match-beginning 1)) 'italic)
-	    (set-extent-face (make-extent (match-beginning 1) (match-end 1))
-			     current)
-	    (set-extent-face (make-extent (match-end 1) (point)) 'italic)
-	    )
-	   (t
-	    (setq current 'italic)
-	    (end-of-line)
-	    (set-extent-face (make-extent p (point)) current))))
-	 (t
-	  (setq p (point))
-	  (end-of-line)
-	  (set-extent-face (make-extent p (point)) current)))
-	(forward-line 1))
       (save-restriction
 	(widen)
-	(let* ((start (point))
-	       (end (save-excursion
-		      (goto-char (point-max))
-		      (re-search-backward "\n--+ *\n" start t)
-		      (point))))
-	  (while (< (point) end)
-	    (cond ((looking-at "^[ \t]*[A-Z]*[]}<>|][ \t]*")
-		   (goto-char (match-end 0))
-		   (or (save-excursion
-			 (beginning-of-line)
-			 (let ((case-fold-search nil)) ; aaaaah, unix...
-			   (looking-at "^>From ")))
-		       (setq current 'italic)))
-		  ((or (looking-at "^In article\\|^In message")
-		       (looking-at
-		"^[^ \t].*\\(writes\\|wrote\\|said\\):\n[ \t]+[A-Z]*[]}<>|]"))
-		   (setq current 'bold-italic))
-		  (t (setq current nil)))
-	    (cond (current
-		   (setq p (point))
-		   (end-of-line)
-		   (set-extent-face (make-extent p (point)) current)))
-	    (forward-line 1))))
-      )))
+	(highlight-headers (point-min) (point-max) t)))))
 
 (or (find-face 'gnus-underline) (make-face 'gnus-underline))
 (or (face-differs-from-default-p 'gnus-underline)
@@ -210,11 +165,11 @@ Also removes the extra blank lines from the article."
 ;;; Put the GNUS menus in the menubar
 
 (defun gnus-install-menubar ()
-  (if default-menubar
+  (if (and current-menubar (not (assoc "GNUS" current-menubar)))
       (let ((menu (cond ((eq major-mode 'gnus-Group-mode) gnus-Group-menu)
 			((eq major-mode 'gnus-Subject-mode) gnus-Subject-menu)
 			(t (error "not GNUS Group or Subject mode")))))
-	(set-buffer-menubar (copy-sequence default-menubar))
+	(set-buffer-menubar (copy-sequence current-menubar))
 	(add-menu nil "GNUS" (cdr menu)))))
 
 (add-hook 'gnus-Subject-mode-hook 'gnus-install-menubar)

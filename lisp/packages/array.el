@@ -52,7 +52,7 @@ Its okay to be on a row number line."
 currently located."
   ;; Requires buffer-line and buffer-column to be current.
   (and (array-cursor-in-array-range)
-       (1+ (floor buffer-line lines-per-row))))
+       (1+ (array-mode-floor buffer-line lines-per-row))))
 
 (defun array-current-column ()
   "Return the array column of the field in which the cursor is
@@ -69,7 +69,7 @@ currently located."
 	       (1- (% buffer-line lines-per-row))
 	     (% buffer-line lines-per-row)))
 	;; Array columns on the current line.
-	(ceiling (1+ buffer-column) field-width))))
+	(array-mode-ceiling (1+ buffer-column) field-width))))
 
 (defun array-update-array-position (&optional a-row a-column)
   "Set array-row and array-column to their current values."
@@ -146,7 +146,7 @@ If optional argument GO-THERE is non-nil, go there too."
 Leave point at the beginning of the field and return the new buffer column."
   (let ((goal-line (+ (* lines-per-row (1- a-row))
 		      (if rows-numbered 1 0)
-		      (floor (1- a-column) columns-per-line)))
+		      (array-mode-floor (1- a-column) columns-per-line)))
 	(goal-column (* field-width (% (1- a-column) columns-per-line))))
     (goto-char (point-min))
     (forward-line goal-line)
@@ -169,7 +169,7 @@ Leave point at the beginning of the field and return the new array column."
   ;; Requires that buffer-line and buffer-column be current.
   (let ((goal-line (+ (- buffer-line (% buffer-line lines-per-row))
 		      (if rows-numbered 1 0)
-		      (floor (1- a-column) columns-per-line)))
+		      (array-mode-floor (1- a-column) columns-per-line)))
 	(goal-column (* field-width (% (1- a-column) columns-per-line))))
     (forward-line (- goal-line buffer-line))
     (move-to-column-untabify goal-column)
@@ -262,7 +262,7 @@ If optional ARG is given, move down ARG array rows."
     (if (= (abs arg) 1)
 	(array-move-one-row arg)
       (array-move-to-row
-       (limit-index (+ (or (array-current-row)
+       (array-mode-limit-index (+ (or (array-current-row)
 			   (error "Cursor is not in an array cell."))
 		       arg)
 		    max-row))))
@@ -284,7 +284,7 @@ If necessary, keep the cursor in the window by scrolling right or left."
     (if (= (abs arg) 1)
 	(array-move-one-column arg)
       (array-move-to-column
-       (limit-index (+ (or (array-current-column)
+       (array-mode-limit-index (+ (or (array-current-column)
 			   (error "Cursor is not in an array cell."))
 		       arg)
 		    max-column))))
@@ -301,8 +301,8 @@ If necessary, keep the cursor in the window by scrolling right or left."
   "Go to array row A-ROW and array column A-COLUMN."
   (interactive "nArray row: \nnArray column: ")
   (array-move-to-cell
-   (limit-index a-row max-row)
-   (limit-index a-column max-column))
+   (array-mode-limit-index a-row max-row)
+   (array-mode-limit-index a-column max-column))
   (array-normalize-cursor))
 
 
@@ -401,7 +401,7 @@ If optional ARG is given, copy down through ARG array rows."
     (if (= (abs arg) 1)
 	(array-copy-once-vertically arg)
       (array-copy-to-row
-       (limit-index (+ array-row arg) max-row))))
+       (array-mode-limit-index (+ array-row arg) max-row))))
   (array-normalize-cursor))
 
 (defun array-copy-up (&optional arg)
@@ -422,7 +422,7 @@ If optional ARG is given, copy through ARG array columns to the right."
     (if (= (abs arg) 1)
 	(array-copy-once-horizontally arg)
       (array-copy-to-column
-       (limit-index (+ array-column arg) max-column))))
+       (array-mode-limit-index (+ array-column arg) max-column))))
   (array-normalize-cursor))
 
 (defun array-copy-backward (&optional arg)
@@ -449,7 +449,7 @@ If optional ARG is given, copy through ARG array columns to the right."
 	(if (= (abs arg) 1)
 	    (array-copy-once-horizontally arg)
 	  (array-copy-to-column
-	   (limit-index (+ array-column arg) max-column))))))
+	   (array-mode-limit-index (+ array-column arg) max-column))))))
   (message "Working...done")
   (array-move-to-row array-row)
   (array-normalize-cursor))
@@ -482,7 +482,7 @@ If optional ARG is given, copy through ARG rows down."
 			     (forward-line 1)
 			     (point))))
 	   (this-row array-row)
-	   (goal-row (limit-index (+ this-row arg) max-row))
+	   (goal-row (array-mode-limit-index (+ this-row arg) max-row))
 	   (num (- goal-row this-row))
 	   (count (abs num))
 	   (sign (if (not (zerop count)) (/ num count))))
@@ -669,10 +669,10 @@ of rows-numbered."
        (t
 	;; First expand the row.  Then cut it up into new pieces.
 	(let ((newlines-to-be-removed
-	       (floor (1- temp-max-column) old-columns-per-line))
+	       (array-mode-floor (1- temp-max-column) old-columns-per-line))
 	      (newlines-removed 0)
 	      (newlines-to-be-added
-	       (floor (1- temp-max-column) new-columns-per-line))
+	       (array-mode-floor (1- temp-max-column) new-columns-per-line))
 	      (newlines-added 0))
 	  (while (< newlines-removed newlines-to-be-removed)
 	    (move-to-column-untabify
@@ -695,7 +695,7 @@ of rows-numbered."
       (setq rows-numbered new-rows-numbered)
       (setq line-length (* old-field-width new-columns-per-line))
       (setq lines-per-row 
-	    (+ (ceiling temp-max-column new-columns-per-line)
+	    (+ (array-mode-ceiling temp-max-column new-columns-per-line)
 	       (if new-rows-numbered 1 0)))
       (array-goto-cell (or array-row 1) (or array-column 1)))
     (kill-buffer temp-buffer))
@@ -710,35 +710,26 @@ of rows-numbered."
 
 ;;; Utilities.
 
-(defun limit-index (index limit)
+(defun array-mode-limit-index (index limit)
   (cond ((< index 1) 1)
 	((> index limit) limit)
 	(t index)))
 
-(defun abs (int)
-  "Return the absolute value of INT."
-  (if (< int 0) (- int) int))
 
-
-(defun floor (int1 int2)
+(defun array-mode-floor (int1 int2)
   "Returns the floor of INT1 divided by INT2.
 INT1 may be negative.  INT2 must be positive."
   (if (< int1 0)
-      (- (ceiling (- int1) int2))
+      (- (array-mode-ceiling (- int1) int2))
       (/ int1 int2)))
 
-(defun ceiling (int1 int2)
+(defun array-mode-ceiling (int1 int2)
   "Returns the ceiling of INT1 divided by INT2.
 Assumes that both arguments are nonnegative."
   (+ (/ int1 int2)
      (if (zerop (mod int1 int2))
 	 0
 	 1)))
-
-(defun xor (pred1 pred2)
-  "Returns the logical exclusive or of predicates PRED1 and PRED2."
-  (and (or pred1 pred2)
-       (not (and pred1 pred2))))
 
 (defun current-line ()
   "Return the current buffer line at point.  The first line is 0." 
@@ -952,5 +943,5 @@ array in this buffer."
   "Initialize the value of lines-per-row."
   (setq lines-per-row
 	(or arg
-	  (+ (ceiling max-column columns-per-line)
+	  (+ (array-mode-ceiling max-column columns-per-line)
 	     (if rows-numbered 1 0)))))

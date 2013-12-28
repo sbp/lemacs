@@ -1,5 +1,5 @@
-;;; compiled by jwz@thalidomide on Sun Aug  2 16:56:38 1992
-;;; from file /wg1/emacs-base/lisp/vm/vm-page.el
+;;; compiled by jwz@thalidomide on Sun Aug  2 16:35:57 1992
+;;; from file /u/jwz/emacs19/lisp/vm/vm-page.el
 ;;; emacs version 19.2.2 Lucid.
 ;;; bytecomp version 2.08;  2-aug-92.
 ;;; optimization is on.

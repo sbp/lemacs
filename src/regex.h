@@ -1,9 +1,9 @@
 /* Definitions for data structures callers pass the regex library.
-   Copyright (C) 1985 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 1, or (at your option)
+    the Free Software Foundation; either version 2, or (at your option)
     any later version.
 
     This program is distributed in the hope that it will be useful,
@@ -171,7 +171,7 @@ enum regexpcode
 
 extern char *re_compile_pattern ();
 /* Is this really advertised? */
-extern void re_compile_fastmap ();
+/*extern void re_compile_fastmap ();*/
 extern int re_search (), re_search_2 ();
 extern int re_match (), re_match_2 ();
 

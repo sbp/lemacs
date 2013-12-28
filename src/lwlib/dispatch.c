@@ -33,13 +33,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifdef THIS_IS_X11R4
 
 #ifdef THIS_IS_X11R5
-#error only one of THIS_IS_X11R4 or THIS_IS_X11R5 must be defined.
+ERROR!! only one of THIS_IS_X11R4 or THIS_IS_X11R5 must be defined.
 #endif
 
 #else /* ! THIS_IS_X11R4 */
 
 #ifndef THIS_IS_X11R5
-#error one of THIS_IS_X11R4 or THIS_IS_X11R5 must be defined.
+ERROR!! one of THIS_IS_X11R4 or THIS_IS_X11R5 must be defined.
 #endif
 
 #endif /* ! THIS_IS_X11R4 */

@@ -1,12 +1,12 @@
 ;; View: Peruse file or buffer without editing.
-;; Copyright (C) 1985, 1989 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 ;; Principal author K. Shane Hartman
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -19,79 +19,58 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-(provide 'view)
-
 (defvar view-mode-map nil)
 (if view-mode-map
     nil
   (setq view-mode-map (make-keymap))
-  (let ((i 0))
-    (while (< i 128)
-      (define-key view-mode-map (make-string 1 i) 'View-undefined)
-      (setq i (1+ i))))
+  (set-keymap-name view-mode-map 'view-mode-map)
+  (suppress-keymap view-mode-map)
   (define-key view-mode-map "\C-c" 'view-exit)
   (define-key view-mode-map "\C-z" 'suspend-emacs)
   (define-key view-mode-map "q" 'view-exit)
-  (define-key view-mode-map "-" 'negative-argument)
-  (define-key view-mode-map "0" 'digit-argument)
-  (define-key view-mode-map "1" 'digit-argument)
-  (define-key view-mode-map "2" 'digit-argument)
-  (define-key view-mode-map "3" 'digit-argument)
-  (define-key view-mode-map "4" 'digit-argument)
-  (define-key view-mode-map "5" 'digit-argument)
-  (define-key view-mode-map "6" 'digit-argument)
-  (define-key view-mode-map "7" 'digit-argument)
-  (define-key view-mode-map "8" 'digit-argument)
-  (define-key view-mode-map "9" 'digit-argument)
-  (define-key view-mode-map "\C-u" 'universal-argument)
-  (define-key view-mode-map "\e" nil)
-  (define-key view-mode-map "\C-x" 'Control-X-prefix)
-  (define-key view-mode-map "\e-" 'negative-argument)
-  (define-key view-mode-map "\e0" 'digit-argument)
-  (define-key view-mode-map "\e1" 'digit-argument)
-  (define-key view-mode-map "\e2" 'digit-argument)
-  (define-key view-mode-map "\e3" 'digit-argument)
-  (define-key view-mode-map "\e4" 'digit-argument)
-  (define-key view-mode-map "\e5" 'digit-argument)
-  (define-key view-mode-map "\e6" 'digit-argument)
-  (define-key view-mode-map "\e7" 'digit-argument)
-  (define-key view-mode-map "\e8" 'digit-argument)
-  (define-key view-mode-map "\e9" 'digit-argument)
   (define-key view-mode-map "<" 'beginning-of-buffer)
   (define-key view-mode-map ">" 'end-of-buffer)
-  (define-key view-mode-map "\ev" 'View-scroll-lines-backward)
+  (define-key view-mode-map "\M-v" 'View-scroll-lines-backward)
   (define-key view-mode-map "\C-v" 'View-scroll-lines-forward)
   (define-key view-mode-map " " 'View-scroll-lines-forward)
   (define-key view-mode-map "\177" 'View-scroll-lines-backward)
+  (define-key view-mode-map 'backspace 'View-scroll-lines-backward)
   (define-key view-mode-map "\n" 'View-scroll-one-more-line)
   (define-key view-mode-map "\r" 'View-scroll-one-more-line)
-  (define-key view-mode-map "\C-l" 'recenter)
   (define-key view-mode-map "z" 'View-scroll-lines-forward-set-scroll-size)
   (define-key view-mode-map "g" 'View-goto-line)
   (define-key view-mode-map "=" 'what-line)
   (define-key view-mode-map "." 'set-mark-command)
-  (define-key view-mode-map "\C-@" 'set-mark-command)
   (define-key view-mode-map "'" 'View-back-to-mark)
   (define-key view-mode-map "@" 'View-back-to-mark)  
   (define-key view-mode-map "x" 'exchange-point-and-mark)
   (define-key view-mode-map "h" 'Helper-describe-bindings)
   (define-key view-mode-map "?" 'Helper-describe-bindings)
-  (define-key view-mode-map "\C-h" 'Helper-help)
-  (define-key view-mode-map "\C-n" 'next-line)
-  (define-key view-mode-map "\C-p" 'previous-line)
-  (define-key view-mode-map "\C-s" 'isearch-forward)
-  (define-key view-mode-map "\C-r" 'isearch-backward)
+;;  (define-key view-mode-map "\C-h" 'Helper-help)
+  (define-key view-mode-map '(control h) 'Helper-help)
   (define-key view-mode-map "s" 'isearch-forward)
   (define-key view-mode-map "r" 'isearch-backward)
   (define-key view-mode-map "/" 'View-search-regexp-forward)
   (define-key view-mode-map "\\" 'View-search-regexp-backward)
   ;; This conflicts with the standard binding of isearch-regexp-forward
-  (define-key view-mode-map "\e\C-s" 'View-search-regexp-forward)
-  (define-key view-mode-map "\e\C-r" 'View-search-regexp-backward)  
+  (define-key view-mode-map "\M-\C-s" 'View-search-regexp-forward)
+  (define-key view-mode-map "\M-\C-r" 'View-search-regexp-backward)  
   (define-key view-mode-map "n" 'View-search-last-regexp-forward)
   (define-key view-mode-map "p" 'View-search-last-regexp-backward)
   )
 
+;; view-mode buffer-local vars
+(defvar view-old-mode-line-buffer-identification)
+(defvar view-old-buffer-read-only)
+(defvar view-old-mode-name)
+(defvar view-old-major-mode)
+(defvar view-old-local-map)
+(defvar view-old-Helper-return-blurb)
+(defvar view-exit-action)
+(defvar view-prev-buffer)
+(defvar view-exit-position)
+(defvar view-scroll-size)
+(defvar view-last-regexp)
 
 (defun view-file (file-name)
   "View FILE in View mode, returning to previous buffer when done.
@@ -245,10 +224,10 @@ If you viewed a file that was not present in Emacs, its buffer is killed."
      (substitute-command-keys
       "Type \\[Helper-help] for help, \\[Helper-describe-bindings] for commands, \\[exit-recursive-edit] to quit."))))
 
-(defun View-undefined ()
-  (interactive)
-  (ding)
-  (view-helpful-message))
+;(defun View-undefined ()
+;  (interactive)
+;  (ding)
+;  (view-helpful-message))
 
 (defun view-window-size () (1- (window-height)))
 
@@ -390,3 +369,4 @@ invocations return to earlier marks."
       (message "Can't find occurrence %d of %s" times regexp)
       (sit-for 4))))
 
+(provide 'view)

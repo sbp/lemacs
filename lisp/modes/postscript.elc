@@ -1,5 +1,5 @@
-;;; compiled by jwz@thalidomide on Tue Sep  8 23:32:22 1992
-;;; from file /wg1/emacs-base/lisp/modes/postscript.el
+;;; compiled by jwz@thalidomide on Tue Sep  8 23:27:37 1992
+;;; from file /u/jwz/emacs19/lisp/modes/postscript.el
 ;;; emacs version 19.2.23 Lucid.
 ;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.

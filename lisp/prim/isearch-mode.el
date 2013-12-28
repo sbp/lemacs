@@ -176,9 +176,9 @@ thing searched for.")
     (define-key isearch-mode-map "\C-g" 'isearch-abort)
 
     (define-key isearch-mode-map "\C-q" 'isearch-quote-char)
-
-    (define-key isearch-mode-map "\C-j" 'isearch-exit)
-    (define-key isearch-mode-map "\C-m" 'isearch-return-char)
+    
+    (define-key isearch-mode-map "\C-m" 'isearch-exit)
+    (define-key isearch-mode-map "\C-j" 'isearch-printing-char)
     (define-key isearch-mode-map "\t" 'isearch-printing-char)
     
     (define-key isearch-mode-map "\C-w" 'isearch-yank-word)
@@ -194,7 +194,9 @@ thing searched for.")
     ;; (define-key isearch-mode-map "\C-t" 'isearch-toggle-regexp)
     ;; (define-key isearch-mode-map "\C-^" 'isearch-edit-string)
 
-    (define-key isearch-mode-map "\C-h" 'isearch-mode-help)
+    ;; backspace deletes, but C-h is help.
+    (define-key isearch-mode-map 'backspace 'isearch-delete-char)
+    (define-key isearch-mode-map '(control h) 'isearch-mode-help)
 
     (define-key isearch-mode-map "\M-n" 'isearch-ring-advance)
     (define-key isearch-mode-map "\M-p" 'isearch-ring-retreat)
@@ -306,7 +308,7 @@ The following non-printing keys are bound in `isearch-mode-map'.
 
 Type \\[isearch-delete-char] to cancel characters from end of search string.
 Type \\[isearch-exit] to exit, leaving point at location found.
-Type RET (C-m) to match end of line.
+Type LFD (C-j) to match end of line.
 Type \\[isearch-repeat-forward] to search again forward,\
  \\[isearch-repeat-backward] to search again backward.
 Type \\[isearch-yank-word] to yank word from buffer onto end of search\
@@ -385,6 +387,8 @@ is treated as a regexp.  See \\[isearch-forward] for more info."
 (defun isearch-mode (forward &optional regexp op-fun recursive-edit word-p)
   "Start isearch minor mode.  Called by isearch-forward, etc."
 
+  (if executing-macro (setq recursive-edit nil))
+
   (let ((inhibit-quit t)) ; don't leave things in an inconsistent state...
 
     ;; Initialize global vars.
@@ -413,6 +417,9 @@ is treated as a regexp.  See \\[isearch-forward] for more info."
 	  isearch-window-configuration (current-window-configuration)
 	  isearch-old-local-map (current-local-map)
 
+	  ;; bound below
+	  ;;isearch-recursive-edit recursive-edit
+
 	  isearch-old-pre-command-hook pre-command-hook
 
 	  isearch-mode " Isearch"
@@ -430,7 +437,9 @@ is treated as a regexp.  See \\[isearch-forward] for more info."
   ;; isearch-mode can be made modal (in the sense of not returning to 
   ;; the calling function until searching is completed) by entering 
   ;; a recursive-edit and exiting it when done isearching.
-  (if recursive-edit (recursive-edit))
+  (if recursive-edit
+      (let ((isearch-recursive-edit t))
+	(recursive-edit)))
   )
 
 
@@ -619,8 +628,11 @@ The following additional command keys are active while editing.
 		  (setq isearch-word t)
 		(setq unread-command-event e))
 	      (setq isearch-new-string 
-		    (read-string (isearch-message-prefix nil t)
-				 isearch-string)
+		    (if (featurep 'gmhist)
+			(gmhist-old-read-from-minibuffer
+			 (isearch-message-prefix nil t) isearch-string)
+		      (read-string (isearch-message-prefix nil t)
+				   isearch-string))
 		    isearch-new-message (mapconcat
 					 'isearch-text-char-description
 					 isearch-new-string ""))
@@ -753,7 +765,7 @@ Use `isearch-exit' to quit without signalling."
 If no previous match was done, just beep."
   (interactive)
   (if (null (cdr isearch-cmds))
-      (ding)
+      (ding nil 'isearch-quit)
     (isearch-pop-state))
   (isearch-update))
 
@@ -1147,7 +1159,7 @@ If there is no completion possible, say so and continue searching."
   ;;
   (isearch-maybe-frob-keyboard-macros)
   (if (and (symbolp this-command)
-	   (get this-command 'isearch-command))
+	   (get (or this-command 'undefined) 'isearch-command))
       nil
     (isearch-done)))
 
@@ -1210,6 +1222,11 @@ currently matches the search-string.")
 	       (buffer-name (extent-buffer isearch-extent)))
 	  (delete-extent isearch-extent))
       (setq isearch-extent (make-extent begin end (current-buffer))))
+    ;; make the isearch extent always take prescedence over any mouse-
+    ;; highlighted extents we may be passing through, since isearch, being
+    ;; modal, is more interesting (there's nothing they could do with a
+    ;; mouse-highlighted extent while in the midst of a search anyway.)
+    (set-extent-priority isearch-extent (1+ mouse-highlight-priority))
     (set-extent-face isearch-extent 'isearch)))
 
 (defun isearch-dehighlight (totally)
@@ -1234,7 +1251,7 @@ currently matches the search-string.")
 (defun isearch-search ()
   ;; Do the search with the current search string.
   (isearch-message nil t)
-  (if search-caps-disable-folding
+  (if (and case-fold-search search-caps-disable-folding)
       (setq isearch-case-fold-search (isearch-no-upper-case-p isearch-string)))
   (condition-case lossage
       (let ((inhibit-quit nil)
@@ -1267,9 +1284,20 @@ currently matches the search-string.")
 
   (if isearch-success
       nil
+
+    ;; If we're being run inside a keyboard macro, then the call to
+    ;; ding will signal an error (to terminate the macro.)  We must
+    ;; turn off isearch-mode first, so that we aren't still in isearch
+    ;; mode after the macro exits.  Note that isearch-recursive-edit
+    ;; must not be true if a keyboard macro is executing.
+    (if (and executing-macro (not defining-kbd-macro))
+	(progn
+	  (isearch-done)
+	  (ding nil 'isearch-failed)))
+
     ;; Ding if failed this time after succeeding last time.
     (and (nth 3 (car isearch-cmds))
-	 (ding))
+	 (ding nil 'isearch-failed))
     (goto-char (nth 2 (car isearch-cmds)))))
 
 ;;;=================================================

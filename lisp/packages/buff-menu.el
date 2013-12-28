@@ -1,5 +1,5 @@
 ;; Buffer menu main function and support functions.
-;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -123,13 +123,18 @@ to generate such a string.  This variable is always buffer-local.")
 			 list-buffers-directory)))
 	  (size (buffer-size))
 	  (mode mode-name)
-	  p s)
+	  eob p s col)
       (set-buffer output)
+      (end-of-line)
+      (setq eob (point))
       (prin1 size)
       (setq p (point))
       ;; right-justify the size
       (move-to-column 19 t)
-      (setq s (- 6 (- p (point))))
+      (setq col (point))
+      (if (> eob col)
+	  (goto-char eob))
+      (setq s (- 6 (- p col)))
       (while (> s 0) ; speed/consing tradeoff...
 	(insert ? )
 	(setq s (1- s)))
@@ -156,14 +161,14 @@ The R column contains a % for buffers that are read-only."
   (let ((current (current-buffer))
 	(col1 19)
 	output)
-    (save-excursion
-      (with-output-to-temp-buffer "*Buffer List*"
+    (with-output-to-temp-buffer "*Buffer List*"
+      (save-excursion
         (let ((buffers (buffer-list)))
           (setq output standard-output)
           (set-buffer output)
           (Buffer-menu-mode)
           (setq buffer-read-only nil)
-          (buffer-flush-undo output)
+          (buffer-disable-undo output)
           (insert list-buffers-header-line)
           (while buffers
             (let* ((buffer (car buffers))
@@ -372,7 +377,9 @@ You can mark buffers with the \\[Buffer-menu-mark] command."
   (interactive)
   (switch-to-buffer (Buffer-menu-buffer t))
   (bury-buffer (other-buffer))
-  (delete-other-windows))
+  (delete-other-windows)
+  ;; This is to get w->force_start set to nil.  Don't ask me, I only work here.
+  (set-window-buffer (selected-window) (current-buffer)))
 
 (defun Buffer-menu-this-window ()
   "Select this line's buffer in this window."

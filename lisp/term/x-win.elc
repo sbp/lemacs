@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Sat Aug 29 19:43:27 1992
-;;; from file /wg1/emacs-base/lisp/term/x-win.el
-;;; emacs version 19.2.13 Lucid.
-;;; bytecomp version 2.08;  7-aug-92.
+;;; compiled by jwz@thalidomide on Mon Dec 21 20:51:12 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/term/x-win.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.08; 13-dec-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

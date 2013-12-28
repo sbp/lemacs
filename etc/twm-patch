@@ -1,0 +1,802 @@
+Date: 7 Sep 92 20:58:54 GMT
+From: rjc@cogsci.ed.ac.uk (Richard Caley)
+To: help-lucid-emacs@lucid.com
+Subject: Patch to get TWM to understand lemacs
+Organization: Human Communication Research Center
+Lines: 795
+
+
+This shar contains patches to the R4 and R5 TWM window managers which
+gives them the ability to cope with lucid emacs' handling of the
+keyboard focus. 
+
+MOre details in the ReadMe.
+
+--
+rjc@cogsci.ed.ac.uk			_O_
+					 |<
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  twm_focus_patch twm_focus_patch/ReadMe
+#   twm_focus_patch/twm_focus_patch.r4
+#   twm_focus_patch/twm_focus_patch.r5
+# Wrapped by rjc@daiches on Mon Sep  7 21:50:27 1992
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test ! -d twm_focus_patch ; then
+    echo shar: Creating directory \"twm_focus_patch\"
+    mkdir twm_focus_patch
+fi
+if test -f twm_focus_patch/ReadMe -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"twm_focus_patch/ReadMe\"
+else
+echo shar: Extracting \"twm_focus_patch/ReadMe\" \(2227 characters\)
+sed "s/^X//" >twm_focus_patch/ReadMe <<'END_OF_twm_focus_patch/ReadMe'
+X
+X		        Focus Patch for TWM
+X			===================
+X
+X		  Richard Caley (R.Caley@ed.ac.uk)
+X		 ----------------------------------
+X			7th September 1992
+X
+X
+XThis patch changes the focus handling behaviour of TWM so that it can
+Xcope with clients like Lucid Emacs which juggle the keyboard focus. 
+X
+XWhat Does it Do?
+X----------------
+XThe normal TWM focus handling behaviour is rather dim. It does not
+Xnotice when another client changes the focus window and so the
+Xkeyboard focus and TWM's highlighting can end up on different windows.
+XThis patch adds code to track focus in and out events and move the
+Xhighlighting with them.
+X
+XIt seems to handle local and globally active focus models, as defined
+Xin the ICCCM. Clients which claim they do not want input, such as xev
+Xand xjuggle, do get highlighted when the cursor enters the client
+Xwindow. This should stop users who don't wish to know about such
+Xthings from getting confused.
+X
+XVisable Changes
+X---------------
+XWith this patch in place, TWM no longer lies about where the focus is
+Xwhen the cursor moves over an icon manager. A window which is unmapped
+Xcan not get the focus, but the normal TWM behaviour is to highlight
+Xany icon manager entry which the cursor moves into. With this patch in
+Xplace, only windows which actually have the focus have their entries
+Xhighlighted. This may or may not be a good feature, but I prefer to
+Xknow where I stand.
+X
+XA few more events travel over the network, so it is possible that the
+Xresultant TWM might be a touch slower on slow machines/networks.
+X
+XSupport, What's That?
+X---------------------
+XThis patch is, as they say, supplied as-is. No guarantees, no
+Xpromises. If it changes your TWM executable so that it checksums to
+X666 and so launches armageddon, don't blame me. 
+X
+XI've used TVTWM versions of this patch for a while and am reasonably
+Xconfident that it works in all normal circumstances. I have only done
+Xa brief test of the TWM behaviour, it seems to work on all the obvious
+Xhard cases I could think up.
+X
+XIf you email me some bizzare behaviour I'll be interested since it
+Xwill probably exist in tvtwm too.
+X
+XWhat You Get
+X------------
+XAlong with this readme, you should have gotten two patches, one for
+Xrelease 4 TWM and one for release 5. 
+END_OF_twm_focus_patch/ReadMe
+if test 2227 -ne `wc -c <twm_focus_patch/ReadMe`; then
+    echo shar: \"twm_focus_patch/ReadMe\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f twm_focus_patch/twm_focus_patch.r4 -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"twm_focus_patch/twm_focus_patch.r4\"
+else
+echo shar: Extracting \"twm_focus_patch/twm_focus_patch.r4\" \(8157 characters\)
+sed "s/^X//" >twm_focus_patch/twm_focus_patch.r4 <<'END_OF_twm_focus_patch/twm_focus_patch.r4'
+X*** add_window.c~	Fri Sep  4 18:27:57 1992
+X--- add_window.c	Mon Sep  7 18:30:54 1992
+X***************
+X*** 686,691 ****
+X--- 686,692 ----
+X      valuemask = (CWEventMask | CWDontPropagate);
+X      attributes.event_mask = (StructureNotifyMask | PropertyChangeMask |
+X  			     ColormapChangeMask | VisibilityChangeMask |
+X+ 			     FocusChangeMask |
+X  			     EnterWindowMask | LeaveWindowMask);
+X      attributes.do_not_propagate_mask = ButtonPressMask | ButtonReleaseMask;
+X      XChangeWindowAttributes (dpy, tmp_win->w, valuemask, &attributes);
+X*** events.c.orig	Fri Sep  4 18:27:58 1992
+X--- events.c	Mon Sep  7 19:14:54 1992
+X***************
+X*** 86,91 ****
+X--- 86,92 ----
+X  int Cancel = FALSE;
+X  
+X  void HandleCreateNotify();
+X+ void HandleFocusChange ();
+X  
+X  #ifdef SHAPE
+X  void HandleShapeNotify ();
+X***************
+X*** 151,156 ****
+X--- 152,159 ----
+X      EventHandler[KeyPress] = HandleKeyPress;
+X      EventHandler[ColormapNotify] = HandleColormapNotify;
+X      EventHandler[VisibilityNotify] = HandleVisibilityNotify;
+X+     EventHandler[FocusIn] = HandleFocusChange;
+X+     EventHandler[FocusOut] = HandleFocusChange;
+X  #ifdef SHAPE
+X      if (HasShape)
+X  	EventHandler[ShapeEventBase+ShapeNotify] = HandleShapeNotify;
+X***************
+X*** 645,650 ****
+X--- 648,818 ----
+X      }
+X  }
+X  
+X+ /*
+X+  * LastFocusEvent -- skip over focus in/out events for this
+X+  *		window.
+X+  */
+X+ 
+X+ 
+X+ 
+X+ static XEvent *
+X+ LastFocusEvent(w, first)
+X+ 
+X+ Window *w;
+X+ XEvent *first;
+X+ 
+X+ 
+X+ {
+X+ static XEvent current;
+X+ XEvent *last, new;
+X+ 
+X+ new= *first;
+X+ last=NULL;
+X+ 
+X+ do {
+X+    if ( (new.type == FocusIn || new.type == FocusOut) 
+X+        && new.xfocus.mode == NotifyNormal 
+X+        && (new.xfocus.detail == NotifyNonlinear 
+X+ 	   || new.xfocus.detail == NotifyPointer
+X+ 	   || new.xfocus.detail == NotifyAncestor
+X+ 	   || (new.xfocus.detail == NotifyNonlinearVirtual)
+X+ 	   ))
+X+        {
+X+        current=new;
+X+        last= &current;
+X+ #ifdef TRACE_FOCUS
+X+        printf("! %s 0x%x mode=%d, detail=%d\n", new.xfocus.type == FocusIn?"in":"out",Tmp_win,new.xfocus.mode, new.xfocus.detail);
+X+ #endif       
+X+        }
+X+ else
+X+     {
+X+ #ifdef TRACE_FOCUS
+X+     printf("~ %s 0x%x mode=%d, detail=%d\n", new.xfocus.type == FocusIn?"in":"out",Tmp_win,new.xfocus.mode, new.xfocus.detail);
+X+ #endif
+X+        }
+X+    } while (XCheckWindowEvent(dpy, w, FocusChangeMask, &new));
+X+ 
+X+ return last;
+X+ }
+X+ 
+X+ /*
+X+  * HandleFocusIn -- deal with the focus moving under us.
+X+  */
+X+ 
+X+ void
+X+ HandleFocusIn(event)
+X+ 
+X+ XFocusInEvent *event;
+X+ 
+X+ {
+X+ 
+X+ #ifdef TRACE_FOCUS
+X+ printf("+0x%x mode=%d, detail=%d\n", Tmp_win, event->mode, event->detail);
+X+ #endif
+X+ 
+X+ 
+X+ if (Tmp_win->hilite_w)	
+X+     XMapWindow (dpy, Tmp_win->hilite_w);
+X+ 
+X+ SetBorder (Tmp_win, True);	
+X+ 
+X+ if (Tmp_win->list) ActiveIconManager(Tmp_win->list);
+X+ 
+X+ /*
+X+    if (Scr->Focus && Scr->Focus->w != Tmp_win->w)
+X+    {
+X+    int root_x, root_y, x, y;
+X+    Window root, child, mask;
+X+    
+X+    if (XQueryPointer(dpy, Scr->Focus->w, 
+X+    &root, &child, 
+X+    &root_x, &root_y, &x, &y, &mask))
+X+    {
+X+    XWarpPointer(dpy, Scr->Focus->w, Tmp_win->w,
+X+    0, 0, 0, 0, x, y);
+X+    } 
+X+    }
+X+    */
+X+ 
+X+ Scr->Focus = Tmp_win;
+X+ }
+X+ 
+X+ void
+X+ HandleFocusOut(event)
+X+ 
+X+ XFocusOutEvent *event;
+X+ 
+X+ {
+X+ 
+X+ #ifdef TRACE_FOCUS
+X+ printf("-0x%x mode=%d, detail=%d\n", Tmp_win, event->mode, event->detail);
+X+ #endif
+X+ 
+X+ SetBorder(Tmp_win, False);
+X+ if (Tmp_win->hilite_w)
+X+     XUnmapWindow(dpy, Tmp_win->hilite_w);
+X+ 
+X+ if (Tmp_win->list) NotActiveIconManager(Tmp_win->list);
+X+ 
+X+ if (Scr->Focus == Tmp_win)
+X+     Scr->Focus= NULL;
+X+ 
+X+ }
+X+ 
+X+ void
+X+ HandleFocusChange()
+X+ 
+X+ {
+X+  XEvent *event;
+X+ 
+X+  if (Tmp_win)
+X+      {
+X+      event = LastFocusEvent(Event.xany.window,&Event);
+X+ 
+X+      if ( event != NULL)
+X+ 	 {
+X+ 	 if (event->type == FocusIn)
+X+ 	     HandleFocusIn(event);
+X+ 	 else
+X+ 	     HandleFocusOut(event);
+X+ 	 }
+X+      }
+X+ }
+X+ 
+X+ void
+X+ SynthesiseFocusOut(w)
+X+ 
+X+ Window w;
+X+ 
+X+ {
+X+ XEvent event;
+X+ 
+X+ event.type=FocusOut;
+X+ event.xfocus.window=w;
+X+ event.xfocus.mode=NotifyNormal;
+X+ event.xfocus.detail=NotifyPointer;
+X+ 
+X+ XPutBackEvent(dpy, &event);
+X+ 
+X+ }
+X+ void
+X+ SynthesiseFocusIn(w)
+X+ 
+X+ Window w;
+X+ 
+X+ {
+X+ XEvent event;
+X+ 
+X+ event.type=FocusIn;
+X+ event.xfocus.window=w;
+X+ event.xfocus.mode=NotifyNormal;
+X+ event.xfocus.detail=NotifyPointer;
+X+ 
+X+ XPutBackEvent(dpy, &event);
+X+ 
+X+ }
+X+ 
+X+ 
+X  /***********************************************************************
+X   *
+X   *  Procedure:
+X***************
+X*** 1888,1901 ****
+X  	     * focus on this window
+X  	     */
+X  	    if (Scr->FocusRoot && (!scanArgs.leaves || scanArgs.inferior)) {
+X! 		if (Tmp_win->list) ActiveIconManager(Tmp_win->list);
+X  		if (Tmp_win->mapped) {
+X- 		    /*
+X- 		     * unhighlight old focus window
+X- 		     */
+X- 		    if (Scr->Focus &&
+X- 			Scr->Focus != Tmp_win && Tmp_win->hilite_w)
+X- 		      XUnmapWindow(dpy, Scr->Focus->hilite_w);
+X  
+X  		    /*
+X  		     * If entering the frame or the icon manager, then do 
+X--- 2056,2063 ----
+X  	     * focus on this window
+X  	     */
+X  	    if (Scr->FocusRoot && (!scanArgs.leaves || scanArgs.inferior)) {
+X! /*		if (Tmp_win->list) ActiveIconManager(Tmp_win->list); */
+X  		if (Tmp_win->mapped) {
+X  
+X  		    /*
+X  		     * If entering the frame or the icon manager, then do 
+X***************
+X*** 1909,1925 ****
+X  		     */
+X  		    if (ewp->window == Tmp_win->frame ||
+X  			(Tmp_win->list && ewp->window == Tmp_win->list->w)) {
+X- 			if (Tmp_win->hilite_w)				/* 1 */
+X- 			  XMapWindow (dpy, Tmp_win->hilite_w);
+X  			if (!scanArgs.leaves && !scanArgs.enters)
+X  			    InstallWindowColormaps (EnterNotify,	/* 2 */
+X  						    &Scr->TwmRoot);
+X- 			SetBorder (Tmp_win, True);			/* 3 */
+X  			if (Tmp_win->title_w && Scr->TitleFocus)	/* 4 */
+X  			  SetFocus (Tmp_win);
+X  			if (Tmp_win->protocols & DoesWmTakeFocus)	/* 5 */
+X  			  SendTakeFocusMessage (Tmp_win, ewp->time);
+X! 			Scr->Focus = Tmp_win;
+X  		    } else if (ewp->window == Tmp_win->w) {
+X  			/*
+X  			 * If we are entering the application window, install
+X--- 2071,2088 ----
+X  		     */
+X  		    if (ewp->window == Tmp_win->frame ||
+X  			(Tmp_win->list && ewp->window == Tmp_win->list->w)) {
+X  			if (!scanArgs.leaves && !scanArgs.enters)
+X  			    InstallWindowColormaps (EnterNotify,	/* 2 */
+X  						    &Scr->TwmRoot);
+X  			if (Tmp_win->title_w && Scr->TitleFocus)	/* 4 */
+X  			  SetFocus (Tmp_win);
+X  			if (Tmp_win->protocols & DoesWmTakeFocus)	/* 5 */
+X  			  SendTakeFocusMessage (Tmp_win, ewp->time);
+X! 			else if (!Scr->TitleFocus 
+X! 				 && Tmp_win->wmhints 
+X! 				 && Tmp_win->wmhints->input
+X! 				 && Event.xcrossing.focus)
+X! 			    SynthesiseFocusIn(Tmp_win->w);
+X  		    } else if (ewp->window == Tmp_win->w) {
+X  			/*
+X  			 * If we are entering the application window, install
+X***************
+X*** 1927,1932 ****
+X--- 2090,2099 ----
+X  			 */
+X  			if (!scanArgs.leaves || scanArgs.inferior)
+X  			    InstallWindowColormaps(EnterNotify, Tmp_win);
+X+ 
+X+ 			if (Event.xcrossing.focus)
+X+                                 SynthesiseFocusIn(Tmp_win->w);
+X+ 
+X  		    }
+X  		}			/* end if Tmp_win->mapped */
+X  	    }				/* end if FocusRoot */
+X***************
+X*** 2061,2074 ****
+X  
+X  		if ((Event.xcrossing.window == Tmp_win->frame &&
+X  			!scanArgs.matches) || inicon) {
+X- 		    if (Tmp_win->list) NotActiveIconManager(Tmp_win->list);
+X- 		    if (Tmp_win->hilite_w)
+X- 		      XUnmapWindow (dpy, Tmp_win->hilite_w);
+X- 		    SetBorder (Tmp_win, False);
+X  		    if (Scr->TitleFocus ||
+X  			Tmp_win->protocols & DoesWmTakeFocus)
+X! 		      SetFocus ((TwmWindow *) NULL);
+X! 		    Scr->Focus = NULL;
+X  		} else if (Event.xcrossing.window == Tmp_win->w &&
+X  				!scanArgs.enters) {
+X  		    InstallWindowColormaps (LeaveNotify, &Scr->TwmRoot);
+X--- 2228,2240 ----
+X  
+X  		if ((Event.xcrossing.window == Tmp_win->frame &&
+X  			!scanArgs.matches) || inicon) {
+X  		    if (Scr->TitleFocus ||
+X  			Tmp_win->protocols & DoesWmTakeFocus)
+X! 			SetFocus ((TwmWindow *) NULL);
+X! 		    /* pretend there was a focus out as sometimes 
+X! 		       we don't get one. */
+X! 		    if ( Event.xcrossing.focus)
+X! 			SynthesiseFocusOut(Tmp_win->w);
+X  		} else if (Event.xcrossing.window == Tmp_win->w &&
+X  				!scanArgs.enters) {
+X  		    InstallWindowColormaps (LeaveNotify, &Scr->TwmRoot);
+END_OF_twm_focus_patch/twm_focus_patch.r4
+if test 8157 -ne `wc -c <twm_focus_patch/twm_focus_patch.r4`; then
+    echo shar: \"twm_focus_patch/twm_focus_patch.r4\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+if test -f twm_focus_patch/twm_focus_patch.r5 -a "${1}" != "-c" ; then 
+  echo shar: Will not over-write existing file \"twm_focus_patch/twm_focus_patch.r5\"
+else
+echo shar: Extracting \"twm_focus_patch/twm_focus_patch.r5\" \(9695 characters\)
+sed "s/^X//" >twm_focus_patch/twm_focus_patch.r5 <<'END_OF_twm_focus_patch/twm_focus_patch.r5'
+X*** add_window.c.orig	Mon Sep  7 18:41:41 1992
+X--- add_window.c	Mon Sep  7 18:42:15 1992
+X***************
+X*** 754,759 ****
+X--- 754,760 ----
+X      valuemask = (CWEventMask | CWDontPropagate);
+X      attributes.event_mask = (StructureNotifyMask | PropertyChangeMask |
+X  			     ColormapChangeMask | VisibilityChangeMask |
+X+ 			     FocusChangeMask |
+X  			     EnterWindowMask | LeaveWindowMask);
+X      attributes.do_not_propagate_mask = ButtonPressMask | ButtonReleaseMask;
+X      XChangeWindowAttributes (dpy, tmp_win->w, valuemask, &attributes);
+X*** events.c.orig	Mon Sep  7 18:40:57 1992
+X--- events.c	Mon Sep  7 19:11:56 1992
+X***************
+X*** 63,73 ****
+X  XEvent Event;			/* the current event */
+X  TwmWindow *Tmp_win;		/* the current twm window */
+X  
+X- /* Used in HandleEnterNotify to remove border highlight from a window 
+X-  * that has not recieved a LeaveNotify event because of a pointer grab 
+X-  */
+X- TwmWindow *UnHighLight_win = NULL;
+X- 
+X  Window DragWindow;		/* variables used in moving windows */
+X  int origDragX;
+X  int origDragY;
+X--- 63,68 ----
+X***************
+X*** 93,98 ****
+X--- 88,94 ----
+X  void HandleCreateNotify();
+X  
+X  void HandleShapeNotify ();
+X+ void HandleFocusChange ();
+X  extern int ShapeEventBase, ShapeErrorBase;
+X  
+X  void AutoRaiseWindow (tmp)
+X***************
+X*** 155,160 ****
+X--- 151,158 ----
+X      EventHandler[KeyPress] = HandleKeyPress;
+X      EventHandler[ColormapNotify] = HandleColormapNotify;
+X      EventHandler[VisibilityNotify] = HandleVisibilityNotify;
+X+     EventHandler[FocusIn] = HandleFocusChange;
+X+     EventHandler[FocusOut] = HandleFocusChange;
+X      if (HasShape)
+X  	EventHandler[ShapeEventBase+ShapeNotify] = HandleShapeNotify;
+X  }
+X***************
+X*** 545,550 ****
+X--- 543,713 ----
+X  
+X  
+X  
+X+ /*
+X+  * LastFocusEvent -- skip over focus in/out events for this
+X+  *		window.
+X+  */
+X+ 
+X+ 
+X+ 
+X+ static XEvent *
+X+ LastFocusEvent(w, first)
+X+ 
+X+ Window *w;
+X+ XEvent *first;
+X+ 
+X+ 
+X+ {
+X+ static XEvent current;
+X+ XEvent *last, new;
+X+ 
+X+ new= *first;
+X+ last=NULL;
+X+ 
+X+ do {
+X+    if ( (new.type == FocusIn || new.type == FocusOut) 
+X+        && new.xfocus.mode == NotifyNormal 
+X+        && (new.xfocus.detail == NotifyNonlinear 
+X+ 	   || new.xfocus.detail == NotifyPointer
+X+ 	   || new.xfocus.detail == NotifyAncestor
+X+ 	   || (new.xfocus.detail == NotifyNonlinearVirtual)
+X+ 	   ))
+X+        {
+X+        current=new;
+X+        last= &current;
+X+ #ifdef TRACE_FOCUS
+X+        printf("! %s 0x%x mode=%d, detail=%d\n", new.xfocus.type == FocusIn?"in":"out",Tmp_win,new.xfocus.mode, new.xfocus.detail);
+X+ #endif       
+X+        }
+X+ else
+X+     {
+X+ #ifdef TRACE_FOCUS
+X+     printf("~ %s 0x%x mode=%d, detail=%d\n", new.xfocus.type == FocusIn?"in":"out",Tmp_win,new.xfocus.mode, new.xfocus.detail);
+X+ #endif
+X+        }
+X+    } while (XCheckWindowEvent(dpy, w, FocusChangeMask, &new));
+X+ 
+X+ return last;
+X+ }
+X+ 
+X+ /*
+X+  * HandleFocusIn -- deal with the focus moving under us.
+X+  */
+X+ 
+X+ void
+X+ HandleFocusIn(event)
+X+ 
+X+ XFocusInEvent *event;
+X+ 
+X+ {
+X+ 
+X+ #ifdef TRACE_FOCUS
+X+ printf("+0x%x mode=%d, detail=%d\n", Tmp_win, event->mode, event->detail);
+X+ #endif
+X+ 
+X+ 
+X+ if (Tmp_win->hilite_w)	
+X+     XMapWindow (dpy, Tmp_win->hilite_w);
+X+ 
+X+ SetBorder (Tmp_win, True);	
+X+ 
+X+ if (Tmp_win->list) ActiveIconManager(Tmp_win->list);
+X+ 
+X+ /*
+X+    if (Scr->Focus && Scr->Focus->w != Tmp_win->w)
+X+    {
+X+    int root_x, root_y, x, y;
+X+    Window root, child, mask;
+X+    
+X+    if (XQueryPointer(dpy, Scr->Focus->w, 
+X+    &root, &child, 
+X+    &root_x, &root_y, &x, &y, &mask))
+X+    {
+X+    XWarpPointer(dpy, Scr->Focus->w, Tmp_win->w,
+X+    0, 0, 0, 0, x, y);
+X+    } 
+X+    }
+X+    */
+X+ 
+X+ Scr->Focus = Tmp_win;
+X+ }
+X+ 
+X+ void
+X+ HandleFocusOut(event)
+X+ 
+X+ XFocusOutEvent *event;
+X+ 
+X+ {
+X+ 
+X+ #ifdef TRACE_FOCUS
+X+ printf("-0x%x mode=%d, detail=%d\n", Tmp_win, event->mode, event->detail);
+X+ #endif
+X+ 
+X+ SetBorder(Tmp_win, False);
+X+ if (Tmp_win->hilite_w)
+X+     XUnmapWindow(dpy, Tmp_win->hilite_w);
+X+ 
+X+ if (Tmp_win->list) NotActiveIconManager(Tmp_win->list);
+X+ 
+X+ if (Scr->Focus == Tmp_win)
+X+     Scr->Focus= NULL;
+X+ 
+X+ }
+X+ 
+X+ void
+X+ HandleFocusChange()
+X+ 
+X+ {
+X+  XEvent *event;
+X+ 
+X+  if (Tmp_win)
+X+      {
+X+      event = LastFocusEvent(Event.xany.window,&Event);
+X+ 
+X+      if ( event != NULL)
+X+ 	 {
+X+ 	 if (event->type == FocusIn)
+X+ 	     HandleFocusIn(event);
+X+ 	 else
+X+ 	     HandleFocusOut(event);
+X+ 	 }
+X+      }
+X+ }
+X+ 
+X+ void
+X+ SynthesiseFocusOut(w)
+X+ 
+X+ Window w;
+X+ 
+X+ {
+X+ XEvent event;
+X+ 
+X+ event.type=FocusOut;
+X+ event.xfocus.window=w;
+X+ event.xfocus.mode=NotifyNormal;
+X+ event.xfocus.detail=NotifyPointer;
+X+ 
+X+ XPutBackEvent(dpy, &event);
+X+ 
+X+ }
+X+ void
+X+ SynthesiseFocusIn(w)
+X+ 
+X+ Window w;
+X+ 
+X+ {
+X+ XEvent event;
+X+ 
+X+ event.type=FocusIn;
+X+ event.xfocus.window=w;
+X+ event.xfocus.mode=NotifyNormal;
+X+ event.xfocus.detail=NotifyPointer;
+X+ 
+X+ XPutBackEvent(dpy, &event);
+X+ 
+X+ }
+X+ 
+X+ 
+X  /***********************************************************************
+X   *
+X   *  Procedure:
+X***************
+X*** 2014,2033 ****
+X      XEvent dummy;
+X      
+X      /*
+X-      * Save the id of the window entered.  This will be used to remove
+X-      * border highlight on entering the next application window.
+X-      */
+X-     if (UnHighLight_win && ewp->window != UnHighLight_win->w) {
+X-       SetBorder (UnHighLight_win, False);	/* application window */
+X-       if (UnHighLight_win->list) /* in the icon box */
+X- 	NotActiveIconManager(UnHighLight_win->list);
+X-     }
+X-     if (ewp->window == Scr->Root)
+X-       UnHighLight_win = NULL;
+X-     else if (Tmp_win)
+X-       UnHighLight_win = Tmp_win;
+X- 
+X-     /*
+X       * if we aren't in the middle of menu processing
+X       */
+X      if (!ActiveMenu) {
+X--- 2177,2182 ----
+X***************
+X*** 2065,2078 ****
+X  	     * focus on this window
+X  	     */
+X  	    if (Scr->FocusRoot && (!scanArgs.leaves || scanArgs.inferior)) {
+X! 		if (Tmp_win->list) ActiveIconManager(Tmp_win->list);
+X  		if (Tmp_win->mapped) {
+X- 		    /*
+X- 		     * unhighlight old focus window
+X- 		     */
+X- 		    if (Scr->Focus &&
+X- 			Scr->Focus != Tmp_win && Tmp_win->hilite_w)
+X- 		      XUnmapWindow(dpy, Scr->Focus->hilite_w);
+X  
+X  		    /*
+X  		     * If entering the frame or the icon manager, then do 
+X--- 2214,2221 ----
+X  	     * focus on this window
+X  	     */
+X  	    if (Scr->FocusRoot && (!scanArgs.leaves || scanArgs.inferior)) {
+X! /*		if (Tmp_win->list) ActiveIconManager(Tmp_win->list); */
+X  		if (Tmp_win->mapped) {
+X  
+X  		    /*
+X  		     * If entering the frame or the icon manager, then do 
+X***************
+X*** 2087,2106 ****
+X  		     */
+X  		    if (ewp->window == Tmp_win->frame ||
+X  			(Tmp_win->list && ewp->window == Tmp_win->list->w)) {
+X- 			if (Tmp_win->hilite_w)				/* 1 */
+X- 			  XMapWindow (dpy, Tmp_win->hilite_w);
+X  			if (!scanArgs.leaves && !scanArgs.enters)
+X  			    InstallWindowColormaps (EnterNotify,	/* 2 */
+X  						    &Scr->TwmRoot);
+X- 			SetBorder (Tmp_win, True);			/* 3 */
+X  			if (Tmp_win->title_w && Scr->TitleFocus &&	/* 4 */
+X  			    Tmp_win->wmhints && Tmp_win->wmhints->input)
+X  			  SetFocus (Tmp_win, ewp->time);
+X! 			if (Scr->NoTitlebar && Scr->TitleFocus &&	/*4a */
+X  			    Tmp_win->wmhints && Tmp_win->wmhints->input)
+X  			  SetFocus (Tmp_win, ewp->time);
+X  			if (Tmp_win->protocols & DoesWmTakeFocus)	/* 5 */
+X  			  SendTakeFocusMessage (Tmp_win, ewp->time);
+X  			Scr->Focus = Tmp_win;
+X  		    } else if (ewp->window == Tmp_win->w) {
+X  			/*
+X--- 2230,2251 ----
+X  		     */
+X  		    if (ewp->window == Tmp_win->frame ||
+X  			(Tmp_win->list && ewp->window == Tmp_win->list->w)) {
+X  			if (!scanArgs.leaves && !scanArgs.enters)
+X  			    InstallWindowColormaps (EnterNotify,	/* 2 */
+X  						    &Scr->TwmRoot);
+X  			if (Tmp_win->title_w && Scr->TitleFocus &&	/* 4 */
+X  			    Tmp_win->wmhints && Tmp_win->wmhints->input)
+X  			  SetFocus (Tmp_win, ewp->time);
+X! 			else if (Scr->NoTitlebar && Scr->TitleFocus &&	/*4a */
+X  			    Tmp_win->wmhints && Tmp_win->wmhints->input)
+X  			  SetFocus (Tmp_win, ewp->time);
+X  			if (Tmp_win->protocols & DoesWmTakeFocus)	/* 5 */
+X  			  SendTakeFocusMessage (Tmp_win, ewp->time);
+X+ 			else if (!Scr->TitleFocus 
+X+ 				 && Tmp_win->wmhints 
+X+ 				 && Tmp_win->wmhints->input
+X+ 				 && Event.xcrossing.focus)
+X+ 			    SynthesiseFocusIn(Tmp_win->w);
+X  			Scr->Focus = Tmp_win;
+X  		    } else if (ewp->window == Tmp_win->w) {
+X  			/*
+X***************
+X*** 2109,2114 ****
+X--- 2254,2262 ----
+X  			 */
+X  			if (!scanArgs.leaves || scanArgs.inferior)
+X  			    InstallWindowColormaps(EnterNotify, Tmp_win);
+X+ 
+X+ 			if (Event.xcrossing.focus)
+X+ 				SynthesiseFocusIn(Tmp_win->w);
+X  		    }
+X  		}			/* end if Tmp_win->mapped */
+X  		if (Tmp_win->wmhints != NULL &&
+X***************
+X*** 2253,2266 ****
+X  
+X  		if ((Event.xcrossing.window == Tmp_win->frame &&
+X  			!scanArgs.matches) || inicon) {
+X! 		    if (Tmp_win->list) NotActiveIconManager(Tmp_win->list);
+X! 		    if (Tmp_win->hilite_w)
+X! 		      XUnmapWindow (dpy, Tmp_win->hilite_w);
+X! 		    SetBorder (Tmp_win, False);
+X  		    if (Scr->TitleFocus ||
+X  			Tmp_win->protocols & DoesWmTakeFocus)
+X! 		      SetFocus ((TwmWindow *) NULL, Event.xcrossing.time);
+X! 		    Scr->Focus = NULL;
+X  		} else if (Event.xcrossing.window == Tmp_win->w &&
+X  				!scanArgs.enters) {
+X  		    InstallWindowColormaps (LeaveNotify, &Scr->TwmRoot);
+X--- 2401,2416 ----
+X  
+X  		if ((Event.xcrossing.window == Tmp_win->frame &&
+X  			!scanArgs.matches) || inicon) {
+X! 
+X  		    if (Scr->TitleFocus ||
+X  			Tmp_win->protocols & DoesWmTakeFocus)
+X! 			SetFocus ((TwmWindow *) NULL, Event.xcrossing.time);
+X! 
+X! 		    /* pretend there was a focus out as sometimes 
+X! 		       we don't get one. */
+X! 		    if ( Event.xcrossing.focus)
+X! 			SynthesiseFocusOut(Tmp_win->w);
+X! 
+X  		} else if (Event.xcrossing.window == Tmp_win->w &&
+X  				!scanArgs.enters) {
+X  		    InstallWindowColormaps (LeaveNotify, &Scr->TwmRoot);
+END_OF_twm_focus_patch/twm_focus_patch.r5
+if test 9695 -ne `wc -c <twm_focus_patch/twm_focus_patch.r5`; then
+    echo shar: \"twm_focus_patch/twm_focus_patch.r5\" unpacked with wrong size!
+fi
+# end of overwriting check
+fi
+echo shar: End of shell archive.
+exit 0

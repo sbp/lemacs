@@ -1,5 +1,5 @@
 ;; File input and output commands for Emacs
-;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -20,18 +20,6 @@
 (defconst delete-auto-save-files t
   "*Non-nil means delete a buffer's auto-save file
 when the buffer is saved for real.")
-
-(defconst directory-abbrev-alist
-  nil
-  "*Alist of abbreviations for file directories.
-A list of elements of the form (FROM . TO), each meaning to replace
-FROM with TO when it appears in a directory name.
-This replacement is done when setting up the default directory
-of a newly visited file.  *Every* FROM string should start with `^'.
-
-Use this feature when you have directories which you normally refer to
-via absolute symbolic links.  Make TO the name of the link, and FROM
-the name it is linked to.")
 
 ;;; Turn off backup files on VMS since it has version numbers.
 (defconst make-backup-files (not (eq system-type 'vax-vms))
@@ -136,11 +124,25 @@ functions are called.")
 (defvar write-file-hooks nil
   "List of functions to be called before writing out a buffer to a file.
 If one of them returns non-nil, the file is considered already written
-and the rest are not called.")
+and the rest are not called.
+These hooks are considered to pertain to the visited file.
+So this list is cleared if you change the visited file name.
+See also `write-contents-hooks'.")
+
+(defvar write-contents-hooks nil
+  "List of functions to be called before writing out a buffer to a file.
+If one of them returns non-nil, the file is considered already written
+and the rest are not called.
+These hooks are considered to pertain to the buffer's contents,
+not to the particular visited file; thus, `set-visited-file-name' does
+not clear this variable, but changing the major mode does clear it.
+See also `write-file-hooks'.")
 
 (put 'after-write-file-hooks 'permanent-local t)
 (defvar after-write-file-hooks nil
-  "List of functions to be called after writing out a buffer to a file.")
+  "List of functions to be called after writing out a buffer to a file.
+These hooks are considered to pertain to the visited file.
+So this list is cleared if you change the visited file name.")
 
 (defconst enable-local-variables t
   "*Control use of local-variables lists in files you visit.
@@ -252,7 +254,8 @@ If the current buffer now contains an empty file that you just visited
      (and file
 	  (setq file-name (file-name-nondirectory file)
 		file-dir (file-name-directory file)))
-     (list (read-file-name "Find alternate file: " file-dir nil nil file-name))))
+     (list (read-file-name
+	    "Find alternate file: " file-dir nil nil file-name))))
   (and (buffer-modified-p)
        ;; (not buffer-read-only)
        (not (yes-or-no-p (format "Buffer %s is modified; kill anyway? "
@@ -283,19 +286,35 @@ otherwise a string <2> or <3> or ... is appended to get an unused name."
 	(setq lastname filename))
     (generate-new-buffer lastname)))
 
+
+(defun compute-buffer-file-truename ()
+  "Recomputes this buffer's value of `buffer-file-truename'
+based on the current value of `buffer-file-name'."
+  (cond ((null buffer-file-name)
+	 (setq buffer-file-truename nil))
+	((setq buffer-file-truename (truename buffer-file-name))
+	 ;; it exists, we're done.
+	 nil)
+	(t
+	 ;; the file doesn't exist, but maybe the directory does.
+	 (let* ((dir (file-name-directory buffer-file-name))
+		(truedir (truename dir)))
+	   (if truedir (setq dir truedir))
+	   (setq buffer-file-truename
+		 (expand-file-name (file-name-nondirectory buffer-file-name)
+				   dir)))))
+  (if (and find-file-use-truenames buffer-file-truename)
+      (setq buffer-file-name (abbreviate-file-name buffer-file-truename)
+	    default-directory (file-name-directory buffer-file-name)))
+  buffer-file-truename)
+
+
 (defun find-file-noselect (filename &optional nowarn)
   "Read file FILENAME into a buffer and return the buffer.
-If a buffer exists visiting FILENAME, return that one,
-but verify that the file has not changed since visited or saved.
+If a buffer exists visiting FILENAME, return that one, but
+verify that the file has not changed since visited or saved.
 The buffer is not selected, just returned to the caller."
-  (setq filename (expand-file-name filename))
-  ;; Perform any appropriate abbreviations specified in directory-abbrev-alist.
-  (let ((tail directory-abbrev-alist))
-    (while tail
-      (if (string-match (car (car tail)) filename)
-	  (setq filename
-		(concat (cdr (car tail)) (substring filename (match-end 0)))))
-      (setq tail (cdr tail))))
+  (setq filename (abbreviate-file-name (expand-file-name filename)))
   (if (file-directory-p filename)
       (if find-file-run-dired
 	  (dired-noselect filename)
@@ -325,12 +344,6 @@ The buffer is not selected, just returned to the caller."
 		       (set-buffer buf)
 		       (revert-buffer t t)))))
 	(save-excursion
-	  (let* ((link-name (car (file-attributes filename)))
-		 (linked-buf (and (stringp link-name)
-				  (get-file-buffer link-name))))
-	    (if (bufferp linked-buf)
-		(message "Symbolic link to file in buffer %s"
-			 (buffer-name linked-buf))))
 	  (setq buf (create-file-buffer filename))
 	  (set-buffer buf)
 	  (erase-buffer)
@@ -376,7 +389,19 @@ Finishes by calling the functions in find-file-hooks."
 		  ((file-attributes (directory-file-name default-directory))
 		   "File not found and directory write-protected")
 		  (t
-		   "File not found and directory doesn't exist"))))
+		   ;; If the directory the buffer is in doesn't exist,
+		   ;; offer to create it.  It's better to do this now
+		   ;; than when we save the buffer, because we want
+		   ;; autosaving to work.
+		   (setq buffer-read-only nil)
+		   (or (file-exists-p (file-name-directory buffer-file-name))
+		       (if (yes-or-no-p
+			    (format
+		       "The directory containing %s does not exist.  Create? "
+			     (abbreviate-file-name buffer-file-name)))
+			   (make-directory-path
+			    (file-name-directory buffer-file-name))))
+		   nil))))
       (if msg
 	  (progn
 	    (message msg)
@@ -422,8 +447,9 @@ variable spec in the last page.  For that, use `hack-local-variables'."
   ;; Do this by calling the hack-local-variables helper to avoid redundancy.
   (or (let ((enable-local-variables nil))
 	(hack-local-variables-prop-line nil))
-      ;;
-      ;; It's not in the -*- line, so check the auto-mode-alist.
+      ;; It's not in the -*- line, so check the auto-mode-alist, unless
+      ;; this buffer isn't associated with a file.
+      (null buffer-file-name)
       (let (mode
 	    (alist auto-mode-alist)
 	    (name (file-name-sans-versions buffer-file-name))
@@ -622,8 +648,10 @@ if you wish to pass an empty string as the argument."
 	(lock-buffer filename)
 	(unlock-buffer)))
   (setq buffer-file-name filename)
-  (if filename
+  (if filename				; make buffer name reflect filename.
       (let ((new-name (file-name-nondirectory buffer-file-name)))
+	(if (string= new-name "")
+	    (error "Empty file name"))
 	(if (eq system-type 'vax-vms)
 	    (setq new-name (downcase new-name)))
 	(setq default-directory (file-name-directory buffer-file-name))
@@ -644,6 +672,9 @@ if you wish to pass an empty string as the argument."
   (compute-buffer-file-truename) ; insert-file-contents does this too.
   (setq buffer-backed-up nil)
   (clear-visited-file-modtime)
+  ;; write-file-hooks is normally used for things like ftp-find-file
+  ;; that visit things that are not local files as if they were files.
+  ;; Changing to visit an ordinary local file instead should flush the hook.
   (kill-local-variable 'write-file-hooks)
   (kill-local-variable 'after-write-file-hooks)
   (kill-local-variable 'revert-buffer-function)
@@ -681,8 +712,10 @@ of the new file to agree with the old modes."
 	   (file-exists-p buffer-file-name)
 	   (memq (aref (elt (file-attributes buffer-file-name) 8) 0)
 		 '(?- ?l))
-	   (or (< (length buffer-file-name) 5)
-	       (not (string-equal "/tmp/" (substring buffer-file-name 0 5)))))
+;; user should do this with after-find-file-hooks if desired
+;;	   (or (< (length buffer-file-name) 5)
+;;	       (not (string-equal "/tmp/" (substring buffer-file-name 0 5))))
+	   )
       (let ((real-file-name buffer-file-name)
 	    backup-info backupname targets setmodes last)
 	;; If specified name is a symbolic link, chase it to the target.
@@ -821,6 +854,24 @@ Value is a list whose car is the name for the backup file
 (defun file-nlinks (filename)
   "Return number of names file FILENAME has."
   (car (cdr (file-attributes filename))))
+
+(defun file-relative-name-1 (directory)
+  (cond ((string= directory "/")
+	 filename)
+	((string-match (concat "^" (regexp-quote directory))
+		       filename)
+	 (substring filename (match-end 0)))
+	(t
+	 (file-relative-name-1
+	  (file-name-directory (substring directory 0 -1))))))
+
+(defun file-relative-name (filename &optional directory)
+  "Convert FILENAME to be relative to DIRECTORY (default: default-directory)."
+  (setq filename (expand-file-name filename)
+	directory (file-name-as-directory (if directory
+					      (expand-file-name directory)
+					      default-directory)))
+  (file-relative-name-1 directory))
 
 (defun save-buffer (&optional args)
   "Save current buffer in visited file if modified.  Versions described below.
@@ -861,6 +912,7 @@ if variable `delete-auto-save-files' is non-nil.
 Normally delete only if the file was written by this Emacs
 since the last real save, but optional arg FORCE non-nil means delete anyway."
   (and buffer-auto-save-file-name delete-auto-save-files
+       (not (string= buffer-file-name buffer-auto-save-file-name))
        (or force (recent-auto-save-p))
        (progn
 	 (condition-case ()
@@ -920,8 +972,10 @@ since the last real save, but optional arg FORCE non-nil means delete anyway."
 	    ;; recursively (from inside a write-file-hook) the after-
 	    ;; hooks will only get run once (from the outermost call.)
 	    ;;
-	    (let ((after-write-file-hooks nil)
-		  (hooks write-file-hooks))
+	    (let ((hooks (append write-contents-hooks write-file-hooks))
+		  (after-write-file-hooks nil)
+		  (write-contents-hooks nil)
+		  (write-file-hooks nil))
 	      (while (and hooks
 			  (not (setq done (funcall (car hooks)))))
 		(setq hooks (cdr hooks))))
@@ -929,12 +983,18 @@ since the last real save, but optional arg FORCE non-nil means delete anyway."
 	    ;; If a hook returned t, file is already "written".
 	    (cond ((not done)
 		   (if (not (file-writable-p buffer-file-name))
-		       (if (yes-or-no-p
-			    (format "File %s is write-protected; try to save anyway? "
-				    (file-name-nondirectory buffer-file-name)))
-			   (setq tempsetmodes t)
-			 (error
-	      "Attempt to save to a file which you aren't allowed to write")))
+		       (let ((dir (file-name-directory buffer-file-name)))
+			 (if (not (file-directory-p dir))
+			     (error "%s is not a directory" dir)
+			   (if (not (file-exists-p buffer-file-name))
+			       (error "Directory %s write-protected" dir)
+			     (if (yes-or-no-p
+				  (format "File %s is write-protected; try to save anyway? "
+					  (file-name-nondirectory
+					   buffer-file-name)))
+				 (setq tempsetmodes t)
+			       (error
+	   "Attempt to save to a file which you aren't allowed to write"))))))
 		   (or buffer-backed-up
 		       (setq setmodes (backup-buffer)))
 		   (if file-precious-flag
@@ -990,20 +1050,22 @@ since the last real save, but optional arg FORCE non-nil means delete anyway."
 	;; delete it now.
 	(delete-auto-save-file-if-necessary recent-save)
 	;; Now we're done with everything; run the after-write-file-hooks.
+	;; ## warning: FSF calls this variable `after-save-hooks'.
 	(run-hooks 'after-write-file-hooks))
     (message "(No changes need to be saved)")))
 
-
-
 (defun save-some-buffers (&optional arg exiting)
   "Save some modified file-visiting buffers.  Asks user about each one.
-With argument, saves all with no questions."
+Optional argument (the prefix) non-nil means save all with no questions.
+Optional second argument EXITING means ask about certain non-file buffers
+ as well as about file buffers."
   (interactive "P")
   (let (considered (list (buffer-list)))
     (while list
       (let ((buffer (car list)))
 	(and (buffer-modified-p buffer)
-	     (not (assoc 'save-buffers-skip (buffer-local-variables buffer)))
+	     (not (cdr (assoc 'save-buffers-skip
+			      (buffer-local-variables buffer))))
 	     (save-excursion
 	       (set-buffer buffer)
 	       (and
@@ -1094,6 +1156,19 @@ or multiple mail buffers, etc."
     (kill-buffer new-buf)
     (rename-buffer name)
     (set-buffer-modified-p (buffer-modified-p)))) ; force mode line update
+
+(defun make-directory-path (path)
+  "Create all the directories along path that don't exist yet."
+  (interactive "Fdirectory path to create: ")
+  (let ((path (directory-file-name (expand-file-name path)))
+	create-list)
+    (while (not (file-exists-p path))
+      (setq create-list (cons path create-list)	    
+	    path (directory-file-name (file-name-directory path))))
+    (while create-list
+      (make-directory (car create-list))
+      (setq create-list (cdr create-list)))))
+
 
 (put 'revert-buffer-function 'permanent-local t)
 (defvar revert-buffer-function nil
@@ -1181,7 +1256,8 @@ do the work."
 		 (with-output-to-temp-buffer "*Directory*"
 		   (buffer-disable-undo standard-output)
 		   (call-process "ls" nil standard-output nil
-				 "-l" file file-name)))
+				 (if (file-symlink-p file) "-lL" "-l")
+				 file file-name)))
 	     (yes-or-no-p (format "Recover auto save file %s? " file-name)))
 	   (switch-to-buffer (find-file-noselect file t))
 	   (let ((buffer-read-only nil))
@@ -1320,7 +1396,7 @@ With prefix arg, silently save all file-visiting buffers, then kill."
 	   (let ((processes (process-list))
 		 active)
 	     (while processes
-	       (and (memq (process-status (car processes)) '(run stop))
+	       (and (memq (process-status (car processes)) '(run stop open))
 		    (let ((val (process-kill-without-query (car processes))))
 		      (process-kill-without-query (car processes) val)
 		      val)
@@ -1329,22 +1405,3 @@ With prefix arg, silently save all file-visiting buffers, then kill."
 	     (or (not active)
 		 (yes-or-no-p "Active processes exist; kill them and exit anyway? "))))
        (kill-emacs)))
-
-(define-key ctl-x-map "\C-f" 'find-file)
-(define-key ctl-x-map "\C-q" 'toggle-read-only)
-(define-key ctl-x-map "\C-r" 'find-file-read-only)
-(define-key ctl-x-map "\C-v" 'find-alternate-file)
-(define-key ctl-x-map "\C-s" 'save-buffer)
-(define-key ctl-x-map "s" 'save-some-buffers)
-(define-key ctl-x-map "\C-w" 'write-file)
-(define-key ctl-x-map "i" 'insert-file)
-(define-key esc-map "~" 'not-modified)
-(define-key ctl-x-map "\C-d" 'list-directory)
-(define-key ctl-x-map "\C-c" 'save-buffers-kill-emacs)
-
-(define-key ctl-x-4-map "f" 'find-file-other-window)
-(define-key ctl-x-4-map "r" 'find-file-read-only-other-window)
-(define-key ctl-x-4-map "\C-f" 'find-file-other-window)
-(define-key ctl-x-4-map "b" 'switch-to-buffer-other-window)
-
-(define-key global-map "\e\C-l" 'switch-to-other-buffer)

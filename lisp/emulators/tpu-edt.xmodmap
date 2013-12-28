@@ -1,0 +1,90 @@
+! Last modified:26-oct-92.90
+!
+! Input file for xmodmap.  This file is used to re-map a Sun4 right keypad
+! into a VT100 style right keypad.
+!
+! See 'man xmodmap' for more details.
+!
+! Usage:  xmodmap this_file
+!
+!        +-------+-------+-------+-------+
+! Keycode|  28   |   29  |  30   |  105  |
+!        |       |       |       |       |
+!  VT100 |   ^   |    V  |  <-   |   ->  |
+!        +-------+-------+-------+-------+
+!        |  52   |   53  |  54   |   78  |
+!        |       |       |       |       |
+!        |  PF1  |  PF2  |  PF3  |  PF4  |
+!        +-------+-------+-------+-------+
+!        |  75   |   76  |  77   |  132  |
+!        |       |       |       |       |
+!        |   7   |    8  |   9   |   -   |    Shift 8 is Up
+!        +-------+-------+-------+       |    Shift 4 is Left
+!        |  98   |   99  | 100   |       |    Shift 6 is Right
+!        |       |       |       |   ,   |    Shift 2 is Down
+!        |   4   |    5  |   6   |       |
+!        +-------+-------+-------+-------+    To get the Sun4 keys as labelled
+!        | 119   |  120  | 121   |   97  |    on the keypad be sure that
+!        |       |       |       |       |    Shift is engaged (except for
+!        |   1   |    2  |   3   |   E   |    the + key.
+!        +-------+-------+-------+   n   |
+!        |      101      |  57   |   t   |
+!        |               |       |   e   |
+!        |       0       |   .   |   r   |
+!        +---------------+-------+-------+
+!
+clear Mod4
+! Redefine the L1-L10 keys on left side of keyboard
+keycode 8 = F21
+keycode 10 = F22
+keycode 32 = F23
+keycode 33 = F24
+keycode 56 = F25
+keycode 58 = F26
+keycode 79 = F31
+keycode 80 = F28
+keycode 102 = F29
+keycode 104 = F30
+! Redefine R1-R3 and NumLock for arrow keys ... Why no repeat no most?
+keycode 28 = Up
+keycode 29 = Down
+keycode 30 = Left
+keycode	105 = Right
+keycode 52 = KP_F1  KP_Equal
+keycode 53 = KP_F2  KP_Divide
+keycode 54 = KP_F3  KP_Multiply
+keycode 78 = KP_F4  KP_Subtract
+! Redefine F1-F10 for F1-F20! (Use shift key)
+keycode 12 = F1 F11
+keycode 13 = F2 F12
+keycode 15 = F3 F13
+keycode 17 = F4 F14
+keycode 19 = F5 F15
+keycode 21 = F6 F16
+keycode 23 = F7 F17
+keycode 24 = F8 F18
+keycode 25 = F9 F19
+keycode 14 = F10 F20
+!keycode 16 = 
+!keycode 18= 
+! The Sun4 + key is really 2 VT100 keys: , and - so use the Shift modifier
+! to mimic this.  This means the loss of the normal Sun4 function
+keycode 132 = KP_Separator KP_Subtract KP_Add
+keycode 75 = KP_7 F27
+keycode 76 = KP_8 Up
+keycode 77 = KP_9 F29
+keycode 98 = KP_4 Left
+!keycode 99 = KP_5 F31
+keycode 99 = KP_5 
+keycode 100 = KP_6 Right
+keycode 119 = KP_1 R13
+keycode 120 = KP_2 Down
+keycode 121 = KP_3 F35
+keycode 101 = KP_0 Insert
+keycode 57 = KP_Decimal
+keycode 97 = KP_Enter
+
+clear mod2
+clear mod3
+clear mod4
+clear mod5

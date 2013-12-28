@@ -87,7 +87,7 @@ System V rel 4 (s-usg5-4.h)
   The standard C preprocessor generate xmakefile incorrectly.  However,
   /lib/cpp will work, so use `make CPP=/lib/cpp'.
 
-Ultrix (s-bsd4-2.h)
+Ultrix (s-ultrix4-2.h)
 
   DEC's Ultrix OS is essentially Berkeley 4.2.  It does not correctly
   implement certain features of 4.3.
@@ -284,7 +284,8 @@ Gould (m-gould.h; s-bsd4-2.h or s-bsd4-3.h)
 
 HP 9000 series 200 or 300 (m-hp9000s300.h; s-hpux.h or s-bsd4-3.h)
 
-  Version 18 works.
+  Use the "-Aa +e" option to HP's cc.
+
   These machines are 68000-series CPUs running HP-UX
   (a derivative of sysV with some BSD features) or BSD 4.3 ported by Utah.
   The choice of s- file determines which system Emacs is built for.
@@ -321,6 +322,8 @@ HP 9000 series 200 or 300 (m-hp9000s300.h; s-hpux.h or s-bsd4-3.h)
 
 HP 9000 series 800 (Spectrum) (m-hp9000s800.h; s-hpux.h)
 
+  Use the "-Aa +e" option to HP's cc.
+
   These files support HP's Precision Architecture machines
   running HP-UX.  It has been moderately tested on the Series
   840.
@@ -349,7 +352,7 @@ IBM PS2 (m-ibmps2-aix.h; s-usg5-2-2.h or s-usg5-3.h)
   s-usg5-2-2.h should work on either AIX 1.1 or 1.2, but may not work with
   certain new X window managers, and may be suboptimal.
 
-IBM RS/6000 (m-ibmrs6000.h; s-aix3-1.h)
+IBM RS/6000 (m-ibmrs6000.h; s-aix3-1.h or s-aix3-2.h)
 
   Changes merged in 18.56.
 
@@ -499,16 +502,27 @@ Motorola Delta (m-delta.h; s-usg5-3.h)
 
   m- file added in version 18.56.
 
+Motorola Delta running System V release 4 (m-delta88.h; s-usg5-4.h)
+
+  Since the default compilation system is GNU C, but the GCC driver is not 
+  used, you will need to make the following changes:
+  1. don't define either USE_GCC or USE_LCC. 
+  2. define LIB_GCC to be /usr/ccs/lib/gcc2/libgcc.a outside of the 
+     `#ifdef USE_GCC ... #endif' block since ld is directly used to build
+     temacs, and ld really needs to know where LIB_GCC is.
+
 National Semiconductor 32000 (m-ns32000.h; s-usg5-2.h)
 
   This is for a complete machine from National Semiconductor,
   running Genix.  Changes merged in version 19.
 
-NeXT (m-NeXT.h, s-bsd4-3.h)
+NeXT (m-NeXT.h, s-mach2.h)
 
   This has only been tried with PenCom's "co-Xist" package, which is an
   implementation of X11 for the NeXT.  There is not yet an emacs port that
   uses NeXTStep directly.
+
+  It may not work to define MAINTAIN_ENVIRONMENT on NeXTs.
 
 NCR Tower 32 running System V release 2 (m-tower32.h; s-usg5-2-2.h)
 
@@ -576,6 +590,15 @@ Sequent (m-sequent.h; s-bsd4-2.h)
   3.0.  18.5[23] is said to work.  Delete some lines at the end of
   m-sequent.h for earlier system versions.
 
+Solaris2 (m-sparc.h, s-solaris2.h)
+
+    If you're using the SunPro cc, you need to use /usr/ccs/lib/cpp
+    (or the "-Xs" flag along with "cc -E") in order to preprocess
+    files;  modify src/Makefile appropriately.
+
+    You'll get a warning about duplicate definitions of __free in libnsl
+    because of the definition in gmalloc.o.  Ignore this message.
+
 SONY News (m-news.h; s-bsd4-2.h, or s-bsd4-3.h for system release 3)
 
   18.52 should work.
@@ -630,15 +653,18 @@ Sun 1, 2 and 3 (m-sun1.h, m-sun2.h, m-sun3.h; s-bsd4-2.h or s-sunos4.h)
   To build a single Emacs that will run on Sun 2 and Sun 3
   HARDWARE, just build it on the Sun 2.
 
-Sun 4 (m-sparc.h; s-bsd4-2.h or s-sunos4.h)
-
-  Changes merged in 18.50.  Some people say optimizing compilation
-  does not work; some say that -O2 (whatever that is) works
-  perhaps with a small change.
+Sun 4 (m-sparc.h; s-sunos4.h or s-sunos4shr.h)
 
   Use s-sunos4.h for operating system version 4.
-  See the file etc/SUNBUG for how to solve problems caused by bugs in
-  the "export" version of SunOS 4.
+  Use s-sunos4shr.h to build emacs linked against dynamic libraries.
+  (All this does is replace the link option -Bstatic with -Bdynamic.)
+
+  The X headers and libraries that Sun ships in /usr/{include,lib}/X11 are
+  broken.  Use the ones in /usr/openwin/{include,lib} instead.
+
+  Apparently the SunOS 4.1.2 libXmu.so.a is hosed: it's missing some stuff 
+  that is in libXmu.a, so you may need to change the link command from
+  "-lXmu" to "-Bstatic -lXmu -Bdynamic" if you want to link dynamically.
 
 Sun Roadrunner (m-sun386.h; s-sunos4.h)
 

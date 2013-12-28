@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Fri Aug 21 00:55:27 1992
-;;; from file /wg1/emacs-base/lisp/prim/inc-vers.el
-;;; emacs version 19.2.9 Lucid.
-;;; bytecomp version 2.08;  7-aug-92.
+;;; compiled by jwz@thalidomide on Thu Nov 12 10:53:31 1992
+;;; from file /u/jwz/emacs19/lisp/prim/inc-vers.el
+;;; emacs version 19.3.4 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

@@ -21,6 +21,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* config.h may rename various library functions such as malloc.  */
 #ifdef emacs
 #include "config.h"
+extern void *xmalloc ();
+extern void *xrealloc ();
+extern void *memcpy ();
+extern char *strcat ();
 #endif
 
 /* Assuming STRING is the value of a termcap string entry
@@ -106,7 +110,7 @@ tparam1 (string, outstring, len, up, left, argp)
 	    {
 	      new = (char *) xmalloc (outlen = 40 + len);
 	      outend += 40;
-	      bcopy (outstring, new, op - outstring);
+	      memcpy (new, outstring, op - outstring);
 	    }
 	  else
 	    {

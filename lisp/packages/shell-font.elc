@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Jun 30 22:37:09 1992
-;;; from file /wg1/emacs-base/lisp/packages/shell-font.el
-;;; emacs version 19.2.1 Lucid.
-;;; bytecomp version 2.07; 17-jun-92.
+;;; compiled by jwz@thalidomide on Mon Dec 28 16:02:10 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/packages/shell-font.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.08; 13-dec-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -11,7 +11,10 @@
     (error "This file was compiled for Emacs19."))
 
 (byte-code "ÀÁ!¬„ÂÁ!ˆÃÁ!¬…ÄÅÁ\"ˆÀ‡" [find-face shell-prompt make-face face-differs-from-default-p copy-face bold] 3)
-(fset 'shell-face-process-filter #[(proc string) "ŠÀ	!qˆÂ	!bˆ`Ä!ˆÂ	!`Æ“ˆdbˆÇÉ#­Ê•bˆËÆxˆÌÍÊ”`\"Î\"*‡" [process-buffer proc process-mark p insert-before-markers string nil re-search-backward comint-prompt-regexp t 0 " 	" set-extent-face make-extent shell-prompt] 4 "\
+(fset 'shell-hack-prompt-font #[(limit) "ŠdbˆÀ ÂÃÆ#­Ç•bˆÈÉxˆÊËÇ”`\"Ì\"+‡" [match-data _match_data_ ((store-match-data _match_data_)) re-search-backward comint-prompt-regexp limit t 0 " 	" nil set-extent-face make-extent shell-prompt] 4 "\
+Search backward from point-max for text matching the comint-prompt-regexp,
+and put it in the `shell-prompt' face.  LIMIT is the left bound of the search."])
+(fset 'shell-face-process-filter #[(proc string) "ŠÀ	!qˆÂ	!bˆ`­ƒÅ!Çp!‰­„É!\nË!ˆ\n«ˆÍ\nÎ#ˆ«†Ï“ˆÂ	!`Ï“ˆĞ!-‡" [process-buffer proc process-mark p comint-last-input-end marker-position ie get-buffer-window w window-start ws insert-before-markers string set-window-start t nil shell-hack-prompt-font] 5 "\
 A process-filter that simply inserts the string into the process's buffer,
 to give the illusion of a process with no filter, but then searches backward
 for text matching the comint-prompt-regexp of this buffer, and puts it in

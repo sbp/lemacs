@@ -1,5 +1,5 @@
-;;; Id: pcl-cvs.el,v 1.52.2.1 1992/08/21 13:19:27 ceder Exp 
-;;; pcl-cvs.el -- A Front-end to CVS 1.3 or later.  Release 1.03.
+;;; Id: pcl-cvs.el,v 1.52.2.3 1992/09/23 20:04:29 ceder Exp 
+;;; pcl-cvs.el -- A Front-end to CVS 1.3 or later.  Release 1.03.1.
 ;;; Copyright (C) 1991, 1992  Per Cederqvist
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
@@ -34,25 +34,24 @@
 ;;; -------------------------------------------------------
 ;;;	    START OF THINGS TO CHECK WHEN INSTALLING
 
-(defvar cvs-program "/usr/local/bin/cvs"
+(defvar cvs-program "/usr/gnu/bin/cvs"
   "*Full path to the cvs executable.")
 
-(defvar cvs-diff-program "/usr/local/bin/diff"
+(defvar cvs-diff-program "/usr/gnu/bin/diff"
   "*Full path to the diff program.")
 
-(defvar cvs-rmdir-program "/usr/bin/rmdir"
+(defvar cvs-rmdir-program "/usr/gnu/bin/rmdir"
   "*Full path to the rmdir program. Typically /bin/rmdir.")
 
 ;; Uncomment the following line if you are running on 18.57 or earlier.
-(setq delete-exited-processes nil)
-
+;(setq delete-exited-processes nil)
 ;; Emacs version 18.57 and earlier is likely to crash if
 ;; delete-exited-processes is t, since the sentinel uses lots of
 ;; memory, and 18.57 forgets to GCPROT a variable if
 ;; delete-exited-processes is t.
 
 (defvar cvs-shell "/bin/sh"
-  "*Full path to a shell that can do redirection on stderr.")
+  "*Full path to a shell that can do redirection on stdout.")
 
 ;;;	     END OF THINGS TO CHECK WHEN INSTALLING
 ;;; --------------------------------------------------------
@@ -100,7 +99,7 @@ Output from cvs is placed here by synchronous commands.")
 (defvar cvs-cvs-diff-flags nil
   "*List of strings to use as flags to pass to ``cvs diff''.
 Do not confuse with cvs-diff-flags. Used by cvs-diff-cvs.
-Set this to '("-u") to get a Unidiff format, or '("-c") to get context diffs.")
+Set this to '(\"-u\") to get a Unidiff format, or '(\"-c\") to get context diffs.")
 
 (defvar cvs-diff-ignore-marks nil
   "*Non-nil if cvs-diff and cvs-diff-backup should ignore any marked files.
@@ -140,13 +139,13 @@ Due to a bug in emacs 18.57 the sentinel can't discard them reliably.")
 (defvar cvs-inhibit-copyright-message nil
   "*Non-nil means don't display a Copyright message in the ``*cvs*'' buffer.")
 
-(defconst pcl-cvs-version "1.03"
+(defconst pcl-cvs-version "1.03.1"
   "A string denoting the current release version of pcl-cvs.")
 
 (defvar cvs-startup-message
   (if cvs-inhibit-copyright-message
-      "PCL-CVS release 1.03"
-    "PCL-CVS release 1.03.  Copyright (C) 1992 Per Cederqvist
+      "PCL-CVS release 1.03.1"
+    "PCL-CVS release 1.03.1.  Copyright (C) 1992 Per Cederqvist
 Pcl-cvs comes with absolutely no warranty; for details consult the manual.
 This is free software, and you are welcome to redistribute it under certain
 conditions; again, consult the TeXinfo manual for details.")
@@ -419,6 +418,12 @@ Both LOCAL and DONT-CHANGE-DISC may be non-nil simultaneously.
 
 *Note*: DONT-CHANGE-DISC does not yet work. The parser gets confused."
   (save-some-buffers)
+  (if (not (file-exists-p cvs-program))
+      (error "%s: file not found (check setting of cvs-program)"
+	     cvs-program))
+  (if (not (getenv "CVSROOT"))
+      (error "You must set the CVSROOT environment variable \
+before starting emacs."))
   (let* ((this-dir (file-name-as-directory (expand-file-name directory)))
 	 (update-buffer (generate-new-buffer
 			 (concat (file-name-nondirectory
@@ -445,9 +450,9 @@ Both LOCAL and DONT-CHANGE-DISC may be non-nil simultaneously.
 	(error "Can't run two `cvs update' simultaneously."))
 
     ;; Generate "-n update -l".
-    (setq args (concat (if local " -l ")
+    (setq args (concat (if dont-change-disc " -n ")
 		       " update "
-		       (if dont-change-disc " -n ")))
+		       (if local " -l ")))
 
     ;; Set up the buffer that receives the output from "cvs update".
     (set-buffer update-buffer)
@@ -476,7 +481,7 @@ Both LOCAL and DONT-CHANGE-DISC may be non-nil simultaneously.
     (cookie-enter-first
      cvs-buffer-name
      (cvs-create-fileinfo
-      'MESSAGE nil nil (concat "\n    Running `cvs update' in " this-dir
+      'MESSAGE nil nil (concat "\n    Running `cvs " args "' in " this-dir
 			       "...\n")))
 
     ;; Work around a bug in emacs 18.57 and earlier.
@@ -519,7 +524,7 @@ Full documentation is in the TeXinfo file.  These are the most useful commands:
 \\[cvs-log]   Run ``cvs log''.            \\[cvs-status]   Run ``cvs status''.
 
 Entry to this mode runs cvs-mode-hook.
-This description is updated for release 1.03 of pcl-cvs.
+This description is updated for release 1.03.1 of pcl-cvs.
 All bindings:
 \\{cvs-mode-map}"
   (interactive)
@@ -663,7 +668,7 @@ Point should be in column 1 when this function is called."
 			  (match-end arg))))
    (t
     (cvs-parse-error stdout stderr
-		     (if (eq (current-buffer stdout) 'STDOUT 'STDERR))
+		     (if (eq (current-buffer) stdout) 'STDOUT 'STDERR)
 		     (point)))))
 
 (defun cvs-get-current-dir (root-dir dirname)
@@ -695,6 +700,7 @@ Args: STDOUT-BUFFER STDERR-BUFFER ERR-BUF POS.
 ERR-BUF should be 'STDOUT or 'STDERR."
   (setq pos (1- pos))
   (set-buffer cvs-buffer-name)
+  (setq buffer-read-only nil)
   (erase-buffer)
   (insert "To: ceder@lysator.liu.se\n")
   (insert "Subject: pcl-cvs " pcl-cvs-version " parse error.\n")
@@ -709,6 +715,9 @@ ERR-BUF should be 'STDOUT or 'STDERR."
   (insert "information that you might consider confidential.  You\n")
   (insert "are encouraged to read through it before sending it.\n")
   (insert "\n")
+  (insert "Press C-c C-c to send this email.\n\n")
+  (insert "Please state the version of these programs you are using:\n")
+  (insert "RCS:  \ndiff: \n\n")
 
   (let* ((stdout (save-excursion (set-buffer stdout-buffer) (buffer-string)))
 	 (stderr (save-excursion (set-buffer stderr-buffer) (buffer-string)))
@@ -720,7 +729,7 @@ ERR-BUF should be 'STDOUT or 'STDERR."
     (insert "<\n")
     (insert "Sent to " (symbol-name err-buf) " at pos " (format "%d\n" pos))
     (insert "Emacs-version: " (emacs-version) "\n")
-    (insert "Pcl-cvs !" "Id:" "!" ": " "!Id: pcl-cvs.el,v 1.52.2.1 1992/08/21 13:19:27 ceder Exp !\n")
+    (insert "Pcl-cvs $" "Id:" "$" ": " "Id: pcl-cvs.el,v 1.52.2.3 1992/09/23 20:04:29 ceder Exp \n")
     (insert "\n")
     (insert (format "--- Contents of stdout buffer (%d chars) ---\n"
 		    (length stdout)))
@@ -731,6 +740,7 @@ ERR-BUF should be 'STDOUT or 'STDERR."
     (insert stderr)
     (insert "--- End of stderr buffer ---\n")
     (insert "End of bug report.\n")
+    (require 'sendmail)
     (mail-mode)
     (error "CVS parse error - please report this bug.")))
       
@@ -967,6 +977,32 @@ second party")
 
 	      (setcdr head (list fileinfo))
 	      (setq head (cdr head))))
+
+	   ;; Was it a conflict, and was RCS compiled without DIFF3_BIN?
+
+	   ((looking-at
+	     ;; Allow both RCS 5.5 and 5.6. (5.6 prints "rcs" and " warning").
+	     "^\\(rcs\\)?merge\\( warning\\)?: overlaps or other probl\
+ems during merge$")
+
+	    ;; Yes, this is a conflict.
+	    (cvs-skip-line
+	     stdout-buffer stderr-buffer
+	     "^\\(rcs\\)?merge\\( warning\\)?: overlaps .*during merge$")
+
+	    (cvs-skip-line stdout-buffer stderr-buffer
+			   "^cvs update: could not merge ")
+	    (cvs-skip-line stdout-buffer stderr-buffer
+			   "^cvs update: restoring .* from backup file ")
+
+	    (let ((fileinfo
+		   (cvs-create-fileinfo
+		    'CONFLICT current-dir
+		    filename
+		    (buffer-substring complex-start (point)))))
+
+	      (setcdr head (list fileinfo))
+	      (setq head (cdr head))))	   
 
 	   (t
 	    ;; Not a conflict; it must be a succesful merge.
@@ -1395,6 +1431,9 @@ invert the influence from cvs-diff-ignore-marks."
 
   (interactive "P")
 
+  (if (not (listp cvs-cvs-diff-flags))
+      (error "cvs-cvs-diff-flags should be a list of strings"))
+
   (save-some-buffers)
   (let ((marked (cvs-get-marked
 		 (or (and ignore-marks (not cvs-diff-ignore-marks))
@@ -1422,6 +1461,10 @@ invert the influence from cvs-diff-ignore-marks.
 The flags in cvs-diff-flags will be passed to ``diff''."
 
   (interactive "P")
+
+  (if (not (listp cvs-diff-flags))
+      (error "cvs-diff-flags should be a list of strings."))
+
   (save-some-buffers)
   (let ((marked (cvs-filter
 		 (function cvs-backup-diffable)
@@ -1817,3 +1860,10 @@ Args: POS."
     (princ "\n" stream)
     (princ (cvs-fileinfo->marked cookie) stream)
     (princ "\n" stream)))
+
+
+(if (string-match "Lucid" emacs-version)
+    (progn
+      (autoload 'pcl-cvs-fontify "pcl-cvs-lucid")
+      (add-hook 'cvs-mode-hook 'pcl-cvs-fontify)))
+

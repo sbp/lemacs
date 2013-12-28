@@ -22,16 +22,17 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 struct extent
 {
   unsigned short flags;
-  /* non-zero only for "extended type extents" */
-  unsigned short secondary_type;
+  short attr_index;
+  short priority;
   int start;
   int end;
   struct extent *next;
   struct extent *previous;
   struct extent *e_next;
   struct extent *e_previous;
-  int attr_index;
   Lisp_Object buffer;
+  GLYPH begin_glyph;
+  GLYPH end_glyph;
   Lisp_Object user_data;
 };
 
@@ -173,20 +174,17 @@ typedef int (*elisp_emf)(Lisp_Object extent_obj, void *arg);
 extern void adjust_extents 
 (int old_gap, int new_gap, int gap_size, struct buffer *buf);
 extern void verify_extent_modification (struct buffer *buf, int from, int to);
-extern int extent_endpoint (EXTENT extent, int endp);
+/*extern int extent_endpoint (EXTENT extent, int endp);*/
 extern void detach_extent (EXTENT extent);
-extern void update_extent 
-(EXTENT extent, int from, int to, int set_endpoints, struct buffer *buf);
+/* extern void update_extent (EXTENT extent, int from, int to, int set_endpoints, struct buffer *buf); */
 extern void map_extents (int from, int to, elisp_emf efn, emf fn, void *arg, 
                          struct buffer *buf, int closed_end);
 extern Lisp_Object Fmap_extents 
 (Lisp_Object function, Lisp_Object buffer, 
  Lisp_Object from, Lisp_Object to, Lisp_Object maparg, Lisp_Object closed_end);
-extern int extent_highlightable_p (Lisp_Object extent_obj);
-extern Lisp_Object Fhighlight_extent 
-(Lisp_Object extent_obj, Lisp_Object flag);
-extern Lisp_Object Fforce_highlight_extent 
-(Lisp_Object extent_obj, Lisp_Object flag);
+/*extern int extent_highlightable_p (Lisp_Object extent_obj);*/
+extern Lisp_Object Fhighlight_extent (Lisp_Object extent_obj, Lisp_Object flag);
+extern Lisp_Object Fforce_highlight_extent (Lisp_Object extent_obj, Lisp_Object flag);
 extern Lisp_Object Fextent_start_position (Lisp_Object extent_obj);
 extern Lisp_Object Fextent_end_position (Lisp_Object extent_obj);
 extern Lisp_Object Fextent_length (Lisp_Object extent_obj);
@@ -215,9 +213,7 @@ extern Lisp_Object merge_replicas
 (int number_of_lists, struct merge_replicas_struct *vec);
 extern void syms_of_extents (void);
    
-#ifdef ENERGIZE
-extern int inside_parse_buffer;
-#endif
+extern GLYPH extent_glyph_at (EXTENT extent, int pos, int endp);
 
 extern Lisp_Object Vlast_highlighted_extent;
 #define EXTENT_BEGIN_GLYPH_AT(extent,pos) extent_glyph_at (extent, pos, 0)

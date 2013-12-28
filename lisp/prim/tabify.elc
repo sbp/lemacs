@@ -1,5 +1,5 @@
-;;; compiled by jwz@thalidomide on Tue Jun 30 22:41:43 1992
-;;; from file /wg1/emacs-base/lisp/prim/tabify.el
+;;; compiled by jwz@thalidomide on Tue Jun 30 23:28:47 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/prim/tabify.el
 ;;; emacs version 19.2.1 Lucid.
 ;;; bytecomp version 2.07; 17-jun-92.
 ;;; optimization is on.

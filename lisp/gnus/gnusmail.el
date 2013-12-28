@@ -90,7 +90,9 @@ Customize the variable gnus-mail-other-window-method to use another mailer."
 (defun gnus-mail-reply-using-mail (&optional yank)
   "Compose reply mail using mail.
 Optional argument YANK means yank original article."
+  (gnus-Article-show-all-headers) ; to get references field
   (news-mail-reply)
+  (gnus-news-mail-reply-init)
   (gnus-overload-functions)
   (if yank
       (let ((last (point)))
@@ -99,27 +101,48 @@ Optional argument YANK means yank original article."
 	(goto-char last)
 	)))
 
+(defun gnus-news-mail-reply-init ()
+  (save-excursion
+    (or (eq major-mode 'mail-mode) (error "confused about major mode"))
+    (use-local-map (if (current-local-map)
+		       (copy-keymap (current-local-map))
+		     (make-sparse-keymap)))
+    (define-key (current-local-map) "\^C\^Y" 'news-reply-yank-original)
+    (set-buffer "*Article*")
+    (if (and (not (zerop (buffer-size)))
+	     (equal major-mode 'gnus-Article-mode))
+	(progn
+	  (gnus-Article-show-all-headers)
+	  (narrow-to-region (point-min)
+			    (progn (goto-char (point-min))
+				   (search-forward "\n\n")
+				   (- (point) 2)))
+	  (setq news-reply-yank-from (mail-fetch-field "from")
+		news-reply-yank-message-id (mail-fetch-field "message-id"))
+	  (widen)))))
+
+
+(defvar gnus-forward-header-function
+  '(lambda ()
+     (concat "[" gnus-newsgroup-name "] "
+	     (or (gnus-fetch-field "Subject") ""))))
+
 (defun gnus-mail-forward-using-mail ()
-  "Forward the current message to another user using mail."
-  ;; This is almost a carbon copy of rmail-forward in rmail.el.
-  (let ((forward-buffer (current-buffer))
-	(subject
-	 (concat "[" gnus-newsgroup-name "] "
-		 ;;(mail-strip-quoted-names (gnus-fetch-field "From")) ": "
-		 (or (gnus-fetch-field "Subject") ""))))
-    ;; If only one window, use it for the mail buffer.
-    ;; Otherwise, use another window for the mail buffer
-    ;; so that the Rmail buffer remains visible
-    ;; and sending the mail will get back to it.
-    (if (if (one-window-p t)
-	    (mail nil nil subject)
-	  (mail-other-window nil nil subject))
+  "Forward the current message to another user using mail, RFC944 style."
+  (let ((forward-buffer gnus-Article-buffer)
+	(subject (funcall gnus-forward-header-function)))
+    (if (mail nil nil subject)
 	(save-excursion
 	  (goto-char (point-max))
+	  (or (bolp) (insert "\n"))
 	  (insert "------- Start of forwarded message -------\n")
-	  (insert-buffer forward-buffer)
+	  (let ((p (point)))
+	    (insert-buffer forward-buffer)
+	    (goto-char p)
+	    (while (re-search-forward "^-" nil t)
+	      (replace-match "- -" t t)))
 	  (goto-char (point-max))
-	  (insert "------- End of forwarded message -------\n")
+	  (insert "\n------- End of forwarded message -------\n")
 	  ;; You have a chance to arrange the message.
 	  (run-hooks 'gnus-mail-forward-hook)
 	  ))))

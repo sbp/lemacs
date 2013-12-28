@@ -1,4 +1,5 @@
-;;;; This file byte-compiles all .el files in pcl-cvs release 1.03.
+;;;; $Id: compile-all.el,v 1.4 1992/10/29 02:43:41 jwz Exp $
+;;;; This file byte-compiles all .el files in pcl-cvs release 1.03.1.
 ;;;;
 ;;;; Copyright (C) 1991 Inge Wallin
 ;;;;

@@ -1,5 +1,5 @@
 ;; Record version number of Emacs.
-;; Copyright (C) 1985, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -20,7 +20,7 @@
 
 ;; The following line is modified automatically
 ;; by loading inc-version.el, each time a new Emacs is dumped.
-(defconst emacs-version "19.3" "\
+(defconst emacs-version "19.4" "\
 Version numbers of this version of Emacs.")
 
 (setq emacs-version (purecopy (concat emacs-version " Lucid")))

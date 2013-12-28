@@ -116,7 +116,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Describe layout of the address space in an executing process.  */
 
 #define TEXT_START 0x400000
+#ifndef DATA_START
 #define DATA_START 0x800000
+#endif
 
 /* Alter some of the options used when linking.  */
 

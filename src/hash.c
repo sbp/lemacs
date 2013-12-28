@@ -1,3 +1,22 @@
+/* Hash tables.
+   Copyright (C) 1992 Free Software Foundation, Inc.
+
+This file is part of GNU Emacs.
+
+GNU Emacs is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+GNU Emacs is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GNU Emacs; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
 #include <string.h>
 #include "hash.h"
 
@@ -133,8 +152,8 @@ free_hashtable (hash)
 #ifdef emacs
   if (hash->elisp_table) return;
 #endif
-  free (hash->harray);
-  free (hash);
+  xfree (hash->harray);
+  xfree (hash);
 }
 
 c_hashtable
@@ -142,7 +161,7 @@ make_hashtable (hsize)
      unsigned int hsize;
 {
   c_hashtable res = (c_hashtable) xmalloc (sizeof (struct _C_hashtable));
-  bzero (res, sizeof (struct _C_hashtable));
+  memset (res, 0, sizeof (struct _C_hashtable));
   res->size = prime_size ((13 * hsize) / 10);
   res->harray = (hentry *) xmalloc (sizeof (hentry) * res->size);
   clrhash (res);
@@ -155,7 +174,7 @@ make_general_hashtable (unsigned int hsize,
 			int (*test_function)())
 {
   c_hashtable res = (c_hashtable) xmalloc (sizeof (struct _C_hashtable));
-  bzero (res, sizeof (struct _C_hashtable));
+  memset (res, 0, sizeof (struct _C_hashtable));
   res->size = prime_size ((13 * hsize) / 10);
   res->harray = (hentry *) xmalloc (sizeof (hentry) * res->size);
   res->hash_function = hash_function;
@@ -201,7 +220,7 @@ copy_hash (dest, src)
         elisp_hvector_free (dest->harray, dest->elisp_table);
       else
 #endif
-        free (dest->harray);
+        xfree (dest->harray);
 
       dest->size = src->size;
 #ifdef emacs
@@ -223,7 +242,7 @@ copy_hash (dest, src)
   memcpy (dest->harray, src->harray, sizeof (hentry) * dest->size);
 }
   
-void
+static void
 grow_hashtable (hash, new_size)
      c_hashtable hash; unsigned int new_size;
 {
@@ -260,7 +279,7 @@ grow_hashtable (hash, new_size)
     elisp_hvector_free (old_harray, hash->elisp_table);
   else
 #endif
-    free (old_harray);
+    xfree (old_harray);
 }
 
 void 

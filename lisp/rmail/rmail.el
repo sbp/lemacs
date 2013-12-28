@@ -101,6 +101,8 @@ but does not copy any new mail into the file."
   (interactive (if current-prefix-arg
 		   (list (read-file-name "Run rmail on RMAIL file: "
 					 nil nil t))))
+  (if (string-match "Lucid" emacs-version)
+      (require 'rmail-lucid))
   (or rmail-last-file
       (setq rmail-last-file (expand-file-name "~/xmail")))
   (or rmail-last-rmail-file
@@ -186,7 +188,8 @@ but does not copy any new mail into the file."
 		   (looking-at "\n*From ")))
 	(let ((buffer-read-only nil))
 	  (message "Converting to Babyl format...")
-	  (narrow-to-region (point) (point-max))
+	  (narrow-to-region (if (looking-at "\n") (1+ (point)) (point))
+			    (point-max))
 	  (rmail-convert-to-babyl-format)
 	  (message "Converting to Babyl format...done")))))
 
@@ -340,8 +343,9 @@ w	Edit the current message.  C-c C-c to return to Rmail."
   (make-local-variable 'rmail-keywords)
   ;; this gets generated as needed
   (setq rmail-keywords nil)
-  (make-local-variable 'save-buffers-skip)
-  (setq save-buffers-skip t))
+;  (make-local-variable 'save-buffers-skip)
+;  (setq save-buffers-skip t)
+  )
 
 ;; Handle M-x revert-buffer done in an rmail-mode buffer.
 (defun rmail-revert (arg noconfirm)
@@ -469,6 +473,7 @@ and use that file as the inbox."
 	  (message "%d new message%s read"
 		   new-messages (if (= 1 new-messages) "" "s"))
 	  (and (boundp 'display-time-string)
+	       display-time-string
 	       (string-match " Mail" display-time-string)
 	       (setq display-time-string
 		     (concat

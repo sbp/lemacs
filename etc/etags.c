@@ -1,11 +1,11 @@
 /* Tags file maker to go with GNU Emacs
-   Copyright (C) 1984, 1987, 1988, 1989 Free Software Foundation, Inc. and Ken Arnold
+   Copyright (C) 1984, 1987, 1988, 1989, 1992 Free Software Foundation, Inc. and Ken Arnold
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -31,13 +31,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#define NO_SHORTNAMES
+#include "../src/config.h"
+
 extern char *malloc (), *realloc ();
 extern char *getenv ();
 extern char *index (), *rindex ();
 extern char *strcpy (), *strncpy ();
 extern int strcmp ();
 
-#ifdef hpux
+#if defined(hpux) || defined(USG5_4)
 #define notdef
 #endif
 

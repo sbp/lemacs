@@ -1,3 +1,21 @@
+/* The emacs screen widget.
+   Copyright (C) 1992, 1993 Free Software Foundation, Inc.
+
+This file is part of GNU Emacs.
+
+GNU Emacs is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+GNU Emacs is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GNU Emacs; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <stdio.h>
 #include "config.h"
@@ -11,10 +29,6 @@
 #include <X11/cursorfont.h>
 #include "ScreenWidgetP.h"
 #include <X11/Shell.h>
-
-#ifdef ENERGIZE
-#include <cdisplayctx.h>
-#endif
 
 /* This sucks: this is the first default that x-faces.el tries.  This won't
    be used unless neither the "Emacs.EmacsScreen.font" resource nor the
@@ -36,10 +50,12 @@
 
 void emacs_Xt_focus_event_handler ();
 
-static void EmacsScreenInitialize (Widget, Widget);
+static void EmacsScreenInitialize (Widget, Widget, ArgList, Cardinal *);
+static void EmacsScreenDestroy (Widget);
 static void EmacsScreenRealize (Widget, XtValueMask*, XSetWindowAttributes*);
 void EmacsScreenResize (Widget widget);
-static Boolean EmacsScreenSetValues (Widget, Widget, Widget);
+static Boolean EmacsScreenSetValues (Widget, Widget, Widget,
+				     ArgList, Cardinal *);
 static XtGeometryResult EmacsScreenQueryGeometry (Widget, XtWidgetGeometry*,
 						  XtWidgetGeometry*);
 
@@ -121,7 +137,7 @@ EmacsScreenClassRec emacsScreenClassRec = {
     /* compress_exposure	*/	TRUE,
     /* compress_enterleave	*/	TRUE,
     /* visible_interest		*/	FALSE,
-    /* destroy			*/	0,
+    /* destroy			*/	EmacsScreenDestroy,
     /* resize			*/	EmacsScreenResize,
     /* expose			*/	XtInheritExpose,
     /* set_values		*/	EmacsScreenSetValues,
@@ -258,15 +274,25 @@ set_screen_size (EmacsScreenWidget ew)
     {
       /* the tricky things with the sign is to make sure that
 	 -0 is printed -0. */
+      int len;
+      char *tem;
       sprintf (shell_position, "=%c%d%c%d",
 	       parse_result & XNegative ? '-' : '+', x < 0 ? -x : x,
 	       parse_result & YNegative ? '-' : '+', y < 0 ? -y : y);
-      XtVaSetValues (wmshell, XtNgeometry, strdup (shell_position), 0);
+      len = strlen (shell_position) + 1;
+      tem = xmalloc (len);
+      strncpy (tem, shell_position, len);
+      XtVaSetValues (wmshell, XtNgeometry, tem, 0);
     }
   else if (parse_result & (WidthValue | HeightValue))
     {
+      int len;
+      char *tem;
       sprintf (shell_position, "=%dx%d", pixel_width, pixel_height);
-      XtVaSetValues (wmshell, XtNgeometry, strdup (shell_position), 0);
+      len = strlen (shell_position) + 1;
+      tem = xmalloc (len);
+      strncpy (tem, shell_position, len);
+      XtVaSetValues (wmshell, XtNgeometry, tem, 0);
     }
 }
 
@@ -372,11 +398,11 @@ update_various_screen_slots (EmacsScreenWidget ew)
   x->pixel_height = ew->core.height;
   x->pixel_width = ew->core.width;
   x->internal_border_width = ew->emacs_screen.internal_border_width;
-  x->font = ew->emacs_screen.font;
 }
 
 static void 
-EmacsScreenInitialize (Widget request, Widget new)
+EmacsScreenInitialize (Widget request, Widget new,
+		       ArgList dum1, Cardinal *dum2)
 {
   EmacsScreenWidget ew = (EmacsScreenWidget)new;
 
@@ -423,47 +449,49 @@ EmacsScreenInitialize (Widget request, Widget new)
   create_screen_gcs (ew);
   setup_screen_gcs (ew);
   update_various_screen_slots (ew);
-
-#ifdef ENERGIZE
-  {
-    extern void init_attr_state ();
-    struct screen* s = ew->emacs_screen.screen;
-    s->display_context = (DisplayContext*)xmalloc (sizeof (DisplayContext));
-    ResourceDisplayContext ((Widget)ew, ew->core.name, s->display_context,
-			    0, 0);
-    s->display_context->current_attributes.font = ew->emacs_screen.font;
-  }
-#endif /* ENERGIZE */
 }
 
 
 static void
 EmacsScreenRealize (Widget widget, XtValueMask *mask,
-		    XSetWindowAttributes *attributes)
+		    XSetWindowAttributes *attrs)
 {
   EmacsScreenWidget ew = (EmacsScreenWidget)widget;
 
-  attributes->event_mask = (KeyPressMask
-			    | ExposureMask
-			    | ButtonPressMask
-			    | ButtonReleaseMask
-			    | StructureNotifyMask
-			    | FocusChangeMask
-			    | PointerMotionHintMask
-			    | PointerMotionMask
-			    | LeaveWindowMask
-			    | EnterWindowMask
-			    | VisibilityChangeMask
-			    | PropertyChangeMask
-			    | StructureNotifyMask
-			    | SubstructureNotifyMask
-			    | SubstructureRedirectMask);
-
+  attrs->event_mask = (KeyPressMask | ExposureMask | ButtonPressMask |
+		       ButtonReleaseMask | StructureNotifyMask |
+		       FocusChangeMask | PointerMotionHintMask |
+		       PointerMotionMask | LeaveWindowMask | EnterWindowMask |
+		       VisibilityChangeMask | PropertyChangeMask |
+		       StructureNotifyMask | SubstructureNotifyMask |
+		       SubstructureRedirectMask);
   *mask |= CWEventMask;
-
   XtCreateWindow (widget, InputOutput, (Visual *)CopyFromParent, *mask,
-		  attributes);
+		  attrs);
   update_wm_hints (ew);
+}
+
+extern void free_screen_faces (struct screen *);
+
+static void
+EmacsScreenDestroy (Widget widget)
+{
+  EmacsScreenWidget ew = (EmacsScreenWidget) widget;
+  struct screen* s = ew->emacs_screen.screen;
+
+  if (! s) abort ();
+  if (! s->display.x) abort ();
+  if (! s->display.x->normal_gc) abort ();
+
+  /* this would be called from Fdelete_screen() but it needs to free some
+     stuff after the widget has been finalized but before the widget has
+     been freed. */
+  free_screen_faces (s);
+
+  /* need to be careful that the face-freeing code doesn't free these too */
+  XFreeGC (XtDisplay (widget), s->display.x->normal_gc);
+  XFreeGC (XtDisplay (widget), s->display.x->reverse_gc);
+  XFreeGC (XtDisplay (widget), s->display.x->cursor_gc);
 }
 
 void
@@ -481,7 +509,8 @@ EmacsScreenResize (Widget widget)
 }
 
 static Boolean
-EmacsScreenSetValues (Widget cur_widget, Widget req_widget, Widget new_widget)
+EmacsScreenSetValues (Widget cur_widget, Widget req_widget, Widget new_widget,
+		      ArgList dum1, Cardinal *dum2)
 {
   EmacsScreenWidget cur = (EmacsScreenWidget)cur_widget;
   EmacsScreenWidget new = (EmacsScreenWidget)new_widget;
@@ -584,8 +613,9 @@ emacs_screen_focus_handler (Widget w, XEvent *event, String *params,
 
 /* Special entrypoints */
 void
-EmacsScreenSetCharSize (EmacsScreenWidget ew, int columns, int rows)
+EmacsScreenSetCharSize (Widget widget, int columns, int rows)
 {
+  EmacsScreenWidget ew = (EmacsScreenWidget) widget;
   Dimension pixel_width, pixel_height, granted_width, granted_height;
   XtGeometryResult result;
   if (columns < 3) columns = 3;  /* no way buddy */

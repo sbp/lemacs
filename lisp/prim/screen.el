@@ -18,7 +18,6 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 (provide 'screen)
-(require 'menubar)
 
 ;; these are called from select_screen()
 
@@ -104,9 +103,7 @@ For values specific to the first emacs screen, you must use X Resources.")
 
 (defun multi-minibuffer-startup (window-system-switches)
   (select-screen
-   (funcall screen-creation-func
-	    (cons (cons 'menubar default-menubar)
-		  window-system-switches))))
+   (funcall screen-creation-func window-system-switches)))
 
 ;; This is called from the window-system specific function which is attached
 ;; to window-setup-hook.
@@ -258,7 +255,15 @@ A negative ARG moves in the opposite order.  However, unlike
 \(or previous) screen instead of wrapping around to the top
 \(or bottom) of this screen, when there are no more windows."
   (interactive "p")
-  (other-window n t))
+  (other-window n t)
+  ;; Click-to-type window managers do this automatically, but twm doesn't
+  ;; unless you are in auto-raise mode.  It's not unreasonable to want M-o
+  ;; to raise the screen without mouse-motion raising the windows the mouse
+  ;; passes over, so we make raising the screen be the policy of M-o...
+  ;; I think it's probably wrong for select-window to raise the screen,
+  ;; that's too severe; but this is just one command.
+  (raise-screen (selected-screen))
+  )
 
 (defun single-window-screen (&optional screen)
   (let* ((s (or screen (selected-screen)))
@@ -402,17 +407,25 @@ For use as the value of `deselect-screen-hook'."
 
 ;;; Application-specific screen-management
 
+(defvar get-screen-for-buffer-default-screen-name nil
+  "The default screen to select; see doc of `get-screen-for-buffer'.")
+
 (defun get-screen-name-for-buffer (buffer)
   (let ((mode (save-excursion (set-buffer buffer) major-mode)))
-    (get mode 'screen-name)))
+    (or (get mode 'screen-name)
+	get-screen-for-buffer-default-screen-name)))
 
-(defun get-screen-for-buffer (buffer &optional ignored)
+(defun get-screen-for-buffer (buffer &optional not-this-window-p on-screen)
   "Select and return a screen in which to display BUFFER.
 Normally, the buffer will simply be displayed in the current screen.
 But if the symbol naming the major-mode of the buffer has a 'screen-name
 property (which should be a symbol), then the buffer will be displayed in
 a screen of that name.  If there is no screen of that name, then one is
 created.  
+
+If the major-mode doesn't have a 'screen-name property, then the screen
+named by `get-screen-for-buffer-default-screen-name' will be used.  If
+that is nil (the default) then the currently selected screen will used.
 
 If the screen-name symbol has an 'instance-limit property (an integer)
 then each time a buffer of the mode in question is displayed, a new screen
@@ -429,6 +442,11 @@ first time.
 This function may be used as the value of `pre-display-buffer-hook', to 
 cause the display-buffer function and its callers to exhibit the above
 behavior."
+  (if (or on-screen (eq (selected-window) (minibuffer-window)))
+      ;; don't switch screens if a screen was specified, or to list
+      ;; completions from the minibuffer, etc.
+      nil
+    ;; else
   (let ((name (get-screen-name-for-buffer buffer)))
     (if (null name)
 	(selected-screen)
@@ -437,6 +455,25 @@ behavior."
 	    (screens (screen-list))
 	    (matching-screens '())
 	    screen already-visible)
+	;; Sort the list so that iconic screens will be found last.  They
+	;; will be used too, but mapped screens take prescedence.  And
+	;; fully visible screens come before occluded screens.
+	(setq screens
+	      (sort screens
+		    (function
+		     (lambda (s1 s2)
+		       (cond ((screen-totally-visible-p s2)
+			      nil)
+			     ((not (screen-visible-p s2))
+			      (screen-visible-p s1))
+			     ((not (screen-totally-visible-p s2))
+			      (and (screen-visible-p s1)
+				   (screen-totally-visible-p s1))))))))
+	;; but the selected screen should come first, even if it's occluded,
+	;; to minimize thrashing.
+	(setq screens (cons (selected-screen)
+			    (delq (selected-screen) screens)))
+
 	(setq name (symbol-name name))
 	(while screens
 	  (setq screen (car screens))
@@ -448,6 +485,7 @@ behavior."
 	  (setq screens (cdr screens)))
 	(cond (already-visible
 	       (select-screen already-visible)
+	       (make-screen-visible already-visible)
 	       already-visible)
 	      ((or (null matching-screens)
 		   (eq limit 0) ; means create with reckless abandon
@@ -457,11 +495,37 @@ behavior."
 					(append defaults
 						screen-default-alist)))))
 		 (select-screen sc)
+		 (make-screen-visible sc)
+		 ;; make the one buffer being displayed in this newly created
+		 ;; screen be the buffer of interest, instead of something
+		 ;; random, so that it won't be shown in two-window mode.
 		 (switch-to-buffer buffer)
 		 sc))
 	      (t
 	       (select-screen (car matching-screens))
-	       (switch-to-buffer buffer)
-	       (car matching-screens)))))))
+	       (make-screen-visible (car matching-screens))
+	       ;; do not switch any of the window/buffer associations in an
+	       ;; existing screen; this function only picks a screen; the
+	       ;; determination of which windows on it get reused is up to
+	       ;; display-buffer itself.
+;;	       (or (window-dedicated-p (selected-window))
+;;		   (switch-to-buffer buffer))
+	       (car matching-screens))))))))
+
+(defun show-temp-buffer-in-current-screen (buffer)
+  "For use as the value of temp-buffer-show-function:
+always displays the buffer in the current screen, regardless of the behavior
+that would otherwise be introduced by the `pre-display-buffer-function', which
+is normally set to `get-screen-for-buffer' (which see.)"
+  (let ((pre-display-buffer-function nil)) ; turn it off, whatever it is
+    (let ((window (display-buffer buffer)))
+      (if (not (eq (selected-screen) (window-screen window)))
+	  ;; only the pre-display-buffer-function should ever do this.
+	  (error "display-buffer switched screens on its own!!"))
+      (setq minibuffer-scroll-window window)
+      (set-window-start window 1) ; obeys narrowing
+      (set-window-point window 1)
+      nil)))
 
 (setq pre-display-buffer-function 'get-screen-for-buffer)
+(setq temp-buffer-show-function 'show-temp-buffer-in-current-screen)

@@ -1,7 +1,7 @@
-;;; compiled by devin@scylla on Wed Jul 29 22:23:56 1992
-;;; from file /wg1/emacs-base/lisp/energize/energize-mode.el
-;;; emacs version 19.2.2 Lucid.
-;;; bytecomp version 2.07;  5-jul-92.
+;;; compiled by jwz@thalidomide on Wed Jan 20 17:24:07 1993
+;;; from file /cadillac-th/jwz/emacs19/lisp/energize/energize-mode.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 16-jan-93.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,12 +10,7 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(require 'gdb)
-(fset 'energize-advise-function #[(fun) "À	!ÃÄ\nP!ÃÆ\nP!È	8Êš¬ˆË	8Êš«ƒÌª‚	K:«¦	K@Î=«Ÿ	KA@Ğ!ˆ	K:«	K@Î=«‡ÑÒ	#ˆ)Ó!¬…	KMˆKÕ!Õ!‰‰­ˆØš?­Ù®ÚQ<«­Ü!‰AA‰@;«ˆ ˆªŒAAAB¡ˆMˆ)ª«Şß\" Ë ›«ŠË › ˆªŠÈ ›ßB¡ˆáâ \"Mˆ)	M.‡" [symbol-name fun name intern "energize-orig-" saved "energize-" new 3 command-line-args "dump" 4 "../etc/" exec-directory autoload lib load-library error "autoloading %s failed to define %s" fboundp nfun documentation ndoc doc-str "" "\n" "This function has been augumented for Energize." ndoc-str copy-sequence ndoc-cdr append nil new-code apply make-byte-code] 5 "\
-Replace FUN's function definition with energize-FUN's, saving the
-original definition as energize-orig-FUN (which energize-FUN may call.)
-The documentation string of energize-orig-FUN is prepended to the 
-documentation string of energize-FUN with an intervening newline."])
+(byte-code "ÀÁ!ˆÀÂ!ˆÃÄ!«‡ÅÄK¢=«„ÆÇ!ˆÀ‡" [require gdb compile fboundp ask-user-about-lock autoload load-library "userlock"] 2)
 (fset 'energize-next-error #[(&optional arg) "Àp!«ŠÁ\n«ƒÃªÄ!‡Å\n!‡" [energize-buffer-p energize-execute-command arg "previouserror" "nexterror" energize-orig-next-error] 2 "\
 If the current buffer is a Energize buffer, the server is consulted.
 In this case, a prefix argument means ``previous error''.  Otherwise,
@@ -27,33 +22,40 @@ use the original definition of previous-error." "P"])
 (fset 'energize-set-visited-file-name #[(filename) "À «‰	\nš¬„ÃÄ!‡Å	!ˆÆp!­‚Ç ‡" [energize-write-file-buffer-p filename buffer-file-name error "Can't change the name associated with a Energize buffer." energize-orig-set-visited-file-name energize-buffer-p energize-mode-internal] 2 "\
 This is illegal for Energize buffers." "FSet visited file name: "])
 (fset 'energize-find-file-noselect #[(filename &optional nowarn) "À «Á\n!¬ŠÃ\nÄ\"«„Ã\n!‡Å\n\"‡" [connected-to-energize-p file-directory-p filename energize-query-buffer t energize-orig-find-file-noselect nowarn] 3 "\
-When connected to energize, if the visited file is one that Energize knows
-about, it will be correctly annotated."])
-(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [energize-ask-user-about-lock #[(fn opponent) "Àp!«‚Á‡Â\"‡" [energize-buffer-p t energize-orig-ask-user-about-lock fn opponent] 3] energize-init #[nil "ÀÁ!ÂU­…ÃÄ‰N!‡" [energize-bits 1024 0 energize-announce energize] 3] energize-write-file-buffer-p #[nil "Àp!­„	Â=?‡" [energize-buffer-p major-mode energize-project-mode] 2]] 2)
+When connected to Energize, if the visited file is one that
+Energize knows about, it will be correctly annotated."])
+(fset 'energize-ask-user-about-lock #[(fn opponent) "Àp!«‚Á‡Â\"‡" [energize-buffer-p t energize-orig-ask-user-about-lock fn opponent] 3 "\
+Energize buffers do this by asking the server."])
+(byte-code "ÀÁMˆÂÃM‡" [energize-init #[nil "ÀÁ!ÂU­…ÃÄ‰N!‡" [energize-bits 1024 0 energize-announce energize] 3] energize-write-file-buffer-p #[nil "Àp!‡" [energize-buffer-p] 2]] 2)
 (fset 'energize-write-file #[(filename) "À ¬„Á\n!‡Ã\n!«ŒÄÅÆ\n\"!¬„ÇÈ!ˆÉed\nÊ‰%ˆ«…ÌÍ‰\"ˆÎÊ!ˆÏĞ Ñ\n!\"‡" [energize-write-file-buffer-p energize-orig-write-file filename file-exists-p yes-or-no-p format "File %s already exists.  Overwrite it? " error "Aborted" write-region nil buffer-file-name revert-buffer t kill-buffer set-window-buffer selected-window find-file-noselect] 6 "\
-When executed on an Energize buffer, this will cause all annotations
-to be lost (that is, the buffer will become a normal buffer, not one that
-the Energize server knows about.)" (byte-code "À «ƒÁªÂ«‰ÅÆ‰‰‰%ªŒÅÇÈ AÆ‰É %)C‡" [energize-write-file-buffer-p "Write Energize buffer to file: " "Write file: " prompt buffer-file-name read-file-name nil default-directory buffer-local-variables buffer-name] 6)])
+When executed on an Energize buffer, this will cause all 
+annotations to be lost (that is, the buffer will become a normal
+buffer, not one that the Energize server knows about.)" (byte-code "À «ƒÁªÂ«‰ÅÆ‰‰‰%ªŒÅÇÈ AÆ‰É %)C‡" [energize-write-file-buffer-p "Write Energize buffer to file: " "Write file: " prompt buffer-file-name read-file-name nil default-directory buffer-local-variables buffer-name] 6)])
 (fset 'energize-gdb-break #[(arg) "Àp!¬„Á\n!‡ÃÄ!‡" [energize-buffer-p energize-orig-gdb-break arg energize-execute-command "setbreakpoint"] 2 "\
+If the current buffer is a Energize buffer, then this works by talking 
+to the server." "P"])
+(fset 'energize-gdb-step #[(arg) "Àp!¬„Á\n!‡\nÃV­ŠÄÅ!ˆ\nS‰ªr‡" [energize-buffer-p energize-orig-gdb-step arg 0 energize-execute-command "steponce"] 3 "\
 If the current buffer is a Energize buffer, then this works by talking to
-the server.
-#### You can't set a temporary breakpoint in this way with Energize." "P"])
+the server." "p"])
+(fset 'energize-gdb-stepi #[(arg) "Àp!¬„Á\n!‡ŠÃqˆdbˆÄÅ\n\"cˆÆ )‡" [energize-buffer-p energize-orig-gdb-step arg "*Debugger*" format "stepi %d" comint-send-input] 3 "\
+If the current buffer is a Energize buffer, then this works by talking to
+the server." "p"])
 (fset 'energize-beginning-of-defun #[(&optional arg) "¬‚ÁÂp!¬„ÃÄ!‡ÅW«…Æ[!‡ÅV­§o¬ƒÇuˆo¬ŠÈ`!¬…Çuˆªs`	ÊËp``ÌÍ&ˆ)S‰ªU‡" [arg 1 energize-buffer-p error "Not an Energize buffer" 0 energize-end-of-defun -1 extent-at pos map-extents #[(extent dummy) "À	!‰`W­‚\nb‡" [extent-start-position extent pos] 2] nil t] 8 "\
 Move point to the beginning of the current top-level form.
 With a numeric argument, move back that many forms." "p"])
 (fset 'energize-end-of-defun #[(&optional arg) "¬‚ÁÂp!¬„ÃÄ!‡ÅW«…Æ[!‡ÅV­§m¬ƒÁuˆm¬ŠÇ`!¬…Áuˆªs`ÉÊp``ËÌ&ˆ)S‰ªU‡" [arg 1 energize-buffer-p error "Not an Energize buffer" 0 energize-beginning-of-defun extent-at pos map-extents #[(extent dummy) "À	!‰`V­‚\nb‡" [extent-end-position extent pos] 2] nil t] 8 "\
 Move point to the end of the current top-level form.
 With a numeric argument, move forward over that many forms." "p"])
-(byte-code "ÀÁ!ˆÀÂ!ˆÀÃ!ˆÀÄ!ˆÀÅ!ˆÀÆ!ˆÀÇ!ˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓM‡" [energize-advise-function set-visited-file-name ask-user-about-lock next-error previous-error gdb-break find-file-noselect write-file energize-write-file-hook #[nil "Àp!¬„ÁÂ!ˆŒ~ˆÃ ®ƒÅp!®‚Ç È	\nÍÎ\"ˆÏĞÒÓ!ˆÔ 	*	«Õp!ˆÖ ˆ\n«…È×Øˆ	«ˆÍÙ\"ˆª†ÁÚ\"ˆ-Ğ‡" [energize-buffer-p error "energize-write-file-hook called for a non-energize buffer" energize-guess-what-backup-buffer-is-going-to-do buffer-file-name buffer-name buffer-backed-up backup-buffer nil save-completed-normally setmodes name evil message "saving %s to Energize..." ((byte-code "¬„Á\n!ˆÁ‡" [save-completed-normally oh-energize-deliver-me-from evil] 2)) t inhibit-quit energize-execute-command "save" connected-to-energize-p set-buffer-modtime energize-update-menubar (set-file-modes buffer-file-name setmodes) ((error)) "saved %s to Energize." "Server crashed while saving %s!"] 4] energize-guess-what-backup-buffer-is-going-to-do #[nil "Á‰‰‰Ç!‰«ŠÉÊ!\")¬hË!‰@A®©®¥«ˆÏ!ĞV®™­•Ò!Ô8®ˆÕ8Ö U?)‰?­„B.‡" [buffer-file-name nil setmodes targets backupname backup-info real-file-name file-symlink-p tem expand-file-name file-name-directory find-backup-file-name file-precious-flag backup-by-copying backup-by-copying-when-linked file-nlinks 1 backup-by-copying-when-mismatch file-attributes attr 9 2 user-uid file-will-be-backed-up-by-copying] 6] oh-energize-deliver-me-from #[(evil) "­„ÁÂÃ‡" [evil nil (byte-code "À	@	AÂ#‡" [rename-file evil t] 4) ((file-error (byte-code "ÀÁ «ƒÂªÃÄA!\"‡" [error connected-to-energize-p "file \"%s\" not saved" "Energize server crash while saving \"%s\".  File may have been deleted." file-name-nondirectory evil] 4)))] 3] energize-revert-buffer-insert-file-contents-hook #[(file noconfirm) "Àp!¬„ÁÂ!ˆ~ˆš«†ÅÆ!ˆª‘Ç!¬…ÁÈ\"ˆÉ ˆÊ!ˆË‡" [energize-buffer-p error "energize-revert-buffer-hook called for a non-energize buffer" file buffer-file-name energize-execute-command "revert" file-exists-p "File %s no longer exists!" erase-buffer insert-file-contents t] 3] energize-kill-buffer-hook #[nil "Àp!«†Áp!ˆª„ÂÃ!ˆÄ‡" [energize-buffer-p energize-request-kill-buffer error "energize-kill-buffer-hook called on a non-energize buffer" t] 2] find-file-in-energize energize-find-file] 2)
-(fset 'energize-find-file #[(name) "À «ºÁ\n!¬µÃ\nÄ\"¬ˆÅÆÇ\n\"!«§Ã\n!É!¬…ÊË\n\"ˆÌ!®ƒÊÍ!Šqˆ¬ƒÏ ˆ*Ğ\n!‡" [connected-to-energize-p file-directory-p name energize-query-buffer t y-or-n-p format "Import \"%s\" into energize? " buffer bufferp error "couldn't import %s" buffer-file-name "no name?" energize-source-mode energize-source-minor-mode find-file] 4 "\
-When connected to energize, energize will know about this file." (byte-code "ÀÁ «ƒÂªÃ!C‡" [read-file-name connected-to-energize-p "Energize find file: " "Find file: "] 2)])
+(fset 'energize-normal-mode #[(&optional find-file) "À	!ˆÂp!­‡?­ƒp!‡" [energize-orig-normal-mode find-file energize-buffer-p inside-energize-buffer-creation-hook-function energize-create-buffer-hook] 2 "\
+If this is an Energize buffer, then the Energize modes are turned on as well." nil])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉM‡" [energize-write-file-hook #[nil "Àp!¬„ÁÂ!ˆŒ~ˆÃ ®ƒÅp!®‚Ç È	\nÍÎ\"ˆÏĞÒÓ!ˆÔ 	*	«Õp!ˆÖ ˆ\n«…È×Øˆ	«ˆÍÙ\"ˆª†ÁÚ\"ˆ-Ğ‡" [energize-buffer-p error "energize-write-file-hook called for a non-energize buffer" energize-guess-what-backup-buffer-is-going-to-do buffer-file-name buffer-name buffer-backed-up backup-buffer nil save-completed-normally setmodes name evil message "saving %s to Energize..." ((byte-code "¬„Á\n!ˆÁ‡" [save-completed-normally oh-energize-deliver-me-from evil] 2)) t inhibit-quit energize-execute-command "save" connected-to-energize-p set-buffer-modtime energize-update-menubar (set-file-modes buffer-file-name setmodes) ((error)) "saved %s to Energize." "Server crashed while saving %s!"] 4] energize-guess-what-backup-buffer-is-going-to-do #[nil "Á‰‰‰Ç!‰«ŠÉÊ!\")¬hË!‰@A®©®¥«ˆÏ!ĞV®™­•Ò!Ô8®ˆÕ8Ö U?)‰?­„B.‡" [buffer-file-name nil setmodes targets backupname backup-info real-file-name file-symlink-p tem expand-file-name file-name-directory find-backup-file-name file-precious-flag backup-by-copying backup-by-copying-when-linked file-nlinks 1 backup-by-copying-when-mismatch file-attributes attr 9 2 user-uid file-will-be-backed-up-by-copying] 6] oh-energize-deliver-me-from #[(evil) "­„ÁÂÃ‡" [evil nil (byte-code "À	@	AÂ#‡" [rename-file evil t] 4) ((file-error (byte-code "ÀÁ «ƒÂªÃÄA!\"‡" [error connected-to-energize-p "file \"%s\" not saved" "Energize server crash while saving \"%s\".  File may have been deleted." file-name-nondirectory evil] 4)))] 3] energize-revert-buffer-insert-file-contents-hook #[(file noconfirm) "Àp!¬„ÁÂ!ˆ~ˆš«†ÅÆ!ˆª‘Ç!¬…ÁÈ\"ˆÉ ˆÊ!ˆË‡" [energize-buffer-p error "energize-revert-buffer-hook called for a non-energize buffer" file buffer-file-name energize-execute-command "revert" file-exists-p "File %s no longer exists!" erase-buffer insert-file-contents t] 3] energize-kill-buffer-hook #[nil "Àp!«†Áp!ˆª„ÂÃ!ˆÄ‡" [energize-buffer-p energize-request-kill-buffer error "energize-kill-buffer-hook called on a non-energize buffer" t] 2]] 2)
 (fset 'energize-edit-definition #[(def) "Àp!«‡ÁÂÃÅ$‡Æ!‡" [energize-buffer-p energize-execute-command "editdef" nil def t find-tag] 5 "\
-If the current buffer is a Energize buffer, prompts for a name with a 
-dialog box and edits its definition.  Otherwise, invokes `find-tag'." (byte-code "ÀÁ!«…ÀÂ!¬…ÃÄÅ\"ˆÆ «„Ç ª‚Â È	\nËp!«”Ì\n«‡ÍÎ\n\"ªÏÈ‰‰‰%ªƒÁÏ!‰	:«…	@		Ğš«„\n		*C‡" [fboundp find-tag-tag find-tag-default require tags "etags" x-selection-owner-p x-get-selection nil def default energize-buffer-p completing-read format "Edit definition [%s]: " "Edit definition: " ""] 7)])
+If the current buffer is a Energize buffer, the Energize database is used.
+Otherwise, invokes `find-tag'." (byte-code "ÀÁ!«…ÀÂ!¬…ÃÄÅ\"ˆÆ «„Ç ª‚Â È	\nËp!«”Ì\n«‡ÍÎ\n\"ªÏÈ‰‰‰%ªƒÁÏ!‰	:«…	@		Ğš«„\n		*C‡" [fboundp find-tag-tag find-tag-default require tags "etags" x-selection-owner-p x-get-selection nil def default energize-buffer-p completing-read format "Edit definition [%s]: " "Edit definition: " ""] 7)])
 (define-key global-map "®" 'energize-edit-definition)
 (fset 'disconnect-from-energize-query #[nil "ÀÁ!¬„ÂÃ!ˆÄ ‡" [y-or-n-p "Disconnect from Energize? " error "not confirmed" disconnect-from-energize] 2 "\
 Disconnect this emacs from the Energize server, after confirming." nil])
-(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉM‡" [energize-insert-slots #[(l) "Á=¬„ÂÃ!ˆÄyˆÅÆ!¬‹`d=¬†ÇÈ!ˆªpÉÊÍ ˆŠÎÏ\"ˆ)Ê*‡" [major-mode energize-project-mode error "Command available only in project buffers" 0 looking-at "$" next-line 1 20 nil i pad newline mapcar #[(i) "ÀÁ\nGZ\"ˆcˆÁcˆÄ ‡" [insert-char 32 pad i newline] 4] l] 3] energize-insert-file-target #[nil "ÀÁ!‡" [energize-insert-slots ("Object File:" "Build Options: incremental compile" "Compiler Switches:" "Using:")] 2 nil nil] energize-insert-executable-target #[nil "ÀÁ!‡" [energize-insert-slots ("Executable:" "Build Options:" "Using:")] 2 nil nil] energize-insert-library-target #[nil "ÀÁ!‡" [energize-insert-slots ("Library:" "Build Options:" "Using:")] 2 nil nil] energize-insert-collection-target #[nil "ÀÁ!‡" [energize-insert-slots ("Collection:" "Build Options:" "Using:")] 2 nil nil]] 2)
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍM‡" [energize-insert-slots #[(got-to-top-p l) "Á=¬„ÂÃ!ˆ«…Å ˆªƒÆyˆÇÈÉÊ#¬‘ÇËÉÊ#¬ŠÌÈ!¬…ÌË!«„ÍÎ!ˆÌÏ!¬‹`d=¬†ĞÑ!ˆªpÒ ˆŠÓÔ\"ˆ)Öu‡" [major-mode energize-project-mode error "Command available only in project buffers" got-to-top-p beginning-of-buffer 0 search-backward "Related Projects:" nil t "Associated Files:" looking-at previous-line 2 "$" next-line 1 newline mapcar #[(i) "cˆÁ ‡" [i newline] 1] l 18] 4] energize-insert-rule #[nil "ÀÁÂ\"‡" [energize-insert-slots t ("           Rules:" "          <rule>: lcc -Xez -c -g -Xa -o $object $source")] 3 nil nil] energize-insert-file-target #[nil "ÀÁÂ\"‡" [energize-insert-slots nil ("     Object File: <object-file>" "          Source: <source-file>" "      Build Rule: <rule>")] 3 nil nil] energize-insert-executable-target #[nil "ÀÁÂ\"‡" [energize-insert-slots nil ("      Executable: <executable>" "   Build Command: lcc -Xf -Xez -o $object <object-file> ...")] 3 nil nil] energize-insert-library-target #[nil "ÀÁÂ\"‡" [energize-insert-slots nil ("         Library: <library>" "   Build Command: energize_ar -Xez -remove -ranlib clq $object \\" "                    <object-file> ...")] 3 nil nil] energize-insert-collection-target #[nil "ÀÁÂ\"‡" [energize-insert-slots nil ("      Collection: <collection>" "   Build Command: energize_collect -Xez -o $object <object-file> ...")] 3 nil nil] energize-insert-target-target #[nil "ÀÁÂ\"‡" [energize-insert-slots nil ("          Target: <target>" "    Dependencies: <target> ..." "   Build Command: <shell-command>")] 3 nil nil]] 2)
 (defvar energize-map nil "\
 *Parent keymap for all Energize buffers")
 (defvar energize-top-level-map nil "\
@@ -68,6 +70,8 @@ Disconnect this emacs from the Energize server, after confirming." nil])
 *Keymap for Energize browser buffers")
 (defvar energize-project-map nil "\
 *Keymap for Energize project buffers")
+(defvar energize-no-file-project-map nil "\
+*Keymap for Energize project buffers not associated with a file")
 (defvar energize-source-map nil "\
 *Keymap for Energize source buffers")
 (defvar energize-mode-hook nil "\
@@ -76,21 +80,23 @@ Hook called when each energize buffer is created.")
 Hook called when the energize top-level buffer is created.")
 (defvar energize-project-mode-hook nil "\
 Hook called when a energize project buffer is created.")
+(defvar energize-no-file-project-mode-hook nil "\
+Hook called when a energize project buffer with no file is created.")
 (defvar energize-breakpoint-mode-hook nil "\
 Hook called when a energize breakpoint-list buffer is created.")
 (defvar energize-browser-mode-hook nil "\
 Hook called when a energize browser buffer is created.")
 (defvar energize-source-mode-hook nil "\
 Hook called when any source buffer is placed in the Energize minor-mode.")
-(byte-code "¬¿Á ÂÃÄ#ˆÂÅÆ#ˆÂÇÈ#ˆÂÉÊ#ˆÂËÌ#ˆÂÍÎ#ˆÂÏĞ#ˆÂÑÒ#ˆÂÓÔ#ˆÂÕÖ#ˆ„Û Á Ø\"ˆÙ!ˆÂÚÛ#ˆÂÜİ#ˆÂŞİ#ˆÂßà#ˆÂáİ#ˆÂâà#ˆÂãİ#ˆÂäà#ˆÂåà#ˆÂæç#ˆÂèé#ˆÂêë#ˆÂìí#ˆÂîï#ˆÂğñ#ˆÂòó#ˆÂôó#ˆÂõö#ˆÂ÷ø#ˆ9¬ÛÁ 9Ø9\"ˆÂ9ãú#ˆÂ9ûü#ˆÂ9ıü#ˆÂ9ôş#ˆÂ9ÿ@ #ˆÂ9A B #ˆÂ9C D #ˆÂ9E F #ˆÂ9G H #ˆI¬ŠÁ IØI\"ˆJ¬ŠÁ JØJ\"ˆK¬ŠÁ KØK\"ˆL¬´M N!LO N!«ˆP Q !ˆØL\"ˆÂLR S #ˆÂLT U #ˆÁ‡" [energize-map make-sparse-keymap define-key "" energize-find-project "" energize-browse-error "" energize-browse-language-elt "" energize-browse-tree "" energize-browse-class "" energize-browse-toolstat "Ã" energize-build "Â" energize-build-and-debug "Å" energize-check-for-errors button3 energize-popup-menu energize-top-level-map set-keymap-parent suppress-keymap "?" describe-mode " " energize-top-next-project "n" "p" energize-top-prev-project "N" "P" "	" (shift tab) (control I) "Q" disconnect-from-energize-query "b" energize-top-build-and-debug "B" energize-top-build "d" energize-top-debug "" energize-top-delete-project "e" energize-top-edit-project "i" energize-top-import-file "	" "r" energize-top-rename-project "q" energize-top-quit-debugger energize-project-map energize-project-next-field (shift tab) energize-project-prev-field (control I) energize-import-file "" energize-project-edit-file "" energize-project-sort-alpha "" energize-project-sort-link "" energize-project-view-names "" energize-project-view-options energize-breakpoint-map energize-browser-map energize-source-map energize-user-input-map copy-keymap comint-mode-map keymap-parent error "comint-mode-map has a parent?" "‰" comint-dynamic-complete "¿" comint-dynamic-list-completions] 4)
+(byte-code "¬³Á ÂÃÄ#ˆÂÅÆ#ˆÂÇÈ#ˆÂÉÊ#ˆÂËÌ#ˆÂÍÎ#ˆÂÏĞ#ˆÂÑÒ#ˆ¬êÁ Ô\"ˆÕ!ˆÂÖ×#ˆÂØÙ#ˆÂÚÙ#ˆÂÛÜ#ˆÂİÙ#ˆÂŞÜ#ˆÂßÙ#ˆÂàÜ#ˆÂáÜ#ˆÂâã#ˆÂäå#ˆÂæç#ˆÂèé#ˆ*¬´Á *Ô*\"ˆÂ*ëì#ˆÂ*íî#ˆÂ*ïğ#ˆÂ*ñò#ˆÂ*óô#ˆÂ*õö#ˆ7¬ŠÁ 7Ô7\"ˆ8¬ŠÁ 8Ô8\"ˆ9¬ŠÁ 9Ô9\"ˆ:¬ŠÁ :Ô:\"ˆ;¬®ü=!;ş=!«†ÿ@ !ˆÔ;\"ˆÂ;A B #ˆÂ;C D #ˆÁ‡" [energize-map make-sparse-keymap define-key "" energize-find-project "" energize-browse-error "" energize-browse-language-elt "" energize-browse-tree "" energize-browse-class "Â" energize-build-a-target "Ã" energize-default-compile-file button3 energize-popup-menu energize-top-level-map set-keymap-parent suppress-keymap "?" describe-mode " " energize-top-next-project "n" "p" energize-top-prev-project "N" "P" "	" (shift tab) (control I) "Q" disconnect-from-energize-query "d" energize-top-debug "" energize-top-delete-project "e" energize-top-edit-project energize-project-map "	" energize-import-file "" energize-project-edit-file "" energize-project-sort-alpha "" energize-project-sort-link "" energize-project-view-names "" energize-project-view-options energize-no-file-project-map energize-breakpoint-map energize-browser-map energize-source-map energize-user-input-map copy-keymap comint-mode-map keymap-parent error "comint-mode-map has a parent?" "‰" comint-dynamic-complete "¿" comint-dynamic-list-completions] 4)
 (defvar energize-menu-state nil "\
 State of the energize menu items of the buffer.  
 Automatically updated by the kernel when the state changes")
 (defvar energize-default-menu-state nil "\
 State of the energize default menu items.  
 Automatically updated by the kernel when the state changes")
-(byte-code "ÀÁMˆÂÃM‡" [energize-mode-internal #[nil "ÀÁ!ˆÂ	ÃC\"ÀÄ!ˆÅÀÆ!ˆÇÀÈ!ˆÉÀÊ!ˆËÌ!‡" [make-local-variable write-file-hooks append energize-write-file-hook revert-buffer-insert-file-contents-function energize-revert-buffer-insert-file-contents-hook kill-buffer-hook energize-kill-buffer-hook require-final-newline t energize-menu-state run-hooks energize-mode-hook] 3] energize-non-file-mode-internal #[nil "ÂÃ!ÄLˆÅ‡" [mode-name buffer-file-name make-local-variable version-control never nil] 2]] 2)
-(fset 'energize-top-level-mode #[nil "À ˆÁ\n!ˆÃÅÇ ˆÈÉ!‡" [energize-mode-internal use-local-map energize-top-level-map energize-top-level-mode major-mode "Energize" mode-name energize-non-file-mode-internal run-hooks energize-top-level-mode-hook] 2 "\
+(byte-code "ÀÁMˆÂÃM‡" [energize-mode-internal #[nil "ÀÁ!ˆ	:«„Â	!ÃÁÄÅ#ˆÀÆ!ˆÇÀÈ!ˆÉÀÊ!ˆÅ\nÀË!ˆÌÍ!‡" [make-local-variable write-file-hooks copy-sequence add-hook energize-write-file-hook t revert-buffer-insert-file-contents-function energize-revert-buffer-insert-file-contents-hook kill-buffer-hook energize-kill-buffer-hook require-final-newline energize-menu-state run-hooks energize-mode-hook] 4] energize-non-file-mode-internal #[nil "À ÂÃ!ÄLˆÅ‡" [buffer-name buffer-file-name make-local-variable version-control never nil] 2]] 2)
+(fset 'energize-top-level-mode #[nil "À ˆÁ\n!ˆÃÅÇ ˆÉš«†ÊÈ!ËLˆÌÍ!‡" [energize-mode-internal use-local-map energize-top-level-map energize-top-level-mode major-mode "Energize" mode-name energize-non-file-mode-internal screen-title-format "%S: %b" make-local-variable "%S: Top-Level" run-hooks energize-top-level-mode-hook] 2 "\
 Major mode for the Energize top-level buffer.
 In addition to normal cursor-motion commands, the following keys are bound:
 \\{energize-top-level-map}" nil])
@@ -98,6 +104,10 @@ In addition to normal cursor-motion commands, the following keys are bound:
 Major mode for the Energize Project buffers.
 In addition to the normal editing commands, the following keys are bound:
 \\{energize-project-map}" nil])
+(fset 'energize-no-file-project-mode #[nil "À ˆÁ\n!ˆÃÅÇ ˆÈÉ!‡" [energize-mode-internal use-local-map energize-no-file-project-map energize-no-file-project-mode major-mode "NoFileProject" mode-name energize-non-file-mode-internal run-hooks energize-no-file-project-mode-hook] 2 "\
+Major mode for the Energize Project buffers not associated with a file.
+In addition to the normal editing commands, the following keys are bound:
+\\{energize-no-file-project-map}" nil])
 (fset 'energize-breakpoint-mode #[nil "À ˆÁ\n!ˆÃÅÇ ˆÈÉ!‡" [energize-mode-internal use-local-map energize-breakpoint-map energize-breakpoint-mode major-mode "Breakpoint" mode-name energize-non-file-mode-internal run-hooks energize-breakpoint-mode-hook] 2 "\
 Major mode for the Energize Breakpoint-list buffers.
 In addition to the normal editing commands, the following keys are bound:
@@ -106,7 +116,11 @@ In addition to the normal editing commands, the following keys are bound:
 Major mode for the Energize Browser buffers.
 In addition to the normal editing commands, the following keys are bound:
 \\{energize-browser-map}" nil])
-(byte-code "ÀÁ!¬‚ÂÁ¬…ÄÅ\"<«Œ:«Œ@Ç=«…CÄÈ\"ÉÊM‡" [boundp energize-source-mode nil minor-mode-alist append ((energize-source-mode " Energize")) find-file-hooks lambda (maybe-turn-on-energize-minor-mode) maybe-turn-on-energize-minor-mode #[nil "Àp!«ƒÁ ˆÂÃ!­…­‚Ä ‡" [energize-buffer-p energize-source-minor-mode boundp evi-install-undo-list evi-mode] 2]] 3)
+(fset 'energize-log-mode #[nil "À ˆÁ\n!ˆÃÅÇ ˆÈÉ!‡" [energize-mode-internal use-local-map energize-map energize-log-mode major-mode "Energize-Log" mode-name energize-non-file-mode-internal run-hooks energize-log-mode-hook] 2 "\
+Major mode for the Energize Error Log and System Log buffers.
+In addition to the normal editing commands, the following keys are bound:
+\\{energize-map}" nil])
+(byte-code "ÀÁ!¬‚ÂÁ¬…ÄÅ\"<«Œ:«Œ@Ç=«…CÄÈ\"ÉÊM‡" [boundp energize-source-mode nil minor-mode-alist append ((energize-source-mode " Energize")) find-file-hooks lambda (maybe-turn-on-energize-minor-mode) maybe-turn-on-energize-minor-mode #[nil "Àp!«ŠÁp!Â=«ƒÃ ˆÄÅ!­…­‚Æ ‡" [energize-buffer-p energize-buffer-type energize-source-buffer energize-source-minor-mode boundp evi-install-undo-list energize-evi-mode] 2]] 3)
 (fset 'energize-source-minor-mode #[nil "À ˆÁÂ!ˆÃÅ ÈÉ \"ˆ«šÊ‰ÍÎ\"ˆ*Ï!‰¬fĞ!ˆ*ÑÒ!‡" [energize-mode-internal make-local-variable energize-source-mode t energize-source-map make-sparse-keymap dest-map source-map set-keymap-parent current-local-map nil prefixes mapper #[(key val) "À	!«ÂÅB\"Æ	\")‡È	ÊËÂÅB\"\"	#‡" [keymapp val append prefixes key nil map-keymap mapper define-key dest-map apply vector] 8] map-keymap keymap-parent use-local-map run-hooks energize-source-mode-hook] 4 "\
 Minor mode for adding additional keybindings to Energize source buffers.
 The following key bindings are added:
@@ -116,31 +130,16 @@ Since this minor mode defines keys, once it gets turned on you can't really
 turn it off." nil])
 (fset 'recenter-definition #[nil "Àˆ	Â=«†ÃÄ!ˆª„ÅÄ!ˆÆÄ!‡" [nil major-mode c++-mode c++-beginning-of-defun 1 beginning-of-defun recenter] 2 "\
 Position the beginning of the current definition at the top of the screen." nil])
-(define-key global-map "’" 'recenter-definition)
-(fset 'energize-build-and-debug-dwim #[(p) "¬†ÁÂÃ®ƒÄÅ!‡" [p nil (byte-code "ÀÁ!ˆÂ‡" [energize-execute-command "buildanddebug" t] 2) ((error)) energize-execute-command "incrementalbuild"] 3 "\
-If the ``Build and Debug'' menu option is available, execute that.
-Otherwise, execute the ``Build Target'' option.  With a prefix argument,
-always use ``Build Target''." "P"])
-(byte-code "ÀÁMˆÂÃM‡" [energize-next-extent-for #[(command prev not-this-one) "­ÁÂ‰Š`¬­«ƒoªm¬£È`p\"‰=¬‹Á=¬†É\n\"«ƒËªÌuˆªP*­+‡" [not-this-one none nil result e last-e p prev extent-at energize-menu-item-for-name command -1 1] 4] energize-next-extent-on-line-for #[(command not-this-one) "ŠŒ`Àˆ`}ˆebˆÁ\nÀ#*‡" [nil energize-next-extent-for command not-this-one] 4]] 2)
+(byte-code "À	ÂÃ#ˆÄÅMˆÆÇM‡" [define-key global-map "’" recenter-definition energize-next-extent-for #[(command prev not-this-one) "­ÁÂ‰Š`¬­«ƒoªm¬£È`p\"‰=¬‹Á=¬†É\n\"«ƒËªÌuˆªP*­+‡" [not-this-one none nil result e last-e p prev extent-at energize-menu-item-for-name command -1 1] 4] energize-next-extent-on-line-for #[(command not-this-one) "ŠŒ`Àˆ`}ˆebˆÁ\nÀ#*‡" [nil energize-next-extent-for command not-this-one] 4]] 4)
 (fset 'energize-top-next-project #[nil "`ÁÂÃÄ#‰«”Æ!U«ŠÇ!uˆÁÂÃÄ#)«†Æ!bªƒÈÉ!*‡" [p energize-next-extent-for "editproject" nil t e extent-start-position extent-length error "no next project"] 5 "\
 Position the cursor at the beginning of the following project." nil])
 (fset 'energize-top-prev-project #[nil "`ÁÂÃ‰#‰«’Å!U«‹ŠÆuˆÁÂÃ‰#)«†Å!bªƒÇÈ!*‡" [p energize-next-extent-for "editproject" t e extent-start-position -1 error "no previous project"] 5 "\
 Position the cursor at the beginning of the preceeding project." nil])
 (fset 'energize-top-execute-command #[(command) "À	Â\"®†ÃÄ	ÅQ!Ç	\")‡" [energize-next-extent-on-line-for command nil error "no following field on this line that handles the `" "' Energize command." e energize-execute-command] 4])
-(fset 'energize-top-build-and-debug #[nil "ÀÁ!‡" [energize-top-execute-command "buildanddebug"] 2 "\
-Execute the `Build and Debug' command on the project at or following point." nil])
-(fset 'energize-top-build #[nil "ÀÁ!‡" [energize-top-execute-command "buildprogram"] 2 "\
-Execute the `Build' command on the project at or following point." nil])
 (fset 'energize-top-debug #[nil "ÀÁ!‡" [energize-top-execute-command "debugprogram"] 2 "\
 Execute the `Debug' command on the project at or following point." nil])
 (fset 'energize-top-delete-project #[nil "ÀÁ!‡" [energize-top-execute-command "deleteproject"] 2 "\
 Delete the project at or following point." nil])
 (fset 'energize-top-edit-project #[nil "ÀÁ!‡" [energize-top-execute-command "editproject"] 2 "\
 Edit the project at or following point." nil])
-(fset 'energize-top-import-file #[nil "ÀÁ!‡" [energize-top-execute-command "import"] 2 "\
-Import a file into the project at or following point." nil])
-(fset 'energize-top-rename-project #[nil "ÀÁ!‡" [energize-top-execute-command "renameproject"] 2 "\
-Rename the project at or following point." nil])
-(fset 'energize-top-quit-debugger #[nil "ÀÁ!‡" [energize-top-execute-command "quitdebugger"] 2 "\
-Execute the `QuitDebugger' command on the project at or following point." nil])
 (byte-code "ÀÁMˆÂÃMˆÄÅM‡" [energize-project-next-field #[(&optional prev) "À`p\"‰«‘\n«ˆÃ	!Sbˆª†Ä	!TbˆÀ`p\"¬‹\n«ƒÅªÆuˆªoÀ`pÇ#«‹\n«ƒÅªÆuˆªn\n­šÀ`p\"‰«†Ã	!bªŒÀ`p\"?­…Åuˆªt)‡" [extent-at e prev extent-start-position extent-end-position -1 1 write-protected] 5 nil nil] energize-project-prev-field #[nil "ÀÁ!‡" [energize-project-next-field t] 2 nil nil] energize-project-edit-file #[nil "ÀÁ!‡" [energize-top-execute-command "editfile"] 2 nil nil]] 2)

@@ -1,5 +1,5 @@
 ;; Indentation commands for Emacs
-;; Copyright (C) 1985, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -241,8 +241,3 @@ Use \\[edit-tab-stops] to edit them interactively."
       (setq tabs (cdr tabs)))
     (if tabs
 	(move-to-column (car tabs) t))))
-
-(define-key global-map "\t" 'indent-for-tab-command)
-(define-key esc-map "\034" 'indent-region)
-(define-key ctl-x-map "\t" 'indent-rigidly)
-(define-key esc-map "i" 'tab-to-tab-stop)

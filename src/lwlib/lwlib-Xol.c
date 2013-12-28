@@ -297,7 +297,7 @@ xol_update_one_value (widget_instance* instance, Widget widget,
 }
 
 void
-xlw_pop_instance (widget_instance* instance, Boolean up)
+xol_pop_instance (widget_instance* instance, Boolean up)
 {
 }
 

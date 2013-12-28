@@ -1,7 +1,7 @@
-;;; compiled by jwz@watergate on Tue Aug 18 17:17:07 1992
-;;; from file /wg1/emacs-base/lisp/gnus/gnusmail.el
-;;; emacs version 19.2.2 Lucid.
-;;; bytecomp version 2.08;  7-aug-92.
+;;; compiled by jwz@thalidomide on Mon Jan 18 00:33:43 1993
+;;; from file /u/jwz/emacs19/lisp/gnus/gnusmail.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 16-jan-93.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -24,11 +24,12 @@ Customize the variable gnus-mail-forward-method to use another mailer." nil])
 (fset 'gnus-Subject-mail-other-window #[nil "À ˆÁ\n!ˆ~ˆÃ ˆÄ\n!ˆ ‡" [gnus-Subject-select-article switch-to-buffer gnus-Article-buffer delete-other-windows bury-buffer gnus-mail-other-window-method] 2 "\
 Compose mail in other window.
 Customize the variable gnus-mail-other-window-method to use another mailer." nil])
-(fset 'gnus-mail-reply-using-mail #[(&optional yank) "À ˆÁ ˆ\n­Œ`dbˆÄÅ!ˆb)‡" [news-mail-reply gnus-overload-functions yank last mail-yank-original nil] 2 "\
+(fset 'gnus-mail-reply-using-mail #[(&optional yank) "À ˆÁ ˆÂ ˆÃ ˆ­Œ`dbˆÆÇ!ˆb)‡" [gnus-Article-show-all-headers news-mail-reply gnus-news-mail-reply-init gnus-overload-functions yank last mail-yank-original nil] 2 "\
 Compose reply mail using mail.
 Optional argument YANK means yank original article."])
-(fset 'gnus-mail-forward-using-mail #[nil "pÀ	ÂÃÄ!®ÅRÈÉ!«ˆÊË‰#ª†ÌË‰#­–ŠdbˆÍcˆÎ!ˆdbˆÏcˆĞÑ!)*‡" ["[" gnus-newsgroup-name "] " gnus-fetch-field "Subject" "" subject forward-buffer one-window-p t mail nil mail-other-window "------- Start of forwarded message -------\n" insert-buffer "------- End of forwarded message -------\n" run-hooks gnus-mail-forward-hook] 6 "\
-Forward the current message to another user using mail."])
+(byte-code "ÀÁMˆÂÃ!¬‚ÄÀ‡" [gnus-news-mail-reply-init #[nil "ŠÁ=¬„ÂÃ!ˆÄÅ «†ÆÅ !ª‚Ç !ˆÈÅ ÉÊ#ˆËqˆÌ ÍU?­ Îš­›Ï ˆeebˆĞÑ!ˆ`ÒZ}ˆÓÔ!ÓÖ!~)‡" [major-mode mail-mode error "confused about major mode" use-local-map current-local-map copy-keymap make-sparse-keymap define-key "" news-reply-yank-original "*Article*" buffer-size 0 gnus-Article-mode gnus-Article-show-all-headers search-forward "\n\n" 2 mail-fetch-field "from" news-reply-yank-from "message-id" news-reply-yank-message-id] 4] boundp gnus-forward-header-function (lambda nil (concat "[" gnus-newsgroup-name "] " (or (gnus-fetch-field "Subject") "")))] 2)
+(fset 'gnus-mail-forward-using-mail #[nil "	 ÄÅ‰\n#­²Šdbˆn¬ƒÆcˆÇcˆ`É!ˆbˆÊËÅÌ#«ˆÍÎÌ‰#ˆªq)dbˆÏcˆĞÑ!)*‡" [gnus-Article-buffer gnus-forward-header-function subject forward-buffer mail nil "\n" "------- Start of forwarded message -------\n" p insert-buffer re-search-forward "^-" t replace-match "- -" "\n------- End of forwarded message -------\n" run-hooks gnus-mail-forward-hook] 4 "\
+Forward the current message to another user using mail, RFC944 style."])
 (fset 'gnus-mail-other-window-using-mail #[nil "À ˆÁ ‡" [news-mail-other-window gnus-overload-functions] 1 "\
 Compose mail other window using mail."])
 (fset 'gnus-mail-reply-using-mhe #[(&optional yank) "À‰‰‰‰‰pŒÈ ˆÉÊ!ÉË!‰«‹ÌÍ\"¬…ÎPª)ÉÏ!ÉĞ!ÉÑ!	\n®‚Ó ˆÔ®Õ#ˆŠÖ×ØÌÙ\"OÚQ\"ˆ)	Ü.­Š`à ˆb)‡" [nil buffer reply-to to date subject cc from gnus-Article-show-all-headers gnus-fetch-field "from" "subject" string-match "^[Rr][Ee]:.+$" "Re: " "reply-to" "cc" "date" mh-show-buffer mh-find-path mh-send "" mh-insert-fields "In-reply-to:" 0 "  *at \\|  *@ \\| *(\\| *<" "'s message of " mh-sent-from-folder 1 mh-sent-from-msg yank last mh-yank-cur-msg] 8 "\

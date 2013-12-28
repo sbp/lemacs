@@ -23,7 +23,8 @@
 
 ;; perhaps this should be in subr.el...
 (defun shrink-window-if-larger-than-buffer (window)
-  (save-excursion
+  (if (not (and (one-window-p) (eq (selected-window) window)))
+   (save-excursion
     (set-buffer (window-buffer window))
     (let ((w (selected-window)) ;save-window-excursion can't win
 	  (buffer-file-name buffer-file-name)
@@ -48,7 +49,7 @@
 	(select-window w)
 	;; Make sure we unbind buffer-read-only
 	;; with the proper current buffer.
-	(set-buffer buffer)))))
+	(set-buffer buffer))))))
       
 ;; This loop is the guts for non-standard modes which retain control
 ;; until some event occurs.  It is a `do-forever', the only way out is to
@@ -78,7 +79,14 @@
 		    (if (stringp prompt) prompt (funcall prompt))))
       (or prefix-arg (setq last-command this-command))
       (setq last-command-event (aref events (1- (length events)))
-	    this-command (key-binding events)
+	    current-mouse-event
+	      (and (or (button-press-event-p last-command-event)
+		       (button-release-event-p last-command-event)
+		       (menu-event-p last-command-event))
+		   last-command-event)
+	    this-command (if (menu-event-p last-command-event)
+			     last-command-event
+			   (key-binding events))
 	    cmd this-command)
       (if (or (prog1 quit-flag (setq quit-flag nil))
 	      (eq (event-to-character last-input-event) interrupt-char))
@@ -94,10 +102,16 @@
       (setq current-prefix-arg prefix-arg)
       (if cmd
 	  (condition-case conditions
-	      (progn (command-execute cmd)
+	      (progn (if (eventp cmd)
+			 (progn
+			   (let ((b (current-buffer)))
+			     (dispatch-event cmd)
+			     (if (not (eq b (current-buffer)))
+				 (throw return-tag (current-buffer)))))
+		       (command-execute cmd))
 		     (if (or (prog1 quit-flag (setq quit-flag nil))
-			     (= (event-to-character last-input-event)
-				interrupt-char))
+			     (eq (event-to-character last-input-event)
+				 interrupt-char))
 			 (progn (setq unread-command-event nil)
 				(if (not inhibit-quit)
 				    (progn (ding)

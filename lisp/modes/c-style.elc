@@ -1,5 +1,5 @@
-;;; compiled by jwz@thalidomide on Sat Aug 29 19:40:24 1992
-;;; from file /wg1/emacs-base/lisp/modes/c-style.el
+;;; compiled by jwz@thalidomide on Fri Aug 28 20:35:19 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/modes/c-style.el
 ;;; emacs version 19.2.13 Lucid.
 ;;; bytecomp version 2.08;  7-aug-92.
 ;;; optimization is on.

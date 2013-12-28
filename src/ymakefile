@@ -35,7 +35,7 @@ cppdir = ../cpp/
 CC=gcc
 #else
 #ifdef USE_LCC
-CC=cadlcc -Xe $(EMACS_ENERGIZE_CONNECT)
+CC=xlcc -XA -Xe -wa $(EMACS_ENERGIZE_CONNECT)
 #endif
 #endif
 
@@ -143,21 +143,27 @@ STARTFLAGS = -T LD_TEXT_START_ADDR -e __start
 
 #ifdef COFF_ENCAPSULATE
 LD=$(CC) -nostdlib
-#else
+#else /* !COFF_ENCAPSULATE */
 #ifdef LD_CMD
 LD=LD_CMD
-#else
-#if defined(__GNUC__) && __GNUC__ >= 2
+#else /* !LD_CMD */
+#if defined(USE_GCC) && defined(__GNUC__) && (__GNUC__ >= 2)
 LD=gcc -nostdlib
 #undef LIB_GCC
 #define LIB_GCC -lgcc
-#else
+#else /* !GNUC >= 2 */
+#ifdef AIX
+LD=cc
+#else  /* !AIX */
 LD=ld
-#endif /* GNUC >= 2 */
-#endif
-#endif
+#endif /* !AIX */
+#endif /* !GNUC >= 2 */
+#endif /* !LD_CMD */
+#endif /* !COFF_ENCAPSULATE */
 
-ILD=/cadillac1/utilities/cadild
+ILD=/cadillac1/code/bin.sun4/ild
+
+PURIFY=/usr/local/purify/purify
 
 /* Figure out whether the system cpp can handle long names.
    Do it by testing it right now.
@@ -193,49 +199,34 @@ SHORT= shortnames
 
 #ifdef USE_SOUND
 #ifdef sparc
-# define SOUND_LIBS	-L/usr/demo/SOUND -laudio
 # define SOUND_CFLAGS	-I/usr/demo/SOUND
-# define SOUND_OBJS	play.o libsst.o
+# define SOUND_LIBS	-L/usr/demo/SOUND -laudio
+# define SOUND_OBJS	play.o
 #else /* ! sparc */
 #ifdef sgi
-# define SOUND_LIBS	-laudio
 # define SOUND_CFLAGS
+# define SOUND_LIBS	-laudio
 # define SOUND_OBJS	sgiplay.o
 #else /* ! sgi */
-  ERROR!!
+  ERROR!!  USE_SOUND can only be defined on SparcStation and SGI
 #endif /* ! sgi */
-#endif
+#endif /* ! sparc */
 #else /* ! USE_SOUND */
-# define SOUND_LIBS
 # define SOUND_CFLAGS
+# define SOUND_LIBS
 # define SOUND_OBJS
 #endif /* ! USE_SOUND */
 
 #ifdef ENERGIZE
-
-ENERGIZE_CDIR=/cadillac-code/isam-cadlcc-sun4
-
-#define ENERGIZE_INCLUDES -I. -I${ENERGIZE_CDIR}/image \
-        -I${ENERGIZE_CDIR}/connection
-
-#define ENERGIZE_LDFLAGS -L${ENERGIZE_CDIR}/connection \
-        -L${ENERGIZE_CDIR}/image
-
-#define ENERGIZE_LIBS ${ENERGIZE_CDIR}/base/hash.o -lconn -limage \
-        -L/net/shark2-arch/arch/rel/src-rel/beta2.3/pacclib/lib.sun4 \
-        -lcplus
-
-#else /* ! ENERGIZE */
-
-ENERGIZE_CDIR=/cadillac-code/isam-cadlcc-sun4
-
+CONN_DIR=../connection
+#define ENERGIZE_INCLUDES -I${CONN_DIR}
+#define ENERGIZE_LDFLAGS -L${CONN_DIR}
+#define ENERGIZE_LIBS -lconn
+#else /* !ENERGIZE */
 #define ENERGIZE_INCLUDES
-
 #define ENERGIZE_LDFLAGS
-
 #define ENERGIZE_LIBS
-
-#endif /* ! ENERGIZE */
+#endif /* !ENERGIZE */
 
 
 CFLAGS= C_DEBUG_SWITCH C_SWITCH_MACHINE C_SWITCH_SYSTEM C_SWITCH_SITE \
@@ -258,11 +249,14 @@ XOBJ= xterm.o xfns.o xselect.o xutils.o event-Xt.o menubar.o
 LWLIBDIR = ./lwlib
 
 LIBX11_LDFLAGS = -L$(LWLIBDIR)
-
 LIBX11_INCLUDES = -I$(LWLIBDIR)
 
+#ifdef HAVE_XPM
+XPM_LIBS = -lXpm
+#endif /* !HAVE_XPM */
+
 #ifdef LWLIB_USES_MOTIF
-TOOLKIT_LIBS = -lXm /* -lMrm */
+TOOLKIT_LIBS = -lXm
 #else /* ! LWLIB_USES_MOTIF */
 #ifdef LWLIB_USES_OLIT
 TOOLKIT_LIBS = -lXol
@@ -271,13 +265,14 @@ TOOLKIT_LIBS =
 #endif /* ! LWLIB_USES_OLIT */
 #endif /* ! LWLIB_USES_MOTIF */
 
-LIBX11_LIBS = $(LWLIBDIR)/liblw.a $(TOOLKIT_LIBS) -lXaw -lXext -lXt
+LIBX11_LIBS = -llw $(TOOLKIT_LIBS) $(XPM_LIBS) -lXaw -lXext -lXt
 
 LIBX=  $(LIBX11_LIBS) -lXmu -lX11 LIBX11_MACHINE LIBX11_SYSTEM
 
 #endif /* HAVE_X_WINDOWS */
 
 #ifdef MAINTAIN_ENVIRONMENT
+#undef environ
 environobj = environ.o
 #endif /* MAINTAIN_ENVIRONMENT */
 
@@ -298,7 +293,7 @@ environobj = environ.o
 #define BTLOBJS
 #endif
 
-#ifdef FREE_CHECKING
+#if defined(FREE_CHECKING)||defined(DEBUG_INPUT_BLOCKING)||defined(DEBUG_GCPRO)
 #define FREECHECKOBJS free-hook.o
 #else
 #define FREECHECKOBJS
@@ -319,12 +314,11 @@ obj=    dispnew.o screen.o scroll.o xdisp.o window.o \
 	buffer.o filelock.o insdel.o marker.o \
 	minibuf.o fileio.o dired.o filemode.o \
 	cmds.o casetab.o casefiddle.o indent.o search.o regex.o undo.o \
-	alloc.o data.o doc.o editfns.o callint.o \
+	pure.o alloc.o data.o doc.o editfns.o callint.o \
 	eval.o floatfns.o fns.o print.o lread.o \
 	abbrev.o syntax.o font_lock.o UNEXEC mocklisp.o bytecode.o \
-	process.o callproc.o $(environobj) \
-	doprnt.o extents.o faces.o ENERGIZE_OBJS BTLOBJS FREECHECKOBJS \
-	REALPATH_OBJS
+	process.o callproc.o $(environobj) ENERGIZE_OBJS BTLOBJS \
+	FREECHECKOBJS REALPATH_OBJS doprnt.o extents.o faces.o 
 
 #ifdef TERMINFO
 /* Used to be -ltermcap here.  If your machine needs that,
@@ -387,25 +381,31 @@ otherobj= $(termcapobj) lastfile.o $(mallocobj) LIBX11_OBJ
 #ifdef HAVE_X_WINDOWS
 /* lisp files that are preloaded if compiled with support for X Windows */
 #define X11_LISP ${lispdir}prim/screen.elc ${lispdir}prim/menubar.elc \
-		${lispdir}prim/menubar.elc ${lispdir}x11/x-faces.elc \
-		${lispdir}x11/x-iso8859-1.elc ${lispdir}x11/x-mouse.elc \
-		${lispdir}prim/mouse.elc ${lispdir}prim/mode-motion.elc \
-		${lispdir}x11/xselect.elc
+                ${lispdir}prim/menubar.elc ${lispdir}x11/x-faces.elc \
+                ${lispdir}x11/x-iso8859-1.elc ${lispdir}x11/x-mouse.elc \
+                ${lispdir}prim/mouse.elc ${lispdir}prim/mode-motion.elc \
+                ${lispdir}x11/xselect.elc
 #else
 #define X11_LISP
 #endif
 
 #ifdef ENERGIZE
-/* lisp files that are preloaded if compiled with support for Energize */
-#define ENERGIZE_LISP ${lispdir}energize/energize-init.elc \
-		${lispdir}energize/energize-mode.elc \
-		${lispdir}energize/energize-menus.elc \
-		${lispdir}energize/energize-shell.elc \
-		${lispdir}energize/backtrace-logging.elc \
-		${lispdir}comint/gdb.elc ${lispdir}comint/comint.elc \
-		${lispdir}comint/shell.elc ${lispdir}packages/compile.elc \
-		${lispdir}dired/dired.elc ${lispdir}dired/dired-x.elc \
-		${lispdir}dired/gmhist.elc
+/* Lisp files that are preloaded if compiled with support for Energize
+   It is very important that energize-advise.elc come last.
+ */
+#define ENERGIZE_LISP ${lispdir}modes/c++-mode.elc ${lispdir}comint/gdb.elc \
+                ${lispdir}comint/comint.elc ${lispdir}comint/shell.elc \
+                ${lispdir}packages/compile.elc \
+                ${lispdir}modes/view-less.elc ${lispdir}emulators/evi.elc \
+                ${lispdir}dired/dired.elc ${lispdir}dired/dired-x.elc \
+                ${lispdir}energize/energize-init.elc \
+                ${lispdir}energize/energize-mode.elc \
+                ${lispdir}energize/energize-windows.elc \
+                ${lispdir}energize/energize-menus.elc \
+                ${lispdir}energize/energize-shell.elc \
+                ${lispdir}energize/energize-visit-use.elc \
+                ${lispdir}energize/energize-vi.elc \
+                ${lispdir}energize/energize-advise.elc
 #else
 #define ENERGIZE_LISP
 #endif
@@ -417,7 +417,8 @@ otherobj= $(termcapobj) lastfile.o $(mallocobj) LIBX11_OBJ
    This is dumb, this list should be generated automatically.
  */
 lisp=	${lispdir}version.el ${lispdir}paths.el \
-	${lispdir}prim/loadup.el ${lispdir}prim/subr.elc \
+	${lispdir}prim/loadup.el ${lispdir}prim/keydefs.el \
+	${lispdir}prim/subr.elc ${lispdir}prim/minibuf.elc \
 	${lispdir}prim/faces.elc ${lispdir}prim/loaddefs.el \
 	${lispdir}prim/simple.elc ${lispdir}prim/help.elc \
 	${lispdir}prim/files.elc ${lispdir}prim/indent.elc \
@@ -495,10 +496,10 @@ temacs: TEMACS_DEPS
 	$(LD)  TEMACS_LINK_ARGS
 
 cemacs: TEMACS_DEPS
-	$(ILD) TEMACS_LINK_ARGS -Xez
+	$(LD) TEMACS_LINK_ARGS
 
-temacs_ild: TEMACS_DEPS
-	$(ILD) TEMACS_LINK_ARGS -ild -target $@ $?
+puremacs: TEMACS_DEPS
+	$(PURIFY) $(LD) TEMACS_LINK_ARGS
 
 #ifdef HAVE_X_WINDOWS
 $(LWLIBDIR)/Makefile: $(LWLIBDIR)/Imakefile
@@ -572,30 +573,25 @@ alloca.o : alloca.s config.h
 
 #ifdef USE_LCC  /* lcc doesn't do asm() yet */
 crt0.o:
-	cc -c $(CFLAGS)  crt0.c
+	cc -c -g -Demacs crt0.c
 
 free-hook.o:
-	gcc -c $(CFLAGS)  free-hook.c
+	gcc -c -g -Demacs free-hook.c
 #endif
 
-MKDEP = /cadillac1/utilities/makedepend -/ -fDependencies
-
-mydepend:
-	${MKDEP} -- $(CFLAGS) $(CPPFLAGS) SOUND_CFLAGS -- -s"# Machine generated dependencies" *.c
-
-/* Nearly all the following files depend on lisp.h,
-   but it is not included as a dependency because
+/* Nearly all the following files depend on lisp.h and emacsfns.h,
+   but they are not included as a dependency because
    it is so often changed in ways that do not require any recompilation
    and so rarely changed in ways that do require any.  */
 
 #ifdef HAVE_X_WINDOWS
 
-xfns.o : xfns.c buffer.h screen.h window.h config.h xterm.h \
+xfns.o : xfns.c buffer.h bufslots.h screen.h window.h config.h xterm.h \
          ScreenWidget.h ColumnWidget.h EmacsShell.h EmacsShellP.h
 xutils.o : xutils.c xterm.h config.h
 xterm.o : xterm.c xterm.h termhooks.h termopts.h termchar.h dispextern.h \
           config.h sink.h sinkmask.h screen.h disptab.h bitmaps.h
-xselect.o : xselect.c lisp.h xterm.h screen.h config.h
+xselect.o : xselect.c xterm.h screen.h config.h
 ScreenWidget.o : ScreenWidget.c ScreenWidget.h ScreenWidgetP.h
 ColumnWidget.o : ColumnWidget.c ColumnWidget.h ColumnWidgetP.h
 EmacsShell.o : EmacsShell.c EmacsShell.h EmacsShellP.h
@@ -630,47 +626,44 @@ LineInfoWidget.o: screen.h dispextern.h window.h
 ScreenWidget.o: ScreenWidgetP.h ScreenWidget.h config.h 
 ScreenWidget.o: xterm.h blockio.h
 ScreenWidget.o: dispextern.h screen.h
-abbrev.o: config.h commands.h
+abbrev.o: config.h commands.h insdel.h
 abbrev.o: buffer.h bufslots.h window.h
-alloc.o: config.h buffer.h puresize.h
-alloc.o: bufslots.h extents.h dispextern.h window.h events.h keymap.h xterm.h
+alloc.o: config.h buffer.h bufslots.h puresize.h
+alloc.o: extents.h dispextern.h window.h events.h keymap.h xterm.h
 alloc.o: blockio.h screen.h backtrace.h
 alloca.o: config.h
 buffer.o: config.h window.h
 buffer.o: commands.h buffer.h bufslots.h screen.h dispextern.h syntax.h
-bytecode.o: config.h buffer.h
-bytecode.o: bufslots.h syntax.h
-callint.o: config.h buffer.h
-callint.o: bufslots.h commands.h window.h
+bytecode.o: config.h buffer.h bufslots.h syntax.h
+callint.o: config.h buffer.h bufslots.h
+callint.o: commands.h window.h
 callproc.o: config.h commands.h
-callproc.o: buffer.h bufslots.h paths.h process.h
-casefiddle.o: config.h buffer.h
-casefiddle.o: bufslots.h commands.h syntax.h
-casetab.o: config.h buffer.h
-casetab.o: bufslots.h
+callproc.o: buffer.h bufslots.h paths.h process.h insdel.h
+casefiddle.o: config.h buffer.h bufslots.h
+casefiddle.o: commands.h syntax.h insdel.h
+casetab.o: config.h buffer.h bufslots.h
 cm.o: config.h cm.h termhooks.h
 cmds.o: config.h commands.h
-cmds.o: buffer.h bufslots.h syntax.h
+cmds.o: buffer.h bufslots.h syntax.h insdel.h
 crt0.o: config.h
-data.o: config.h buffer.h puresize.h
-data.o: bufslots.h
+data.o: config.h buffer.h bufslots.h puresize.h
 dired.o: config.h buffer.h
 dired.o: bufslots.h commands.h regex.h
 dispnew.o: config.h indent.h termchar.h
 dispnew.o: termopts.h cm.h buffer.h bufslots.h screen.h dispextern.h
 dispnew.o: window.h commands.h disptab.h xterm.h blockio.h
 doc.o: config.h buffer.h
-doc.o: bufslots.h
+doc.o: bufslots.h insdel.h
 duplicates.o: config.h buffer.h
 duplicates.o: bufslots.h process.h editorside.h hash.h extents-data.h
 duplicates.o: extents.h dispextern.h
 editfns.o: config.h pwd.h 
-editfns.o: buffer.h bufslots.h window.h
+editfns.o: buffer.h bufslots.h window.h insdel.h
 editorside.o: config.h buffer.h
 editorside.o: bufslots.h extents.h dispextern.h process.h xterm.h blockio.h
 editorside.o: screen.h window.h editorside.h hash.h extents-data.h
-elhash.o: config.h hash.h
-emacs.o: config.h commands.h
+elhash.o: config.h hash.h elhash.h
+emacs.o: config.h commands.h process.h
 environ.o: config.h 
 eval.o: config.h blockio.h
 eval.o: commands.h backtrace.h
@@ -688,32 +681,33 @@ extents.o: config.h buffer.h
 extents.o: bufslots.h process.h xterm.h blockio.h screen.h dispextern.h
 extents.o: window.h editorside.h hash.h extents-data.h extents.h faces.h
 fileio.o: pwd.h config.h 
-fileio.o: buffer.h bufslots.h window.h
+fileio.o: buffer.h bufslots.h window.h insdel.h
 filelock.o: config.h pwd.h 
 filelock.o: paths.h buffer.h bufslots.h
 floatfns.o: config.h 
 fns.o: config.h commands.h
 fns.o: buffer.h bufslots.h extents.h dispextern.h screen.h events.h
-font_lock.o: config.h buffer.h syntax.h
+font_lock.o: config.h buffer.h bufslots.h syntax.h
 free-hook.o: config.h hash.h blockio.h
 faces.o: config.h xterm.h
 faces.o: blockio.h buffer.h bufslots.h extents.h dispextern.h screen.h
 faces.o: window.h indent.h editorside.h hash.h extents-data.h faces.h
 gmalloc.o: config.h
 hash.o: hash.h config.h 
-iclasses.o: config.h buffer.h
-iclasses.o: bufslots.h
-indent.o: config.h buffer.h
-indent.o: bufslots.h extents.h dispextern.h indent.h screen.h window.h
+indent.o: config.h buffer.h bufslots.h
+indent.o: extents.h dispextern.h indent.h screen.h window.h
 indent.o: termchar.h termopts.h disptab.h xterm.h blockio.h
-insdel.o: config.h buffer.h
-insdel.o: bufslots.h extents.h dispextern.h window.h
+indent.o: insdel.h
+insdel.o: config.h buffer.h bufslots.h
+insdel.o: extents.h dispextern.h window.h
+insdel.o: insdel.h
 keyboard.o: config.h termchar.h
 keyboard.o: termopts.h termhooks.h macros.h buffer.h bufslots.h
 keyboard.o: screen.h dispextern.h window.h commands.h disptab.h events.h
 keyboard.o: backtrace.h
-keymap.o: config.h keymap.h
+keymap.o: config.h keymap.h elhash.h
 keymap.o: commands.h buffer.h bufslots.h events.h
+keymap.o: insdel.h
 libsst.o: libsst.h
 lread.o: config.h buffer.h
 lread.o: bufslots.h paths.h commands.h
@@ -732,13 +726,14 @@ minibuf.o: buffer.h bufslots.h screen.h dispextern.h window.h syntax.h
 mocklisp.o: config.h buffer.h
 mocklisp.o: bufslots.h
 play.o: libsst.h
-sgiplay.o: config.h lisp.h libst.h
-print.o: config.h buffer.h
-print.o: bufslots.h extents.h dispextern.h screen.h window.h process.h
-print.o: events.h
+sgiplay.o: config.h libst.h
+print.o: config.h buffer.h bufslots.h
+print.o: extents.h dispextern.h screen.h window.h process.h
+print.o: events.h insdel.h
 process.o: config.h window.h
 process.o: buffer.h bufslots.h process.h termhooks.h termopts.h commands.h
-process.o: events.h
+process.o: events.h insdel.h
+pure.o: config.h puresize.h
 ralloc.o: config.h mem_limits.h
 regex.o: config.h buffer.h
 regex.o: bufslots.h syntax.h regex.h
@@ -747,7 +742,7 @@ screen.o: screen.h window.h xterm.h blockio.h
 scroll.o: config.h termchar.h 
 scroll.o: dispextern.h screen.h
 search.o: config.h syntax.h
-search.o: buffer.h bufslots.h commands.h regex.h
+search.o: buffer.h bufslots.h commands.h regex.h insdel.h
 sunfns.o: config.h window.h
 sunfns.o: buffer.h bufslots.h termhooks.h
 syntax.o: config.h commands.h

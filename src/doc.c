@@ -1,5 +1,5 @@
 /* Record indices of function doc strings stored in a file.
-   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -20,6 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "config.h"
 
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/file.h>	/* Must be after sys/types.h for USG and BSD4_1*/
 
@@ -33,10 +34,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "lisp.h"
 #include "buffer.h"
+#include "insdel.h"
 
 Lisp_Object Vdoc_file_name;
 
-Lisp_Object
+static Lisp_Object
 get_doc_string (filepos)
      long filepos;
 {
@@ -45,7 +47,6 @@ get_doc_string (filepos)
   register char *name;
   register char *p, *p1;
   register int count;
-  extern char *index ();
 
   if (!STRINGP (Vexec_directory)
       || !STRINGP (Vdoc_file_name))
@@ -53,8 +54,8 @@ get_doc_string (filepos)
 
   name = (char *) alloca (XSTRING (Vexec_directory)->size
 			  + XSTRING (Vdoc_file_name)->size + 8);
-  strcpy (name, (char*)XSTRING (Vexec_directory)->data);
-  strcat (name, XSTRING (Vdoc_file_name)->data);
+  strcpy (name, (char *) XSTRING (Vexec_directory)->data);
+  strcat (name, (char *) XSTRING (Vdoc_file_name)->data);
 #ifdef VMS
 #ifndef VMS4_4
   /* For VMS versions with limited file name syntax,
@@ -140,8 +141,6 @@ DEFUN ("documentation", Fdocumentation, Sdocumentation, 1, 1, 0,
   funcar = Fcar (fun);
   if (!SYMBOLP (funcar))
     return Fsignal (Qinvalid_function, Fcons (fun, Qnil));
-  if (XSYMBOL (funcar) == XSYMBOL (Qkeymap))
-    return build_string ("Prefix command (definition is a list whose cdr is an alist of subcommands.)");
   if (XSYMBOL (funcar) == XSYMBOL (Qlambda)
       || XSYMBOL (funcar) == XSYMBOL (Qautoload))
     {
@@ -194,7 +193,6 @@ when doc strings are referred to later in the dumped Emacs.")
   register char *p, *end;
   Lisp_Object sym, fun, tem;
   char *name;
-  extern char *index ();
 
   CHECK_STRING (filename, 0);
 
@@ -207,7 +205,7 @@ when doc strings are referred to later in the dumped Emacs.")
 			  XSTRING (Vexec_directory)->size + 1);
   strcpy (name, XSTRING (Vexec_directory)->data);
 #endif /* CANNOT_DUMP */
-  strcat (name, XSTRING (filename)->data); 	/*** Add this line ***/
+  strcat (name, (char *) XSTRING (filename)->data);
 #ifdef VMS
 #ifndef VMS4_4
   /* For VMS versions with limited file name syntax,
@@ -247,7 +245,7 @@ when doc strings are referred to later in the dumped Emacs.")
       if (p != end)
 	{
 	  end = index (p, '\n');
-	  sym = oblookup (Vobarray, p + 2, end - p - 2);
+	  sym = oblookup (Vobarray, (unsigned char *) p + 2, end - p - 2);
 	  if (SYMBOLP (sym))
 	    {
 	      if (p[1] == 'V')
@@ -293,11 +291,86 @@ when doc strings are referred to later in the dumped Emacs.")
 	}
       pos += end - buf;
       filled -= end - buf;
-      bcopy (end, buf, filled);
+      memcpy (buf, end, filled);
     }
   close (fd);
   return Qnil;
 }
+
+static void
+verify_doc_mapper (Lisp_Object sym, Lisp_Object closure)
+{
+  if (!NILP (Ffboundp (sym)))
+    {
+      int doc = 0;
+      Lisp_Object fun = XSYMBOL (sym)->function;
+      if (CONSP (fun) &&
+	  EQ (XCONS (fun)->car, Qmacro))
+	fun = XCONS (fun)->cdr;
+
+      if (SUBRP (fun))
+	doc = (int) XSUBR (fun)->doc;
+      else if (SYMBOLP (fun))
+	doc = -1;
+      else if (KEYMAPP (fun))
+	doc = -1;
+      else if (CONSP (fun))
+	{
+	  Lisp_Object tem = XCONS (fun)->car;
+	  if (EQ (tem, Qlambda) || EQ (tem, Qautoload))
+	    {
+	      doc = -1;
+	      tem = Fcdr (Fcdr (fun));
+	      if (CONSP (tem) &&
+		  FIXNUMP (XCONS (tem)->car))		  
+		doc = XINT (XCONS (tem)->car);
+	    }
+	}
+      else if (COMPILEDP (fun))
+	{
+	  doc = -1;
+	  if (XVECTOR (fun)->size > COMPILED_DOC_STRING &&
+	      FIXNUMP (XVECTOR (fun)->contents[COMPILED_DOC_STRING]))
+	    doc = XFASTINT (XVECTOR (fun)->contents[COMPILED_DOC_STRING]);
+	}
+
+      if (doc == 0)
+	{
+	  fprintf (stderr, "Warning: doc lost for function %s.\n",
+		   (char *) XSYMBOL (sym)->name->data);
+	  XCONS (closure)->cdr = Qt;
+	}
+    }
+  if (!NILP (Fboundp (sym)))
+    {
+      Lisp_Object doc = Fget (sym, Qvariable_documentation);
+      if (FIXNUMP (doc) && XFASTINT (doc) == 0)
+	{
+	  fprintf (stderr, "Warning: doc lost for variable %s.\n",
+		   (char *) XSYMBOL (sym)->name->data);
+	  XCONS (closure)->cdr = Qt;
+	}
+    }
+}
+
+DEFUN ("Verify-documentation", Fverify_documentation, Sverify_documentation,
+       0, 0, 0,
+       "Used to make sure everything went well with Snarf-documentation.\n\
+Writes to stderr if not.")
+     ()
+{
+  Lisp_Object closure = Fcons (Qnil, Qnil);
+  struct gcpro gcpro1;
+  GCPRO1 (closure);
+  map_obarray (Vobarray, verify_doc_mapper, closure);
+  if (!NILP (Fcdr (closure)))
+    fprintf (stderr, "\n\
+This is usually because some files were preloaded by loaddefs.el or\n\
+site-load.el, but were not passed to make-docfile by ymakefile.\n\n");
+  UNGCPRO;
+  return (NILP (Fcdr (closure)) ? Qt : Qnil);
+}
+
 
 DEFUN ("substitute-command-keys", Fsubstitute_command_keys,
   Ssubstitute_command_keys, 1, 1, 0,
@@ -362,7 +435,7 @@ thus, \\=\\=\\=\\= puts \\=\\= into the output, and \\=\\=\\=\\[ puts \\=\\[ int
 	  length = strp - start;
 	  strp++;		/* skip ] */
 
-	  tem = Fintern (make_string (start, length), Qnil);
+	  tem = Fintern (make_string ((char *) start, length), Qnil);
 	  tem = Fwhere_is_internal (tem, keymap, Qt, Qnil, Qnil);
 
 	  if (NILP (tem))	/* but not on any keys */
@@ -370,7 +443,7 @@ thus, \\=\\=\\=\\= puts \\=\\= into the output, and \\=\\=\\=\\[ puts \\=\\[ int
 	      new = (unsigned char *) xrealloc (buf, bsize += 4);
 	      bufp += new - buf;
 	      buf = new;
-	      bcopy ("M-x ", bufp, 4);
+	      memcpy (bufp, "M-x ", 4);
 	      bufp += 4;
 	      goto subst;
 	    }
@@ -399,7 +472,7 @@ thus, \\=\\=\\=\\= puts \\=\\= into the output, and \\=\\=\\=\\[ puts \\=\\[ int
 	  /* Get the value of the keymap in TEM, or nil if undefined.
 	     Do this while still in the user's current buffer
 	     in case it is a local variable.  */
-	  name = Fintern (make_string (start, length), Qnil);
+	  name = Fintern (make_string ((char *) start, length), Qnil);
 	  tem = Fboundp (name);
 	  if (! NILP (tem))
 	    {
@@ -435,7 +508,7 @@ thus, \\=\\=\\=\\= puts \\=\\= into the output, and \\=\\=\\=\\[ puts \\=\\[ int
 	  new = (unsigned char *) xrealloc (buf, bsize += length);
 	  bufp += new - buf;
 	  buf = new;
-	  bcopy (start, bufp, length);
+	  memcpy (bufp, start, length);
 	  bufp += length;
 	}
       else			/* just copy other chars */
@@ -443,14 +516,15 @@ thus, \\=\\=\\=\\= puts \\=\\= into the output, and \\=\\=\\=\\[ puts \\=\\[ int
     }
 
   if (changed)			/* don't bother if nothing substituted */
-    tem = make_string (buf, bufp - buf);
+    tem = make_string ((char *) buf, bufp - buf);
   else
     tem = str;
-  free (buf);
+  xfree (buf);
   UNGCPRO;
   return tem;
 }
 
+void
 syms_of_doc ()
 {
   DEFVAR_LISP ("internal-doc-file-name", &Vdoc_file_name,
@@ -460,5 +534,6 @@ syms_of_doc ()
   defsubr (&Sdocumentation);
   defsubr (&Sdocumentation_property);
   defsubr (&Ssnarf_documentation);
+  defsubr (&Sverify_documentation);
   defsubr (&Ssubstitute_command_keys);
 }

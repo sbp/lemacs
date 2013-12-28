@@ -105,7 +105,7 @@ Newsgroups buffer."
       (setq gnus-winconf-browse-killed
 	    (current-window-configuration)))
   ;; Prepare browsing buffer.
-  (pop-to-buffer (get-buffer-create gnus-Browse-killed-buffer))
+  (gnus-pop-to-buffer (get-buffer-create gnus-Browse-killed-buffer))
   (gnus-Browse-killed-mode)
   (let ((buffer-read-only nil)
 	(killed-assoc gnus-killed-assoc))
@@ -123,10 +123,10 @@ Newsgroups buffer."
     (if group
 	(let* ((buffer-read-only nil)
 	       (killed (assoc group gnus-killed-assoc)))
-	  (pop-to-buffer gnus-Group-buffer) ;Needed to adjust point.
+	  (gnus-pop-to-buffer gnus-Group-buffer) ;Needed to adjust point.
 	  (if killed
 	      (gnus-Group-insert-group killed))
-	  (pop-to-buffer gnus-Browse-killed-buffer)
+	  (gnus-pop-to-buffer gnus-Browse-killed-buffer)
 	  (beginning-of-line)
 	  (delete-region (point)
 			 (progn (forward-line 1) (point)))

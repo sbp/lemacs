@@ -1,6 +1,6 @@
-;;; compiled by eb@watergate on Wed Jul  1 11:01:38 1992
-;;; from file /wg1/emacs-base/lisp/vm/vm-group.el
-;;; emacs version 19.2.3 Lucid.
+;;; compiled by jwz@thalidomide on Sun Jul  5 02:01:58 1992
+;;; from file /u/jwz/emacs19/lisp/vm/vm-group.el
+;;; emacs version 19.2.1 Lucid.
 ;;; bytecomp version 2.07; 17-jun-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.

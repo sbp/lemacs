@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Jun 30 22:41:54 1992
-;;; from file /wg1/emacs-base/lisp/prim/window.el
-;;; emacs version 19.2.1 Lucid.
-;;; bytecomp version 2.07; 17-jun-92.
+;;; compiled by jwz@thalidomide on Sun Jan 17 16:11:05 1993
+;;; from file /cadillac-th/jwz/emacs19/lisp/prim/window.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 16-jan-93.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -43,4 +43,3 @@ It can be later retrieved using \\[M-x register-to-window-config]." "cSave windo
 (fset 'register-to-window-config #[(name) "¿¡\n!!á" [set-window-configuration get-register name] 3 "\
 Restore (make current) the window configuration in register REG (a letter).
 Use with a register previously set with \\[window-config-to-register]." "cRestore window configuration from register: "])
-(byte-code "¿	¬√#à¿	ƒ≈#à¿	∆«#à¿	»…#à¿	 À#à¿	ÃÕ#á" [define-key ctl-x-map "2" split-window-vertically "5" split-window-horizontally "6" window-config-to-register "7" register-to-window-config "}" enlarge-window-horizontally "{" shrink-window-horizontally] 4)

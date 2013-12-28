@@ -1,11 +1,11 @@
 /* Definitions file for GNU Emacs running on Silicon Graphics system 3.6.
-   Copyright (C) 1987 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -70,8 +70,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  */
 
 #define HAVE_SELECT
-
-#define HAVE_DREM
 
 /*
  *	Define HAVE_PTYS if the system supports pty devices.
@@ -193,3 +191,5 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* This is how to get the device name of the tty end of a pty.  */
 #define PTY_TTY_NAME_SPRINTF \
  	    sprintf (ptyname, "/dev/ttyq%d", minor (stb.st_rdev));
+
+#define FLOAT_CATCH_SIGILL

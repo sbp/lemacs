@@ -1,3 +1,12 @@
+
+
+
+;; ============================================================
+;; NOTE: crypt.el is a much more complete version of this hack.
+;; ============================================================
+
+
+
 ;; When we are about to make a backup file,
 ;; uncompress the file we visited
 ;; so that making the backup can work properly.

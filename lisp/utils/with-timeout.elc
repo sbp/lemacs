@@ -1,0 +1,27 @@
+;;; compiled by jwz@thalidomide on Wed Dec 16 10:05:44 1992
+;;; from file /u/jwz/emacs19/lisp/utils/with-timeout.el
+;;; emacs version 19.4 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'with-timeout-timer #[(tag) "ÀÁÂ‡" [nil (throw tag nil) ((no-catch))] 3])
+(fset 'with-timeout '(macro . #[(seconds-and-timeout-forms &rest body) "@AÃÄÅÆ\nÇÈFDDÉÊËÌÈÍÎÏ\"ÑEEDCÒÈÎÓ	\"ËFEÔEE*‡" [seconds-and-timeout-forms timeout-forms seconds let* (with-timeout-tag (make-symbol "_with_timeout_")) with-timeout-timeout add-timeout 'with-timeout-timer with-timeout-tag unwind-protect let value catch prog1 append (progn) body (setq with-timeout-tag nil) if (progn) (disable-timeout with-timeout-timeout)] 11 "\
+Usage: (with-timeout (seconds &rest timeout-forms) &rest body)
+This is just like progn, but if the given number of seconds expires before
+the body returns, then timeout-forms are evaluated and returned instead.
+The body won't be interrupted in the middle of a computation: the check for 
+the timer expiration only occurs when body does a redisplay, or prompts the
+user for input, or calls accept-process-output."]))
+(put 'with-timeout 'lisp-indent-function 1)
+(fset 'yes-or-no-p-with-timeout #[(timeout prompt &optional default-value) "ÀÁ!ÃÅ\n#Ç\nÈ	\n«“ÊÌ«ƒÎªÏQ!ˆª‚	,‡" [make-symbol "_with_timeout_" with-timeout-tag add-timeout timeout with-timeout-timer with-timeout-timeout ((disable-timeout with-timeout-timeout)) (byte-code "À	!Â‡" [yes-or-no-p prompt nil with-timeout-tag] 2) value message prompt "(yes or no) Timeout to " default-value "Yes" "No"] 4 "\
+Just like yes-or-no-p, but will time out after TIMEOUT seconds
+if the user has not yes answered, returning DEFAULT-VALUE."])
+(fset 'y-or-n-p-with-timeout #[(timeout prompt &optional default-value) "ÀÁ!ÃÅ\n#Ç\nÈ	\n«“ÊÌ«ƒÎªÏQ!ˆª‚	,‡" [make-symbol "_with_timeout_" with-timeout-tag add-timeout timeout with-timeout-timer with-timeout-timeout ((disable-timeout with-timeout-timeout)) (byte-code "À	!Â‡" [y-or-n-p prompt nil with-timeout-tag] 2) value message prompt "(yes or no) Timeout to " default-value "Yes" "No"] 4 "\
+Just like y-or-n-p, but will time out after TIMEOUT seconds
+if the user has not yes answered, returning DEFAULT-VALUE."])

@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Jun 30 21:57:21 1992
-;;; from file /wg1/emacs-base/lisp/comint/background.el
-;;; emacs version 19.2.1 Lucid.
-;;; bytecomp version 2.07; 17-jun-92.
+;;; compiled by jwz@thalidomide on Sun Dec 13 16:50:31 1992
+;;; from file /u/jwz/emacs19/lisp/comint/background.el
+;;; emacs version 19.4 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -15,7 +15,7 @@
 *If non-nil, background jobs' buffers are shown when they're started.")
 (defvar background-select nil "\
 *If non-nil, background jobs' buffers are selected when they're started.")
-(fset 'background #[(command) "ÀÁ\nÆ!«‰ÇT‰Pªr«†É!ˆª\n«…Ë‘ˆÌ!qˆÍ ˆÎÏ\"«—À”À•OÑ•ËOÒÓ!!)Ô\nÕÖ±ˆ×Ø‰ËÚD%!Ü ˆ«İŞ\"ˆßàá!#ˆâ#,‡" [1 "%1" default-directory dir job-name job-number process-status "%" background-select pop-to-buffer background-show nil get-buffer-create erase-buffer string-match "^cd[	 ]+\\([^	 ;]+\\)[	 ]*;[	 ]*" command 0 file-name-as-directory expand-file-name "--- working directory: " "\n% " 10 get-buffer-process comint-exec shell-file-name "-c" proc comint-mode set-process-sentinel background-sentinel message "[%d] %d" process-id "Background" mode-name] 8 "\
+(fset 'background #[(command) "ÀÁ‰\nÇÈÉ\"‰!«‡TªnÈÊ\"«†Ì!ˆª«…Á‘ˆÎ!qˆÏ ˆĞÑ\"«—À”À•OÓ•ÁOÔÕ!!)Ö\n×Ø±ˆÙÚÁÜD%!Ş ˆ«ßà\"ˆáâã!#ˆä%-‡" [1 nil default-directory dir buffer-name job-name job-number get-process format "background-%d" "*%s*" background-select pop-to-buffer background-show get-buffer-create erase-buffer string-match "^cd[	 ]+\\([^	 ;]+\\)[	 ]*;[	 ]*" command 0 file-name-as-directory expand-file-name "--- working directory: " "\n% " 10 get-buffer-process comint-exec shell-file-name "-c" proc comint-mode set-process-sentinel background-sentinel message "[%d] %d" process-id "Background" mode-name] 8 "\
 Run COMMAND in the background like csh.  
 A message is displayed when the job starts and finishes.  The buffer is in
 comint mode, so you can send input and signals to the job.  The process object

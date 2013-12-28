@@ -1,6 +1,6 @@
 /**/# Imakefile file for lwlib.a, Copyright (c) 1992 Lucid, Inc.
 
-/* 
+/*
  *  If you have Motif and want to provide support for Motif widgets in lwlib,
  *  then define USE_MOTIF.
  *
@@ -11,31 +11,49 @@
  *  which are included in this directory.
  *
  *  You cannot define USE_MOTIF and USE_OLIT at the same time, but USE_LUCID
- *  may be defined along with either of the other two.  (There is currently
- *  no reason to do this unless you are compiling with support for Energize.)
+ *  may be defined along with either of the other two.
  *
- *  The OLIT menubar is not as good as the Motif and Lucid menubars yet.
- *  It's slow, and possibly buggy.  I'd recommend against using it unless 
- *  you'd like to hack on it.
+ *  The OLIT menubar is slow, and possibly buggy.  We recommend against using
+ *  it unless you'd like to try to improve it (which we encourage.)
  *
  *  The Lucid menubar is much faster than the Motif menubar, but is missing
- *  a few features (most notably stay-up menus and keyboard traversal.)
+ *  a few features (most notably stay-up menus and keyboard traversal.)  But
+ *  since it has the Motif look-and-feel, we recommend using it even if you
+ *  have Motif.
+ *
+ *  Currently, only the Motif widgets provide support for dialog boxes.  If
+ *  you don't have Motif, you will not be able to pop up dialog boxes from
+ *  emacs.  If you define both USE_LUCID and USE_MOTIF, then the menus will
+ *  be implemented with Lucid widgets, and the dialog boxes will be 
+ *  implemented with Motif widgets.
+ *
+ *  It shouldn't take much work to add support for non-Motif dialog boxes;
+ *  all that one need do is add code that implements Athena versions of the 
+ *  xm_create_dialog(), xm_update_one_widget(), and xm_update_one_value()
+ *  routines in lwlib-Xm.c.  If you do this, please send us the code.
  *
  *  If you have your X11 source tree online, then you should define 
- *  INCLUDE_EXTENSIONS to cause the library to contain some useful functions
+ *  INCLUDE_EXTENSIONS to cause this library to contain some useful functions
  *  which Xt should provide but doesn't.  You can only do this if you have
  *  the source tree online, because these functions require access to internal
  *  Xt data structures that are not defined in the exported header files.
  *  If you define INCLUDE_EXTENSIONS, then the variable $TOP must point at the
  *  root of the X11 source tree.
+ *
+ *  To build a "shared" version of lwlib as well, define BUILD_SHARED_LIB.
+ *  If INCLUDE_EXTENSIONS is defined, and you want to link with a dynamic
+ *  version of Xt, it may be necessary to build a shared version of lwlib as
+ *  well, as the X libraries sometimes put *different code* in the dynamic
+ *  and shared versions of their libraries, for some reason I don't understand.
  */
 
 #define USE_LUCID
 /* #define USE_MOTIF */
 /* #define USE_OLIT */
 /* #define ENERGIZE */
+/* #define BUILD_SHARED_LIB */
 
-/* #define INCLUDE_EXTENSIONS */
+#define INCLUDE_EXTENSIONS
 
 
 #ifdef INCLUDE_EXTENSIONS	/* this is where it is at our site */
@@ -48,21 +66,26 @@
  *
  */
 
+
+#ifdef BUILD_SHARED_LIB
+SOLWREV=1.0
+#endif
+
 #if (ProjectX == 4)
     STD_DEFINES = LibraryDefines
     CDEBUGFLAGS = LibraryCDebugFlags
     EXT_DEFINES = -DTHIS_IS_X11R4
         WHICH_X = x11r4
 #define SpecialLibObjectRule SpecialObjectRule
-#define EXT_XRDB_C xrdb-r4.c
-#define EXT_XRDB_O xrdb-r4.o
 #else /* !4 */
 #if (ProjectX == 5)
+#ifdef BUILD_SHARED_LIB
+# define DoSharedLib YES
+# define DoNormalLib YES
+#endif
 #include <Library.tmpl>
     EXT_DEFINES = -DTHIS_IS_X11R5 -DINCLUDE_ALLOCA_H
         WHICH_X = x11r5
-#define EXT_XRDB_C xrdb-r5.c
-#define EXT_XRDB_O xrdb-r5.o
 #else /* !5 */
     EXT_DEFINES = "ERROR!  Imakefile was unable to determine whether this is X11r4 or X11r5."
 #endif /* !5 */
@@ -76,8 +99,8 @@
       OLIT_OBJS = lwlib-Xol.o
 
 #ifdef INCLUDE_EXTENSIONS
-       EXT_SRCS = dispatch.c callback.c xrdb-cpp.c EXT_XRDB_C
-       EXT_OBJS = dispatch.o callback.o xrdb-cpp.o EXT_XRDB_O
+       EXT_SRCS = dispatch.c xrdb-cpp.c xrdb.c
+       EXT_OBJS = dispatch.o xrdb-cpp.o xrdb.o
 #endif
 
 #if (defined(USE_MOTIF) && defined(USE_OLIT))
@@ -122,7 +145,10 @@ TOOLKIT_DEFINES = "ERROR!  At least one of USE_MOTIF, USE_LUCID or USE_OLIT must
 # else
         EZ_OBJS = energize/blpsheet.o energize/ctreebr_ps.o \
                   energize/leb_psheet.o energize/classbr_ps.o \
-                  energize/debuggerps.o energize/projectps.o
+                  energize/debuggerps.o energize/projectps.o \
+		  energize/build.o
+
+      ENERGIZEP = -DENERGIZE
 # endif
 #endif
 
@@ -131,28 +157,66 @@ TOOLKIT_DEFINES = "ERROR!  At least one of USE_MOTIF, USE_LUCID or USE_OLIT must
       EXT_FLAGS = -I$(TOOLKITSRC) $(EXT_DEFINES)
         LIBNAME = liblw.a
 
+
+#if defined(ENERGIZE) && defined(BUILD_SHARED_LIB)
+all::
+	@if [ ! -d shared ]; then mkdir shared; else exit 0; fi
+	@if [ ! -d energize/shared ]; then mkdir energize/shared; \
+	else exit 0; fi
+	@if [ ! -h shared/energize ]; \
+	then cd shared ; ln -s ../energize/shared energize ; \
+	else exit 0; fi
+
+clean::
+	$(RM) shared/energize
+#endif
+
+
+#ifdef BUILD_SHARED_LIB
+# if (ProjectX == 4)
+SharedLibraryObjectRule ()
+NormalSharedLibraryTarget(lw,$(SOLWREV),$(OBJS))
+# else   /* X != 4 */
+LibraryObjectRule ()
+SharedLibraryTarget(lw,$(SOLWREV),$(OBJS),shared,..)
+# endif /* X != 4 */
+#else  /* !BUILD_SHARED_LIB */
 NormalLibraryObjectRule ()
-NormalLibraryTarget (lw, $(OBJS))
+#endif /* !BUILD_SHARED_LIB */
+
+NormalLibraryTarget (lw,$(OBJS))
 MakefileSubdirs (energize)
 DependTarget ()
 
 #ifdef ENERGIZE
 
-$(EZ_OBJS): 
-	if [ ! -f energize/Makefile ]; then $(MAKE) $(MFLAGS) Makefiles ; fi
-	cd energize ; $(MAKE) $(MFLAGS) CC="$(CC)" CFLAGS="$(CFLAGS)"
+/* #### we should automatically edit BUILD_SHARED_LIB into/out of the energize
+   Imakefile, since that's the only thing down there that changes */
+energize/Makefile: energize/Imakefile Imakefile
+	$(MAKE) $(MFLAGS) Makefiles
+
+Makefile::
+	$(RM) energize/Makefile
+
+$(EZ_OBJS): energize/Makefile
+	${RM} $@ ; cd energize ; $(MAKE) $(MFLAGS) CC="$(CC)" CFLAGS="$(CFLAGS)"
 
 clean::
 	cd energize ; $(MAKE) $(MFLAGS) clean
 
 #endif
 
-SpecialLibObjectRule (lwlib.o, lwlib.c, $(TOOLKIT_DEFINES))
-SpecialLibObjectRule (dispatch.o, dispatch.c, $(EXT_FLAGS))
-SpecialLibObjectRule (callback.o, callback.c, $(EXT_FLAGS))
-SpecialLibObjectRule (xrdb-cpp.o, xrdb-cpp.c, $(EXT_FLAGS))
-SpecialLibObjectRule (xrdb-r4.o, xrdb-r4.c, $(EXT_FLAGS))
-SpecialLibObjectRule (xrdb-r5.o, xrdb-r5.c, $(EXT_FLAGS))
+#if defined(BUILD_SHARED_LIB) && (ProjectX == 4)
+# define LWObjectRule SpecialSharedObjectRule
+#else
+# define LWObjectRule SpecialLibObjectRule
+#endif
+
+LWObjectRule (lwlib.o, lwlib.c, $(TOOLKIT_DEFINES))
+LWObjectRule (dispatch.o, dispatch.c, $(EXT_FLAGS))
+LWObjectRule (xrdb-cpp.o, xrdb-cpp.c, $(EXT_FLAGS))
+LWObjectRule (xrdb.o,     xrdb.c,     $(EXT_FLAGS))
+LWObjectRule (lwlib-Xm.o, lwlib-Xm.c, $(ENERGIZEP))
 
 lwlib-utils.o: lwlib-utils.h
 lwlib.o:       lwlib.h lwlib-internal.h

@@ -1,7 +1,7 @@
 ;;; Pending delete selection
 ;;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
 ;;; Created: 14 Jul 92, Matthieu Devin <devin@lucid.com>
-;;; Last change  22-Aug-92. devin
+;;; Last change  9-Sep-92. devin
 
 ;;; This file is part of GNU Emacs.
 
@@ -26,6 +26,7 @@
 (defun delete-active-region (&optional killp)
   (if (and (not buffer-read-only)
 	   (extentp primary-selection-extent)
+	   (eq (current-buffer) (extent-buffer primary-selection-extent))
 	   (< 0 (extent-start-position primary-selection-extent))
 	   (< 0 (extent-end-position primary-selection-extent)))
       (progn

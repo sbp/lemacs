@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <string.h>
 #include <X11/StringDefs.h>
 #include <X11/IntrinsicP.h>
 #include <X11/Shell.h>
@@ -80,7 +81,6 @@ static void emacsShellInitialize (req, new, args, num_args)
      ArgList args;
      Cardinal *num_args;
 {
-  EmacsShellWidget w = (EmacsShellWidget) new;
 /*
   XtAddEventHandler(new, NULL,
 		    TRUE, emacs_Xt_event_handler, (XtPointer) NULL);
@@ -174,8 +174,8 @@ static void GetGeometry(W, child)
 	if (is_wmshell) {
 	    WMShellPart* wm = &((WMShellWidget)w)->wm;
 	    EvaluateSizeHints((WMShellWidget)w);
-	    bcopy((char*)&wm->size_hints, (char*)&hints,
-		  sizeof(struct _OldXSizeHints));
+	    memcpy((char*)&hints, (char*)&wm->size_hints,
+		   sizeof(struct _OldXSizeHints));
 	    hints.win_gravity = wm->win_gravity;
 	    if (wm->size_hints.flags & PBaseSize) {
 		width -= wm->base_width;
@@ -361,6 +361,8 @@ static void EvaluateWMHints(w)
 }
 
 
+extern void _XtAllocError (char *);
+
 /* Lifted without alteration from Shell.c
  */
 static void _popup_set_prop(w)
@@ -482,6 +484,8 @@ static void ComputeWMSizeHints(w, hints)
 #undef copy
 }
 
+extern void _XtUnregisterWindow (Window, Widget);
+
 static void Destroy(wid)
 	Widget wid;
 {
@@ -490,7 +494,7 @@ static void Destroy(wid)
   if (XtIsRealized((Widget) w) &&
       w->core.window == w->emacsShell.external_window)
     {
-      _XtUnregisterWindow(w->core.window, w);
+      _XtUnregisterWindow(w->core.window, wid);
       wid->core.window = 0;
     }
 }

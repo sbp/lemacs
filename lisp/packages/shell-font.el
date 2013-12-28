@@ -27,6 +27,18 @@
 (or (face-differs-from-default-p 'shell-prompt)
     (copy-face 'bold 'shell-prompt))
 
+(defun shell-hack-prompt-font (limit)
+  "Search backward from point-max for text matching the comint-prompt-regexp,
+and put it in the `shell-prompt' face.  LIMIT is the left bound of the search."
+  (save-excursion
+    (goto-char (point-max))
+    (save-match-data
+     (cond ((re-search-backward comint-prompt-regexp limit t)
+	    (goto-char (match-end 0))
+	    (skip-chars-backward " \t")
+	    (set-extent-face (make-extent (match-beginning 0) (point))
+			     'shell-prompt))))))
+
 (defun shell-face-process-filter (proc string)
   "A process-filter that simply inserts the string into the process's buffer,
 to give the illusion of a process with no filter, but then searches backward
@@ -35,16 +47,20 @@ the `shell-prompt' face."
   (save-excursion 
     (set-buffer (process-buffer proc))
     (goto-char (process-mark proc))
-    (let ((p (point)))
+    (let* ((p (point))
+	   (ie (and comint-last-input-end
+		    (marker-position comint-last-input-end)))
+	   (w (get-buffer-window (current-buffer)))
+	   (ws (and w (window-start w))))
       (insert-before-markers string)
+      ;; the insert-before-markers may have screwed window-start
+      ;; and likely moved comint-last-input-end.  This is why the
+      ;; insertion-reaction should be a property of markers, not
+      ;; of the function which does the inserting.
+      (if ws (set-window-start w ws t))
+      (if ie (set-marker comint-last-input-end ie))
       (set-marker (process-mark proc) (point))
-      (goto-char (point-max))
-      (if (re-search-backward comint-prompt-regexp p t)
-	  (progn
-	    (goto-char (match-end 0))
-	    (skip-chars-backward " \t")
-	    (set-extent-face (make-extent (match-beginning 0) (point))
-			     'shell-prompt))))))
+      (shell-hack-prompt-font p))))
 
 (defun install-shell-font-prompt ()
   "Add this to your shell-mode-hook to make the prompt be printed in boldface.

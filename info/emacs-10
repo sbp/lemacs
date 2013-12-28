@@ -1004,16 +1004,14 @@ window, leaving the previous current buffer visible.
 buffer, you can switch to other buffers while in the middle of
 composing mail, and switch back later (or never).  If you use the `C-x
 m' command again when you have been composing another message but have
-not sent it, you are asked to confirm before the old message is
-erased.  If you answer `n', the `*mail*' buffer is selected with its
-old contents, so you can finish the old message and send it.  `C-u C-x
-m' is another way to do this.  Sending the message marks the `*mail*'
-buffer "unmodified", which avoids the need for confirmation when `C-x
-m' is next used.
+not sent it, a new mail buffer will be created; in this way, you can
+compose multiple messages at once.  You can switch back to and
+complete an unsent message by using the normal buffer selection
+mechanisms.
 
-   If you are composing a message in the `*mail*' buffer and want to
-send another message before finishing the first, rename the `*mail*'
-buffer using `M-x rename-buffer' (*note Misc Buffer::.).
+   `C-u C-x m' is another way to switch back to a message in progress:
+it will search for an existing, unsent mail message buffer and select
+it.
 
 * Menu:
 

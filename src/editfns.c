@@ -1,5 +1,5 @@
 /* Lisp functions pertaining to editing.
-   Copyright (C) 1985, 1986, 1987, 1989, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -23,6 +23,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "lisp.h"
 #include "buffer.h"
 #include "window.h"
+#include "insdel.h"
 
 #ifdef NEED_TIME_H
 #include <time.h>
@@ -42,19 +43,25 @@ Lisp_Object Vuser_real_name;	/* login name of current user ID */
 Lisp_Object Vuser_full_name;	/* full name of current user */
 Lisp_Object Vuser_name;		/* user name from USER or LOGNAME.  */
 
+Lisp_Object Qpoint, Qmark, Qregion_beginning, Qregion_end;
+
+extern char *get_system_name (void);
+
 void
 init_editfns ()
 {
-  unsigned char *user_name;
-  register unsigned char *p, *q, *r;
+  char *user_name;
+  register char *p, *q;
+#ifdef AMPERSAND_FULL_NAME
+  register char *r;
+#endif
   struct passwd *pw;	/* password entry for the current user */
-  extern char *index ();
   Lisp_Object tem;
 
   /* Set up system_name even when dumping.  */
 
   Vsystem_name = build_string (get_system_name ());
-  p = XSTRING (Vsystem_name)->data;
+  p = (char *) XSTRING (Vsystem_name)->data;
   while (*p)
     {
       if (*p == ' ' || *p == '\t')
@@ -71,9 +78,9 @@ init_editfns ()
   pw = (struct passwd *) getpwuid (getuid ());
   Vuser_real_name = build_string (pw ? pw->pw_name : "unknown");
 
-  user_name = (unsigned char *) getenv ("USER");
+  user_name = getenv ("USER");
   if (!user_name)
-    user_name = (unsigned char *) getenv ("LOGNAME");
+    user_name = getenv ("LOGNAME");
   if (user_name)
     Vuser_name = build_string (user_name);
   else
@@ -83,18 +90,17 @@ init_editfns ()
   if (!NILP (tem))
     pw = (struct passwd *) getpwnam ((char *) user_name);
   
-  p = (unsigned char *) (pw ? USER_FULL_NAME : "unknown");
-  q = (unsigned char *) index (p, ',');
+  p = (pw ? USER_FULL_NAME : "unknown");
+  q = index (p, ',');
   Vuser_full_name = make_string (p, q ? q - p : strlen ((char*)p));
   
 #ifdef AMPERSAND_FULL_NAME
-  p = XSTRING (Vuser_full_name)->data;
-  q = (unsigned char *) index (p, '&');
+  p = (char *) XSTRING (Vuser_full_name)->data;
+  q = index (p, '&');
   /* Substitute the login name for the &, upcasing the first character.  */
   if (q)
     {
-      r = (unsigned char *) alloca (strlen (p) +
-				    XSTRING (Vuser_name)->size + 1);
+      char *r = (char *) alloca (strlen (p) + XSTRING (Vuser_name)->size + 1);
       bcopy (p, r, q - p);
       r[q - p] = 0;
       strcat (r, (char *) XSTRING (Vuser_name)->data);
@@ -173,6 +179,7 @@ If the argument to this function is non-nil, then it returns the real\n\
 point-marker; modifying the position of this marker willl move point.\n\
 It is illegal to change the buffer of it, or make it point nowhere.")
   (dont_copy_p)
+	Lisp_Object dont_copy_p;
 {
   if (NILP (dont_copy_p))
     return Fcopy_marker (current_buffer->point_marker);
@@ -355,8 +362,7 @@ even in case of abnormal exit (throw or error).")
   record_unwind_protect (save_excursion_restore, save_excursion_save ());
 			 
   val = Fprogn (args);
-  unbind_to (count);
-  return val;
+  return unbind_to (count, val);
 }
 
 DEFUN ("buffer-size", Fbufsize, Sbufsize, 0, 0, 0,
@@ -571,6 +577,7 @@ returned by the current-time-seconds function.\n\
 In a future Emacs version, the time zone may be added at the end,\n\
 if we can figure out a reasonably easy way to get that information.")
   (arg)
+	Lisp_Object arg;
 {
   long now;
   char buf[30];
@@ -702,7 +709,7 @@ Both arguments are required.")
   (chr, count)
        Lisp_Object chr, count;
 {
-  register unsigned char *string;
+  register char *string;
   register int strlen;
   register int i, n;
 
@@ -714,7 +721,7 @@ Both arguments are required.")
     return Qnil;
 
   strlen = max (n, 256);
-  string = (unsigned char *) alloca (strlen);
+  string = (char *) alloca (strlen);
   for (i = 0; i < strlen; i++)
     string[i] = XFASTINT (chr);
 
@@ -1039,8 +1046,7 @@ use `save-excursion' outermost:\n\
 
   record_unwind_protect (save_restriction_restore, save_restriction_save ());
   val = Fprogn (body);
-  unbind_to (count);
-  return val;
+  return unbind_to (count, val);
 }
 
 DEFUN ("message", Fmessage, Smessage, 1, MANY, 0,
@@ -1064,6 +1070,12 @@ the argument used by %d or %c must be a number.")
     Fmake_screen_visible (Vglobal_minibuffer_screen);
 #endif
 
+  if (nargs == 1 && NILP (args[0]))
+  {
+    message (0);
+    return (Qnil);
+  }
+
   val = Fformat (nargs, args);
   message ("%s", XSTRING (val)->data);
   return val;
@@ -1074,10 +1086,10 @@ DEFUN ("format", Fformat, Sformat, 1, MANY, 0,
 The first argument is a control string.\n\
 The other arguments are substituted into it to make the result, a string.\n\
 It may contain %-sequences meaning to substitute the next argument.\n\
-%s means print a string argument.  Actually, prints any object, with `princ'.\n\
+%s means print strings using princ, and any other objects using prin1.\n\
+%S means print all objects using prin1 (strings too).\n\
 %d means print as number in decimal (%o octal, %x hex).\n\
 %c means print a number as a single character.\n\
-%S means print any object as an s-expression (using prin1).\n\
 The argument used for %d, %o, %x or %c must be a number.")
   (nargs, args)
      int nargs;
@@ -1086,14 +1098,12 @@ The argument used for %d, %o, %x or %c must be a number.")
   register int n;
   register int total = 5;
   char *buf;
-  register unsigned char *format, *end;
-  register unsigned char **strings;
-  int length;
-  extern char *index ();
+  register char *format, *end;
+  register char **strings;
 
   CHECK_STRING (args[0], 0);
 
-  format = XSTRING(args[0])->data;
+  format = (char *) XSTRING(args[0])->data;
   end = format + XSTRING(args[0])->size;
 
   /* We have to do so much work in oder to prepare to call doprnt
@@ -1120,10 +1130,12 @@ The argument used for %d, %o, %x or %c must be a number.")
 	  format++;
 	else if (++n >= nargs)
 	  ;
-	else if (*format == 'S')
+	else if (*format == 's' || *format == 'S')
 	  {
-	    /* For `S', prin1 the argument and then treat like a string.  */
 	    register Lisp_Object tem;
+	    /* For `s', prin1 the argument only if it's not a string.  */
+	    if (*format == 's' && STRINGP (args[n]))
+	      goto string;
 	    tem = Fprin1_to_string (args[n], Qnil);
 	    args[n] = tem;
 	    goto string;
@@ -1139,7 +1151,7 @@ The argument used for %d, %o, %x or %c must be a number.")
 	    total += XSTRING (args[n])->size;
 	  }
 	/* Would get MPV otherwise, since Lisp_Int's `point' to low memory.  */
-	else if (FIXNUMP (args[n]) && *format != 's')
+	else if (FIXNUMP (args[n]) && *format != 'S')
 	  total += 10;
 	else
 	  {
@@ -1151,17 +1163,17 @@ The argument used for %d, %o, %x or %c must be a number.")
 	  }
       }
 
-    strings = (unsigned char **) alloca ((n + 1) * sizeof (unsigned char *));
+    strings = (char **) alloca ((n + 1) * sizeof (char *));
     for (; n >= 0; n--)
       {
 	if (n >= nargs)
-	  strings[n] = (unsigned char *) "";
+	  strings[n] = "";
 	else if (FIXNUMP (args[n]))
 	  /* We checked above that the corresponding format effector
 	     isn't %s, which would cause MPV.  */
-	  strings[n] = (unsigned char *) XINT (args[n]);
+	  strings[n] = (char *) XINT (args[n]);
 	else
-	  strings[n] = XSTRING (args[n])->data;
+	  strings[n] = (char *) XSTRING (args[n])->data;
       }
 
     /* Format it in bigger and bigger buf's until it all fits. */
@@ -1192,13 +1204,13 @@ format1 (string1)
 {
   char buf[100];
 #ifdef NO_ARG_ARRAY
-  int args[5];
+  Lisp_Object args[5];
   args[0] = arg0;
   args[1] = arg1;
   args[2] = arg2;
   args[3] = arg3;
   args[4] = arg4;
-  doprnt (buf, sizeof buf, string1, 0, 5, args);
+  doprnt (buf, sizeof buf, string1, 0, 5, (char **)args);
 #else
   doprnt (buf, sizeof buf, string1, 0, 5, &string1 + 1);
 #endif
@@ -1227,8 +1239,8 @@ Case is ignored if `case-fold-search' is non-nil in the current buffer.")
 DEFUN ("getenv", Fgetenv, Sgetenv, 1, 1, 0,
   "Return the value of environment variable VAR, as a string.\n\
 VAR should be a string.  Value is nil if VAR is undefined in the environment.")
-  (str)
-     Lisp_Object str;
+  (str, ignored)
+     Lisp_Object str, ignored;
 {
   register char *val;
   CHECK_STRING (str, 0);
@@ -1315,6 +1327,11 @@ See the variable `zmacs-regions'.");
   staticpro (&Qzmacs_update_region_hook);
   staticpro (&Qzmacs_activate_region_hook);
   staticpro (&Qzmacs_deactivate_region_hook);
+
+  defsymbol (&Qpoint, "point");
+  defsymbol (&Qmark, "mark");
+  defsymbol (&Qregion_beginning, "region-beginning");
+  defsymbol (&Qregion_end, "region-end");
 
   defsubr (&Schar_equal);
   defsubr (&Sgoto_char);

@@ -201,6 +201,10 @@ file names and command names).  Thus, `fo' will not complete to `Foo'.
  When you are completing a name in which case does not matter, case
 may be ignored for completion's sake if specified by program.
 
+   When a completion list is displayed, the completions will highlight
+as you move the mouse over them.  Clicking middle on any highlighted
+completion will "select" it just as if you had typed it in and hit RET.
+
 Completion Example
 ------------------
 
@@ -244,6 +248,14 @@ minibuffer when completion is available.
 `?'
      Print a list of all possible completions of the text in the
      minibuffer (`minibuffer-list-completions').
+
+`button2'
+     Select the highlighted text under the mouse as a minibuffer
+     response.  When the minibuffer is being used to prompt the user
+     for a completion, any valid completions which are visible on the
+     screen will highlight when the mouse moves over them.  Clicking
+     button2 will select the highlighted completion and exit the
+     minibuffer.  (`minibuf-select-highlighted-completion').
 
    SPC completes similar to TAB, but never goes beyond the next hyphen
 or space.  If you have `auto-f' in the minibuffer and type SPC, it

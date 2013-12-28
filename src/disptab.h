@@ -27,8 +27,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define DISP_INVIS_ROPE(dp) ((dp)->contents[260])
 #define DISP_CHAR_ROPE(dp, c) ((dp)->contents[c])
 
-extern struct Lisp_Vector *buffer_display_table ();
-extern struct Lisp_Vector *window_display_table ();
+extern struct Lisp_Vector *buffer_display_table (struct buffer *);
+extern struct Lisp_Vector *window_display_table (struct window *);
 
 /* Display table to use for vectors that don't specify their own.  */
 extern Lisp_Object Vstandard_display_table;
@@ -83,4 +83,3 @@ extern int glyphlen ();
 extern void str_to_glyph_cpy ();
 extern void str_to_glyph_ncpy ();
 extern void glyph_to_str_cpy ();
-extern int run_from_glyph_index ();

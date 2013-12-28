@@ -72,6 +72,17 @@ PREPARATION
  is how you would override the default value of the
  variable news-inews-program (which is "/usr/local/inews").
 
+ Note that things may malfunction if the variable `directory-abbrev-alist'
+ is not set up to translate "temporary" automounter mount points into the
+ canonical form.  The default value of this variable contains the translation
+
+	("^/tmp_mnt/net/" . "/net/")
+
+ meaning translate "/tmp_mnt/net/FOO" into "/net/FOO", which is appropriate
+ for the default configuration of the Sun automounter, but which may be
+ inappropriate for different vendor's automounters, or if you have customized
+ your mount-point names.
+
 5) Put into $BUILD/lisp/site-init.el any Lisp code
  you want loaded into Emacs before it is dumped out.
 

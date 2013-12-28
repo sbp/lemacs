@@ -424,40 +424,45 @@ the create-screen-hook."
       (make-face 'secondary-selection))
 
   (or (face-differs-from-default-p 'highlight screen)
-      (if (x-color-display-p)
-	  (if (x-valid-color-name-p "darkseagreen2" screen)
-	      (set-face-background 'highlight "darkseagreen2" screen)
-	    (set-face-background 'highlight "green" screen))
-	(condition-case ()
-	    (set-face-background-pixmap 'highlight "gray1" screen)
-	  (error (invert-face 'highlight screen)))))
+      (condition-case ()
+	  (if (x-color-display-p)
+              (condition-case ()
+		  (set-face-background 'highlight "darkseagreen2" screen)
+                (error (set-face-background 'highlight "green" screen)))
+	    (set-face-background-pixmap 'highlight "gray1" screen))
+	(error (invert-face 'highlight screen))))
 
   (or (face-differs-from-default-p 'primary-selection screen)
-      (if (x-color-display-p)
-	  (set-face-background 'primary-selection "gray" screen)
-	(condition-case ()
-	    (set-face-background-pixmap 'primary-selection "gray3" screen)
-	  (error (invert-face 'primary-selection screen)))))
+      (condition-case ()
+	  (if (x-color-display-p)
+	      (set-face-background 'primary-selection "gray" screen)
+	    (set-face-background-pixmap 'primary-selection "gray3" screen))
+	(error (invert-face 'primary-selection screen))))
 
   (or (face-differs-from-default-p 'secondary-selection screen)
-      (if (x-color-display-p)
-	  (if (x-valid-color-name-p "paleturquoise" screen)
-	      ;; some older X servers don't have this one.
-	      (set-face-background 'secondary-selection "paleturquoise"
-				   screen)
-	    (set-face-background 'secondary-selection "green" screen))
-	(condition-case ()
-	    (set-face-background-pixmap 'secondary-selection "gray1" screen)
-	  (error (invert-face 'secondary-selection screen)))))
+      (condition-case ()
+	  (if (x-color-display-p)
+              (condition-case ()
+		  ;; some older X servers don't have this one.
+		  (set-face-background 'secondary-selection "paleturquoise"
+				       screen)
+		(error
+		 (set-face-background 'secondary-selection "green" screen)))
+	    (set-face-background-pixmap 'secondary-selection "gray1" screen))
+	(error (invert-face 'secondary-selection screen))))
 
   (or (face-differs-from-default-p 'isearch screen)
-      (progn
-	(if (x-color-display-p)
-	  (if (x-valid-color-name-p "paleturquoise" screen)
+      (if (x-color-display-p)
+	  (condition-case ()
 	      (set-face-background 'isearch "paleturquoise" screen)
-	    (set-face-background 'isearch "green" screen)))
-	(if (face-font 'bold screen)
-	    (set-face-font 'isearch (face-font 'bold screen) screen))))
+	    (error
+	     (condition-case ()
+		 (set-face-background 'isearch "green" screen)
+	       (error nil))))
+	nil)
+      (make-face-bold 'isearch screen)
+      ;; if default font is bold, then make the `isearch' face be unbold.
+      (make-face-unbold 'isearch screen))
   )
 
 (provide 'x-faces)

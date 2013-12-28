@@ -1,7 +1,7 @@
-;;; compiled by jwz@watergate on Tue Aug 18 17:15:05 1992
-;;; from file /wg1/emacs-base/lisp/dired/dired.el
-;;; emacs version 19.2.2 Lucid.
-;;; bytecomp version 2.08;  7-aug-92.
+;;; compiled by jwz@thalidomide on Fri Nov 13 02:07:50 1992
+;;; from file /u/jwz/emacs19/lisp/dired/dired.el
+;;; emacs version 19.3.4 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -31,7 +31,7 @@ and in Europe at my own site in Germany:
 (defvar dired-listing-switches "-al" "\
 *Switches passed to ls for dired. MUST contain the `l' option.
 Can contain even `F', `b', `i' and `s'.")
-(defvar dired-chown-program (byte-code "Á>«‚Â‡Ã‡" [system-type (hpux dgux usg-unix-v) "chown" "/etc/chown"] 2) "\
+(defvar dired-chown-program (byte-code "Á>«‚Â‡Ã‡" [system-type (dgux-unix hpux usg-unix-v silicon-graphics-unix) "chown" "/etc/chown"] 2) "\
 *Name of chown command (usully `chown' or `/etc/chown').")
 (defvar dired-ls-program "ls" "\
 *Absolute or relative name of the ls program used by dired.")

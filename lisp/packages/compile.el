@@ -1,11 +1,11 @@
 ;; Run compiler as inferior of Emacs, and parse its error messages.
-;; Copyright (C) 1985, 1986, 1988, 1989 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1988, 1989, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -80,6 +80,8 @@ You might also use mode hooks to specify it in certain modes, like this:
 Elements should be directory names, not file names of directories.
 nil as an element means to try the default directory.")
 
+(defvar minibuffer-compile-history nil)
+
 (defun compile (command)
   "Compile the program including the current buffer.  Default: run `make'.
 Runs COMMAND, a shell command, in a separate process asynchronously
@@ -89,7 +91,8 @@ and move to the source code that caused it.
 
 To run more than one compilation at once, start one and rename the
 `*compilation*' buffer to some other name.  Then start the next one."
-  (interactive (list (read-string "Compile command: " compile-command)))
+  (interactive (list (read-string "Compile command: " compile-command
+				  'minibuffer-compile-history)))
   (setq compile-command command)
   (save-some-buffers nil nil)
   (compile-internal compile-command "No more errors")
@@ -104,13 +107,16 @@ While grep runs asynchronously, you can use the \\[next-error] command
 to find the text that grep hits refer to.  It is expected that `grep-command'
 has a `-n' flag, so that line numbers are displayed for each match."
   (interactive
-   (list (read-string (concat "Run "
-			      (substring grep-command 0
-					 (string-match "[\t ]+" grep-command))
-			      " (with args): ")
-		      (if (string-match "-n[\t ]+" grep-command)
-			  (substring grep-command (match-end 0))
-			""))))
+   (list (read-shell-command
+	  (concat "Run "
+		  (substring grep-command 0
+			     (string-match "[\t ]+" grep-command))
+		  " (with args): ")
+	  ;; no need to insert default now that we have minibuf history
+;	  (if (string-match "-n[\t ]+" grep-command)
+;	      (substring grep-command (match-end 0))
+;	    "")
+	  )))
   ;; why a redundant string-match?  It might not be interactive ...
   (setq grep-command (concat (substring grep-command 0
 					(if (string-match "-n" grep-command)

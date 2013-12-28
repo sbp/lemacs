@@ -1,5 +1,5 @@
 /* Asynchronous subprocess control for GNU Emacs.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -25,6 +25,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <signal.h>
 
 #include "config.h"
+
+#if defined(sun) && !defined(USG)
+# include <vfork.h>
+#endif
 
 #ifdef VMS
 /* Prevent the file from being totally empty.  */
@@ -117,6 +121,7 @@ static dummy () {}
 #include "termhooks.h"
 #include "termopts.h"
 #include "commands.h"
+#include "insdel.h"
 
 #include "events.h"
 extern struct event_stream *event_stream;
@@ -205,6 +210,10 @@ extern char *sys_errlist[];
 
 #ifndef BSD4_1
 extern char *sys_siglist[];
+
+# ifndef NSIG
+# define NSIG (SIGUSR2+1) /* guess how many elements are in sys_siglist... */
+# endif
 #else
 char *sys_siglist[] =
   {
@@ -237,12 +246,6 @@ char *sys_siglist[] =
     };
 #endif
 
-#ifdef vipc
-
-#include "vipc.h"
-extern int comm_server;
-extern int net_listen_address;
-#endif /* vipc */
 
 /* Communicate exit status of synch process to callproc.c.  */
 extern int synch_process_retcode;
@@ -285,17 +288,19 @@ int delete_exited_processes;
 
 /* Mask of bits indicating the descriptors that we wait for input on */
 
-SELECT_TYPE input_wait_mask;
+static SELECT_TYPE input_wait_mask;
 
 /* Indexed by descriptor, gives the process (if any) for that descriptor */
-Lisp_Object chan_process[MAXDESC];
+static Lisp_Object chan_process[MAXDESC];
 
 /* Alist of elements (NAME . PROCESS) */
 Lisp_Object Vprocess_alist;
 
 Lisp_Object Qprocessp;
 
-Lisp_Object get_process ();
+static Lisp_Object get_process ();
+
+void deactivate_process (Lisp_Object proc);
 
 /* Buffered-ahead input char from process, indexed by channel.
    -1 means empty (no char is buffered).
@@ -308,12 +313,15 @@ int proc_buffered_char[MAXDESC];
 /* These variables hold the filter about to be run, and its args,
    between read_process_output and run_filter.
    Also used in exec_sentinel for sentinels.  */
-Lisp_Object this_filter;
-Lisp_Object filter_process, filter_string;
+static Lisp_Object this_filter;
+static Lisp_Object filter_process, filter_string;
 
 /* Compute the Lisp form of the process status, p->status, from
    the numeric status that was returned by `wait'.  */
 
+Lisp_Object status_convert (WAITTYPE);
+
+void
 update_status (p)
      struct Lisp_Process *p;
 {
@@ -346,7 +354,7 @@ status_convert (w)
 /* Given a status-list, extract the three pieces of information
    and store them individually through the three pointers.  */
 
-void
+static void
 decode_status (l, symbol, code, coredump)
      Lisp_Object l;
      Lisp_Object *symbol;
@@ -413,7 +421,9 @@ static pty_process;
 
 char pty_name[24];
 
-int
+extern void setup_pty (int);
+
+static int
 allocate_pty ()
 {
   struct stat stb;
@@ -502,7 +512,7 @@ allocate_pty ()
 }
 #endif /* HAVE_PTYS */
 
-Lisp_Object
+static Lisp_Object
 make_process (name)
      Lisp_Object name;
 {
@@ -548,6 +558,7 @@ make_process (name)
   return val;
 }
 
+void
 remove_process (proc)
      register Lisp_Object proc;
 {
@@ -602,7 +613,7 @@ BUFFER may be a buffer or the name of one.")
 
 /* This is how commands for the user decode process arguments */
 
-Lisp_Object
+static Lisp_Object
 get_process (name)
      register Lisp_Object name;
 {
@@ -624,7 +635,10 @@ get_process (name)
   else
     error ("Process %s does not exist", XSTRING (name)->data);
   /* NOTREACHED */
+  return Qnil; /* warning suppression */
 }
+
+static void status_notify (void);
 
 DEFUN ("delete-process", Fdelete_process, Sdelete_process, 1, 1, 0,
   "Delete PROCESS: kill it and forget about it immediately.\n\
@@ -838,9 +852,9 @@ Value is t if a query was formerly required.")
 
   CHECK_PROCESS (proc, 0);
   tem = XPROCESS (proc)->kill_without_query;
-  XPROCESS (proc)->kill_without_query = Fnull (value);
+  XPROCESS (proc)->kill_without_query = (NILP (value) ? Qt : Qnil);
 
-  return Fnull (tem);
+  return (NILP (tem) ? Qt : Qnil);
 }
 
 DEFUN ("process-kill-without-query-p", Fprocess_kill_without_query_p,
@@ -854,14 +868,12 @@ without query.")
   return XPROCESS (proc)->kill_without_query;
 }
 
-Lisp_Object
+static Lisp_Object
 list_processes_1 ()
 {
   register Lisp_Object tail, tem;
   Lisp_Object proc, minspace, tem1;
-  register struct buffer *old = current_buffer;
   register struct Lisp_Process *p;
-  register int state;
   char tembuf[80];
 
   XFASTINT (minspace) = 1;
@@ -981,6 +993,8 @@ DEFUN ("process-list", Fprocess_list, Sprocess_list, 0, 0, 0,
   return Fmapcar (Qcdr, Vprocess_alist);
 }
 
+static void create_process (Lisp_Object process, unsigned char **new_argv);
+
 DEFUN ("start-process", Fstart_process, Sstart_process, 3, MANY, 0,
   "Start a program in a subprocess.  Return the process object for it.\n\
 Args are NAME BUFFER PROGRAM &rest PROGRAM-ARGS\n\
@@ -1026,7 +1040,7 @@ Remaining arguments are strings to give program as arguments.")
   if (new_argv[0][0] != '/')
     {
       tem = Qnil;
-      openp (Vexec_path, program, "", &tem, 1);
+      locate_file (Vexec_path, program, "", &tem, X_OK);
       if (NILP (tem))
 	report_file_error ("Searching for program", Fcons (program, Qnil));
       new_argv[0] = XSTRING (tem)->data;
@@ -1049,7 +1063,7 @@ Remaining arguments are strings to give program as arguments.")
   return proc;
 }
 
-void
+static void
 create_process_1 (signo)
      int signo;
 {
@@ -1068,6 +1082,7 @@ create_process_1 (signo)
 /* Nonzero means we got a SIGCHLD when it was supposed to be blocked.  */
 int sigchld_deferred;
 
+SIGTYPE
 create_process_sigchld ()
 {
   signal (SIGCHLD, create_process_sigchld);
@@ -1078,9 +1093,16 @@ create_process_sigchld ()
 #endif
 #endif
 
+extern void child_setup_tty (int);
+extern void start_polling (void);
+extern void stop_polling (void);
+
+extern pid_t setpgrp();
+
+static void
 create_process (process, new_argv)
      Lisp_Object process;
-     char **new_argv;
+     unsigned char **new_argv;
 {
   int pid, inchannel, outchannel, forkin, forkout;
   int sv[2];
@@ -1361,6 +1383,9 @@ create_process (process, new_argv)
   if (forkin != forkout && forkout >= 0)
     close (forkout);
 
+  /* do this before re-enabling SIGCHLD */
+  event_stream->select_process_cb (XPROCESS (process));
+
 #ifdef SIGCHLD
 #ifdef BSD4_1
   sigrelse (SIGCHLD);
@@ -1379,7 +1404,6 @@ create_process (process, new_argv)
 #endif /* not BSD4_1 */
 #endif /* SIGCHLD */
 
-  event_stream->select_process_cb (XPROCESS (process));
   return;
 
 io_failure:
@@ -1395,6 +1419,9 @@ io_failure:
 }
 
 #ifdef HAVE_SOCKETS
+
+extern void request_sigio (void);
+extern void unrequest_sigio (void);
 
 /* open a TCP network connection to a given HOST/SERVICE.  Treated
    exactly like a normal process when reading and writing.  Only
@@ -1421,14 +1448,12 @@ Fourth arg SERVICE is name of the service desired, or an integer\n\
       Lisp_Object name, buffer, host, service;
 {
   Lisp_Object proc;
-  register int i;
   struct sockaddr_in address;
   struct servent *svc_info;
   struct hostent *host_info_ptr, host_info;
   char *(addr_list[2]);
   unsigned long numeric_addr;
   int s, outch, inch;
-  char errstring[80];
   int port;
   struct hostent host_info_fixed;
   struct gcpro gcpro1, gcpro2, gcpro3, gcpro4;
@@ -1465,8 +1490,8 @@ Fourth arg SERVICE is name of the service desired, or an integer\n\
       host_info.h_length = strlen (addr_list[0]);
     }
 
-  bzero (&address, sizeof address);
-  bcopy (host_info_ptr->h_addr, (char *) &address.sin_addr,
+  memset (&address, 0, sizeof address);
+  memcpy ((char *) &address.sin_addr, host_info_ptr->h_addr, 
 	 host_info_ptr->h_length);
   address.sin_family = host_info_ptr->h_addrtype;
   address.sin_port = port;
@@ -1539,6 +1564,11 @@ Fourth arg SERVICE is name of the service desired, or an integer\n\
 }
 #endif	/* HAVE_SOCKETS */
 
+extern void flush_pending_outut (int);
+
+extern void flush_pending_output (int);
+
+void
 deactivate_process (proc)
      Lisp_Object proc;
 {
@@ -1570,6 +1600,7 @@ deactivate_process (proc)
    with subprocess.  This is used in a newly-forked subprocess
    to get rid of irrelevant descriptors.  */
 
+void
 close_process_descs ()
 {
   int i;
@@ -1610,6 +1641,7 @@ static int waiting_for_user_input_p;
    If you want to read all available subprocess output,
    you must call it repeatedly until it returns zero.  */
 
+int
 read_process_output (proc, channel)
      Lisp_Object proc;
      register int channel;
@@ -1647,14 +1679,14 @@ read_process_output (proc, channel)
   outstream = p->filter;
   if (!NILP (outstream))
     {
-      int count = specpdl_ptr - specpdl;
+      int count = specpdl_depth;
       specbind (Qinhibit_quit, Qt);
       this_filter = outstream;
       filter_process = proc;
       filter_string = make_string (chars, nchars);
       call2 (this_filter, filter_process, filter_string);
       /*   internal_condition_case (run_filter, Qerror, Fidentity);  */
-      unbind_to (count);
+      unbind_to (count, Qnil);
       return nchars;
     }
 
@@ -1709,7 +1741,7 @@ This is intended for use by asynchronous process output filters and sentinels.")
 
 jmp_buf send_process_frame;
 
-void
+SIGTYPE
 send_process_trap (sig)
      int sig;
 {
@@ -1720,6 +1752,7 @@ send_process_trap (sig)
   longjmp (send_process_frame, 1);
 }
 
+void
 send_process (proc, buf, len)
      Lisp_Object proc;
      char *buf;
@@ -1840,6 +1873,7 @@ Output from processes can arrive in between bunches.")
    If NOMSG is zero, insert signal-announcements into process's buffers
    right away.  */
 
+void
 process_send_signal (process, signo, current_group, nomsg)
      Lisp_Object process;
      int signo;
@@ -1879,15 +1913,15 @@ process_send_signal (process, signo, current_group, nomsg)
 	case SIGINT:
 	  ioctl (XFASTINT (p->infd), TIOCGETC, &c);
 	  send_process (proc, &c.t_intrc, 1);
-	  return Qnil;
+	  return;
 	case SIGQUIT:
 	  ioctl (XFASTINT (p->infd), TIOCGETC, &c);
 	  send_process (proc, &c.t_quitc, 1);
-	  return Qnil;
+	  return;
 	case SIGTSTP:
 	  ioctl (XFASTINT (p->infd), TIOCGLTC, &lc);
 	  send_process (proc, &lc.t_suspc, 1);
-	  return Qnil;
+	  return;
 	}
 #endif /* have TIOCGLTC and have TIOCGETC */
       /* It is possible that the following code would work
@@ -1901,15 +1935,15 @@ process_send_signal (process, signo, current_group, nomsg)
 	case SIGINT:
 	  ioctl (XFASTINT (p->infd), TCGETA, &t);
 	  send_process (proc, &t.c_cc[VINTR], 1);
-	  return Qnil;
+	  return;
 	case SIGQUIT:
 	  ioctl (XFASTINT (p->infd), TCGETA, &t);
 	  send_process (proc, &t.c_cc[VQUIT], 1);
-	  return Qnil;
+	  return;
 	case SIGTSTP:
 	  ioctl (XFASTINT (p->infd), TCGETA, &t);
 	  send_process (proc, &t.c_cc[VSWTCH], 1);
-	  return Qnil;
+	  return;
 	}
 #endif /* IRIS and HAVE_SETSID */
 
@@ -2077,7 +2111,7 @@ nil or no arg means current buffer's process.")
   else
     {
       close (XPROCESS (proc)->outfd);
-      XFASTINT (XPROCESS (proc)->outfd) = open ("/dev/NILP", O_WRONLY);
+      XFASTINT (XPROCESS (proc)->outfd) = open ("/dev/null", O_WRONLY);
     }
 
 #endif /* did not do TOICREMOTE */
@@ -2108,6 +2142,7 @@ kill_buffer_processes (buffer)
     }
 }
 
+#if 0
 int
 count_active_processes ()
 {
@@ -2126,6 +2161,7 @@ count_active_processes ()
 
   return count;
 }
+#endif
 
 /* On receipt of a signal that a child status has changed,
  loop asking about children with changed statuses until
@@ -2148,7 +2184,7 @@ count_active_processes ()
  the queue is empty".  Invoking signal() causes the kernel to reexamine
  the SIGCLD queue.   Fred Fish, UniSoft Systems Inc. */
 
-void
+SIGTYPE
 sigchld_handler (signo)
      int signo;
 {
@@ -2278,10 +2314,13 @@ sigchld_handler (signo)
     }
 }
 
+static void exec_sentinel (Lisp_Object proc, Lisp_Object reason);
+
 /* Report all recent events of a change in process status
    (either run the sentinel or output a message).
    This is done while Emacs is waiting for keyboard input.  */
 
+static void
 status_notify ()
 {
   register Lisp_Object proc, buffer;
@@ -2351,7 +2390,6 @@ status_notify ()
 	     when a process becomes runnable.  */
 	  else if (!EQ (symbol, Qrun) && !NILP (buffer))
 	    {
-	      Lisp_Object ro = XBUFFER (buffer)->read_only;
 	      Lisp_Object tem;
 	      struct buffer *old = current_buffer;
 	      int opoint;
@@ -2401,12 +2439,13 @@ maybe_status_notify ()
   if (update_tick != process_tick) status_notify ();
 }
 
+static void
 exec_sentinel (proc, reason)
      Lisp_Object proc, reason;
 {
   Lisp_Object sentinel;
   register struct Lisp_Process *p = XPROCESS (proc);
-  int count = specpdl_ptr - specpdl;
+  int count = specpdl_depth;
 
   sentinel = p->sentinel;
   if (NILP (sentinel))
@@ -2419,10 +2458,11 @@ exec_sentinel (proc, reason)
   filter_string = reason;
   call2 (this_filter, filter_process, filter_string);
 /*   internal_condition_case (run_filter, Qerror, Fidentity);  */
-  unbind_to (count);
+  unbind_to (count, Qnil);
   p->sentinel = sentinel;
 }
 
+void
 init_process ()
 {
   register int i;
@@ -2453,6 +2493,8 @@ t or pty (pty) or stream (socket connection).")
   return XPROCESS (process)->type;
 }
 #endif
+
+void
 syms_of_process ()
 {
 #ifdef HAVE_PTYS

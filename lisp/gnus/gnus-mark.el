@@ -1,11 +1,12 @@
 ;;; -*- Mode:Emacs-Lisp -*-
 
-;;; gnus-mark.el v1.3
+;;; gnus-mark.el v1.4
 ;;; Operating on more than one news article at a time.
 ;;; Created: 28-Jun-91 by Jamie Zawinski <jwz@lucid.com>
 ;;; Modified: 28-Jun-91 by Sebastian Kremer <sk@thp.Uni-Koeln.DE>
 ;;; Modified: 1-Dec-91 by Jamie Zawinski <jwz@lucid.com>
 ;;; Modified: 05-Dec-91 by Paul D. Smith <paul_smith@dg.com>
+;;; Modified: 28-Nov-92 by A1C Tim Miller <tjm@hrt213.brooks.af.mil>
 ;;;
 ;;; typing `@' in the subject buffer will mark the current article with
 ;;; an `@'.  After marking more than one article this way, you can use one
@@ -43,10 +44,14 @@
 ;;; dirty work.  If the directory you specify doesn't exist, you have the
 ;;; option of creating it.
 ;;;
+;;; M-x gnus-save-marked-articles-in-file will save marked articles in a file;
+;;; prompts with gnus' standard filename query for each article unless
+;;; gnus-save-marked-in-same-file is non-nil.
+;;
 ;; LCD Archive Entry:
 ;; gnus-mark|Jamie Zawinski|jwz@lucid.com
 ;; |Operate on more than one news article at a time
-;; |91-12-05||~/misc/gnus-mark.el.Z|
+;; |92-11-30||~/misc/gnus-mark.el.Z|
 
 ;; 05 Dec 91 pds - Paul D. Smith (paul_smith@dg.com)
 ;;
@@ -427,7 +432,11 @@ gnus-uudecode-file-mode, gnus-uudecode-auto-chmod, and
 			 (y-or-n-p
 			   (format "look at the picture in %s? " final-file)))
 		    (gnus-mark-shell-command (point) (point)
-		      (concat gnus-uudecode-picture-viewer " " final-file)
+		      (if (string-match (regexp-quote directory) final-file)
+			  (concat "cd " directory " ; "
+                                  gnus-uudecode-picture-viewer " "
+				  (substring final-file (match-end 0)))
+			(concat gnus-uudecode-picture-viewer " " final-file))
 		      nil)
 		    (if (y-or-n-p (format "delete file %s? " final-file))
 			(progn
@@ -495,3 +504,32 @@ and then run the result through gnus-unshar-program (typically /bin/sh.)"
 ;      (if (y-or-n-p "Display *Article* buffer? ")
 ;	  (display-buffer "*Article*"))
       )))
+
+(defvar gnus-save-marked-in-same-file nil
+  "*Tells GNUS whether or not to prompt for a filename for each marked 
+article being saved.")
+
+;;; Save marked articles in a file
+;;; Started: 28 Nov 92, because I need this kind of functionality
+;;; By: A1C Tim Miller, tjm@hrt213.brooks.af.mil
+;;; Map the function down the marked articles that grabs the article
+;;; and saves it in a file, requesting a filename to save in
+
+(defun gnus-save-marked-articles-in-file ()
+  "Save marked messages in a file."
+  (interactive)
+  (let ((state 'first))
+    (unwind-protect
+	(progn
+	  (gnus-Subject-mark-map-articles
+	   gnus-default-mark-char
+	   (function (lambda (msg)
+		       (if (eq state 'first) (setq state t) (setq state nil))
+		       (message "Grabbing Article %s..." (aref msg 0))
+		       (or (eq gnus-current-article (aref msg 0))
+			   (gnus-Subject-display-article (aref msg 0)))
+		       (if (and (not state) gnus-save-marked-in-same-file)
+			   (gnus-Subject-save-in-file gnus-newsgroup-last-file)
+			 (gnus-Subject-save-in-file)))))))))
+
+(provide 'gnus-mark)

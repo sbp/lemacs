@@ -14,6 +14,7 @@
 #ifndef SUNOS4_0_3
 #define AUDIO_4_0_3_COMPAT
 #define AUDIO_CHIP
+#define AMD_CHIP               /* SparcStation 1, 2, IPC, and IPX */
 #include <sbusdev/audio_79C30.h>
 #include <multimedia/libaudio.h>
 #include <multimedia/audio_device.h>
@@ -37,6 +38,7 @@ void sst_dtmf( /* int fd, char *dial, int usecper, usecpause */ );
 #ifdef emacs
 extern char *sys_errlist[];
 extern int errno, sys_nerr;
+extern void message ();
 # define perror(string) \
     message("audio: %s, %s", string, \
 	    (errno < sys_nerr) ? sys_errlist[errno] : \

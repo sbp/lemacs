@@ -87,6 +87,7 @@ DEFUN ("ml-if", Fml_if, Sml_if, 0, UNEVALLED, 0, "Mocklisp version of `if'.")
 *   UNGCPRO;
 *   return Qnil;
 *}
+*/
 
 /* This is the main entry point to mocklisp execution.
  When eval sees a mocklisp function being called, it calls here
@@ -96,13 +97,12 @@ Lisp_Object
 ml_apply (function, args)
      Lisp_Object function, args;
 {
-  register int count = specpdl_ptr - specpdl;
+  register int count = specpdl_depth;
   register Lisp_Object val;
 
   specbind (Qmocklisp_arguments, args);
   val = Fprogn (Fcdr (function));
-  unbind_to (count);
-  return val;
+  return unbind_to (count, val);
 }
 
 DEFUN ("ml-nargs", Fml_nargs, Sml_nargs, 0, 0, 0,
@@ -120,7 +120,7 @@ DEFUN ("ml-arg", Fml_arg, Sml_arg, 1, 2, 0,
      Lisp_Object n, prompt;
 {
   if (EQ (Vmocklisp_arguments, Qinteractive))
-    return Fread_string (prompt, Qnil);
+    return call1 (Qread_from_minibuffer, prompt);
   CHECK_FIXNUM (n, 0);
   XSETINT (n, XINT (n) - 1);	/* Mocklisp likes to be origin-1 */
   return Fcar (Fnthcdr (n, Vmocklisp_arguments));
@@ -225,6 +225,7 @@ is converted into a string by expressing it in decimal.")
 }
 
 
+void
 syms_of_mocklisp ()
 {
   Qmocklisp = intern ("mocklisp");

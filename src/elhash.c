@@ -17,82 +17,83 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "config.h"
 #include "lisp.h"
 #include "hash.h"
+#include "elhash.h"
 
 
 struct hashtable_struct
 {
-  Lisp_Object header;
+  Lisp_Object header;           /* 'hashtable */
+
   Lisp_Object harray;
-  Lisp_Object zero_set;
   Lisp_Object zero_entry;
-  Lisp_Object size;
   Lisp_Object fullness;
 };
 
-#define SLOT_OFFSET(type, slot_name) \
-  ((unsigned) (((char *) (&(((type *)0)->slot_name))) - ((char *) 0)))
+#define LISP_OBJECTS_PER_HENTRY (sizeof (hentry) / sizeof (Lisp_Object))/* 2 */
 
-#define VECTOR_CONTENTS_OFFSET (SLOT_OFFSET (struct Lisp_Vector, contents))
+#define HT_SIZE (sizeof (struct hashtable_struct) / sizeof (Lisp_Object))
 
-#define HARRAY_LENGTH_FROM_BYTES(bytes) ((bytes) / sizeof (Lisp_Object))
-#define HARRAY_LENGTH_FROM_SIZE(size) \
-  (((size) * sizeof (hentry)) / sizeof (Lisp_Object))
-#define HT_SIZE_FROM_BYTES(bytes) ((bytes) / sizeof (hentry))
-
-#define DECLARE_HT(var) \
-  struct _C_hashtable tmp_HT_Space; \
-  c_hashtable var = &tmp_HT_Space;
-
-#define CLEAR_HT(var) \
-  bzero ((char *) var, sizeof (struct _C_hashtable));
-
-#define INIT_HT(var, table) \
-{ \
-  struct hashtable_struct *tmp = XHASHTABLE(table); \
-  var->harray = (void *) XVECTOR (tmp->harray)->contents; \
-  var->zero_set = (NILP(tmp->zero_set))?0:1; \
-  var->zero_entry = (void *) tmp->zero_entry; \
-  var->size = XFASTINT (tmp->size); \
-  var->fullness = XFASTINT (tmp->fullness); \
-  var->hash_function = 0; \
-  var->test_function = 0; \
-  var->elisp_table = (void *) table; \
-}
-
-#define RESET_HT(var, table) \
-{ \
-  struct hashtable_struct *tmp = XHASHTABLE(table); \
-  char *vec_addr = ((char *) var->harray) - VECTOR_CONTENTS_OFFSET; \
-  XSET (tmp->harray, Lisp_Vector, vec_addr); \
-  tmp->zero_set = (var->zero_set)?Qt:Qnil; \
-  tmp->zero_entry = (Lisp_Object) var->zero_entry; \
-  XSET (tmp->size, Lisp_Int, var->size); \
-  XSET (tmp->fullness, Lisp_Int, var->fullness); \
-}
-
-#define HT_SIZE (sizeof(struct hashtable_struct) / sizeof (Lisp_Object))
-
-#define NEW_HASHTABLE() (Fmake_vector (make_number(HT_SIZE), Qnil))
-
-#define XHASHTABLE(obj) ((struct hashtable_struct *) (XVECTOR (obj)->contents))
-
-#define HASHTABLE_HEADER(obj) (XHASHTABLE(obj)->header)
-#define HASHTABLE_HARRAY(obj) (XHASHTABLE(obj)->harray)
-#define HASHTABLE_ZERO_SET(obj) (XHASHTABLE(obj)->zero_set)
-#define HASHTABLE_ZERO_ENTRY(obj) (XHASHTABLE(obj)->zero_entry)
-#define HASHTABLE_SIZE(obj) (XHASHTABLE(obj)->size)
-#define HASHTABLE_FULLNESS(obj) (XHASHTABLE(obj)->fullness)
+#define XHASHTABLE(obj) \
+	((struct hashtable_struct *) (XVECTOR ((obj))->contents))
 
 #define HASHTABLEP(obj) ((VECTORP (obj)) && \
-                         (XFASTINT(XVECTOR (obj)->size) == HT_SIZE) && \
-                         (HASHTABLE_HEADER (obj) == Qhashtable))
+                         (XFASTINT (XVECTOR ((obj))->size) == HT_SIZE) && \
+                         (XHASHTABLE ((obj))->header == Qhashtable))
 
 #define CHECK_HASHTABLE(x, i) \
-  { if (!HASHTABLEP(x)) wrong_type_argument (Qhashtablep, (x)); }
- 
+  { if (!HASHTABLEP((x))) wrong_type_argument (Qhashtablep, (x)); }
+
 Lisp_Object Qhashtable;
 Lisp_Object Qhashtablep;
-Lisp_Object Qhashemptymarker;
+
+static void
+ht_copy_to_c (Lisp_Object lisp_table, c_hashtable c_table)
+{
+  struct hashtable_struct *ht = XHASHTABLE (lisp_table);
+  Lisp_Object lobj;
+  c_table->harray = (void *) XVECTOR (ht->harray)->contents;
+  c_table->zero_set = (!EQ (ht->zero_entry, Qunbound));
+  c_table->zero_entry = (void *) ht->zero_entry;
+  c_table->size = XVECTOR (ht->harray)->size / LISP_OBJECTS_PER_HENTRY;
+  c_table->fullness = XFASTINT (ht->fullness);
+  c_table->hash_function = 0;
+  c_table->test_function = 0;
+  /* can't use casts as lvalues... */
+  XSET (lobj, Lisp_Vector, lisp_table);
+  c_table->elisp_table = (void *) lobj;
+}
+
+static void
+ht_copy_from_c (c_hashtable c_table, Lisp_Object lisp_table)
+{
+  struct hashtable_struct *ht = XHASHTABLE (lisp_table);
+  struct Lisp_Vector dummy;
+  /* C is truly hateful */
+  void *vec_addr
+    = ((char *) c_table->harray 
+       - ((char *) &(dummy.contents) - (char *) &dummy));
+  
+  XSET (ht->harray, Lisp_Vector, vec_addr);
+  ht->zero_entry = ((c_table->zero_set) 
+                    ? (Lisp_Object) c_table->zero_entry
+                    : Qunbound);
+  XSET (ht->fullness, Lisp_Int, c_table->fullness);
+}
+
+
+static Lisp_Object
+new_hashtable ()
+{
+  Lisp_Object vector = Fmake_vector (make_number(HT_SIZE), Qnil);
+  struct hashtable_struct *table = XHASHTABLE (vector);
+
+  table->header = Qhashtable;
+  table->harray = Qnil;
+  table->zero_entry = Qunbound;
+  XFASTINT (table->fullness) = 0;
+  return (vector);
+}
+
 
 char *
 elisp_hvector_malloc (bytes, table)
@@ -100,18 +101,14 @@ elisp_hvector_malloc (bytes, table)
      Lisp_Object table;
 {
   Lisp_Object new_vector;
+  struct hashtable_struct *ht;
 
-  if (!HASHTABLEP(table)) 
-    error ("Bad table argument 0x%x -- can't resize hashtable.", table);
-  
-  if (HT_SIZE_FROM_BYTES (bytes) <= XFASTINT (HASHTABLE_SIZE (table)))
-    error ("Bad resize argument, %d, for hashtable of size %d.", 
-           HT_SIZE_FROM_BYTES (bytes), XFASTINT(HASHTABLE_SIZE (table)));
-
-  new_vector = Fmake_vector (make_number (HARRAY_LENGTH_FROM_BYTES (bytes)),
-                             make_number (0));
-
-  return ((char *) (XVECTOR(new_vector)->contents));
+  if (!HASHTABLEP (table)) abort ();
+  ht = XHASHTABLE (table);
+  if (bytes <= XVECTOR (ht->harray)->size * sizeof (Lisp_Object))
+    abort ();
+  new_vector = Fmake_vector (make_number (bytes / sizeof (Lisp_Object)), 0);
+  return ((char *) (XVECTOR (new_vector)->contents));
 }
 
 void
@@ -119,22 +116,13 @@ elisp_hvector_free (ptr, table)
      void *ptr;
      Lisp_Object table;
 {
-  Lisp_Object current_vector;
+  struct hashtable_struct *ht = XHASHTABLE (table);
+  Lisp_Object current_vector = ht->harray;
 
-  if (!HASHTABLEP(table)) 
-    error ("Bad table argument 0x%x -- can't free hash array.", table);
-  
-  current_vector = HASHTABLE_HARRAY (table);
-
-  if (!VECTORP (current_vector))
-    error ("Garbled hashtable 0x%x -- can't free hash array.", table);
-
-  if (((void *) XVECTOR(current_vector)->contents) != ptr)
-    error ("Bad ptr argument 0x%x -- can't free hash array = 0x%x.", 
-           ptr, current_vector);
-  else
-    HASHTABLE_HARRAY (table) = Qnil; /* let GC do the rest */
-  
+  if (!HASHTABLEP (table)) abort ();
+  if (!VECTORP (current_vector)) abort ();
+  if (((void *) XVECTOR(current_vector)->contents) != ptr) abort ();
+  ht->harray = Qnil;            /* Let GC do its job */
   return;
 }
 
@@ -144,38 +132,29 @@ DEFUN ("hashtablep", Fhashtablep, Shashtablep, 1, 1, 0,
   (obj)
   Lisp_Object obj;
 {
-  return (HASHTABLEP(obj))?Qt:Qnil;
+  return (HASHTABLEP (obj)) ? Qt : Qnil;
 }
 
 DEFUN ("make-hashtable", Fmake_hashtable, Smake_hashtable, 1, 1, 0,
-       "Make a hashtable of size SIZE.")
+       "Make a hashtable of initial size SIZE.")
   (size)
   Lisp_Object size;
 {
-  struct gcpro gcpro1;
-  Lisp_Object hashtable = Qnil;
+  Lisp_Object result;
+  struct hashtable_struct *table;
+  int tem;
 
   CHECK_FIXNUM (size, 0);
-  if (XINT(size) <= 0) 
-    error ("Bad SIZE argument, %d, to make-hashtable.", XINT(size));
+  tem = XINT (size);
+  if (tem <= 0)
+    error ("Bad size argument, %d, to make-hashtable.", tem);
 
-  hashtable = NEW_HASHTABLE();
-  GCPRO1 (hashtable);
-
-  HASHTABLE_HEADER (hashtable) = Qhashtable;
-  HASHTABLE_SIZE (hashtable) = make_number (compute_harray_size (XINT(size)));
-  XSET (HASHTABLE_FULLNESS (hashtable), Lisp_Int, 0);
-  XSET (HASHTABLE_ZERO_ENTRY (hashtable), Lisp_Int, 0);
-  HASHTABLE_ZERO_SET (hashtable) = Qnil;
-  {
-    int vector_length = 
-      HARRAY_LENGTH_FROM_SIZE (XINT (HASHTABLE_SIZE (hashtable)));
-    HASHTABLE_HARRAY (hashtable) = 
-      Fmake_vector (make_number (vector_length), make_number (0));
-  }
-
-  UNGCPRO;
-  return hashtable;
+  tem = compute_harray_size (tem);
+  result = new_hashtable ();
+  table = XHASHTABLE (result);
+  table->harray = Fmake_vector (make_number (tem * LISP_OBJECTS_PER_HENTRY),
+				0);
+  return (result);
 }
 
 
@@ -185,92 +164,81 @@ as the given table.  The keys and values will not themselves be copied.")
   (old_table)
   Lisp_Object old_table;
 {
-  DECLARE_HT (old_htbl);
+  struct _C_hashtable old_htbl;
+  struct _C_hashtable new_htbl;
+  struct hashtable_struct *new_ht;
+  Lisp_Object result;
+
   CHECK_HASHTABLE (old_table, 0);
-  INIT_HT (old_htbl, old_table);
-  {
-    Lisp_Object new_table;
-    DECLARE_HT (new_htbl);
-    CLEAR_HT (new_htbl);
-    /* we can't just call Fmake_hashtable() here because that will make a
-       table that is slightly larger than the one we're trying to copy,
-       which will make copy_hash() blow up.
-     */
-    new_table = NEW_HASHTABLE ();
-    HASHTABLE_HEADER (new_table) = Qhashtable;
-    HASHTABLE_SIZE (new_table) = HASHTABLE_SIZE (old_table);
-    XSET (HASHTABLE_FULLNESS (new_table), Lisp_Int, 0);
-    XSET (HASHTABLE_ZERO_ENTRY (new_table), Lisp_Int, 0);
-    HASHTABLE_ZERO_SET (new_table) = Qnil;
-    HASHTABLE_HARRAY (new_table) = 
-      Fmake_vector (Flength (HASHTABLE_HARRAY (old_table)), make_number (0));
-    INIT_HT (new_htbl, new_table);
-    copy_hash (new_htbl, old_htbl);
-    RESET_HT (new_htbl, new_table);
-    return new_table;
-  }
+  ht_copy_to_c (old_table, &old_htbl);
+
+  /* we can't just call Fmake_hashtable() here because that will make a
+     table that is slightly larger than the one we're trying to copy,
+     which will make copy_hash() blow up. */
+  result = new_hashtable ();
+  new_ht = XHASHTABLE (result);
+  new_ht->fullness = make_number (0);
+  new_ht->zero_entry = Qunbound;
+  new_ht->harray = Fmake_vector (Flength (XHASHTABLE (old_table)->harray), 0);
+  ht_copy_to_c (result, &new_htbl);
+  copy_hash (&new_htbl, &old_htbl);
+  ht_copy_from_c (&new_htbl, result);
+  return (result);
 }
 
 
-DEFUN ("gethash", Fgethash, Sgethash, 2, 2, 0,
-       "Find hash value for OBJ in TABLE.")
-  (obj, table)
-  Lisp_Object obj, table;
+DEFUN ("gethash", Fgethash, Sgethash, 2, 3, 0,
+       "Find hash value for KEY in TABLE.\n\
+If there is no corresponding value, return DEFAULT (default nil)")
+  (key, table, defalt)
+  Lisp_Object key, table, defalt; /* One can't even spell correctly in C */ 
 {
   Lisp_Object val;
-  DECLARE_HT (htbl);
+  struct _C_hashtable htbl;
   CHECK_HASHTABLE (table, 0);
-  INIT_HT (htbl, table);
-
-  if (gethash ((void *)obj, htbl, (void **)&val))
+  ht_copy_to_c (table, &htbl);
+  if (gethash ((void *)key, &htbl, (void **)&val))
     return val;
   else 
-    return Qhashemptymarker;
+    return defalt;
 }
 
 
 DEFUN ("remhash", Fremhash, Sremhash, 2, 2, 0,
-       "Remove hash value for OBJ in TABLE.")
-  (obj, table)
-  Lisp_Object obj, table;
+       "Remove hash value for KEY in TABLE.")
+  (key, table)
+  Lisp_Object key, table;
 {
-  Lisp_Object val;
-
-  DECLARE_HT (htbl);
-
+  struct _C_hashtable htbl;
   CHECK_HASHTABLE (table, 0);
-
-  INIT_HT (htbl, table);
-
-  remhash ((void *)obj, htbl);
-
-  RESET_HT (htbl, table);
-
+  ht_copy_to_c (table, &htbl);
+  remhash ((void *)key, &htbl);
+  ht_copy_from_c (&htbl, table);
   return Qnil;
 }
 
 
 DEFUN ("puthash", Fputhash, Sputhash, 3, 3, 0,
-       "Hash OBJ to VAL in TABLE.")
-  (obj, val, table)
-  Lisp_Object obj, val, table;
+       "Hash KEY to VAL in TABLE.")
+  (key, val, table)
+  Lisp_Object key, val, table;
 {
-  struct gcpro gcpro1, gcpro2, gcpro3;
-  DECLARE_HT (htbl);
-
-  GCPRO3 (obj, val, table);
-
+  struct hashtable_struct *ht;
   CHECK_HASHTABLE (table, 0);
-
-  INIT_HT (htbl, table);
-
-  puthash ((void *)obj, (void *)val, htbl);
-
-  RESET_HT (htbl, table);
-
-  UNGCPRO;
-
-  return val;
+  ht = XHASHTABLE (table);
+  if ((int) val == 0)
+    ht->zero_entry = val;
+  else
+  {
+    struct gcpro gcpro1, gcpro2, gcpro3;
+    struct _C_hashtable htbl;
+    ht_copy_to_c (table, &htbl);
+    GCPRO3 (key, val, table);
+    puthash ((void *)key, (void *)val, &htbl);
+    ht_copy_from_c (&htbl, table);
+    UNGCPRO;
+  }
+  return (val);
 }
 
 DEFUN ("clrhash", Fclrhash, Sclrhash, 1, 1, 0,
@@ -278,29 +246,23 @@ DEFUN ("clrhash", Fclrhash, Sclrhash, 1, 1, 0,
   (table)
   Lisp_Object table;
 {
-  DECLARE_HT (htbl);
-
+  struct _C_hashtable htbl;
   CHECK_HASHTABLE (table, 0);
-
-  INIT_HT (htbl, table);
-
-  clrhash (htbl);
-
-  RESET_HT (htbl, table);
-
+  ht_copy_to_c (table, &htbl);
+  clrhash (&htbl);
+  ht_copy_from_c (&htbl, table);
   return Qnil;
 }
-
 
 DEFUN ("hashtable-fullness", Fhashtable_fullness, Shashtable_fullness, 1, 1, 0,
        "Returns number of entries in TABLE.")
   (table)
   Lisp_Object table;
 {
-  DECLARE_HT (htbl);
+  struct _C_hashtable htbl;
   CHECK_HASHTABLE (table, 0);
-  INIT_HT (htbl, table);
-  return (make_number (htbl->fullness));
+  ht_copy_to_c (table, &htbl);
+  return (make_number (htbl.fullness));
 }
 
 
@@ -309,47 +271,26 @@ verify_function (function, description)
      Lisp_Object function;
      char *description;
 {
-  int type = XTYPE (function);
-
-  switch (type)
-    {
-    case Lisp_Symbol:
-      if (NILP (function))
-        return;
-      else
-        {
-          if (!NILP(Ffboundp (function)))
-            return;
-          else
-            error ("A symbol used as a %s must be fboundp -- %s isn't",
-                   description, XSYMBOL (function)->name->data, 0);
-          break;
-        } 
-
-    case Lisp_Subr:
-    case Lisp_Compiled:
+  if (SYMBOLP (function))
+  {
+    if (NILP (function))
       return;
-          
-    case Lisp_Cons:
-      {
-        Lisp_Object funcar = Fcar (function);
-        if ((SYMBOLP (funcar)) &&
-            (EQ (funcar, Qlambda) ||
-             EQ (funcar, Qmocklisp) ||
-             EQ (funcar, Qautoload)))
-          return;
-
-        /* else case falls through to default error case */
-      }
-    default:
-      {
-        Lisp_Object error_string = Fprin1_to_string (function, Qnil);
-        error ("Can't use %s as a %s", 
-               XSTRING (error_string)->data, description, 0);
-      }
-    }
+    else
+      function = indirect_function (function, 1);
+  }
+  if (SUBRP (function) || COMPILEDP (function))
+    return;
+  else if (CONSP (function))
+  {
+    Lisp_Object funcar = Fcar (function);
+    if ((SYMBOLP (funcar)) 
+        && (EQ (funcar, Qlambda) 
+            || EQ (funcar, Qmocklisp) 
+            || EQ (funcar, Qautoload)))
+      return;
+  }
+  signal_error (Qinvalid_function, list1 (function));
 }
-
 
 static void
 lisp_maphash_function (key, val, fn)
@@ -360,20 +301,20 @@ lisp_maphash_function (key, val, fn)
 
 
 DEFUN ("maphash", Fmaphash, Smaphash, 2, 2, 0,
-       "Map FUNCTION over entries in TABLE with, calling it with two\n\
-arguments, each key and value in the table.")
+       "Map FUNCTION over entries in TABLE, calling it with two args,\n\
+each key and value in the table.")
   (function, table)
-  Lisp_Object function;
+  Lisp_Object function, table;
 {
-  DECLARE_HT (htbl);
+  struct _C_hashtable htbl;
+  struct gcpro gcpro1, gcpro2;
 
   verify_function (function, "hashtable mapping function");
   CHECK_HASHTABLE (table, 0);
-
-  INIT_HT (htbl, table);
-
-  maphash (lisp_maphash_function, htbl, (void *) function);
-
+  ht_copy_to_c (table, &htbl);
+  GCPRO2 (table, function);
+  maphash (lisp_maphash_function, &htbl, (void *) function);
+  UNGCPRO;
   return Qnil;
 }
 
@@ -387,13 +328,15 @@ elisp_maphash (function, table, closure)
      Lisp_Object table;
      void *closure;
 {
-  DECLARE_HT (htbl);
+  struct _C_hashtable htbl;
+
   CHECK_HASHTABLE (table, 0);
-  INIT_HT (htbl, table);
-  maphash (function, htbl, closure);
+  ht_copy_to_c (table, &htbl);
+  maphash (function, &htbl, closure);
 }
 
 
+#if 0
 void
 elisp_table_op (table, op, arg1, arg2, arg3)
      Lisp_Object table;
@@ -403,19 +346,14 @@ elisp_table_op (table, op, arg1, arg2, arg3)
      void *arg3;
 
 {
-  DECLARE_HT (htbl);
-
+  struct _C_hashtable htbl;
   CHECK_HASHTABLE (table, 0);
-
-  INIT_HT (htbl, table);
-
-  (*op) (htbl, arg1, arg2, arg3);
-
-  RESET_HT (htbl, table);
-
+  ht_copy_to_c (table, &htbl);
+  (*op) (&htbl, arg1, arg2, arg3);
+  ht_copy_from_c (&htbl, table);
   return;
 }
-
+#endif
 
 void
 syms_of_elhash () 
@@ -429,13 +367,6 @@ syms_of_elhash ()
   defsubr(&Smaphash);
   defsubr(&Shashtable_fullness);
 
-  Qhashtable = intern ("hashtable");
-  staticpro (&Qhashtable);
-
-  Qhashtablep = intern ("hashtablep");
-  staticpro (&Qhashtablep);
-
-  Qhashemptymarker = intern ("empty-marker");
-  staticpro (&Qhashemptymarker);
-  Fset (Qhashemptymarker, Qhashemptymarker);
+  defsymbol (&Qhashtable, "hashtable");
+  defsymbol (&Qhashtablep, "hashtablep");
 }

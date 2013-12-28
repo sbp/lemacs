@@ -1,7 +1,7 @@
-;;; compiled by jwz@watergate on Wed Aug 26 01:20:15 1992
-;;; from file /wg1/emacs-base/lisp/comint/comint.el
-;;; emacs version 19.2.12 Lucid.
-;;; bytecomp version 2.08;  7-aug-92.
+;;; compiled by jwz@thalidomide on Wed Oct 28 19:14:19 1992
+;;; from file /u/jwz/emacs19/lisp/comint/comint.el
+;;; emacs version 19.3.3 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -87,7 +87,7 @@ to continue it.
 \\{comint-mode-map}
 
 Entry to this mode runs the hooks on comint-mode-hook" nil])
-(byte-code "¬ïÁ ÂÃÄ#ˆÂÅÆ#ˆÂÇÄ#ˆÂÈÉ#ˆÂÊË#ˆÂÌÍ#ˆÂÎÏ#ˆÂÐÑ#ˆÂÒÓ#ˆÂÔÕ#ˆÂÖ×#ˆÂØÙ#ˆÂÚÛ#ˆÂÜÝ#ˆÂÞß#ˆÂàá#ˆÂâã#ˆÂäå#ˆÁ‡" [comint-mode-map make-sparse-keymap define-key "p" comint-previous-similar-input "n" comint-next-similar-input "s" "" comint-send-input "" comint-delchar-or-maybe-eof "" comint-bol "" comint-kill-input "" backward-kill-word "" comint-interrupt-subjob "" comint-stop-subjob "" comint-quit-subjob "" comint-send-eof "" comint-kill-output "r" comint-previous-input-matching "" comint-show-output "P" comint-msearch-input "N" comint-psearch-input "R" comint-msearch-input-matching] 4)
+(byte-code "¬éÁ ÂÃÄ#ˆÂÅÆ#ˆÂÇÄ#ˆÂÈÉ#ˆÂÊË#ˆÂÌÍ#ˆÂÎÏ#ˆÂÐÑ#ˆÂÒÓ#ˆÂÔÕ#ˆÂÖ×#ˆÂØÙ#ˆÂÚÛ#ˆÂÜÝ#ˆÂÞß#ˆÂàá#ˆÂâã#ˆÁ‡" [comint-mode-map make-sparse-keymap define-key "p" comint-previous-similar-input "n" comint-next-similar-input "s" "" comint-send-input "" comint-bol "" comint-kill-input "" backward-kill-word "" comint-interrupt-subjob "" comint-stop-subjob "" comint-quit-subjob "" comint-send-eof "" comint-kill-output "r" comint-previous-input-matching "" comint-show-output "P" comint-msearch-input "N" comint-psearch-input "R" comint-msearch-input-matching] 4)
 (fset 'full-copy-sparse-keymap #[(km) ":«ŠÁ@!ÁA!B‡Â!‡" [km full-copy-sparse-keymap copy-keymap] 3 "\
 Recursively copy the sparse keymap KM"])
 (fset 'comint-check-proc #[(buffer-name) "À	!‰­…Ã\n!Ä>)‡" [get-buffer-process buffer-name proc process-status (run stop)] 3 "\

@@ -69,16 +69,25 @@ This should be a fractional part of a second (a float.)")
 ;; callback for the timeout
 ;; swap the face of the extent on the matching paren
 (defun blink-paren-timeout (arg)
-  (set-extent-face blink-paren-extent 
-		   (if (eq (extent-face blink-paren-extent) 'blink-paren-on)
-		       'blink-paren-off
-		     'blink-paren-on)))
+  ;; The extent could have been deleted for some reason and not point to a
+  ;; buffer anymore.  So catch any error to remove the timeout.
+  (condition-case ()
+      (set-extent-face blink-paren-extent 
+		       (if (eq (extent-face blink-paren-extent)
+			       'blink-paren-on)
+			   'blink-paren-off
+			 'blink-paren-on))
+    (error (blink-paren-pre-command))))
 
 ;; called after each command is executed in the post-command-hook
 ;; add the extent and the time-out if we are on a paren.
 (defun blink-paren-post-command ()
   (blink-paren-pre-command)
   (if (and (setq blink-paren-extent (blink-paren-make-extent))
+	   (not (and (face-equal 'blink-paren-on 'blink-paren-off)
+		     (progn
+		       (set-extent-face blink-paren-extent 'blink-paren-on)
+		       t)))
 	   (or (floatp blink-paren-timeout)
 	       (integerp blink-paren-timeout)))
       (setq blink-paren-timeout-id

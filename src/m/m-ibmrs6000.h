@@ -103,7 +103,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    Define neither one if an assembler-language alloca
    in the file alloca.s should be used.	 */
 
-#define C_ALLOCA
+#define HAVE_ALLOCA
 #define STACK_DIRECTION -1 /* tell alloca.c which way it grows */
 
 /* Specify the font for X to use.  */
@@ -114,7 +114,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define OBJECTS_MACHINE hftctl.o
 #define C_SWITCH_MACHINE -D_BSD
-#define LIBS_MACHINE -lrts
+#define LD_SWITCH_MACHINE -Wl,-bnso,-bnodelcsect,-bI:/lib/syscalls.exp
+#define LIBS_MACHINE -lrts -liconv
 #define START_FILES
 #define HAVE_DUP2
 #define HAVE_GETTIMEOFDAY
@@ -127,7 +128,3 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #undef LINKER
 #define LINKER cc -Wl,-bnso,-bnodelcsect,-bI:/lib/syscalls.exp
-
-/* The header files seem to be from X11R4, but the library is not.
-   So don don't use the r4 library features.  */
-#define SPECIFY_X11R4 0

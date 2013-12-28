@@ -1,0 +1,13 @@
+;;; compiled by jwz@thalidomide on Thu Oct 29 19:00:09 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/pcl-cvs/pcl-cvs-lucid.el
+;;; emacs version 19.3.5 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÃ!¬‚ÄÃÅMˆÆÇMˆÈ	ÊÃ#ˆÈ	ËÆ#ˆÌÍ!¬ÎÍ!ˆÏÍ!¬…ĞÑÍ\"ˆÌÒ!¬ÎÒ!ˆÏÒ!¬…ĞÓÒ\"ˆÌÔ!¬ÎÔ!ˆÏÔ!¬…ĞÕÔ\"ˆÖ×MˆØÙMˆÚÛØ\"‡" [require pcl-cvs boundp cvs-menu ("CVS" ["Find File" cvs-find-file t] ["Find File Other Window" cvs-find-file-other-window t] ["Diff against Repository" cvs-diff-cvs t] ["Diff against Backup Version" cvs-diff-backup t] "----" ["Commit Changes to Repository" cvs-commit t] ["Revert File from Repository" cvs-undo-local-changes t] ["Add File to Repository" cvs-add t] ["Remove File from Repository" cvs-remove-file t] ["Ignore File" cvs-ignore t] ["Hide File" cvs-acknowledge t] ["Hide Handled Files" cvs-remove-handled t] "----" ["Add ChangeLog Entry" cvs-add-change-log-entry-other-window t] ["Show CVS Log" cvs-log t] ["Show CVS Status" cvs-status t] "----" ["Mark File" cvs-mark t] ["Unmark File" cvs-unmark t] ["Mark All Files" cvs-mark-all-files t] ["Unmark All Files" cvs-unmark-all-files t]) #[(e) "À	!ˆÂyˆÃÄ!¬„ÅÆ!ˆÇ!‡" [mouse-set-point e 0 looking-at "^[* ] " error "" popup-menu cvs-menu] 2 nil "e"] cvs-mouse-find-file #[(e) "À	!ˆÂyˆÃÄ!¬„ÅÆ!ˆÇ`!‡" [mouse-set-point e 0 looking-at "^[* ] " error "" cvs-find-file] 2 nil "e"] define-key cvs-mode-map button3 button2 find-face cvs-header-face make-face face-differs-from-default-p copy-face italic cvs-filename-face bold cvs-status-face bold-italic pcl-mode-motion-highlight-line #[(event) "ŠÀ	!‰­ƒÃ\n!‰­ƒÅ	!‰­qˆbˆÇyˆÈÉ!,­ƒÊ	!‡" [event-window event window window-buffer buffer event-point point 0 looking-at "^[* ] " mode-motion-highlight-line] 3] pcl-cvs-fontify #[nil "ÀÁ!ˆÂ«”ÅÆ\"¬ÇÈ!!ˆÉÊÆA#ˆŠebˆÌÍÊÎ#ˆm?­³ÏĞ!«ŒÑÒÓ”Ó•\"Ô\"ˆªÏÕ!«˜Ó”«ŠÑÒÓ”Ó•\"Ö\"ˆÑÒ×”×•\"Ø\"ˆÓyˆªI)‡" [require mode-motion pcl-mode-motion-highlight-line mode-motion-hook current-menubar assoc "CVS" set-buffer-menubar copy-sequence add-menu nil cvs-menu search-forward "\n\n" t looking-at "In directory \\(.+\\)$" set-extent-face make-extent 1 cvs-header-face "[* ] \\w+ +\\(ci +\\)?\\(.+\\)$" cvs-status-face 2 cvs-filename-face] 4] add-hook cvs-mode-hook] 4)

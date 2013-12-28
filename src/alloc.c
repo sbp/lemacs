@@ -1,5 +1,5 @@
 /* Storage allocation and gc for GNU Emacs Lisp interpreter.
-   Copyright (C) 1985, 1986, 1988, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1988, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -34,6 +34,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif	/* HAVE_X_WINDOWS */
 #endif
 
+#include <stdio.h>
+
+/* Define this to see where all that space is going... */
+#define PURESTAT
+
 #include "puresize.h"
 
 #include "backtrace.h"
@@ -50,7 +55,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
     XSET (val, Lisp_Cons, (char *) address + size);		\
     if ((char *) XCONS (val) != (char *) address + size)	\
       {								\
-	free (address);						\
+	xfree (address);					\
 	memory_full ();						\
       }								\
   }
@@ -90,22 +95,22 @@ extern
  int malloc_sbrk_unused;
 
 /* Two thresholds controlling how much undo information to keep.  */
-int undo_threshold;
-int undo_high_threshold;
+static int undo_threshold;
+static int undo_high_threshold;
 
 /* Non-nil means defun should do purecopy on the function definition */
 Lisp_Object Vpurify_flag;
 
-int pure[PURESIZE / sizeof (int)] = {0,};   /* Force it into data space! */
+extern int pure[];	/* moved to pure.c to speed incremental linking */
 
 #define PUREBEG (char *) pure
 
 /* Index in pure at which next pure object will be allocated. */
-int pureptr;
+static int pureptr;
 
 /* define this to keep statistics on how much of what is in purespace */
 #ifdef PURESTAT
-unsigned int purestat [5];
+unsigned int purestat [2][11];
 #endif
 
 /* Maximum amount of C stack to save when a GC happens.  */
@@ -116,13 +121,15 @@ unsigned int purestat [5];
 
 /* Buffer in which we save a copy of the C stack at each GC.  */
 
-char *stack_copy;
-int stack_copy_size;
+static char *stack_copy;
+static int stack_copy_size;
 
 /* Non-zero means ignore malloc warnings.  Set during initialization.  */
 int ignore_warnings;
+
+static void pure_storage_exhausted ();
 
-Lisp_Object
+static Lisp_Object
 malloc_warning_1 (str)
      Lisp_Object str;
 {
@@ -148,18 +155,24 @@ malloc_warning (str)
 }
 
 /* Called if malloc returns zero */
+void
 memory_full ()
 {
+  /* Force a GC next time eval is called.
+     It's better to loop garbage-collecting (we might reclaim enough
+     to win) than to loop beeping and barfing "Memory exhausted"
+   */
+  consing_since_gc = gc_cons_threshold + 1;
   error ("Memory exhausted");
 }
 
-/* like malloc and realloc but check for no memory left */
+/* like malloc and realloc but check for no memory left, and block input. */
 
 void *
 xmalloc (size)
      int size;
 {
-  register long *val;
+  register void *val;
 
   /* It is necessary to block SIGIO interrupts around calls to malloc()
      because the SIGIO handler interrogates the X queue to see if a
@@ -174,7 +187,7 @@ xmalloc (size)
      times.
    */
   BLOCK_INPUT;
-  val = (long *) malloc (size);
+  val = (void *) malloc (size);
   UNBLOCK_INPUT;
 
   if (!val && size) memory_full ();
@@ -186,14 +199,27 @@ xrealloc (block, size)
      void *block;
      int size;
 {
-  register long *val;
+  register void *val;
 
   BLOCK_INPUT;	/* see comment above */
-  val = (long *) realloc (block, size);
+  /* We must call malloc explicitly when BLOCK is 0, since some
+     reallocs don't do this.  */
+  if (! block)
+    val = (void *) malloc (size);
+  else
+    val = (void *) realloc (block, size);
   UNBLOCK_INPUT;
 
-  if (!val && size) memory_full ();
+  if (!val && (size != 0)) memory_full ();
   return val;
+}
+
+void
+xfree (void *block)
+{
+  BLOCK_INPUT;
+  free (block);
+  UNBLOCK_INPUT;
 }
 
 
@@ -215,15 +241,15 @@ struct dup_block
     struct extent_replica dups[DUP_BLOCK_SIZE];
   };
 
-struct extent_block *extent_block;
+static struct extent_block *extent_block;
 static int extent_block_index;
 
-EXTENT extent_free_list;
+static EXTENT extent_free_list;
 
-struct dup_block *dup_block;
+static struct dup_block *dup_block;
 static int dup_block_index;
 
-DUP dup_free_list;
+static DUP dup_free_list;
 
 static void
 init_extents ()
@@ -231,14 +257,14 @@ init_extents ()
   extent_block
     = (struct extent_block *) xmalloc (sizeof (struct extent_block));
   extent_block->next = 0;
-  bzero (extent_block->extents, sizeof extent_block->extents);
+  memset (extent_block->extents, 0, sizeof extent_block->extents);
   extent_block_index = 0;
   extent_free_list = 0;
 
   dup_block
     = (struct dup_block *) xmalloc (sizeof (struct dup_block));
   dup_block->next = 0;
-  bzero (dup_block->dups, sizeof dup_block->dups);
+  memset (dup_block->dups, 0, sizeof dup_block->dups);
   dup_block_index = 0;
   dup_free_list = 0;
 }
@@ -264,7 +290,7 @@ make_extent ()
 	  if (!newi)
 	    memory_full ();
 
-          bzero ((char *) newi, sizeof (struct extent_block));
+          memset ((char *) newi, 0, sizeof (struct extent_block));
 
 	  VALIDATE_LISP_STORAGE (newi, sizeof *newi);
 	  newi->next = extent_block;
@@ -299,7 +325,7 @@ make_extent_replica ()
 	  if (!newd)
 	    memory_full ();
 
-          bzero ((char *) newd, sizeof(struct dup_block));
+          memset ((char *) newd, 0, sizeof(struct dup_block));
 
 	  VALIDATE_LISP_STORAGE (newd, sizeof(struct dup_block));
 	  newd->next = dup_block;
@@ -335,22 +361,23 @@ struct float_block
     struct Lisp_Float floats[FLOAT_BLOCK_SIZE];
   };
 
-struct float_block *float_block;
-int float_block_index;
+static struct float_block *float_block;
+static int float_block_index;
 
 struct Lisp_Float *float_free_list;
 
-void
+static void
 init_float ()
 {
   float_block = (struct float_block *) xmalloc (sizeof (struct float_block));
   float_block->next = 0;
-  bzero (float_block->floats, sizeof float_block->floats);
+  memset (float_block->floats, 0, sizeof float_block->floats);
   float_block_index = 0;
   float_free_list = 0;
 }
 
 /* Explicitly free a float cell.  */
+void
 free_float (ptr)
      struct Lisp_Float *ptr;
 {
@@ -410,22 +437,23 @@ struct cons_block
     struct Lisp_Cons conses[CONS_BLOCK_SIZE];
   };
 
-struct cons_block *cons_block;
-int cons_block_index;
+static struct cons_block *cons_block;
+static int cons_block_index;
 
-struct Lisp_Cons *cons_free_list;
+static struct Lisp_Cons *cons_free_list;
 
-void
+static void
 init_cons ()
 {
   cons_block = (struct cons_block *) xmalloc (sizeof (struct cons_block));
   cons_block->next = 0;
-  bzero (cons_block->conses, sizeof cons_block->conses);
+  memset (cons_block->conses, 0, sizeof cons_block->conses);
   cons_block_index = 0;
   cons_free_list = 0;
 }
 
 /* Explicitly free a cons cell.  */
+void
 free_cons (ptr)
      struct Lisp_Cons *ptr;
 {
@@ -485,6 +513,30 @@ Any number of arguments, even zero arguments, are allowed.")
   return val;
 }
 
+Lisp_Object
+list1 (Lisp_Object obj0)
+{
+  return (Fcons (obj0, Qnil));
+}
+
+Lisp_Object
+list2 (Lisp_Object obj0, Lisp_Object obj1)
+{
+  return Fcons (obj0, list1 (obj1));
+}
+
+Lisp_Object
+list3 (Lisp_Object obj0, Lisp_Object obj1, Lisp_Object obj2)
+{
+  return Fcons (obj0, list2 (obj1, obj2));
+}
+
+Lisp_Object
+list4 (Lisp_Object obj0, Lisp_Object obj1, Lisp_Object obj2, Lisp_Object obj3)
+{
+  return Fcons (obj0, list3 (obj1, obj2, obj3));
+}
+
 DEFUN ("make-list", Fmake_list, Smake_list, 2, 2, 0,
   "Return a newly created list of length LENGTH, with each element being INIT.")
   (length, init)
@@ -505,7 +557,7 @@ DEFUN ("make-list", Fmake_list, Smake_list, 2, 2, 0,
 
 /* Allocation of vectors */
 
-struct Lisp_Vector *all_vectors;
+static struct Lisp_Vector *all_vectors;
 
 DEFUN ("make-vector", Fmake_vector, Smake_vector, 2, 2, 0,
   "Return a newly created vector of length LENGTH, with each element being INIT.\n\
@@ -573,13 +625,12 @@ At least four arguments are required; only six have any significance.")
 
   XFASTINT (len) = nargs;
   if (!NILP (Vpurify_flag))
-#ifdef PURESTAT
     val = make_pure_vector (len, Lisp_Compiled);
-#else
-    val = make_pure_vector (len);
-#endif
   else
-    val = Fmake_vector (len, Qnil);
+    {
+      val = Fmake_vector (len, Qnil);
+      XSETTYPE (val, Lisp_Compiled);
+    }
   p = XVECTOR (val);
   for (index = 0; index < nargs; index++)
     {
@@ -587,7 +638,6 @@ At least four arguments are required; only six have any significance.")
 	args[index] = Fpurecopy (args[index]);
       p->contents[index] = args[index];
     }
-  XSETTYPE (val, Lisp_Compiled);
   return val;
 }
 
@@ -607,18 +657,18 @@ struct symbol_block
     struct Lisp_Symbol symbols[SYMBOL_BLOCK_SIZE];
   };
 
-struct symbol_block *symbol_block;
-int symbol_block_index;
+static struct symbol_block *symbol_block;
+static int symbol_block_index;
 
-struct Lisp_Symbol *symbol_free_list;
+static struct Lisp_Symbol *symbol_free_list;
 
-void
+static void
 init_symbol ()
 {
   symbol_block =
     (struct symbol_block *) xmalloc (sizeof (struct symbol_block));
   symbol_block->next = 0;
-  bzero (symbol_block->symbols, sizeof symbol_block->symbols);
+  memset (symbol_block->symbols, 0, sizeof symbol_block->symbols);
   symbol_block_index = 0;
   symbol_free_list = 0;
 }
@@ -676,18 +726,18 @@ struct marker_block
     struct Lisp_Marker markers[MARKER_BLOCK_SIZE];
   };
 
-struct marker_block *marker_block;
-int marker_block_index;
+static struct marker_block *marker_block;
+static int marker_block_index;
 
-struct Lisp_Marker *marker_free_list;
+static struct Lisp_Marker *marker_free_list;
 
-void
+static void
 init_marker ()
 {
   marker_block = (struct marker_block *)
     xmalloc (sizeof (struct marker_block));
   marker_block->next = 0;
-  bzero (marker_block->markers, sizeof marker_block->markers);
+  memset (marker_block->markers, 0, sizeof marker_block->markers);
   marker_block_index = 0;
   marker_free_list = 0;
 }
@@ -784,12 +834,12 @@ struct string_block
   struct Lisp_String strings[STRING_BLOCK_SIZE];
 };
 
-struct string_block *string_block;
+static struct string_block *string_block;
 static int string_block_index;
 static struct Lisp_String *string_free_list;
 
-struct string_chars_block *current_string_chars_block;
-struct string_chars_block *first_string_chars_block;
+static struct string_chars_block *current_string_chars_block;
+static struct string_chars_block *first_string_chars_block;
 
 #define NONRELOCATING_STRING_SIZE(size) ((size) >= 1020)
 #define BIG_STRING_SIZE(size) (NONRELOCATING_STRING_SIZE(size))
@@ -800,7 +850,7 @@ init_strings ()
   string_block =
     (struct string_block *) xmalloc (sizeof (struct string_block));
   string_block->next = 0;
-  bzero (string_block->strings, sizeof string_block->strings);
+  memset (string_block->strings, 0, sizeof string_block->strings);
   string_block_index = 0;
   string_free_list = 0;
 
@@ -833,7 +883,7 @@ make_string_internal ()
 	  if (!new_sb)
 	    memory_full ();
 
-          bzero ((char *) new_sb, sizeof (struct string_block));
+          memset ((char *) new_sb, 0, sizeof (struct string_block));
 
 	  VALIDATE_LISP_STORAGE (new_sb, sizeof *new_sb);
 	  new_sb->next = string_block;
@@ -940,6 +990,8 @@ Both LENGTH and INIT must be numbers.")
   return val;
 }
 
+extern void move_gap (int);
+
 Lisp_Object
 make_string_from_buffer (buf, index, length)
      struct buffer *buf;
@@ -951,24 +1003,24 @@ make_string_from_buffer (buf, index, length)
 
   if (index < BUF_GPT (buf) && index + length > BUF_GPT (buf))
     move_gap (index);
-  bcopy (BUF_CHAR_ADDRESS (buf, index), XSTRING (val)->data, length);
+  memcpy (XSTRING (val)->data, BUF_CHAR_ADDRESS (buf, index), length);
   return val;
 }
 
 Lisp_Object
 make_string (contents, length)
-     char *contents;
+     const char *contents;
      int length;
 {
   register Lisp_Object val;
   val = make_uninit_string (length);
-  bcopy (contents, XSTRING (val)->data, length);
+  memcpy (XSTRING (val)->data, contents, length);
   return val;
 }
 
 Lisp_Object
 build_string (str)
-     char *str;
+     const char *str;
 {
   return make_string (str, strlen (str));
 }
@@ -979,33 +1031,57 @@ build_string (str)
  it may be able to hold conses that point to that string;
  then the string is not protected from gc. */
 
-int tl, tf, ts;
-
+#ifdef PURESTAT
+static Lisp_Object
+make_pure_string_1 (const char *data, int length, int purestat_index)
+#else
 Lisp_Object
-make_pure_string (data, length)
-     char *data;
-     int length;
+make_pure_string (const char *data, int length)
+#endif
 {
   Lisp_Object new;
   unsigned char *chars;
   int size = sizeof (struct Lisp_String) + ROUND_UP_STRING_SIZE (length);
 
   if (pureptr + size > PURESIZE)
-    error ("Pure Lisp storage exhausted");
+    pure_storage_exhausted ();
 
   XSET (new, Lisp_String, PUREBEG + pureptr);
   chars = (unsigned char *) (PUREBEG + pureptr + sizeof (struct Lisp_String));
   XSTRING (new)->size = length;
   XSTRING (new)->data = chars;
-  bcopy (data, XSTRING (new)->data, length);
+  memcpy (XSTRING (new)->data, data, length);
   XSTRING (new)->data[length] = 0;
   XSTRING (new)->dup_list = Qnil;
   pureptr += ((size + sizeof (int) - 1) / sizeof (int)) * sizeof (int);
 #ifdef PURESTAT
-  purestat [1] += ((size + sizeof (int) - 1) / sizeof (int)) * sizeof (int);
+  purestat [0][purestat_index]++;
+  purestat [1][purestat_index] +=
+    ((size + sizeof (int) - 1) / sizeof (int)) * sizeof (int);
 #endif
   return new;
 }
+
+#ifdef PURESTAT
+Lisp_Object
+make_pure_string (const char *data, int length)
+{
+  return make_pure_string_1 (data, length, 1);
+}
+#endif
+
+Lisp_Object
+make_pure_symbol_name (data, length)
+     const char *data;
+     int length;
+{
+#ifdef PURESTAT
+  return make_pure_string_1 (data, length, 7);
+#else
+  return make_pure_string (data, length);
+#endif
+}
+
 
 Lisp_Object
 pure_cons (car, cdr)
@@ -1014,20 +1090,21 @@ pure_cons (car, cdr)
   register Lisp_Object new;
 
   if (pureptr + sizeof (struct Lisp_Cons) > PURESIZE)
-    error ("Pure Lisp storage exhausted");
+    pure_storage_exhausted ();
   XSET (new, Lisp_Cons, PUREBEG + pureptr);
   pureptr += sizeof (struct Lisp_Cons);
   XCONS (new)->car = Fpurecopy (car);
   XCONS (new)->cdr = Fpurecopy (cdr);
 #ifdef PURESTAT
-  purestat [0] += sizeof (struct Lisp_Cons);
+  purestat [0][0]++;
+  purestat [1][0] += sizeof (struct Lisp_Cons);
 #endif
   return new;
 }
 
 #ifdef LISP_FLOAT_TYPE
 
-Lisp_Object
+static Lisp_Object
 make_pure_float (num)
      double num;
 {
@@ -1037,13 +1114,14 @@ make_pure_float (num)
   pureptr = (pureptr + 0x7) & ~0x7;
 
   if (pureptr + sizeof (struct Lisp_Float) > PURESIZE)
-    error ("Pure Lisp storage exhausted");
+    pure_storage_exhausted ();
   XSET (new, Lisp_Float, PUREBEG + pureptr);
   pureptr += sizeof (struct Lisp_Float);
   XFLOAT (new)->data = num;
   XFLOAT (new)->type = 0;	/* bug chasing -wsr */
 #ifdef PURESTAT
-  purestat [4] += sizeof (struct Lisp_Float);
+  purestat [0][4]++;
+  purestat [1][4] += sizeof (struct Lisp_Float);
 #endif
   return new;
 }
@@ -1051,31 +1129,37 @@ make_pure_float (num)
 #endif /* LISP_FLOAT_TYPE */
 
 Lisp_Object
-#ifdef PURESTAT
-make_pure_vector (len, stat_type)
+make_pure_vector (len, vector_type)
      int len;
-     enum Lisp_Type stat_type;
-#else
-make_pure_vector (len)
-     int len;
-#endif
+     enum Lisp_Type vector_type;
 {
   register Lisp_Object new;
   register int size = sizeof (struct Lisp_Vector) + (len - 1) * sizeof (Lisp_Object);
 
   if (pureptr + size > PURESIZE)
-    error ("Pure Lisp storage exhausted");
-
+    pure_storage_exhausted ();
   XSET (new, Lisp_Vector, PUREBEG + pureptr);
   pureptr += size;
   XVECTOR (new)->size = len;
 
 #ifdef PURESTAT
-  purestat [stat_type == Lisp_Compiled ? 3 : 2] += size;
+  {
+    int i = (vector_type == Lisp_Compiled ? 3
+	     : (vector_type == 0 ? 6 : 2));
+    purestat [0][i]++;
+    purestat [1][i] += size;
+    if (vector_type == 0) /* kludge kludge kludge */
+      vector_type = Lisp_Vector;
+  }
 #endif
 
+  XSETTYPE (new, vector_type);
   return new;
 }
+
+#ifdef PURESTAT
+static int copying_function_object;
+#endif
 
 DEFUN ("purecopy", Fpurecopy, Spurecopy, 1, 1, 0,
   "Make a copy of OBJECT in pure storage.\n\
@@ -1086,6 +1170,7 @@ Does not copy symbols.")
 {
   register Lisp_Object new, tem;
   register int i;
+  int fn_p = 0;
 
   if (NILP (Vpurify_flag))
     return obj;
@@ -1112,27 +1197,100 @@ Does not copy symbols.")
 #endif /* LISP_FLOAT_TYPE */
 
     case Lisp_String:
+#ifdef PURESTAT
+      if (copying_function_object)
+	return make_pure_string_1 ((char *) XSTRING (obj)->data,
+				   XSTRING (obj)->size, 10);
+#endif
       return make_pure_string ((char *) XSTRING (obj)->data,
 			       XSTRING (obj)->size);
 
     case Lisp_Compiled:
+      fn_p = 1;
     case Lisp_Vector:
-#ifdef PURESTAT
       new = make_pure_vector (XVECTOR (obj)->size, XTYPE (obj));
-#else
-      new = make_pure_vector (XVECTOR (obj)->size);
-#endif
       for (i = 0; i < XVECTOR (obj)->size; i++)
 	{
 	  tem = XVECTOR (obj)->contents[i];
+#ifdef PURESTAT
+	  /* do separate recording for the code strings, data vectors,
+	     doc strings, and interactive specs.
+	   */
+	  if (fn_p) copying_function_object++;
+	  if (fn_p && i == 1 && STRINGP (tem))		/* byte code */
+	    XVECTOR (new)->contents[i] =
+	      make_pure_string_1 ((char *) XSTRING (tem)->data,
+				  XSTRING (tem)->size, 5);
+	  else if (fn_p && i == 2 && VECTORP (tem))	/* constants */
+	    {
+	      int j;
+	      Lisp_Object v2 = XVECTOR (new)->contents[i] =
+		make_pure_vector (XVECTOR (tem)->size, 0);
+	      for (j = 0; j < XVECTOR (tem)->size; j++)
+		XVECTOR (v2)->contents[j] =
+		  Fpurecopy (XVECTOR (tem)->contents[j]);
+	    }
+	  else if (fn_p && i == 4 && STRINGP (tem))	/* doc string */
+	    XVECTOR (new)->contents[i] =
+	      make_pure_string_1 ((char *) XSTRING (tem)->data,
+				  XSTRING (tem)->size, 8);
+	  else if (fn_p && i == 5 && STRINGP (tem))	/* interactive spec */
+	    XVECTOR (new)->contents[i] =
+	      make_pure_string_1 ((char *) XSTRING (tem)->data,
+				  XSTRING (tem)->size, 9);
+	  else
+#endif
 	  XVECTOR (new)->contents[i] = Fpurecopy (tem);
 	}
-      XSETTYPE (new, XTYPE (obj));
+      if (fn_p)
+	{
+	  XSETTYPE (new, Lisp_Compiled);
+#ifdef PURESTAT
+	  copying_function_object--;
+#endif
+	}
       return new;
 
     default:
       return obj;
     }
+}
+
+void 
+report_pure_usage ()
+{
+  printf ("purespace usage: %d of %d (%d%%).\n",
+	  pureptr, PURESIZE, pureptr / (PURESIZE / 100));
+#ifdef PURESTAT
+# define P(s,i) \
+  printf (s, purestat[0][i], purestat[1][i], purestat[1][i] / (pureptr / 100))
+  printf ("                           total:   bytes:\n");
+  P("   cons cells:             %5d  %7d  %2d%%\n", 0);
+#ifdef LISP_FLOAT_TYPE
+  P("   float objects:          %5d  %7d  %2d%%\n", 4);
+#endif
+  P("   symbol-name strings:    %5d  %7d  %2d%%\n", 7);
+  P("   function objects:       %5d  %7d  %2d%%\n", 3);
+  P("   byte-code strings:      %5d  %7d  %2d%%\n", 5);
+  P("   byte-constant vectors:  %5d  %7d  %2d%%\n", 6);
+  P("   interactive strings:    %5d  %7d  %2d%%\n", 9);
+  P("   documentation strings:  %5d  %7d  %2d%%\n", 8);
+  P("   other function strings: %5d  %7d  %2d%%\n", 10);
+  P("   other vectors:          %5d  %7d  %2d%%\n", 2);
+  P("   other strings:          %5d  %7d  %2d%%\n", 1);
+# undef P
+#endif /* PURESTAT */
+}
+
+static void
+pure_storage_exhausted ()
+{
+  fprintf (stderr, "\nERROR:  Pure Lisp storage exhausted!\n\
+\tCheck whether you are loading .el files when .elc files were intended.\n\
+\tOtherwise, increase PURESIZE in puresize.h and relink.\n\n");
+  report_pure_usage ();
+  Vpurify_flag = Qnil;
+  Fkill_emacs (make_number (-1));
 }
 
 /* Recording what needs to be marked for gc.  */
@@ -1141,9 +1299,9 @@ struct gcpro *gcprolist;
 
 #define NSTATICS 512
 
-Lisp_Object *staticvec[NSTATICS] = {0};
+static Lisp_Object *staticvec[NSTATICS] = {0};
 
-int staticidx = 0;
+static int staticidx = 0;
 
 /* Put an entry in staticvec, pointing at the variable whose address is given */
 
@@ -1186,20 +1344,21 @@ void BTL_before_Fgarbage_collect_stub ()
 you lose
 #endif
 
-int total_conses, total_markers, total_symbols;
-int total_vector_size, total_string_size, total_strings, total_short_strings;
-int total_free_strings, total_free_conses;
-int total_free_markers, total_free_symbols;
+static int total_conses, total_markers, total_symbols;
+static int total_vector_size, total_string_size, total_strings;
+static int total_short_strings;
+static int total_free_strings, total_free_conses;
+static int total_free_markers, total_free_symbols;
 
 #ifdef LISP_FLOAT_TYPE
-int total_free_floats, total_floats;
+static int total_free_floats, total_floats;
 #endif /* LISP_FLOAT_TYPE */
 
-int total_free_events, total_events;
+static int total_free_events, total_events;
 
 static void mark_object (), mark_buffer ();
 static void mark_event (), mark_command_event_queue ();
-static void clear_marks (), gc_sweep ();
+static void gc_sweep ();
 static void compact_string_chars ();
 
 /* Mark just one extent. */
@@ -1228,17 +1387,20 @@ mark_extents (extent)
 	  if (!EXTENT_MARKED_P (e))
 	    mark_one_extent (e);
 	  MARK_EXTENT_LIST (e);
+	  if (e == e->next) abort ();
           e = e->next;
         }
     }
 }
 
-int total_free_extents, total_extents;
-int total_free_dups, total_dups;
+static int total_free_extents, total_extents;
+static int total_free_dups, total_dups;
 
 
 #ifdef HAVE_X_WINDOWS
 extern unsigned long current_pointer_shape;
+extern int x_show_gc_cursor (struct screen *);
+extern int x_show_normal_cursor (struct screen *);
 #endif
 
 
@@ -1306,6 +1468,7 @@ mark_object (objptr)
 	mark_object (&ptr->sub_maps_cache);
 	mark_object (&ptr->table);
 	mark_object (&ptr->inverse_table);
+	mark_object (&ptr->name);
       }
       break;
 
@@ -1314,7 +1477,6 @@ mark_object (objptr)
       {
 	register struct screen *ptr = XSCREEN (obj);
 	register int size = ptr->size;
-	register int i;
 
 	if (size & ARRAY_MARK_FLAG)
 	  break;   /* Already marked */
@@ -1348,7 +1510,7 @@ mark_object (objptr)
 	if (ptr)
 	  {
 	    ptrx = ptr;		/* Use pf ptrx avoids compiler bug on Sun */
-	    XSETSYMBOL (obj, ptrx);
+	    XSET (obj, Lisp_Symbol, ptrx);
 	    goto loop;
 	  }
       }
@@ -1437,9 +1599,7 @@ static void
 mark_buffer (buffer)
      Lisp_Object buffer;
 {
-  Lisp_Object tem;
   register struct buffer *buf = XBUFFER (buffer);
-  register Lisp_Object *ptr;
 
   /* This is the buffer's markbit */
   mark_object (&buf->name);
@@ -1509,6 +1669,9 @@ mark_command_event_queue ()
 }
 
 /* Find all structures not marked, and free them. */
+
+extern void free_unmarked_events (void);
+extern void prepare_to_gc_events (void);
 
 static void
 gc_sweep ()
@@ -1592,7 +1755,7 @@ gc_sweep ()
             EXTENT extent = &(eblk->extents[i]);
 	    if (!EXTENT_MARKED_P (extent))
 	      {
-                bzero ((char *) extent, sizeof (struct extent));
+                memset ((char *) extent, 0, sizeof (struct extent));
 		extent->user_data = Qnil;
 		extent->next = extent_free_list;
 		extent_free_list = extent;
@@ -1635,7 +1798,7 @@ gc_sweep ()
             DUP dup = &(dblk->dups[i]);
 	    if (!DUP_MARKED_P (dup))
 	      {
-                bzero ((char *) dup, sizeof (*dup));
+                memset ((char *) dup, 0, sizeof (*dup));
 		dup->extent = (Lisp_Object) dup_free_list;
 		dup_free_list = dup;
 		num_free++;
@@ -1732,7 +1895,7 @@ gc_sweep ()
 	  else
 	    all_buffers = buffer->next;
 	  next = buffer->next;
-	  free (buffer);
+	  xfree (buffer);
 	  buffer = next;
 	}
       else
@@ -1757,7 +1920,7 @@ gc_sweep ()
 	  else
 	    all_vectors = vector->next;
 	  next = vector->next;
-	  free (vector);
+	  xfree (vector);
 	  vector = next;
 	}
       else
@@ -1788,8 +1951,8 @@ gc_sweep ()
 	    if (!XMARKBIT (string->dup_list))
 	      {
                 if (BIG_STRING_SIZE (string->size))
-                  free ((char *)CHARS_TO_STRING_CHAR (string->data));
-                bzero ((char *) string, sizeof (struct Lisp_String));
+                  xfree ((char *)CHARS_TO_STRING_CHAR (string->data));
+                memset ((char *) string, 0, sizeof (struct Lisp_String));
 		string->dup_list = (Lisp_Object) string_free_list;
 		string_free_list = string;
 		num_free++;
@@ -1865,7 +2028,7 @@ compact_string_chars ()
 
           /* Copy the string_chars to the new place.  */
           if (from_s_chars != to_s_chars)
-            bcopy (from_s_chars, to_s_chars, fullsize);
+            memcpy (to_s_chars, from_s_chars, fullsize);
 
           /* Relocate FROM_S_CHARS's reference */
           string->data = &(to_s_chars->chars[0]);
@@ -1887,7 +2050,7 @@ compact_string_chars ()
     while (this)
       {
         struct string_chars_block *tmp = this->next;
-        free (this);
+        xfree (this);
         this = tmp;
       }
   }
@@ -1940,9 +2103,9 @@ Garbage collection happens automatically if you cons more than\n\
 	  if (stack_copy)
 	    {
 	      if ((int) (&stack_top_variable - stack_bottom) > 0)
-		bcopy (stack_bottom, stack_copy, i);
+		memcpy (stack_copy, stack_bottom, i);
 	      else
-		bcopy (&stack_top_variable, stack_copy, i);
+		memcpy (stack_copy, &stack_top_variable, i);
 	    }
 	}
     }
@@ -1951,7 +2114,6 @@ Garbage collection happens automatically if you cons more than\n\
   if (!noninteractive)
     {
 #ifdef HAVE_X_WINDOWS
-      extern int x_show_gc_cursor (struct screen*);
       if (!x_show_gc_cursor (s))
 #endif
 	message ("Garbage collecting...");
@@ -2010,8 +2172,8 @@ Garbage collection happens automatically if you cons more than\n\
     }  
   for (handler = handlerlist; handler; handler = handler->next)
     {
-      mark_object (&handler->handler);
-      mark_object (&handler->var);
+      mark_object (&handler->handlers);
+      mark_object (&handler->handler_arg);
     }  
   for (backlist = backtrace_list; backlist; backlist = backlist->next)
     {
@@ -2061,12 +2223,11 @@ Garbage collection happens automatically if you cons more than\n\
   if (!noninteractive)
     {
 #ifdef HAVE_X_WINDOWS
-      extern int x_show_normal_cursor (struct screen* s);
       if (!x_show_normal_cursor (s))
 #endif
 	{
 	  if (omessage)
-	    message (omessage);
+	    message ("%s", omessage);
 	  else 
 	    message ("Garbage collecting...done");
 	}
@@ -2098,14 +2259,12 @@ Garbage collection happens automatically if you cons more than\n\
 
 /* Initialization */
 
+void
 init_alloc_once ()
 {
 #ifdef PURESTAT
-  purestat [0] = 0; /* cons */
-  purestat [1] = 0; /* string */
-  purestat [2] = 0; /* vector */
-  purestat [3] = 0; /* compiled */
-  purestat [4] = 0; /* float */
+  memset (purestat, 0, sizeof (purestat));
+  copying_function_object = 0;
 #endif
 
   /* Used to do Vpurify_flag = Qt here, but Qt isn't set up yet!  */
@@ -2131,6 +2290,7 @@ init_alloc_once ()
 #endif /* VIRT_ADDR_VARIES */
 }
 
+void
 init_alloc ()
 {
   gcprolist = 0;

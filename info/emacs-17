@@ -71,8 +71,8 @@ Command and Function Index
 * backward-kill-sentence:               Killing.
 * backward-kill-sentence:               Sentences.
 * backward-kill-word:                   Killing.
-* backward-kill-word:                   Kill Errors.
 * backward-kill-word:                   Words.
+* backward-kill-word:                   Kill Errors.
 * backward-list:                        Lists.
 * backward-page:                        Pages.
 * backward-paragraph:                   Paragraphs.
@@ -94,8 +94,8 @@ Command and Function Index
 * c-indent-line:                        Basic Indent.
 * call-last-kbd-macro:                  Basic Kbd Macro.
 * cancel-debug-on-entry:                Lisp Debug.
-* capitalize-word:                      Fixing Case.
 * capitalize-word:                      Case.
+* capitalize-word:                      Fixing Case.
 * center-line:                          Fill Commands.
 * clear-rectangle:                      Rectangles.
 * comint-delchar-or-maybe-eof:          Shell Mode.
@@ -126,20 +126,20 @@ Command and Function Index
 * debug-on-entry:                       Lisp Debug.
 * default-value:                        Locals.
 * define-abbrevs:                       Saving Abbrevs.
-* define-key:                           Rebinding.
 * define-key:                           Programmatic Rebinding.
+* define-key:                           Rebinding.
 * delete-backward-char:                 Killing.
 * delete-backward-char:                 Basic.
 * delete-backward-char:                 Kill Errors.
-* delete-blank-lines:                   Killing.
 * delete-blank-lines:                   Blank Lines.
-* delete-char:                          Killing.
+* delete-blank-lines:                   Killing.
 * delete-char:                          Basic Picture.
+* delete-char:                          Killing.
 * delete-file:                          Misc File Ops.
-* delete-horizontal-space:              Killing.
 * delete-horizontal-space:              Indentation Commands.
-* delete-indentation:                   Killing.
+* delete-horizontal-space:              Killing.
 * delete-indentation:                   Indentation Commands.
+* delete-indentation:                   Killing.
 * delete-matching-lines:                Other Repeating Search.
 * delete-menu-item:                     Menu Customization.
 * delete-non-matching-lines:            Other Repeating Search.
@@ -149,16 +149,16 @@ Command and Function Index
 * describe-bindings:                    Help.
 * describe-copying:                     Help.
 * describe-distribution:                Help.
-* describe-function:                    Help.
 * describe-function:                    Documentation.
+* describe-function:                    Help.
 * describe-key:                         Help.
 * describe-key-briefly:                 Help.
 * describe-mode:                        Help.
 * describe-no-warranty:                 Help.
 * describe-syntax:                      Syntax Change.
-* describe-variable:                    Examining.
-* describe-variable:                    Documentation.
 * describe-variable:                    Help.
+* describe-variable:                    Documentation.
+* describe-variable:                    Examining.
 * digit-argument:                       Arguments.
 * dired:                                Dired Enter.
 * dired-other-window:                   Dired Enter.
@@ -172,8 +172,8 @@ Command and Function Index
 * doctor:                               Total Frustration.
 * down-list:                            Lists.
 * downcase-region:                      Case.
-* downcase-word:                        Case.
 * downcase-word:                        Fixing Case.
+* downcase-word:                        Case.
 * edit-abbrevs:                         Editing Abbrevs.
 * edit-abbrevs-redefine:                Editing Abbrevs.
 * edit-options:                         Edit Options.
@@ -212,9 +212,10 @@ Command and Function Index
 * fill-region-as-paragraph:             Fill Commands.
 * find-alternate-file:                  Visiting.
 * find-file:                            Visiting.
+* find-file-new-screen:                 Emacs under X.
 * find-file-new-screen:                 Visiting.
-* find-file-other-window:               Pop Up Window.
 * find-file-other-window:               Visiting.
+* find-file-other-window:               Pop Up Window.
 * find-tag:                             Find Tag.
 * find-tag-other-window:                Pop Up Window.
 * find-tag-other-window:                Find Tag.
@@ -237,8 +238,8 @@ Command and Function Index
 * forward-sexp:                         Lists.
 * forward-text-line:                    Nroff Mode.
 * forward-word:                         Words.
-* global-set-key:                       Programmatic Rebinding.
 * global-set-key:                       Rebinding.
+* global-set-key:                       Programmatic Rebinding.
 * goto-char:                            Basic.
 * goto-line:                            Basic.
 * hanoi:                                Amusements.
@@ -268,8 +269,10 @@ Command and Function Index
 * inverse-add-global-abbrev:            Defining Abbrevs.
 * inverse-add-mode-abbrev:              Defining Abbrevs.
 * invert-face:                          Faces.
+* isearch-abort:                        Incremental Search.
 * isearch-backward:                     Incremental Search.
 * isearch-backward-regexp:              Regexp Search.
+* isearch-complete:                     Incremental Search.
 * isearch-delete-char:                  Incremental Search.
 * isearch-exit:                         Incremental Search.
 * isearch-forward:                      Incremental Search.
@@ -277,6 +280,8 @@ Command and Function Index
 * isearch-quote-char:                   Incremental Search.
 * isearch-repeat-forward:               Incremental Search.
 * isearch-repeat-reverse:               Incremental Search.
+* isearch-ring-advance:                 Incremental Search.
+* isearch-ring-retreat:                 Incremental Search.
 * isearch-yank-line:                    Incremental Search.
 * isearch-yank-word:                    Incremental Search.
 * just-one-space:                       Killing.
@@ -291,13 +296,13 @@ Command and Function Index
 * kill-output-from-shell:               Shell Mode.
 * kill-rectangle:                       Rectangles.
 * kill-region:                          Killing.
-* kill-sentence:                        Killing.
 * kill-sentence:                        Sentences.
+* kill-sentence:                        Killing.
 * kill-sexp:                            Killing.
 * kill-sexp:                            Lists.
 * kill-some-buffers:                    Kill Buffer.
-* kill-word:                            Words.
 * kill-word:                            Killing.
+* kill-word:                            Words.
 * latex-mode:                           TeX Mode.
 * lisp-complete-symbol:                 Lisp Completion.
 * lisp-indent-line:                     Basic Indent.
@@ -325,15 +330,15 @@ Command and Function Index
 * mail-cc:                              Mail Mode.
 * mail-fill-yanked-message:             Mail Mode.
 * mail-interactive-insert-alias:        Mail Headers.
-* mail-other-window:                    Pop Up Window.
 * mail-other-window:                    Sending Mail.
+* mail-other-window:                    Pop Up Window.
 * mail-send:                            Mail Mode.
 * mail-send-and-exit:                   Mail Mode.
 * mail-signature:                       Mail Mode.
 * mail-subject:                         Mail Mode.
 * mail-to:                              Mail Mode.
-* mail-yank-original:                   Mail Mode.
 * mail-yank-original:                   Rmail Reply.
+* mail-yank-original:                   Mail Mode.
 * make-directory:                       File Names.
 * make-face-bold:                       Faces.
 * make-face-bold-italic:                Faces.
@@ -345,19 +350,19 @@ Command and Function Index
 * make-variable-buffer-local:           Locals.
 * manual-entry:                         Documentation.
 * mark-bob:                             Setting Mark.
-* mark-defun:                           Marking Objects.
 * mark-defun:                           Defuns.
+* mark-defun:                           Marking Objects.
 * mark-eob:                             Setting Mark.
 * mark-fortran-subprogram:              Fortran Motion.
-* mark-page:                            Pages.
 * mark-page:                            Marking Objects.
+* mark-page:                            Pages.
 * mark-paragraph:                       Marking Objects.
 * mark-paragraph:                       Paragraphs.
 * mark-sexp:                            Marking Objects.
 * mark-sexp:                            Lists.
 * mark-whole-buffer:                    Marking Objects.
-* mark-word:                            Marking Objects.
 * mark-word:                            Words.
+* mark-word:                            Marking Objects.
 * minibuffer-complete:                  Completion.
 * minibuffer-complete-word:             Completion.
 * modify-syntax-entry:                  Syntax Change.
@@ -445,8 +450,8 @@ Command and Function Index
 * re-search-forward:                    Regexp Search.
 * read-abbrev-file:                     Saving Abbrevs.
 * read-key-sequence:                    Representing Keystrokes.
-* recenter:                             Basic.
 * recenter:                             Scrolling.
+* recenter:                             Basic.
 * recover-file:                         Recover.
 * register-to-point:                    RegPos.
 * register-to-window-config:            Split Window.
@@ -486,8 +491,8 @@ Command and Function Index
 * rmail-search:                         Rmail Motion.
 * rmail-show-message:                   Rmail Motion.
 * rmail-summary:                        Rmail Make Summary.
-* rmail-summary-by-labels:              Rmail Labels.
 * rmail-summary-by-labels:              Rmail Make Summary.
+* rmail-summary-by-labels:              Rmail Labels.
 * rmail-summary-by-recipients:          Rmail Make Summary.
 * rmail-summary-delete-forward:         Rmail Summary Edit.
 * rmail-summary-exit:                   Rmail Summary Edit.
@@ -561,12 +566,13 @@ Command and Function Index
 * substitute-key-definition:            Rebinding.
 * suspend-emacs:                        Exiting.
 * switch-to-buffer:                     Select Buffer.
+* switch-to-buffer-new-screen:          Emacs under X.
 * switch-to-buffer-new-screen:          Select Buffer.
 * switch-to-buffer-other-window:        Pop Up Window.
 * switch-to-buffer-other-window:        Select Buffer.
 * switch-to-other-buffer:               Select Buffer.
-* tab-to-tab-stop:                      Tab Stops.
 * tab-to-tab-stop:                      Text Mode.
+* tab-to-tab-stop:                      Tab Stops.
 * tabify:                               Just Spaces.
 * tags-apropos:                         List Tags.
 * tags-loop-continue:                   Tags Search.
@@ -580,10 +586,10 @@ Command and Function Index
 * transpose-chars:                      Basic.
 * transpose-chars:                      Transpose.
 * transpose-lines:                      Transpose.
-* transpose-sexps:                      Lists.
 * transpose-sexps:                      Transpose.
-* transpose-words:                      Words.
+* transpose-sexps:                      Lists.
 * transpose-words:                      Transpose.
+* transpose-words:                      Words.
 * undigestify-rmail-message:            Rmail Digest.
 * undo:                                 Undo.
 * unexpand-abbrev:                      Expanding Abbrevs.
@@ -591,8 +597,8 @@ Command and Function Index
 * untabify:                             Just Spaces.
 * up-list:                              TeX Editing.
 * upcase-region:                        Case.
-* upcase-word:                          Fixing Case.
 * upcase-word:                          Case.
+* upcase-word:                          Fixing Case.
 * validate-TeX-buffer:                  TeX Editing.
 * vi-mode:                              Emulation.
 * view-buffer:                          Misc Buffer.

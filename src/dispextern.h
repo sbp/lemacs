@@ -1,5 +1,5 @@
 /* Interface definitions for display code.
-   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -50,7 +50,7 @@ struct face
   unsigned long	foreground;
   unsigned long	background;
   Pixmap	back_pixmap;
-  unsigned int	pixmap_w, pixmap_h, pixmap_depth;
+  unsigned int	pixmap_w, pixmap_h /* , pixmap_depth */;
 #endif /* HAVE_X_WINDOWS */
 };
 
@@ -170,14 +170,14 @@ struct glyph_dimensions
 
 #ifdef HAVE_X_WINDOWS
 /* The window width preceding the truncation glyph */
-#define TRUNCATE_WIDTH(s) (SCREEN_IS_X (s)                         \
-			? (MAX_LINE_WIDTH (s)                   \
-			   - x_bitmaps[TRUNCATOR_BITMAP].width) \
+#define TRUNCATE_WIDTH(s) (SCREEN_IS_X (s)			\
+			? (MAX_LINE_WIDTH (s)			\
+			   - builtin_truncator_pixmap.width)	\
 			: max_width - 1)
 /* The window width preceding the continuer glyph */
-#define CONTINUE_WIDTH(s) (SCREEN_IS_X (s)                       \
-			? (MAX_LINE_WIDTH (s) -               \
-			   x_bitmaps[CONTINUER_BITMAP].width) \
+#define CONTINUE_WIDTH(s) (SCREEN_IS_X (s)			\
+			? (MAX_LINE_WIDTH (s) -			\
+			   builtin_continuer_pixmap.width)	\
 			: max_width - 1)
 #endif
 

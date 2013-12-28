@@ -1,14 +1,13 @@
 ;;; -*- Mode:Emacs-Lisp -*-
+;;; Copyright © 1992-1993 by Lucid, Inc.  All Rights Reserved.
 
 (require 'comint)
 (require 'shell)
 
 (defun energize-comint-mark ()
+  "This function has been augumented to work with Energize debugger buffers."
   (or (energize-user-input-buffer-mark)
       (energize-orig-comint-mark)))
-
-(energize-advise-function 'comint-mark)
-
 
 (defun energize-comint-input-sender (energize-proc input)
   (energize-send-region
@@ -34,7 +33,6 @@
 	  (set-process-buffer energize-proc nil)))
     (energize-orig-comint-send-input)))
 
-(energize-advise-function 'comint-send-input)
 (fset 'energize-bits 'random)
 
 
@@ -94,6 +92,7 @@ In addition to the normal cursor-motion commands, the following keys are bound:
   (define-key energize-debugger-map "\C-c\C-\\" 'energize-debugger-interrupt)
   (define-key energize-debugger-map "\C-c\C-z"
     'energize-debugger-interrupt) ; should suspend
+  (define-key energize-debugger-map "\C-c\C-d" 'energize-debugger-send-eof)
   )
 
 
@@ -138,3 +137,11 @@ In addition to the normal cursor-motion commands, the following keys are bound:
   "Interrupt program or debugger command in the Energize debugger."
   (interactive "p")
   (energize-execute-command "stopprogram"))
+
+(defun energize-debugger-send-eof ()
+  "Send an EOF to the Energize debugger."
+  (interactive)
+  (save-excursion
+    (insert ?\C-d)
+    (energize-send-region (1- (point)) (point))
+    (delete-char -1)))

@@ -1,0 +1,48 @@
+;;; compiled by jwz@thalidomide on Wed Oct 28 19:17:45 1992
+;;; from file /u/jwz/emacs19/lisp/modes/fortran-misc.el
+;;; emacs version 19.3.3 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(fset 'fortran-fill-statement #[nil "ŠÀyˆÁÂ!®Á!®ˆ­…ÁÅP!)«ƒÆ ‡`Ç‰	\nŠË ˆÌ ˆÍ `	)Š	bˆŠÎ U«ÏĞ`Ñ\\Ò#«‰Ó ¬…Ô!ˆ)ÕyˆÁÖ!¬…Á×!«ŒØ ˆÙÚ!ˆÛ ˆªgÌ ˆŠÇˆi)V«ƒİ ˆ)`\nW«„\nbˆÍ iW­„Ş!,‡" [0 looking-at "[ 	]*$" comment-line-start-skip comment-start-skip "[ 	]*" fortran-indent-line nil cfi beg opos fortran-next-statement fortran-previous-statement calculate-fortran-indent fortran-current-line-indentation re-search-forward "^[ 	]*[0-9]+" 4 t fortran-line-number-indented-correctly-p fortran-indent-to-column 1 "     [^ 0\n]" "	[1-9]" delete-indentation delete-char 2 delete-horizontal-space fill-column fortran-do-auto-fill move-to-column] 4 "\
+Fill a fortran statement up to `fill-column'." nil])
+(fset 'fortran-downcase-subprogram #[nil "ŠÀ ˆÁÂ!ˆÃ`Ä \"ˆ)ÁÅ!‡" [mark-fortran-subprogram message "Downcasing subprogram..." fortran-downcase-region mark "Downcasing subprogram...done."] 3 "\
+Properly downcases the Fortran subprogram which contains point." nil])
+(fset 'fortran-downcase-region #[(start end) "À	\nÃ#‡" [fortran-case-region start end nil] 4 "\
+Downcase region, excluding comment lines and anything
+between quote marks." "r"])
+(fset 'fortran-upcase-region #[(start end) "À	\nÃ#‡" [fortran-case-region start end t] 4 "\
+Upcase region, excluding comment lines and anything
+between quote marks." "r"])
+(fset 'fortran-upcase-subprogram #[nil "ŠÀ ˆÁÂ!ˆÃ`Ä \"ˆ)ÁÅ!‡" [mark-fortran-subprogram message "Upcasing subprogram..." fortran-upcase-region mark "Upcasing subprogram...done."] 3 "\
+Properly upcases the Fortran subprogram which contains point." nil])
+(fset 'fortran-case-region #[(start end up) "ÀÂÄÆÈÉ!\nË\nÌQÎÎŠŒ}ˆebˆÓ	\"«‡ÔÕ#ˆÓ\"«ˆÔÕ#ˆÓ\n\"«ˆÔÕ#ˆ``dW­ØÔË	ÖÖ\n×°Õ#ˆ`«‰Ù\"ˆª‡Ú\"ˆÓ	\"«‡ÔÕ#ˆÓ\"«ˆÔÕ#ˆÓ\n\"«ˆÔÕ#ˆ`ª#.\n‡" ["^[cC*#]" start-re-comment "$" end-re-comment "'" start-re-quote "\\('\\|$\\)" end-re-quote char-to-string 34 start-re-dquote "\\(" "\\|$\\)" end-re-dquote nil strt fin start end inside-re re-search-forward 0 "\\|" "\\)" up upcase-region downcase-region] 8 "\
+Upcase region if UP is t, downcase, if UP downcase region,
+ excluding comment lines and anything between quote marks."])
+(fset 'inside-re #[(start-re end-re) "À‰ŠÃyˆ`Àˆ`)ŠÄ\nÆ#)­‹ŠÇ	Æ#)­Æ*‡" [nil end-line start-line 0 re-search-backward start-re t re-search-forward end-re] 4 "\
+Returns t if inside a starting regexp and an ending regexp
+on the same line." "s"])
+(fset 'fortran-beautify-subprogram #[(&optional downit) "ŠÀ ˆÁÂ!ˆÃ`Ä #ˆ)ÁÆ!‡" [mark-fortran-subprogram message "Beautifying subprogram..." fortran-beautify-region mark downit "Beautify subprogram...done."] 4 "\
+Beautify Fortran subprogram:
+1) Remove trailing blanks.
+2) Replace all continuation characters with fortran-continuation-char.
+3) Replace all empty comment lines with blank lines.
+4) Replace all multiple blank lines with one blank line.
+5) Indent.
+6) With prefix arg, downcase the subprogram, avoiding comments and
+quoted strings." "P"])
+(fset 'fortran-beautify-region #[(start end &optional downit) "ŠŒÀ À ‰Ä“ˆ	Ä“ˆÆÄ#ˆ\n	}ˆebˆÇÈÉÄÊÄ%ˆebˆÇËÍQÎPÄÊÄ%ˆebˆÇÏÉÄÊÄ%ˆebˆÇĞÑÄÊÄ%ˆ­„Óed\",‡" [make-marker m2 m1 start nil end indent-region perform-replace "[ 	]+$" "" t "^     [^ " fortran-continuation-string "]" "     " "^[cC][ 	]*$" "\n\n\n+" "\n\n" downit fortran-downcase-region] 7 "\
+Beautify region in a Fortran program:
+1) Remove trailing blanks.
+2) Replace all continuation characters with fortran-continuation-char.
+3) Replace all empty comment lines with blank lines.
+4) Replace all multiple blank lines with one blank line.
+5) Indent.
+6) With prefix arg, downcase the region, avoiding comments and
+ quoted strings." "r\nP"])

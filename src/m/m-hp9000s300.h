@@ -1,11 +1,11 @@
 /* m- file for hp9000 series 200 or 300 on either HPUX or BSD.
-   Copyright (C) 1985 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -40,7 +40,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Define BIG_ENDIAN iff lowest-numbered byte in a word
    is the most significant byte.  */
 
+/* ENE: BIG_ENDIAN defined by including <sys/wait.h>, which includes <machine/
+   endian.h>. */
+#ifndef UTAH
 #define BIG_ENDIAN
+#endif
 
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
@@ -99,7 +103,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    numerically.  */
 
 /* #define VIRT_ADDR_VARIES */
-
+
 /* For University of Utah 4.3bsd implemetation on HP300s.
    The #ifndef __GNUC__ definitions are required for the "standard" cc,
    a very old, brain-dead version of PCC. */
@@ -117,7 +121,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 
 #endif /* BSD4_3 */
-
+
 #ifndef BSD4_3
 /* The following definitions are for HPUX only.  */
 
@@ -153,19 +157,19 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Define the BSTRING functions in terms of the sysV functions.
    Version 6 of HP-UX supplies these in the BSD library. */
 
-#ifdef HPUX_5
+/* #ifdef HPUX_5 */
 #define bcopy(a,b,s)	memcpy (b,a,s)
 #define bzero(a,s)	memset (a,0,s)
 #define bcmp		memcmp
-#endif
+/* #endif */
 
 /* On USG systems these have different names.
    Version 6 of HP-UX supplies these in the BSD library. */
 
-#ifdef HPUX_5
+/* #ifdef HPUX_5 */
 #define index strchr
 #define rindex strrchr
-#endif
+/* #endif */
 
 /* Define C_SWITCH_MACHINE to be +X if you want the s200/300
  * Emacs to run on both 68010 and 68020 based hp-ux's.
@@ -186,18 +190,20 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 #endif
 
-#endif /* not BSD4_3 */
-
 /* Define NEED_BSDTTY if you have such. */
 
 #ifndef NOMULTIPLEJOBS
 #define NEED_BSDTTY
 #endif
 
+#endif /* not BSD4_3 */
+
 #ifndef NOT_C_CODE
 #ifndef NO_SHORTNAMES
 #include <sys/wait.h>
+#ifndef BSD4_3
 #define WAITTYPE int
+#endif /* not BSD4_3 */
 #endif
 #define WRETCODE(w) (((w) >> 8) & 0377)
 #endif

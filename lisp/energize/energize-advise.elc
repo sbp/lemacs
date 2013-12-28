@@ -1,0 +1,151 @@
+;;; compiled by jwz@thalidomide on Mon Jan 18 03:40:35 1993
+;;; from file /cadillac-th/jwz/emacs19/lisp/energize/energize-advise.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 16-jan-93.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp energize-orig-set-visited-file-name set-visited-file-name] 2)
+(fset 'set-visited-file-name #[(filename) "À	!‡" [energize-set-visited-file-name filename] 2 "\
+Change name of file visited in current buffer to FILENAME.
+The next time the buffer is saved it will go in the newly specified file.
+nil or empty string as argument means make buffer not be visiting any file.
+Remember to delete the initial contents of the minibuffer
+if you wish to pass an empty string as the argument.
+
+This is illegal for Energize buffers." "FSet visited file name: "])
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp energize-orig-find-file-noselect find-file-noselect] 2)
+(fset 'find-file-noselect #[(filename &optional nowarn) "À	\n\"‡" [energize-find-file-noselect filename nowarn] 3 "\
+Read file FILENAME into a buffer and return the buffer.
+If a buffer exists visiting FILENAME, return that one, but
+verify that the file has not changed since visited or saved.
+The buffer is not selected, just returned to the caller.
+
+When connected to Energize, if the visited file is one that
+Energize knows about, it will be correctly annotated."])
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp energize-orig-write-file write-file] 2)
+(fset 'write-file #[(filename) "À	!‡" [energize-write-file filename] 2 "\
+Write current buffer into file FILENAME.
+Makes buffer visit that file, and marks it not modified.
+
+When executed on an Energize buffer, this will cause all 
+annotations to be lost (that is, the buffer will become a normal
+buffer, not one that the Energize server knows about.)" (byte-code "«‰ÁÂÃ‰‰‰%ªŒÁÂÄÅ žAÃ‰Æ %C‡" [buffer-file-name read-file-name "Write file: " nil default-directory buffer-local-variables buffer-name] 6)])
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp energize-orig-normal-mode normal-mode] 2)
+(fset 'normal-mode #[(&optional find-file) "À	!‡" [energize-normal-mode find-file] 2 "\
+Choose the major mode for this buffer automatically.
+Also sets up any specified local variables of the file.
+Uses the visited file name, the -*- line, and the local variables spec.
+
+This function is called automatically from `find-file'.  In that case,
+we may set up specified local variables depending on the value of
+`enable-local-variables': if it is t, we do; if it is nil, we don't;
+otherwise, we query.  `enable-local-variables' is ignored if you
+run `normal-mode' explicitly.
+
+If this is an Energize buffer, then the Energize modes are turned on as well." nil])
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp energize-orig-ask-user-about-lock ask-user-about-lock] 2)
+(fset 'ask-user-about-lock #[(fn opponent) "À	\n\"‡" [energize-ask-user-about-lock fn opponent] 3 "\
+Ask user what to do when he wants to edit FILE but it is locked by USER.
+This function has a choice of three things to do:
+  do (signal 'buffer-file-locked (list FILE USER))
+    to refrain from editing the file
+  return t (grab the lock on the file)
+  return nil (edit the file even though it is locked).
+You can rewrite it to use any criterion you like to choose which one to do.
+
+Energize buffers do this by asking the server."])
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp energize-orig-next-error next-error] 2)
+(fset 'next-error #[(&optional argp) "À	!‡" [energize-next-error argp] 2 "\
+Visit next compilation error message and corresponding source code.
+This operates on the output from the M-x compile command.
+If all preparsed error messages have been processed,
+the error message buffer is checked for new ones.
+
+A prefix arg specifies how many error messages to move;
+negative means move back to previous error messages.
+Just C-u as a prefix means reparse the error message buffer
+and start at the first error.
+
+C-x ` normally applies to the most recent compilation started,
+but as long as you are in the middle of parsing errors from one compilation
+output buffer, you stay with that compilation output buffer.
+
+Use C-x ` in a compilation output buffer to switch to
+processing errors from that compilation.
+
+See variables `compilation-parse-errors-hook' and `compilation-error-regexp'
+for customization ideas.  When we return, `compilation-last-error'
+points to the error message and the erroneous code.
+
+If the current buffer is a Energize buffer, the server is consulted.
+In this case, a prefix argument means ``previous error''.  Otherwise,
+use the original definition of next-error." "P"])
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp energize-orig-previous-error previous-error] 2)
+(fset 'previous-error #[(&optional argp) "À	!‡" [energize-previous-error argp] 2 "\
+C-x ` backwards.
+
+If the current buffer is a Energize buffer, the server is consulted.
+In this case, a prefix argument means ``next error''.  Otherwise,
+use the original definition of previous-error." "P"])
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp energize-orig-gdb-break gdb-break] 2)
+(fset 'gdb-break #[(temp) "À	!‡" [energize-gdb-break temp] 2 "\
+Set GDB breakpoint at this source line.  With ARG set temporary breakpoint.
+
+If the current buffer is a Energize buffer, then this works by talking 
+to the server." "P"])
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp energize-orig-gdb-step gdb-step] 2)
+(fset 'gdb-step #[(arg) "À	!‡" [energize-gdb-step arg] 2 "\
+Step one source line with display
+
+If the current buffer is a Energize buffer, then this works by talking to
+the server." "p"])
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp energize-orig-gdb-stepi gdb-stepi] 2)
+(fset 'gdb-stepi #[(arg) "À	!‡" [energize-gdb-stepi arg] 2 "\
+Step one instruction with display
+
+If the current buffer is a Energize buffer, then this works by talking to
+the server." "p"])
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp energize-orig-comint-mark comint-mark] 2)
+(fset 'comint-mark #[nil "À ‡" [energize-comint-mark] 1 "\
+Returns the process-mark of the current buffer.
+
+This function has been augumented to work with Energize debugger buffers."])
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp energize-orig-comint-send-input comint-send-input] 2)
+(fset 'comint-send-input #[nil "À ‡" [energize-comint-send-input] 1 "\
+Send input to process.  After the process output mark, sends all text
+from the process mark to point as input to the process.  Before the
+process output mark, calls value of variable comint-get-old-input to retrieve
+old input, copies it to the end of the buffer, and sends it.  A terminal
+newline is also inserted into the buffer and sent to the process.  In either
+case, value of variable comint-input-sentinel is called on the input before
+sending it.  The input is entered into the input history ring, if value of
+variable comint-input-filter returns non-nil when called on the input.
+
+If variable comint-eol-on-send is non-nil, then point is moved to the end of
+line before sending the input.
+
+comint-get-old-input, comint-input-sentinel, and comint-input-filter are chosen
+according to the command interpreter running in the buffer. E.g.,
+If the interpreter is the csh,
+    comint-get-old-input is the default: take the current line, discard any
+        initial string matching regexp comint-prompt-regexp.
+    comint-input-sentinel monitors input for \"cd\", \"pushd\", and \"popd\" 
+        commands. When it sees one, it cd's the buffer.
+    comint-input-filter is the default: returns T if the input isn't all white
+	space.
+
+If the comint is Lucid Common Lisp, 
+    comint-get-old-input snarfs the sexp ending at point.
+    comint-input-sentinel does nothing.
+    comint-input-filter returns NIL if the input matches input-filter-regexp,
+        which matches (1) all whitespace (2) :a, :c, etc.
+
+Similarly for Soar, Scheme, etc..
+
+This function has been augumented to work with Energize debugger buffers." nil])

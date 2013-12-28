@@ -888,7 +888,7 @@ this more than once is cheap."
    (let ((default (lisp-buffer-package)))
      (if (or current-prefix-arg (null default))
 	 (let ((name
-		(read-no-blanks-input 
+		(read-string ;; read-no-blanks-input is obsolete
 		 (format "Package [%s]: " (lisp-buffer-package)) "")))
 	   (list (if (equal name "") default name)))
 	 (list default))))
@@ -1752,7 +1752,10 @@ readers and return it."
       (progn
 	(if (string-match "Lucid" emacs-version)
 	    ;; not necessary, but friendlier.
-	    (set-keymap-parent ilisp-completion-map lisp-mode-map)
+	    (progn
+	      (setq ilisp-completion-map (make-keymap))
+              (set-keymap-name ilisp-completion-map 'ilisp-completion-map)
+	      (set-keymap-parent ilisp-completion-map lisp-mode-map))
 	  (setq ilisp-completion-map (copy-keymap lisp-mode-map)))
 	(define-key ilisp-completion-map " "  'ilisp-completion-word)
 	(define-key ilisp-completion-map "\t" 'ilisp-completion)
@@ -2735,9 +2738,11 @@ for buffer name as well."
 ;;;%%Common LISP
 (defdialect clisp "Common LISP"
   ilisp
-  (if (not (fboundp 'common-lisp-indent-hook))
+  (if (not (fboundp 'common-lisp-indent-function))
       (load "cl-indent"))
-  (setq lisp-indent-hook 'common-lisp-indent-hook)
+  (if (string-lessp "19" emacs-version)
+      (setq lisp-indent-function 'common-lisp-indent-function)
+    (setq lisp-indent-hook 'common-lisp-indent-function))
   (setq ilisp-load-or-send-command 
 	"(or (and (load \"%s\" :if-does-not-exist nil) t)
              (and (load \"%s\" :if-does-not-exist nil) t))")

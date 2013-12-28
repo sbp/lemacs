@@ -1,5 +1,5 @@
 /* Routines to compute the current syntactic context, for font-lock mode.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -51,13 +51,22 @@ enum block_comment_context {
   ccontext_none, ccontext_start1, ccontext_start2, ccontext_end1
 };
 
+#ifdef NEW_SYNTAX
+enum comment_style {
+  comment_style_none, comment_style_a, comment_style_b
+};
+#endif
+
 struct context_cache {
   int start_point;			/* cache location */
   int end_point;			/* next end-of-defun forward */
   struct buffer *buffer;		/* does this need to be staticpro'd? */
   enum syntactic_context context;	/* single-char-syntax state */
   enum block_comment_context ccontext;	/* block-comment state */
-  char scontext;			/* active string delimiter */
+#ifdef NEW_SYNTAX
+  enum comment_style style;		/* which comment group */
+#endif
+  unsigned char scontext;		/* active string delimiter */
   int depth;				/* depth in parens */
   int backslash_p;			/* just read a backslash */
 };
@@ -65,7 +74,7 @@ struct context_cache {
 static struct context_cache context_cache;
 static struct context_cache bol_context_cache;
 
-#define reset_context_cache(cc) bzero((cc), sizeof (struct context_cache))
+#define reset_context_cache(cc) memset((cc),0,sizeof (struct context_cache))
 
 static int
 beginning_of_defun (int pt)
@@ -78,6 +87,9 @@ beginning_of_defun (int pt)
   SET_PT (pt);
   return npt;
 }
+
+extern Lisp_Object Fre_search_forward (Lisp_Object, Lisp_Object,
+				       Lisp_Object, Lisp_Object);
 
 static int
 end_of_defun (int pt)
@@ -110,9 +122,12 @@ find_context_start (int pt, int end)
       context_cache.buffer = current_buffer;
       context_cache.context = context_none;
       context_cache.ccontext = ccontext_none;
+#ifdef NEW_SYNTAX
+      context_cache.style = comment_style_none;
+#endif
       context_cache.scontext = '\000';
       context_cache.depth = 0;
-      context_cache.backslash_p = (CHAR_AT (pt - 1) == '\\');
+      context_cache.backslash_p = ((pt > 1) && (CHAR_AT (pt - 1) == '\\'));
       if (end)
 	{
 	  if (end < pt) abort ();
@@ -123,29 +138,57 @@ find_context_start (int pt, int end)
     }
   else
     {
-      /* We can start searching at the beginning of the current line.
-       */
-      context_cache.start_point = bol_context_cache.start_point;
-      context_cache.end_point = bol_context_cache.end_point;
-      context_cache.context = bol_context_cache.context;
-      context_cache.ccontext = bol_context_cache.ccontext;
-      context_cache.scontext = bol_context_cache.scontext;
-      context_cache.depth = bol_context_cache.depth;
-      context_cache.backslash_p = bol_context_cache.backslash_p;
+      /* We can start searching at the beginning of the current line. */
+      context_cache = bol_context_cache;
     }
 }
 
 
+#ifdef NEW_SYNTAX
+# define FIRST_CHAR_START_OF_A_OR_B(c) \
+      (SYNTAX_COMMENT_BITS ((c)) & SYNTAX_FIRST_CHAR_START)
+# define SECOND_CHAR_START_OF_A_OR_B(c) \
+      (SYNTAX_COMMENT_BITS ((c)) & SYNTAX_SECOND_CHAR_START)
+# define FIRST_CHAR_END_OF_A_OR_B(c) \
+      (SYNTAX_COMMENT_BITS ((c)) & SYNTAX_FIRST_CHAR_END)
+# define SECOND_CHAR_END_OF_A_OR_B(c) \
+      (SYNTAX_COMMENT_BITS ((c)) & SYNTAX_SECOND_CHAR_END)
+# define START_STYLE_A_P(c1, c2) \
+      SYNTAX_START_SEQUENCE ((c1), (c2), SYNTAX_COMMENT_STYLE_A)
+# define START_STYLE_B_P(c1, c2) \
+      SYNTAX_START_SEQUENCE ((c1), (c2), SYNTAX_COMMENT_STYLE_B)
+# define END_STYLE_A_P(c1, c2) \
+      SYNTAX_END_SEQUENCE ((c1), (c2), SYNTAX_COMMENT_STYLE_A)
+# define END_STYLE_B_P(c1, c2) \
+      SYNTAX_END_SEQUENCE ((c1), (c2), SYNTAX_COMMENT_STYLE_B)
+
+# define SYNTAX_START_STYLE(c1, c2) \
+      (START_STYLE_A_P((c1),(c2)) ? comment_style_a : \
+       (START_STYLE_B_P((c1),(c2)) ? comment_style_b : comment_style_none))
+# define SYNTAX_END_STYLE(c1, c2) \
+      (END_STYLE_A_P((c1),(c2)) ? comment_style_a : \
+       (END_STYLE_B_P((c1),(c2)) ? comment_style_b : comment_style_none))
+# define SINGLE_SYNTAX_STYLE(c) \
+      (SYNTAX_SINGLE_CHAR_STYLE_A((c)) ? comment_style_a : \
+       SYNTAX_SINGLE_CHAR_STYLE_B((c)) ? comment_style_b : \
+       comment_style_none)
+#endif /* NEW_SYNTAX */
+
 static void
 find_context (int pt, int end)
 {
-  char oc, c = 0;
+  unsigned char prev_c, c;
   int target = pt;
   if (end == 0)
     find_context_start (pt, end);
   pt = context_cache.start_point;
 
-  if (pt == BEGV || CHAR_AT (pt - 1) == '\n')
+  if (pt > BEGV)
+    c = CHAR_AT (pt - 1);
+  else
+    c = 0;
+
+  if (pt == BEGV || c == '\n')
     bol_context_cache = context_cache;
 
   for (; pt < target; pt++, context_cache.start_point = pt)
@@ -156,8 +199,9 @@ find_context (int pt, int end)
 	  continue;
 	}
 
-      oc = c;
+      prev_c = c;
       c = CHAR_AT (pt);
+
       switch (SYNTAX (c))
 	{
 	case Sescape:
@@ -176,12 +220,38 @@ find_context (int pt, int end)
 
 	case Scomment:
 	  if (context_cache.context == context_none)
-	    context_cache.context = context_comment;
+	    {
+	      context_cache.context = context_comment;
+#ifdef NEW_SYNTAX
+	      context_cache.style = SINGLE_SYNTAX_STYLE (c);
+	      if (context_cache.style == comment_style_none) abort ();
+#endif
+	    }
 	  break;
 
 	case Sendcomment:
-	  if (context_cache.context == context_comment)
-	    context_cache.context = context_none;
+#ifdef NEW_SYNTAX
+	  if (context_cache.style != SINGLE_SYNTAX_STYLE (c))
+	    ;
+	  else
+#endif
+	       if (context_cache.context == context_comment)
+	    {
+	      context_cache.context = context_none;
+#ifdef NEW_SYNTAX
+	      context_cache.style = comment_style_none;
+#endif
+	    }
+	  else if (context_cache.context == context_block_comment &&
+		   (context_cache.ccontext == ccontext_start2 ||
+		    context_cache.ccontext == ccontext_end1))
+	    {
+	      context_cache.context = context_none;
+	      context_cache.ccontext = ccontext_none;
+#ifdef NEW_SYNTAX
+	      context_cache.style = comment_style_none;
+#endif
+	    }
 	  break;
 
 	case Sstring:
@@ -197,39 +267,116 @@ find_context (int pt, int end)
 	      context_cache.scontext = c;
 	    }
 	  break;
+	default:
+	  ;
 	}
+
 
       /* That takes care of the characters with manifest syntax.
 	 Now we've got to hack multi-char sequences that start
 	 and end block comments.
        */
-      if (SYNTAX_COMSTART_FIRST (c) &&
-	  (context_cache.ccontext == ccontext_none ||
-	   context_cache.ccontext == ccontext_start1))
-	context_cache.ccontext = ccontext_start1;
-      else if (SYNTAX_COMSTART_SECOND (c) &&
-	       context_cache.ccontext == ccontext_start1)
-	context_cache.ccontext = ccontext_start2;
-      else if (SYNTAX_COMEND_FIRST (c) &&
+#ifdef NEW_SYNTAX
+      if (SECOND_CHAR_START_OF_A_OR_B (c) &&
+	  context_cache.context == context_none &&
+	  context_cache.ccontext == ccontext_start1 &&
+	  SYNTAX_START (prev_c, c) /* the two chars match */
+	  )
+	{
+	  context_cache.ccontext = ccontext_start2;
+	  context_cache.style = SYNTAX_START_STYLE (prev_c, c);
+	  if (context_cache.style == comment_style_none) abort ();
+	}
+      else if (FIRST_CHAR_START_OF_A_OR_B (c) &&
+	       context_cache.context == context_none &&
+	       (context_cache.ccontext == ccontext_none ||
+		context_cache.ccontext == ccontext_start1))
+	{
+	  context_cache.ccontext = ccontext_start1;
+	  context_cache.style = comment_style_none; /* should be this already*/
+	}
+      else if (SECOND_CHAR_END_OF_A_OR_B (c) &&
+	       context_cache.context == context_block_comment &&
+	       context_cache.ccontext == ccontext_end1 &&
+	       SYNTAX_END (prev_c, c) && /* the two chars match */
+	       context_cache.style == SYNTAX_END_STYLE (prev_c, c)
+	       )
+	{
+	  context_cache.context = context_none;
+	  context_cache.ccontext = ccontext_none;
+	  context_cache.style = comment_style_none;
+	}
+      else if (FIRST_CHAR_END_OF_A_OR_B (c) &&
+	       context_cache.context == context_block_comment &&
+	       (context_cache.style == SYNTAX_END_STYLE (c, CHAR_AT (pt+1))) &&
 	       (context_cache.ccontext == ccontext_start2 ||
 		context_cache.ccontext == ccontext_end1))
-	context_cache.ccontext = ccontext_end1;
+	/* #### is it right to check for end1 here?? */
+	{
+	  if (context_cache.style == comment_style_none) abort ();
+	  context_cache.ccontext = ccontext_end1;
+	}
+#else /* !NEW_SYNTAX */
+
+      if (SYNTAX_COMSTART_SECOND (c) &&
+	  context_cache.context == context_none &&
+	  context_cache.ccontext == ccontext_start1)
+	{
+	  context_cache.ccontext = ccontext_start2;
+/*	  context_cache.style = SYNTAX_COMMENT_STYLE (c); */
+	}
+      else if (SYNTAX_COMSTART_FIRST (c) &&
+	       context_cache.context == context_none &&
+	       (context_cache.ccontext == ccontext_none ||
+		context_cache.ccontext == ccontext_start1))
+	{
+	  context_cache.ccontext = ccontext_start1;
+	}
       else if (SYNTAX_COMEND_SECOND (c) &&
+	       context_cache.context == context_block_comment &&
 	       context_cache.ccontext == ccontext_end1)
-	context_cache.ccontext = ccontext_none;
+	{
+	  context_cache.context = context_none;
+	  context_cache.ccontext = ccontext_none;
+	}
+      else if (SYNTAX_COMEND_FIRST (c) &&
+/*	       context_cache.style == SYNTAX_COMMENT_STYLE (c) && */
+	       context_cache.context == context_block_comment &&
+	       (context_cache.ccontext == ccontext_start2 ||
+		context_cache.ccontext == ccontext_end1))
+	/* #### is it right to check for end1 here?? */
+	{
+	  context_cache.ccontext = ccontext_end1;
+	}
+#endif /* NEW_SYNTAX */
+
       else if (context_cache.ccontext == ccontext_start1)
-	context_cache.ccontext = ccontext_none;
+	{
+	  if (context_cache.context != context_none) abort ();
+	  context_cache.ccontext = ccontext_none;
+	}
       else if (context_cache.ccontext == ccontext_end1)
-	context_cache.ccontext = ccontext_start2;
+	{
+	  if (context_cache.context != context_block_comment) abort ();
+	  context_cache.context = context_none;
+	  context_cache.ccontext = ccontext_start2;
+	}
 
       if (context_cache.ccontext == ccontext_start2 &&
 	  context_cache.context == context_none)
-	context_cache.context = context_block_comment;
+	{
+	  context_cache.context = context_block_comment;
+#ifdef NEW_SYNTAX
+	  if (context_cache.style == comment_style_none) abort ();
+#endif
+	}
       else if (context_cache.ccontext == ccontext_none &&
 	       context_cache.context == context_block_comment)
-	context_cache.context = context_none;
+	{
+	  context_cache.context = context_none;
+	}
 
-      if (oc == '\n')
+      if (prev_c == '\n')
 	bol_context_cache = context_cache;
     }
 }
@@ -254,7 +401,7 @@ context_to_symbol (enum syntactic_context context)
   switch (context)
     {
     case context_none:		return Qnil;
-    /* ## superfluous consing */
+    /* ## superfluous interning */
     case context_string:	return intern ("string");
     case context_comment:	return intern ("comment");
     case context_block_comment:	return intern ("block-comment");
@@ -345,7 +492,8 @@ provided, the extent will be created with that in its data slot.")
 			     Fcurrent_buffer ());
       if (!NILP (extent_data))
 	Fset_extent_data (extent, extent_data);
-      call3 (function, extent, context_to_symbol (this_context), edepth);
+      call3 (function, extent, context_to_symbol (this_context),
+	     make_number (edepth));
     }
  DONE:
   UNGCPRO;
@@ -355,8 +503,8 @@ provided, the extent will be created with that in its data slot.")
 void
 syms_of_font_lock ()
 {
-  bzero (&context_cache, sizeof (context_cache));
-  bzero (&bol_context_cache, sizeof (bol_context_cache));
+  memset (&context_cache, 0, sizeof (context_cache));
+  memset (&bol_context_cache, 0, sizeof (bol_context_cache));
   defsubr (&Sbuffer_syntactic_context);
   defsubr (&Sbuffer_syntactic_context_depth);
   defsubr (&Sbuffer_syntactic_context_flush_cache);

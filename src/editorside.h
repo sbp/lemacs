@@ -15,7 +15,6 @@
 #include <connection.h>
 #include "hash.h"
 
-#define Boolean	int
 #ifdef TRUE
 #undef TRUE
 #endif
@@ -37,6 +36,7 @@ typedef struct {
   Lisp_Object	gc_save;	/* Objects saved for GC */
   int		major;		/* protocol version number */
   int		minor;
+  c_hashtable image_table;      /* glyphs table */
 } Editor;
 
 

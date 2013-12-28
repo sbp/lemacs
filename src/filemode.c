@@ -1,9 +1,9 @@
 /* filemode.c -- make a string describing file modes
-   Copyright (C) 1985, 1990 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 1, or (at your option)
+   the Free Software Foundation; either version 2, or (at your option)
    any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -18,12 +18,15 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef _POSIX_SOURCE
+#undef  S_IREAD
 #define S_IREAD S_IRUSR
+#undef  S_IWRITE
 #define S_IWRITE S_IWUSR
+#undef  S_IEXEC
 #define S_IEXEC S_IXUSR
 #endif
 
-void mode_string ();
+static void mode_string ();
 static char ftypelet ();
 static void rwx ();
 static void setst ();
@@ -75,7 +78,7 @@ filemodestring (statp, str)
 /* Like filemodestring, but only the relevant part of the `struct stat'
    is given as an argument. */
 
-void
+static void
 mode_string (mode, str)
      unsigned short mode;
      char *str;

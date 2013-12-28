@@ -13,6 +13,8 @@
 ;;; 19 feb 91  Jamie Zawinski <jwz@lucid.com>  added Lucid Emacs font support
 ;;; 15 apr 92  Jamie Zawinski <jwz@lucid.com>  added mouse support
 ;;; 29 aug 92  Jamie Zawinski <jwz@lucid.com>  added 8-bit output
+;;;  6 nov 92  Jamie Zawinski <jwz@lucid.com>  hack hack
+;;; 31 dec 92  Jamie Zawinski <jwz@lucid.com>  made it guess the root word
 
 (defvar webster-host "pasteur" "*The host with the webster server")
 (defvar webster-port "1964" "*The port on which the webster server listens")
@@ -83,7 +85,7 @@
 ;;;
 (defun webster-initial-filter (proc string)
   (let ((this-buffer (current-buffer)))
-    ;; don't use save-excursion so tht point moves in webster-buffer
+    ;; don't use save-excursion so that point moves in webster-buffer
     (set-buffer webster-buffer)
     (goto-char (point-max))
     (setq webster-state "closed")
@@ -149,23 +151,72 @@
 	;; bottom of that window
 	(let ((webster-window (get-buffer-window webster-buffer))
 	      (window (selected-window))
-	      p)
+	      error p)
+	  (set-buffer webster-buffer)
 	  (widen)
 	  (goto-char (point-min))
 	  (narrow-to-region webster-start-mark (point-max))
-	  (webster-convert)
+	  (let ((buffer-undo-list t))
+	    (if (looking-at "WORD \"\\([^\"\n]*\\)\"\\(\n403 [^\n]+\\)\n")
+		(progn
+		  (downcase-word 1)
+		  (setq error
+			(buffer-substring (match-beginning 1) (match-end 1)))
+		  (goto-char (match-beginning 2))
+		  (delete-region (match-beginning 2) (match-end 2))
+		  (insert " not found")
+		  (setq error (webster-guess-root error))
+		  (if error
+		      (insert "; trying \"" error "\"...")
+		    (insert "."))
+		  )
+	      (webster-convert)))
 	  (widen)
 	  (setq p (marker-position webster-start-mark))
 	  (goto-char (point-max))
-	  (or (bobp) (insert "\^L\n--------------------\n"))
+	  (or (bobp)
+	      (save-excursion (forward-line -1) (looking-at "-"))
+	      (insert "\n--------------------\n"))
 	  (set-marker webster-start-mark (point-max))
 	  (goto-char p)
 	  (if webster-window
 	      (progn
 		(select-window webster-window)
 		(goto-char p)
-		(recenter 1)
-		(select-window window)))))))
+		(recenter 3)
+		(select-window window)))
+	  (if error (webster error))))))
+
+(defun webster-guess-root (word)
+  (let ((case-fold-search t))
+    (cond ((null word) nil)
+	  ((string-match "[ \t\n]" word)
+	   nil)
+	  ((string-match "[^aeiou]ing\\'" word)
+	   (concat (substring word 0 (+ 1 (match-beginning 0))) "e"))
+	  ((string-match "[a-z]ing\\'" word)
+	   (substring word 0 (+ 1 (match-beginning 0))))
+	  ((string-match "ies\\'" word)
+	   (concat (substring word 0 (match-beginning 0)) "y"))
+	  ((string-match "ied\\'" word)
+	   (concat (substring word 0 (match-beginning 0)) "y"))
+	  ((and (string-match "[^aeiouy][^aeiouy]ed\\'" word)
+		(= (aref word (match-beginning 0))
+		   (aref word (1+ (match-beginning 0)))))
+	   (substring word 0 (+ 1 (match-beginning 0))))
+	  ((string-match "[a-z]ed\\'" word)
+	   (substring word 0 (+ 2 (match-beginning 0))))
+	  ((string-match "[aeiouy]lly\\'" word)
+	   (substring word 0 (+ 2 (match-beginning 0))))
+	  ((string-match "[^l]ly\\'" word)
+	   (substring word 0 (+ 1 (match-beginning 0))))
+;	  ((string-match "es\\'" word)
+;	   (substring word 0 (match-beginning 0)))
+;	  ((string-match "[^e]s\\'" word)
+;	   (substring word 0 (+ 1 (match-beginning 0))))
+	  ((string-match "s\\'" word)
+	   (substring word 0 (match-beginning 0)))
+	  (t nil))))
 
 
 (defun webster (arg)
@@ -180,6 +231,7 @@ Communication with host is recorded in a buffer *webster*."
 		   (completing-read prompt webster-completion-table
 				    nil nil)))))
   (if (equal "" arg) (setq arg (current-word)))
+  (message "looking up %s..." (upcase arg))
   (webster-send-request "WORD" (prin1-to-string arg)))
 
 (defun webster-endings (arg)
@@ -224,39 +276,18 @@ Communication with host is recorded in a buffer *webster*."
 	  (set-buffer webster-buffer)
 	  (webster-mode)
 	  (setq webster-process (get-process webster-process-name))
+	  (process-kill-without-query webster-process)
 	  (set-process-filter webster-process 'webster-initial-filter)
 	  (process-send-string  webster-process webster-command)
 	  (setq webster-running nil)
 	  (while (not webster-running)	; wait for feedback
-	    (accept-process-output webster-process))))
+	    (accept-process-output webster-process))
+	  (message
+	   (concat "Attempting to connect to server " webster-host
+		   "... Connected."))
+	  ))
     (display-buffer webster-buffer nil)
     (process-send-string webster-process (concat kind " " word "\n"))))
-
-(defun webster-xref-word (event)
-  "Define the highlighted word under the mouse.
-Words which are known to have definitions are highlighted when the mouse
-moves over them.  You may define any word by selecting it with the left
-mouse button and then clicking middle."
-  (interactive "e")
-  (let* ((buffer (window-buffer (event-window event)))
-	 (extent (extent-at (event-point event) buffer 'highlight))
-	 text)
-    (cond (extent
-	   (setq text (save-excursion
-			(set-buffer buffer)
-			(buffer-substring
-			 (extent-start-position extent)
-			 (extent-end-position extent)))))
-	  ((x-selection-owner-p) ; the selection is in this emacs process.
-	   (setq text (x-get-selection)))
-	  (t
-	   (error "click on a highlighted word to define")))
-    (while (string-match "\\." text)
-      (setq text (concat (substring text 0 (match-beginning 0))
-			 (substring text (match-end 0)))))
-    (webster-unISO text)
-    (message "looking up %s..." (upcase text))
-    (webster text)))
 
 (defun webster-quit ()
   "Close connection and quit webster-mode.  Buffer is not deleted."
@@ -268,6 +299,62 @@ mouse button and then clicking middle."
   (if (eq (current-buffer) webster-buffer)
       (bury-buffer)))
 
+
+(defun webster-xref-data (event &optional selection-only)
+  (let* ((buffer (window-buffer (event-window event)))
+	 (extent (if buffer (extent-at (event-point event) buffer 'highlight)))
+	 text)
+    (cond ((and extent (not selection-only))
+	   (setq text (save-excursion
+			(set-buffer buffer)
+			(buffer-substring
+			 (extent-start-position extent)
+			 (extent-end-position extent)))))
+	  ((x-selection-owner-p) ; the selection is in this emacs process.
+	   (setq text (x-get-selection))
+	   (if (string-match "[\n\r]" text)
+	       (setq text nil))))
+    (if (null text)
+	nil
+      (while (string-match "\\." text)
+	(setq text (concat (substring text 0 (match-beginning 0))
+			   (substring text (match-end 0)))))
+      (webster-unISO text)
+      text)))
+
+(defun webster-xref-word (event)
+  "Define the highlighted word under the mouse.
+Words which are known to have definitions are highlighted when the mouse
+moves over them.  You may define any word by selecting it with the left
+mouse button and then clicking middle."
+  (interactive "e")
+  (webster (or (webster-xref-data event)
+	       (error "click on a highlighted word to define"))))
+
+(defvar webster-menu
+  '("Webster"
+    ["Define Word..." webster t]
+    ["List Words Beginning With..." webster-endings t]
+    ["Check Spelling Of..." webster-spell t]
+    "----"
+    ["Quit Webster" webster-quit t]
+    ))
+
+(defun webster-menu (event)
+  (interactive "e")
+  (let ((text1 (webster-xref-data event nil))
+	(text2 (webster-xref-data event t)))
+    (if (equal text1 text2) (setq text2 nil))
+    (popup-menu
+     (nconc (list (car webster-menu))
+	    (list "Webster Commands" "----")
+	    (if text1 (list (vector (format "Define %s" (upcase text1))
+				    (list 'webster text1) t)))
+	    (if text2 (list (vector (format "Define %s" (upcase text2))
+				    (list 'webster text2) t)))
+	    (cdr webster-menu)))))
+
+
 (defvar webster-mode-map nil)
 (if webster-mode-map
     nil
@@ -277,8 +364,9 @@ mouse button and then clicking middle."
   (define-key webster-mode-map "e" 'webster-endings)
   (define-key webster-mode-map "q" 'webster-quit)
   (define-key webster-mode-map "s" 'webster-spell)
-  (if (string-match "Lucid" emacs-version)
-      (define-key webster-mode-map 'button2 'webster-xref-word))
+  (cond ((string-match "Lucid" emacs-version)
+	 (define-key webster-mode-map 'button2 'webster-xref-word)
+	 (define-key webster-mode-map 'button3 'webster-menu)))
   )
 
 (defun webster-mode ()
@@ -298,6 +386,7 @@ Use webster-mode-hook for customization."
 				    (kill-buffer "*webster*")))))
   (set (make-local-variable 'webster-start-mark)
        (set-marker (make-marker) (point-max)))
+  (set (make-local-variable 'page-delimiter) "^-")
   (if webster-iso8859/1 (setq ctl-arrow 'iso-8859/1))
   (run-hooks 'webster-mode-hook))
 
@@ -369,13 +458,9 @@ Use webster-mode-hook for customization."
 	   ((looking-at "cidilla")	 (delete-region s e) (insert ?\371))
 	   ((looking-at "sub-diaeresis") (delete-region s e) (insert ?\370))
 	   ((looking-at "sub-macron")    (delete-region s e) (insert ?\367))
-	   (t (delete-region (- e 3) e))))
-	(forward-char -1)
-	(delete-char -3)
-	(insert ?\b)
-	(forward-char 2)
-	)
-
+	   ((looking-at "a-e")		 (delete-region s e) (insert ?\346))
+	   (t (delete-region (- e 3) e)))))
+      
       ;; nuke silly recursive backspace codes
       (goto-char (point-min))
       (while (search-forward "|\bB" nil t)
@@ -425,7 +510,7 @@ Use webster-mode-hook for customization."
 	 ((looking-at ")[ABGIJMRXY]")	; end font-shift
 	  nil)
 
-	 ((looking-at "<(")
+	 ((looking-at "<(\\|(<")
 	  (insert (if webster-iso8859/1 ?\253 "<<"))
 	  (if webster-fontify
 	      (let ((p (point))
@@ -434,10 +519,10 @@ Use webster-mode-hook for customization."
 		(if e
 		    (webster-fontify p e 'webster-italic)))))
 
-	 ((looking-at ")>")
+	 ((looking-at ")>\\|>)")
 	  (insert  (if webster-iso8859/1 ?\273 ">>")))
 
-	 ((looking-at "[a-z][-._]")	; lineover,dotover/under,over/underbar
+	 ((looking-at "[a-z\346][-._]")	; lineover,dotover/under,over/underbar
 	  (insert (following-char))
 	  (if webster-fontify
 	      (webster-fontify (- (point) 1) (point) 'webster-underline)))
@@ -561,9 +646,18 @@ Use webster-mode-hook for customization."
 	      (looking-at "[a-zA-Z]\373")	; (\bQmacron-tilda)\bQ
 	      (looking-at "[a-zA-Z]\372")	; (\bQsup-circle)\bQ
 	      (looking-at "[a-zA-Z]\370")	; (\bQsub-diaeresis)\bQ
-	      (looking-at "[a-zA-Z]\367"))	; (\bQsub-macron)\bQ
+	      (looking-at "[a-zA-Z]\367")	; (\bQsub-macron)\bQ
+	      (looking-at "[a-zA-Z]\346")	; (\bQa-e)\bQ
+	      )
 	  (forward-char 1) (insert " ") (forward-char -1)
 	  (webster-fontify (1- (point)) (point) 'webster-underline))
+
+	 ((looking-at "/[a-zA-Z]")		; greek
+	  (forward-char 1)
+	  (insert " <")
+	  (forward-char 1)
+	  (insert ?\>)
+	  (forward-char -5))
 
 	 ;; overstrike
 	 ((looking-at (format "[%c][%c]" (following-char) (following-char)))
@@ -640,15 +734,17 @@ Use webster-mode-hook for customization."
   ;; nuke the continuation lines
   (save-excursion
     (while (re-search-forward "^C:" nil t)
-      (backward-char 2)
-      (let ((p (point)) n)
-	(while (looking-at "^C:")
-	  (setq n (- (point) p)
-		p (point))
-	  (delete-char -1)
-	  (delete-char 2)
-	  (if (= n 77) (insert " ")) ; what a dumbshit format...
-	  (forward-line 1)))))
+      (forward-char -2)
+      (while (looking-at "^C:")
+	(forward-line 1))
+      (forward-line -1)
+      (while (looking-at "^C:")
+	(forward-char -1)
+	(let ((n (- (point) (save-excursion (beginning-of-line) (point)))))
+	  (delete-char 3)
+	  ;; What a stupid format!  (example: "fat")
+	  (if (= n 79) (insert " "))
+	  (beginning-of-line)))))
   (goto-char (point-min))
   (let ((last-type nil)
 	(this-type nil)
@@ -668,16 +764,26 @@ Use webster-mode-hook for customization."
 	  (if (eq (preceding-char) ?\n) (setq p (1- p)))
 	  (end-of-line)
 	  (delete-region p (point)))
+	(insert "\n")
 	(while (not (or (eobp) (looking-at "\n\n")))
 	  (forward-line 1)
-	  (while (looking-at "[^\n;]+;")
-	    (webster-intern (buffer-substring (match-beginning 0)
-					      (1- (match-end 0))))
-	    (goto-char (match-end 0))
-	    (insert " "))
-	  (or (looking-at "\n")
+	  (insert "    ")
+	  (let (s e)
+	    (while (looking-at "[^\n;]+;")
+	      (webster-intern (buffer-substring (setq s (match-beginning 0))
+						(setq e (1- (match-end 0)))))
+	      (goto-char (match-end 0))
+	      (insert " ")
+	      (if webster-fontify
+		  (webster-fontify s e 'webster-bold t)))
+	    (if (looking-at "\n")
+		nil
 	      (webster-intern
-	       (buffer-substring (point) (progn (end-of-line) (point)))))))
+	       (buffer-substring (setq s (point))
+				 (progn (end-of-line) (setq e (point)))))
+	      (if webster-fontify
+		  (webster-fontify s e 'webster-bold t)))
+	    )))
 
        ((looking-at "^\n")
 	(delete-char 1))
@@ -729,6 +835,7 @@ Use webster-mode-hook for customization."
 	      (insert homonym)
 	      (if webster-fontify
 		  (webster-fontify p (point) 'webster-bold-italic))))
+	  (forward-char 1)
 	  (while dots
 	    (forward-char (- (car dots) ?0))
 	    (insert ".")
@@ -1046,6 +1153,7 @@ Use webster-mode-hook for customization."
 ;;	y(		y-acute
 ;;	)>		guillemotright		everywhere...
 ;;	<(		guillemotleft		everywhere...
+;;	(<		guillemotleft (?)	come
 ;;	-m		longdash
 ;;	n_		nj			babbling
 ;;	'o		degree			
@@ -1145,6 +1253,8 @@ Use webster-mode-hook for customization."
 ;; r(\bQsub-diaeresis)\bQ	r-umlautunder
 ;; t(\bQsub-macron)\bQ		t-lineunder
 ;; B(\bQ3 character overbar)\bQ	B-lineover3
+
+;; (\bQa-e)\bQ-		ae-overbar (?)		herring
 
 ;; "U			unknown
 ;; '-			unknown

@@ -9,4 +9,8 @@ void *XtApplyUntilToWidgets (Widget, XtApplyUntilToWidgetsProc, XtPointer);
 
 Widget *XtCompositeChildren (Widget, unsigned int *);
 
+/* returns True is the widget is being destroyed, False otherwise */
+Boolean
+XtWidgetBeingDestroyedP (Widget widget);
+
 void XtSafelyDestroyWidget (Widget);

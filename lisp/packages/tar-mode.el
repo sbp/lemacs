@@ -4,15 +4,15 @@
 ;;; Description:	simple editing of tar files from GNU emacs
 ;;; Author:		Jamie Zawinski <jwz@lucid.com>
 ;;; Created:		4 Apr 1990
-;;; Version:		1.24, 15 Aug 91
+;;; Version:		1.26, 15 Jan 93
 
-;;; Copyright (C) 1990, 1991 Free Software Foundation, Inc.
+;;; Copyright (C) 1990-1993 Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Emacs.
 ;;;
 ;;; GNU Emacs is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
-;;; the Free Software Foundation; either version 1, or (at your option)
+;;; the Free Software Foundation; either version 2, or (at your option)
 ;;; any later version.
 ;;;
 ;;; GNU Emacs is distributed in the hope that it will be useful,
@@ -82,8 +82,8 @@ The blocksize of a tar file is not really the size of the blocks; rather, it is
 the number of blocks written with one system call.  When tarring to a tape, 
 this is the size of the *tape* blocks, but when writing to a file, it doesn't
 matter much.  The only noticeable difference is that if a tar file does not
-have a blocksize of 20, tar will tell you that; all this really controls is
-how many null padding bytes go on the end of the tar file.")
+have a blocksize of 20, the tar program will issue a warning; all this really
+controls is how many null padding bytes go on the end of the tar file.")
 
 (defvar tar-update-datestamp (fboundp 'current-time-seconds)
   "*Whether tar-mode should play fast and loose with sub-file datestamps;
@@ -98,8 +98,9 @@ This does not work in Emacs 18, because there's no way to get the current
 time as an integer - if this var is true, then editing a file sets its date
 to midnight, Jan 1 1970 GMT, which happens to be what 0 encodes.
 
-I have written some C code to fix this deficiency which may be included in 
-Emacs 19.  Tar-mode will take advantage of this code if it is present.")
+I have written some C code to fix this deficiency which is included in 
+Lucid Emacs, and may be included in FSF's version 19.  Tar-mode will take
+advantage of this code if it is present.")
 
 (defvar tar-view-kill-buffer t
   "*Whether to kill the buffer when view-mode exits.  The standard view-mode
@@ -391,6 +392,11 @@ write-date, checksum, link-type, and link-name)."
       string)))
 
 
+;; buffer-local variables in the tar file's buffer:
+;;
+(defvar tar-parse-info)		; the header structures
+(defvar tar-header-offset)	; the end of the "pretty" data
+
 (defun tar-summarize-buffer ()
   "Parse the contents of the tar file in the current buffer, and place a
 dired-like listing on the front; then narrow to it, so that only that listing
@@ -521,6 +527,12 @@ See also: variables tar-update-datestamp and tar-anal-blocksize.
   (run-hooks 'tar-mode-hook)
   )
 
+;; buffer-local variables in subfile mode.
+;;
+(defvar tar-subfile-mode nil)		; whether the minor-mode is on
+(defvar superior-tar-buffer)		; parent buffer
+(defvar superior-tar-descriptor)	; header object of this file
+(defvar tar-subfile-buffer-id)		; pretty name-string
 
 (defun tar-subfile-mode (p)
   "Minor mode for editing an element of a tar-file.
@@ -532,8 +544,7 @@ save your changes to disk."
       (error "This buffer is not an element of a tar file."))
   (or (assq 'tar-subfile-mode minor-mode-alist)
       (setq minor-mode-alist (append minor-mode-alist
-				     (list '(tar-subfile-mode
-					     " TarFile")))))
+				     (list '(tar-subfile-mode " TarFile")))))
   (make-local-variable 'tar-subfile-mode)
   (setq tar-subfile-mode
 	(if (null p)
@@ -550,9 +561,23 @@ save your changes to disk."
 	 (auto-save-mode nil)
 	 (setq buffer-auto-save-file-name nil)
 	 (run-hooks 'tar-subfile-mode-hook))
-	(t (local-set-key "\^X\^S" 'save-buffer)))
+	(t
+	 ;; remove the local binding for C-x C-s.
+	 (local-unset-key "\^X\^S")
+	 (if subfile-orig-mlbid
+	     (set (make-local-variable 'mode-line-buffer-identification)
+		  subfile-orig-mlbid))
+	 (setq superior-tar-buffer nil
+	       superior-tar-descriptor nil
+	       subfile-orig-mlbid nil)
+	 ))
   )
 
+(defun tar-subfile-after-write-file-hook ()
+  ;; if the buffer has a filename, then it is no longer associated with
+  ;; the tar file.  Turn off subfile mode.
+  (if (and buffer-file-name tar-subfile-mode)
+      (tar-subfile-mode -1)))
 
 (defun tar-mode-revert (&optional no-autosave no-confirm)
   "Revert this buffer and turn on tar mode again, to re-compute the
@@ -606,7 +631,8 @@ directory listing."
     (if (zerop size) (error "This is a zero-length file."))
     (let* ((tar-buffer (current-buffer))
 	   (bufname (file-name-nondirectory name))
-	   (bufid (concat " (" name " in "
+	   (bufid (concat ;" (" name " in "
+		   	  " (in "
 			  (file-name-nondirectory (buffer-file-name))
 			  ")"))
 	   (read-only-p (or buffer-read-only view-p))
@@ -634,28 +660,43 @@ directory listing."
 		(insert-buffer-substring tar-buffer start end)
 		(goto-char 0)
 		(set-visited-file-name name) ; give it a name to decide mode.
-		(normal-mode)  ; pick a mode.
+;;		(normal-mode)  ; pick a mode.
+		(after-find-file nil nil)  ; pick a mode; works with crypt.el
 		(set-visited-file-name nil)  ; nuke the name - not meaningful.
 		
 		(make-local-variable 'superior-tar-buffer)
 		(make-local-variable 'superior-tar-descriptor)
 		(make-local-variable 'mode-line-buffer-identification)
 		(make-local-variable 'tar-subfile-buffer-id)
+		(make-local-variable 'subfile-orig-mlbid)
 		(setq superior-tar-buffer tar-buffer)
 		(setq superior-tar-descriptor descriptor)
 		(setq tar-subfile-buffer-id bufid)
+		(setq subfile-orig-mlbid mode-line-buffer-identification)
 		(cond ((stringp mode-line-buffer-identification)
 		       (setq mode-line-buffer-identification
-			     (list mode-line-buffer-identification)))
-		      (t (setq mode-line-buffer-identification
-			       (list "" mode-line-buffer-identification))))
-		;; tar-subfile buffers should have nil as buffer-file-name.
-		;; If they ever gain a buffer-file-name, that means they have
-		;; been written to a real disk file, as with ^X^W.  If this
-		;; happens, stop displaying the "parent tar file" blurb.
-		(setq mode-line-buffer-identification
-		      (append mode-line-buffer-identification
-			      '((buffer-file-name "" tar-subfile-buffer-id))))
+			     (list mode-line-buffer-identification))))
+		(let ((ms (car mode-line-buffer-identification))
+		      n)
+		  (cond ((and (stringp ms)
+			      (string-match "%\\([0-9]+\\)b\\'" ms))
+			 (setq mode-line-buffer-identification
+			       (cons
+				(concat (substring ms 0
+						   (1- (match-beginning 1)))
+					(substring ms (1+ (match-end 1))))
+				(cons
+				 (list (car (read-from-string
+					     (substring ms (match-beginning 1)
+							(match-end 1))))
+				       (concat "%b" tar-subfile-buffer-id))
+				 (cdr mode-line-buffer-identification)))))
+			(t
+			 (setq mode-line-buffer-identification
+			       (list "Emacs: "
+				     (list 17
+					   (concat "%b"
+						   tar-subfile-buffer-id)))))))
 		(tar-subfile-mode 1)
 		
 		(setq buffer-read-only read-only-p)
@@ -985,6 +1026,20 @@ to make your changes permanent."
       (error "the superior tar file's buffer has been killed."))
   (if (not (and (boundp 'superior-tar-descriptor) superior-tar-descriptor))
       (error "this buffer doesn't have an index into its superior tar file!"))
+
+  ;; Notice when crypt.el has uncompressed while reading the file, and signal
+  ;; an error if the user tries to save back into the parent file (because
+  ;; it won't work - the .Z subfile it writes won't really be compressed.)
+  ;;
+  (if (and (boundp 'buffer-save-encrypted) buffer-save-encrypted)
+      (error "Don't know how to encrypt back into a tar file."))
+  (if (and (boundp 'buffer-save-compacted) buffer-save-compacted)
+      (error "Don't know how to compact back into a tar file."))
+  (if (and (boundp 'buffer-save-compressed) buffer-save-compressed)
+      (error "Don't know how to compress back into a tar file."))
+  (if (and (boundp 'buffer-save-gzipped) buffer-save-gzipped)
+      (error "Don't know how to gzip back into a tar file."))
+
   (save-excursion
   (let ((subfile (current-buffer))
 	(subfile-size (buffer-size))
@@ -1155,12 +1210,19 @@ Leaves the region wide."
 (setq auto-mode-alist
       (cons (cons tar-regexp 'tar-mode) auto-mode-alist))
 
-(or (boundp 'write-file-hooks) (setq write-file-hooks nil))
-(or (listp write-file-hooks)
-    (setq write-file-hooks (list write-file-hooks)))
-(or (memq 'maybe-write-tar-file write-file-hooks)
-    (setq write-file-hooks
-	  (cons 'maybe-write-tar-file write-file-hooks)))
+;; Note: the tar write-file-hook should go on the list *before* any other
+;; hooks which might write the file.  Since things like crypt-mode add things
+;; to the end of the write-file-hooks, this will normally be the case.
+
+;(or (boundp 'write-file-hooks) (setq write-file-hooks nil))
+;(or (listp write-file-hooks)
+;    (setq write-file-hooks (list write-file-hooks)))
+;(or (memq 'maybe-write-tar-file write-file-hooks)
+;    (setq write-file-hooks
+;	  (cons 'maybe-write-tar-file write-file-hooks)))
+
+(add-hook 'write-file-hooks 'maybe-write-tar-file)
+(add-hook 'after-write-file-hooks 'tar-subfile-after-write-file-hook)
 
 
 ;;; This is a hack.  For files ending in .tar, we want -*- lines to be

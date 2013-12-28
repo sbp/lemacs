@@ -10,6 +10,13 @@ static size_t getpagesize() { return( 4096 ); }
 #define HAVE_GETPAGESIZE
 #endif
   
+#ifdef HAVE_SYSCONF
+#include <sys/unistd.h>
+
+#define getpagesize() sysconf(_SC_PAGESIZE)
+
+#else /* not HAVE_SYSCONF */
+
 #ifndef HAVE_GETPAGESIZE
 
 #include <sys/param.h>
@@ -29,3 +36,4 @@ static size_t getpagesize() { return( 4096 ); }
 
 #endif /* not HAVE_GETPAGESIZE */
 
+#endif /* not HAVE_SYSCONF */

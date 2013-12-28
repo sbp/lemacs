@@ -1,5 +1,5 @@
 ;; Basic editing commands for Emacs
-;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -262,7 +262,7 @@ Don't use this in Lisp programs!
     (cond (arg (forward-line 1))
 	  (scroll-to-end (recenter -3)))))
 
-(defun mark-bob (&optional arg)
+(defun mark-beginning-of-buffer (&optional arg)
   "Push a mark at the beginning of the buffer; leave point where it is.
 With arg N, push mark N/10 of the way from the true beginning."
   (interactive "P")
@@ -274,8 +274,9 @@ With arg N, push mark N/10 of the way from the true beginning."
 		   (/ (+ 10 (* (buffer-size) (prefix-numeric-value arg))) 10))
 	       (point-min)))
   (zmacs-activate-region))
+(fset 'mark-bob 'mark-beginning-of-buffer)
 
-(defun mark-eob (&optional arg)
+(defun mark-end-of-buffer (&optional arg)
   "Push a mark at the end of the buffer; leave point where it is.
 With arg N, push mark N/10 of the way from the true end."
   (interactive "P")
@@ -288,6 +289,7 @@ With arg N, push mark N/10 of the way from the true end."
 		      (/ (* (buffer-size) (prefix-numeric-value arg)) 10)))
 	       (point-max)))
   (zmacs-activate-region))
+(fset 'mark-eob 'mark-end-of-buffer)
 
 (defun mark-whole-buffer ()
   "Put point at beginning and mark at end of buffer."
@@ -410,8 +412,11 @@ Other major modes are defined by comparison with this one."
 ;; for the sake of completion of names like eval-region, eval-current-buffer.
 (defun eval-expression (expression)
   "Evaluate EXPRESSION and print value in minibuffer.
-Value is also consed on to front of variable  values  's value."
-  (interactive "xEval: ")
+Value is also consed on to front of the variable `values'."
+  (interactive (list (read-from-minibuffer "Eval: "
+					   nil
+                                           read-expression-map t
+					   'minibuffer-sexp-history)))
   (setq values (cons (eval expression) values))
   (prin1 (car values) t))
 
@@ -419,37 +424,40 @@ Value is also consed on to front of variable  values  's value."
   "Prompting with PROMPT, let user edit COMMAND and eval result.
 COMMAND is a Lisp expression.  Let user edit that expression in
 the minibuffer, then read and evaluate the result."
-  (let ((command (read-minibuffer prompt
-				  (prin1-to-string command))))
+  (let ((command (read-from-minibuffer prompt
+				       (prin1-to-string command)
+				       read-expression-map t
+				       'minibuffer-sexp-history)))
     ;; Add edited command to command history, unless redundant.
     (or (equal command (car command-history))
 	(setq command-history (cons command command-history)))
     (eval command)))
 
-;; (defvar repeat-complex-command nil)
-
-(defvar repeat-complex-command-map (copy-keymap minibuffer-local-map))
-(define-key repeat-complex-command-map "\ep" 'previous-complex-command)
-(define-key repeat-complex-command-map "\en" 'next-complex-command)
-(defun repeat-complex-command (repeat-complex-command-arg)
+(defun repeat-complex-command (arg)
   "Edit and re-evaluate last complex command, or ARGth from last.
 A complex command is one which used the minibuffer.
 The command is placed in the minibuffer as a Lisp form for editing.
 The result is executed, repeating the command as changed.
 If the command has been changed or is not the most recent previous command
 it is added to the front of the command history.
-Whilst editing the command, the following commands are available:
-\\{repeat-complex-command-map}"
+You can use the minibuffer history commands \\<minibuffer-local-map>\\[next-history-element] and \\[previous-history-element]
+to get different commands to edit and resubmit."
   (interactive "p")
-  (let ((elt (nth (1- repeat-complex-command-arg) command-history))
-	(repeat-complex-command-flag t)
+  (let ((elt (nth (1- arg) command-history))
+	(minibuffer-history-position arg)
+	(minibuffer-history-sexp-flag t)
 	newcmd)
     (if elt
 	(progn
-	  (setq newcmd (read-from-minibuffer "Redo: "
-					     (prin1-to-string elt)
-					     repeat-complex-command-map
-					     t))
+	  (setq newcmd (read-from-minibuffer "Redo: " 
+			(condition-case ()
+			    (let ((print-readably t)) (prin1-to-string elt))
+			  (error (prin1-to-string elt)))
+			read-expression-map t (cons 'command-history arg)))
+	  ;; If command was added to command-history as a string,
+	  ;; get rid of that.  We want only evallable expressions there.
+	  (if (stringp (car command-history))
+	      (setq command-history (cdr command-history)))
 	  ;; If command to be redone does not match front of history,
 	  ;; add it to the history.
 	  (or (equal newcmd (car command-history))
@@ -457,28 +465,7 @@ Whilst editing the command, the following commands are available:
 	  (eval newcmd))
       (ding))))
 
-(defun next-complex-command (n)
-  "Inserts the next element of `command-history' into the minibuffer."
-  (interactive "p")
-  (let ((narg (min (max 1 (- repeat-complex-command-arg n))
-		   (length command-history))))
-    (if (= repeat-complex-command-arg narg)
-	(error (if (= repeat-complex-command-arg 1)
-		   "No following item in command history"
-		 "No preceding item in command history"))
-      (erase-buffer)
-      (setq repeat-complex-command-arg narg)
-      (insert (prin1-to-string (nth (1- repeat-complex-command-arg)
-				    command-history)))
-      (goto-char (point-min)))))
-
-(defun previous-complex-command (n)
-  "Inserts the previous element of `command-history' into the minibuffer."
-  (interactive "p")
-  (if repeat-complex-command-flag
-      (next-complex-command (- n))
-    (repeat-complex-command 1)))
-
+
 (defun goto-line (arg)
   "Goto line ARG, counting from line 1 at beginning of buffer."
   (interactive "NGoto line: ")
@@ -532,7 +519,7 @@ If COMMAND ends in ampersand, execute it asynchronously.
 Optional second arg non-nil (prefix arg, if interactive)
 means insert output in current buffer after point (leave mark after it).
 This cannot be done asynchronously."
-  (interactive (list (read-string "Shell command: " last-shell-command)
+  (interactive (list (read-shell-command "Shell command: " last-shell-command)
 		     current-prefix-arg))
   (if flag
       (progn (barf-if-buffer-read-only)
@@ -565,8 +552,8 @@ even though that buffer is not automatically displayed.  If there is no output
 or output is inserted in the current buffer then `*Shell Command Output*' is
 deleted." 
   (interactive (list (min (point) (mark)) (max (point) (mark))
-		     (read-string "Shell command on region: "
-				  last-shell-command-on-region)
+		     (read-shell-command "Shell command on region: "
+					 last-shell-command-on-region)
 		     current-prefix-arg
 		     (prefix-numeric-value current-prefix-arg)))
   (if flag
@@ -715,6 +702,16 @@ If the previous command was also a kill command,
 the text killed this time appends to the text killed last time
 to make one entry in the kill ring."
   (interactive "*r\np")
+;  (interactive
+;   (let ((region-hack (and zmacs-regions (eq last-command 'yank))))
+;     ;; This lets "^Y^W" work.  I think this is dumb, but zwei did it.
+;     (if region-hack (zmacs-activate-region))
+;     (prog1
+;	 (list (point) (mark) current-prefix-arg)
+;       (if region-hack (zmacs-deactivate-region)))))
+  (or (and beg end) (error (if zmacs-regions
+			       "The region is not active now"
+			     "The mark is not set now")))
   (if verbose (message "Killing %d characters"
 		       (- (max beg end) (min beg end))))
   (copy-region-as-kill beg end)
@@ -760,7 +757,8 @@ selection.")
       (progn
 	(setq this-command 'kill-region)
 	(message "If the next command is a kill, it will append"))
-    (setq last-command 'kill-region)))
+    (setq last-command 'kill-region))
+  (setq zmacs-region-stays t))
 
 (defun rotate-yank-pointer (arg)
   "Rotate the yanking point in the kill ring."
@@ -1551,7 +1549,6 @@ when close-paren is inserted.")
 ;      nil
 ;    (signal 'quit nil)))
 
-(define-key global-map "\C-g" 'keyboard-quit)
 
 (defun set-variable (var val)
   "Set VARIABLE to VALUE.  VALUE is a Lisp object.
@@ -1577,80 +1574,3 @@ If you want VALUE to be a string, you must surround it with doublequotes."
      (list var
 	   (eval-minibuffer (format "Set %s to value: " var)))))
   (set var val))
-
-;These commands are defined in editfns.c
-;but they are not assigned to keys there.
-(put 'narrow-to-region 'disabled t)
-(define-key ctl-x-map "n" 'narrow-to-region)
-(define-key ctl-x-map "w" 'widen)
-
-(define-key global-map "\C-j" 'newline-and-indent)
-(define-key global-map "\C-m" 'newline)
-(define-key global-map "\C-o" 'open-line)
-(define-key esc-map "\C-o" 'split-line)
-(define-key global-map "\C-q" 'quoted-insert)
-(define-key esc-map "^" 'delete-indentation)
-(define-key esc-map "\\" 'delete-horizontal-space)
-(define-key esc-map "m" 'back-to-indentation)
-(define-key ctl-x-map "\C-o" 'delete-blank-lines)
-(define-key esc-map " " 'just-one-space)
-(define-key esc-map "z" 'zap-to-char)
-(define-key esc-map "=" 'count-lines-region)
-(define-key ctl-x-map "=" 'what-cursor-position)
-(define-key esc-map "\e" 'eval-expression)
-(define-key ctl-x-map "\e" 'repeat-complex-command)
-(define-key ctl-x-map "u" 'advertised-undo)
-(define-key global-map "\C-_" 'undo)
-(define-key esc-map "!" 'shell-command)
-(define-key esc-map "|" 'shell-command-on-region)
-
-(define-key global-map "\C-u" 'universal-argument)
-(let ((i ?0))
-  (while (<= i ?9)
-    (define-key esc-map (char-to-string i) 'digit-argument)
-    (setq i (1+ i))))
-(define-key esc-map "-" 'negative-argument)
-
-(define-key global-map "\C-k" 'kill-line)
-(define-key global-map "\C-w" 'kill-region)
-(define-key esc-map "w" 'kill-ring-save)
-(define-key esc-map "\C-w" 'append-next-kill)
-(define-key global-map "\C-y" 'yank)
-(define-key esc-map "y" 'yank-pop)
-
-(define-key ctl-x-map "a" 'append-to-buffer)
-
-(define-key global-map "\C-@" 'set-mark-command)
-(define-key ctl-x-map "\C-x" 'exchange-point-and-mark)
-
-(define-key global-map "\C-n" 'next-line)
-(define-key global-map "\C-p" 'previous-line)
-(define-key ctl-x-map "\C-n" 'set-goal-column)
-
-(define-key global-map "\C-t" 'transpose-chars)
-(define-key esc-map "t" 'transpose-words)
-(define-key esc-map "\C-t" 'transpose-sexps)
-(define-key ctl-x-map "\C-t" 'transpose-lines)
-
-(define-key esc-map ";" 'indent-for-comment)
-(define-key esc-map "j" 'indent-new-comment-line)
-(define-key esc-map "\C-j" 'indent-new-comment-line)
-(define-key ctl-x-map ";" 'set-comment-column)
-(define-key ctl-x-map "f" 'set-fill-column)
-(define-key ctl-x-map "$" 'set-selective-display)
-
-(define-key esc-map "@" 'mark-word)
-(define-key esc-map "f" 'forward-word)
-(define-key esc-map "b" 'backward-word)
-(define-key esc-map "d" 'kill-word)
-(define-key esc-map "\177" 'backward-kill-word)
-
-(define-key esc-map "<" 'beginning-of-buffer)
-(define-key esc-map ">" 'end-of-buffer)
-(define-key ctl-x-map "h" 'mark-whole-buffer)
-(define-key esc-map "\\" 'delete-horizontal-space)
-
-(fset 'mode-specific-command-prefix (make-sparse-keymap))
-(defconst mode-specific-map (symbol-function 'mode-specific-command-prefix)
-  "Keymap for characters following C-c.")
-(define-key global-map "\C-c" 'mode-specific-command-prefix)

@@ -14,7 +14,6 @@
 static void Initialize();
 static void Resize();
 static void ChangeManaged();
-static void SetValues();
 static XtGeometryResult GeometryManager();
 static XtGeometryResult PreferredSize();
 static XtGeometryResult try_layout();
@@ -76,6 +75,8 @@ static void Initialize (request, new)
     if (request->core.height <= 0) new->core.height = 5;
 }
 
+static void do_layout (ColumnWidget);
+
 static void Resize (w)
      ColumnWidget w;
 {
@@ -83,6 +84,7 @@ static void Resize (w)
     do_layout (w);
 }
 
+static void
 do_layout (parent)
      ColumnWidget parent;
 {

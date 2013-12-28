@@ -140,10 +140,8 @@ set_marker_internal (marker, pos, buffer, restricted_p)
 	SET_PT (charno);	/* this will move the marker */
       else
 	{
-	  void internal_set_buffer (); /* in buffer.c */
-	  int count = specpdl_ptr - specpdl;
-	  /* bad news to pass non-lisp-object to this? */
-	  record_unwind_protect (internal_set_buffer, current_buffer);
+	  int count = specpdl_depth;
+	  record_unwind_protect (Fset_buffer, Fcurrent_buffer ());
 	  internal_set_buffer (b);
 	  SET_PT (charno);	/* this will move the marker */
 	  unbind_to (count);
@@ -205,6 +203,7 @@ set_marker_restricted (marker, pos, buffer)
    so we must be careful to ignore and preserve mark bits,
    including those in chain fields of markers.  */
 
+void
 unchain_marker (marker)
      register Lisp_Object marker;
 {
@@ -303,6 +302,7 @@ at that position in the current buffer.")
     }
 }
 
+void
 syms_of_marker ()
 {
   defsubr (&Smarker_position);

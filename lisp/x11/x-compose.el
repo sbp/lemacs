@@ -1,5 +1,5 @@
 ;; Compose-key processing in emacs.
-;; Copyright (C) 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -376,11 +376,13 @@
 (define-key compose-map "-Y"	[yen])
 (define-key compose-map "-y"	[yen])
 (define-key compose-map "-,"	[notsign])
+(define-key compose-map "-|"	[notsign])
 (define-key compose-map "-^"	[macron])
 (define-key compose-map "-+"	[plusminus])
+(define-key compose-map "-:"	[division])
 (define-key compose-map "-D"	[ETH])
 (define-key compose-map "-d"	[eth])
-(define-key compose-map "-:"	[division])
+(define-key compose-map "-a"    [ordfeminine])
 
 (define-key compose-map ".^"	[periodcentered])
 
@@ -514,6 +516,7 @@
 (define-key compose-map "aA"	"@")
 (define-key compose-map "aa"	"@")
 (define-key compose-map "a_"	[ordfeminine])
+(define-key compose-map "a-"    [ordfeminine])
 (define-key compose-map "a`"	[agrave])
 (define-key compose-map "a'"	[aacute])
 (define-key compose-map "a^"	[acircumflex])
@@ -580,6 +583,7 @@
 (define-key compose-map "u'"	[uacute])
 (define-key compose-map "u^"	[ucircumflex])
 (define-key compose-map "u\""	[udiaeresis])
+(define-key compose-map "u/"	[mu])
 
 (define-key compose-map "x0"	[currency])
 (define-key compose-map "xO"	[currency])
@@ -603,7 +607,8 @@
   (let* ((keys (apply 'vector
 		      (nreverse
 		       (cdr (nreverse (append (this-command-keys) nil))))))
-	 (map (or (key-binding keys) (error "can't find map?")))
+	 (map (or (key-binding keys)
+		  (error (format "can't find map?  %s" (this-command-keys)))))
 	 (event (allocate-event))
 	 old-ctl-arrow)
     (with-output-to-temp-buffer "*Help*"
@@ -622,6 +627,7 @@
 	(command-execute map)
       (setq unread-command-event event))))
 
+(put 'compose-help 'isearch-command t)	; so that it doesn't terminate isearch
 
 (defun compose-help-mapper (key binding)
   (if (and (symbolp key)
@@ -658,19 +664,20 @@
     (insert "\n")))
 
 ;; define it at top-level in the compose map...
-(define-key compose-map "\C-h" 'compose-help)
+(define-key compose-map '(control h) 'compose-help)
 (define-key compose-map 'help 'compose-help)
 ;; and then define it in each sub-map of the compose map.
 (map-keymap
  (function (lambda (key binding)
 	     (if (keymapp binding)
 		 (progn
-		   (define-key binding "\C-h" 'compose-help)
+		   (define-key binding '(control h) 'compose-help)
 		   (define-key binding 'help 'compose-help)))))
  compose-map nil)
 
 ;; Make display display the accented letters
-(setq ctl-arrow 'display-accented-letters)
+(if (memq (default-value 'ctl-arrow) '(t nil))
+    (setq-default ctl-arrow 'iso-8859/1))
 
 
 (provide 'x-compose)

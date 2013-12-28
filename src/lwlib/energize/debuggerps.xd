@@ -23,6 +23,11 @@ object '' : XmRowColumn {
 	XmNmarginHeight=0;
 	XmNorientation=2;
 	};
+object '' : XmLabel {
+	arguments {
+	name = 'target';
+	};
+};
 object '' : XmPushButton {
 	arguments {
 	name = 'start';
@@ -70,12 +75,22 @@ object '' : XmPushButton {
 };
 object '' : XmPushButton {
 	arguments {
+	name = 'frame';
+	};
+};
+object '' : XmPushButton {
+	arguments {
 	name = 'down';
 	};
 };
 object '' : XmPushButton {
 	arguments {
 	name = 'print';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'printStar';
 	};
 };
 };

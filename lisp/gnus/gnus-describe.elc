@@ -1,0 +1,22 @@
+;;; compiled by jwz@thalidomide on Sat Jan 16 01:48:04 1993
+;;; from file /cadillac-th/jwz/emacs19/lisp/gnus/gnus-describe.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 12-jan-93.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "À	ÂÃ#ˆÀ	ÄÅ#ˆÀÂÃ#ˆÀÂÃ#‡" [define-key gnus-Group-mode-map "i" gnus-Group-describe "I" gnus-Group-describe-all gnus-Subject-mode-map gnus-Browse-killed-mode-map] 4)
+(fset 'gnus-Group-describe #[(&optional group) "¬…Á ª‹<«‡ÂÃÅÆ$¬ƒÈ!«™Š	qˆdeV«‰ÊedËZ{!ª„ÊÌ\")‡ÊÍ\"‡" [group gnus-Group-group-name completing-read "Newsgroup: " gnus-newsrc-assoc nil require-match gnus-newsgroup-name nntp-request-xgtitle nntp-server-buffer message 1 "%s    no description." "cannot find description for %s."] 5 "\
+Describe current newsgroup.
+If optional argument GROUP is non-nil ask for a newsgroup, otherwise
+search around point for a newsgroup. If no newsgroup found take
+current newsgroup." "P"])
+(fset 'gnus-Group-describe-all #[nil "ÀÁÂ!!ˆÃ ˆÄÅ!«…Æ!ˆeb‡" [switch-to-buffer get-buffer-create " *GNUS newsgroup descriptions*" erase-buffer nntp-request-xgtitle "*" insert-buffer-substring nntp-server-buffer] 3 "\
+Describe all newsgroups." nil])
+(fset 'nntp-request-xgtitle #[(group) "ÀÁÂ#Ä ˆ‡" [nntp-send-command "^\\.$" "XGTITLE" group nntp-decode-text] 4 "\
+Get description of a group via XGTITLE NNRP-command."])

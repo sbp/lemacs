@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Jun 30 21:57:55 1992
-;;; from file /wg1/emacs-base/lisp/comint/telnet.el
-;;; emacs version 19.2.1 Lucid.
-;;; bytecomp version 2.07; 17-jun-92.
+;;; compiled by jwz@thalidomide on Mon Dec 28 15:55:15 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/comint/telnet.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.08; 13-dec-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,7 +10,11 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(byte-code "ÀÁ!ˆÂÃ!ˆÄÅÆ!¬ƒÇÆ!ˆÅÈ!¬ƒÉÅÊ!¬ƒË\nÄÅÌ!¬ƒÉÌ!ˆÄÅÍ!¬ƒÎÏÍĞÑ#ˆÍ!ˆÄÅÒ!¬ƒÓÏÒĞÔ#ˆÒ!‡" [require comint provide telnet make-variable-buffer-local boundp telnet-new-line "" telnet-mode-map nil telnet-prompt-pattern "^[^#$%>]*[#$%>] *" telnet-replace-c-g telnet-remote-echoes t put variable-documentation "True if the telnet process will echo input." telnet-interrupt-string "" "String sent by C-c."] 5)
+(byte-code "ÀÁ!ˆÂÃ!¬‚Ä¬¦Å ÆÃ\"ˆÇ\"ˆÉÊË#ˆÉÌÍ#ˆÉÎÏ#ˆÉĞÑ#ˆÂÒ!¬ƒÊÂÓ!¬ƒÄÂÔ!¬ƒÕÄ‡" [require comint boundp telnet-mode-map nil make-sparse-keymap set-keymap-name set-keymap-parent comint-mode-map define-key "" telnet-send-input "" telnet-send-process-next-char "" telnet-interrupt-subjob "" telnet-c-z telnet-new-line telnet-replace-c-g telnet-prompt-pattern "^[^#$%>]*[#$%>] *"] 4)
+(defvar telnet-remote-echoes t "\
+True if the telnet process will echo input.")
+(defvar telnet-interrupt-string "" "\
+String sent by C-c.")
 (defvar telnet-count 0 "\
 Number of output strings read from the telnet process
 while looking for the initial password.")
@@ -22,23 +26,28 @@ Maximum value telnet-count can have.
 After this many passes, we stop looking for initial setup data.
 Should be set to the number of terminal writes telnet will make
 rejecting one login and prompting for the again for a username and password.")
-(byte-code "ÀÁMˆÂÃMˆÄÅMˆ¬¢Ç!ÉÊË#ˆÉÌÄ#ˆÉÍÀ#ˆÉÎÂ#ˆÀ‡" [telnet-interrupt-subjob #[nil "ÀÁ\n\"‡" [send-string nil telnet-interrupt-string] 3 nil nil] telnet-c-z #[nil "ÀÁÂ\"‡" [send-string nil ""] 3 nil nil] send-process-next-char #[nil "ÀÁÂÃÅ Á)!\"‡" [send-string nil char-to-string t inhibit-quit read-char quit-flag] 5 nil nil] telnet-mode-map copy-keymap comint-mode-map define-key "" telnet-send-input "" "" ""] 4)
-(fset 'telnet-check-software-type-initialize #[(string) "ÀÂÃ\"«ˆÇªŸÂÉ\"«…Êª”ÂË\"«…Ìª‰ÂÍ\"«ƒÎ)‰‡" [t case-fold-search string-match "unix" string comint-prompt-regexp telnet-prompt-pattern "\n" telnet-new-line "tops-20" "[@>]*" "its" "^[^*>]*[*>] *" "explorer" 10 telnet-replace-c-g] 3 "\
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [telnet-interrupt-subjob #[nil "ÀÁ\n\"‡" [send-string nil telnet-interrupt-string] 3 nil nil] telnet-c-z #[nil "ÀÁÂ\"‡" [send-string nil ""] 3 nil nil] telnet-send-process-next-char #[nil "ÀÁÂÃÅ Á)!\"‡" [send-string nil char-to-string t inhibit-quit read-char quit-flag] 5 nil nil]] 2)
+(fset 'telnet-check-software-type-initialize #[(string) "ÀÂÃ\"«ˆÇªŸÂÉ\"«…Êª”ÂË\"«…Ìª‰ÂÍ\"«ƒÎ)ĞÑ!L‡" [t case-fold-search string-match "unix" string shell-prompt-pattern telnet-prompt-pattern "\n" telnet-new-line "tops-20" "[@>]*" "its" "^[^*>]*[*>] *" "explorer" 10 telnet-replace-c-g make-local-variable comint-prompt-regexp] 3 "\
 Tries to put correct initializations in.  Needs work."])
-(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇM‡" [telnet-initial-filter #[(proc string) "ÀÁ\n\"«ŠÃÄ!!ˆÆÇ!‡ÀÈ\n\"«™É\n\"ˆÊÌ ÊÏP\"*‡Ñ\n!ˆÉ\n\"ˆV«…ÓÉ\"‡T‰‡" [string-match "No such host" string kill-buffer process-buffer proc error "No such host." "passw" telnet-filter 0 echo-keystrokes read-password password telnet-count send-string telnet-new-line telnet-check-software-type-initialize telnet-maximum-count set-process-filter] 4] telnet-filter #[(proc string) "ŠÀ	!qˆÂÃ	!!‰`ZbˆÆ!ˆÃ	!`È“ˆÉÊË#«†ÌÍ!ˆªsÃ	!bˆ«‰Ï`ĞË%ˆÃ	!\\b+‡" [process-buffer proc marker-position process-mark last-insertion delta insert-before-markers string nil search-backward "" t delete-char 1 telnet-replace-c-g subst-char-in-region 7] 7] telnet-send-input #[nil "Àp!Á‰«˜`Æ!Y«‘Š«ƒÁˆÈÆ!!`)É «…\nT|ˆ+‡" [get-buffer-process nil p2 p1 proc telnet-remote-echoes process-mark comint-eol-on-send marker-position comint-send-input] 3 nil nil] telnet-input-sender #[(proc string) "À	\n\"ˆÀ	\"‡" [comint-send-string proc string telnet-new-line] 3]] 2)
-(fset 'telnet #[(arg) "ÁPÃÄ\nÅ\"!ˆÆÇ\n!È\"ˆÉ ˆÊ\nËÌQ\"ˆÍ ˆ‰)‡" [arg "-telnet" name switch-to-buffer make-comint "telnet" set-process-filter get-process telnet-initial-filter erase-buffer send-string "open " "\n" telnet-mode telnet-initial-count telnet-count] 5 "\
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉM‡" [telnet-initial-filter #[(proc string) "ÀÁ\n\"«ŠÃÄ!!ˆÆÇ!‡ÀÈ\n\"«™É\n\"ˆÊÌ ÊÏP\"*‡Ñ\n!ˆÉ\n\"ˆV«…ÓÉ\"‡T‰‡" [string-match "No such host" string kill-buffer process-buffer proc error "No such host." "passw" telnet-filter 0 echo-keystrokes telnet-read-password password telnet-count send-string telnet-new-line telnet-check-software-type-initialize telnet-maximum-count set-process-filter] 4] telnet-filter #[(proc string) "ŠÀ	!qˆÂ ÄÅÆ	!!‰`Z	­„Å	!\nËp!‰­„Í!bˆÏ!ˆÆ	!`Ñ“ˆ«ˆÒÓ#ˆ\n«‡	\nÑ“ˆÔÕÓ#«†Ö×!ˆªrÆ	!bˆ«ŠÙ`ÚÓ%ˆÆ	!\\bˆÛÜ!­„Ü!.‡" [process-buffer proc match-data _match_data_ ((store-match-data _match_data_)) marker-position process-mark last-insertion delta comint-last-input-end ie get-buffer-window w window-start ws insert-before-markers string nil set-window-start t search-backward "" delete-char 1 telnet-replace-c-g subst-char-in-region 7 fboundp shell-hack-prompt-font] 7] telnet-read-password #[nil "ÀÁÄÅ!ˆÆ ‰ÇU¬\nÈU¬ˆÉ\n!PªkÄÀ!ˆ*‡" ["" nil tem answ message "Reading password..." read-char 13 10 char-to-string] 3] telnet-send-input #[nil "Àp!Á‰«˜`Æ!Y«‘Š«ƒÁˆÈÆ!!`)É «…\nT|ˆ+‡" [get-buffer-process nil p2 p1 proc telnet-remote-echoes process-mark comint-eol-on-send marker-position comint-send-input] 3 nil nil] telnet-input-sender #[(proc string) "À	\n\"ˆÀ	\"‡" [comint-send-string proc string telnet-new-line] 3]] 2)
+(fset 'telnet #[(hostname) "ÁPÃÄ\nÅ\"!ˆÆÇ\n!È\"ˆÉ ˆÊ\nËÌQ\"ˆÍ ˆ‰)‡" [hostname "-telnet" name switch-to-buffer make-comint "telnet" set-process-filter get-process telnet-initial-filter erase-buffer send-string "open " "\n" telnet-mode telnet-initial-count telnet-count] 5 "\
 Open a network login connection to host named HOST (a string).
 Communication with HOST is recorded in a buffer *HOST-telnet*.
-Normally input is edited in Emacs and sent a line at a time." "sOpen telnet connection to host: "])
-(fset 'telnet-mode #[nil "À ˆÁÃÇÉ\n!ˆËÌ!‡" [comint-mode telnet-mode major-mode "Telnet" mode-name telnet-prompt-pattern comint-prompt-regexp telnet-input-sender comint-input-sender use-local-map telnet-mode-map run-hooks telnet-mode-hook] 2 "\
-This mode is for use during telnet from a buffer to another
+Normally input is edited in Emacs and sent a line at a time.
+See also `\\[rsh]'." "sOpen telnet connection to host: "])
+(fset 'rsh #[(hostname) "ÁPÃÄ\nÅÆ$!ˆÇÈ\n!É\"ˆÊ ˆËÌ!ˆ‰)‡" [hostname "-rsh" name switch-to-buffer make-comint "rsh" nil set-process-filter get-process telnet-initial-filter telnet-mode telnet-check-software-type-initialize "unix" telnet-initial-count telnet-count] 6 "\
+Open a network login connection to host named HOST (a string).
+Communication with HOST is recorded in a buffer *HOST-rsh*.
+Normally input is edited in Emacs and sent a line at a time.
+See also `\\[telnet]'." "sOpen rsh connection to host: "])
+(fset 'telnet-mode #[nil "À ˆÁÃÇÉÅ!ˆÉÊ!ˆÉË!ˆÉÌ!ˆÉÍ!ˆÉÎ!ˆÏ!ˆÑÒ!‡" [comint-mode telnet-mode major-mode "Telnet" mode-name telnet-prompt-pattern comint-prompt-regexp telnet-input-sender comint-input-sender make-local-variable telnet-new-line telnet-replace-c-g telnet-remote-echoes telnet-interrupt-string telnet-count use-local-map telnet-mode-map run-hooks telnet-mode-hook] 2 "\
+This mode is for use during telnet or rsh from a buffer to another
 host. It has most of the same commands as comint-mode.
 There is a variable ``telnet-interrupt-string'' which is the character
 sent to try to stop execution of a job on the remote host.
 Data is sent to the remote host when RET is typed.
-
 \\{telnet-mode-map}
 
 Bugs:
 --Replaces  by a space, really should remove." nil])
-(fset 'read-password #[nil "ÀÁÄÅ!ˆÆ ‰ÇU¬\nÈU¬ˆÉ\n!PªkÄÀ!ˆ*‡" ["" nil tem answ message "Reading password..." read-char 13 10 char-to-string] 3])
+(provide 'telnet)

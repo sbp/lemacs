@@ -24,6 +24,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "buffer.h"
 #include "commands.h"
 #include "regex.h"
+#include "insdel.h"
 
 #ifndef FETCH_CHAR
 # ifdef CHAR_AT
@@ -38,7 +39,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
-unsigned char downcase_table[01000] = {0};	/* folds upper to lower case */
+/* folds upper to lower case */
+static unsigned char downcase_table[01000] = {0};
 	      /* A WHEEL WILL FALL OFF IF, IN A trt, CHARACTER A */
 	      /* TRANSLATES INTO CHARACTER B AND CHARACTER B DOES NOT */
 	      /* ALSO TRANSLATE INTO CHARACTER B. */ 
@@ -58,11 +60,10 @@ unsigned char downcase_table[01000] = {0};	/* folds upper to lower case */
 
 struct re_pattern_buffer searchbuf;
 
-char search_fastmap[0400];
+static char search_fastmap[0400];
 
 /* Last regexp we compiled */
-
-Lisp_Object last_regexp;
+static Lisp_Object last_regexp;
 
 /* Every call to re_match, etc., must pass &search_regs as the regs argument
  unless you can show it is unnecessary (i.e., if re_match is certainly going
@@ -76,6 +77,7 @@ Lisp_Object Qinvalid_regexp;
 
 /* Compile a regexp and signal a Lisp error if anything goes wrong.  */
 
+void
 compile_pattern (pattern, bufp, translate)
      Lisp_Object pattern;
      struct re_pattern_buffer *bufp;
@@ -105,7 +107,7 @@ compile_pattern (pattern, bufp, translate)
 /* Error condition used for failing searches */
 Lisp_Object Qsearch_failed;
 
-Lisp_Object
+static Lisp_Object
 signal_failure (arg)
      Lisp_Object arg;
 {
@@ -201,6 +203,7 @@ matched by parenthesis constructs in the pattern.")
   return make_number (val);
 }
 
+int
 scan_buffer (target, pos, cnt, shortage)
      int *shortage, pos;
      register int cnt, target;
@@ -284,6 +287,8 @@ find_next_newline (from, cnt)
   return (scan_buffer ('\n', from, cnt, (int *) 0));
 }
 
+static void skip_chars (int, Lisp_Object, Lisp_Object);
+
 DEFUN ("skip-chars-forward", Fskip_chars_forward, Sskip_chars_forward, 1, 2, 0,
   "Move point forward, stopping before a char not in CHARS, or at position LIM.\n\
 CHARS is like the inside of a [...] in a regular expression\n\
@@ -307,6 +312,7 @@ See skip-chars-forward for details.")
   return Qnil;
 }
 
+static void
 skip_chars (forwardp, string, lim)
      int forwardp;
      Lisp_Object string, lim;
@@ -332,7 +338,7 @@ skip_chars (forwardp, string, lim)
 
   p = XSTRING (string)->data;
   pend = p + XSTRING (string)->size;
-  bzero (fastmap, sizeof fastmap);
+  memset (fastmap, 0, sizeof fastmap);
 
   if (p != pend && *p == '^')
     {
@@ -385,6 +391,8 @@ skip_chars (forwardp, string, lim)
 }
 
 /* Subroutines of Lisp buffer search functions. */
+
+static int search_buffer (Lisp_Object, int, int, int, int, unsigned char *);
 
 static Lisp_Object
 search_command (string, bound, noerror, count, direction, RE)
@@ -455,6 +463,7 @@ search_command (string, bound, noerror, count, direction, RE)
 /* INTERFACE CHANGE ALERT!!!!  search_buffer now returns -x if only */
 /* n-x occurences are found. */
 
+static int
 search_buffer (string, pos, lim, n, RE, trt)
      Lisp_Object string;
      int pos;
@@ -840,7 +849,8 @@ wordify (string)
   if (SYNTAX (p[len-1]) == Sword) word_count++;
   if (!word_count) return build_string ("");
 
-  val = make_string (p, len - punct_count + 5 * (word_count - 1) + 4);
+  val = make_string ((char *) p,
+		     len - punct_count + 5 * (word_count - 1) + 4);
 
   o = XSTRING (val)->data;
   *o++ = '\\';
@@ -1169,7 +1179,7 @@ LIST should have been created by calling match-data previously.")
   register Lisp_Object marker;
 
   if (!CONSP (list) && !NILP (list))
-    list = wrong_type_argument (Qconsp, list, 0);
+    list = wrong_type_argument (Qconsp, list);
 
   for (i = 0; i < RE_NREGS; i++)
     {
@@ -1233,7 +1243,7 @@ DEFUN ("regexp-quote", Fregexp_quote, Sregexp_quote, 1, 1, 0,
       *out++ = *in;
     }
 
-  return make_string (temp, out - temp);
+  return make_string ((char *) temp, out - temp);
 }
 
 /* This code should be unzapped when there comes to be multiple */
@@ -1261,6 +1271,7 @@ compute_trt_inverse (trt)
 }
 */
   
+void
 syms_of_search ()
 {
   register int i;

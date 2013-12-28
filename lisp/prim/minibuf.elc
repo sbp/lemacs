@@ -1,0 +1,216 @@
+;;; compiled by jwz@thalidomide on Wed Jan 20 03:19:54 1993
+;;; from file /u/jwz/emacs19/lisp/prim/minibuf.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 16-jan-93.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar insert-default-directory t "\
+*Non-nil means when reading a filename start with default dir in minibuffer.")
+(defvar minibuffer-completion-table nil "\
+Alist or obarray used for completion in the minibuffer.
+This becomes the ALIST argument to `try-completion' and `all-completions'.
+
+The value may alternatively be a function, which is given three arguments:
+  STRING, the current buffer contents;
+  PREDICATE, the predicate for filtering possible matches;
+  CODE, which says what kind of things to do.
+CODE can be nil, t or `lambda'.
+nil means to return the best completion of STRING, nil if there is none,
+  or t if it is was already a unique completion.
+t means to return a list of all possible completions of STRING.
+`lambda' means to return t if STRING is a valid completion as it stands.")
+(defvar minibuffer-completion-predicate nil "\
+Within call to `completing-read', this holds the PREDICATE argument.")
+(defvar minibuffer-completion-confirm nil "\
+Non-nil => demand confirmation of completion before exiting minibuffer.")
+(defvar minibuffer-confirm-incomplete nil "\
+If true, then in contexts where completing-read allows answers which
+are not valid completions, an extra RET must be typed to confirm the
+response.  This is helpful for catching typos, etc.")
+(defvar completion-auto-help t "\
+*Non-nil means automatically provide help for invalid completion input.")
+(defvar enable-recursive-minibuffers nil "\
+*Non-nil means to allow minibuffer commands while in the minibuffer.
+More precisely, this variable makes a difference when the minibuffer window
+is the selected window.  If you are in some other window, minibuffer commands
+are allowed even if a minibuffer is active.")
+(defvar minibuffer-help-form nil "\
+Value that `help-form' takes on inside the minibuffer.")
+(defvar minibuffer-local-map (byte-code "À Â	Ã\"ˆ	)‡" [make-sparse-keymap map set-keymap-name minibuffer-local-map] 3) "\
+Default keymap to use when reading from the minibuffer.")
+(defvar minibuffer-local-completion-map (byte-code "À Â	Ã\"ˆÄ	\"ˆ	)‡" [make-sparse-keymap map set-keymap-name minibuffer-local-completion-map set-keymap-parent minibuffer-local-map] 3) "\
+Local keymap for minibuffer input with completion.")
+(defvar minibuffer-local-must-match-map (byte-code "À Â	Ã\"ˆÄ	\"ˆ	)‡" [make-sparse-keymap map set-keymap-name minibuffer-must-match-map set-keymap-parent minibuffer-local-completion-map] 3) "\
+Local keymap for minibuffer input with completion, for exact match.")
+(byte-code "À	ÂÃ#ˆÀ	ÄÅ#ˆÀ	ÆÅ#ˆÀÈÉ#ˆÀÊË#ˆÀÌÍ#ˆÀÄÏ#ˆÀÆÏ#ˆÀ	ĞÑ#ˆÀ	ÒÓ#ˆÀ	ÔÑ#ˆÀ	ÕÓ#ˆÀ	Ö×#ˆÀ	ØÙ#‡" [define-key minibuffer-local-map "" abort-recursive-edit "" exit-minibuffer "\n" minibuffer-local-completion-map "	" minibuffer-complete " " minibuffer-complete-word "?" minibuffer-completion-help minibuffer-local-must-match-map minibuffer-complete-and-exit "î" next-history-element "ğ" previous-history-element [next] [prior] "ò" previous-matching-history-element "ó" next-matching-history-element] 4)
+(defvar read-expression-map (byte-code "À Â	\"ˆÄ	Å\"ˆ	)‡" [make-sparse-keymap map set-keymap-parent minibuffer-local-map set-keymap-name read-expression-map] 3) "\
+Minibuffer keymap used for reading Lisp expressions.")
+(define-key read-expression-map "‰" 'lisp-complete-symbol)
+(defvar read-shell-command-map (byte-code "À Â	\"ˆÄ	Å\"ˆÆ	ÇÈ#ˆÆ	ÉÈ#ˆÆ	ÊË#ˆ	)‡" [make-sparse-keymap map set-keymap-parent minibuffer-local-map set-keymap-name read-shell-command-map define-key "	" comint-dynamic-complete "‰" "¿" comint-dynamic-list-completions] 4) "\
+Minibuffer keymap used by shell-command and related commands.")
+(fset 'reset-buffer #[(buffer) "ŠqˆÁ ˆÂÄ ˆÂÂÇÂ!ˆÂÂ	ÊÂ\"ˆ)‡" [buffer kill-all-local-variables nil buffer-read-only erase-buffer buffer-file-name buffer-file-truename set-buffer-modified-p buffer-backed-up buffer-auto-save-file-name set-buffer-dedicated-screen] 3])
+(fset 'read-from-minibuffer #[(prompt &optional initial-contents keymap readp history) "¬‘Á ÂV«‹Ã Ä =«„ÅÆ!ˆ«¡9«È!¬–ÅÉ\"ˆªÈ@!¬‡ÅÉ@\"ˆÊ «†ËÌ\"ˆÃ Ä Á Â=«†Ò!ª‡ÓÔÕÁ \"!×‹,‡" [enable-recursive-minibuffers minibuffer-depth 0 selected-window minibuffer-window error "Command attempted to use minibuffer while in minibuffer" history boundp "History list %S is unbound" noninteractive message "%s" prompt default-directory dir owindow window window-buffer get-buffer-create format " *Minibuf-%d" buffer ((byte-code "qˆÁ!ˆ\nÄÅ!ˆÆÄÇ!ˆÈÉ\n\"ˆË\n!ˆÌ\nÍ\"ˆÎ ˆÏ!ˆĞÑ!ˆ«•:«Œ@cˆAbˆª„cˆÓ®‚!ˆp¬ƒÙªŒ:«…@ª‚:«…AªÍàáâÆ=«†ãäÑ\"ªÁqˆå J&'&Æ=¬¡'«'&@š¬•';«‡'GèW¬‰'&BLˆ)«‡ê'!@ª‚'*.‡" [buffer reset-buffer dir default-directory make-local-variable print-escape-newlines t mode-motion-hook minibuf-mouse-tracker set-window-buffer window select-window set-window-hscroll 0 erase-buffer buffer-enable-undo message nil initial-contents use-local-map keymap minibuffer-local-map current-prefix-arg minibuffer-help-form history minibuffer-history owindow minibuffer-scroll-window minibuffer-history-position minibuffer-history-variable help-form mouse-grabbed-buffer ((byte-code "qˆÁ!ˆÂÄ ‡" [buffer buffer-disable-undo nil buffer-read-only erase-buffer] 2)) exit (byte-code "À Á V«ŠÂ‰Å!*‡Å!‡" [recursion-depth minibuffer-depth t standard-input standard-output read-minibuffer-internal prompt] 2) signal quit buffer-string list val 3 readp read-from-string] 6))] 4 "\
+Read a string from the minibuffer, prompting with string PROMPT.
+If optional second arg INITIAL-CONTENTS is non-nil, it is a string
+  to be inserted into the minibuffer before reading input.
+  If INITIAL-CONTENTS is (STRING . POSITION), the initial input
+  is STRING, but point is placed POSITION characters into the string.
+Third arg KEYMAP is a keymap to use whilst reading;
+  if omitted or nil, the default is `minibuffer-local-map'.
+If fourth arg READ is non-nil, then interpret the result as a lisp object
+  and return that object:
+  in other words, do `(car (read-from-string INPUT-STRING))'
+Fifth arg HIST, if non-nil, specifies a history list
+  and optionally the initial position in the list.
+  It can be a symbol, which is the history list variable to use,
+  or it can be a cons cell (HISTVAR . HISTPOS).
+  In that case, HISTVAR is the history list variable to use,
+  and HISTPOS is the initial position (the position in the list
+  which INITIAL-CONTENTS corresponds to).
+  If HIST is t, no history will be recorded.
+  Positions are counted starting from 1 at the beginning of the list."])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇM‡" [temp-minibuffer-message #[(m) "dŠdbˆ	cˆ)ÂÄÅ!ˆd|ˆ­?­ŠÈ	!Ê‰*‡" [savemax m t inhibit-quit sit-for 2 quit-flag unread-command-event character-to-event interrupt-char nil] 2] exact-minibuffer-completion-p #[(buffer-string) "¬‚Á‡Â!«ŸÃ\"‰¬ŠÆ˜­ÇÈ­‹	«†	!ªÊ)‡:«É@9¬Ä¬…Ì\"‡–Á«¨@@‰š¬š¬‡–š«‰ÏÁ‰ª^A‰¬X+Ï=‡	Ğ#‡" [minibuffer-completion-table nil vectorp intern-soft buffer-string tem "nil" found (byte-code "ÀÁ\n\"ˆÃ‡" [mapatoms #[(s) "À	!\n˜­„ÃÄÅ\"‡" [symbol-name s buffer-string throw found t] 3] minibuffer-completion-table nil] 3) minibuffer-completion-predicate t completion-ignore-case assoc tail s win lambda] 5] minibuffer-do-completion-1 #[(buffer-string completion) "¬‚Á‡Â=«‚Ã‡˜?‰«ˆÆ ˆcˆÇ!«‰«ƒÈªŠÉª‡«ƒÊªË)‡" [completion none t unique buffer-string completedp erase-buffer exact-minibuffer-completion-p completed-exact exact completed uncompleted] 3] minibuffer-do-completion #[(buffer-string) "À	\n#Å	\"ÉÊ=«‹ËÉÌ\"ˆÍÎ!ˆªºÏ=¬´	˜¬ˆĞ ˆcˆÑ=«	š«˜Ò ˆª“Ó=««…Ò ˆª„ÍÕ!ˆ+‡" [try-completion buffer-string minibuffer-completion-table minibuffer-completion-predicate completion minibuffer-do-completion-1 status last-exact-completion last nil none ding no-completion temp-minibuffer-message " [No match]" unique erase-buffer exact minibuffer-completion-help uncompleted completion-auto-help " [Next char not unique]"] 4]] 2)
+(fset 'completing-read #[(prompt table &optional predicate require-match initial-contents hist) "	\nÃ=?­ÃÄÉ\n\n¬„ª‚Ä%,‡" [table predicate require-match t nil last-exact-completion minibuffer-completion-confirm minibuffer-completion-predicate minibuffer-completion-table read-from-minibuffer prompt initial-contents minibuffer-local-completion-map minibuffer-local-must-match-map hist] 6 "\
+Read a string in the minibuffer, with completion.
+Args: PROMPT, TABLE, PREDICATE, REQUIRE-MATCH, INITIAL-CONTENTS, HIST.
+PROMPT is a string to prompt with; normally it ends in a colon and a space.
+TABLE is an alist whose elements' cars are strings, or an obarray.
+PREDICATE limits completion to a subset of TABLE.
+See `try-completion' for more details on completion, TABLE, and PREDICATE.
+If REQUIRE-MATCH is non-nil, the user is not allowed to exit unless
+ the input is (or completes to) an element of TABLE.
+ If it is also not t, Return does not exit if it does non-null completion.
+If INITIAL-CONTENTS is non-nil, insert it in the minibuffer initially.
+  If it is (STRING . POSITION), the initial input
+  is STRING, but point is placed POSITION characters into the string.
+HIST, if non-nil, specifies a history list
+  and optionally the initial position in the list.
+  It can be a symbol, which is the history list variable to use,
+  or it can be a cons cell (HISTVAR . HISTPOS).
+  In that case, HISTVAR is the history list variable to use,
+  and HISTPOS is the initial position (the position in the list
+  which INITIAL-CONTENTS corresponds to).
+  If HIST is t, no history will be recorded.
+  Positions are counted starting from 1 at the beginning of the list.
+Completion ignores case if the ambient value of
+  `completion-ignore-case' is non-nil."])
+(fset 'minibuffer-complete #[nil "ÀÁ !‰Ã=?­•\nÄ=«†ÅÆ!ˆª‰\nÇ=«„ÅÈ!ˆÉ)‡" [minibuffer-do-completion buffer-string status none unique temp-minibuffer-message " [Sole completion]" exact " [Complete, but not unique]" t] 3 "\
+Complete the minibuffer contents as far as possible." nil])
+(fset 'minibuffer-complete-and-exit #[nil "edU«…ÀÁÂ\"ˆÃ Ä!«…ÀÁÂ\"ˆÅ!‰Ç=¬È=¬—É=¬†Ê=­«‡ÌÍ!ˆÂª„ÀÁÂ\"*‡" [throw exit nil buffer-string exact-minibuffer-completion-p minibuffer-do-completion status unique exact completed-exact completed-exact-unique minibuffer-completion-confirm temp-minibuffer-message " [Confirm]"] 4 "\
+Complete the minibuffer contents, and maybe exit.
+Exit if the name is valid with no completion needed.
+If name was completed to a valid match,
+a repetition of this command will exit." nil])
+(fset 'self-insert-and-exit #[nil "À ˆÁÂÃ\"‡" [self-insert-command throw exit nil] 3 "\
+Terminate minibuffer input." nil])
+(fset 'exit-minibuffer #[nil "¬…ÁÂÃ\"ˆÄ Å!«…ÁÂÃ\"ˆ¬ƒÇª‡È	#‰\nÇ=¬…Ë˜«…ÁÂÃ\"ˆÌ\n«ƒÍªÎ!ˆÏ ÇÒ!ˆÃ)š«‡ÁÂÃ\"ˆª”ÖÃ\"=«Š×!ˆÁÂÇ\"ˆØ!ˆ×!+‡" [minibuffer-confirm-incomplete throw exit nil buffer-string exact-minibuffer-completion-p minibuffer-completion-table t try-completion minibuffer-completion-predicate completion "" temp-minibuffer-message " [incomplete; confirm]" " [no completions; confirm]" allocate-event event inhibit-quit next-command-event quit-flag last-command-event interrupt-char event-to-character deallocate-event dispatch-event] 5 "\
+Terminate this minibuffer argument.
+If minibuffer-confirm-incomplete is true, and we are in a completing-read
+of some kind, and the contents of the minibuffer is not an existing
+completion, requires an additional RET before the minibuffer will be exited
+(assuming that RET was the character that invoked this command:
+the character in question must be typed again)." nil])
+(fset 'minibuffer-complete-word #[nil "À Á\n#Å\"‰Ç=«ÈÉÊ\"ˆËÌ!ˆÉ‚¼ Í=«ˆËÎ!ˆÏ‚¼ Ğ=¬†Ñ=«ÍÒ¨«ÖV«‰×!!®¯Ø=¬†Ù!®£Ú=¬†Û!®—«…İ ˆªËÑ=«ƒŞªß!ˆÉ*ª´à ˆcˆebˆGÉ!‰\"GW«™ãä«”ebˆ\"uˆåæÉÏ#«†`d|ˆªƒdbˆ*Ï+‡" [buffer-string try-completion minibuffer-completion-table minibuffer-completion-predicate completion minibuffer-do-completion-1 status none ding nil no-completion temp-minibuffer-message " [No match]" unique " [Sole completion]" t uncompleted exact #[(s) "ÀÁÂ‡" [nil (byte-code "À	\nP#­‡dbˆ\ncˆÅ‡" [try-completion buffer-string s minibuffer-completion-table minibuffer-completion-predicate t] 4) ((error))] 3] last-command-char char foo 0 char-to-string 32 " " 45 "-" completion-auto-help minibuffer-completion-help " [Complete, but not unique]" " [Ambiguous]" erase-buffer n len match (byte-code "À	\nW«™Ã	H–	H–\"«†	T‰ªjÆÇÈ\"ˆªbÉ‡" [0 n len char-equal buffer-string completion throw match nil t] 5) re-search-forward "\\W"] 5 "\
+Complete the minibuffer contents at most a single word.
+After one word is completed as much as possible, a space or hyphen
+is added, provided that matches some possible completion." nil])
+(fset 'display-completion-list #[(completions) "pÀ	!«ƒ	qˆ¬‡ÄÅ!ˆ‚U«†ÆÇ !ªÈ	Ê‰«Ì@‰;«…Gª¥:«™@;«“A@;«Œ@GA@G\\ª‡ÏĞÑD\"‰V«„TA*ª0)Ó\\	¥^‰ÕX«„ª	¥¦ÊU¬ˆ¥Tª…¥)Ä×!ˆÊWƒSÙ ˆÊ‰«í@ÊU¬š«ˆİÕ\"ˆªŞß!ˆT‰W¬q\\:«¡Ä@!ˆÄA@!ˆ¬¡@GA@G\\\\ªÄ!ˆ¬ˆG\\)›‰¬AT+‚¿ .­‚\nq*‡" [bufferp standard-output old-buffer completions princ "There are no possible completions of what you have typed." screen-width selected-screen 80 win-width 0 max-width count tail elt signal wrong-type-argument stringp len 2 cols 1 rows "Possible completions are:" r terpri tail2 column indent indent-to write-char 32] 5 "\
+Display the list of completions, COMPLETIONS, using `standard-output'.
+Each element may be just a symbol or string
+or may be a list of two strings to be printed as if concatenated."])
+(fset 'minibuffer-completion-help #[nil "ÀÁ!ˆÂÃ #‰¬ÇÈÉ\"ˆÊË!ˆÀÈ!ªÌÀÈ!ˆÍÎÏ\"!‘)‡" [message "Making completion list..." all-completions buffer-string minibuffer-completion-table minibuffer-completion-predicate completions ding nil no-completion temp-minibuffer-message " [No completions]" "*Completions*" display-completion-list sort string-lessp] 6 "\
+Display a list of possible completions of the current minibuffer contents." nil])
+(defvar minibuffer-history nil "\
+Default minibuffer history list.
+This is used for all minibuffer input except when an alternate history
+list is specified.")
+(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÂÀÄ!¬‚ÂÀÅ!¬‚ÂÀÆ!¬ƒÂÀÇ!¬ƒÂÀÈ!¬ƒÂÀÉ!¬ƒÂ	Â‡" [boundp minibuffer-history-search-history nil minibuffer-sexp-history minibuffer-command-history minibuffer-function-history minibuffer-variable-history minibuffer-buffer-history minibuffer-shell-command-history minibuffer-file-name-history] 2)
+(defvar minibuffer-history-sexp-flag nil "\
+Non-nil when doing history operations on `command-history'.
+More generally, indicates that the history list being acted on
+contains expressions rather than strings.")
+(defvar minibuffer-history-variable 'minibuffer-history "\
+History list symbol to add minibuffer values to.
+Each minibuffer output is added with
+  (set minibuffer-history-variable
+       (cons STRING (symbol-value minibuffer-history-variable)))")
+(fset 'previous-matching-history-element #[(regexp n) "JÁ\n‰Æ=«„ÇÈ!ˆ	ÊU¬ÌË	ÊW«ƒÌªË\\]G^‰U«ŒÇËU«ƒÍªÎ!ˆÏ«ˆÒS8!ª„S8\"«?	‰ÊW«ƒËªÌ\\‰	ª0Ó ˆS8«†Ò!ª‚cˆ)ebˆ+@@Ö=¬ˆ@@×=­†A‰‡" [minibuffer-history-variable nil minibuffer-history-position pos prevpos history t error "history is not being recorded in this context" n 0 1 -1 "No later matching history item" "No earlier matching history item" string-match regexp minibuffer-history-sexp-flag prin1-to-string erase-buffer elt command-history previous-matching-history-element next-matching-history-element] 6 "\
+Find the previous history element that matches REGEXP.
+(Previous history elements refer to earlier actions.)
+With prefix argument N, search for Nth previous match.
+If N is negative, find the next or Nth next match." (byte-code "ÀÁJÀ=«„ÅÆ!ˆÇÈÁ	ÁÊ%Ë!*D‡" [t nil minibuffer-history-sexp-flag enable-recursive-minibuffers minibuffer-history-variable error "history is not being recorded in this context" read-from-minibuffer "Previous element matching (regexp): " minibuffer-local-map minibuffer-history-search-history prefix-numeric-value current-prefix-arg] 6)])
+(fset 'next-matching-history-element #[(regexp n) "À	\n[\"‡" [previous-matching-history-element regexp n] 3 "\
+Find the next history element that matches REGEXP.
+(The next history element refers to a more recent action.)
+With prefix argument N, search for Nth next match.
+If N is negative, find the previous or Nth previous match." (byte-code "ÀÁJÀ=«„ÅÆ!ˆÇÈÁ	ÁÊ%Ë!*D‡" [t nil minibuffer-history-sexp-flag enable-recursive-minibuffers minibuffer-history-variable error "history is not being recorded in this context" read-from-minibuffer "Next element matching (regexp): " minibuffer-local-map minibuffer-history-search-history prefix-numeric-value current-prefix-arg] 6)])
+(fset 'next-history-element #[(n) "JÁ=«„ÂÃ!ˆÄZ]JG^U«‘ÂÈÉÄU«ƒÊªË#!ªÌ ˆ‰SJ8«†ÏĞÑª‚cˆ)db)‡" [minibuffer-history-variable t error "history is not being recorded in this context" 1 minibuffer-history-position n narg format "No %s item in %s" "following" "preceding" erase-buffer elt minibuffer-history-sexp-flag nil (byte-code "ÀÂ!)‡" [t print-readably prin1-to-string elt] 2) ((error (prin1-to-string elt)))] 6 "\
+Insert the next element of the minibuffer history into the minibuffer." "p"])
+(fset 'previous-history-element #[(n) "À	[!‡" [next-history-element n] 2 "\
+Inserts the previous element of the minibuffer history into the minibuffer." "p"])
+(fset 'read-minibuffer #[(prompt &optional initial-contents hist) "À	\nÄ®Æ%‡" [read-from-minibuffer prompt initial-contents minibuffer-local-map t hist minibuffer-sexp-history] 6 "\
+Return a Lisp object read using the minibuffer.
+Prompt with PROMPT.  If non-nil, optional second arg INITIAL-CONTENTS
+is a string to insert in the minibuffer before reading.
+Third arg HIST, if non-nil, specifies a history list."])
+(fset 'read-string #[(prompt &optional initial-contents hist) "À	\nÄ%‡" [read-from-minibuffer prompt initial-contents minibuffer-local-map nil hist] 6 "\
+Return a string from the minibuffer, prompting with string PROMPT.
+If non-nil, optional second arg INITIAL-CONTENTS is a string to insert
+in the minibuffer before reading.
+Third arg HIST, if non-nil, specifies a history list."])
+(fset 'eval-minibuffer #[(prompt &optional initial-contents hist) "ÀÁ\n#!‡" [eval read-minibuffer prompt initial-contents hist] 5 "\
+Return value of Lisp expression read using the minibuffer.
+Prompt with PROMPT.  If non-nil, optional second arg INITIAL-CONTENTS
+is a string to insert in the minibuffer before reading.
+Third arg HIST, if non-nil, specifies a history list."])
+(fset 'read-command #[(prompt) "ÀÁ\nÄÅÆÇ&!‡" [intern completing-read prompt obarray commandp t nil minibuffer-command-history] 8 "\
+Read the name of a command and return as a symbol.
+Prompts with PROMPT."])
+(fset 'read-function #[(prompt) "ÀÁ\nÄÅÆÇ&!‡" [intern completing-read prompt obarray fboundp t nil minibuffer-function-history] 8 "\
+Read the name of a function and return as a symbol.
+Prompts with PROMPT."])
+(fset 'read-variable #[(prompt) "ÀÁ\nÄÅÆÇ&!‡" [intern completing-read prompt obarray user-variable-p t nil minibuffer-variable-history] 8 "\
+Read the name of a user variable and return it as a symbol.
+Prompts with PROMPT.
+A user variable is one whose documentation starts with a `*' character."])
+(fset 'read-buffer #[(prompt &optional default require-match) "«‘ÁÂÄ!«…Å!ª#ªÆÇÈ \"É\nÌÉÉÎ&‰\nÏš«”¬…\nª‹«bĞ!«]\nÄ\n!«†Å\n!ª‚\n+‡" [default format "%s(default %s) " prompt bufferp buffer-name mapcar #[(b) "À	!	B‡" [buffer-name b] 2] buffer-list nil result alist completing-read require-match minibuffer-buffer-history "" get-buffer] 8 "\
+Read the name of a buffer and return as a string.
+Prompts with PROMPT.  Optional second arg DEFAULT is value to return if user
+enters an empty line.  If optional third arg REQUIRE-MATCH is non-nil,
+only existing buffer names are allowed."])
+(fset 'read-number #[(prompt &optional integers-only) "«ƒÁªÂÃ!¬ÃÆÇ!¬qÈ ˆªl*‡" [integers-only integerp numberp nil num pred (byte-code "À	\n­ƒÃ\n!ÄÅ‰%‡" [read-from-minibuffer prompt num prin1-to-string nil t] 6) ((invalid-read-syntax) (end-of-file)) beep] 3 "\
+Reads a number from the minibuffer."])
+(fset 'read-shell-command #[(prompt &optional initial-input) "À	\nÄÅ%‡" [read-from-minibuffer prompt initial-input read-shell-command-map nil minibuffer-shell-command-history] 6 "\
+Just like read-string, but uses read-shell-command-map:
+\\{read-shell-command-map}"])
+(byte-code "ÀÁMˆÂÃM‡" [un-substitute-in-file-name #[(string) "À	GÂ‰‰‰	Ê=«ƒ	ªÉË	\"¬ƒ	ª¿ÌË	Í•#«…TªrÎ\\Ï\"ÍÍW«š	HIˆTTÏ=«eTª`.‡" ["\\$" string nil ch o n new olen regexp system-type vax-vms string-match 1 0 make-string 36] 6] read-file-name-1 #[(history prompt dir default must-match initial-contents completer) "¬‚	Â!¬ƒÄª‘«‹ÆP!GTBªƒÆ!É=\nË&)‰¬…ÑÒ!ª«•:«…@ª‚š«„ª„Ô!*‡" [dir default-directory abbreviate-file-name insert-default-directory nil initial-contents un-substitute-in-file-name insert system-type vax-vms completion-ignore-case completing-read prompt completer must-match history val error "No file name specified" default substitute-in-file-name] 8]] 2)
+(fset 'read-file-name #[(prompt &optional dir default must-match initial-contents hist) "ÀÁ\n®È&‡" [read-file-name-1 minibuffer-file-name-history prompt dir default buffer-file-name must-match initial-contents read-file-name-internal] 8 "\
+Read file name, prompting with PROMPT and completing in directory DIR.
+Value is not expanded---you must call `expand-file-name' yourself.
+Value is subject to interpreted by substitute-in-file-name however.
+Default name to DEFAULT if user enters a null string.
+ (If DEFAULT is omitted, the visited file name is used.)
+Fourth arg MUST-MATCH non-nil means require existing file's name.
+ Non-nil and non-t means also require confirmation after completion.
+Fifth arg INITIAL-CONTENTS specifies text to start with.
+DIR defaults to current buffer's directory default."])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉM‡" [read-directory-name #[(prompt &optional dir default must-match initial-contents) "ÀÁ\n®È&‡" [read-file-name-1 minibuffer-file-name-history prompt dir default default-directory must-match initial-contents read-directory-name-internal] 8] read-file-name-internal-1 #[(string dir action completer) "ÀÁ\n\"¬À\nÃš?­\n‰«…Å\n!ª\n­„Ç!	\n‰«ˆË\"ª‚«†Í!ª\n&+‡Î”\n\nGU«„ª\nHĞU«…Tª‚ÑO\nÓSO\nÕ=«ƒÑªÛ\nÖ=«Œ×ØÙÚÖ!\"\"ªÉÚÖ!Ü\"‰;«¥ÀŞ\"«–ßÜ\"Ö=«ƒàªÃRªšáQª’Ö=«‹âÚ!!PªÑ*+‡" [string-match "[^$]\\(\\$\\$\\)*\\$\\([A-Za-z0-9_]*\\|{[^}]*\\)\\'" string "" orig substitute-in-file-name sstring file-name-directory specdir completer action expand-file-name dir file-name-nondirectory 2 start 123 nil env 0 head lambda t mapcar #[(p) "GÁV«‹ÁHÂU¬„ÃP‡ÃQ‡" [p 0 47 "$" head] 3] all-completions getenv e try-completion val "[^A-Za-z0-9_]" "${" "}" "$" un-substitute-in-file-name] 9] read-file-name-internal #[(string dir action) "À	\nÄ$‡" [read-file-name-internal-1 string dir action #[(action orig string specdir dir name) "Á=«‰\n??­àÃ!‡Å=«ŠÆÇÈ	\n\"\"‡¬„Í	\"‰Å=««ŒĞÍ	\");«‘Ç«‡Pª‚!ª‘Ç!‰\nš¬„ª‚))‡" [action lambda orig file-exists-p string t mapcar un-substitute-in-file-name file-name-all-completions name dir specdir default-directory file-name-completion val completion-ignored-extensions nil tem] 6]] 5] read-directory-name-internal #[(string dir action) "À	\nÄ$‡" [read-file-name-internal-1 string dir action #[(action orig string specdir dir name) "ÀÂÅ=«•??­ËÇ!­ÅÉ!šª¼Ê=«…Ë!ª²ÌÎ!\"‰;«‘Ğ«‡Pª‚!ª“Ğ!‰š¬„ª‚))*‡" ["./" standin #[(fn) "Áš«‹\nÃÅÁÅÆ%Bª‹ÃÅÇÈ!PÅÆ%	ÊÍ=«„	ªˆÎÏÎĞ	\"\"\")‡" [name "" standin directory-files dir nil directories "\\`" regexp-quote l mapcar fn system-type vax-vms delete "." ".."] 7] dirs action lambda orig file-directory-p string file-name-as-directory t #[(n) "À	\nš«ƒ\nªƒÃ	!!‡" [un-substitute-in-file-name n standin file-name-as-directory] 3] try-completion name #[(n) "	š«ƒ	C‡Â!C‡" [n standin file-name-as-directory] 2] val un-substitute-in-file-name specdir tem] 5]] 5] execute-extended-command #[(prefix-arg) "ÁÂ=«ƒÃª£Äš«ƒÅª›¨«†ÆÇ\"ª‘:«Œ@¨«‡ÆÇ@\"ªÈ!	)Ê	Ë\"‡" [prefix-arg read-command - "- M-x " (4) "C-u M-x " format "%d M-x " "M-x " this-command command-execute t] 4 nil "P"]] 2)
+(fset 'y-or-n-p-minibuf #[(prompt) "ÀÁ\n\"‰Ä ;ƒ  Æ‰ÉÊ\"ˆË!ˆÍ*«”ÉÎÏ!#ˆĞ!ˆÍÑÒÍ\"ˆÓ!­ƒÔ!‰­ƒÖ!‰«…—Ø=¬†Ù=«‰ÉÚ\"ˆÆª³Û=¬†Ü=«‰Éİ\"ˆÍªŞ!¬™ÉÎÏ!#ˆßÍà\"ˆá ˆ\n=«„â\nP*‚\n Ğ!ˆ+‡" [format "%s(y or n) " prompt p allocate-event event t inhibit-quit cursor-in-echo-area message "%s" next-command-event quit-flag nil "%s%s" single-key-description deallocate-event signal quit key-press-event-p event-key key event-to-character char 121 32 "%sYes" 110 delete "%sNo" button-release-event-p ding y-or-n-p discard-input "Please answer y or n.  "] 6 "\
+Ask user a \"y or n\" question.  Return t if answer is \"y\".
+Takes one argument, which is the string to display to ask the question.
+It should end in a space; `y-or-n-p' adds `(y or n) ' to it.
+No confirmation of the answer is requested; a single character is enough.
+Also accepts Space to mean yes, or Delete to mean no."])
+(fset 'yes-or-no-p-minibuf #[(prompt) "ÁP\n;«­Ã\nÄÅ#—‰Æ˜«…Å‰ªl\nÇ˜«…Ä‰ªbÈÄÉ\"ˆÊ ˆËÌ!ˆÍÎ!ˆªO\n)‡" [prompt "(yes or no) " p read-string nil t "yes" "no" ding yes-or-no-p discard-input message "Please answer yes or no." sleep-for 2] 5 "\
+Ask user a yes-or-no question.  Return t if answer is yes.
+Takes one argument, which is the string to display to ask the question.
+It should end in a space; `yes-or-no-p' adds `(yes or no) ' to it.
+The user must confirm the answer with RET,
+and can edit it until it as been confirmed."])
+(byte-code "ÀÁMˆÂÃM‡" [yes-or-no-p yes-or-no-p-minibuf y-or-n-p y-or-n-p-minibuf] 2)

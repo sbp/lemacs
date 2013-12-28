@@ -4,7 +4,7 @@
 ;; instead.
 ;;
 ;; This is loaded into a bare Emacs to make a dumpable one.
-;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -23,6 +23,9 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
+;; We don't want to have any undo records in the dumped Emacs.
+(buffer-disable-undo (get-buffer "*scratch*"))
+
 ;; lread.c has prepended "../lisp/prim" to load-path, which is how this file
 ;; has been found.  At this point, enough of emacs has been initialized that 
 ;; we can call directory-files and get the rest of the dirs (so that we can
@@ -31,11 +34,16 @@
 (setq load-path (nconc (directory-files "../lisp" t "^[^-.]" nil 'dirs-only)
 		       (cons "../lisp" load-path)))
 
+(setq load-warn-when-source-newer t ; set to nil at the end
+      load-warn-when-source-only t)
+
 (load "subr")
 (garbage-collect)
+(load "minibuf")
 (load "faces")		; must be loaded before any file that makes faces
 (garbage-collect)
 (load "loaddefs.el")  ;Don't get confused if someone compiled loaddefs by mistake.
+(load "keydefs.el")
 (garbage-collect)
 (load "simple")
 (garbage-collect)
@@ -84,13 +92,27 @@
 
 (if (fboundp 'x-create-screen)	; preload the X code, for faster startup.
     (progn
-      (load "screen")
-      (load "menubar")
-      (load "x-faces")
-      (load "x-iso8859-1")
-      (load "x-mouse")
-      (load "xselect")
+      (require 'screen)
+      (require 'menubar)
+      (require 'x-faces)
+      (require 'x-iso8859-1)
+      (require 'x-mouse)
+      (require 'xselect)
       ))
+
+(load "version.el")  ;Don't get confused if someone compiled version.el by mistake.
+
+(load "bytecomp-runtime")  ; needs version.el to know what emacs it's in.
+
+(if (fboundp (intern-soft "handle-energize-request"))
+    (load "energize/energize-load.el"))
+
+(garbage-collect)
+
+
+(setq load-warn-when-source-newer nil ; set to t at top of file
+      load-warn-when-source-only nil)
+
 
 ;If you want additional libraries to be preloaded and their
 ;doc strings kept in the DOC file rather than in core,
@@ -100,10 +122,6 @@
 ;For other systems, you must edit ../src/ymakefile.
 (if (load "site-load" t)
     (garbage-collect))
-
-(load "version.el")  ;Don't get confused if someone compiled version.el by mistake.
-
-(load "bytecomp-runtime")  ; needs version.el to know what emacs it's in.
 
 ;; Note: all compiled Lisp files loaded above this point
 ;; must be among the ones parsed by make-docfile
@@ -116,29 +134,32 @@
 (if (or (equal (nth 3 command-line-args) "dump")
 	(equal (nth 4 command-line-args) "dump"))
     (progn
-(message "Finding pointers to doc strings...")
-(if (fboundp 'dump-emacs)
-    (let ((name emacs-version))
-      (while (string-match "[^-+_.a-zA-Z0-9]+" name)
-	(setq name (concat (downcase (substring name 0 (match-beginning 0)))
-			   "-"
-			   (substring name (match-end 0)))))
-      (copy-file (expand-file-name "../etc/DOC")
-		 (concat (expand-file-name "../etc/DOC-") name)
-		 t)
-      (Snarf-documentation (concat "DOC-" name)))
-    (Snarf-documentation "DOC"))
-(message "Finding pointers to doc strings...done")
-))
+      (message "Finding pointers to doc strings...")
+      (if (fboundp 'dump-emacs)
+	  (let ((name emacs-version))
+	    (while (string-match "[^-+_.a-zA-Z0-9]+" name)
+	      (setq name (concat
+			  (downcase (substring name 0 (match-beginning 0)))
+			  "-"
+			  (substring name (match-end 0)))))
+	    (copy-file (expand-file-name "../etc/DOC")
+		       (concat (expand-file-name "../etc/DOC-") name)
+		       t)
+	    (Snarf-documentation (concat "DOC-" name)))
+	(Snarf-documentation "DOC"))
+      (message "Finding pointers to doc strings...done")
+;;      (Verify-documentation)
+      ))
+
 ;Note: You can cause additional libraries to be preloaded
 ;by writing a site-init.el that loads them.
 ;See also "site-load" above.
 (load "site-init" t)
 
-(if (fboundp (intern-soft "handle-energize-request"))
-    (load "energize/energize-load"))
-
 (garbage-collect)
+
+;; At this point, we're ready to resume undo recording for scratch.
+(buffer-enable-undo "*scratch*")
 
 (if (or (equal (nth 3 command-line-args) "dump")
 	(equal (nth 4 command-line-args) "dump"))
@@ -171,12 +192,24 @@
 ;; Avoid error if user loads some more libraries now.
 (setq purify-flag nil)
 
-(if (or (equal (nth 3 command-line-args) "run-temacs")
-	(equal (nth 4 command-line-args) "run-temacs"))
+(if (or (equal (elt command-line-args 3) "run-temacs")
+	(equal (elt command-line-args 4) "run-temacs"))
     (progn
-      (send-string-to-terminal "\nbootstrapping from temacs...\n")
-      (run-emacs-from-temacs)
+      (princ "\nSnarfing doc...\n" (function external-debugging-output))
+      (Snarf-documentation "DOC")
+;;      (Verify-documentation)
+      (princ "\nBootstrapping from temacs...\n"
+	     (function external-debugging-output))
+      (setq purify-flag nil)
+      (apply (function run-emacs-from-temacs)
+             (nthcdr (if (equal (elt command-line-args 3) "run-temacs")
+                         4 5)
+                     command-line-args))
+      ;; run-emacs-from-temacs doesn't actually return anyway.
       (kill-emacs)))
+
+;; Avoid error if user loads some more libraries now.
+(setq purify-flag nil)
 
 ;; For machines with CANNOT_DUMP defined in config.h,
 ;; this file must be loaded each time Emacs is run.

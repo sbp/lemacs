@@ -1,6 +1,6 @@
-;;; compiled by jwz@thalidomide on Fri Sep  4 02:47:58 1992
-;;; from file /wg1/emacs-base/lisp/prim/mode-motion.el
-;;; emacs version 19.2.21 Lucid.
+;;; compiled by jwz@thalidomide on Fri Nov 13 02:09:49 1992
+;;; from file /u/jwz/emacs19/lisp/prim/mode-motion.el
+;;; emacs version 19.3.4 Lucid.
 ;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
@@ -17,20 +17,25 @@ does some additional window-system-dependent things.  This hook is local
 to every buffer, and should normally be set up by major-modes which want
 to use special highlighting.  Every time the mouse moves over a window,
 the mode-motion-hook of the buffer of that window is run.")
-(byte-code "ÀÁ!ˆÂÃ!¬‚ÄÀÃ!ˆÅÆM‡" [make-variable-buffer-local mode-motion-hook boundp mode-motion-extent nil mode-motion-highlight-internal #[(event backward forward) "À	!‰«…Ã\n!ª‚Ä \n­ƒÆ\n!‰­ƒÈ	!‰	­¶Šqˆ	bˆÊËÌˆ`	ÊÍÎˆ«Ğ!«‰Ñ	`#ªŒÒ	`\"ÓÔ\"),‡" [event-window event window window-screen selected-screen screen window-buffer buffer event-point point nil (funcall backward) ((error)) (funcall forward) ((error)) mode-motion-extent extent-buffer set-extent-endpoints make-extent set-extent-attribute highlight] 5]] 2)
+(byte-code "ÀÁ!ˆÂÃ!¬‚ÄÀÃ!ˆÅÆM‡" [make-variable-buffer-local mode-motion-hook boundp mode-motion-extent nil mode-motion-highlight-internal #[(event backward forward) "À	!‰«…Ã\n!ª‚Ä \n­ƒÆ\n!‰­ƒÈ	!	­ØŠqˆ	«²	bˆÊËÌˆ`	ÊÍÎˆ«Ğ!«‰Ñ	`#ªªÒ	`\"ÓÔ\"ªœ­˜Ğ!­’Õ!Ö!=?­†Ñ×‰#),‡" [event-window event window window-screen selected-screen screen window-buffer buffer event-point point nil (funcall backward) ((error)) (funcall forward) ((error)) mode-motion-extent extent-buffer set-extent-endpoints make-extent set-extent-attribute highlight extent-start-position extent-end-position 1] 5]] 2)
 (fset 'mode-motion-highlight-line #[(event) "À	ÂÃ#‡" [mode-motion-highlight-internal event beginning-of-line end-of-line] 4 "\
 For use as the value of `mode-motion-hook' -- highlight line under mouse."])
-(fset 'mode-motion-highlight-word #[(event) "À	ÂÃ#‡" [mode-motion-highlight-internal event #[nil "ÀÂÃÆ!«‘Ç ˆÆ!«…Ç ˆªvÀuª”Æ!­Ç ˆÆ!«…Ç ˆªvÀu+‡" [nil symbolp "\\w" "[ 	]" white-space word-constituent looking-at backward-char] 2] #[nil "ÀÁ!‡" [mouse-track-end-of-word nil] 2]] 4 "\
+(fset 'mode-motion-highlight-word #[(event) "À	ÂÃ#‡" [mode-motion-highlight-internal event #[nil "ÀÀÂ=«ƒÃª‡	¬ƒÄªÅÆo«ƒÀª»É!«ŸÊ ˆo¬‹É!«…Ê ˆªro«‡É!?­šÀuª–É!­Ê ˆÉ!«…Ê ˆªuÀu+‡" [nil symbolp t "\\w\\|\\s_\\|\\s'" "\\w" "[^ 	\n]" "[ 	]" white-space word-constituent looking-at backward-char] 2] #[nil "ÀÁ!‡" [mouse-track-end-of-word nil] 2]] 4 "\
 For use as the value of `mode-motion-hook' -- highlight word under mouse."])
-(fset 'mode-motion-highlight-symbol #[(event) "À	ÂÃ#‡" [mode-motion-highlight-internal event #[nil "ÀÂÃÆ!«‘Ç ˆÆ!«…Ç ˆªvÈuª”Æ!­Ç ˆÆ!«…Ç ˆªvÈu+‡" [t symbolp "\\w\\|\\s_\\|\\s'" "[ 	]" white-space word-constituent looking-at backward-char nil] 2] #[nil "ÀÁ!‡" [mouse-track-end-of-word t] 2]] 4 "\
+(fset 'mode-motion-highlight-symbol #[(event) "À	ÂÃ#‡" [mode-motion-highlight-internal event #[nil "ÀÀ‰=«ƒÂª‡	¬ƒÃªÄÅo«ƒÈª»É!«ŸÊ ˆo¬‹É!«…Ê ˆªro«‡É!?­šÈuª–É!­Ê ˆÉ!«…Ê ˆªuÈu+‡" [t symbolp "\\w\\|\\s_\\|\\s'" "\\w" "[^ 	\n]" "[ 	]" white-space word-constituent nil looking-at backward-char] 2] #[nil "ÀÁ!‡" [mouse-track-end-of-word t] 2]] 4 "\
 For use as the value of `mode-motion-hook' -- highlight symbol under mouse."])
 (fset 'mode-motion-highlight-sexp #[(event) "À	ÂÃ#‡" [mode-motion-highlight-internal event #[nil "gzÀU?­…Á`Â\"b‡" [40 scan-sexps -1] 3] #[nil "gzÀU«ƒÁuˆÂ`Á\"b‡" [41 1 scan-sexps] 3]] 4 "\
 For use as the value of `mode-motion-hook' -- highlight form under mouse."])
-(byte-code "ÀÁMˆÂÃM‡" [minibuf-mouse-tracker #[(event) "Á=ÃÅÆ#)‡" [minibuffer-completion-table read-file-name-internal filename-kludge-p mode-motion-highlight-internal event #[nil "«ƒÁªÂ‰«ƒÄªÅÆÉ!«’Ê ˆÉ!«…Ê ˆªuËuª–É!­Ê ˆÉ!«…Ê ˆªuËu+‡" [filename-kludge-p nonwhite t symbolp "\\w\\|\\s_\\|\\s'" "\\w" "[ 	]" white-space word-constituent looking-at backward-char nil] 3] #[nil "`ÀÃ«ƒÅªÆ!ˆ\n`U¬„¬„\nbª–\n`{«„È	!É	\n#®‚\nb*‡" [nil string p mouse-track-end-of-word filename-kludge-p nonwhite t minibuffer-completion-table minibuf-select-kludge-filename try-completion minibuffer-completion-predicate] 4]] 4] minibuf-select-kludge-filename #[(string) "ŠqˆÁÂ !P)‡" [mouse-grabbed-buffer file-name-directory buffer-string string] 2]] 2)
-(fset 'minibuf-select-highlighted-completion #[(event) "ŠÀ	!ˆÂÃ	!!qˆ«‰Å!Æ!U««†ÈÉ!ˆª„ÈÊ!ˆÅ!Æ!{Ì=«†Í!qˆÏ ˆcˆ)ĞÑÒ\")‡" [minibuf-mouse-tracker event window-buffer event-window mode-motion-extent extent-start-position extent-end-position minibuffer-completion-table error "Highlighted words are valid completions. You may select one." "no completions" completion read-file-name-internal minibuf-select-kludge-filename mouse-grabbed-buffer erase-buffer throw exit nil] 3 "\
+(byte-code "ÀÁMˆÂÃM‡" [minibuf-mouse-tracker #[(event) "Á=ÃÅÆ#)‡" [minibuffer-completion-table read-file-name-internal filename-kludge-p mode-motion-highlight-internal event #[nil "«ƒÁªÂ‰Â=«ƒÄª‡¬ƒÅªÆÇ	o«ƒÊª»Ë	!«ŸÌ ˆo¬‹Ë	!«…Ì ˆªro«‡Ë	!?­šÊuª–Ë!­Ì ˆË!«…Ì ˆªuÊu+‡" [filename-kludge-p nonwhite t symbolp "\\w\\|\\s_\\|\\s'" "\\w" "[^ 	\n]" "[ 	]" white-space word-constituent nil looking-at backward-char] 3] #[nil "`ÀÃ«ƒÅªÆ!ˆ\n`U¬„¬„\nbª¿\n`{«„È	!É	\n#‰Æ=®¥	š«\n?®š\n;®•\nÌ!«‡Í	\"ª	!®‚\nb)*‡" [nil string p mouse-track-end-of-word filename-kludge-p nonwhite t minibuffer-completion-table minibuf-select-kludge-filename try-completion minibuffer-completion-predicate comp vectorp intern-soft] 5]] 4] minibuf-select-kludge-filename #[(string) "ŠqˆÁÂÃ !P!)‡" [mouse-grabbed-buffer expand-file-name file-name-directory buffer-string string] 3]] 2)
+(fset 'minibuf-select-highlighted-completion #[(event) "Á=Â‰ŠÆ!ˆÈÉ!!qˆ\n«‹Ë\n!Ì\n!U«„Íª¢Ë\n!Ì\n!{«„Î!Ï\nĞ‰#ˆqˆÒ ˆcˆ)«¡ÓÕ!\"‰«†Ø!ª‹«…ÙÚ!ªƒÙÛ!)ª˜Üİ !ˆ«ŒŞ!«‡dbˆß ª„àáÂ\"+‡" [minibuffer-completion-table read-file-name-internal nil command-p completion filename-kludge-p minibuf-mouse-tracker event window-buffer event-window mode-motion-extent extent-start-position extent-end-position t minibuf-select-kludge-filename set-extent-endpoints 1 mouse-grabbed-buffer erase-buffer lookup-key global-map vector current-mouse-event command call-interactively error "Highlighted words are valid completions.  You may select one." "no completions" select-window minibuffer-window file-directory-p minibuffer-completion-help throw exit] 5 "\
 Select the highlighted text under the mouse as a minibuffer response.
 When the minibuffer is being used to prompt the user for a completion,
 any valid completions which are visible on the screen will highlight
 when the mouse moves over them.  Clicking \\<minibuffer-local-map>\\[minibuf-select-highlighted-completion] will select the
-highlighted completion under the mouse." "e"])
+highlighted completion under the mouse.
+
+If the mouse is clicked while while not over a highlighted completion,
+then the global binding of \\[minibuf-select-highlighted-completion] will be executed instead.  In this
+way you can get at the normal global behavior of \\[minibuf-select-highlighted-completion] as well as
+the special minibuffer behavior." "e"])
 (byte-code "À	ÂÃ#ˆÄÅ!‡" [define-key minibuffer-local-map button2 minibuf-select-highlighted-completion provide mode-motion] 4)

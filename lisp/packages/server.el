@@ -1,5 +1,5 @@
 ;; Lisp code for GNU Emacs running as server process.
-;; Copyright (C) 1986, 1987 Free Software Foundation, Inc.
+;; Copyright (C) 1986-1993 Free Software Foundation, Inc.
 ;; Author William Sommerfeld, wesommer@athena.mit.edu.
 ;; Changes by peck@sun.com and by rms.
 
@@ -7,7 +7,7 @@
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -165,6 +165,7 @@ Prefix arg means just kill any existing server communications subprocess."
       ;; CLIENT is now a list (CLIENTNUM BUFFERS...)
       (setq server-clients (cons client server-clients))
       (switch-to-buffer (nth 1 client))
+      (make-screen-visible (selected-screen)) ; always raise?
       (message (substitute-command-keys
 		"When done with a buffer, type \\[server-edit].")))))
 

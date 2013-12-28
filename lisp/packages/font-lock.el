@@ -171,20 +171,24 @@ slow things down!")
 (defun font-lock-after-change-function (beg end old-len)
   ;; called when any modification is made to buffer text.
   (save-excursion
-    (goto-char beg)
-    (if (or (> old-len 0)		; Deletions mean the cache is invalid.
-	    (= (preceding-char) ?\n)	; Insertions at bol/bob mean that the
-	    (bobp))			; bol cache might be invalid.
-	(buffer-syntactic-context-flush-cache))
-    (goto-char end)
-    (end-of-line)
-    (setq end (point))
-    (goto-char beg)
-    (beginning-of-line)
-    (setq beg (point))
-    (font-lock-unfontify-region beg end)
-    (font-lock-fontify-region beg (1+ end))
-    (font-lock-hack-keywords beg end)))
+    (let ((data (match-data))
+	  (zmacs-region-stays zmacs-region-stays)) ; protect from change!
+      (goto-char beg)
+      (if (or (> old-len 0)		; Deletions mean the cache is invalid.
+	      (= (preceding-char) ?\n)	; Insertions at bol/bob mean that the
+	      (bobp))			; bol cache might be invalid.
+	  (buffer-syntactic-context-flush-cache))
+      (goto-char end)
+      (end-of-line)
+      (setq end (point))
+      (goto-char beg)
+      (beginning-of-line)
+      (setq beg (point))
+      (font-lock-unfontify-region beg end)
+      (font-lock-fontify-region beg (1+ end))
+      (font-lock-hack-keywords beg end)
+      ;; it would be bad if `insert' were to stomp the match data...
+      (store-match-data data))))
 
 
 ;;; Fontifying arbitrary patterns
@@ -265,6 +269,8 @@ can use \\[font-lock-fontify-buffer]."
   (let ((on-p (if (null arg)
 		  (not font-lock-mode)
 		(> (prefix-numeric-value arg) 0))))
+    (if (equal (buffer-name) " *Compiler Input*") ; hack for bytecomp...
+	(setq on-p nil))
     (or (memq after-change-function
 	      '(nil font-lock-after-change-function))
 	(error "after-change-function is %s" after-change-function))
@@ -318,7 +324,10 @@ This can take a while for large buffers."
 ;;; This stuff really belongs in lisp-mode.el and c-mode.el.
 
 (defconst lisp-font-lock-keywords
- '(("^(def[-a-z]+\\s +\\(\\S +\\)" 1 font-lock-function-name-face)
+ '(;; highlight defining forms.  This doesnt work too nicely for
+   ;; (defun (setf foo) ...) but it does work for (defvar foo) which
+   ;; is more important.
+   ("^(def[-a-z]+\\s +\\([^ \t\n\)]+\\)" 1 font-lock-function-name-face)
    ;; Too gaudy for me, ma!
 ;   ("(\\(cond\\|if\\|when\\|unless\\|[ec]?\\(type\\)?case\\)[ \t\n]" . 1)
 ;   ("(\\(while\\|do\\|let*?\\|flet\\|labels\\|prog[nv12*]?\\)[ \t\n]" . 1)
@@ -331,6 +340,11 @@ This can take a while for large buffers."
 ;   ("\\\\\\\\\\[\\([^\]\n]+\\)]" 1 font-lock-keyword-face t)
    ;; highlight words inside `' which tend to be function names
 ;   ("`\\([^' \n\t][^' \n\t][^' \n\t]+\\)'" 1 font-lock-keyword-face t)
+   ;; this is highlights things like (def* (setf foo) (bar baz)), but may
+   ;; be slower (I haven't really thought about it)
+;   ("^(def[-a-z]+\\s +\\(\\s(\\S)*\\s)\\|\\S(\\S *\\)"
+;    1 font-lock-function-name-face)
+
    ))
 
 (defvar c-font-lock-keywords
@@ -394,6 +408,42 @@ This can take a while for large buffers."
 ;     '("}[ \t*]*\\(\\sw\\|\\s_\\)+[ \t]*[,;]" 1 font-lock-function-name-face)
      )))
 
+(defvar perl-font-lock-keywords
+  (list
+   "[ \n\t{]*\\(if\\|until\\|while\\|elsif\\|else\\|unless\\|for\\|foreach\\|continue\\|exit\\|die\\|last\\|goto\\|next\\|redo\\|return\\|local\\|exec\\)[ \n\t;(]"
+   "\\(#endif\\|#else\\|#ifdef\\|#ifndef\\|#if\\|#include\\|#define\\|#undef\\)"
+   '("^[ \n\t]*sub[ \t]+\\([^ \t{]+\\)\\{" . font-lock-function-name-face)
+   '("[ \n\t{]*\\(eval\\)[ \n\t(;]" . font-lock-function-name-face)
+   '("\\(--- .* ---\\|=== .* ===\\)" . font-lock-doc-string-face)
+   ))
+
+(defvar tex-font-lock-keywords
+  (list
+   '("\\(\\\\\\w+\\)" 1 font-lock-keyword-face t)
+   '("{\\\\em\\([^}]+\\)}" 1 font-lock-comment-face t)
+   '("{\\\\bf\\([^}]+\\)}" 1 font-lock-keyword-face t)
+   '("^[ \t\n]*\\\\def[\\\\@]\\(\\w+\\)" 1 font-lock-function-name-face t)
+   '("\\\\\\(begin\\|end\\){\\([a-zA-Z0-9\\*]+\\)}"
+     2 font-lock-function-name-face t)
+   '("[^\\\\]\\$\\([^$]*\\)\\$" 1 font-lock-string-face t)
+;   '("\\$\\([^$]*\\)\\$" 1 font-lock-string-face t)
+   ))
+
+(defvar texi-font-lock-keywords
+  (list
+   "@\\(@\\|[^}\t \n{]+\\)"					;commands
+   '("^\\(@c\\|@comment\\)[ \t].*$" . font-lock-comment-face)	;comments
+   '("^\\(*.*\\)[\t ]*$" 1 font-lock-function-name-face t)	;menu items
+   '("@\\(emph\\|strong\\|b\\|i\\){\\([^}]+\\)" 2 font-lock-comment-face t)
+   '("@\\(file\\|kbd\\|key\\){\\([^}]+\\)" 2 font-lock-string-face t)
+   '("@\\(samp\\|code\\|var\\){\\([^}]+\\)" 2 font-lock-function-name-face t)
+   '("@\\(xref\\|pxref\\){\\([^}]+\\)" 2 font-lock-keyword-face t)
+   '("@end *\\([a-zA-Z0-9]+\\)[ \t]*$" 1 font-lock-function-name-face t)
+   '("@item \\(.*\\)$" 1 font-lock-function-name-face t)
+   '("\\$\\([^$]*\\)\\$" 1 font-lock-string-face t)
+   ))
+
+
 ;; Kludge
 (defun dummy-font-lock-mode-hook ()
   (cond ((memq major-mode '(lisp-mode emacs-lisp-mode))
@@ -402,6 +452,15 @@ This can take a while for large buffers."
 	((memq major-mode '(c-mode c++-mode))
 	 (set (make-local-variable 'font-lock-keywords)
 	      c-font-lock-keywords))
+	((eq major-mode 'perl-mode)
+	 (set (make-local-variable 'font-lock-keywords)
+	      perl-font-lock-keywords))
+	((eq major-mode 'tex-mode)
+	 (set (make-local-variable 'font-lock-keywords)
+	      tex-font-lock-keywords))
+	((eq major-mode 'texinfo-mode)
+	 (set (make-local-variable 'font-lock-keywords)
+	      texi-font-lock-keywords))
 	))
 
 (add-hook 'font-lock-mode-hook 'dummy-font-lock-mode-hook)

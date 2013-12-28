@@ -1,7 +1,7 @@
-;;; compiled by devin@scylla on Fri Sep  4 13:03:53 1992
-;;; from file /wg1/emacs-base/lisp/energize/energize-init.el
-;;; emacs version 19.2.22 Lucid.
-;;; bytecomp version 2.08; 27-aug-92.
+;;; compiled by jwz@thalidomide on Tue Jan 19 04:17:47 1993
+;;; from file /u/jwz/emacs19/lisp/energize/energize-init.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 16-jan-93.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,40 +10,56 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(byte-code "ÀÁMˆÂÃM‡" [pop (macro . #[(l) "ÀÁ\nDÃ\nÄ\nDEE‡" [prog1 car l setq cdr] 6]) push (macro . #[(o l) "À	Â	EE‡" [setq l cons o] 5])] 2)
 (defvar energize-auto-raise-screen t "\
 If T screens are automatically raised when Energize wants to show them.")
-(defvar energize-auto-deiconify-screen nil "\
-If T screens are automatically deiconified when Energize wants to
-show them.")
-(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏM‡" [energize-request-kill-buffer-if-dead #[(buffer) "À	!¬‚Â‡Ã	!¬‹Ä	!«„Å	!ˆÂ‡Æ‡" [bufferp buffer t buffer-name energize-buffer-p energize-request-kill-buffer nil] 2] energize-prune-killed-buffers-from-list #[(buffer-extent-list) "Á‰«¥@A@AATÇ!«\nTÈ\"È\"*ªX\nÁV«§ÉÊË\nÌV«†ÊÍ\n\"ª‰ÌV«ƒÎªÏÌV«ƒĞªÑ#!ˆÒÓ!ˆ+‡" [buffer-extent-list 0 deleted-count buffer-count rest buffer extent energize-request-kill-buffer-if-dead delq message format "Oops, confused about %s selected %s -- please try again." 1 "%d of the" "one of the" "the" "buffers" "buffer" ding t] 6] energize-list-windows #[(screen) "ÀÁ\n!ÀÆ!¬‡ÇÈ\"ªtCÇÈ\"‰=¬†BªpŸ+‡" [nil screen-root-window screen first-window window windows window-buffer next-window no-minibuffer] 4] energize-show-one-buffer #[(buffer extent window go-there only-one) "ÀÁ\n!«‡Æ\n\"ˆª‹Ç\n!È\n\"ˆ	«ÙÊ	!Ì\"ˆÍš«“ÎŠ\nqˆbˆÏyˆ`)\"ˆª²«®Ñ\n!Ò=«§ÎŠ\nqˆbˆÏyˆÓ!V«‰Õ[\"ˆª…ÕÖ\"ˆ`)\"ˆ)ª—×š¬…Íš«ÌŠ\nqˆØ Ù\\)\"ˆ«„Û!ˆ*‡" [nil buffer-name buffer name result window set-window-buffer display-buffer set-window-buffer-dedicated extent extent-start-position pos set-window-point "Error Log" set-window-start 0 only-one energize-buffer-type energize-source-buffer window-height next-screen-context-lines vertical-motion -1 "*Debugger*" buffer-size 1 go-there select-window] 5] energize-show-make-windows #[(n) "ÀÁ !‰GÄ¥U«ƒ\nªÅ ˆÄ¥‰ÇV«ŒÈ ˆÇZ‰ªp)ÀÁ !)‡" [energize-list-windows selected-screen windows n 2 delete-other-windows i 1 split-window] 4] energize-show-all-buffers #[(buffer-extent-list go-there) "À	AA?	AA«…Ä	G!ÀÆ	­§Ç	@	A‰@	A­…@A\n%‰	«…	BÀ)ªV,‡" [nil buffer-extent-list only-one windows energize-show-make-windows dedicated-windows ((byte-code "«‹Á@AÂ\"ˆªrÂ‡" [dedicated-windows set-window-buffer-dedicated nil] 3)) energize-show-one-buffer go-there window] 7] energize-main-buffer-of-list #[(list) "À‰‰«™@\nÅ>¬ŠŠqˆ)AA‰¬g	+‡" [nil result mode buffer list (energize-debugger-mode) major-mode] 4] energize-make-buffers-visible #[(buffer-extent-list go-there) "À	!ÂÅ!«†Æ!ˆª‘ÇÈ\"‰«‰«†ÉÊ!!ˆË	\"*‡" [energize-main-buffer-of-list buffer-extent-list nil window main-buffer get-screen-name-for-buffer get-screen-for-buffer get-buffer-window t select-screen window-screen energize-show-all-buffers go-there] 3]] 2)
-(fset 'energize-make-many-buffers-visible-function #[(arg) "@AÃ\n!‰­´Ä\n	\"ˆÅ 	­§Ç!¬­ÉÊ!ˆË!ª“Ì!?­Œ­ˆÉÊ!ˆË!)*‡" [arg go-there buffer-extent-list energize-prune-killed-buffers-from-list energize-make-buffers-visible selected-screen screen screen-visible-p energize-auto-deiconify-screen sit-for 0 make-screen-visible screen-totally-visible-p energize-auto-raise-screen] 4 "\
-First arg is a list of buffers and extents. All those should be
-made visible at the same time.  If the second argument is T then point
-should be moved to the first character of the extent of the first
-buffer, or to the buffer if no extent is specified for this buffer.  
-If second argument is NIL point should not change."])
-(defvar energize-make-many-buffers-visible-should-enqueue-event t "\
-Special variable bound by energize-execute-command to allow the
-buffers to be selected while the command is executed")
-(fset 'energize-make-many-buffers-visible #[(buffer-extent-list go-there) "«‡ÁÂÄB\"‡ÂÅB!‡" [energize-make-many-buffers-visible-should-enqueue-event enqueue-eval-event energize-make-many-buffers-visible-function buffer-extent-list nil t] 4 "\
-First arg is a list of buffers and extents. All those should be
-made visible at the same time.  If the second argument is T then point
-should be moved to the first character of the extent of the first
-buffer, or to the buffer if no extent is specified for this buffer.  
-If second argument is NIL point should not change."])
-(fset 'energize-multi-screen-mode #[nil "ÀÁÂÃ#ˆÀÄÂÅ#ˆÀÆÂÇ#ˆÈ‡" [put energize-debugger-mode screen-name debugger energize-browser-mode browser energize-manual-entry-mode manual t] 4 "\
+(defvar energize-connect-hook nil "\
+*Function or functions to run when the Energize connection is established.")
+(defvar energize-disconnect-hook nil "\
+*Function or functions to run when the Emacs/Energize connection is closed.")
+(fset 'energize-multi-screen-mode #[nil "ÀÁÂÃ#ˆÀÄÂÅ#ˆÀÆÂÅ#ˆÀÇÂÅ#ˆÀÈÉÊ#ˆÀËÉÌ#ˆÀÍÉÇ#ˆÀÎÉÇ#ˆÀÏÉÁ#ˆÀĞÉÁ#ˆÀÑÉÒ#ˆÀÓÉÆ#ˆ«…ÊªƒÄÖØ‡" [put project instance-limit 0 sources 5 manual browser energize-debugger-mode screen-name debugger energize-top-level-mode energize energize-browser-mode energize-breakpoint-mode energize-project-mode energize-no-file-project-mode energize-log-mode error-log energize-manual-entry-mode energize-external-editor get-screen-for-buffer-default-screen-name pop-to-buffer buffers-menu-switch-to-buffer-function t] 4 "\
 Call this function to put Energize into multi-screen mode.
-A single screen (emacs X Window) will be created for the debugger buffer,
-and a new screen will be created for each Browser buffer." nil])
-(fset 'energize-single-screen-mode #[nil "ÀÁÂ\"ˆÀÃÂ\"ˆÀÄÂ\"ˆÅ‡" [remprop energize-debugger-mode screen-name energize-browser-mode energize-manual-entry-mode nil] 3 "\
+
+A screen named \"debugger\" will be used for the *Debugger* buffer,
+  and its associated source files.
+A screen named \"energize\" will be used for the Top-Level buffer.
+A screen named \"browser\" will be created for each L.E. Browser buffer.
+ At most 5 of these will be created; then they will be reused.
+A screen named \"project\" will be created for each Project buffer.
+A screen named \"error-log\" will be created for the Error Log buffer
+ and its associated source files (as when the Next Error command 
+ displays a source file.)
+A screen named \"manual\" will be created for each UNIX Manual page.
+ At most 5 of these will be created; then they will be reused.
+
+If an external editor is being used, then source files will be displayed
+read-only in the \"debugger\" screen.
+
+If an external editor is not being used, then screens named \"sources\" 
+will be created to edit source files.  At most five of these will be 
+created; then they will be reused.  Find-file will use the current screen,
+whatever that happens to be, but find-file-other-window, and selecting 
+source files from the Buffers menu will use an existing screen displaying
+the file in question, or create a new one if there isn't one.
+
+Call `energize-single-screen-mode' to turn this off.
+
+See the documentation for the function get-screen-for-buffer for 
+information on how to customize this." nil])
+(fset 'energize-single-screen-mode #[nil "ÀÁÂ\"ˆÀÃÂ\"ˆÀÄÂ\"ˆÀÅÂ\"ˆÀÆÇ\"ˆÀÈÇ\"ˆÀÉÇ\"ˆÀÊÇ\"ˆÀËÇ\"ˆÀÌÇ\"ˆÀÍÇ\"ˆÀÎÇ\"ˆÏÑÏ‡" [remprop browser instance-limit project manual sources energize-debugger-mode screen-name energize-top-level-mode energize-browser-mode energize-breakpoint-mode energize-project-mode energize-no-file-project-mode energize-log-mode energize-manual-entry-mode nil get-screen-for-buffer-default-screen-name switch-to-buffer buffers-menu-switch-to-buffer-function] 3 "\
 Call this function to put Energize into single-screen mode.
 All buffers will be displayed in the currently selected screen." nil])
-(byte-code "À ˆÁÃÄM‡" [energize-single-screen-mode ((51 attributeSectionHeader) (54 attributeBrowserHeader) (68 attributeWriteProtected) (69 attributeModifiedText) (1 attributeBold) (2 attributeItalic) (3 attributeBoldItalic) (4 attributeSmall) (50 attributeGlyph) (52 attributeToplevelFormGlyph) (53 attributeModifiedToplevelFormGlyph)) energize-attributes-mapping energize-initialize-faces #[nil "ÀÁ\n\"‰‡" [mapcar #[(l) "@A@ÁA@!®…ÂA@!Ä!ÅH)BB‡" [l find-face make-face face get-face 2] 4] energize-attributes-mapping] 3]] 2)
-(fset 'connect-to-energize #[(server &optional enarg) "À «„ÁÂ!ˆ«…Äš«ƒÅ Æ\"ˆÈ ‡" [connected-to-energize-p error "Already connected to the server." server "" system-name connect-to-energize-internal enarg energize-initialize-faces] 3 "\
+(byte-code "À ˆÁÃÄMˆÅÆM‡" [energize-single-screen-mode ((51 attributeSectionHeader) (54 attributeBrowserHeader) (68 attributeWriteProtected) (69 attributeModifiedText) (1 bold) (2 italic) (3 bold-italic) (4 attributeSmall) (50 attributeGlyph) (52 attributeToplevelFormGlyph) (53 attributeModifiedToplevelFormGlyph)) energize-attributes-mapping energize-initialize-faces #[nil "ÀÁ\n\"‰‡" [mapcar #[(l) "@A@ÁA@!®…ÂA@!Ä!ÅH)BB‡" [l find-face make-face face get-face 2] 4] energize-attributes-mapping] 3] any-energize-buffers-p #[nil "À Á‰«”Ä@!«ˆ@Á‰ªpA‰¬l\n*‡" [buffer-list nil result rest energize-buffer-p] 3]] 2)
+(fset 'connect-to-energize #[(server &optional enarg) "À «„ÁÂ!ˆ«…Äš«ƒÅ ÆÈ ˆÉ ˆÊ\"ˆÌ ˆÍÆ!®ƒÁÎ!ÏÀ ¬„ÁÒ!ˆÓ ‰¬‡Ô!ˆªjÕ!ˆÖ ˆ×Ø!*‡" [connected-to-energize-p error "Already connected to the server." server "" system-name "energize" default-screen-name energize-rename-things energize-hack-external-editor-mode connect-to-energize-internal enarg energize-initialize-faces get-process "Could not connect to Energize." nil b p "Energize connection refused." any-energize-buffers-p accept-process-output pop-to-buffer delete-other-windows run-hooks energize-connect-hook] 3 "\
 Connect this emacs to a Energize server.
 The SERVER argument should be the name of the host that the kernel is
 running on (empty-string for localhost).  It may also be of the form
 ``hostname:user'' or ``:user'', meaning to use the server running with
 userid USER." (byte-code "À «„ÁÂ!‡ÃÄ!C‡" [connected-to-energize-p error "Already connected to the server." read-string "connect to energize server: "] 2)])
-(byte-code "ÀÁMˆÂÃMˆÂÅÆMˆÅÈÉMˆÈ\nËÍÏÑ\"ÒÓM‡" [disconnect-from-energize #[nil "À ‡" [close-connection-to-energize] 1 nil nil] energize-buffer-creation-hook-function #[(buffer) "ŠqˆÁ!‰Ã=«•ÄÅÆ!\"«„Çª‰Æ!Èš«‚É\nÃ=«…Ê ˆªÜ\nÇ=«…Ë ˆªÒ\nÉ=«†ÌÍ!ˆªÇ\nÎ=«…Ï ˆª½\nĞ=«…Ñ ˆª³\nÒ=«…Ó ˆª©\nÔ=¬ˆ\nÕ=¬ƒ\n¬•Ö ˆ×!«‡ØÙÚ\"ˆª ˆª‡ÜİŞ\nD\"ˆ)ßà!­ ­ŠÁ!Ğ=?­‚á )‡" [buffer energize-buffer-type type energize-top-level-buffer string-match "^Browser" buffer-name energize-browser-buffer "Error Log" energize-error-log-buffer energize-top-level-mode energize-browser-mode toggle-read-only 1 energize-project-buffer energize-project-mode energize-debugger-buffer energize-debugger-mode energize-breakpoint-buffer energize-breakpoint-mode energize-source-buffer energize-unspecified-buffer compute-buffer-file-truename buffer-file-name after-find-file nil t default-major-mode signal error "unknown energize buffer type" boundp evi-install-undo-list evi-mode] 5] energize-create-buffer-hook notify-send-buffer-modified-request #[(start end) "ÀÁ\n#‡" [send-buffer-modified-request t start end] 4] before-change-function energize-message-if-not-in-minibuffer #[(reason) "À Á =?­ƒÂ!‡" [selected-window minibuffer-window message reason] 2] energize-kernel-busy-hook send-buffer-modified-request energize-buffer-modified-hook nil energize-kernel-modification-hook append command-switch-alist (("-context" . command-line-process-energize) ("-energize" . command-line-process-energize) ("-beam-me-up" . command-line-process-energize)) command-line-process-energize #[(arg) "@ÁÂ!‰«‹ÅÆ\"«…Aª‚ÇÈÉ!ˆÊË!ˆÇÌÍ*‡" [command-line-args-left getenv "ENERGIZE" e-host e-arg string-match "\\`[0-9a-fA-F]+[,][0-9a-fA-F]+\\'" nil message "Connecting to Energize..." sit-for 0 (connect-to-energize e-host e-arg) ((error (byte-code "À ˆÁÂ\"ˆÄÅ!‡" [beep message "Failed to connect to Energize at %s." e-host sit-for 1] 3)))] 4]] 3)
+(fset 'disconnect-from-energize #[nil "À ‡" [close-connection-to-energize] 1 nil nil])
+(fset 'energize-all-buffers #[nil "À ¬„ÁÂ!ˆÃ‹‡" [connected-to-energize-p error "You have to connect to Energize first" ((byte-code "ŠÀ Á‰‰‰­ù@AÇ!qˆ\n«iÈ!¬dÉ\nÊ\"«^Ë «˜ÌÍÎÏ!\"!«ˆqˆĞ ˆª«Bª¥Ñ!¬ Ò\n!«›qˆÌÍÓÏ!\"!«ŠqˆÔÁÊ\"ˆª„B>¬†Õ\n!ˆªÖÍ×Ï!\"!ˆØÙ!ˆª.‡" [buffer-list nil filename buffer lock-directory buffers-to-avoid buffers buffer-file-name energize-buffer-p energize-query-buffer t buffer-modified-p y-or-n-p format "Buffer %s must be saved to be Energized; save it? " buffer-name save-buffer verify-visited-file-modtime file-exists-p "Buffer %s has changed on disk, revert? " revert-buffer find-file-noselect message "Buffer %s not Energized." sit-for 1] 5))] 2 "\
+Energize any buffer showing a file that the Energize server knows about.
+Has to be called after Emacs has been connected to Energize"])
+(byte-code "ÀÁÂ\"ˆÃÄMˆÅÆM‡" [add-hook energize-connect-hook energize-all-buffers de-energize-all-buffers #[nil "ŠÀ Á‰«‹ÄÅÆˆA‰¬u+Ç ˆÈÉ!ˆÊË!ˆÁ‡" [buffer-list nil buffer buffers condition (byte-code "@‰qˆÂ	!«¶Ã	!Ä=«”ÅÆ	\"ˆÇÈ	\"	ÊÌ ˆª›ÍÊ!ˆÎ	!	=«‡ÏĞ!qˆª…Î	!qˆÑ	!ˆÊ‡" [buffers buffer energize-buffer-p energize-buffer-type energize-source-buffer map-extents #[(extent ignore) "À	!¢Â=«„Ã	!ˆÄ‡" [extent-data extent energize-extent-data delete-extent nil] 2] delq energize-write-file-hook write-file-hooks nil revert-buffer-insert-file-contents-function energize-orig-normal-mode set-buffer-modified-p other-buffer get-buffer-create "*scratch*" kill-buffer] 4) ((error (byte-code "À ˆÁÂ\"‡" [beep message "Error while de-Energizing: %s" condition] 3))) deactivate-all-energize-menu-items energize-rename-things back run-hooks energize-disconnect-hook] 4] energize-rename-things #[(&optional back) "À\n:«­\n@;«¨Ã«ƒÅªÆ\n@\"«›ÇÂ\n@È‰”O«ƒÉªÊ\n@È•ËOQ\nAB\"ˆ)Ë‡" [t case-fold-search mode-line-buffer-identification string-match back "\\bEnergize\\b" "\\bL?Emacs\\([- 	]*[-._0-9]+\\)?\\b" set-default 0 "Emacs" "Energize" nil] 7]] 3)
+(fset 'energize-buffer-type #[(buffer) "À	!‰Ã=«¢Ä	!Åš«ƒÆª¶Ä	!Çš«ƒÈª¬ÉÊÄ	!\"«ƒËª¡\nª\nÌ=«ˆÍÎÏ	D\"ª‘\n¬Ğ	!«ˆÍÎÑ	D\"ª\n)‡" [energize-buffer-type-internal buffer type energize-top-level-buffer buffer-name "Error Log" energize-error-log-buffer "*includers*" energize-includers-buffer string-match "^Browser" energize-browser-buffer energize-unspecified-buffer signal error "buffer type unspecified" energize-buffer-p "null buffer type for energize buffer"] 5 "\
+Returns a symbol denoting the type of an Energize buffer, or nil."])
+(byte-code "ÀÁ!¬‚ÂÃÄMˆÃÆÇMˆÆÉÊMˆÉÌÂÀÏ!¬ƒĞÑ\"ÓÔMˆÕÖ!¬…Ö×KMˆ×ØM‡" [boundp inside-energize-buffer-creation-hook-function nil energize-buffer-creation-hook-function #[(buffer) "ÀŠ\nqˆ«‹ÄÅ!!Æ!«„È\n!ˆÉ\n!‰\nË=«…Ì ˆª÷\nÍ=«…Î ˆªì\nÏ=«…Î ˆªá\nĞ=¬†\nÑ=«ˆÒ ˆÀªÍ\nÔ=«Ã «…Õ ˆª¾Ö ˆª¹\n×=«…Ø ˆª®\nÙ=«…Ú ˆª£\nÛ=«•Ü ˆÃ\n!«‡İŞÀ\"ˆª ˆªˆàáâ\nD\"ˆ)ã\n!*‡" [t inside-energize-buffer-creation-hook-function buffer buffer-file-name abbreviate-file-name expand-file-name file-name-directory default-directory set-buffer-modtime energize-buffer-type type energize-top-level-buffer energize-top-level-mode energize-browser-buffer energize-browser-mode energize-includers-buffer energize-error-log-buffer energize-log-file-buffer energize-log-mode buffer-read-only energize-project-buffer energize-project-mode energize-no-file-project-mode energize-debugger-buffer energize-debugger-mode energize-breakpoint-buffer energize-breakpoint-mode energize-source-buffer compute-buffer-file-truename after-find-file nil default-major-mode signal error "unknown energize buffer type" energize-external-editor-set-mode] 5] energize-create-buffer-hook notify-send-buffer-modified-request #[(start end) "ÀÁ\n#‡" [send-buffer-modified-request t start end] 4] before-change-function energize-message-if-not-in-minibuffer #[(reason) "À Á =?­ƒÂ!‡" [selected-window minibuffer-window message reason] 2] energize-kernel-busy-hook send-buffer-modified-request energize-buffer-modified-hook energize-kernel-modification-hook energize-args (("-context" . command-line-process-energize) ("-energize" . command-line-process-energize) ("-beam-me-up" . command-line-process-energize)) append command-switch-alist command-line-process-energize #[(arg) "@ÁÂ!‰«‹ÅÆ\"«…Aª‚ÇÈÉ!ˆÊË!ˆÇÌÍ*‡" [command-line-args-left getenv "ENERGIZE_PORT" e-host e-arg string-match "\\`[0-9a-fA-F]+[,][0-9a-fA-F]+\\'" nil message "Connecting to Energize..." sit-for 0 (connect-to-energize e-host e-arg) ((error (byte-code "À ˆ	«‡ÂÃ	\"ˆª„ÂÄ!ˆÅÆ!‡" [beep e-host message "Failed to connect to Energize at %s." "Failed to connect to Energize." sit-for 1] 3)))] 4] fboundp energize-orig-multi-minibuffer-startup multi-minibuffer-startup #[(window-system-switches) "ÂÃ)«‚ÄÆ!‡" [energize-args rest foo (byte-code "«’@@	«…ÂÃÄ\"ˆA‰¬nÅ‡" [rest command-line-args throw foo t nil] 4) "energize" default-screen-name energize-orig-multi-minibuffer-startup window-system-switches] 2]] 3)

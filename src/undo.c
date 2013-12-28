@@ -30,7 +30,7 @@ int inside_undo;
 Lisp_Object Qinside_undo;
 
 /* Last buffer for which undo information was recorded.  */
-Lisp_Object last_undo_buffer;
+static Lisp_Object last_undo_buffer;
 
 /* Record that an unmodified buffer is about to be changed.
    Record the file modification date so that when undoing this entry
@@ -118,7 +118,7 @@ record_delete (beg, length)
       = Fcons (Fcons (make_string_from_buffer (current_buffer, beg, length), sbeg),
                current_buffer->undo_list);
 
-    unbind_to (count);
+    unbind_to (count, Qnil);
   }
 }
 
@@ -253,7 +253,6 @@ Return what remains of the list.")
 	    }
 	  else if (FIXNUMP (car) && FIXNUMP (cdr))
 	    {
-	      Lisp_Object end;
 	      if (XINT (car) < BEGV
 		  || XINT (cdr) > ZV)
 		error ("Changes to be undone are outside visible portion of buffer");
@@ -285,8 +284,7 @@ Return what remains of the list.")
       arg--;
     }
 
-  unbind_to (binding_count);
-  return list;
+  return unbind_to (binding_count, list);
 }
 
 void

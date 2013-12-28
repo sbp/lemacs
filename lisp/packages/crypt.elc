@@ -1,0 +1,161 @@
+;;; compiled by jwz@thalidomide on Wed Jan 20 03:19:12 1993
+;;; from file /u/jwz/emacs19/lisp/packages/crypt.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 16-jan-93.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÃ!¬‚ÄÂÅ!¬‚ÆÂÇ!¬ƒÈÂÉ!¬ƒÊ	À‡" [provide crypt boundp crypt-encryption-program "des -f -e -k" crypt-decryption-program "des -f -d -k" encryption-program "des -e -k" decryption-program "des -d -k"] 2)
+(defvar auto-decode-buffer t "\
+*Non-nil value means that the buffers associated with encoded files will
+be decoded automatically, without requesting confirmation from the user.
+Nil means to ask before doing the decoding.")
+(defvar auto-write-buffer-coded nil "\
+*Non-nil value means buffers to be written to files ending in .z (or .Z)
+will be gzip'ed (or compressed) automatically, without requesting confirmation
+from the user. Nil means to ask before doing this decoding.")
+(defvar buffer-save-encrypted nil "\
+*Non-nil means that when this buffer is saved it will be written out
+encrypted, as with the UNIX crypt(1) command.  Automatically local to all
+buffers.")
+(make-variable-buffer-local 'buffer-save-encrypted)
+(defvar buffer-save-compacted nil "\
+*Non-nil means that when this buffer is saved it will be written out
+compacted, as with the UNIX compact(1) command.  Automatically local to all
+buffers.")
+(make-variable-buffer-local 'buffer-save-compacted)
+(defvar buffer-save-compressed nil "\
+*Non-nil means that when this buffer is saved it will be written out
+compressed, as with the UNIX compress(1) command.  Automatically local to all
+buffers.")
+(make-variable-buffer-local 'buffer-save-compressed)
+(defvar buffer-save-gzipped nil "\
+*Non-nil means that when this buffer is saved it will be written out
+gzip'ed, as with the gzip (GNU zip) command.  Automatically local to all
+buffers.")
+(make-variable-buffer-local 'buffer-save-gzipped)
+(defvar buffer-encryption-key nil "\
+*Key to use when encrypting the current buffer, prior to saving it.
+Automatically local to all buffers.")
+(make-variable-buffer-local 'buffer-encryption-key)
+(defconst compact-magic-regexp "ÿ" "\
+Regexp that matches the magic number at the beginning of files created
+by the compact(1) command.")
+(defconst compress-magic-regexp "" "\
+Regexp that matches the magic number at the beginning of files created
+by the compress(1) command.")
+(defconst gzip-magic-regexp "‹" "\
+Regexp that matches the magic number at the beginning of files created
+by the gzip command.")
+(defconst crypt-magic-regexp-inverse "\\(..\\)?\\([]\\|[]\\)" "\
+Regexp that must NOT match the beginning of an encrypted buffer.")
+(fset 'save-point '(macro . #[(&rest body) "ÀÁ!Ã\nÄDCÅÆBÈ\nDEE)‡" [make-symbol "saved-point" var let (point) unwind-protect progn body goto-char] 6 "\
+Save value of point, evalutes FORMS and restore value of point.
+If the saved value of point is no longer valid go to (point-max).
+This macro exists because, save-excursion loses track of point during
+some types of deletions."]))
+(fset 'find-crypt-file-hook #[nil "‰Á Â‰‰‰‰‰	\n`ÌŒ~ˆebˆÍ!«²¬‰ĞÑÒÓ \"!«¥ÔÕÓ \"ˆÖp×\"ˆ×ØÙ\"«†ÚÛ”OÜ ¬øÔİÓ \"ˆªğÍ!«³¬‰ĞÑßÓ \"!«¦ÔàÓ \"ˆáp×\"ˆ×Øâ\"«†ÚÛ”OÜ ¬¿ÔãÓ \"ˆª·Í$!«±¬‰ĞÑåÓ \"!«¤ÔæÓ \"ˆçp×\"ˆ×Øè\"«†ÚÛ”OÜ ¬†ÔéÓ \"ˆm¬Ãêëdì^×#«ºeb«¶Í-!¬°.¬„ïğ!ˆ.ñš«ˆÔòÓ \"ˆªšÔóÓ \"ˆô.Â\"ˆ.Ü ¬†ÔõÓ \"ˆ+¬‹¬‡¬„­°ö ˆ÷ ˆ«„øÛ!ˆ«„ùÛ!ˆ«„úÛ!ˆ«ˆûÛ!ˆ.\nü	!.	‡" [buffer-file-name buffer-modified-p nil buffer-read-only case-fold-search compacted gzipped compressed encrypted old-buffer-modified-p old-buffer-file-name saved-point ((goto-char saved-point)) looking-at compact-magic-regexp auto-decode-buffer y-or-n-p format "Uncompact buffer %s? " buffer-name message "Uncompacting %s..." compact-buffer t string-match "\\(\\.C\\)$" 0 1 input-pending-p "Uncompacting %s... done" compress-magic-regexp "Uncompress buffer %s? " "Uncompressing %s..." compress-buffer "\\(\\.Z\\)$" "Uncompressing %s... done" gzip-magic-regexp "gunzip buffer %s? " "gunzip'ing %s..." gzip-buffer "\\(\\.z\\)$" "gunzip'ing %s... done" re-search-forward "[€-ÿ]" 15 crypt-magic-regexp-inverse buffer-encryption-key call-interactively set-encryption-key "" "No key given, buffer %s assumed normal." "Decrypting %s..." crypt-buffer "Decrypting %s... done" set-auto-mode hack-local-variables compress-mode gzip-mode compact-mode crypt-mode set-buffer-modified-p] 9])
+(fset 'write-crypt-file-hook #[nil "À\n®ÃÄ\"­‡®ƒÇÈ!	®ÃÊ\"­‡®ƒÇË!	)¬Œ¬ˆ\n¬…	…AŠŒÎÏ!À‰‰ÕÖ× T#ˆ``}ˆØÙ!ˆÚ!ˆ«ebˆÛedÜİ$ˆÀ«Ÿ¬†ßàá \"ˆ;¬„ßâ!ˆãäá \"ˆåæ\"ˆ«Œ\n«‰ßçá \"ˆ‚.«‹ãèá \"ˆé ˆª÷\n«¹ÀÃÄ\"«‹ãêá \"ˆë ˆª£ÃÊ\"«“ãìá \"ˆíî!ˆïÖ!ˆğ ˆªŠíî!ˆãñá \"ˆ)ª»	«·ÀÃÊ\"«‹ãìá \"ˆğ ˆª£ÃÄ\"«“ãêá \"ˆïî!ˆíÖ!ˆë ˆªŠïî!ˆãñá \"ˆ)òedÀæ%ˆed|ˆóÀ!ˆ.æ‡" [nil case-fold-search buffer-save-compressed string-match "\\.Z$" buffer-file-name auto-write-buffer-coded y-or-n-p "write file compressed? " buffer-save-gzipped "\\.z$" "write file gzip'ed? " buffer-save-encrypted buffer-save-compacted get-buffer-create " *crypt copy buffer*" selective-display after-change-function before-change-function buffer-read-only copy-buffer copy-to-buffer 1 buffer-size ((byte-code "ed|‡" [] 2)) insert-buffer-substring kill-buffer subst-char-in-region 13 10 buffer-encryption-key error "No encryption key set for buffer %s" buffer-name "Encryption key is not a string" message "Encrypting %s..." crypt-buffer t "Cannot compact and compress buffer %s" "Compacting %s..." compact-buffer "Compressing %s..." compress-buffer "gzip'ing %s..." compress-mode -1 gzip-mode gzip-buffer "Writing %s..." write-region set-buffer-modified-p] 6 "\
+Writes out file, if need be, in a compressed format."])
+(fset 'crypt-region #[(start end encrypt key) "`ÁdÃÇ‰ÈÉ\n«„ª‚ÍQ&+‡" [saved-point ((goto-char saved-point)) opoint-max call-process-region start end shell-file-name t nil "-c" encrypt encryption-program decryption-program " " key] 11 "\
+Encrypt/decrypt the text in the region.
+From a program, this function takes four args: START, END, ENCRYPT and KEY.
+When called interactively START and END default to point and mark
+(START being the lesser of the two), KEY is prompted for." (byte-code "À ˆÁ Â ÃÄ!ÅÆ!F‡" [barf-if-buffer-read-only region-beginning region-end y-or-n-p "Encrypt? " read-string-no-echo "Crypt region using key: "] 5)])
+(fset 'crypt-buffer #[(key encrypt &optional buffer) "¬‚pŠqˆÁed\n$)‡" [buffer crypt-region encrypt key] 5 "\
+Using KEY, encrypt/decrypt BUFFER.
+BUFFER defaults to the current buffer." (byte-code "À ˆÁÂ!C‡" [barf-if-buffer-read-only read-string-no-echo "Crypt buffer using key: "] 2)])
+(fset 'compact-region #[(start end &optional undo) "`ÁÂÆ‰ÇÈ	«ƒÊªË&ˆ	?­™bˆÇÍ!?­‹ÏĞ	«ƒÑªÒ\")*‡" [saved-point ((goto-char saved-point)) call-process-region start end shell-file-name t nil "-c" undo "uncompact" "compact" case-fold-search looking-at compact-magic-regexp error "%s failed!" "Uncompaction" "Compaction"] 9 "\
+Compact the text in the region.
+From a program, this function takes three args: START, END and UNDO.
+When called interactively START and END default to point and mark
+(START being the lesser of the two).
+Prefix arg (or optional second arg non-nil) UNDO means uncompact." "*r\nP"])
+(fset 'compact-buffer #[(&optional buffer undo) "¬‚pŠqˆÁed\n#)‡" [buffer compact-region undo] 4 "\
+Compact BUFFER.
+BUFFER defaults to the current buffer.
+Prefix arg (or second arg non-nil from a program) UNDO means uncompact." (byte-code "pD‡" [current-prefix-arg] 2)])
+(fset 'compress-region #[(start end &optional undo) "`ÁÂÆ‰ÇÈ	«ƒÊªË&ˆ	?­™bˆÇÍ!?­‹ÏĞ	«ƒÑªÒ\")*‡" [saved-point ((goto-char saved-point)) call-process-region start end shell-file-name t nil "-c" undo "compress -d" "compress" case-fold-search looking-at compress-magic-regexp error "%s failed!" "Uncompression" "Compression"] 9 "\
+Compress the text in the region.
+From a program, this function takes three args: START, END and UNDO.
+When called interactively START and END default to point and mark
+(START being the lesser of the two).
+Prefix arg (or optional second arg non-nil) UNDO means uncompress." "*r\nP"])
+(fset 'compress-buffer #[(&optional buffer undo) "¬‚pŠqˆÁed\n#)‡" [buffer compress-region undo] 4 "\
+Compress BUFFER.
+BUFFER defaults to the current buffer.
+Prefix arg (or second arg non-nil from a program) UNDO means uncompress." (byte-code "pD‡" [current-prefix-arg] 2)])
+(fset 'gzip-region #[(start end &optional undo) "`ÁÂÆ‰ÇÈ	«ƒÊªË&ˆ	?­™bˆÇÍ!?­‹ÏĞ	«ƒÑªÒ\")*‡" [saved-point ((goto-char saved-point)) call-process-region start end shell-file-name t nil "-c" undo "gzip -d" "gzip" case-fold-search looking-at gzip-magic-regexp error "%s failed!" "gunzip'ing" "gzip'ing"] 9 "\
+gzip the text in the region.
+From a program, this function takes three args: START, END and UNDO.
+When called interactively START and END default to point and mark
+(START being the lesser of the two).
+Prefix arg (or optional second arg non-nil) UNDO means gunzip." "*r\nP"])
+(fset 'gzip-buffer #[(&optional buffer undo) "¬‚pŠqˆÁed\n#)‡" [buffer gzip-region undo] 4 "\
+gzip BUFFER.
+BUFFER defaults to the current buffer.
+Prefix arg (or second arg non-nil from a program) UNDO means gunzip." (byte-code "pD‡" [current-prefix-arg] 2)])
+(fset 'set-encryption-key #[(key &optional buffer) "¬‚pŠqˆ	\nš«…ÃÄ!ªˆ	­ƒÆÇ!)‡" [buffer key buffer-encryption-key message "Key is identical to original, no change." buffer-save-encrypted set-buffer-modified-p t] 2 "\
+Set the encryption KEY for BUFFER.
+KEY should be a string.
+BUFFER should be a buffer or the name of one;
+it defaults to the current buffer.  If BUFFER is in crypt mode, then it is
+also marked as modified, since it needs to be saved with the new key." (byte-code "À ˆÁÂÃÄ \"!C‡" [barf-if-buffer-read-only read-string-no-echo format "Set encryption key for buffer %s: " buffer-name] 4)])
+(fset 'crypt-mode #[(&optional arg) "\n«…\nÃVª‚?‰«†ÄÃ!ˆªÄ«‡«ƒÇªÃ!ˆ­†É	=?!)‡" [buffer-save-encrypted oldval arg 0 auto-save-mode auto-save-default buffer-file-name 1 buffer-encryption-key set-buffer-modified-p] 4 "\
+Toggle crypt mode.
+With arg, turn crypt mode on iff arg is positive, otherwise turn it off.
+In crypt mode, buffers are automatically encrypted before being written.
+If crypt mode is toggled and a key has been set for the current buffer, then
+the current buffer is marked modified, since it needs to be rewritten
+with (or without) encryption.
+
+Use \\[set-encryption-key] to set the encryption key for the current buffer.
+
+Entering crypt mode causes auto-saving to be turned off in the current buffer,
+as there is no way (in Emacs Lisp) to force auto save files to be encrypted." "P"])
+(fset 'compact-mode #[(&optional arg) "\n«…\nÃVª‚?‰«†ÄÃ!ˆªÄ«‡«ƒÇªÃ!ˆÈ	=?!)‡" [buffer-save-compacted oldval arg 0 auto-save-mode auto-save-default buffer-file-name 1 set-buffer-modified-p] 4 "\
+Toggle compact mode.
+With arg, turn compact mode on iff arg is positive, otherwise turn it off.
+In compact mode, buffers are automatically compacted before being written.
+If compact mode is toggled, the current buffer is marked modified, since
+it needs to be written with (or without) compaction.
+
+Entering compact mode causes auto-saving to be turned off in the current
+buffer, as there is no way (in Emacs Lisp) to force auto save files to be
+compacted." "P"])
+(fset 'compress-mode #[(&optional arg) "\n«…\nÃVª‚?‰«†ÄÃ!ˆªÄ«‡«ƒÇªÃ!ˆÈ	=?!)‡" [buffer-save-compressed oldval arg 0 auto-save-mode auto-save-default buffer-file-name 1 set-buffer-modified-p] 4 "\
+Toggle compress mode.
+With arg, turn compress mode on iff arg is positive, otherwise turn it off.
+In compress mode, buffers are automatically compressed before being written.
+If compress mode is toggled, the current buffer is marked modified, since
+it needs to be written with (or without) compression.
+
+Entering compress mode causes auto-saving to be turned off in the current
+buffer, as there is no way (in Emacs Lisp) to force auto save files to be
+compressed." "P"])
+(fset 'gzip-mode #[(&optional arg) "\n«…\nÃVª‚?‰«†ÄÃ!ˆªÄ«‡«ƒÇªÃ!ˆÈ	=?!)‡" [buffer-save-gzipped oldval arg 0 auto-save-mode auto-save-default buffer-file-name 1 set-buffer-modified-p] 4 "\
+Toggle gzip mode.
+With arg, turn gzip mode on iff arg is positive, otherwise turn it off.
+In gzip mode, buffers are automatically gzip'ed before being written.
+If gzip mode is toggled, the current buffer is marked modified, since
+it needs to be written with (or without) gzip.
+
+Entering gzip mode causes auto-saving to be turned off in the current
+buffer, as there is no way (in Emacs Lisp) to force auto save files to be
+gzip'ed." "P"])
+(fset 'read-string-no-echo #[(prompt &optional confirm) "ÀÁ‡" [return-value (byte-code "ŠÀÁ!ÂÃÄ‰‰‰‰	\n‰qˆÍÎ ˆÏ!ˆÑ ‰	Ò>¬œ	ÓA‰«‡ÕÖ×ˆª„	cˆÏ!ˆª[«¦«¢Ù ˜¬“ÏÚP!ˆÛ ˆÜİ!ˆÄª1Şß\"ˆª)«‘Ù ÏàP!ˆÜİ!ˆªŞßÙ \"ˆª" [get-buffer-create " *password*" t 0 nil kill-ring done help-form string char echo-keystrokes cursor-in-echo-area input-buffer ((byte-code "ÀÁ!ˆÂ!‡" [set-buffer-modified-p nil kill-buffer input-buffer] 2)) erase-buffer message prompt read-char (13 10) ((8 delete-char -1) (127 delete-char -1) (21 delete-region 1 (point)) (24 delete-region 1 (point)) (17 quoted-insert 1) (22 quoted-insert 1)) form error-data (eval form) ((error)) confirm buffer-string "[Mismatch... try again.]" ding sit-for 2 throw return-value "[Retype to confirm...]"] 9)] 2 "\
+Read a string from the minibuffer, prompting with PROMPT.
+Optional second argument CONFIRM non-nil means that the user will be asked
+  to type the string a second time for confirmation and if there is a
+  mismatch, the process is repeated.
+
+Line editing keys are:
+  C-h, DEL	rubout
+  C-u, C-x      line kill
+  C-q, C-v      literal next"])
+(byte-code "ÀÁÂ\"ˆÀÃÂ\"ˆÀÄÅÆ#ˆÇ¬‰ÉÊË\"¤ÌÍ!‡" [add-hook find-file-hooks find-crypt-file-hook find-file-not-found-hooks write-file-hooks write-crypt-file-hook t buffer-save-compressed minor-mode-alist mapcar purecopy ((buffer-save-encrypted " Crypt") (buffer-save-compacted " Compact") (buffer-save-compressed " Compress") (buffer-save-gzipped " GNU-zip")) provide crypt] 4)

@@ -35,13 +35,15 @@ is returned if anyone cares.  See also comint-mode and the variables
 background-show and background-select."
   (interactive "s%% ")
   (let ((job-number 1)
-	(job-name "%1")
+        job-name
+        buffer-name
 	(dir default-directory))
-    (while (process-status job-name)
-      (setq job-name (concat "%" (setq job-number (1+ job-number)))))
-    (if background-select (pop-to-buffer job-name)
-      (if background-show (with-output-to-temp-buffer job-name)) ; cute
-      (set-buffer (get-buffer-create job-name)))
+    (while (get-process (setq job-name (format "background-%d" job-number)))
+      (setq job-number (1+ job-number)))
+    (setq buffer-name (format "*%s*" job-name))
+    (if background-select (pop-to-buffer buffer-name)
+      (if background-show (with-output-to-temp-buffer buffer-name)) ; cute
+      (set-buffer (get-buffer-create buffer-name)))
     (erase-buffer)
 
     (setq default-directory dir) ; Do this first, in case cd is relative path.
@@ -55,7 +57,7 @@ background-show and background-select."
 	    "\n% " command ?\n)
 
     (let ((proc (get-buffer-process
-		 (comint-exec job-name job-name shell-file-name
+		 (comint-exec buffer-name job-name shell-file-name
 			      nil (list "-c" command)))))
       (comint-mode)
       ;; COND because the proc may have died before the G-B-P is called.
@@ -63,6 +65,7 @@ background-show and background-select."
 		  (message "[%d] %d" job-number (process-id proc))))
       (setq mode-name "Background")
       proc)))
+
 
 (defun background-sentinel (process msg)
   "Called when a background job changes state."

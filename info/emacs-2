@@ -567,6 +567,15 @@ table) must be at the front of the list if they are used.
 `-kill'
      Exit from Emacs without asking for confirmation.
 
+`-version'
+     Prints version information.  This implies `-batch'.
+
+          % emacs -version
+          GNU Emacs 19.4 Lucid of Mon Dec 28 1992 on thalidomide (berkeley-unix)
+
+`-help'
+     Prints a summary of command-line options, and exits.
+
    The following arguments are recognized only at the beginning of the
 command line.  If more than one of them appears, they must appear in
 the order in which they appear in this table.
@@ -579,7 +588,7 @@ the order in which they appear in this table.
      Run Emacs in "batch mode", which means that the text being edited
      is not displayed and the standard Unix interrupt characters such
      as `C-z' and `C-c' continue to have their normal effect.  Emacs in
-     batch mode outputs to `stdout' only what would normally be printed
+     batch mode outputs to `stderr' only what would normally be printed
      in the echo area under program control.
 
      Batch mode is used for running programs written in Emacs Lisp

@@ -73,7 +73,7 @@ clean:
 # whatever means were used to copy and distribute Emacs.
 # If they were clobbered, all the .elc files were clobbered too.
 test-distrib: test-distrib.c
-	$(CC) -o test-distrib test-distrib.c
+	$(CC) -o test-distrib ${CFLAGS} test-distrib.c
 	./test-distrib
 
 etags: etags.c

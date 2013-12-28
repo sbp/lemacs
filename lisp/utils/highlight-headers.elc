@@ -1,0 +1,43 @@
+;;; compiled by jwz@thalidomide on Tue Jan 19 04:19:18 1993
+;;; from file /u/jwz/emacs19/lisp/utils/highlight-headers.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 16-jan-93.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!¬„ÂÁ!ˆÀÃ!¬„ÂÃ!ˆÀÄ!¬„ÂÄ!ˆÀÅ!¬„ÂÅ!ˆÆÁ!¬…ÇÈÁ\"ˆÆÃ!¬…ÇÉÃ\"ˆÆÄ!¬šÇÃÄ\"ˆÄÊËÏĞÑ%ˆ+ÆÅ!¬…ÇÉÅ\"ˆË‡" [find-face message-headers make-face message-header-contents message-highlighted-header-contents message-cited-text face-differs-from-default-p copy-face bold italic t nil screen underline-p face set-face-1 underline 7] 6)
+(defvar highlight-headers-regexp "Subject[ 	]*:" "\
+*The headers whose contents should be emphasized more.
+The contents of these headers will be displayed in the face 
+`message-highlighted-header-contents' instead of `message-header-contents'.")
+(defvar highlight-headers-citation-regexp "^[ 	]*[A-Z]*[]}<>|][ 	]*" "\
+*The pattern to match cited text.
+Text in the body of a message which matches this will be displayed in
+the face `message-cited-text'.")
+(defvar highlight-headers-citation-header-regexp (concat "^In article\\|^In message\\|" "^[^ 	].*\\(writes\\|wrote\\|said\\):\n[ 	]*[A-Z]*[]}<>|]") "\
+*The pattern to match the prolog of a cited block.
+Text in the body of a message which matches this will be displayed in
+the `message-headers' face.")
+(fset 'highlight-headers #[(start end hack-sig) "ÀÂÂÅÆp$ˆŠŒ~ˆ	«‘ŠbˆÊËÌ#«ƒ`)}ˆbˆm¬égÍU¬äÎÏ!«ÆĞÑ”Ñ•\"ÒÓ\"ˆÔÕ\"ˆÑ•Î!«–×ÂˆĞ`\"Ò	\"ˆÔÕ\"ˆªªÀÂˆĞ`\"Ò	\"ˆÔÕ\"ˆª”`ÂˆĞ`\"Ò	\"ˆÔÕ\"ˆØyˆªm?­Ë««Î!«•Ñ•bˆŠÑyˆÂÎÛ!*¬”Üª«ŒÎ!«„Óª‚Â	«”`ÂˆĞ`\"Ò	\"ˆÔÕ\"ˆØyˆª1-‡" [message-header-contents current nil e p map-extents #[(extent ignore) "À	!Â=­ƒÃ	!‡" [extent-data extent headers delete-extent] 2] start end hack-sig re-search-backward "\n--+ *\n" t 10 looking-at "^[^ 	\n]+[ 	]*:" make-extent 0 set-extent-face message-headers set-extent-data headers highlight-headers-regexp message-highlighted-header-contents 1 highlight-headers-citation-regexp case-fold-search "^>From " message-cited-text highlight-headers-citation-header-regexp] 5 "\
+Highlight message headers between start and end.
+Faces used:
+  message-headers			the part before the colon
+  message-header-contents		the part after the colon
+  message-highlighted-header-contents	contents of \"special\" headers
+  message-cited-text			quoted text from other messages
+
+Variables used:
+
+  highlight-headers-regexp			what makes a \"special\" header
+  highlight-headers-citation-regexp		matches lines of quoted text
+  highlight-headers-citation-header-regexp	matches headers for quoted text
+
+If HACK-SIG is true,then we search backward from END for something that
+looks like the beginning of a signature block, and don't consider that a
+part of the message (this is because signatures are often incorrectly
+interpreted as cited text.)"])

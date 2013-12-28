@@ -1,5 +1,5 @@
-;; Define standard autoloads and keys of other files, for Emacs.
-;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+;; Define standard autoloads.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -81,9 +81,6 @@ STRING is included in the mode line iff VARIABLE's value is non-nil.")
 				 (auto-fill-function " Fill")
 				 ;; not really a minor mode...
 				 (defining-kbd-macro " Def"))))
-
-(defconst function-keymap (make-sparse-keymap) "\
-Keymap containing definitions of keypad and function keys.")
 
 ;; These variables are used by autoloadable packages.
 ;; They are defined here so that they do not get overridden
@@ -197,7 +194,7 @@ to all buffers (for backwards compatibility.)  It is searched first.
 This is for backward compatibility, and is largely supplanted by the
 variable tag-table-alist.")
 
-(defconst shell-prompt-pattern "^\\(([^() ]+)\\|[^#$%>]*[#$%>]\\) *" "\
+(defconst shell-prompt-pattern "^\\(([^() \n]+)\\|[^#$%>\n]*[#$%>]\\) *" "\
 *Regexp used by Newline command in shell mode to match subshell prompts.
 Anything from beginning of line up to the end of what this pattern matches
 is deemed to be prompt, and is not reexecuted.")
@@ -219,7 +216,7 @@ Alist of filename patterns vs corresponding major mode functions.
 Each element looks like (REGEXP . FUNCTION).
 Visiting a file whose name matches REGEXP causes FUNCTION to be called.")
 (setq auto-mode-alist (mapcar 'purecopy
-			      '(("\\.text$" . text-mode)
+			      '(("\\.te?xt$" . text-mode)
 				("\\.c$" . c-mode)
 				("\\.h$" . c-mode)
 				("\\.tex$" . TeX-mode)
@@ -236,7 +233,9 @@ Visiting a file whose name matches REGEXP causes FUNCTION to be called.")
 				("\\.mss$" . scribe-mode)
 				("\\.pl$" . prolog-mode)
 				("\\.cc$" . c++-mode)
+				("\\.hh$" . c++-mode)
 				("\\.C$" . c++-mode)
+				("\\.H$" . c++-mode)
 ;;; Less common extensions come here
 ;;; so more common ones above are found faster.
 				("ChangeLog$" . change-log-mode)
@@ -269,11 +268,6 @@ Visiting a file whose name matches REGEXP causes FUNCTION to be called.")
 
 (make-variable-buffer-local 'indent-tabs-mode)
 
-(defvar ctl-x-4-map (make-sparse-keymap) "\
-Keymap for subcommands of C-x 4")
-(fset 'ctl-x-4-prefix ctl-x-4-map)
-(define-key ctl-x-map "4" 'ctl-x-4-prefix)
-
 ;; Reduce total amount of space we must allocate during this function
 ;; that we will not need to keep permanently.
 (garbage-collect)
@@ -288,8 +282,6 @@ First arg (interactive prefix) non-nil means prompt for user name and site.
 Second arg is file name of change log.
 Optional third arg OTHER-WINDOW non-nil means visit in other window."
   t)
-
-(define-key ctl-x-4-map "a" 'add-change-log-entry-other-window)
 
 (autoload 'add-change-log-entry-other-window "add-log"
   "\
@@ -324,7 +316,8 @@ and its own syntax table.
 Turning on AWK mode calls the value of the variable `awk-mode-hook'
 with no args, if that value is non-nil." t)
 
-(autoload '\` "backquote"
+;; don't backslash this, make-docfile can't cope
+(autoload '` "backquote"
   "\
 (` FORM)  is a macro that expands to code to construct FORM.
 Note that this is very slow in interpreted code, but fast if you compile.
@@ -406,6 +399,13 @@ Runs byte-compile-file on the files remaining on the command line.
 Must be used only with -batch, and kills emacs on completion.
 Each file will be processed even if an error occurred previously.
 For example, invoke \"emacs -batch -f batch-byte-compile $emacs/ ~/*.el\""
+  nil)
+
+(autoload 'batch-byte-recompile-directory "bytecomp"
+  "\
+Runs `byte-recompile-directory' on the dirs remaining on the command line.
+Must be used only with -batch, and kills emacs on completion.
+For example, invoke \"emacs -batch -f batch-byte-recompile-directory .\""
   nil)
 
 (autoload 'set-c-style "c-style"
@@ -625,8 +625,9 @@ in the command history is offered.  The form is placed in the minibuffer
 for editing and the result is evaluated."
   t)
 
-
-(autoload 'common-lisp-indent-function "cl-indent")
+(autoload 'common-lisp-indent-function "cl-indent"
+  "\
+")
 
 (autoload 'compare-windows "compare-w"
   "\
@@ -651,8 +652,6 @@ While grep runs asynchronously, you can use the \\[next-error] command
 to find the text that grep hits refer to."
   t)
 
-(define-key ctl-x-map "`" 'next-error)
-
 (autoload 'next-error "compile"
   "\
 Visit next compilation error message and corresponding source code.
@@ -667,8 +666,6 @@ means reparse the error message buffer and start at the first error."
   "\
 See \\[next-error]."
   t)
-
-(define-key esc-map "/" 'dabbrev-expand)
 
 (autoload 'dabbrev-expand "dabbrev"
   "\
@@ -711,8 +708,6 @@ Use `cancel-debug-on-entry' to cancel the effect of this command.
 Redefining FUNCTION also does that."
   t)
 
-(define-key ctl-x-map "d" 'dired)
-
 (autoload 'dired "dired"
   "\
 \"Edit\" directory DIRNAME--delete, rename, print, etc. some files in it.
@@ -722,8 +717,6 @@ You can flag files for deletion with C-d
 and then delete them by typing `x'.
 Type `h' after entering dired for more info."
   t)
-
-(define-key ctl-x-4-map "d" 'dired-other-window)
 
 (autoload 'dired-other-window "dired"
   "\
@@ -977,7 +970,6 @@ Check the spelling for all of the words in the region."
 Check the spelling of the word under the cursor.
 See `ispell' for more documentation."
 	  t)
-(define-key esc-map "$" 'ispell-word)
 
 (autoload 'ledit-mode "ledit"
   "\
@@ -994,7 +986,9 @@ To make Lisp mode automatically change to Ledit mode,
 do (setq lisp-mode-hook 'ledit-from-lisp-mode)"
   t)
 
-(autoload 'ledit-from-lisp-mode "ledit")
+(autoload 'ledit-from-lisp-mode "ledit" 
+  "\
+")
 
 (autoload 'lpr-buffer "lpr"
   "\
@@ -1035,8 +1029,6 @@ always makes global bindings.
 To save a kbd macro, visit a file of Lisp code such as your ~/.emacs,
 use this command, and then save the file."
   t)
-
-(define-key ctl-x-map "q" 'kbd-macro-query)
 
 (autoload 'kbd-macro-query "macros"
   "\
@@ -1125,7 +1117,10 @@ Control-C followed by the first character of the construct.
 
 (setq disabled-command-hook 'disabled-command-hook)
 
-(autoload 'disabled-command-hook "novice")
+(autoload 'disabled-command-hook "novice"
+  "\
+")
+
 (autoload 'enable-command "novice"
   "\
 Allow COMMAND to be executed without special confirmation from now on.
@@ -1571,11 +1566,8 @@ C-c C-y  mail-yank-original (insert current message, in Rmail).
 C-c C-q  mail-fill-yanked-message (fill what was yanked)."
   t)
 
-(define-key ctl-x-4-map "m" 'mail-other-window)
-(define-key ctl-x-map "m" 'mail)
-
 ;; used in mail-utils
-(defvar mail-use-rfc822 nil "\
+(defvar mail-use-rfc822 t "\
 *If non-nil, use a full, hairy RFC822 parser on mail addresses.
 Otherwise, (the default) use a smaller, somewhat faster and
 often-correct parser.")
@@ -1622,6 +1614,19 @@ Otherwise, one argument `-i' is passed to the shell.
 
 Note that many people's .cshrc files unconditionally clear the prompt.
 If yours does, you will probably want to change it."
+  t)
+
+;; these are in the minibuffer keymap used by `shell-command'
+(autoload 'comint-dynamic-complete "comint"
+  "\
+Dynamically complete the filename at point.
+This function is similar to comint-replace-by-expanded-filename, except
+that it won't change parts of the filename already entered in the buffer; 
+it just adds completion characters to the end of the filename."
+  t)
+(autoload 'comint-dynamic-list-completions "comint"
+  "\
+List in help buffer all possible completions of the filename at point."
   t)
 
 (autoload 'sort-lines "sort"
@@ -1739,8 +1744,6 @@ when this can be done without changing the column they end at.
 The variable tab-width controls the action."
   t)
 
-(define-key esc-map "." 'find-tag)
-
 (autoload 'find-tag "etags"
   "\
 *Find tag whose name contains TAGNAME.
@@ -1763,8 +1766,6 @@ Variables of note:
   make-tags-files-invisible	whether tags tables should be very hidden
   tag-mark-stack-max		how many tags-based hops to remember"
   t)
-
-(define-key ctl-x-4-map "." 'find-tag-other-window)
 
 (autoload 'find-tag-other-window "etags"
   "\
@@ -1808,7 +1809,6 @@ initializes to the beginning of the list of files in the (first) tag table."
 Display list of all tags in tag table REGEXP matches."
   t)
 
-(define-key esc-map "," 'tags-loop-continue)
 (autoload 'tags-loop-continue "etags"
   "\
 Continue last \\[tags-search] or \\[tags-query-replace] command.
@@ -1851,7 +1851,16 @@ This function is largely obsoleted by the variable tag-table-alist."
   "\
 Open a network login connection to host named HOST (a string).
 Communication with HOST is recorded in a buffer *HOST-telnet*.
-Normally input is edited in Emacs and sent a line at a time."
+Normally input is edited in Emacs and sent a line at a time.
+See also `\\[rsh]'."
+  t)
+
+(autoload 'rsh "telnet"
+  "\
+Open a network login connection to host named HOST (a string).
+Communication with HOST is recorded in a buffer *HOST-rsh*.
+Normally input is edited in Emacs and sent a line at a time.
+See also `\\[telnet]'."
   t)
 
 (autoload 'terminal-emulator "terminal"
@@ -2099,68 +2108,19 @@ Major differences between this mode and real vi :
 Syntax table and abbrevs while in vi mode remain as they were in Emacs."
   t)
 
-(autoload 'view-file "view"
+(autoload 'view-file "view-less"
   "\
-View FILE in View mode, returning to previous buffer when done.
-The usual Emacs commands are not available; instead,
-a special set of commands (mostly letters and punctuation)
-are defined for moving around in the buffer.
-Space scrolls forward, Delete scrolls backward.
-For list of all View commands, type ? or h while viewing.
-
-Calls the value of  view-hook  if that is non-nil."
+Find FILE, enter view mode.  With prefix arg use other window."
   t)
 
-(autoload 'view-buffer "view"
+(autoload 'view-buffer "view-less"
   "\
-View BUFFER in View mode, returning to previous buffer when done.
-The usual Emacs commands are not available; instead,
-a special set of commands (mostly letters and punctuation)
-are defined for moving around in the buffer.
-Space scrolls forward, Delete scrolls backward.
-For list of all View commands, type ? or h while viewing.
-
-Calls the value of  view-hook  if that is non-nil."
+Switch to BUF, enter view mode.  With prefix arg use other window."
   t)
 
-(autoload 'view-mode "view"
+(autoload 'view-mode "view-less"
   "\
-Major mode for viewing text but not editing it.
-Letters do not insert themselves.  Instead these commands are provided.
-Most commands take prefix arguments.  Commands dealing with lines
-default to \"scroll size\" lines (initially size of window).
-Search commands default to a repeat count of one.
-M-< or <	move to beginning of buffer.
-M-> or >	move to end of buffer.
-C-v or Space	scroll forward lines.
-M-v or DEL	scroll backward lines.
-CR or LF	scroll forward one line (backward with prefix argument).
-z		like Space except set number of lines for further
-		   scrolling commands to scroll by.
-C-u and Digits	provide prefix arguments.  `-' denotes negative argument.
-=		prints the current line number.
-g		goes to line given by prefix argument.
-/ or M-C-s	searches forward for regular expression
-\\ or M-C-r	searches backward for regular expression.
-n		searches forward for last regular expression.
-p		searches backward for last regular expression.
-C-@ or .	set the mark.
-x		exchanges point and mark.
-C-s or s	do forward incremental search.
-C-r or r	do reverse incremental search.
-@ or '		return to mark and pops mark ring.
-		  Mark ring is pushed at start of every
-		  successful search and when jump to line to occurs.
-		  The mark is set on jump to buffer start or end.
-? or h		provide help message (list of commands).
-C-h		provides help (list of commands or description of a command).
-C-n		moves down lines vertically.
-C-p		moves upward lines vertically.
-C-l		recenters the screen.
-q or C-c	exit view-mode and return to previous buffer.
-
-Entry to this mode calls the value of  view-hook  if non-nil.
-\\{view-mode-map}")
+Mode for viewing text, with bindings like `less'.")
 
 (autoload 'vip-mode "vip"
   "\
@@ -2186,75 +2146,7 @@ Return or display a Zippy quotation" t)
 Zippy goes to the analyst." t)
 
 
-(define-key esc-map "\C-f" 'forward-sexp)
-(define-key esc-map "\C-b" 'backward-sexp)
-(define-key esc-map "\C-u" 'backward-up-list)
-(define-key esc-map "\C-@" 'mark-sexp)
-(define-key esc-map "\C-d" 'down-list)
-(define-key esc-map "\C-k" 'kill-sexp)
-(define-key esc-map "\C-n" 'forward-list)
-(define-key esc-map "\C-p" 'backward-list)
-(define-key esc-map "\C-a" 'beginning-of-defun)
-(define-key esc-map "\C-e" 'end-of-defun)
-(define-key esc-map "\C-h" 'mark-defun)
-(define-key esc-map "(" 'insert-parentheses)
-(define-key esc-map ")" 'move-past-close-and-reindent)
-(define-key esc-map "\t" 'lisp-complete-symbol)
 
-(define-key esc-map '(control delete) 'backward-kill-sexp)
-
-(define-key global-map '(control <) 'mark-bob)
-(define-key global-map '(control >) 'mark-eob)
-
-(define-key ctl-x-map "\C-e" 'eval-last-sexp)
-
-(define-key ctl-x-map "/" 'point-to-register)
-(define-key ctl-x-map "j" 'jump-to-register)
-(define-key ctl-x-map "x" 'copy-to-register)
-(define-key ctl-x-map "g" 'insert-register)
-(define-key ctl-x-map "r" 'copy-rectangle-to-register)
-
-(define-key esc-map "q" 'fill-paragraph)
-(define-key esc-map "g" 'fill-region)
-(define-key ctl-x-map "." 'set-fill-prefix)
-
-(define-key esc-map "[" 'backward-paragraph)
-(define-key esc-map "]" 'forward-paragraph)
-(define-key esc-map "h" 'mark-paragraph)
-(define-key esc-map "a" 'backward-sentence)
-(define-key esc-map "e" 'forward-sentence)
-(define-key esc-map "k" 'kill-sentence)
-(define-key ctl-x-map "\177" 'backward-kill-sentence)
-
-(define-key ctl-x-map "[" 'backward-page)
-(define-key ctl-x-map "]" 'forward-page)
-(define-key ctl-x-map "\C-p" 'mark-page)
-(put 'narrow-to-region 'disabled t)
-(define-key ctl-x-map "p" 'narrow-to-page)
-(put 'narrow-to-page 'disabled t)
-(define-key ctl-x-map "l" 'count-lines-page)
-
-;; Make Control-0 - Control-9 set the prefix argument, like Meta-0.
-(let ((i ?0))
-  (while (<= i ?9)
-    (define-key global-map (list 'control i) 'digit-argument)
-    (define-key global-map (list 'control 'meta i) 'digit-argument)
-    (setq i (1+ i))))
-(define-key global-map '(control -) 'negative-argument)
-(define-key global-map '(control meta -) 'negative-argument)
-
-(define-key global-map '(meta left) 'backward-sexp)
-(define-key global-map '(meta right) 'forward-sexp)
-(define-key global-map '(meta up) 'backward-list)
-(define-key global-map '(meta down) 'forward-list)
-
-
-;; isearch is preloaded, so the defvars have been moved back to isearch-mode.
-
-(define-key global-map "\C-s" 'isearch-forward)
-(define-key global-map "\C-r" 'isearch-backward)
-(define-key esc-map "\C-s" 'isearch-forward-regexp)
-
 (defun query-replace (from-string to-string &optional arg)
   "\
 Replace some occurrences of FROM-STRING with TO-STRING.
@@ -2350,17 +2242,7 @@ which will run faster and will not set the mark or print anything."
   (perform-replace regexp to-string nil t delimited)
   (message "Done"))
 
-(define-key esc-map "%" 'query-replace)
-
 (autoload 'perform-replace "replace")
-
-(define-key ctl-x-map "\C-a" 'add-mode-abbrev)
-(define-key ctl-x-map "\+" 'add-global-abbrev)
-(define-key ctl-x-map "\C-h" 'inverse-add-mode-abbrev)
-(define-key ctl-x-map "\-" 'inverse-add-global-abbrev)
-(define-key esc-map "'" 'abbrev-prefix-mark)
-(define-key ctl-x-map "'" 'expand-abbrev)
-
 
 (autoload 'load-sound-file "sound"
   "\
@@ -2613,6 +2495,40 @@ use the M-x conx command to generate random sentences based on the
 word frequency in this region.  Multiple uses of this function are
 additive; to clear the database and start over, use M-x conx-init."
   t)
+
+(autoload 'with-timeout "with-timeout" "\
+Usage: (with-timeout (seconds &rest timeout-forms) &rest body)
+This is just like progn, but if the given number of seconds expires before
+the body returns, then timeout-forms are evaluated and returned instead.
+The body won't be interrupted in the middle of a computation: the check for 
+the timer expiration only occurs when body does a redisplay, or prompts the
+user for input, or calls accept-process-output."
+	  nil t)
+(autoload 'yes-or-no-p-with-timeout "with-timeout" "\
+Just like yes-or-no-p, but will time out after TIMEOUT seconds
+if the user has not yes answered, returning DEFAULT-VALUE.")
+(autoload 'y-or-n-p-with-timeout "with-timeout" "\
+Just like y-or-n-p, but will time out after TIMEOUT seconds
+if the user has not yes answered, returning DEFAULT-VALUE.")
+
+(autoload 'highlight-headers "highlight-headers" "\
+Highlight message headers between start and end.
+Faces used:
+  message-headers			the part before the colon
+  message-header-contents		the part after the colon
+  message-highlighted-header-contents	contents of \"special\" headers
+  message-cited-text			quoted text from other messages
+
+Variables used:
+
+  highlight-headers-regexp			what makes a \"special\" header
+  highlight-headers-citation-regexp		matches lines of quoted text
+  highlight-headers-citation-header-regexp	matches headers for quoted text
+
+If HACK-SIG is true,then we search backward from END for something that
+looks like the beginning of a signature block, and don't consider that a
+part of the message (this is because signatures are often incorrectly
+interpreted as cited text.)")
 
 (autoload 'run-ilisp "ilisp" "\
 Select a new inferior LISP." t)

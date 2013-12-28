@@ -148,8 +148,9 @@ See also functions
 
 ;;; Handle customization
 
-(or (fboundp 'read-with-history-in)
-    ;; try to load gmhist
+(or (fboundp 'read-with-history-in)	; it's loaded
+    (not (subrp (symbol-function 'read-from-minibuffer)))	; it's 19.4L
+    ;; else try to load gmhist
     (load "gmhist" t))
 
 (if (not (fboundp 'read-with-history-in))

@@ -1,3 +1,4 @@
+;;; Id: cookie.el,v 1.10 1992/07/20 16:01:20 ceder Exp 
 ;;; cookie.el -- Utility to display cookies in buffers
 ;;; Copyright (C) 1991, 1992  Per Cederqvist
 ;;;

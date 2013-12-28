@@ -1,5 +1,5 @@
 ;;; Mouse and font support for VM running in Lucid GNU Emacs
-;; Copyright (C) 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -134,57 +134,16 @@
 (define-key vm-mode-map 'button2 'vm-mouse-select)
 (define-key vm-mode-map 'button3 'vm-menu)
 
-
-;;; Highlighting message headers
 
-(or (find-face 'vm-header-face) (make-face 'vm-header-face))
-(or (face-differs-from-default-p 'vm-header-face)
-    (copy-face 'bold 'vm-header-face))
-
-(or (find-face 'vm-header-contents-face) (make-face 'vm-header-contents-face))
-(or (face-differs-from-default-p 'vm-header-contents-face)
-    (copy-face 'italic 'vm-header-contents-face))
-
-(or (find-face 'vm-header-highlight-face) (make-face 'vm-header-highlight-face))
-(or (face-differs-from-default-p 'vm-header-highlight-face)
-    (progn
-      (copy-face 'vm-header-contents-face 'vm-header-highlight-face)
-      (set-face-underline-p 'vm-header-highlight-face t)))
-
-;; originally defined in vm-folder.el
+;;; originally defined in vm-folder.el
 
 (defun vm-highlight-headers (message window)
-  (save-restriction
-    (save-excursion
-      (widen)
-      (narrow-to-region (vm-start-of (car vm-message-pointer))
-			(vm-text-of (car vm-message-pointer)))
-      ;; delete extents on current message headers.
-      (map-extents (function (lambda (x y)
-			       (if (eq (extent-data x) 'vm)
-				   (delete-extent x))))
-		   (current-buffer) (point-min) (point-max) nil)
-      (goto-char (point-min))
-      (while (not (= (following-char) ?\n))
-	(if (looking-at vm-generic-header-regexp)
-	    (let ((start (match-beginning 2))
-		  (end (match-end 2))
-		  extent)
-	      (set-extent-face
-	       (setq extent (make-extent (match-beginning 1) (match-end 1)))
-	       'vm-header-face)
-	      (set-extent-data extent 'vm)
-	      (set-extent-face (setq extent (make-extent start end))
-			       (if (and vm-highlighted-header-regexp
-					(looking-at
-					 vm-highlighted-header-regexp))
-				   'vm-header-highlight-face
-				 'vm-header-contents-face))
-	      (set-extent-data extent 'vm)
-	      (goto-char end))
-	  (forward-line 1))))))
+  (let ((highlight-headers-regexp vm-highlighted-header-regexp))
+    (highlight-headers (marker-position (vm-start-of (car vm-message-pointer)))
+		       (marker-position (vm-text-of (car vm-message-pointer)))
+		       t)))
 
-
+
 ;;; Highlight the line under the mouse in the folder and summary buffers.
 
 (defun vm-install-mouse-tracker ()
@@ -197,9 +156,9 @@
 ;;; Put the VM menu in the menubar
 
 (defun vm-install-menubar ()
-  (if default-menubar
+  (if (and current-menubar (not (assoc "VM" current-menubar)))
       (progn
-	(set-buffer-menubar (copy-sequence default-menubar))
+	(set-buffer-menubar (copy-sequence current-menubar))
 	(add-menu nil "VM" (cdr vm-menu)))))
 
 (add-hook 'vm-mode-hooks 'vm-install-menubar)

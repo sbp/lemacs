@@ -1,5 +1,5 @@
 /* X Selection processing for emacs
-   Copyright (C) 1990, 1992 Free Software Foundation.
+   Copyright (C) 1990-1993 Free Software Foundation.
 
 This file is part of GNU Emacs.
 
@@ -27,7 +27,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define CUT_BUFFER_SUPPORT
 
-Atom Xatom_CLIPBOARD, Xatom_TIMESTAMP, Xatom_TEXT, Xatom_DELETE,
+static Atom Xatom_CLIPBOARD, Xatom_TIMESTAMP, Xatom_TEXT, Xatom_DELETE,
   Xatom_MULTIPLE, Xatom_INCR, Xatom_EMACS_TMP, Xatom_TARGETS, Xatom_NULL,
   Xatom_ATOM_PAIR;
 
@@ -86,6 +86,10 @@ Lisp_Object Vselection_alist;
  */
 Lisp_Object Vselection_converter_alist;
 
+/* If the selection owner takes too long to reply to a selection request,
+   we give up on it.  This is in seconds (0 = no timeout.)
+ */
+int x_selection_timeout;
 
 
 /* Utility functions */
@@ -189,7 +193,9 @@ x_atom_to_symbol (display, atom)
 #endif
   if (! str) return Qnil;
   val = intern (str);
+  BLOCK_INPUT;
   XFree (str);
+  UNBLOCK_INPUT;
   return val;
 }
 
@@ -348,9 +354,10 @@ x_get_local_selection (selection_symbol, target_type)
 	     NILP (XCONS (XCONS (check)->cdr)->cdr))))
     return value;
   else
-    Fsignal (Qerror,
-	     Fcons (build_string ("unrecognised selection-conversion type"),
-		    Fcons (handler_fn, Fcons (value, Qnil))));
+    return
+      Fsignal (Qerror,
+	       Fcons (build_string ("unrecognised selection-conversion type"),
+		      Fcons (handler_fn, Fcons (value, Qnil))));
 }
 
 
@@ -443,7 +450,6 @@ x_reply_selection_request (event, format, data, size, type)
   else
     {
       /* Send an INCR selection. */
-      int i;
       int prop_id;
 
       if (x_window_to_screen (window)) /* #### debug */
@@ -570,7 +576,8 @@ x_handle_selection_request (event)
     }
 
   count = specpdl_ptr - specpdl;
-  record_unwind_protect (x_selection_request_lisp_error, event);
+  record_unwind_protect (x_selection_request_lisp_error,
+			 (Lisp_Object) event);	/* #### dangerous cast */
   target_symbol = x_atom_to_symbol (reply.display, event->target);
 
 #if 0 /* #### MULTIPLE doesn't work yet */
@@ -596,9 +603,9 @@ x_handle_selection_request (event)
       successful_p = Qt;
       /* Tell x_selection_request_lisp_error() it's cool. */
       event->type = 0;
-      free (data);
+      xfree (data);
     }
-  unbind_to (count);
+  unbind_to (count, Qnil);
 
  DONE:
 
@@ -704,11 +711,11 @@ static struct prop_location {
 
 static int
 property_deleted_p (tick)
-     int tick;
+     void *tick;
 {
   struct prop_location *rest = for_whom_the_bell_tolls;
   while (rest)
-    if (rest->tick == tick)
+    if (rest->tick == (int) tick)
       return 0;
     else
       rest = rest->next;
@@ -762,7 +769,7 @@ unexpect_property_change (tick)
 	    prev->next = rest->next;
 	  else
 	    for_whom_the_bell_tolls = rest->next;
-	  free (rest);
+	  xfree (rest);
 	  return;
 	}
       prev = rest;
@@ -774,7 +781,7 @@ static void
 wait_for_property_change (tick)
      int tick;
 {
-  wait_delaying_user_input (property_deleted_p, tick);
+  wait_delaying_user_input (property_deleted_p, (void *) tick);
 }
 
 
@@ -803,7 +810,7 @@ x_handle_property_notify (event)
 	    prev->next = rest->next;
 	  else
 	    for_whom_the_bell_tolls = rest->next;
-	  free (rest);
+	  xfree (rest);
 	  return;
 	}
       prev = rest;
@@ -870,6 +877,7 @@ copy_multiple_data (obj)
 
 static int reading_selection_reply;
 static Atom reading_which_selection;
+static int selection_reply_timed_out;
 
 static int
 selection_reply_done (ignore)
@@ -877,6 +885,20 @@ selection_reply_done (ignore)
 {
   return !reading_selection_reply;
 }
+
+static Lisp_Object Qx_selection_reply_timeout_internal;
+
+DEFUN ("x-selection-reply-timeout-internal",
+       Fx_selection_reply_timeout_internal,
+       Sx_selection_reply_timeout_internal, 1, 1, 0, "")
+     (arg)
+     Lisp_Object arg;
+{
+  selection_reply_timed_out = 1;
+  reading_selection_reply = 0;
+  return Qnil;
+}
+
 
 /* Do protocol to read selection-data from the server.
    Converts this to lisp data and returns it.
@@ -891,6 +913,7 @@ x_get_foreign_selection (selection_symbol, target_type)
   Atom target_property = Xatom_EMACS_TMP;
   Atom selection_atom = symbol_to_x_atom (display, selection_symbol);
   Atom type_atom;
+  int count;
 
   if (CONSP (target_type))
     type_atom = symbol_to_x_atom (display, XCONS (target_type)->car);
@@ -905,11 +928,28 @@ x_get_foreign_selection (selection_symbol, target_type)
   /* Block until the reply has been read. */
   reading_selection_reply = (int) requestor_window;
   reading_which_selection = selection_atom;
+  selection_reply_timed_out = 0;
 
+  count = specpdl_ptr - specpdl;
+
+  /* add a timeout handler */
+  if (x_selection_timeout > 0)
+    {
+      Lisp_Object id = Fadd_timeout (make_number (x_selection_timeout),
+				     Qx_selection_reply_timeout_internal,
+				     Qnil, Qnil);
+      record_unwind_protect (Fdisable_timeout, id);
+    }
+
+  /* This is ^Gable */
   wait_delaying_user_input (selection_reply_done, 0);
-  /* If the above returns (not ^Ged) then the selection is waiting for us
-     on the requested property.
-   */
+
+  if (selection_reply_timed_out)
+    error ("timed out waiting for reply from selection owner");
+
+  unbind_to (count, Qnil);
+
+  /* otherwise, the selection is waiting for us on the requested property. */
   return
     x_get_window_property_as_lisp_data (display, requestor_window,
 					target_property, target_type,
@@ -931,7 +971,6 @@ x_get_window_property (display, window, property, data_ret, bytes_ret,
      unsigned long *actual_size_ret;
      int delete_p;
 {
-  int remaining;
   int total_size;
   unsigned long bytes_remaining;
   int offset = 0;
@@ -954,7 +993,9 @@ x_get_window_property (display, window, property, data_ret, bytes_ret,
       *bytes_ret = 0;
       return;
     }
+  BLOCK_INPUT;
   XFree ((char *) tmp_data);
+  UNBLOCK_INPUT;
   
   if (*actual_type_ret == None || *actual_format_ret == 0)
     {
@@ -988,7 +1029,7 @@ x_get_window_property (display, window, property, data_ret, bytes_ret,
        */
       if (result != Success) break;
       *actual_size_ret *= *actual_format_ret / 8;
-      bcopy (tmp_data, (*data_ret) + offset, *actual_size_ret);
+      memcpy ((*data_ret) + offset, tmp_data, *actual_size_ret);
       offset += *actual_size_ret;
       XFree ((char *) tmp_data);
     }
@@ -1050,7 +1091,7 @@ receive_incremental_selection (display, window, property, target_type,
 	  fprintf (stderr, "  read INCR done\n");
 #endif
 	  unexpect_property_change (prop_id);
-	  if (tmp_data) free (tmp_data);
+	  if (tmp_data) xfree (tmp_data);
 	  break;
 	}
 #if 0
@@ -1065,9 +1106,9 @@ receive_incremental_selection (display, window, property, target_type,
 	  *size_bytes_ret = offset + tmp_size_bytes;
 	  *data_ret = (unsigned char *) xrealloc (*data_ret, *size_bytes_ret);
 	}
-      bcopy (tmp_data, (*data_ret) + offset, tmp_size_bytes);
+      memcpy ((*data_ret) + offset, tmp_data, tmp_size_bytes);
       offset += tmp_size_bytes;
-      free (tmp_data);
+      xfree (tmp_data);
     }
 }
 
@@ -1116,7 +1157,9 @@ x_get_window_property_as_lisp_data (display, window, property, target_type,
       /* Ok, that data wasnt *the* data, it was just the beginning. */
 
       unsigned int min_size_bytes = * ((unsigned int *) data);
+      BLOCK_INPUT;
       XFree ((char *) data);
+      UNBLOCK_INPUT;
       receive_incremental_selection (display, window, property, target_type,
 				     min_size_bytes, &data, &bytes,
 				     &actual_type, &actual_format,
@@ -1129,7 +1172,7 @@ x_get_window_property_as_lisp_data (display, window, property, target_type,
   val = selection_data_to_lisp_data (display, data, bytes,
 				     actual_type, actual_format);
   
-  free ((char *) data);
+  xfree ((char *) data);
   return val;
 }
 
@@ -1173,7 +1216,7 @@ selection_data_to_lisp_data (display, data, size, type, format)
 
   /* Convert any 8-bit data to a string, for compactness. */
   else if (format == 8)
-    return make_string (data, size);
+    return make_string ((char *) data, size);
 
   /* Convert a single atom to a Lisp_Symbol.  Convert a set of atoms to
      a vector of symbols.
@@ -1260,7 +1303,7 @@ lisp_data_to_selection_data (display, obj,
       *format_ret = 8;
       *size_ret = XSTRING (obj)->size;
       *data_ret = (unsigned char *) xmalloc (*size_ret);
-      bcopy ((char *) XSTRING (obj)->data, *data_ret, *size_ret);
+      memcpy (*data_ret, (char *) XSTRING (obj)->data, *size_ret);
       if (NILP (type)) type = QSTRING;
     }
   else if (SYMBOLP (obj))
@@ -1661,8 +1704,8 @@ DEFUN ("x-get-cutbuffer-internal", Fx_get_cutbuffer_internal,
 		    Fcons (x_atom_to_symbol (display, type),
 			   Fcons (make_number (format), Qnil))));
 
-  ret = (bytes ? make_string (data, bytes) : Qnil);
-  free (data);
+  ret = (bytes ? make_string ((char *) data, bytes) : Qnil);
+  xfree (data);
   return ret;
 }
 
@@ -1758,6 +1801,7 @@ syms_of_xselect ()
 
   reading_selection_reply = 0;
   reading_which_selection = 0;
+  selection_reply_timed_out = 0;
   for_whom_the_bell_tolls = 0;
   prop_location_tick = 0;
 
@@ -1768,8 +1812,8 @@ syms_of_xselect ()
   "An alist associating selection-types (such as STRING and TIMESTAMP) with\n\
 functions.  These functions will be called with three args: the name of the\n\
 selection (typically PRIMARY, SECONDARY, or CLIPBOARD); a desired type to\n\
-which the selection should be converted; and the local selection value\n\
-(whatever had been passed to `x-own-selection').  These functions should\n\
+which the selection should be converted; and the local selection value\n(\
+whatever had been passed to `x-own-selection').  These functions should\n\
 return the value to send to the X server (typically a string).  A return\n\
 value of nil means that the conversion could not be done.  A return value\n\
 which is the symbol NULL means that a side-effect was executed, and there\n\
@@ -1797,6 +1841,17 @@ to convert into a type that we don't know about or that is inappropriate.\n\
 This hook doesn't let you change the behavior of emacs's selection replies,\n\
 it merely informs you that they have happened.");
   Vx_sent_selection_hooks = Qunbound;
+
+  DEFVAR_INT ("x-selection-timeout", &x_selection_timeout,
+   "If the selection owner doens't reply in this many seconds, we give up.\n\
+A value of 0 means wait as long as necessary.  This is initialized from the\n\
+\"*selectionTimeout\" resource (which is expressed in milliseconds).");
+  x_selection_timeout = 0;
+
+  /* Unfortunately, timeout handlers must be lisp functions. */
+  Qx_selection_reply_timeout_internal =
+    intern ("x-selection-reply-timeout-internal");
+  defsubr (&Sx_selection_reply_timeout_internal);
 
   QPRIMARY   = intern ("PRIMARY");	staticpro (&QPRIMARY);
   QSECONDARY = intern ("SECONDARY");	staticpro (&QSECONDARY);

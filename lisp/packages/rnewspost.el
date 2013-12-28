@@ -1,11 +1,11 @@
 ;;; USENET news poster/mailer for GNU Emacs
-;; Copyright (C) 1985, 1986, 1987 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -108,15 +108,16 @@ C-c C-r  caesar rotate all letters by 13 places in the article's body (rot13)."
   "")
 
 (defun news-reply-yank-original (arg)
-  "Insert the message being replied to, if any (in rmail).
+  "Insert the message being replied to, if any (in postnews).
 Puts point before the text and mark after.
 Indents each nonblank line ARG spaces (default 3).
 Just \\[universal-argument] as argument means don't indent
 and don't delete any header fields."
   (interactive "P")
-  (mail-yank-original arg)
-  (exchange-point-and-mark)
-  (run-hooks 'news-reply-header-hook))
+  (let ((zmacs-regions nil))
+    (mail-yank-original arg)
+    (exchange-point-and-mark)
+    (run-hooks 'news-reply-header-hook)))
 
 (defvar news-reply-header-hook
   '(lambda ()
@@ -245,33 +246,51 @@ news-reply-mode."
       (set-buffer-modified-p nil))
     (and (fboundp 'bury-buffer) (bury-buffer))))
 
+(defvar news-reply-subject-prefix nil
+  "*The prefix to use when replying to a news message (such as \"Re:\").")
+
 ;@@ shares some code with news-reply and news-post-news
 (defun news-mail-reply ()
   "Mail a reply to the author of the current article.
 While composing the reply, use \\[news-reply-yank-original] to yank the
 original message into it."
   (interactive)
-  (let (from cc subject date to reply-to
-	     (buffer (current-buffer)))
+  (let (from cc subject date to reply-to references message-id b
+	(buffer (current-buffer)))
     (save-restriction
-      (narrow-to-region (point-min) (progn (goto-line (point-min))
+      (widen)
+      (narrow-to-region (point-min) (progn (goto-char (point-min))
 					   (search-forward "\n\n")
 					   (- (point) 1)))
       (setq from (mail-fetch-field "from")
 	    subject (mail-fetch-field "subject")
 	    reply-to (mail-fetch-field "reply-to")
-	    date (mail-fetch-field "date"))
+	    date (mail-fetch-field "date")
+	    references (mail-fetch-field "references")
+	    message-id (mail-fetch-field "message-id"))
+      (if (and news-reply-subject-prefix subject
+	   (not (string-match
+		 (concat "^[ \t]*" (regexp-quote news-reply-subject-prefix)
+			 "[ )t]*")
+		 subject)))
+	  (setq subject (concat news-reply-subject-prefix " " subject)))
       (setq to from)
       (pop-to-buffer "*mail*")
-      (mail nil
-	    (if reply-to reply-to to)
-	    subject
-	    (let ((stop-pos (string-match "  *at \\|  *@ \\| *(\\| *<" from)))
-	      (concat (if stop-pos (substring from 0 stop-pos) from)
-		      "'s message of "
-		      date))
-	    nil
-	   buffer))))
+      (setq b (current-buffer))
+      (if (mail nil (if reply-to reply-to to) subject
+		(let ((stop-pos
+		       (string-match "  *at \\|  *@ \\| *(\\| *<" from)))
+		  (concat (if stop-pos (substring from 0 stop-pos) from)
+			  "'s message of "
+			  date))
+		nil
+		buffer)
+	  (save-excursion
+	    (set-buffer b)
+	    (mail-position-on-field "References")
+	    (if references (insert references))
+	    (if (and references message-id) (insert " "))
+	    (if message-id (insert message-id)))))))
 
 ;@@ the guts of news-reply and news-post-news should be combined. -tower
 (defun news-reply ()

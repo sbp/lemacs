@@ -10,3 +10,7 @@
 #define DATA_SEG_BITS 0x10000000
 
 #define BROKEN_O_NONBLOCK
+#undef TERMINFO
+
+#define NEED_STRDUP
+#define NEED_REALPATH

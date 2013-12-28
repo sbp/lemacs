@@ -208,8 +208,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* The 48-bit versions are more winning for Emacs.  */
 
-#define rand lrand48
-#define srand srand48
+/* HB: 920910: This will create inconsistens in <stdlib.h>! */
+/* #define rand lrand48 */
+/* #define srand srand48 */
 
 /* In hpux, the symbol SIGIO is defined, but the feature
    does not really exist.
@@ -283,3 +284,5 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Specify compiler options for compiling oldXMenu.  */
 #define OLDXMENU_OPTIONS CFLAGS=-I/usr/include/X11R4
+
+#define FLOAT_CATCH_SIGILL

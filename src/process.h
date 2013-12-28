@@ -82,7 +82,7 @@ struct Lisp_Process
 
 /* True iff we are about to fork off a synchronous process or if we
    are waiting for it.  */
-extern int synch_process_alive;
+/* extern int synch_process_alive; */
 
 /* Nonzero => this is a string explaining death of synchronous subprocess.  */
 extern char *synch_process_death;

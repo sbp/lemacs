@@ -1,7 +1,7 @@
-;;; compiled by jwz@watergate on Tue Aug 18 17:19:53 1992
-;;; from file /wg1/emacs-base/lisp/pcl-cvs/elib-dll.el
-;;; emacs version 19.2.2 Lucid.
-;;; bytecomp version 2.08;  7-aug-92.
+;;; compiled by jwz@thalidomide on Wed Oct 28 19:21:56 1992
+;;; from file /u/jwz/emacs19/lisp/pcl-cvs/elib-dll.el
+;;; emacs version 19.3.3 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

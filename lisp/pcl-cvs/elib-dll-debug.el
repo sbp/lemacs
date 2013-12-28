@@ -1,4 +1,5 @@
 ;;; elib-dll-debug -- A slow implementation of elib-dll for debugging.
+;;; Id: elib-dll-debug.el,v 1.4 1992/03/18 18:04:48 ceder Exp 
 ;;; Copyright (C) 1991,1992  Per Cederqvist
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify

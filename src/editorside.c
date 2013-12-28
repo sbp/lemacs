@@ -6,6 +6,7 @@
 
 /* system */
 #include "config.h"
+#include "lisp.h"
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -18,7 +19,6 @@
 #include <errno.h>
 
 /* editing and buffer operations */
-#include "lisp.h"
 #include "buffer.h" 
 #include "extents.h"
 #include "process.h"
@@ -28,14 +28,17 @@
 #include "screen.h"
 #include "window.h" 
 
+#include <lwlib.h>
+
+/* this doesn't work because of conflicts with the fucking C++ hash table code
+ */
+/* #include "hash.h" */
+
 /* Display Context for the icons */ 
 #include <X11/Intrinsic.h>
 #include <X11/IntrinsicP.h>
 #include <X11/CoreP.h>
 #include <X11/StringDefs.h>
-#include <cdisplayctx.h>
-#include <wimage.h>
-#include <lwlib.h>
 
 /* Energize editor requests and I/O operations */
 #include "editorside.h"
@@ -45,6 +48,18 @@
 #include <editoption.h>
 
 #include "extents-data.h"
+
+
+extern void CWriteQueryChoicesRequest ();
+extern void CWriteExecuteChoicesRequest();
+extern void CWriteSheetRequest();
+extern void CWriteSetControlRequest();
+extern void CWriteChoice();
+extern void CWriteProtocol();
+extern int  CGetPortNumber();
+extern int  CReadSomeMore(Connection*, int);
+extern void NewPixmapImage();
+extern void NewAttributeImage();
 
 
 /************** Typedefs and Structs ***********************/
@@ -65,9 +80,9 @@ typedef struct
 
 struct reply_wait {
   int		serial;
-  BITS32	objectId;
-  BITS32	genericId;
-  BITS32	itemId;
+  EId		objectId;
+  EId		genericId;
+  EId		itemId;
   char		answered_p;
   char		status;
   char*		message;
@@ -79,7 +94,6 @@ struct reply_wait {
 static struct reply_wait*
 global_reply_wait;
 
-extern void free_all_x_bitmaps_indices (void);
 Lisp_Object Venergize_kernel_busy;
 Lisp_Object Qenergize_kernel_busy;
 Lisp_Object Venergize_attributes_mapping;
@@ -88,49 +102,44 @@ Lisp_Object Venergize_menu_update_hook;
 Lisp_Object Qenergize_extent_data;
 
 /************************ Functions ********************/
-extern void free_all_x_bitmaps_indices (void);
 extern Lisp_Object Venergize_kernel_busy;
 extern Lisp_Object make_extent_for_data
-(BufferInfo *binfo, Extent_Data *ext, int from, int to, int set_endpoints);
+(BufferInfo *binfo, Energize_Extent_Data *ext, int from, int to, int set_endpoints);
 
 static int
 wait_for_reply (struct reply_wait* rw);
-static Extent_Data *extent_to_data (Lisp_Object extent_obj);
+static Energize_Extent_Data *extent_to_data (Lisp_Object extent_obj);
 static char *copy_string (char *s);
 Lisp_Object word_to_lisp (unsigned int item);
 unsigned int lisp_to_word (Lisp_Object obj);
-void *get_object_internal (Id id, c_hashtable table);
-static void *get_object (Id id, BufferInfo *binfo);
-void put_object_internal (Id id, c_hashtable table, void *object);
-static void put_object (Id id, BufferInfo *binfo, void *object);
-void remove_object_internal (Id id, c_hashtable table);
-static void remove_object (Id id, BufferInfo *binfo);
+static void *get_object (EId id, BufferInfo *binfo);
+static void put_object (EId id, BufferInfo *binfo, void *object);
+static void remove_object (EId id, BufferInfo *binfo);
 static void free_object (void *key, void *contents, void *arg);
-static GDataClass *alloc_GDataclass (Id id, BufferInfo *binfo);
+static GDataClass *alloc_GDataclass (EId id, BufferInfo *binfo);
 static void free_GDataclass (GDataClass *cl, BufferInfo *binfo);
-static GenericData *alloc_GenericData (Id id, GDataClass *cl, 
+static GenericData *alloc_GenericData (EId id, GDataClass *cl, 
                                        BufferInfo *binfo);
 static void free_GenericData (GenericData *gen, BufferInfo *binfo);
-static Extent_Data *alloc_Extent_Data (Id id, BufferInfo *binfo);
-static void free_Extent_Data (Extent_Data *ext, BufferInfo *binfo, 
-                              enum Object_Free_Type free_type);
+static Energize_Extent_Data *alloc_Energize_Extent_Data (EId id, BufferInfo *binfo);
+static void free_Energize_Extent_Data (Energize_Extent_Data *ext, BufferInfo *binfo, 
+                              enum Energize_Object_Free_Type free_type);
 void energize_extent_finalization (EXTENT extent);
 static BufferInfo *alloc_BufferInfo
-(Id id, Lisp_Object name, Lisp_Object filename, 
+(EId id, Lisp_Object name, Lisp_Object filename, 
  char *class_str, Editor *editor, Window win);
 static void free_buffer_info (BufferInfo *binfo);
-BufferInfo *get_buffer_info_for_emacs_buffer 
-(Lisp_Object emacs_buf, Editor *editor);
-long get_energize_buffer_id (Lisp_Object emacs_buf);
+static BufferInfo *get_buffer_info_for_emacs_buffer (Lisp_Object emacs_buf, Editor *editor);
+static long get_energize_buffer_id (Lisp_Object emacs_buf);
 static char *kernel_buffer_type_to_elisp_type (char *kernel_type);
 static Lisp_Object get_buffer_type_for_emacs_buffer 
 (Lisp_Object emacs_buf, Editor *editor);
 static Lisp_Object set_buffer_type_for_emacs_buffer 
 (Lisp_Object emacs_buf, Editor *editor, Lisp_Object type);
-static BufferInfo *get_buffer_info_for_id (Id id, Editor *editor);
+static BufferInfo *get_buffer_info_for_id (EId id, Editor *editor);
 static void put_buffer_info 
-(Id id, Lisp_Object emacs_buf, BufferInfo *binfo, Editor *editor);
-static void remove_buffer_info (Id id, Lisp_Object emacs_buf, Editor *editor);
+(EId id, Lisp_Object emacs_buf, BufferInfo *binfo, Editor *editor);
+static void remove_buffer_info (EId id, Lisp_Object emacs_buf, Editor *editor);
 static void Post (char *msg);
 static void Post1 (char *msg, int a1);
 static void Post2 (char *msg, int a1, int a2);
@@ -138,17 +147,7 @@ static EmacsPos EmacsPosForEnergizePos (EnergizePos energizePos);
 static EnergizePos EnergizePosForEmacsPos (EmacsPos emacs_pos);
 Lisp_Object Fenergize_update_menubar (Lisp_Object screen);
 Lisp_Object Fenergize_extent_menu_p (Lisp_Object extent_obj);
-void notify_delayed_requests (void);
-static void mark_IMAGE (IMAGE image);
 void free_zombie_bitmaps (void);
-static IMAGE alloc_IMAGE (char *string);
-static void free_IMAGE (IMAGE image, c_hashtable table);
-static IMAGE get_IMAGE (char *string, int len, c_hashtable table);
-static IMAGE ParseAnImage (Connection *conn, BufferInfo *binfo);
-static int install_an_IMAGE (IMAGE image);
-static void uninstall_an_IMAGE (IMAGE image);
-Lisp_Object install_extent_IMAGE (EXTENT extent, IMAGE image, EGT glyph_type);
-Lisp_Object extent_glyph_at (EXTENT extent, int pos, int endp);
 static void ParseClasses (Connection *conn, unsigned int number, 
                           BufferInfo *binfo, unsigned int modify_ok);
 static void ParseGenerics (Connection *conn, unsigned int number, 
@@ -159,31 +158,25 @@ static void ParseExtents (Connection *conn, unsigned int number,
                           int extent_offset);
 static int string_buffer_compare (char *string, int string_len, 
                                   struct buffer *buf, int bufpos);
-static void restore_buffer_state (Lisp_Object state_cons);
-static void map_remhash_op (c_hashtable table, void *pred, 
-                            void *arg, void *dummy);
 static void rename_the_buffer (Lisp_Object new_name);
 static void ParseBuffer (Connection *conn, CBuffer *cbu, Editor *editor, 
                          EnergizePos delete_from, EnergizePos delete_to, 
                          Window win, int relative_p);
 static void forget_buffer (BufferInfo *binfo);
-void WriteExtent (Connection *conn, Extent_Data *ext, 
+static void WriteExtent (Connection *conn, Energize_Extent_Data *ext, 
                   unsigned int start, unsigned int end);
 static char *get_buffer_as_string (unsigned int *len);
 static int write_an_extent (Lisp_Object extent_obj, void *arg);
 static void SaveBufferToEnergize (BufferInfo *binfo);
-BITS32 generic_id_for_extent (Extent_Data *ext);
 static Lisp_Object
 get_energize_menu (Lisp_Object buffer, Lisp_Object extent_obj, int selection_p,
 		   Lisp_Object only_name);
 static int something_answered_p (void *arg);
 void wait_delaying_user_input (int (*)(), void*);
 Lisp_Object Fenergize_request_menu (Lisp_Object buffer, Lisp_Object extent);
-Lisp_Object list_choices (Lisp_Object buffer, Lisp_Object extent_obj, 
-                          Lisp_Object only_name,
-			  CProposeChoicesRequest* req);
-Lisp_Object Fenergize_list_menu (Lisp_Object buffer, Lisp_Object extent_obj, 
-                                 Lisp_Object only_name);
+Lisp_Object Fenergize_list_menu (Lisp_Object buffer, Lisp_Object extent_obj,
+				 Lisp_Object selection_p,
+				 Lisp_Object only_name);
 Lisp_Object Fenergize_execute_menu_item 
 (Lisp_Object buffer, Lisp_Object extent_obj, 
  Lisp_Object item, Lisp_Object selection, Lisp_Object no_confirm);
@@ -193,43 +186,32 @@ Lisp_Object Fset_energize_buffer_type_internal (Lisp_Object buffer,
 Lisp_Object Fenergize_buffer_p (Lisp_Object buffer);
 Lisp_Object Fenergize_buffer_id (Lisp_Object buffer);
 Lisp_Object Fenergize_request_kill_buffer (Lisp_Object buffer);
-static void
-HandleControlChange (Widget widget, BITS32 sheet_id, void* arg);
-void HandleLoggingRequest (Editor *editor, CLoggingRequest *creq);
-void HandleNewBufferRequest (Editor *editor, CNewBufferRequest *creq);
-void HandleModifyBufferRequest (Editor *editor, CModifyBufferRequest *creq);
-static void MakeBufferAndExtentVisible 
-(Lisp_Object list, Lisp_Object go_there);
-void HandleEnsureVisibleRequest (Editor *editor, CEnsureVisibleRequest *creq);
-void HandleEnsureManyVisibleRequest 
-(Editor *editor, CEnsureManyVisibleRequest *creq);
-void HandleProposeChoicesRequest 
-(Editor *editor, CProposeChoicesRequest *creq);
-static void restore_current_buffer (Lisp_Object buffer);
+static void HandleControlChange (Widget, EId sheet_id, void* arg);
+static void HandleLoggingRequest (Editor *editor, CLoggingRequest *creq);
+static void HandleNewBufferRequest (Editor *editor, CNewBufferRequest *creq);
+static void HandleModifyBufferRequest (Editor *editor, CModifyBufferRequest *creq);
+static void MakeBufferAndExtentVisible (Lisp_Object list, Lisp_Object go_there);
+static void HandleEnsureVisibleRequest (Editor *editor, CEnsureVisibleRequest *creq);
+static void HandleEnsureManyVisibleRequest (Editor *editor, CEnsureManyVisibleRequest *creq);
+static void HandleProposeChoicesRequest (Editor *editor, CProposeChoicesRequest *creq);
 static void unmodify_buffer_and_kill_it (Lisp_Object buffer);
-void HandleKillBufferRequest (Editor *editor, CKillBufferRequest *creq);
-void HandleRemoveExtentsRequest (Editor *editor, CRemoveExtentsRequest *creq);
+static void HandleKillBufferRequest (Editor *editor, CKillBufferRequest *creq);
+static void HandleRemoveExtentsRequest (Editor *editor, CRemoveExtentsRequest *creq);
 static void HandleSaveBufferRequest (Editor *editor, CSaveBufferRequest *creq);
-static void HandleSetModifiedFlagRequest 
-(Editor *editor, CSetModifiedFlagRequest *creq);
+static void HandleSetModifiedFlagRequest (Editor *editor, CSetModifiedFlagRequest *creq);
 static void add_in_list_of_ids (int **ids, int *n_ids, int id);
 static void remove_from_list_of_ids (int **ids, int *n_ids, int id);
-static void HandleBufferSheetRequest 
-(Editor *editor, CSheetRequest *sreq, BITS32 buffer_id);
-static void note_being_destroyed (Widget w, XtPointer call_data, 
-                                  XtPointer client_data);
+static void HandleBufferSheetRequest (Editor *editor, CSheetRequest *sreq, EId buffer_id);
 static void HandlePostitRequest (Editor *editor, CGenericRequest *preq);
 static void HandleShowBusyRequest (Editor *editor, CGenericRequest *preq);
 static void add_in_connection_input_buffer (Connection *conn, char *s, int l);
-Lisp_Object ProcessJustOneEnergizeRequest (void);
-static void post_handle_request (Lisp_Object ignored);
+static Lisp_Object ProcessJustOneEnergizeRequest (void);
 static Lisp_Object ProcessEnergizeRequest1 (void);
 static void setup_connection (Editor *ed, unsigned int id1, unsigned int id2);
 static Connection *EditorSideConnection (Editor *editor, int fdin, int fdout);
 Lisp_Object Fhandle_energize_request (Lisp_Object proc, Lisp_Object string);
-void ConnectToEnergize (char *server_str, char *arg);
-static void kill_the_buffer (void *key, void *contents, void *arg);
-void CloseConnection (void);
+static void ConnectToEnergize (char *server_str, char *arg);
+static void CloseConnection (void);
 Lisp_Object Fconnect_to_energize_internal (Lisp_Object server_name, 
                                            Lisp_Object energize_arg);
 Lisp_Object Fclose_connection_to_energize (void);
@@ -249,27 +231,16 @@ Lisp_Object Fenergize_barf_if_buffer_locked (void);
 Lisp_Object Fenergize_send_region (Lisp_Object start, Lisp_Object end);
 Lisp_Object Fconnected_to_energize_p (void);
 Lisp_Object Fenergize_user_input_buffer_mark (void);
-Lisp_Object Fenergize_query_buffer 
-(Lisp_Object filename, Lisp_Object just_ask);
-int get_energize_connection_and_buffer_id 
-(Lisp_Object buffer, void **conn_ptr, long *buffer_id_ptr);
-int get_energize_connection_and_current_buffer_id 
-(void **conn_ptr, long *buffer_id_ptr);
+Lisp_Object Fenergize_query_buffer (Lisp_Object filename, Lisp_Object just_ask);
+static int get_energize_connection_and_buffer_id (Lisp_Object buffer, void **conn_ptr, long *buffer_id_ptr);
+static int get_energize_connection_and_current_buffer_id (void **conn_ptr, long *buffer_id_ptr);
 int *get_psheets_for_buffer (Lisp_Object buffer, int *count_ptr);
-void notify_that_sheet_has_been_hidden (BITS32 id);
+void notify_that_sheet_has_been_hidden (EId id);
 void syms_of_editorside (void);
 
 
 
 /**************************** Variables *****************************/
-
-/* used by free_zombie_bitmaps () */
-static struct 
-{
-  IMAGE *vec;
-  int free;
-  int length;
-} zombie_IMAGES;
 
 /* debugging variable */
 int ignore_kernel;
@@ -297,18 +268,18 @@ Lisp_Object Qinside_parse_buffer;
 
 /* List of all buffers currently managed by Energize.  This is
 Staticpro'ed so that they don't get GC'ed from under us. */
-Lisp_Object energize_buffers_list;
+static Lisp_Object energize_buffers_list;
 
-Editor *energize_connection;
-protocol_edit_options *peo;
+static Editor *energize_connection;
+static protocol_edit_options *peo;
 
-int request_serial_number;
+static int request_serial_number;
 
 extern int current_debuggerpanel_exposed_p;
 extern int desired_debuggerpanel_exposed_p;
 extern int debuggerpanel_sheet;
 
-extern DisplayContext *display_context;
+/* extern DisplayContext *display_context; */
 
 /**************************** Macros *****************************/
 
@@ -318,7 +289,7 @@ extern DisplayContext *display_context;
 
 #define BUFFER_NOTIFY_BACKGROUND_BIT_SET_P(buffer) 1
   
-#define get_extent_data(id,binfo) (Extent_Data*)get_object(id, binfo)
+#define get_extent_data(id,binfo) (Energize_Extent_Data*)get_object(id, binfo)
 #define get_class(id,binfo) (GDataClass*)get_object(id, binfo)
 #define get_generic(id,binfo) (GenericData*)get_object(id, binfo)
 
@@ -334,10 +305,23 @@ extern DisplayContext *display_context;
 
 /**************************** Utilities *****************************/
 
-static Extent_Data *
+static int
+emacs_CWriteRequestBuffer (Connection* conn)
+{
+  int result;
+  signal (SIGPIPE, SIG_IGN);	/* don't kill emacs with SIGPIPE */
+  result = CWriteRequestBuffer (conn);	/* the real one; macroized later */
+  signal (SIGPIPE, SIG_DFL);
+  return result;
+}
+
+#define CWriteRequestBuffer emacs_CWriteRequestBuffer
+
+
+static Energize_Extent_Data *
 extent_to_data (Lisp_Object extent_obj)
 {
-  Extent_Data *ext = 0;
+  Energize_Extent_Data *ext = 0;
   
   if (!EXTENTP (extent_obj)) 
     return 0;
@@ -371,8 +355,8 @@ copy_string (char *s)
 }
 
 /* Get objects from the hashtables */
-void *
-get_object_internal (Id id, c_hashtable table)
+static void *
+get_object_internal (EId id, c_hashtable table)
 {
   void *res;
   void *found = gethash ((void*)id, table, &res);
@@ -383,13 +367,13 @@ get_object_internal (Id id, c_hashtable table)
 }
 
 static void *
-get_object (Id id, BufferInfo *binfo)
+get_object (EId id, BufferInfo *binfo)
 {
   return get_object_internal (id, binfo->id_to_object);
 }
 
-void
-put_object_internal (Id id, c_hashtable table, void *object)
+static void
+put_object_internal (EId id, c_hashtable table, void *object)
 {
   if (!PUT_ABLE_OBJECT (object))
     error ("Can't put 0x%x in table", object);
@@ -398,14 +382,14 @@ put_object_internal (Id id, c_hashtable table, void *object)
 }
 
 static void
-put_object (Id id, BufferInfo *binfo, void *object)
+put_object (EId id, BufferInfo *binfo, void *object)
 {
   put_object_internal (id, binfo->id_to_object, object);
   return;
 }
 
-void
-remove_object_internal (Id id, c_hashtable table)
+static void
+remove_object_internal (EId id, c_hashtable table)
 {
   void *res;
 
@@ -416,11 +400,11 @@ remove_object_internal (Id id, c_hashtable table)
       remhash ((void*)id, table);
     }
   else if (id)
-    error ("Id %d not in table!", id);
+    error ("EId %d not in table!", id);
 }
 
 static void
-remove_object (Id id, BufferInfo *binfo)
+remove_object (EId id, BufferInfo *binfo)
 {
   remove_object_internal (id, binfo->id_to_object);
   return;
@@ -439,7 +423,7 @@ free_object (void *key, void *contents, void *arg)
         case BUF_INFO_SEAL:
           break;
         case EXTENT_SEAL:
-          free_Extent_Data ((Extent_Data *) contents, binfo, OFT_MAPHASH);
+          free_Energize_Extent_Data ((Energize_Extent_Data *) contents, binfo, OFT_MAPHASH);
           break;
         case GDATA_CLASS_SEAL:
           free_GDataclass ((GDataClass *) contents, binfo);
@@ -455,13 +439,13 @@ free_object (void *key, void *contents, void *arg)
 }
 
 static GDataClass *
-alloc_GDataclass (Id id, BufferInfo *binfo)
+alloc_GDataclass (EId id, BufferInfo *binfo)
 {
   GDataClass *cl = xnew (GDataClass);
   cl->seal = GDATA_CLASS_SEAL;
   cl->id = id;
   cl->flags = 0;
-  cl->image = 0;
+/*  cl->image = 0;*/
   put_class (cl->id, binfo, cl);
   return cl;
 } 
@@ -472,12 +456,6 @@ free_GDataclass (GDataClass *cl, BufferInfo *binfo)
   if (cl)
     {
       remove_class (cl->id, binfo);
-      if (cl->image)
-        {
-          free_IMAGE (cl->image, binfo->image_table);
-          cl->image = 0;
-        }
-
       SET_OBJECT_FREE (cl);
     }
   return;
@@ -485,13 +463,13 @@ free_GDataclass (GDataClass *cl, BufferInfo *binfo)
 
 
 static GenericData *
-alloc_GenericData (Id id, GDataClass *cl, BufferInfo *binfo)
+alloc_GenericData (EId id, GDataClass *cl, BufferInfo *binfo)
 {
   GenericData *gen = xnew (GenericData);
   gen->seal = GDATA_SEAL;
   gen->id = id;
   gen->cl = cl;
-  gen->image = 0;
+/*  gen->image = 0;*/
   gen->flags = 0;
   gen->modified_state = 0;
   put_generic (gen->id, binfo, gen);
@@ -505,34 +483,25 @@ free_GenericData (GenericData *gen, BufferInfo *binfo)
     {
       remove_generic (gen->id, binfo);
       gen->cl = 0;
-
-      if (gen->image)
-        {
-          free_IMAGE (gen->image, binfo->image_table);
-          gen->image = 0;
-        }
-
       SET_OBJECT_FREE (gen);
     }
   return;
 } 
 
-static Extent_Data *
-alloc_Extent_Data (Id id, BufferInfo *binfo)
+static Energize_Extent_Data *
+alloc_Energize_Extent_Data (EId id, BufferInfo *binfo)
 {              
-  Extent_Data *ext = xnew (Extent_Data);
+  Energize_Extent_Data *ext = xnew (Energize_Extent_Data);
   ext->seal = EXTENT_SEAL;
   ext->id = id;
   ext->extent = 0;
-  ext->start_glyph_index = Qnil;
-  ext->end_glyph_index = Qnil;
   put_extent_data (ext->id, binfo, ext);
   return ext;
 }
 
 static void
-free_Extent_Data 
-(Extent_Data *ext, BufferInfo *binfo, enum Object_Free_Type free_type)
+free_Energize_Extent_Data 
+(Energize_Extent_Data *ext, BufferInfo *binfo, enum Energize_Object_Free_Type free_type)
 {              
   if (ext)
     {
@@ -544,10 +513,6 @@ free_Extent_Data
           detach_extent (XEXTENT(extent_obj));
 	  set_energize_extent_data (XEXTENT (extent_obj), 0);
         }
-
-      ext->start_glyph_index = Qnil;
-      ext->end_glyph_index = Qnil;
-
       remove_extent_data (ext->id, binfo);
       ext->id = 0;
 
@@ -568,10 +533,13 @@ free_Extent_Data
 void
 energize_extent_finalization (EXTENT extent)
 {
-  Extent_Data *ext = energize_extent_data (extent);
+  Energize_Extent_Data *ext = energize_extent_data (extent);
   Lisp_Object buffer = extent->buffer;
   BufferInfo *binfo;
-#if 1
+
+  /* the if 0 case bypasses the freeing of extentData objects.  It's a big
+     memory leak but could be causing some problems. */
+#if 0
   if (ext)
     {
       ext->extent = 0;
@@ -582,10 +550,12 @@ energize_extent_finalization (EXTENT extent)
   if (!ext || (!BUFFERP (buffer)))
     return;
 
-  binfo = energize_connection ? get_buffer_info_for_emacs_buffer (buffer, energize_connection) : 0;
+  binfo = 
+    energize_connection ?
+      get_buffer_info_for_emacs_buffer (buffer, energize_connection) : 0;
     
   if (binfo && ext)
-    free_Extent_Data (ext, binfo, OFT_GC);
+    free_Energize_Extent_Data (ext, binfo, OFT_GC);
   else
     ext->extent = 0;
 
@@ -594,8 +564,10 @@ energize_extent_finalization (EXTENT extent)
 #endif
 }
 
+extern int find_file_compare_truenames;
+
 static BufferInfo *
-alloc_BufferInfo (Id id, Lisp_Object name, Lisp_Object filename,
+alloc_BufferInfo (EId id, Lisp_Object name, Lisp_Object filename,
 		  char *class_str, Editor *editor, Window win)
 {
   BufferInfo *binfo = xnew (BufferInfo);
@@ -625,21 +597,23 @@ alloc_BufferInfo (Id id, Lisp_Object name, Lisp_Object filename,
    **/
   if (!NILP (filename))
     {
+      int offct = find_file_compare_truenames;
+      find_file_compare_truenames = 1;
       buffer = Fget_file_buffer (filename);
+      find_file_compare_truenames = offct;
 
       if (!NILP (buffer) && !NILP (Fbuffer_modified_p (buffer)))
 	buffer = Qnil;
     }
 
   if (NILP (buffer))
-    buffer = Fgenerate_new_buffer (name);
+    buffer = Fget_buffer_create (Fgenerate_new_buffer_name (name));
 
   binfo->seal = BUF_INFO_SEAL;
   binfo->id = id;
   binfo->flags = 0;
   binfo->editor = editor;
   binfo->id_to_object = make_hashtable (100);
-  binfo->image_table = 0;
   binfo->emacs_buffer = buffer;
   binfo->modified_state = 0;
   binfo->editable = 0;
@@ -686,7 +660,7 @@ free_buffer_info (BufferInfo *binfo)
 }
 
 /* hash for BufferInfo structures */
-BufferInfo*
+static BufferInfo*
 get_buffer_info_for_emacs_buffer (Lisp_Object emacs_buf, Editor *editor)
 {
   BufferInfo *res;
@@ -700,15 +674,15 @@ get_buffer_info_for_emacs_buffer (Lisp_Object emacs_buf, Editor *editor)
 
 struct buffer_and_sheet_ids
 {
-  BITS32	buffer_id;
-  BITS32	sheet_id;
+  EId	buffer_id;
+  EId	sheet_id;
 };
 
 static void
 find_sheet_id (void* key, void* contents, void* arg)
 {
   BufferInfo* binfo = (BufferInfo*)contents;
-  BITS32 buffer_id = (BITS32)key;
+  EId buffer_id = (EId)key;
   struct buffer_and_sheet_ids* result = (struct buffer_and_sheet_ids*)arg;
   int i;
 
@@ -721,8 +695,8 @@ find_sheet_id (void* key, void* contents, void* arg)
 	}
 }
 
-BITS32
-buffer_id_of_sheet (BITS32 id)
+static EId
+buffer_id_of_sheet (EId id)
 {
   Editor *editor = energize_connection;
   struct buffer_and_sheet_ids basi;
@@ -735,7 +709,7 @@ buffer_id_of_sheet (BITS32 id)
   return basi.buffer_id;
 }
 
-long
+static long
 get_energize_buffer_id (Lisp_Object emacs_buf)
 {
   Editor *editor = energize_connection;
@@ -819,14 +793,14 @@ set_buffer_type_for_emacs_buffer (Lisp_Object emacs_buf, Editor *editor,
 }
 
 static BufferInfo*
-get_buffer_info_for_id (Id id, Editor *editor)
+get_buffer_info_for_id (EId id, Editor *editor)
 {
   BufferInfo *res;
   return (gethash ((void *)id, editor->binfo_hash, (void *)&res))?res:0;
 }
 
 static void
-put_buffer_info (Id id, Lisp_Object emacs_buf, BufferInfo *binfo,
+put_buffer_info (EId id, Lisp_Object emacs_buf, BufferInfo *binfo,
                  Editor *editor)
 {
   puthash ((void *)id, binfo, editor->binfo_hash);
@@ -834,7 +808,7 @@ put_buffer_info (Id id, Lisp_Object emacs_buf, BufferInfo *binfo,
 }
 
 static void
-remove_buffer_info (Id id, Lisp_Object emacs_buf, Editor *editor)
+remove_buffer_info (EId id, Lisp_Object emacs_buf, Editor *editor)
 {
   remhash ((void *)id, editor->binfo_hash);
   remhash ((void *)emacs_buf, editor->binfo_hash);
@@ -877,7 +851,7 @@ EnergizePosForEmacsPos (EmacsPos emacs_pos)
 
 /* extent data */
 
-Extent_Data *
+Energize_Extent_Data *
 energize_extent_data (EXTENT extent)
 {
   Lisp_Object data = extent->user_data;
@@ -887,17 +861,19 @@ energize_extent_data (EXTENT extent)
   data = XCONS (data)->cdr;
   if (!FIXNUMP (XCONS (data)->car) || !FIXNUMP (XCONS (data)->cdr))
     abort ();
-  return ((Extent_Data *)
+  return ((Energize_Extent_Data *)
 	  ((XUINT (XCONS (data)->car) << 16) | (XUINT (XCONS (data)->cdr))));
 }
 
 void
-set_energize_extent_data (EXTENT extent, Extent_Data *data)
+set_energize_extent_data (EXTENT extent, void *data)
 {
   unsigned short high = ((unsigned int) data) >> 16;
   unsigned short low = ((unsigned int) data) & 0xFFFF;
   Lisp_Object old = extent->user_data;
-  if (NILP (old) || old == 0)
+  if (old == 0)
+    extent->user_data = Qnil;
+  else if (NILP (old))
     extent->user_data = Fcons (Qenergize_extent_data,
 			       Fcons (make_number (high), make_number (low)));
   else if (!CONSP (old) || !EQ (XCONS (old)->car, Qenergize_extent_data))
@@ -912,6 +888,8 @@ set_energize_extent_data (EXTENT extent, Extent_Data *data)
 
 
 extern int windows_or_buffers_changed;
+
+extern void recompute_screen_menubar (struct screen *);
 
 DEFUN ("energize-update-menubar", Fenergize_update_menubar,
        Senergize_update_menubar, 0, 1, 0,
@@ -953,7 +931,7 @@ DEFUN ("energize-extent-menu-p", Fenergize_extent_menu_p,
     return Qnil;
   else
     {
-      Extent_Data *ext = extent_to_data (extent_obj);
+      Energize_Extent_Data *ext = extent_to_data (extent_obj);
       return (ext && ext->extentType == CEGeneric) ? Qt : Qnil;
     }
 }
@@ -962,7 +940,7 @@ DEFUN ("energize-extent-menu-p", Fenergize_extent_menu_p,
 /* Do what is needed so that the delayed requests will be notified by
 ** the event loop */
 
-void 
+static void 
 notify_delayed_requests ()
 {
   extern void mark_process_as_being_ready (struct Lisp_Process* process);
@@ -975,212 +953,107 @@ notify_delayed_requests ()
 
 /******************* IMAGE storage maintenance *******************/
 
-static void
-mark_IMAGE (IMAGE image)
-{
-  if (!zombie_IMAGES.vec)
-    {
-      zombie_IMAGES.length = 64;
-      zombie_IMAGES.vec = 
-        (IMAGE *) xmalloc (zombie_IMAGES.length * sizeof (IMAGE));
-      zombie_IMAGES.free = 0;
-    }
-
-  if (zombie_IMAGES.free == zombie_IMAGES.length)
-    {
-      zombie_IMAGES.length = (zombie_IMAGES.length * 2);
-      zombie_IMAGES.vec = 
-        (IMAGE *) xrealloc
-          (zombie_IMAGES.vec, zombie_IMAGES.length * sizeof (IMAGE));
-    }
-
-  if (image->refcount != 0)
-    error ("Can't mark image that is in use.");
-
-  zombie_IMAGES.vec[zombie_IMAGES.free++] = image;
-}
-
 /* called by redisplay() -- presumably by the time this is called,
    all "dead" references into the x_bitmaps[] vector have been flushed
    from the display state */
 void
 free_zombie_bitmaps ()
 {
-
-  while (zombie_IMAGES.free)
-    {
-      struct image_index_cell *current;
-      IMAGE image = zombie_IMAGES.vec[zombie_IMAGES.free - 1];
-      
-      if (image->refcount != 0)
-	error ("Can't free image that is in use.");
-      
-      uninstall_an_IMAGE (image);
-  
-      BLOCK_INPUT;
-      if (image->image)
-	{
-	  FreeImage (image->image);  
-	}
-      if (image->pixmap && image->pixmap != 1)
-        XFreePixmap (x_current_display, image->pixmap);
-      UNBLOCK_INPUT;
-      free (image);
-
-      zombie_IMAGES.free--;
-    }
 }
 
 
-static IMAGE
-alloc_IMAGE (char *string)
-{
-  IMAGE new_IMAGE = (IMAGE) xmalloc (sizeof (struct Image_Entry_Struct));
-  bzero (new_IMAGE, sizeof (struct Image_Entry_Struct));
-  new_IMAGE->defining_string = string;
-  return new_IMAGE;
-}
+extern struct x_pixmap *x_get_pixmap (Lisp_Object lisp_name, char *hash);
 
-static void
-free_IMAGE (IMAGE image, c_hashtable table)
-{
-  if (image)
-    {
-      image->refcount--;
-
-      if (image->refcount == 0)
-        {
-          if (table && image->defining_string)
-            remhash (image->defining_string, table);
-          if (image->defining_string) free (image->defining_string);
-          image->defining_string = 0;
-          mark_IMAGE (image);
-        }
-    }
-  return;
-}
-
-static IMAGE
-get_IMAGE (char *string, int len, c_hashtable table)
-{
-  IMAGE res;
-  Box box;
-
-  if (!len) return 0;
-
-  if (gethash ((void *)string, table, (void **)&res))
-    return res;
-  else
-    {
-      unsigned int width, height;
-
-      string = copy_string (string);
-      res = alloc_IMAGE (string);
-      puthash ((void *) string, (void *)res, table);
-
-      BLOCK_INPUT;
-      res->image = ParseImage (&string, string + len);
-      res->pixmap = 1;
-      BboxImage (res->image, selected_screen->display_context, &box);
-      res->width = box.w;
-      res->height = box.h;
-      UNBLOCK_INPUT;
-
-      return res;
-    }
-}
+static c_hashtable image_cache;
 
 /* Parses an image from the image language */
-static IMAGE
+static GLYPH
 ParseAnImage (Connection *conn, BufferInfo *binfo)
 {
   ReqLen l;
   char *s = CGetVstring (conn, &l);
-  if (!binfo->image_table) 
-    binfo->image_table = make_strings_hashtable (50);
-  return get_IMAGE (s, l, binfo->image_table);
-}
+  char pix_name [255];
+  char buf [255];
+  int attr_number, pix_len;
+  char *file;
+  GLYPH result = 0;
+  /* I don't know if it's ok to pass the address of a short to gethash... */
+  int hashed = 0;
 
-/* Install an image in the glyph vector */
-static int
-install_an_IMAGE (IMAGE image)
-{
-  int index = allocate_x_bitmaps_index ();
+  if (s[0] != 'f')
+    return 0;
 
-  image->bitmap_index = index;
-  x_bitmaps[index].image = image->pixmap;
-  x_bitmaps[index].width = image->width;
-  x_bitmaps[index].height = image->height;
-  x_bitmaps[index].cimage = image->image;
-  
-  return index;
-}
+  if (gethash ((void *) s, image_cache, (void *) &hashed))
+    /* If we have already parsed this image spec (string=) then just return
+       the old glyph, instead of calling the lisp code, x_get_pixmap, and
+       XtGetSubResources again.  The result may be 0 if there is no pixmap
+       file name in the resource database.
+     */
+    return (GLYPH) hashed;
 
-/* uninstall an image in the glyph vector */
-static void
-uninstall_an_IMAGE (IMAGE image)
-{
-  int index = image->bitmap_index;
-
-  if (index)
+  if (3 != sscanf (s, "f %d p %d %s", &attr_number, &pix_len, pix_name))
     {
-      free_x_bitmaps_index (index);
-      image->bitmap_index = 0;
+      sprintf (buf, "unparsable image: \"%s\"", s);
+      error (buf);
     }
-}
 
-Lisp_Object
-install_extent_IMAGE (EXTENT extent, IMAGE image, EGT glyph_type)
-{
-  Extent_Data *ext = energize_extent_data (extent);
-  int image_index;
-  Lisp_Object return_value;
+  if (pix_len != strlen (pix_name))
+    abort ();
 
-  if (!ext)
-    return Qnil;
-  else if (XEXTENT(ext->extent) != extent)
-    abort();
+  /* Read the pixmap file name for this image from the resource db */
+  {
+    XtResource resource [1];
+    resource[0].resource_name = pix_name;
+    resource[0].resource_class = XtCBitmap;
+    resource[0].resource_type = XtRString;
+    resource[0].resource_offset = 0;
+    resource[0].default_type = XtRString;
+    BLOCK_INPUT;
+    XtGetSubresources (selected_screen->display.x->widget, (XtPointer) &file,
+		       "image", "Image", resource, 1, NULL, 0);
+    UNBLOCK_INPUT;
+  }
 
-  if (image)
-    {
-      if (image->width <= 0 || image->height <= 0)
-	return Qnil;
-      
-      if (!image->bitmap_index)
-	image->bitmap_index = install_an_IMAGE (image);
-      
-      return_value = make_number (image->bitmap_index);
-      
-      /* install the glyph */
-      if ((glyph_type == EGT_START_GLYPH) &&
-	  !EQ (ext->start_glyph_index, return_value))
-        {
-          SET_EXTENT_FLAG (extent, EF_START_GLYPH);
-          ext->start_glyph_index = return_value;
-        }
-      else if ((glyph_type == EGT_END_GLYPH) &&
-	       !EQ (ext->end_glyph_index, return_value))
-        {
-	  SET_EXTENT_FLAG (extent, EF_END_GLYPH);
-          ext->end_glyph_index = return_value;
-        }
-      
-      return return_value;
-    }
+  if (! file)
+    result = 0;
   else
     {
-      if (glyph_type == EGT_START_GLYPH)
+      struct x_pixmap *p;
+      sprintf (buf, "attribute%d", attr_number);
+      p = x_get_pixmap (build_string (file), buf);
+      result = p->glyph_id;
+
+      if (p->depth == 0)
+	/* if depth is >0 then this is an XPM, and its colors are not
+	   controlled by the fg/bg of a face.  So don't bother making a
+	   face for it. */
 	{
-	  CLEAR_EXTENT_FLAG (extent, EF_START_GLYPH);
-	  ext->start_glyph_index = Qnil;
-	}
-      else
-	{
-	  CLEAR_EXTENT_FLAG (extent, EF_END_GLYPH);
-	  ext->end_glyph_index = Qnil;
+	  Lisp_Object face, face_id;
+	  /* run the lisp code to make a face for this image. */
+	  face = call1 (intern ("find-face"), intern (buf));
+	  if (NILP (face))
+	    {
+	      call1 (intern ("make-face"), intern (buf));
+	      face = call1 (intern ("find-face"), intern (buf));
+	      if (NILP (face)) error ("make-face is broken");
+	    }
+	  face_id = call1 (intern ("face-id"), face);
+	  CHECK_FIXNUM (face_id, 0);
+	  p->face_id = XINT (face_id);
 	}
     }
+
+  BLOCK_INPUT;
+  /* CGetVstring returns a pointer into the connection buffer; we need to
+     copy it to use it as a hash key. */
+  s = strdup (s);
+  UNBLOCK_INPUT;
+
+  hashed = result;
+  puthash ((void *) s, (void *) hashed, image_cache);
+  return result;
 }
+
 
 /* Parses Classes from the connection buffer.  Defines them for
  * the buffer given as argument */
@@ -1190,13 +1063,13 @@ ParseClasses (Connection *conn, unsigned int number, BufferInfo *binfo,
 {
   CClass *ptr;                  /* pointer to class data in buffer */
   GDataClass *cl;               /* unmodified class data */
-  IMAGE image;
+  GLYPH g;
   int i;
   
   for (i = 0; i < number; i++)
     {
       ptr = CGet (conn, CClass);
-      image = ParseAnImage (conn, binfo);
+      g = ParseAnImage (conn, binfo);
       cl = get_class (ptr->classId, binfo);
       
       if (!cl)
@@ -1212,15 +1085,9 @@ ParseClasses (Connection *conn, unsigned int number, BufferInfo *binfo,
 	  cl->flags = ptr->flags;
 	  BUF_FACECHANGE (XBUFFER (binfo->emacs_buffer))++;
 	}
-      if (cl->image != image)
+      if (cl->glyph != g)
         {
-          free_IMAGE (cl->image, binfo->image_table);
-          cl->image = image;
-          if (image)
-	    {
-	      image->refcount++;
-	      install_an_IMAGE (image);
-	    }
+	  cl->glyph = g;
 	  BUF_FACECHANGE (XBUFFER (binfo->emacs_buffer))++;
         }
     }
@@ -1235,13 +1102,13 @@ ParseGenerics (Connection *conn, unsigned int number,
   CGeneric *ptr;
   GenericData *gen;
   GDataClass *cl;
-  IMAGE image;
+  GLYPH g;
   int i;
   
   for (i = 0; i < number; i++)
     {
       ptr = CGet (conn, CGeneric);
-      image = ParseAnImage (conn, binfo);
+      g = ParseAnImage (conn, binfo);
       gen = get_generic (ptr->genericId, binfo);
       cl = get_class (ptr->classId, binfo);
       
@@ -1257,8 +1124,7 @@ ParseGenerics (Connection *conn, unsigned int number,
             }
           
           gen = alloc_GenericData (ptr->genericId, cl, binfo);
-	  gen->image = image;
-	  if (image) image->refcount++;
+	  gen->glyph = g;
 	  if (ptr->flags != 0xff) gen->flags = ptr->flags;
 	  gen->attribute = ptr->attribute;
         }
@@ -1273,16 +1139,10 @@ ParseGenerics (Connection *conn, unsigned int number,
 	    modified = 1;
 	    gen->cl = cl;
 	  }
-	if (gen->image != image)
+	if (gen->glyph != g)
 	  {
 	    modified = 1;
-	    free_IMAGE (gen->image, binfo->image_table);
-	    gen->image = image;
-	    if (image)
-	      {
-		image->refcount++;
-		install_an_IMAGE (image);
-	      }
+	    gen->glyph = g;
 	  }
 	if (ptr->flags != 0xff) 
 	  {
@@ -1303,17 +1163,16 @@ ParseGenerics (Connection *conn, unsigned int number,
 static void
 insert_one_extent (CExtent* ptr, BufferInfo* binfo, int modify_ok)
 {
-  Extent_Data *ext;
+  Energize_Extent_Data *ext;
   GenericData *gen;
   int extent_start;
   int extent_end;
-  int modifying_p = 0;
   int set_extent_endpoints = 1;
 
   ext = get_extent_data (ptr->extentId, binfo);
   
   if (!ext)
-    ext = alloc_Extent_Data (ptr->extentId, binfo);
+    ext = alloc_Energize_Extent_Data (ptr->extentId, binfo);
   else if (!modify_ok) 
     Post1 ("Creating extent with existing id %8x", ptr->extentId);
 
@@ -1465,7 +1324,7 @@ string_buffer_compare (char *string, int string_len,
 }
 
 /* called by unwind protect, from within ParseBuffer and HandleRemoveExtents */
-static void
+static Lisp_Object
 restore_buffer_state (Lisp_Object state_cons)
 {
   BufferInfo *binfo;
@@ -1490,14 +1349,7 @@ restore_buffer_state (Lisp_Object state_cons)
   else
     /* this is just temporary */
     Post("Bad bufferId cons cell!");
-}
-
-static void
-map_remhash_op (c_hashtable table, void *pred, void *arg, void *dummy)
-{
-  remhash_predicate predicate = (remhash_predicate) pred;
-  map_remhash (predicate, table, arg);
-  return;
+  return Qnil;
 }
 
 static void
@@ -1514,13 +1366,16 @@ rename_the_buffer (Lisp_Object new_name)
       sprintf (number, "<%d>", ++count);
       name = concat2 (new_name, build_string (number));
     }
-  Frename_buffer (name);
+  Frename_buffer (name, Qnil);
   UNGCPRO;
 }
 
 Lisp_Object
 safe_funcall_hook (Lisp_Object hook, int nargs, Lisp_Object arg1,
 		   Lisp_Object arg2, Lisp_Object arg3);
+
+extern void del_range (int, int);
+extern void process_extents_for_destruction (int, int, struct buffer *);
 
 static void
 ParseBuffer (Connection *conn, CBuffer *cbu, Editor *editor, 
@@ -1545,7 +1400,7 @@ ParseBuffer (Connection *conn, CBuffer *cbu, Editor *editor,
   EmacsPos from;
   EmacsPos to;
 #if 1
-  EmacsPos display_start;
+  EmacsPos display_start = 1;
 #endif
   char *text;
   ReqLen text_len;
@@ -1690,12 +1545,13 @@ ParseBuffer (Connection *conn, CBuffer *cbu, Editor *editor,
     {
       /* clears the buffer in case we re-use a non-energize buffer */
       previous_point = 1;
+      Fset_buffer (binfo->emacs_buffer);
       del_range (BEG, Z);
     }
   else
     {
 #if 1
-      display_window = Fget_buffer_window (binfo->emacs_buffer, Qnil);
+      display_window = Fget_buffer_window (binfo->emacs_buffer, Qnil, Qnil);
 #endif
       previous_point = point;
 
@@ -1708,6 +1564,7 @@ ParseBuffer (Connection *conn, CBuffer *cbu, Editor *editor,
         {
           struct buffer *buf = XBUFFER (binfo->emacs_buffer);
                         
+	  Fset_buffer (binfo->emacs_buffer);
           if (!NILP (binfo->output_mark)
               && marker_position (binfo->output_mark) >= from)
             Fset_marker (binfo->output_mark, make_number (from),
@@ -1719,13 +1576,14 @@ ParseBuffer (Connection *conn, CBuffer *cbu, Editor *editor,
             {
               Fsetcdr (Fcdr (restore_buffer_state_cons), Qnil);
               no_text_deleted = 1;
-              process_extents_for_destruction (from, to, current_buffer);
+              process_extents_for_destruction (from, to, buf);
             }
 	  else
             {
               /* Do not keep window start if we actually delete text */
               should_keep_window_start = 0;
-              process_extents_for_destruction (from, to, current_buffer);
+	      Fset_buffer (binfo->emacs_buffer);
+              process_extents_for_destruction (from, to, buf);
               del_range (from, to);
             }
         }
@@ -1780,6 +1638,7 @@ ParseBuffer (Connection *conn, CBuffer *cbu, Editor *editor,
     {
       if (!NILP (binfo->output_mark))
         {
+	  Fset_buffer (binfo->emacs_buffer);
           if (XMARKER (binfo->output_mark)->buffer)
             Fgoto_char (binfo->output_mark);
           else
@@ -1831,11 +1690,12 @@ ParseBuffer (Connection *conn, CBuffer *cbu, Editor *editor,
   ParseExtents (conn, cbu->nExtent, binfo, modifying_p, extent_offset);
   
   /* Restore the modified bit */
+  Fset_buffer (binfo->emacs_buffer);
   Fset_buffer_modified_p (modified_buffer_flag);
   
   /* restore modified hooks and globals, and return the previous buffer */
   UNGCPRO;
-  unbind_to (count);
+  unbind_to (count, Qnil);
   inside_parse_buffer = 0;
 }
 
@@ -1877,20 +1737,20 @@ forget_buffer (BufferInfo *binfo)
 /********************** Request-related utilities ************************/
 
 /* outputs a single extent in the connection buffer */
-void
+static void
 WriteExtent 
-  (Connection *conn, Extent_Data *ext, unsigned int start, unsigned int end)
+  (Connection *conn, Energize_Extent_Data *ext, unsigned int start, unsigned int end)
 {
   switch (ext->extentType)
     {
     case CEAttribute:
       CWriteExtent (conn, CEAttribute, ext->id, start, end,
-                    (BITS32)ext->u.attr.attrValue);
+                    (EId)ext->u.attr.attrValue);
       break;
       
     case CEAbbreviation:
       CWriteExtent (conn, CEAbbreviation, ext->id, start, end,
-                    (BITS32)ext->u.abbrev.isOpened);
+                    (EId)ext->u.abbrev.isOpened);
       break;
       
     case CEGeneric:
@@ -1902,6 +1762,8 @@ WriteExtent
       break;
     }
 }
+
+extern void move_gap (int);
 
 /* Utility to return a char* to the contents of the current buffer */
 static char*
@@ -1920,7 +1782,7 @@ static int
 write_an_extent (Lisp_Object extent_obj, void *arg)
 {
   binfo_and_n_extents *bane = (binfo_and_n_extents*)arg;
-  Extent_Data *ext = extent_to_data (extent_obj);
+  Energize_Extent_Data *ext = extent_to_data (extent_obj);
   if (ext)
     {
       unsigned int first = XINT (Fextent_start_position (extent_obj));
@@ -1937,13 +1799,12 @@ static void
 SaveBufferToEnergize (BufferInfo *binfo)
 {
   Connection *conn = binfo->editor->conn;
-  Id bufferId = binfo->id;
+  EId bufferId = binfo->id;
   CBuffer *cbu;
   CEditorRequest *req;
   char *text;
   int length;
   struct buffer *cur_buff = current_buffer;
-  struct buffer *b = XBUFFER (binfo->emacs_buffer);
   int count = specpdl_ptr - specpdl;
   Lisp_Object file_name;
   
@@ -1994,11 +1855,11 @@ SaveBufferToEnergize (BufferInfo *binfo)
 
   /* restores the buffer as current */
   internal_set_buffer (cur_buff);
-  unbind_to (count);
+  unbind_to (count, Qnil);
 }
 
-BITS32
-generic_id_for_extent (Extent_Data *ext)
+unsigned long
+generic_id_for_extent (Energize_Extent_Data *ext)
 {
   return ext ? ext->id : 0;
 }
@@ -2016,8 +1877,8 @@ get_energize_menu (Lisp_Object buffer, Lisp_Object extent_obj, int selection_p,
 		   Lisp_Object only_name)
 {
   Connection*	conn;
-  BITS32	buffer_id;
-  BITS32	extent_id;
+  EId	buffer_id;
+  EId	extent_id;
   int		result;
   struct reply_wait rw;
   struct gcpro gcpro1, gcpro2;
@@ -2067,7 +1928,7 @@ push_wait (struct reply_wait* rw)
   global_reply_wait = rw;
 }
 
-static void
+static Lisp_Object
 remove_wait (Lisp_Object obj)
 {
   struct reply_wait* gw;
@@ -2081,6 +1942,7 @@ remove_wait (Lisp_Object obj)
     previous->next = gw->next;
   else
     global_reply_wait = gw->next;
+  return Qnil;
 }
 
 static struct reply_wait*
@@ -2100,24 +1962,24 @@ wait_for_reply (struct reply_wait* rw)
   push_wait (rw);
   record_unwind_protect (remove_wait, word_to_lisp ((int)rw));
   wait_delaying_user_input (something_answered_p, rw);
-  unbind_to (count);
+  unbind_to (count, Qnil);
   return rw->answered_p;
 }
 
-static int
-execute_energize_menu (Lisp_Object buffer, Extent_Data* ext, char* name,
-		       BITS32 item_id, BITS32 flags, Lisp_Object selection,
+static void
+execute_energize_menu (Lisp_Object buffer, Energize_Extent_Data* ext, char* name,
+		       EId item_id, EId flags, Lisp_Object selection,
 		       Lisp_Object no_confirm)
 {
   Connection*	conn;
-  BITS32	buffer_id;
-  BITS32	extent_id;
+  EId	buffer_id;
+  EId	extent_id;
   BufferInfo*	binfo;
   struct reply_wait rw;
   
   if (!get_energize_connection_and_buffer_id (buffer, (void**)&conn,
 					      (long*)&buffer_id))
-    return 0;
+    return;
 
   extent_id = generic_id_for_extent (ext);
   
@@ -2145,12 +2007,12 @@ execute_energize_menu (Lisp_Object buffer, Extent_Data* ext, char* name,
     case Lisp_Vector:
       {
 	int i;
-	BITS32 data;
+	EId data;
 	conn->header->data |= CEChasObjectSelection;
 
 	/* writes the length */
 	data = XVECTOR (selection)->size;
-	CWrite (conn, BITS32, &data);	
+	CWrite (conn, EId, &data);	
 
 	/* writes the elements */
 	for (i = 0; i < XVECTOR (selection)->size; i++)
@@ -2159,7 +2021,7 @@ execute_energize_menu (Lisp_Object buffer, Extent_Data* ext, char* name,
 	      data = lisp_to_word (XVECTOR (selection)->contents [i]);
 	    else
 	      data = XVECTOR (selection)->contents [i];
-	    CWrite (conn, BITS32, &data);
+	    CWrite (conn, EId, &data);
 	  }
       }
       break;
@@ -2176,6 +2038,11 @@ execute_energize_menu (Lisp_Object buffer, Extent_Data* ext, char* name,
 		     XSTRING (value)->size);
 	  }
       }
+      break;
+
+    default:
+      if (!NILP (selection))
+	error ("unrecognised energize selection");
     }
   if (!NILP (no_confirm))
     conn->header->data |= CECnoConfirm;
@@ -2187,18 +2054,23 @@ execute_energize_menu (Lisp_Object buffer, Extent_Data* ext, char* name,
   rw.objectId = buffer_id;
   rw.genericId = extent_id;
   rw.itemId = item_id;
+  rw.message = 0;
   
   if (wait_for_reply (&rw) && !rw.status)
     {
       char message [128];
       if (energize_connection && energize_connection->conn)
-	sprintf (message, "Energize command failed: %.80s", rw.message);
+	sprintf (message, "Energize command failed: %.80s",
+		 (rw.message ? rw.message : "(null)"));
       else
 	sprintf (message, "Connection to Energize was closed.");
-      free (rw.message);
+      if (rw.message)
+	xfree (rw.message);
       error (message);
     }
-}
+  else if (rw.message)
+    xfree (rw.message);
+ }
 
 /* Returns a list of vectors representing the menu choices.  Next request
    in connection must be a ProposeChoices.  The list is 
@@ -2207,7 +2079,7 @@ execute_energize_menu (Lisp_Object buffer, Extent_Data* ext, char* name,
    it.  If (only_name != 0), we only return the item of named only_name as
    a vector.  */
 
-Lisp_Object
+static Lisp_Object
 list_choices (Lisp_Object buffer, Lisp_Object extent_obj, 
               Lisp_Object only_name, CProposeChoicesRequest* creq)
 {
@@ -2220,6 +2092,7 @@ list_choices (Lisp_Object buffer, Lisp_Object extent_obj,
   CChoice *choice;
   ReqLen name_length;
   char *name;
+  char *arg_name;
 
   if (energize_connection && energize_connection->conn)
     conn = energize_connection->conn;
@@ -2243,29 +2116,41 @@ list_choices (Lisp_Object buffer, Lisp_Object extent_obj,
       name = CGetVstring (conn, &name_length);
       if (!name_length)
 	continue;
+
+      /* the argument, if passed, is another string after the NUL (!)
+       * this is a quick hack to provide cheap arguments to menus entries */
+      arg_name = strchr (name, 0240);
+      if (arg_name)
+	{
+	  *arg_name= 0;
+	  arg_name += 1;
+	}
+
       if (!NILP (only_name))
 	{
 	  if (!strcmp ((char*)XSTRING(only_name)->data, name))
 	    {
 	      if (NILP (item))
 		{
-		  item = Fmake_vector (4, Qnil);
+		  item = Fmake_vector (5, Qnil);
 		  v = XVECTOR (item);
 		  v->contents [0] = only_name;
 		}
               v->contents [1] = word_to_lisp (choice->choiceId);
               v->contents [2] = Qnil;
               v->contents [3] = choice->flags;
+	      v->contents [4] = arg_name ? build_string (arg_name) : Qnil;
 	    }
 	}
       else
 	{
-	  item = Fmake_vector (4, Qnil);
+	  item = Fmake_vector (5, Qnil);
 	  v = XVECTOR (item);
 	  v->contents [0] = build_string (name);
 	  v->contents [1] = word_to_lisp (choice->choiceId);
 	  v->contents [2] = Qnil;
 	  v->contents [3] = choice->flags;
+	  v->contents [4] = arg_name ? build_string (arg_name) : Qnil;
 	  item_list = Fcons (item, item_list); /* pushes in the list */
         }
     }
@@ -2292,11 +2177,9 @@ where <itemI> is (name id1 id2 flags); idI is (high . low).\n\
 If optional argument only-name is provided only the item with name only-name\n\
 is returned, or () if no such item exists.")
      (buffer, extent_obj, selection_p, only_name)
-     Lisp_Object buffer, extent_obj, only_name;
+     Lisp_Object buffer, extent_obj, selection_p, only_name;
 {
   Lisp_Object res;
-  CProposeChoicesRequest* req;
-
   CHECK_BUFFER (buffer, 1);
   
   if (!energize_connection || !energize_connection->conn) return Qnil;
@@ -2357,8 +2240,6 @@ See also 'energize-list-menu'.")
 (buffer, extent_obj, command, selection, no_confirm)
 Lisp_Object buffer, extent_obj, command, selection, no_confirm;
 {
-  struct Lisp_Vector *v;
-  
   if (!energize_connection || !energize_connection->conn) return Qnil;
 
   CHECK_BUFFER (buffer, 1);
@@ -2373,12 +2254,13 @@ Lisp_Object buffer, extent_obj, command, selection, no_confirm;
 
 /********************************* kill buffer interface ****************/
 
-DEFUN ("energize-buffer-type", Fenergize_buffer_type, Senergize_buffer_type,
+DEFUN ("energize-buffer-type-internal",
+       Fenergize_buffer_type, Senergize_buffer_type,
        1, 1, 0,
        "(energize-buffer-type buffer) returns a symbol denoting the buffer \n\
 type if buffer is an Energize buffer, else it returns NIL.")
-(buffer)
-Lisp_Object buffer;
+	(buffer)
+	Lisp_Object buffer;
 {
   if (!energize_connection) return Qnil;
   
@@ -2481,7 +2363,7 @@ Sends a request to energize for killing buffer")
 #endif
 
 /* turn logging on or off, etc. */
-void
+static void
 HandleLoggingRequest (Editor *editor, CLoggingRequest *creq)
      /* I'm a lumberjack and I'm ok... */
 {
@@ -2537,7 +2419,7 @@ HandleLoggingRequest (Editor *editor, CLoggingRequest *creq)
 
 
 /* creates a new buffer */
-void
+static void
 HandleNewBufferRequest (Editor *editor, CNewBufferRequest *creq)
 {
   ParseBuffer (editor->conn, &creq->buffer, editor, 0, 0, creq->transientId,
@@ -2564,7 +2446,7 @@ HandleNewBufferRequest (Editor *editor, CNewBufferRequest *creq)
 }
 
 /* Modifies the contents of a buffer */
-void
+static void
 HandleModifyBufferRequest (Editor *editor, CModifyBufferRequest *creq)
 {
   windows_or_buffers_changed++;
@@ -2579,11 +2461,11 @@ MakeBufferAndExtentVisible (Lisp_Object list, Lisp_Object go_there)
 }
 
 /* pops a buffer and scroll to a extent: calls to lisp */
-void
+static void
 HandleEnsureVisibleRequest (Editor *editor, CEnsureVisibleRequest *creq)
 {
   BufferInfo *binfo;
-  Extent_Data *ext;
+  Energize_Extent_Data *ext;
   Lisp_Object buffer_extent_list;
   struct gcpro gcpro1;
 
@@ -2622,16 +2504,16 @@ HandleEnsureVisibleRequest (Editor *editor, CEnsureVisibleRequest *creq)
   UNGCPRO;
 }
 
-void
+static void
 HandleEnsureManyVisibleRequest (Editor *editor,
 				CEnsureManyVisibleRequest *creq)
 {
   BufferInfo *binfo;
-  Extent_Data *ext;
+  Energize_Extent_Data *ext;
   Lisp_Object buffer_extent_list;
   int n;
-  BITS32 buffer_id;
-  BITS32 extent_id;
+  EId buffer_id;
+  EId extent_id;
   struct gcpro gcpro1;
 
   buffer_extent_list = Qnil;
@@ -2642,8 +2524,8 @@ HandleEnsureManyVisibleRequest (Editor *editor,
        extent_id = creq->extentId;
        n;
        n--,
-       buffer_id = n ? *(CGet (editor->conn, BITS32)) : 0,
-       extent_id = n ? *(CGet (editor->conn, BITS32)) : 0)
+       buffer_id = n ? *(CGet (editor->conn, EId)) : 0,
+       extent_id = n ? *(CGet (editor->conn, EId)) : 0)
     {
       binfo = get_buffer_info_for_id (buffer_id, editor);
       if (!binfo)
@@ -2680,7 +2562,7 @@ HandleEnsureManyVisibleRequest (Editor *editor,
 }
 
 /* Update the cached menus, ie update the menubar for now. */
-void
+static void
 HandleProposeChoicesRequest (Editor *editor, CProposeChoicesRequest *req)
 {
   BufferInfo* binfo;
@@ -2702,7 +2584,7 @@ HandleProposeChoicesRequest (Editor *editor, CProposeChoicesRequest *req)
   /* get the extent */
   if (binfo && req->genericId)
     {
-      Extent_Data* ext = get_extent_data (req->genericId, binfo);
+      Energize_Extent_Data* ext = get_extent_data (req->genericId, binfo);
       if (ext)
 	extent = ext->extent;
       else
@@ -2728,13 +2610,7 @@ HandleProposeChoicesRequest (Editor *editor, CProposeChoicesRequest *req)
       choices = list_choices (buffer, extent, Qnil, req);
       safe_funcall_hook (Venergize_menu_update_hook, 1, choices, Qnil, Qnil);
     }
-}
-
-/* called by unwind_protect */
-static void
-restore_current_buffer (Lisp_Object buffer)
-{
-  Fset_buffer (buffer);
+  UNGCPRO;
 }
 
 /* Kills a buffer */
@@ -2749,17 +2625,17 @@ unmodify_buffer_and_kill_it (Lisp_Object buffer)
   /* unmodify the buffer */
   if (buffer != Fcurrent_buffer ())
     {
-      record_unwind_protect (restore_current_buffer, Fcurrent_buffer ());
+      record_unwind_protect (Fset_buffer, Fcurrent_buffer ());
       Fset_buffer (buffer);
     }
   Fset_buffer_modified_p (Qnil);
-  unbind_to (count);
+  unbind_to (count, Qnil);
   
   /* kill it.  This will call the Energize hook to do the right thing */
   Fkill_buffer (buffer);
 }
 
-void
+static void
 HandleKillBufferRequest (Editor *editor, CKillBufferRequest *creq)
 {
   BufferInfo *binfo;
@@ -2773,15 +2649,13 @@ HandleKillBufferRequest (Editor *editor, CKillBufferRequest *creq)
   unmodify_buffer_and_kill_it (binfo->emacs_buffer);
 }
 
-void
+static void
 HandleRemoveExtentsRequest (Editor *editor, CRemoveExtentsRequest *creq)
 {
   BufferInfo *binfo;
   int i;
-  BITS32 *ids;
-  Lisp_Object modified_hook = Qnil;
+  EId *ids;
   Lisp_Object restore_buffer_state_cons;
-  Lisp_Object extents_modify = Qnil;
   int count = specpdl_ptr - specpdl;
   
   if (!(binfo = get_buffer_info_for_id (creq->bufferId, editor)))
@@ -2806,16 +2680,16 @@ HandleRemoveExtentsRequest (Editor *editor, CRemoveExtentsRequest *creq)
   BUF_FACECHANGE (XBUFFER (binfo->emacs_buffer))++;
   windows_or_buffers_changed++;
   
-  ids = CGetN (editor->conn, BITS32, creq->nExtent);
+  ids = CGetN (editor->conn, EId, creq->nExtent);
   for (i = 0; i < creq->nExtent; i++)
     {
-      Extent_Data *ext = get_extent_data (ids [i], binfo);
+      Energize_Extent_Data *ext = get_extent_data (ids [i], binfo);
       if (ext)
-        free_Extent_Data (ext, binfo, OFT_STANDALONE);
+        free_Energize_Extent_Data (ext, binfo, OFT_STANDALONE);
     }
   
   /* restore modified hooks and globals */
-  unbind_to (count);
+  unbind_to (count, Qnil);
 }
 
 /* handles a request to save a buffer from the kernel */
@@ -2833,7 +2707,7 @@ HandleSaveBufferRequest (Editor *editor, CSaveBufferRequest *creq)
   
   if (binfo->emacs_buffer != Fcurrent_buffer ())
     {
-      record_unwind_protect (restore_current_buffer, Fcurrent_buffer ());
+      record_unwind_protect (Fset_buffer, Fcurrent_buffer ());
       Fset_buffer (binfo->emacs_buffer);
     }
 
@@ -2847,7 +2721,7 @@ HandleSaveBufferRequest (Editor *editor, CSaveBufferRequest *creq)
   else
     SaveBufferToEnergize (binfo);
   
-  unbind_to (count);
+  unbind_to (count, Qnil);
 }
 
 static void
@@ -2862,7 +2736,7 @@ HandleSetModifiedFlagRequest (Editor* editor, CSetModifiedFlagRequest* creq)
       return;
     }
   
-  record_unwind_protect (restore_current_buffer, Fcurrent_buffer ());
+  record_unwind_protect (Fset_buffer, Fcurrent_buffer ());
   Fset_buffer (binfo->emacs_buffer);
   specbind (Qenergize_buffer_modified_hook, Qnil);
   Fset_buffer_modtime (binfo->emacs_buffer, Qnil);
@@ -2873,7 +2747,7 @@ HandleSetModifiedFlagRequest (Editor* editor, CSetModifiedFlagRequest* creq)
   binfo->editable = 0;
   if (!creq->state)
     mark_all_extents_as_unmodified (binfo);
-  unbind_to (count);
+  unbind_to (count, Qnil);
 }
 
 
@@ -2903,15 +2777,17 @@ remove_from_list_of_ids (int** ids, int* n_ids, int id){
     *n_ids -= 1;
     /* free array if empty */
     if (!*n_ids){
-      free (*ids);
+      xfree (*ids);
       *ids = 0;
     }
   }
 }
 
+extern void make_psheets_desired (struct screen *, Lisp_Object);
+
 static void
 HandleBufferSheetRequest (Editor *editor, CSheetRequest *sreq,
-			  BITS32 buffer_id)
+			  EId buffer_id)
 {
   BufferInfo *binfo;
   char* name;
@@ -2994,6 +2870,7 @@ HandleBufferSheetRequest (Editor *editor, CSheetRequest *sreq,
 }
 
 
+#if 0
 static void
 note_being_destroyed (Widget w, XtPointer call_data, XtPointer client_data)
 {
@@ -3015,10 +2892,11 @@ note_being_destroyed (Widget w, XtPointer call_data, XtPointer client_data)
  *  }
 #endif
 }
+#endif
 
 #if 0
  * static void
- * note_instantiated (BITS32 bufferId, BITS32 noteId, NoteWidget nw, void* arg)
+ * note_instantiated (EId bufferId, EId noteId, NoteWidget nw, void* arg)
  * {
  *   XtAddCallback ((Widget)nw, XtNdestroyCallback, note_being_destroyed, 0);
  *   XtVaSetValues ((Widget)nw, "forceXtLoop", 1, 0);
@@ -3075,7 +2953,7 @@ HandlePostitRequest (Editor *editor, CGenericRequest *preq)
 }
 
 /* show busy */
-int needs_to_recompute_menubar_when_kernel_not_busy;
+/* int needs_to_recompute_menubar_when_kernel_not_busy; */
 
 static void
 show_all_menubars_busy (int busy)
@@ -3105,7 +2983,6 @@ HandleShowBusyRequest (Editor *editor, CGenericRequest *preq)
    * all screens */
   ReqLen len;
   extern Lisp_Object Venergize_kernel_busy;
-  Lisp_Object tail;
 
   char* why = CGetVstring (editor->conn, &len);
 
@@ -3115,12 +2992,12 @@ HandleShowBusyRequest (Editor *editor, CGenericRequest *preq)
 		     Qnil);
 
   /* update the menubars if needed and kernel is not busy */
-  if (!preq->head.data && needs_to_recompute_menubar_when_kernel_not_busy)
+  if (!preq->head.data /*&& needs_to_recompute_menubar_when_kernel_not_busy*/)
     {
       SCREEN_PTR s;
       Lisp_Object tail;
       
-      needs_to_recompute_menubar_when_kernel_not_busy = 0;
+/*      needs_to_recompute_menubar_when_kernel_not_busy = 0;*/
       for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
 	{
 	  if (!SCREENP (XCONS (tail)->car))
@@ -3169,35 +3046,21 @@ HandleSetControlRequest (Connection* conn, CGenericRequest* creq)
   unsigned long i;
   unsigned long n = sreq->nChoices;
   
-  if (n > 1)
-    contents = (widget_value*)xmalloc (n * sizeof (widget_value));
+  if (n > 0)
+    {
+      contents = (widget_value *) xmalloc (n * sizeof (widget_value));
+      memset (contents, 0, (n * sizeof (widget_value)));
+    }
   else 
     contents = NULL;
-  
+  memset (&val, 0, sizeof (val));
   val.name = CGetVstring (conn, NULL);
-  val.value = NULL;
-  val.key = NULL;
   val.enabled = !(sreq->flags & CKInactive);
   val.selected = !!(sreq->flags & CKSelected);
   val.change = VISIBLE_CHANGE;
   val.contents = contents;
-  val.call_data = NULL;
-  val.next = NULL;
-  val.toolkit_data = NULL;
 
-  if (n == 0)
-    {
-      ;
-    }
-  else if (n == 1)
-    {
-      CChoice* choice = CGet (conn, CChoice);
-      val.value = CGetVstring (conn, NULL);
-      /* Empty string mean use nothing */
-      if (!*val.value)
-	val.value = NULL;
-    }
-  else for (i = 0; i < n; i++)
+  for (i = 0; i < n; i++)
     {
       widget_value* cur = &contents [i];
       CChoice* choice = CGet (conn, CChoice);
@@ -3211,22 +3074,28 @@ HandleSetControlRequest (Connection* conn, CGenericRequest* creq)
       cur->call_data = NULL;
       cur->next = i == n - 1 ? NULL : &contents [i + 1];
       cur->toolkit_data = NULL;
+      if ((i == 0 && n == 1) || cur->selected)
+	{
+	  val.value = cur->name;
+	  if (!*val.value)
+	    val.value = NULL;
+	}
     }
   lw_modify_all_widgets (sreq->sheetId, &val, True);
   
   if (contents)
-    free (contents);
+    xfree (contents);
 }
     
 static void
-SendSheetStateChange (Connection* conn, BITS32 buffer_id, BITS32 sheet_id,
+SendSheetStateChange (Connection* conn, EId buffer_id, EId sheet_id,
 		      int shown)
 {
   CWriteSheetRequest (conn, shown ? CSShow : CSHide, sheet_id, buffer_id, "");
 }
 
 static void
-HandleControlChange (Widget widget, BITS32 sheet_id, void* arg)
+HandleControlChange (Widget widget, EId sheet_id, void* arg)
 {
   Connection* 	conn;
   widget_value* val;
@@ -3297,7 +3166,7 @@ add_in_connection_input_buffer (Connection *conn, char *s, int l)
   conn->infill += l;
 }
 
-Lisp_Object
+static Lisp_Object
 ProcessJustOneEnergizeRequest ()
 {
   Editor *editor = energize_connection;
@@ -3361,11 +3230,11 @@ ProcessJustOneEnergizeRequest ()
           
 	case QueryBufferRType:
 	  {
-	    BITS32 buffer_id;
+	    EId buffer_id;
 	    struct reply_wait* rw = find_wait_reply (req->head.serial);
 	    CGetVstring (editor->conn, 0); /* skip directory */
 	    CGetVstring (editor->conn, 0); /* skip file */
-	    buffer_id = *CGet (editor->conn, BITS32);
+	    buffer_id = *CGet (editor->conn, EId);
 	    if (rw)
 	      {
 		rw->answered_p = 1;
@@ -3399,7 +3268,9 @@ ProcessJustOneEnergizeRequest ()
 	      {
 		rw->answered_p = 1;
 		rw->status = ce->head.data;
+		BLOCK_INPUT;
 		rw->message = CMakeVstring (editor->conn, 0);
+		UNBLOCK_INPUT;
 	      }
 	  }
           break;
@@ -3445,7 +3316,7 @@ ProcessJustOneEnergizeRequest ()
           break;
           
         case SheetRType:{
-	  BITS32 buffer_id = req->generic.sheet.bufferId;
+	  EId buffer_id = req->generic.sheet.bufferId;
 	  if (!buffer_id)
 	    buffer_id = buffer_id_of_sheet (req->generic.sheet.sheetId);
 	  if (buffer_id)
@@ -3453,7 +3324,6 @@ ProcessJustOneEnergizeRequest ()
 	  else
 	    {
 	      CSheetRSubtype type = (CSheetRSubtype)req->head.data;
-	      BITS32 id = req->generic.sheet.sheetId;
 	      if (type == CSDelete || type ==CSHide)
 		select_screen (selected_screen);
 	      BLOCK_INPUT;
@@ -3493,29 +3363,84 @@ ProcessJustOneEnergizeRequest ()
   return make_number (res);
 }
 
-/* Called by unwind_protect after executing a request */
-static void
+static int inside_ProcessEnergizeRequest1;
+
+/* this must be called ONLY by unwind_protect in ProcessEnergizeRequest1 */
+static Lisp_Object
 post_handle_request (Lisp_Object ignored)
 {
-/*  in_display--; */
+  if (inside_ProcessEnergizeRequest1 <= 0)
+    abort ();
+  inside_ProcessEnergizeRequest1--;
   if (energize_connection && energize_connection->conn)
     CSkipRequest (energize_connection->conn);
+  return Qnil;
+}
+
+static Lisp_Object
+pop_conn (Lisp_Object arg)
+{
+  Connection *old_conn = (Connection *) lisp_to_word (arg);
+  if (! old_conn)
+    abort ();
+  if (! energize_connection)
+    return Qnil;
+  if (energize_connection->conn == old_conn)
+    abort ();
+
+  if (CRequestDelayedP (energize_connection->conn))
+    /* We don't call the CWait* functions any more so this shouldn't happen.
+       But if it does someday, then we need to either copy the remaining
+       bits from new_conn to old_conn, or loop processing requests until
+       new_conn is drained.
+     */
+    abort ();
+
+  DeleteConnection (energize_connection->conn);
+  energize_connection->conn = old_conn;
+
+  return Qnil;
 }
 
 static Lisp_Object
 ProcessEnergizeRequest1 ()
-{
+{ 
   Lisp_Object result;
-  int count = specpdl_ptr - specpdl;
-  
-/*  in_display++; */
-  record_unwind_protect (post_handle_request, 0);
+  int count = specpdl_depth;
+
+  if (inside_ProcessEnergizeRequest1)
+    {
+      /* When the energize process filter is called recursively, push a new
+	 connection object.  The read-pointer of the connection buffer could
+	 be in the middle of a request.  However, we know that the fd itself
+	 is always pointing between requests.  So making a new connection is
+	 a way of skipping past the one request we were in the process of
+	 reading when we allowed process output to be handled recursively.
+       */
+      Connection *old_conn = energize_connection->conn;
+      Connection *new_conn =
+	EditorSideConnection ((void *) energize_connection,
+			      old_conn->fdin, old_conn->fdout);
+      energize_connection->conn = new_conn;
+      record_unwind_protect (pop_conn, word_to_lisp ((unsigned int) old_conn));
+    }
+
+  /* this must come after pop_conn() to get the right connection object */
+  record_unwind_protect (post_handle_request, Qnil);
+
+  inside_ProcessEnergizeRequest1++;
+
   result = ProcessJustOneEnergizeRequest ();
   notify_delayed_requests ();
-  unbind_to (count);
-  
+
+  /* decrements inside_ProcessEnergizeRequest1 and possibly replaces
+     energize_connection->conn with old_conn.
+   */
+  unbind_to (count, Qnil);
+
   return result;
 }
+
 
 /******** Initialize Energize-related state and set up connection ********/
 
@@ -3535,12 +3460,26 @@ setup_connection (Editor *ed, unsigned int id1, unsigned int id2)
   CWriteProtocol(ed->conn, 0, 8, "editor");
   CWriteLength (ed->conn);
   CWriteRequestBuffer (ed->conn);
-};
+}
+
+/* this is used as the readMethod of the energize connection, so that 
+   the connection library won't do some buffering that messes us up.
+   It does this buffering only if conn->readMethod == read, so using
+   another function turns it off.
+ */
+static int
+my_read (int fd, char *buf, int nb)
+{
+  return read (fd, buf, nb);
+}
 
 static Connection *
 EditorSideConnection (Editor *editor, int fdin, int fdout)
 {
-  return NewConnection ((void *)editor, fdin, fdout);
+  Connection *conn = NewConnection ((void *)editor, fdin, fdout);
+  if (conn)
+    conn->readMethod = my_read;
+  return conn;
 }
 
 DEFUN ("handle-energize-request", Fhandle_energize_request,
@@ -3572,13 +3511,13 @@ DEFUN ("handle-energize-request", Fhandle_energize_request,
   return ProcessEnergizeRequest1 ();
 }
 
+
 /* Opens a network connection to Energize.
  * server is a string.  It can end up with :<uid> or :<username>
  * in which case the uid is added to the TCP port to get the connection */
-void
+static void
 ConnectToEnergize (char *server_str, char *arg)
 {
-  int fd;
   struct Lisp_Process *proc;
   Lisp_Object lp;
   Lisp_Object fil;
@@ -3588,10 +3527,7 @@ ConnectToEnergize (char *server_str, char *arg)
   int id1;
   int id2;
 
-  extern struct screen *selected_screen;
-  Widget widget = selected_screen->display.x->widget;
-  
-  if (CParseCadillacSpec (server_str, &host, &port)) /* #### rename me */
+  if (CGetPortNumber (server_str, &host, &port))
     {
       
       lp = Fopen_network_stream (build_string ("energize"),
@@ -3608,19 +3544,14 @@ ConnectToEnergize (char *server_str, char *arg)
                                                 XFASTINT (proc->infd));
           energize_connection->proc = lp;
           energize_connection->binfo_hash = make_hashtable (10);
+	  energize_connection->image_table = 0;
+          energize_connection->gc_save = Qnil;
+          energize_connection->major = 0;
+          energize_connection->minor = 0;
           peo = allocate_edit_options (10);
           request_serial_number = 0;
 	  global_reply_wait = 0;
 
-          BLOCK_INPUT;
-          /* forces linking */
-          NewPixmapImage (0);
-          NewAttributeImage (0, 0);
-#if 0
- *          NewNoteImage (0, 0);
-#endif
-          UNBLOCK_INPUT;
-          
           if ((flags = fcntl (energize_connection->conn->fdin, F_GETFL, 0)) == -1)
 	    abort(); /* perror ("get connection flags"); */
 	  
@@ -3636,7 +3567,7 @@ ConnectToEnergize (char *server_str, char *arg)
           proc->filter_does_read = Qt;
 
 	  Venergize_kernel_busy = Qnil;
-	  needs_to_recompute_menubar_when_kernel_not_busy = 0;
+/*	  needs_to_recompute_menubar_when_kernel_not_busy = 0;*/
           
           id1 = 0;
           id2 = 0;
@@ -3647,27 +3578,17 @@ ConnectToEnergize (char *server_str, char *arg)
 
           setup_connection (energize_connection, id1, id2);
         }
+      else
+	error ("couldn't connect to Energize server");
     }
+  else
+    error ("couldn't determine Energize server port number");
 }
 
-/* called by maphash to kill all the buffers in CloseConnection */
-static void
-kill_the_buffer (void *key, void *contents, void *arg)
-{
-  /* contents is the bufferInfo */
-  if (contents)
-    {
-      BufferInfo *binfo = (BufferInfo *) contents;
-
-      if (OBJECT_SEAL (binfo) != BUF_INFO_SEAL)
-        error ("bad object %x to kill_the_buffer()", binfo);
-      unmodify_buffer_and_kill_it (binfo->emacs_buffer);
-    }
-}
 
 /* Close the connection to energize.
  * Kills all the energize related buffer */
-void 
+static void 
 CloseConnection () 
 {
   Editor *ed = energize_connection;
@@ -3698,8 +3619,9 @@ CloseConnection ()
              hooks and don't make an effort to delete extents since they
              are all going away */
           specbind (Qenergize_buffer_modified_hook, Qnil);
-          maphash (kill_the_buffer, ed->binfo_hash, ed);
-          unbind_to (count);
+          specbind (intern ("inhibit-quit"), Qt);
+	  call0 (intern ("de-energize-all-buffers"));
+          unbind_to (count, Qnil);
 	  
           free_hashtable (ed->binfo_hash);
           ed->binfo_hash = 0;
@@ -3713,9 +3635,7 @@ CloseConnection ()
       energize_buffers_list = Qnil;
 
       /* now kill buffers created to satisfy requests on old connection */
-      free (ed);
-      /* finally, flush all of the x_bitmaps indices */
-      free_all_x_bitmaps_indices ();
+      xfree (ed);
     }
   
   /* marked as close */
@@ -3777,7 +3697,7 @@ static void
 SendBufferModificationState (Editor *editor, BufferInfo *binfo, int flag)
 {
   Connection *conn = editor->conn;
-  Id bufferId = binfo->id;
+  EId bufferId = binfo->id;
   
   if (conn)
     {
@@ -3793,8 +3713,6 @@ static int
 CheckBufferLock (Editor *editor, BufferInfo *binfo)
 {
   Connection *conn = editor->conn;
-  Id buffer_id = binfo->id;
-  CEditorRequest *req;
   struct reply_wait rw;
   
   /* If permision already granted by kernel dont' ask again */
@@ -3873,11 +3791,10 @@ notify_extent_modified (Lisp_Object extent_obj, void *arg)
 {
   /* arg is a binfo_and_state */
   binfo_and_state *bans = (binfo_and_state*)arg;
-  Extent_Data *ext;
-  CEditorRequest *req;
+  Energize_Extent_Data *ext;
   BufferInfo *binfo = bans->binfo;
   Connection *conn = binfo->editor->conn;
-  BITS32 *extent_id;
+  EId *extent_id;
   
   if (!EXTENTP (extent_obj) ||  
       !(EXTENT_FLAGS (XEXTENT(extent_obj)) & EF_WARN_MODIFY))
@@ -3893,7 +3810,7 @@ notify_extent_modified (Lisp_Object extent_obj, void *arg)
       if (bans->tell_energize)
 	{
 	  CWriteModifiedExtentsHeader (conn, binfo->id, bans->state, 1);
-	  extent_id = CPut (conn, BITS32);
+	  extent_id = CPut (conn, EId);
 	  *extent_id = ext->id;
 	  CWriteLength (conn);
 	  CWriteRequestBuffer (conn);
@@ -4004,7 +3921,6 @@ DEFUN ("send-buffer-modified-request", Fsend_buffer_modified_request,
   BufferInfo *binfo;
   int from_int = XINT (from);
   int to_int = XINT (to);
-  int tmp;
   
   if (!energize_connection || !energize_connection->conn) return Qnil;
   
@@ -4220,7 +4136,7 @@ DEFUN ("energize-protocol-level", Fenergize_protocol_level,
 }
 
 
-int
+static int
 get_energize_connection_and_buffer_id (Lisp_Object buffer, void **conn_ptr,
 				       long *buffer_id_ptr)
 {
@@ -4235,7 +4151,7 @@ get_energize_connection_and_buffer_id (Lisp_Object buffer, void **conn_ptr,
   return 1;
 }
 
-int
+static int
 get_energize_connection_and_current_buffer_id (void **conn_ptr,
 					       long *buffer_id_ptr)
 {
@@ -4261,9 +4177,9 @@ get_psheets_for_buffer (Lisp_Object buffer, int *count_ptr)
 }
 
 void
-notify_that_sheet_has_been_hidden (BITS32 id)
+notify_that_sheet_has_been_hidden (EId id)
 {
-  BITS32 buffer_id = buffer_id_of_sheet (id);
+  EId buffer_id = buffer_id_of_sheet (id);
   if (!buffer_id)
     return;
 
@@ -4281,7 +4197,10 @@ void
 syms_of_editorside() 
 {
   energize_connection = 0;
-  
+  inside_ProcessEnergizeRequest1 = 0;
+
+  image_cache = make_strings_hashtable (50);
+
   staticpro (&energize_buffers_list);
   energize_buffers_list = Qnil;
 

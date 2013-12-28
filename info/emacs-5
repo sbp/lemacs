@@ -34,7 +34,7 @@ character of the search string.  As you type in the search string,
 Emacs shows you where the string (as you have typed it so far) is
 found.  When you have typed enough characters to identify the place
 you want, you can stop.  Depending on what you do next, you may or may
-not need to terminate the search explicitly with a LFD.
+not need to terminate the search explicitly with a RET.
 
 `C-s'
      Incremental search forward (`isearch-forward').
@@ -62,12 +62,12 @@ the character you want to erase.  If you do not want to wait for this
 to happen, use `C-g' as described below.
 
    When you are satisfied with the place you have reached, you can type
-LFD (or C-j), which stops searching, leaving the cursor where the
+RET (or C-m), which stops searching, leaving the cursor where the
 search brought it.  Any command not specially meaningful in searches
 also stops the search and is then executed.  Thus, typing `C-a' exits
-the search and then moves to the beginning of the line.  LFD is
+the search and then moves to the beginning of the line.  RET is
 necessary only if the next command you want to type is a printing
-character, DEL, LFD, or another control character that is special
+character, DEL, ESC, or another control character that is special
 within searches (`C-q', `C-w', `C-r', `C-s' or `C-y').
 
    Sometimes you search for `FOO' and find it, but were actually
@@ -86,7 +86,7 @@ Emacs found as much of your string as it could.  Thus, if you search
 for `FOOT', and there is no `FOOT', the cursor may be after the `FOO'
 in `FOOL'.  At this point there are several things you can do.  If you
 mistyped the search string, correct it.  If you like the place you
-have found, you can type LFD or some other Emacs command to "accept
+have found, you can type RET or some other Emacs command to "accept
 what the search offered".  Or you can type `C-g', which removes from
 the search string the characters that could not be found (the `T' in
 `FOOT'), leaving those that were found (the `FOO' in `FOOT').  A
@@ -138,6 +138,12 @@ to recall things which you have searched for in the past.  A list of
 the last 16 things you have searched for is retained, and `M-p' and
 `M-n' let you cycle through that ring.
 
+   The character `M-TAB' does completion on the elements in the search
+history ring.  For example, if you know that you have recently
+searched for the string `POTATOE', you could type `C-s P O M-TAB'.  If
+you had searched for other strings beginning with `PO' then you would
+be shown a list of them, and would need to type more to select one.
+
    You can change any of the special characters in incremental search
 via the normal keybinding mechanism: simply add a binding to the
 `isearch-mode-map'.  For example, to make the character `C-b' mean
@@ -151,7 +157,7 @@ via the normal keybinding mechanism: simply add a binding to the
      (`isearch-delete-char')  Delete a character from the incremental
      search string.
 
-`LFD'
+`RET'
      (`isearch-exit')  Exit incremental search.
 
 `C-q'
@@ -172,12 +178,20 @@ via the normal keybinding mechanism: simply add a binding to the
      (`isearch-yank-word')  Pull next word from buffer into search
      string.
 
+`C-g'
+     (`isearch-abort')  Cancels input back to what has been found
+     successfully, or aborts the isearch.
+
 `M-p'
      (`isearch-ring-retreat')  Recall the previous element in the
      isearch history ring.
 
 `M-n'
-     (`isearch-ring-advance')  Recall the next element int the isearch
+     (`isearch-ring-advance')  Recall the next element in the isearch
+     history ring.
+
+`M-TAB'
+     (`isearch-complete')  Do completion on the elements in the isearch
      history ring.
 
    Any other character which is normally inserted into a buffer when
@@ -218,29 +232,29 @@ Non-Incremental Search
    Emacs also has conventional non-incremental search commands, which
 require you type the entire search string before searching begins.
 
-`C-s LFD STRING RET'
+`C-s RET STRING RET'
      Search for STRING.
 
-`C-r LFD STRING RET'
+`C-r RET STRING RET'
      Search backward for STRING.
 
-   To do a non-incremental search, first type `C-s LFD' (or `C-s C-j'.
+   To do a non-incremental search, first type `C-s RET' (or `C-s C-m'.
  This enters the minibuffer to read the search string.  Terminate the
 string with RET to start the search.  If the string is not found the
 search command gets an error.
 
    By default, `C-s' invokes incremental search, but if you give it an
 empty argument, which would otherwise be useless, it invokes
-non-incremental search.  Therefore, `C-s LFD' invokes non-incremental
-search.  `C-r LFD' also works this way.
+non-incremental search.  Therefore, `C-s RET' invokes non-incremental
+search.  `C-r RET' also works this way.
 
    Forward and backward non-incremental searches are implemented by the
 commands `search-forward' and `search-backward'.  You can bind these
 commands to keys.  The reason that incremental search is programmed to
-invoke them as well is that `C-s LFD' is the traditional sequence of
+invoke them as well is that `C-s RET' is the traditional sequence of
 characters used in Emacs to invoke non-incremental search.
 
-   Non-Incremental searches performed using `C-s LFD' do not call
+   Non-Incremental searches performed using `C-s RET' do not call
 `search-forward' right away.  They first check if the next character
 is `C-w', which requests a word search.
 
@@ -264,25 +278,25 @@ version, you can't tell where the line breaks are in the source file.
 Word search, allows you to search  without having to know the line
 breaks.
 
-`C-s LFD C-w WORDS RET'
+`C-s RET C-w WORDS RET'
      Search for WORDS, ignoring differences in punctuation.
 
-`C-r LFD C-w WORDS RET'
+`C-r RET C-w WORDS RET'
      Search backward for WORDS, ignoring differences in punctuation.
 
    Word search is a special case of non-incremental search.  It is
-invoked with `C-s LFD C-w' followed by the search string, which must
-always be terminated with RET.  Being non-incremental, this search
-does not start until the argument is terminated.  It works by
+invoked with `C-s RET C-w' followed by the search string, which must
+always be terminated with another RET.  Being non-incremental, this
+search does not start until the argument is terminated.  It works by
 constructing a regular expression and searching for that.  *Note
 Regexp Search::.
 
-   You can do a backward word search with `C-r LFD C-w'.
+   You can do a backward word search with `C-r RET C-w'.
 
    Forward and backward word searches are implemented by the commands
 `word-search-forward' and `word-search-backward'.  You can bind these
 commands to keys.  The reason that incremental search is programmed to
-invoke them as well is that `C-s LFD C-w' is the traditional Emacs
+invoke them as well is that `C-s RET C-w' is the traditional Emacs
 sequence of keys for word search.
 
 
@@ -316,7 +330,7 @@ regexp and non-regexp searches have independent defaults.
 `re-search-forward' and `re-search-backward'.  You can invoke them
 with `M-x' or bind them to keys.  You can also call
 `re-search-forward' by way of incremental regexp search with `C-M-s
-LFD'.
+RET'.
 
 
 File: emacs,  Node: Regexps,  Next: Search Case,  Prev: Regexp Search,  Up: Search

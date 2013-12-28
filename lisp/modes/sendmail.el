@@ -1,5 +1,5 @@
 ;; Mail sending commands for Emacs.
-;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -256,8 +256,17 @@ back to the user from the mailer."
 	      (apply (car (car mail-send-actions)) (cdr (car mail-send-actions)))
 	    (error))
 	  (setq mail-send-actions (cdr mail-send-actions)))
-	(set-buffer-modified-p nil)
-	(delete-auto-save-file-if-necessary t)
+
+;	(set-buffer-modified-p nil)
+;	(delete-auto-save-file-if-necessary t)
+
+	(if (and (buffer-modified-p) buffer-file-name)
+	    (if (or noninteractive
+		    (y-or-n-p (format "Save file %s? " buffer-file-name)))
+		(save-buffer))
+	  (set-buffer-modified-p nil)
+	  (delete-auto-save-file-if-necessary t))
+
 	(message "Sending...done"))))
 
 (defun sendmail-send-it ()

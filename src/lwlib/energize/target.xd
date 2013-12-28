@@ -1,0 +1,336 @@
+module 'XApplication'
+applicationName = 'XApplication';
+generateNameC = 'target.xdc';
+generateNameUIL = '';
+generateNameResDB = '';
+generateUidFile = '';
+generateMask = 458980;
+object '' : XmDialogShell {
+	arguments {
+	name = 'dialog';
+	XmNtitle = 'Question';
+	XmNallowShellResize = true;
+	};
+object '' : XmForm {
+	arguments {
+	name = 'targetDialog';
+	XmNautoUnmanage = false;
+	XmNdefaultButton = 'button1';
+	};
+object '' : XmRowColumn {
+	arguments {
+	name = 'row';
+	XmNorientation=2;
+	XmNpacking=2;
+	XmNentryAlignment=1;
+	XmNadjustLast = false;
+	XmNisAligned = true;
+	};
+object 'button1' : XmPushButton {
+	arguments {
+	name = 'button1';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'button2';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'separator_button';
+	XmNmappedWhenManaged = false;
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'button3';
+	};
+};
+};
+object '' : XmSeparator {
+	arguments {
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'dbox-question';
+	XmNlabelType=1;
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'optionsLabel';
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'errorLabel';
+	};
+};
+object '' : XmFrame {
+	arguments {
+	};
+object '' : XmRadioBox {
+	arguments {
+	name = 'errorBox';
+	XmNorientation=1;
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'errorContinue';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'errorStop';
+	};
+};
+};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'compileLabel';
+	};
+};
+object '' : XmFrame {
+	arguments {
+	};
+object '' : XmRadioBox {
+	arguments {
+	name = 'compileBox';
+	XmNnumColumns=1;
+	XmNorientation=1;
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'compileFull';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'compileIncremental';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'compileNo';
+	};
+};
+};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'linkLabel';
+	};
+};
+object '' : XmFrame {
+	arguments {
+	};
+object '' : XmRadioBox {
+	arguments {
+	name = 'linkBox';
+	XmNnumColumns=1;
+	XmNorientation=1;
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'linkFull';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'linkIncremental';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'linkNo';
+	};
+};
+};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'subTargetLabel';
+	};
+};
+object '' : XmFrame {
+	arguments {
+	};
+object '' : XmRadioBox {
+	arguments {
+	name = 'subTargetBox';
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'subTargetAll';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'subTargetNone';
+	};
+};
+};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'message';
+	XmNalignment=0;
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'buildCommandLabel';
+	};
+};
+object '' : XmScrolledText {
+	arguments {
+	name = 'buildCommandText';
+	};
+object '' : XmScrollBar {
+	arguments {
+	};
+};
+object '' : XmScrollBar {
+	arguments {
+	};
+};
+object '' : XmText {
+	arguments {
+	XmNeditMode=0;
+	XmNcolumns=57;
+	XmNrows=8;
+	};
+};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'dependLabel';
+	};
+};
+object '' : XmText {
+	arguments {
+	name = 'dependText';
+	XmNcolumns=60;
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'iconSeparator';
+	};
+};
+    attachments {
+    attachment {
+	XmNrightAttachment = 1 0 13;
+	XmNleftAttachment = 1 0 13;
+	XmNbottomAttachment = 1 0 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 0;
+	XmNleftAttachment = 1 0 0;
+	XmNbottomAttachment = 3 1 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 13;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 1 0 13;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 18 13;
+	XmNbottomAttachment = 3 7 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 4 6 13;
+	XmNbottomAttachment = 3 6 -4;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 13;
+	XmNleftAttachment = 3 12 13;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 4 12 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 4 8 13;
+	XmNbottomAttachment = 3 8 -4;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 18 26;
+	XmNbottomAttachment = 3 2 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 4 10 13;
+	XmNbottomAttachment = 3 10 -4;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 8 13;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 4 8 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 4 12 13;
+	XmNbottomAttachment = 3 12 -4;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 10 13;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 4 10 0;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 13;
+	XmNleftAttachment = 3 3 13;
+	XmNbottomAttachment = 3 16 13;
+	XmNtopAttachment = 1 0 13;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 18 13;
+	XmNbottomAttachment = 3 15 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 13;
+	XmNleftAttachment = 3 18 26;
+	XmNbottomAttachment = 3 4 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 18 13;
+	XmNbottomAttachment = 3 17 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 13;
+	XmNleftAttachment = 3 18 26;
+	XmNbottomAttachment = 3 14 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 13;
+	XmNbottomAttachment = 3 2 13;
+	XmNtopAttachment = 3 3 13;
+    };
+    };
+};
+};
+end module;

@@ -17,7 +17,15 @@
 
 #include <stdio.h>
 #include <time.h>
+
+#define NO_SHORTNAMES
+#include "../src/config.h"
+
+#ifndef USG
 #include <strings.h>
+#else
+#include <string.h>
+#endif
 
 /* Why can't Sun learn to write libraries and include files? */
 extern char *strtok ();

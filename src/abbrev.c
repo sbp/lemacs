@@ -24,6 +24,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "commands.h"
 #include "buffer.h"
 #include "window.h"
+#include "insdel.h"
 
 /* An abbrev table is an obarray.
  Each defined abbrev is represented by a symbol in that obarray
@@ -263,11 +264,15 @@ Returns t if expansion took place.")
     }
 
   if (VECTORP (current_buffer->abbrev_table))
-    sym = oblookup (current_buffer->abbrev_table, buffer, p - buffer);
+    sym = oblookup (current_buffer->abbrev_table,
+		    (unsigned char *) buffer,
+		    p - buffer);
   else
     XFASTINT (sym) = 0;
   if (FIXNUMP (sym) || NILP (XSYMBOL (sym)->value))
-    sym = oblookup (Vglobal_abbrev_table, buffer, p - buffer);
+    sym = oblookup (Vglobal_abbrev_table,
+		    (unsigned char *) buffer,
+		    p - buffer);
   if (FIXNUMP (sym) || NILP (XSYMBOL (sym)->value))
     return Qnil;
 
@@ -361,7 +366,7 @@ is not undone.")
   return Qnil;
 }
 
-static
+static void
 write_abbrev (sym, stream)
      Lisp_Object sym, stream;
 {
@@ -380,7 +385,7 @@ write_abbrev (sym, stream)
   insert (")\n", 2);
 }
 
-static
+static void
 describe_abbrev (sym, stream)
      Lisp_Object sym, stream;
 {
@@ -480,6 +485,7 @@ of the form (ABBREVNAME EXPANSION HOOK USECOUNT).")
   return Qnil;
 }
 
+void
 syms_of_abbrev ()
 {
   DEFVAR_LISP ("abbrev-table-name-list", &Vabbrev_table_name_list,
@@ -524,9 +530,6 @@ Calling `expand-abbrev' sets this to nil.");
     "Buffer that `abbrev-start-location' has been set for.\n\
 Trying to expand an abbrev in any other buffer clears `abbrev-start-location'.");
   Vabbrev_start_location_buffer = Qnil;
-
-  DEFVAR_PER_BUFFER ("local-abbrev-table", &current_buffer->abbrev_table,
-    "Local (mode-specific) abbrev table of current buffer.");
 
   DEFVAR_BOOL ("abbrevs-changed", &abbrevs_changed,
     "Set non-nil by defining or altering any word abbrevs.\n\

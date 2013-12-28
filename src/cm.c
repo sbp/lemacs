@@ -1,12 +1,12 @@
 /* Cursor motion subroutines for GNU Emacs.
-   Copyright (C) 1985 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
     based primarily on public domain code written by Chris Torek
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -25,6 +25,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "lisp.h"
 #include "termhooks.h"
 
+#ifndef tputs
+extern int tputs (char *, int, int (*) (char));
+#endif
+
 #define	BIG	9999		/* 9999 good on VAXen.  For 16 bit machines
 				   use about 2000.... */
 
@@ -35,19 +39,20 @@ extern char *BC, *UP;
 int cost;		/* sums up costs */
 
 /* ARGSUSED */
-evalcost (c)
-     char c;
+int
+evalcost (char c)
 {
   cost++;
+  return 0;
 }
 
-void
-cmputc (c)
-     char c;
+int
+cmputc (char c)
 {
   if (termscript)
     fputc (c & 0177, termscript);
   putchar (c & 0177);
+  return 0;
 }
 
 /* NEXT TWO ARE DONE WITH MACROS */
@@ -105,6 +110,7 @@ addcol (n) {
  * out of <sgtty.h>.)
  */
 
+void
 cmcostinit ()
 {
     char *p;
@@ -144,8 +150,9 @@ cmcostinit ()
  * actually perform the motion.
  */
 
-static
+static int
 calccost (srcy, srcx, dsty, dstx, doit)
+     int srcy, srcx, dsty, dstx, doit;
 {
     register int    deltay,
                     deltax,
@@ -279,7 +286,9 @@ losecursor ()
 #define	USELL	2
 #define	USECR	3
 
+void
 cmgoto (row, col)
+     int row, col;
 {
     int     homecost,
             crcost,
@@ -380,9 +389,10 @@ cmgoto (row, col)
    Used before copying into it the info on the actual terminal.
  */
 
+void
 Wcm_clear ()
 {
-  bzero (&Wcm, sizeof Wcm);
+  memset (&Wcm, 0, sizeof Wcm);
   UP = 0;
   BC = 0;
 }
@@ -394,6 +404,7 @@ Wcm_clear ()
  * Return -2 if size not specified.
  */
 
+int
 Wcm_init ()
 {
 #if 0

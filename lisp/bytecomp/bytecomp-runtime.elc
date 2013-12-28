@@ -1,5 +1,5 @@
-;;; compiled by jwz@thalidomide on Tue Jun 30 21:53:33 1992
-;;; from file /wg1/emacs-base/lisp/bytecomp/bytecomp-runtime.el
+;;; compiled by jwz@thalidomide on Thu Jul  2 14:31:59 1992
+;;; from file /u/jwz/emacs19/lisp/bytecomp/bytecomp-runtime.el
 ;;; emacs version 19.2.1 Lucid.
 ;;; bytecomp version 2.07; 17-jun-92.
 ;;; optimization is on.

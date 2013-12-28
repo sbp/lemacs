@@ -18,12 +18,23 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-(defun one-window-p (&optional arg)
+;; called by Fkill_buffer()
+(defvar kill-buffer-hook nil
+  "Function or functions to be called when a buffer is killed.
+The value of this variable may be buffer-local.
+The buffer about to be killed is current when this hook is run.")
+
+(defun generate-new-buffer (name)
+  "Create and return a buffer with a name based on NAME.
+Choose the buffer's name using `generate-new-buffer-name'."
+  (get-buffer-create (generate-new-buffer-name name)))
+
+(defun one-window-p (&optional nomini)
   "Returns non-nil if there is only one window.
 Optional arg NOMINI non-nil means don't count the minibuffer
 even if it is active."
   (eq (selected-window)
-      (next-window (selected-window) (if arg 'arg))))
+      (next-window (selected-window) (if nomini 'nomini))))
 
 (defun walk-windows (proc &optional minibuf all-screens)
   "Cycle through all visible windows, calling PROC for each one.
@@ -75,6 +86,11 @@ Optional argument PROMPT specifies a string to use to prompt the user."
   (interactive)
   (ding))
 
+;; Some programs still use this as a function.
+(defun baud-rate ()
+  "Obsolete function returning the value of the `baud-rate' variable."
+  baud-rate)
+
 ;Prevent the \{...} documentation construct
 ;from mentioning keys that run this command.
 (put 'undefined 'suppress-keymap t)
@@ -124,15 +140,25 @@ but optional second arg NODIGITS non-nil treats them like other chars."
 ;      (copy-sequence keymap)
 ;      (copy-alist keymap)))
 
+;;;>>> FSF19 takes arguments (olddef newdef keymap &optional oldmap prefix),
+;;;>>> where "If optional fourth argument OLDMAP is specified, we redefine
+;;;>>> in KEYMAP as NEWDEF those chars which are defined as OLDDEF in OLDMAP."
 (defun substitute-key-definition (olddef newdef keymap)
   "Replace OLDDEF with NEWDEF for any keys in KEYMAP now defined as OLDDEF.
 In other words, OLDDEF is replaced with NEWDEF where ever it appears.
 Prefix keymaps reached from KEYMAP are not checked recursively;
 perhaps they ought to be."
-  (map-keymap keymap
-	      (function (lambda (key binding)
+  (map-keymap (function (lambda (key binding)
 			  (if (eq binding olddef)
-			      (define-key keymap key newdef))))))
+			      (define-key keymap key newdef))))
+	      keymap))
+
+(defmacro save-match-data (&rest body)
+  "Execute the BODY forms, restoring the global value of the match data."
+  (list 'let '((_match_data_ (match-data)))
+	(list 'unwind-protect
+	      (cons 'progn body)
+	      '(store-match-data _match_data_))))
 
 (defun ignore (&rest ignore) nil)
 
@@ -162,19 +188,8 @@ perhaps they ought to be."
 (fset 'beep 'ding) ;preserve lingual purtity
 (fset 'indent-to-column 'indent-to)
 (fset 'backward-delete-char 'delete-backward-char)
-
-(defvar global-map nil
-  "Default global keymap mapping Emacs keyboard input into commands.
-The value is a keymap which is usually (but not necessarily) Emacs's
-global map.")
-
-(defvar ctl-x-map nil
-  "Default keymap for C-x commands.
-The normal global definition of the character C-x indirects to this keymap.")
-
-(defvar esc-map nil
-  "Default keymap for ESC (meta) commands.
-The normal global definition of the character ESC indirects to this keymap.")
+(fset 'search-forward-regexp (symbol-function 're-search-forward))
+(fset 'search-backward-regexp (symbol-function 're-search-backward))
 
 (defun run-hooks (&rest hooklist)
   "Takes hook names and runs each one in turn.  Major mode functions use this.
@@ -199,20 +214,39 @@ If it is a list, the elements are called, in order, with no arguments."
   "Variable by which C primitives find the function `run-hooks'.
 Don't change it.")
 
-(defun add-hook (hook-var function)
+(defun add-hook (hook-var function &optional at-end)
   "Add a function to a hook.
 First argument HOOK-VAR (a symbol) is the name of a hook, second
-argument FUNCTION is the function to add.
+ argument FUNCTION is the function to add.
+Third (optional) argument AT-END means to add the function at the end
+ of the hook list instead of the beginning.  If the function is already
+ present, this has no effect.
 Returns nil if FUNCTION was already present in HOOK-VAR, else new
-value of HOOK-VAR."
-  (interactive "SAdd to hook-var (symbol): \naAdd which function to %s? ")
+ value of HOOK-VAR."
+  ;(interactive "SAdd to hook-var (symbol): \naAdd which function to %s? ")
   (if (not (boundp hook-var)) (set hook-var nil))
-  (if (or (not (listp (symbol-value hook-var)))
-	  (eq (car (symbol-value hook-var)) 'lambda))
-      (set hook-var (list (symbol-value hook-var))))
-  (if (member function (symbol-value hook-var))
-      nil
-    (set hook-var (cons function (symbol-value hook-var)))))
+  (let ((old (symbol-value hook-var)))
+    (if (or (not (listp old)) (eq (car old) 'lambda))
+	(setq old (list old)))
+    (if (member function old)
+	nil
+      (set hook-var
+	   (if at-end
+	       (nconc old (list function))
+	     (cons function old))))))
+
+(defun remove-hook (hook-var function)
+  "Remove a function from a hook, if it is present.
+First argument HOOK-VAR (a symbol) is the name of a hook, second
+ argument FUNCTION is the function to remove (compared with `eq')."
+  (let (val)
+    (cond ((not (boundp hook-var))
+	   nil)
+	  ((eq function (setq val (symbol-value hook-var)))
+	   (setq hook-var nil))
+	  ((consp val)
+	   (set hook-var (delq function val))))))
+
 
 (defun momentary-string-display (string pos &optional exit-char message) 
   "Momentarily display STRING in the buffer at POS.
@@ -262,20 +296,21 @@ Wildcards and redirection are handle as usual in the shell."
     (start-process name buffer shell-file-name "-c"
 		   (concat "exec " (mapconcat 'identity args " ")))))
 
-(defun eval-after-load (file form)
-  "Arrange that, if FILE is ever loaded, FORM will be run at that time.
-This makes or adds to an entry on `after-load-alist'.
-FILE should be the name of a library, with no directory name."
-  (or (assoc file after-load-alist)
-      (setq after-load-alist (cons (list file) after-load-alist)))
-  (nconc (assoc file after-load-alist) (list form))
-  form)
-
-(defun eval-next-after-load (file)
-  "Read the following input sexp, and run it whenever FILE is loaded.
-This makes or adds to an entry on `after-load-alist'.
-FILE should be the name of a library, with no directory name."
-  (eval-after-load file (read)))
+;;>> What a piece of junk!  This is what hooks are for!!
+;(defun eval-after-load (file form)
+;  "Arrange that, if FILE is ever loaded, FORM will be run at that time.
+;This makes or adds to an entry on `after-load-alist'.
+;FILE should be the name of a library, with no directory name."
+;  (or (assoc file after-load-alist)
+;      (setq after-load-alist (cons (list file) after-load-alist)))
+;  (nconc (assoc file after-load-alist) (list form))
+;  form)
+;
+;(defun eval-next-after-load (file)
+;  "Read the following input sexp, and run it whenever FILE is loaded.
+;This makes or adds to an entry on `after-load-alist'.
+;FILE should be the name of a library, with no directory name."
+;  (eval-after-load file (read)))
 
 (defun user-original-login-name ()
   "Return user's login name from original login.
@@ -289,3 +324,81 @@ With optional non-nil ALL then force then force redisplay of all mode-lines."
   (set-buffer-modified-p (buffer-modified-p)))
 
 (fset 'force-mode-line-update 'redraw-mode-line)
+
+;;;; Keymap stuff
+
+(defun local-key-binding (keys)
+  "Return the binding for command KEYS in current local keymap only.
+KEYS is a string, a vector of events, or a vector of key-description lists
+as described in the documentation for the `define-key' function.
+The binding is probably a symbol with a function definition; see
+the documentation for `lookup-key' for more information."
+  (let ((map (current-local-map)))
+    (if map
+        (lookup-key map keys)
+        nil)))
+
+(defun global-key-binding (keys)
+  "Return the binding for command KEYS in current global keymap only.
+KEYS is a string or vector of events, a sequence of keystrokes.
+The binding is probably a symbol with a function definition; see
+the documentation for `lookup-key' for more information."
+  (lookup-key (current-global-map) keys))
+
+
+(defun global-set-key (keys function)
+  "Give KEY a global binding as COMMAND.
+COMMAND is a symbol naming an interactively-callable function.
+KEYS is a string, a vector of events, or a vector of key-description lists
+as described in the documentation for the `define-key' function.
+Note that if KEY has a local binding in the current buffer
+that local binding will continue to shadow any global binding."
+  (interactive "kSet key globally: \nCSet key %s to command: ")
+  (define-key (current-global-map) keys function))
+
+(defun local-set-key (keys function)
+  "Give KEY a local binding as COMMAND.
+COMMAND is a symbol naming an interactively-callable function.
+KEYS is a string, a vector of events, or a vector of key-description lists
+as described in the documentation for the `define-key' function.
+The binding goes in the current buffer's local map,
+which is shared with other buffers in the same major mode."
+  (interactive "kSet key locally: \nCSet key %s locally to command: ")
+  (if (null (current-local-map))
+      (use-local-map (make-sparse-keymap)))
+  (define-key (current-local-map) keys function))
+
+(defun global-unset-key (keys)
+  "Remove global binding of KEY.
+KEYS is a string, a vector of events, or a vector of key-description lists
+as described in the documentation for the `define-key' function."
+  (interactive "kUnset key globally: ")
+  (global-set-key keys nil))
+
+(defun local-unset-key (keys)
+  "Remove local binding of KEY.
+KEYS is a string, a vector of events, or a vector of key-description lists
+as described in the documentation for the `define-key' function."
+  (interactive "kUnset key locally: ")
+  (if (current-local-map)
+      (define-key (current-local-map) keys nil)))
+
+;;>>> What a crock
+(defun define-prefix-command (name &optional mapvar)
+  "Define COMMAND as a prefix command.
+A new sparse keymap is stored as COMMAND's function definition.
+If second optional argument MAPVAR is not specified,
+ COMMAND's value (as well as its function definition) is set to the keymap.
+If a second optional argument MAPVAR is given and is not `t',
+  the map is stored as its value.
+Regardless of MAPVAR, COMMAND's function-value is always set to the keymap."
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-name map name)
+    (fset name map)
+    (cond ((not mapvar)
+           (set name map))
+          ((eq mapvar 't)
+           )
+          (t
+           (set mapvar map)))
+    name))

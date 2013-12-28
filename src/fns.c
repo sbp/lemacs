@@ -1,5 +1,5 @@
 /* Random utility Lisp functions.
-   Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -93,10 +93,10 @@ lisp_to_word (Lisp_Object obj)
 
 #ifdef NEED_STRDUP
 char *
-strdup(s)
+strdup (s)
      char *s;
 {
-    char *result = (char *) malloc (strlen (s) + 1);
+    char *result = (char *) xmalloc (strlen (s) + 1);
     if (result == (char *) 0)
       return (char *) 0;
     strcpy (result, s);
@@ -109,6 +109,7 @@ strdup(s)
 Lisp_Object Vbell_volume;
 
 Lisp_Object Qstring_lessp;
+Lisp_Object Qyes_or_no_p;
 
 DEFUN ("identity", Fidentity, Sidentity, 1, 1, 0,
   "Return the argument unchanged.")
@@ -117,6 +118,9 @@ DEFUN ("identity", Fidentity, Sidentity, 1, 1, 0,
 {
   return arg;
 }
+
+extern int random ();
+extern void srandom ();
 
 DEFUN ("random", Frandom, Srandom, 0, 1, 0,
   "Return a pseudo-random number.\n\
@@ -128,9 +132,6 @@ With argument t, set the random number seed from the current time and pid.")
      Lisp_Object arg;
 {
   int val;
-  extern long random ();
-  extern srandom ();
-  extern long time ();
 
   if (EQ (arg, Qt))
     srandom (getpid () + time (0));
@@ -195,14 +196,14 @@ Symbols are also allowed; their print names are used instead.")
      register Lisp_Object s1, s2;
 {
   if (SYMBOLP (s1))
-    XSETSTRING (s1, XSYMBOL (s1)->name), XSETTYPE (s1, Lisp_String);
+    XSET (s1, Lisp_String, XSYMBOL (s1)->name);
   if (SYMBOLP (s2))
-    XSETSTRING (s2, XSYMBOL (s2)->name), XSETTYPE (s2, Lisp_String);
+    XSET (s2, Lisp_String, XSYMBOL (s2)->name);
   CHECK_STRING (s1, 0);
   CHECK_STRING (s2, 1);
 
   if (XSTRING (s1)->size != XSTRING (s2)->size ||
-      bcmp (XSTRING (s1)->data, XSTRING (s2)->data, XSTRING (s1)->size))
+      memcmp (XSTRING (s1)->data, XSTRING (s2)->data, XSTRING (s1)->size))
     return Qnil;
   return Qt;
 }
@@ -219,9 +220,9 @@ Symbols are also allowed; their print names are used instead.")
   register int end;
 
   if (SYMBOLP (s1))
-    XSETSTRING (s1, XSYMBOL (s1)->name), XSETTYPE (s1, Lisp_String);
+    XSET (s1, Lisp_String, XSYMBOL (s1)->name);
   if (SYMBOLP (s2))
-    XSETSTRING (s2, XSYMBOL (s2)->name), XSETTYPE (s2, Lisp_String);
+    XSET (s2, Lisp_String, XSYMBOL (s2)->name);
   CHECK_STRING (s1, 0);
   CHECK_STRING (s2, 1);
 
@@ -300,7 +301,31 @@ with the original.")
   if (NILP (arg)) return arg;
   if (!CONSP (arg) && !VECTORP (arg) && !STRINGP (arg))
     arg = wrong_type_argument (Qsequencep, arg);
-  return concat (1, &arg, CONSP (arg) ? Lisp_Cons : XTYPE (arg), 0);
+  /* We handle conses seperately because concat() is big and hairy and
+     doesn't handle (copy-sequence '(a b . c)) and it's easier to redo this
+     than to fix concat() without worrying about breaking other things.
+   */
+  if (CONSP (arg))
+    {
+      Lisp_Object rest = arg;
+      Lisp_Object head, tail;
+      tail = Qnil;
+      while (CONSP (rest))
+	{
+	  Lisp_Object new = Fcons (XCONS (rest)->car, XCONS (rest)->cdr);
+	  if (NILP (tail))
+	    head = tail = new;
+	  else
+	    XCONS (tail)->cdr = new, tail = new;
+	  rest = XCONS (rest)->cdr;
+	  QUIT;
+	}
+      if (!NILP (tail))
+	XCONS (tail)->cdr = rest;
+      return head;
+    }
+  else
+    return concat (1, &arg, XTYPE (arg), 0);
 }
 
 static Lisp_Object
@@ -323,7 +348,7 @@ concat (nargs, args, target_type, last_special)
   struct merge_replicas_struct *args_mr_structs = 
     (struct merge_replicas_struct *) alloca (mr_structs_size);
 
-  bzero ((char *) args_mr_structs, mr_structs_size);
+  memset ((char *) args_mr_structs, 0, mr_structs_size);
 
   /* In append, the last arg isn't treated like the others */
   if (last_special && nargs > 0)
@@ -482,6 +507,46 @@ are shared, however.")
   return alist;
 }
 
+
+DEFUN ("copy-tree", Fcopy_tree, Scopy_tree, 1, 1, 0,
+  "Return a copy of a list or vector, and substructures.\n\
+The argument is copied, and any lists or vectors contained within it\n\
+are copied recursively.  Circularities and shared substructures are\n\
+not preserved.  Strings are not copied.")
+   (arg)
+     Lisp_Object arg;
+{
+  arg = Fcopy_sequence (arg);
+  if (CONSP (arg))
+    {
+      Lisp_Object rest = arg;
+      while (CONSP (rest))
+	{
+	  Lisp_Object elt = XCONS (rest)->car;
+	  QUIT;
+	  if (CONSP (elt) || VECTORP (elt))
+	    XCONS (rest)->car = Fcopy_tree (elt);
+	  if (VECTORP (XCONS (rest)->cdr)) /* hack for (a b . [c d]) */
+	    XCONS (rest)->cdr = Fcopy_tree (XCONS (rest)->cdr);
+	  rest = XCONS (rest)->cdr;
+	}
+    }
+  else if (VECTORP (arg))
+    {
+      int i = XVECTOR (arg)->size;
+      int j;
+      for (j = 0; j < i; j++)
+	{
+	  Lisp_Object elt = XVECTOR (arg)->contents [j];
+	  QUIT;
+	  if (CONSP (elt) || VECTORP (elt))
+	    XVECTOR (arg)->contents [j] = Fcopy_tree (elt);
+	}
+    }
+  return arg;
+}
+
+
 DEFUN ("substring", Fsubstring, Ssubstring, 2, 3, 0,
   "Return a substring of STRING, starting at index FROM and ending before TO.\n\
 TO may be nil or omitted; then the substring runs to the end of STRING.\n\
@@ -505,7 +570,7 @@ If FROM or TO is negative, it counts from the end.")
         && XINT (to) <= XSTRING (string)->size))
     args_out_of_range_3 (string, from, to);
 
-  return make_string (XSTRING (string)->data + XINT (from),
+  return make_string ((char *) XSTRING (string)->data + XINT (from),
 		      XINT (to) - XINT (from));
 }
 
@@ -776,6 +841,40 @@ delq_no_quit (elt, list)		/* no quit, no errors; be careful */
   return list;
 }
 
+DEFUN ("delete", Fdelete, Sdelete, 2, 2, 0,
+  "Delete by side effect any occurrences of ELT as a member of LIST.\n\
+The modified LIST is returned.  Comparison is done with `equal'.\n\
+If the first member of LIST is ELT, there is no way to remove it by side effect;\n\
+therefore, write `(setq foo (delete element foo))'\n\
+to be sure of changing the value of `foo'.")
+  (elt, list)
+     register Lisp_Object elt;
+     Lisp_Object list;
+{
+  register Lisp_Object tail, prev;
+  register Lisp_Object tem;
+
+  tail = list;
+  prev = Qnil;
+  while (!NILP (tail))
+    {
+      tem = Fcar (tail);
+      tem = Fequal (elt, tem);
+      if (!NILP (tem))
+	{
+	  if (NILP (prev))
+	    list = Fcdr (tail);
+	  else
+	    Fsetcdr (prev, Fcdr (tail));
+	}
+      else
+	prev = tail;
+      tail = Fcdr (tail);
+      QUIT;
+    }
+  return list;
+}
+
 
 DEFUN ("nreverse", Fnreverse, Snreverse, 1, 1, 0,
   "Reverse LIST by modifying cdr pointers.\n\
@@ -818,7 +917,7 @@ See also the function `nreverse', which is used more often.")
   return Flist (XINT (length), vec);
 }
 
-Lisp_Object list_merge ();
+static Lisp_Object list_merge ();
 
 Lisp_Object list_sort (list, lisp_arg, pred_fn)
      Lisp_Object list, lisp_arg;
@@ -849,12 +948,13 @@ Lisp_Object list_sort (list, lisp_arg, pred_fn)
 
 extern Lisp_Object Qgc_currently_forbidden;
 
+/* #### this is stupid and should be expunged */
 Lisp_Object
 safe_funcall_hook (Lisp_Object hook, int nargs, Lisp_Object arg1,
 		   Lisp_Object arg2, Lisp_Object arg3)
 {
   Lisp_Object result = Qnil;
-  int count = specpdl_ptr - specpdl;
+  int count = specpdl_depth;
   specbind (Qgc_currently_forbidden, 1);
 
   if (!NILP (hook))
@@ -867,9 +967,50 @@ safe_funcall_hook (Lisp_Object hook, int nargs, Lisp_Object arg1,
 	case 3: result = call3 (hook, arg1, arg2, arg3); break;
 	}
     }      
-  unbind_to (count);
-  return result;
+  return unbind_to (count, result);
 }
+
+void
+run_hooks_with_args (hook_var, args, nargs)
+     Lisp_Object hook_var, *args;
+     int nargs;
+{
+  Lisp_Object rest;
+  struct gcpro gcpro1;
+  if (NILP (Fboundp (hook_var)))
+    return;
+  rest = Fsymbol_value (hook_var);
+  if (NILP (rest))
+    return;
+  GCPRO1 (rest);
+  if (SYMBOLP (rest) || EQ (Qlambda, Fcar (rest)))
+    rest = list1 (rest);
+  while (!NILP (rest))
+    {
+      switch (nargs)
+	{
+	case 0: call0 (Fcar (rest)); break;
+	case 1: call1 (Fcar (rest), args[1]); break;
+	case 2: call2 (Fcar (rest), args[1], args[2]); break;
+	case 3: call3 (Fcar (rest), args[1], args[2], args[3]); break;
+	case 4: call4 (Fcar (rest), args[1], args[2], args[3], args[4]); break;
+	  /* if we ever want more, we'll add the clauses... */
+	default: error ("run_hooks_with_args called with too many args");
+	}
+      rest = Fcdr (rest);
+    }
+  UNGCPRO;
+}
+
+
+/* feel free to write the others as needed... */
+void
+run_hooks_1_arg (hook_var, arg)
+     Lisp_Object hook_var, arg;
+{
+  run_hooks_with_args (hook_var, &arg, 1);
+}
+
 
 static Lisp_Object 
 merge_pred_function (obj1, obj2, pred)
@@ -878,10 +1019,10 @@ merge_pred_function (obj1, obj2, pred)
   Lisp_Object tmp = Qnil;
 
   /* prevents the GC from happening in call2 */
-  int count = specpdl_ptr - specpdl;
+  int count = specpdl_depth;
   specbind (Qgc_currently_forbidden, 1);
   tmp = call2 (pred, obj1, obj2);
-  unbind_to (count);
+  unbind_to (count, Qnil);
 
   if (NILP (tmp)) 
     return -1;
@@ -908,7 +1049,7 @@ merge (org_l1, org_l2, pred)
 }
 
 
-Lisp_Object
+static Lisp_Object
 list_merge (org_l1, org_l2, lisp_arg, pred_fn)
      Lisp_Object org_l1, org_l2, lisp_arg;
      int (*pred_fn)();
@@ -1073,6 +1214,8 @@ getf (plist, indicator)
   return Qnil;
 }
 
+extern Lisp_Object event_equal (Lisp_Object, Lisp_Object);
+
 DEFUN ("equal", Fequal, Sequal, 2, 2, 0,
   "T if two Lisp objects have similar structure and contents.\n\
 They must have the same data type.\n\
@@ -1120,12 +1263,16 @@ do_cdr:
     {
       if (XSTRING (o1)->size != XSTRING (o2)->size)
 	return Qnil;
-      if (bcmp (XSTRING (o1)->data, XSTRING (o2)->data, XSTRING (o1)->size))
+      if (memcmp (XSTRING (o1)->data, XSTRING (o2)->data, XSTRING (o1)->size))
 	return Qnil;
       return Qt;
     }
   if (EVENTP (o1))
     return event_equal (o1, o2);
+#ifdef LISP_FLOAT_TYPE
+  if (FLOATP (o1))
+    return (XFLOAT (o1)->data == XFLOAT (o2)->data) ? Qt : Qnil;
+#endif
 
   return Qnil;
 }
@@ -1326,119 +1473,6 @@ SEQUENCE may be a list, a vector or a string.")
   return Flist (leni, args);
 }
 
-/* Anything that calls this function must protect from GC!  */
-
-DEFUN ("y-or-n-p", Fy_or_n_p, Sy_or_n_p, 1, 1, 0,
-  "Ask user a \"y or n\" question.  Return t if answer is \"y\".\n\
-No confirmation of the answer is requested; a single character is enough.\n\
-Also accepts Space to mean yes, or Delete to mean no.")
-  (prompt)
-     Lisp_Object prompt;
-{
-  register int ans;
-  Lisp_Object xprompt;
-  Lisp_Object event = Fallocate_event ();
-  Lisp_Object args[2];
-  int ocech = cursor_in_echo_area;
-  struct gcpro gcpro1, gcpro2, gcpro3;
-
-  CHECK_STRING (prompt, 0);
-  xprompt = prompt;
-  GCPRO3 (prompt, xprompt, event);
-
-  while (1)
-    {
-      message ("%s(y or n) ", XSTRING (xprompt)->data);
-      cursor_in_echo_area = 1;
-      Fnext_command_event (event);
-      ans = -1;
-      if (XEVENT (event)->event_type == key_press_event)
-	ans = event_to_character (XEVENT (event), 0);
-      cursor_in_echo_area = -1;
-      if (ans == -1)
-	message ("%s(y or n) %s",
-		 XSTRING (xprompt)->data,
-		 XSTRING (Fsingle_key_description (event))->data);
-      else
-	message ("%s(y or n) %c", XSTRING (xprompt)->data, ans);
-      cursor_in_echo_area = ocech;
-      if (ans == 7)
-	Vquit_flag = Qt;
-      QUIT;
-      if (ans >= 0)
-	ans = DOWNCASE (ans);
-      if (ans == 'y' || ans == ' ')
-	{ ans = 'y'; break; }
-      if (ans == 'n' || ans == 127)
-	break;
-
-      Fding (Qnil, intern ("y-or-n-p"));  /* Lucid sound change */
-      Fdiscard_input ();
-      if (EQ (xprompt, prompt))
-	{
-	  args[0] = build_string ("Please answer y or n.  ");
-	  args[1] = prompt;
-	  xprompt = Fconcat (2, args);
-	}
-    }
-  Fdeallocate_event (event);
-  UNGCPRO;
-  return (ans == 'y' ? Qt : Qnil);
-}
-
-/* This is how C code calls `yes-or-no-p' and allows the user
-   to redefined it.
-
-   Anything that calls this function must protect from GC!  */
-
-Lisp_Object
-do_yes_or_no_p (prompt)
-     Lisp_Object prompt;
-{
-  return call1 (intern ("yes-or-no-p"), prompt);
-}
-
-/* Anything that calls this function must protect from GC!  */
-
-DEFUN ("yes-or-no-p", Fyes_or_no_p, Syes_or_no_p, 1, 1, 0,
-  "Ask user a yes or no question.  Return t if answer is yes.\n\
-The user must confirm the answer with a newline,\n\
-and can rub it out if not confirmed.")
-  (prompt)
-     Lisp_Object prompt;
-{
-  register Lisp_Object ans;
-  Lisp_Object args[2];
-  struct gcpro gcpro1;
-
-  CHECK_STRING (prompt, 0);
-
-  args[0] = prompt;
-  args[1] = build_string ("(yes or no) ");
-  prompt = Fconcat (2, args);
-
-  while (1)
-    {
-      GCPRO1 (prompt);
-      ans = Fdowncase (Fread_from_minibuffer (prompt,
-                                              Qnil,
-                                              Vminibuffer_local_map,
-                                              Qnil));
-      UNGCPRO;
-      if (XSTRING (ans)->size == 3
-	  && !strcmp ((char *) XSTRING (ans)->data, "yes"))
-	return Qt;
-      if (XSTRING (ans)->size == 2
-	  && !strcmp ((char *) XSTRING (ans)->data, "no"))
-	return Qnil;
-
-      Fding (Qnil, intern ("yes-or-no-p"));  /* Lucid sound change */
-      Fdiscard_input ();
-      message ("Please answer yes or no.");
-      Fsleep_for (make_number (2));
-    }
-}
-
 /* Avoid static vars inside a function since in HPUX they dump as pure.  */
 static int ldav_initialized;
 static int ldav_channel;
@@ -1574,7 +1608,7 @@ assuming that /dev/kmem is in the group kmem.)")
        *	Seek to the correct address
        */
       lseek (channel, (long) nl[0].n_value, 0);
-      if (read (channel, load_ave, sizeof load_ave)
+      if (read (channel, (char *) load_ave, sizeof load_ave)
 	  != sizeof(load_ave))
 	{
 	  close (channel);
@@ -1655,26 +1689,22 @@ If FILENAME is omitted, the printname of FEATURE is used as the file name.")
 /* Sound stuff, by jwz. */
 
 #ifdef USE_SOUND
+extern void play_sound_file (char *name, int volume);
+extern void play_sound_data (unsigned char *data, int length, int volume);
 
-extern void play_sound_file (), play_sound_data ();
-
-#endif
+extern int interrupt_input;
+extern void request_sigio (void);
+extern void unrequest_sigio (void);
+#endif /* USE_SOUND */
 
 DEFUN ("play-sound-file", Fplay_sound_file, Splay_sound_file,
        1, 2, "fSound file name: ",
-#ifdef USE_SOUND
  "Play the named sound file on the console speaker at the specified volume\n(\
-0-100, default specified by the `bell-volume' variable).\n"
-#if defined(sparc) || defined(sgi)
-       "The sound file must be in the Sun/NeXT U-LAW format."
-#else  /* ! sparc||sgi */
-       ERROR!
-#endif /* ! sparc||sgi */
-#else  /* ! USE_SOUND */
-       "Emacs has not been compiled with sound support."
-#endif /* ! USE_SOUND */
+0-100, default specified by the `bell-volume' variable).\n\
+The sound file must be in the Sun/NeXT U-LAW format."
        )
      (file, vol)
+	Lisp_Object file, vol;
 {
 #ifdef USE_SOUND
 
@@ -1688,10 +1718,14 @@ DEFUN ("play-sound-file", Fplay_sound_file, Splay_sound_file,
       error ("file does not exist.");
     else
       error ("file is unreadable.");
-  
-  play_sound_file (XSTRING(file)->data, XINT(vol));
 
-#endif /* USE_SOUIND */
+  /* The sound code doesn't like getting SIGIO interrupts.  Unix sucks! */
+  if (interrupt_input) unrequest_sigio ();
+  play_sound_file ((char *) XSTRING(file)->data, XINT(vol));
+  if (interrupt_input) request_sigio ();
+  QUIT;
+
+#endif /* USE_SOUND */
 
   return Qnil;
 }
@@ -1714,28 +1748,36 @@ See the variable sound-alist.")
   int looking_for_default = 0;
 
  TRY_AGAIN:
-    while (!NILP (sound) && SYMBOLP (sound) && !EQ (sound, Qt)) {
-      sound = Fcdr (Fassq (sound, Vsound_alist));
-      /* allow (name foo) as well as (name . foo) */
-      if (CONSP (sound))
-	if (NILP (Fcdr (sound))) {
-	  sound = Fcar (sound);
-	} else if (FIXNUMP (Fcar (Fcdr (sound)))
-		   && NILP (Fcdr (Fcdr (sound)))) {
-	  volume = Fcar (Fcdr (sound));
-	  sound = Fcar (sound);
-	} else if (FIXNUMP (Fcar (sound))
-		   && NILP (Fcdr (Fcdr (sound)))) {
-	  volume = Fcar (sound);
-	  sound = Fcar (Fcdr (sound));
-	}
-    }
+    while (!NILP (sound) && SYMBOLP (sound) && !EQ (sound, Qt))
+      {
+	sound = Fcdr (Fassq (sound, Vsound_alist));
+	/* allow (name foo) as well as (name . foo) */
+	if (!CONSP (sound))
+	  ;
+	else if (NILP (Fcdr (sound)))
+	  {
+	    sound = Fcar (sound);
+	  }
+	else if (FIXNUMP (Fcar (Fcdr (sound))) &&
+		 NILP (Fcdr (Fcdr (sound))))
+	  {
+	    if (NILP (volume)) volume = Fcar (Fcdr (sound));
+	    sound = Fcar (sound);
+	  }
+	else if (FIXNUMP (Fcar (sound)) &&
+		 NILP (Fcdr (Fcdr (sound))))
+	  {
+	    if (NILP (volume)) volume = Fcar (sound);
+	    sound = Fcar (Fcdr (sound));
+	  }
+      }
 
-  if (NILP (sound) && !looking_for_default) {
-    looking_for_default = 1;
-    sound = intern ("default");
-    goto TRY_AGAIN;
-  }
+  if (NILP (sound) && !looking_for_default)
+    {
+      looking_for_default = 1;
+      sound = intern ("default");
+      goto TRY_AGAIN;
+    }
 
   if (!FIXNUMP (volume))
     volume = Vbell_volume;
@@ -1748,21 +1790,27 @@ See the variable sound-alist.")
       if (beep_hook) (*beep_hook) (XINT (volume));
     }
   else
-    play_sound_data (XSTRING (sound)->data,
-		     XSTRING (sound)->size,
-		     XINT (volume));
-#else
+    {
+      /* The sound code doesn't like getting SIGIO interrupts.  Unix sucks! */
+      if (interrupt_input) unrequest_sigio ();
+      play_sound_data (XSTRING (sound)->data, XSTRING (sound)->size,
+		       XINT (volume));
+      if (interrupt_input) request_sigio ();
+      QUIT;
+    }
+#else  /* ! USE_SOUND */
   if (beep_hook) (*beep_hook) (XINT (volume));
-#endif
+#endif  /* ! USE_SOUND */
 
   return Qnil;
 }
 
 
+void
 syms_of_fns ()
 {
-  Qstring_lessp = intern ("string-lessp");
-  staticpro (&Qstring_lessp);
+  defsymbol (&Qstring_lessp, "string-lessp");
+  defsymbol (&Qyes_or_no_p, "yes-or-no-p");
 
   DEFVAR_LISP ("features", &Vfeatures,
     "A list of symbols which are the features of the executing emacs.\n\
@@ -1779,6 +1827,7 @@ Used by `featurep' and `require', and altered by `provide'.");
   defsubr (&Svconcat);
   defsubr (&Scopy_sequence);
   defsubr (&Scopy_alist);
+  defsubr (&Scopy_tree);
   defsubr (&Ssubstring);
   defsubr (&Snthcdr);
   defsubr (&Snth);
@@ -1789,6 +1838,7 @@ Used by `featurep' and `require', and altered by `provide'.");
   defsubr (&Sassoc);
   defsubr (&Srassq);
   defsubr (&Sdelq);
+  defsubr (&Sdelete);
   defsubr (&Snreverse);
   defsubr (&Sreverse);
   defsubr (&Ssort);
@@ -1800,8 +1850,6 @@ Used by `featurep' and `require', and altered by `provide'.");
   defsubr (&Snconc);
   defsubr (&Smapcar);
   defsubr (&Smapconcat);
-  defsubr (&Sy_or_n_p);
-  defsubr (&Syes_or_no_p);
   defsubr (&Sload_average);
   defsubr (&Sfeaturep);
   defsubr (&Srequire);

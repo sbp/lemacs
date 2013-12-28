@@ -1,11 +1,11 @@
 /* Definition of PURESIZE.
-   Copyright (C) 1986, 1988, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -21,14 +21,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define PURESIZE_H
 
 /* # bytes of pure Lisp code to leave space for.
-   Note that s-vms.h, m-sun2.h and m-sparc.h may override this default.  */
+   Note that s-vms.h, s-aix3-2.h, m-sun2.h and m-sparc.h may override
+   this default.
+ */
 
 #ifndef PURESIZE
-#ifdef HAVE_X_WINDOWS
-#define PURESIZE 500000
-#else
-#define PURESIZE 118000
-#endif
+# ifdef ENERGIZE
+#  define PURESIZE 500000
+# else
+#  define PURESIZE 250000
+# endif
 #endif
 
 #endif /* PURESIZE_H */

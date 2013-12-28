@@ -1,4 +1,4 @@
-/* Implements a lightweight menubar widget.
+/* Implements a lightweight menubar widget.  
    Copyright (C) 1992 Lucid, Inc.
 
 This file is part of the Lucid Widget Library.
@@ -19,7 +19,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Created by devin@lucid.com */
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 #include <stdio.h>
+
 #include <sys/types.h>
 #include <X11/Xos.h>
 #include <X11/IntrinsicP.h>
@@ -27,6 +31,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <X11/cursorfont.h>
 #include <X11/bitmaps/gray>
 #include "xlwmenuP.h"
+#include <string.h>
 
 static char 
 xlwMenuTranslations [] = 
@@ -229,13 +234,31 @@ nameResource[] =
 static char*
 resource_widget_value (XlwMenuWidget mw, widget_value* val)
 {
-
   if (!val->toolkit_data)
     {
-      char* result = NULL;
-      XtGetSubresources (mw, (XtPointer)&result, val->name, val->name,
-			 &nameResource, 1, NULL, 0);
-      val->toolkit_data = result ? result : val->name;
+      char* resourced_name = NULL;
+      char* complete_name;
+      XtGetSubresources ((Widget) mw,
+			 (XtPointer) &resourced_name,
+			 val->name, val->name,
+			 nameResource, 1, NULL, 0);
+      if (!resourced_name)
+	resourced_name = val->name;
+      if (!val->value)
+	complete_name = strdup (resourced_name);
+      else
+	{
+	  int complete_length =
+	    strlen (resourced_name) + strlen (val->value) + 2;
+	  complete_name = XtMalloc (complete_length);
+	  *complete_name = 0;
+	  strcat (complete_name, resourced_name);
+	  strcat (complete_name, " ");
+	  strcat (complete_name, val->value);
+	}
+
+      val->toolkit_data = complete_name;
+      val->free_toolkit_data = True;
     }
   return (char*)val->toolkit_data;
 }
@@ -829,11 +852,17 @@ make_drawing_gcs (XlwMenuWidget mw)
 static void
 release_drawing_gcs (XlwMenuWidget mw)
 {
-  XtReleaseGC (mw, mw->menu.foreground_gc);
-  XtReleaseGC (mw, mw->menu.button_gc);
-  XtReleaseGC (mw, mw->menu.inactive_gc);
-  XtReleaseGC (mw, mw->menu.inactive_button_gc);
-  XtReleaseGC (mw, mw->menu.background_gc);
+  XtReleaseGC ((Widget) mw, mw->menu.foreground_gc);
+  XtReleaseGC ((Widget) mw, mw->menu.button_gc);
+  XtReleaseGC ((Widget) mw, mw->menu.inactive_gc);
+  XtReleaseGC ((Widget) mw, mw->menu.inactive_button_gc);
+  XtReleaseGC ((Widget) mw, mw->menu.background_gc);
+  /* let's get some segvs if we try to use these... */
+  mw->menu.foreground_gc = (GC) -1;
+  mw->menu.button_gc = (GC) -1;
+  mw->menu.inactive_gc = (GC) -1;
+  mw->menu.inactive_button_gc = (GC) -1;
+  mw->menu.background_gc = (GC) -1;
 }
 
 #define MINL(x,y) ((((unsigned long) (x)) < ((unsigned long) (y))) \
@@ -932,8 +961,8 @@ make_shadow_gcs (XlwMenuWidget mw)
 static void
 release_shadow_gcs (XlwMenuWidget mw)
 {
-  XtReleaseGC (mw, mw->menu.shadow_top_gc);
-  XtReleaseGC (mw, mw->menu.shadow_bottom_gc);
+  XtReleaseGC ((Widget) mw, mw->menu.shadow_top_gc);
+  XtReleaseGC ((Widget) mw, mw->menu.shadow_bottom_gc);
 }
 
 static void
@@ -950,7 +979,8 @@ XlwMenuInitialize (Widget request, Widget new, ArgList args,
   Window window = RootWindowOfScreen (DefaultScreenOfDisplay (XtDisplay (mw)));
   Display* display = XtDisplay (mw);
   
-  mw->menu.cursor = XCreateFontCursor (display, mw->menu.cursor_shape);
+/*  mw->menu.cursor = XCreateFontCursor (display, mw->menu.cursor_shape); */
+  mw->menu.cursor = mw->menu.cursor_shape;
   
   mw->menu.gray_pixmap = XCreatePixmapFromBitmapData (display, window,
 						      gray_bits, gray_width,
@@ -1014,6 +1044,9 @@ XlwMenuRealize (Widget w, Mask *valueMask, XSetWindowAttributes *attributes)
   mw->menu.windows [0].height = w->core.height;
 }
 
+/* Only the toplevel menubar/popup is a widget so it's the only one that
+   receives expose events through Xt.  So we repaint all the other panes
+   when receiving an Expose event. */
 static void 
 XlwMenuRedisplay (Widget w, XEvent* ev, Region region)
 {
@@ -1021,24 +1054,45 @@ XlwMenuRedisplay (Widget w, XEvent* ev, Region region)
   int i;
 
   for (i = 0; i < mw->menu.old_depth; i++)
-    if (ev->xexpose.window == mw->menu.windows [i].window)
-      {
-	display_menu (mw, i, False, NULL, NULL, NULL, NULL, NULL);
-	return;
-      }
+    display_menu (mw, i, False, NULL, NULL, NULL, NULL, NULL);
 }
 
 static void 
 XlwMenuDestroy (Widget w)
 {
   int i;
-  XlwMenuWidget mw = (XlwMenuWidget)w;
+  XlwMenuWidget mw = (XlwMenuWidget) w;
+
   release_drawing_gcs (mw);
   release_shadow_gcs (mw);
+
+  /* this doesn't come from the resource db but is created explicitly
+     so we must free it ourselves. */
+  XFreePixmap (XtDisplay (mw), mw->menu.gray_pixmap);
+  mw->menu.gray_pixmap = (Pixmap) -1;
+
+  /* Don't free mw->menu.contents because that comes from our creator.
+     The `*_stack' elements are just pointers into `contents' so leave
+     that alone too.  But free the stacks themselves. */
+  if (mw->menu.old_stack) XtFree ((char *) mw->menu.old_stack);
+  if (mw->menu.new_stack) XtFree ((char *) mw->menu.new_stack);
+
+  /* Remember, you can't free anything that came from the resource
+     database.  This includes:
+         mw->menu.cursor
+         mw->menu.top_shadow_pixmap
+         mw->menu.bottom_shadow_pixmap
+         mw->menu.font
+     Also the color cells of top_shadow_color, bottom_shadow_color,
+     foreground, and button_foreground will never be freed until this
+     client exits.  Nice, eh?
+   */
 
   /* start from 1 because the one in slot 0 is w->core.window */
   for (i = 1; i < mw->menu.windows_length; i++)
     XDestroyWindow (XtDisplay (mw), mw->menu.windows [i].window);
+  if (mw->menu.windows)
+    XtFree ((char *) mw->menu.windows);
 }
 
 static Boolean 

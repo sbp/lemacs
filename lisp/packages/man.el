@@ -293,8 +293,9 @@ Manual-query-multiple-pages, and Manual-buffer-view-mode."
 (defun Manual-select-subdirectories (dirlist subdir)
   (apply 'append (mapcar '(lambda (dir)
 			   (and (file-exists-p dir)
-			        (mapcar '(lambda (name) (concat dir "/" name))
-				         (file-name-all-completions subdir dir))))
+                              (mapcar
+			       '(lambda (name) (expand-file-name name dir))
+			       (file-name-all-completions subdir dir))))
 			 dirlist)))
 
 ;; Manual-select-directories
@@ -382,6 +383,8 @@ Manual-query-multiple-pages, and Manual-buffer-view-mode."
   (while (re-search-forward
 	   (cond ((eq system-type 'hpux)
 		  "^[ \t]*Hewlett-Packard\\(\\| Company\\)[ \t]*- [0-9]* -.*$")
+		 ((eq system-type 'dgux-unix)
+		  "^[ \t]*Licensed material--.*Page [0-9]*$")
 		 ((eq system-type 'usg-unix-v)
 		  "^ *Page [0-9]*.*(printed [0-9/]*)$")
 		 (t

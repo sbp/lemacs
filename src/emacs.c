@@ -1,5 +1,5 @@
 /* Fully extensible Emacs, running on Unix, intended for GNU.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -17,11 +17,13 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#include "config.h"
+#include "lisp.h"
 
 #include <signal.h>
+#include <sys/signal.h>
 #include <errno.h>
 
-#include "config.h"
 #include <stdio.h>
 
 #include <sys/types.h>
@@ -46,7 +48,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 #endif
 
-#include "lisp.h"
+#ifdef RUNNABLE_TEMACS
+#include <setjmp.h>
+#endif
+
 #include "commands.h"
 
 #ifndef O_RDWR
@@ -66,6 +71,8 @@ int initialized;
 /* Variable whose value is symbol giving operating system type */
 Lisp_Object Vsystem_type;
 
+extern Lisp_Object Vtop_level;
+
 /* Variable holding the name used to invoke emacs, and the full path
    used to get to the actual exec file. */
 Lisp_Object Vinvocation_name, Vexecution_path;
@@ -82,6 +89,13 @@ char *stack_bottom;
 extern Lisp_Object Vwindow_system;
 #endif /* HAVE_X_WINDOWS */
 
+#ifdef USG_SHARED_LIBRARIES
+/* If nonzero, this is the place to put the end of the writable segment
+   at startup.  */
+ 
+unsigned int bss_end = 0;
+#endif
+
 /* Nonzero means running Emacs without interactive terminal.  */
 
 int noninteractive;
@@ -93,13 +107,21 @@ int noninteractive;
 int noninteractive1;
 
 /* Signal code for the fatal signal that was received */
-int fatal_error_code;
+static int fatal_error_code;
 
 /* Nonzero if handling a fatal error already */
-int fatal_error_in_progress;
+static int fatal_error_in_progress;
+
+extern void reset_sys_modes (void);
+
+extern void report_pure_usage (void);
+
+#ifdef subprocesses
+extern void kill_buffer_processes (Lisp_Object buffer);
+#endif
 
 /* Handle bus errors, illegal instruction, etc. */
-void
+SIGTYPE
 fatal_error_signal (sig)
      int sig;
 {
@@ -131,7 +153,7 @@ fatal_error_signal (sig)
 #ifdef subprocesses
   kill_buffer_processes (Qnil);
 #endif
-  Fdo_auto_save (Qt, Qnil);
+  Fdo_auto_save (Qt);
 
 #ifdef CLASH_DETECTION
   unlock_all_files ();
@@ -183,7 +205,7 @@ static int dot_found_in_search;
    the file, but stated that it wasn't executable. */
 static int file_exists_p;
 
-int
+static int
 group_member (gid)
      int gid;
 {
@@ -277,8 +299,6 @@ static int
 absolute_program (string)
      char *string;
 {
-  extern char *index ();
-
   return ((char *)index (string, '/') != 0);
 }
 
@@ -352,7 +372,7 @@ find_executable_name ()
   int path_index = 0;
   struct stat dot_stat_buf;
   char *name = (char *) alloca (name_len + 1);
-  bcopy (lname->data, name, name_len);
+  memcpy (name, lname->data, name_len);
   name[name_len] = 0;
 
   /* We haven't started looking, so we certainly haven't seen
@@ -370,7 +390,7 @@ find_executable_name ()
 	}
       else
 	{
-	  free (full_path);
+	  xfree (full_path);
 	  return 0;
 	}
     }
@@ -383,7 +403,7 @@ find_executable_name ()
       if (!path || !*path)
 	{
 	  if (path)
-	    free (path);
+	    xfree (path);
 	  path = savestring ("."); /* by definition. */
 	}
 
@@ -394,7 +414,7 @@ find_executable_name ()
 
       full_path = (char *)xmalloc (2 + strlen (path) + name_len);
       sprintf (full_path, "%s/%s", path, name);
-      free (path);
+      xfree (path);
 
       if (executable_file (full_path) ||
 	  (!must_be_executable && file_exists_p))
@@ -402,7 +422,7 @@ find_executable_name ()
 	  return (full_path);
 	}
       else
-	free (full_path);
+	xfree (full_path);
     }
 
   return 0;
@@ -412,8 +432,140 @@ find_executable_name ()
 int malloc_cookie;
 #endif
 
+extern void init_alloc_once (void);
+extern void init_obarray (void);
+extern void init_eval_once (void);
+extern void init_syntax_once (void);
+extern void init_casetab_once (void);
+extern void init_buffer_once (void);
+extern void init_minibuf_once (void);
+extern void init_window_once (void);
+
+extern void init_alloc (void);
+#ifdef MAINTAIN_ENVIRONMENT
+extern void init_environ (void);
+#endif
+extern void init_eval (void);
+extern void init_data (void);
+extern void init_lread (void);
+extern void init_cmdargs ();
+extern void init_buffer (void);
+#ifdef VMS
+extern void init_vms_input (void);
+#endif /* VMS */
+extern void init_display (void);
+extern void init_keyboard (void);
+extern void init_callproc (void);
+#ifdef VMS
+extern void init_vmsproc (void);
+#endif /* VMS */
+extern void init_sys_modes (void);
+extern void init_xdisp (void);
+extern void init_macros (void);
+extern void init_editfns (void);
+#ifdef LISP_FLOAT_TYPE
+extern void init_floatfns (void);
+#endif
+#ifdef VMS
+extern void init_vmsfns (void);
+#endif /* VMS */
+#ifdef subprocesses
+extern void init_process (void);
+#endif /* subprocesses */
+
+extern void syms_of_data (void);
+extern void syms_of_alloc (void);
+#ifdef MAINTAIN_ENVIRONMENT
+extern void syms_of_environ (void);
+#endif /* MAINTAIN_ENVIRONMENT */
+extern void syms_of_lread (void);
+extern void syms_of_print (void);
+extern void syms_of_eval (void);
+extern void syms_of_fns (void);
+#ifdef LISP_FLOAT_TYPE
+extern void syms_of_floatfns (void);
+#endif
+extern void syms_of_elhash (void);
+extern void syms_of_abbrev (void);
+extern void syms_of_buffer (void);
+extern void syms_of_bytecode (void);
+extern void syms_of_callint (void);
+extern void syms_of_casefiddle (void);
+extern void syms_of_casetab (void);
+extern void syms_of_callproc (void);
+extern void syms_of_cmds (void);
+#ifndef NO_DIR_LIBRARY
+extern void syms_of_dired (void);
+#endif /* not NO_DIR_LIBRARY */
+extern void syms_of_display (void);
+extern void syms_of_doc (void);
+extern void syms_of_editfns (void);
+extern void syms_of_fileio (void);
+#ifdef CLASH_DETECTION
+extern void syms_of_filelock (void);
+#endif /* CLASH_DETECTION */
+extern void syms_of_indent (void);
+extern void syms_of_keyboard (void);
+extern void syms_of_keymap (void);
+extern void syms_of_macros (void);
+extern void syms_of_marker (void);
+extern void syms_of_minibuf (void);
+extern void syms_of_mocklisp (void);
+#ifdef subprocesses
+extern void syms_of_process (void);
+#endif /* subprocesses */
+extern void syms_of_search (void);
+#ifdef MULTI_SCREEN
+extern void syms_of_screen (void);
+#endif
+extern void syms_of_extents (void);
+extern void syms_of_syntax (void);
+extern void syms_of_undo (void);
+#ifdef VMS
+extern void syms_of_vmsproc (void);
+#endif /* VMS */
+extern void syms_of_window (void);
+extern void syms_of_xdisp (void);
+#ifdef HAVE_X_WINDOWS
+extern void syms_of_xfns (void);
+extern void syms_of_xselect (void);
+extern void syms_of_menubar (void);
+#endif /* HAVE_X_WINDOWS */
+extern void syms_of_faces (void);
+extern void syms_of_events (void);
+extern void syms_of_event_alloc (void);
+extern void syms_of_event_stream (void);
+extern void syms_of_font_lock (void);
+#ifdef ENERGIZE
+extern void syms_of_editorside (void);
+#endif
+#ifdef EMACS_BTL
+extern void syms_of_cadillac_btl_emacs (void);
+#endif
+extern void keys_of_keymap (void);
+
+static void syms_of_emacs (void);
+
+#ifndef SYSTEM_MALLOC
+extern void malloc_init ();
+#endif
+
+extern void malloc_warning ();
+
+#ifdef BSD
+extern pid_t setpgrp ();
+#endif
+
+#ifdef RUN_TIME_REMAP
+extern int run_time_remap ();
+#endif
+
 /* ARGSUSED */
-main (argc, argv, envp)
+#ifdef RUNNABLE_TEMACS
+static int main_1 (argc, argv, envp)
+#else
+int main (argc, argv, envp)
+#endif
      int argc;
      char **argv;
      char **envp;
@@ -423,23 +575,12 @@ main (argc, argv, envp)
   extern int errno;
   extern sys_nerr;
   extern char *sys_errlist[];
-  extern void malloc_warning ();
 
 #ifdef NeXT
   /* this helps out unexNeXT.c */
   if (initialized)
     if (malloc_jumpstart (malloc_cookie) != 0)
       printf ("malloc jumpstart failed!\n");
-#endif
-
-#ifdef ENERGIZE
-  /* call static initializers for linked C++ code */
-  /* kludge at least until we make a common C version of the hashtable 
-     code -- until then we need C++ code with Emacs when compiled for NRGize*/
-  {
-    extern void _main ();
-    _main ();
-  }
 #endif
 
 #ifdef FREE_CHECKING
@@ -481,6 +622,11 @@ main (argc, argv, envp)
 #ifdef RUN_TIME_REMAP
   if (initialized)
     run_time_remap (argv[0]);
+#endif
+ 
+#ifdef USG_SHARED_LIBRARIES
+  if (bss_end)
+    brk (bss_end);
 #endif
 
   clearerr (stdin);
@@ -559,13 +705,21 @@ main (argc, argv, envp)
       inhibit_window_system = 1;
     }
 
-/* Handle the -batch switch, which means don't do interactive display.  */
+  /* Handle the -batch switch, which means don't do interactive display.  */
   noninteractive = 0;
   if (skip_args + 1 < argc && !strcmp (argv[skip_args + 1], "-batch"))
     {
       skip_args += 1;
       noninteractive = 1;
     }
+
+  /* Partially handle the -version and -help switches: they imply -batch,
+     but are not removed from the list.
+   */
+  if (skip_args + 1 < argc &&
+      (!strcmp (argv[skip_args + 1], "-version") ||
+       !strcmp (argv[skip_args + 1], "-help")))
+    noninteractive = 1;
 
   if (
 #ifndef CANNOT_DUMP
@@ -639,7 +793,7 @@ main (argc, argv, envp)
 #endif
   init_eval ();
   init_data ();
-  init_read ();
+  init_lread ();
 
   init_cmdargs (argc, argv, skip_args);	/* Create list Vcommand_line_args */
   init_buffer ();	/* Init default directory of main buffer */
@@ -681,7 +835,7 @@ main (argc, argv, envp)
 #ifdef MAINTAIN_ENVIRONMENT
       syms_of_environ ();
 #endif /* MAINTAIN_ENVIRONMENT */
-      syms_of_read ();
+      syms_of_lread ();
       syms_of_print ();
       syms_of_eval ();
       syms_of_fns ();
@@ -762,15 +916,7 @@ main (argc, argv, envp)
 #ifdef FREE_CHECKING
       syms_of_free_hook();
 #endif
-
-      keys_of_keymap ();	/* this must be first */
-      keys_of_casefiddle ();
-      keys_of_cmds ();
-      keys_of_buffer ();
-      keys_of_keyboard ();
-      keys_of_macros ();
-      keys_of_minibuf ();
-      keys_of_window ();
+      keys_of_keymap ();
     }
 
   if (!initialized)
@@ -797,7 +943,7 @@ main (argc, argv, envp)
     full_program_name = (progname
 			 ? Fexpand_file_name (build_string (progname), Qnil)
 			 : Fcar (Vcommand_line_args));
-    free (progname);
+    xfree (progname);
 
     Vexecution_path = full_program_name;
     Vinvocation_name = Ffile_name_nondirectory (full_program_name);
@@ -816,40 +962,89 @@ main (argc, argv, envp)
   /* Enter editor command loop.  This never returns.  */
   Frecursive_edit ();
   /* NOTREACHED */
+  return -1;
 }
 
 #ifdef RUNNABLE_TEMACS
 
+static jmp_buf run_temacs_catch;
+static char *run_temacs_argv[100];
+static char run_temacs_args[1000];
+static int run_temacs_argc; /* -1 if dump_emacs or run_emacs_from_temacs */
+
+extern char **environ;
+
+/* ARGSUSED */
+int
+main (argc, argv, envp)
+     int argc;
+     char **argv;
+     char **envp;
+{
+  if (!initialized)
+  {
+    run_temacs_argc = 0;
+    if (! _setjmp (run_temacs_catch))
+      main_1 (argc, argv, envp);
+    /* run-emacs-from-temacs called */
+    argc = run_temacs_argc;
+    run_temacs_argc = 0;
+    argv = run_temacs_argv;
+    envp = environ;
+  }
+  run_temacs_argc = -1;
+  return main_1 (argc, argv, envp);
+}
+
 DEFUN ("run-emacs-from-temacs",
-       Frun_emacs_from_temacs, Srun_emacs_from_temacs, 0, 0, 0,
-  "Do not call this.  If this function is called from startup.el, it will\n\
-be possible to run temacs as an editor, instead of having to dump an emacs\n\
-and then run that (when debugging emacs itself, this can be much faster.)\n\
-This will restart emacs as if it were passed no command line arguments.")
-  ()
+       Frun_emacs_from_temacs, Srun_emacs_from_temacs, 0, MANY, 0,
+  "Do not call this.  It will reinitialize your Emacs.  You'll be sorry.")
+/* If this function is called from startup.el, it will be possible to run
+   temacs as an editor, instead of having to dump an emacs and then run that
+   (when debugging emacs itself, this can be much faster.)
+   This will "restart" emacs with the specified command-line arguments.
+ */
+  (int nargs, Lisp_Object *args)
 {
   extern char **environ;
   extern int gc_in_progress, waiting_for_input;
-  
-  int ac=0;
-  char *av[100];
-  char name[256];
-  int namesize = XSTRING(Vexecution_path)->size;
+  int ac;
+  int namesize;
 
-  if (namesize >= 255) error ("execution-path string is too long");
-  strncpy (name, (char *) XSTRING(Vexecution_path)->data, namesize);
-  name [namesize] = 0;
-  av[ac++] = name;
+  if (gc_in_progress) abort ();
 
+  if (run_temacs_argc < 0)
+    error ("I've lost my temacs-hood.");
+
+  namesize = XSTRING (Vexecution_path)->size + 1;
+  if (namesize >= sizeof (run_temacs_args))
+    error ("execution-path string is too long");
+  if (nargs >= (sizeof (run_temacs_argv) / sizeof (run_temacs_argv [0])))
+    error ("too many args");
+  memcpy (run_temacs_args, (char *) XSTRING (Vexecution_path)->data, namesize);
+  run_temacs_argv [0] = run_temacs_args;
+  for (ac = 0; ac < nargs; ac++)
+    {
+      int s;
+      CHECK_STRING (args[ac], ac);
+      s = XSTRING (args[ac])->size + 1;
+      if (s + namesize > sizeof (run_temacs_args))
+        error ("lose lose");
+      memcpy (run_temacs_args + namesize, XSTRING (args[ac])->data, s);
+      run_temacs_argv [ac + 1] = run_temacs_args + namesize;
+      namesize += s;
+    }
+  run_temacs_argv [nargs + 1] = 0;
+  unbind_to (0, Qnil); /* this closes loadup.el */
   waiting_for_input = 0;
-  if (gc_in_progress) abort();
   Vpurify_flag = Qnil;
-  main (ac, av, environ);
-  return Qnil;
+  run_temacs_argc = nargs + 1;
+  report_pure_usage ();
+  _longjmp (run_temacs_catch, 1);
+  return Qnil; /* not reached; warning suppression */
 }
 
-#endif
-
+#endif /* RUNNABLE_TEMACS */
 
 
 DEFUN ("kill-emacs", Fkill_emacs, Skill_emacs, 0, 1, "P",
@@ -862,8 +1057,6 @@ all of which are called before Emacs is actually killed.")
   (arg)
      Lisp_Object arg;
 {
-  Lisp_Object hook, hook1;
-  int i;
   struct gcpro gcpro1;
 
   GCPRO1 (arg);
@@ -882,7 +1075,7 @@ all of which are called before Emacs is actually killed.")
   kill_vms_processes ();
 #endif /* VMS */
 
-  Fdo_auto_save (Qt, Qnil);
+  Fdo_auto_save (Qt);
 
 #ifdef CLASH_DETECTION
   unlock_all_files ();
@@ -933,7 +1126,6 @@ and announce itself normally when it is run.")
   register unsigned char *a_name = 0;
   extern char my_edata;
   Lisp_Object tem;
-  extern void malloc_warning ();
 
 #ifdef FREE_CHECKING
   Freally_free (Qnil);
@@ -958,6 +1150,7 @@ and announce itself normally when it is run.")
   tem = Vpurify_flag;
   Vpurify_flag = Qnil;
 
+  report_pure_usage ();
   fflush (stdout);
 #ifdef VMS
   mapout_data (XSTRING (intoname)->data);
@@ -985,10 +1178,10 @@ and announce itself normally when it is run.")
 
 Lisp_Object
 decode_env_path (evarname, defalt)
-     char *evarname, *defalt;
+     const char *evarname, *defalt;
 {
-  register char *path, *p;
-  extern char *index ();
+  register const char *path;
+  register const char *p;
 
   Lisp_Object lpath;
 
@@ -1010,6 +1203,14 @@ decode_env_path (evarname, defalt)
   return Fnreverse (lpath);
 }
 
+DEFUN ("noninteractive", Fnoninteractive, Snoninteractive, 0, 0, 0,
+  "Non-nil return value means Emacs is running without interactive terminal.")
+  ()
+{
+  return ((noninteractive) ? Qt : Qnil);
+}
+
+static void
 syms_of_emacs ()
 {
 #ifndef CANNOT_DUMP
@@ -1021,19 +1222,17 @@ syms_of_emacs ()
 #endif
 
   defsubr (&Skill_emacs);
+  defsubr (&Snoninteractive);
 
   DEFVAR_LISP ("command-line-args", &Vcommand_line_args,
     "Args passed by shell to Emacs, as a list of strings.");
 
   DEFVAR_LISP ("invocation-name", &Vinvocation_name,
     "Name of file used to invoke editing session.\n\
-This is the string that was passed in argv[0], after being passed to the\n\
-function `file-name-nondirectory'.  To know the \"truename\" of the \n\
-currently-running emacs process, look at `execution-path'.");
+This is the same as `(file-name-nondirectory execution-path)'.");
 
   DEFVAR_LISP ("execution-path", &Vexecution_path,
-    "Normalized pathname for executable emacs program now running.\n\
-This is essentially the same as (real-path-name invocation-name).");
+    "Pathname of executable emacs program now running.");
 
   DEFVAR_LISP ("system-type", &Vsystem_type,
     "Value is symbol indicating type of operating system you are using.");

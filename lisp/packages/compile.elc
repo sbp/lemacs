@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Jun 30 22:31:24 1992
-;;; from file /wg1/emacs-base/lisp/packages/compile.el
-;;; emacs version 19.2.1 Lucid.
-;;; bytecomp version 2.07; 17-jun-92.
+;;; compiled by jwz@thalidomide on Sun Dec 13 17:35:33 1992
+;;; from file /u/jwz/emacs19/lisp/packages/compile.el
+;;; emacs version 19.4 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -58,6 +58,7 @@ You might also use mode hooks to specify it in certain modes, like this:
 List of directories to search for source files named in error messages.
 Elements should be directory names, not file names of directories.
 nil as an element means to try the default directory.")
+(byte-code "ÀÁ!¬‚ÂÂ‡" [boundp minibuffer-compile-history nil] 2)
 (fset 'compile #[(command) "ÂÃ‰\"ˆÄ	Å\"ˆ­’Ç È U­‹ÉÊ Ë ZZÃ\"‡" [command compile-command save-some-buffers nil compile-internal "No more errors" compile-window-height window-width screen-width enlarge-window screen-height window-height] 3 "\
 Compile the program including the current buffer.  Default: run `make'.
 Runs COMMAND, a shell command, in a separate process asynchronously
@@ -66,12 +67,12 @@ You can then use the command \\[next-error] to find the next error message
 and move to the source code that caused it.
 
 To run more than one compilation at once, start one and rename the
-`*compilation*' buffer to some other name.  Then start the next one." (byte-code "ÀÁ\n\"C‡" [read-string "Compile command: " compile-command] 3)])
+`*compilation*' buffer to some other name.  Then start the next one." (byte-code "ÀÁ\nÃ#C‡" [read-string "Compile command: " compile-command minibuffer-compile-history] 4)])
 (fset 'grep #[(command-args) "ÁÂÃ\"«„Á•ª‚GOÄQÆÇPÈÉ#‡" [grep-command 0 string-match "-n" " " command-args compile-internal " /dev/null" "No more grep hits" "grep"] 5 "\
 Run grep, with user-specified args, and collect output in a buffer.
 While grep runs asynchronously, you can use the \\[next-error] command
 to find the text that grep hits refer to.  It is expected that `grep-command'
-has a `-n' flag, so that line numbers are displayed for each match." (byte-code "ÀÁ\nÃÄÅ\n\"OÆQÄÇ\n\"«‡\nÃ•ÈOªÉ\"C‡" [read-string "Run " grep-command 0 string-match "[	 ]+" " (with args): " "-n[	 ]+" nil ""] 7)])
+has a `-n' flag, so that line numbers are displayed for each match." (byte-code "ÀÁ\nÃÄÅ\n\"OÆQ!C‡" [read-shell-command "Run " grep-command 0 string-match "[	 ]+" " (with args): "] 7)])
 (fset 'compile-internal #[(command error-message &optional name-of-mode parser regexp) "ŠÀÁ!qˆÂÄp!‰«—Æ!Ç=«…ÈÉ!«‡ÂÊËˆª„ÌÍ!ˆ)Î ˆ)Ï ˆĞÑÁ#ˆÁÓÔ!ˆÓ!ˆÖ ˆÓ!ˆÖ ‘ˆ®‚®‚ÜÁ!Ş!p=«ƒdbˆàÄ!á\"ˆŠqˆ\"=¬˜#ä=¬’#¬•Ä\"!«ˆÆ\"!Ç=¬‡ä#\"å ˆæe\"ˆ'®è)ê =®…ëe\".‡" [get-buffer-create "*compilation*" nil buffer-read-only get-buffer-process comp-proc process-status run yes-or-no-p "A compilation process is running; kill it? " (byte-code "À	!ˆÂÃ!ˆÄ	!‡" [interrupt-process comp-proc sit-for 1 delete-process] 2) ((error)) error "Cannot have two processes in `*compilation*' at once" kill-all-local-variables compilation-forget-errors start-process-shell-command "compilation" command princ "cd " default-directory terpri regexp compilation-error-regexp parser compilation-parse-errors-hook thisdir get-buffer outbuf get-buffer-window outwin set-process-sentinel compilation-sentinel compilation-error-buffer compilation-error-list t compilation-mode set-window-start name-of-mode "Compilation" mode-name selected-window set-window-point] 5 "\
 Run compilation command COMMAND (low level interface).
 ERROR-MESSAGE is a string to print if the user asks to see another error

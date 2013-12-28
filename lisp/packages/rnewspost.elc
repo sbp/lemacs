@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Jun 30 22:37:01 1992
-;;; from file /wg1/emacs-base/lisp/packages/rnewspost.el
-;;; emacs version 19.2.1 Lucid.
-;;; bytecomp version 2.07; 17-jun-92.
+;;; compiled by jwz@thalidomide on Thu Jan 14 00:58:33 1993
+;;; from file /u/jwz/emacs19/lisp/packages/rnewspost.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 29-dec-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -32,8 +32,8 @@ C-c C-r  caesar rotate all letters by 13 places in the article's body (rot13)." 
 ")
 (defvar news-reply-yank-message-id "Save Message-Id: field for news-reply-yank-original." "\
 ")
-(fset 'news-reply-yank-original #[(arg) "À	!ˆÂ ˆÃÄ!‡" [mail-yank-original arg exchange-point-and-mark run-hooks news-reply-header-hook] 2 "\
-Insert the message being replied to, if any (in rmail).
+(fset 'news-reply-yank-original #[(arg) "ÀÂ!ˆÄ ˆÅÆ!)‡" [nil zmacs-regions mail-yank-original arg exchange-point-and-mark run-hooks news-reply-header-hook] 2 "\
+Insert the message being replied to, if any (in postnews).
 Puts point before the text and mark after.
 Indents each nonblank line ARG spaces (default 3).
 Just \\[universal-argument] as argument means don't indent
@@ -71,7 +71,9 @@ Setup the news reply or posting buffer with the proper headers and in
 news-reply-mode."])
 (fset 'news-inews #[nil "ÀÀÀŠŒebˆÄÅÅQ!ˆe`}ˆÇÈ!ÇÉ!)~ˆebˆÊË!ˆebˆÄÅÅQ!ˆÌÍ!ˆdbˆhÎU¬ƒÎcˆÏĞ!ˆÑedÀÓÀÔ&ˆÏÕ!ˆebˆÄÍ!ˆÌÅÅQ!ˆÖÀ!ˆ)×Ø!­‚Ø +‡" [nil newsgroups subject case-fold-search search-forward "\n" mail-header-separator mail-fetch-field "newsgroups" "subject" run-hooks news-inews-hook replace-match "\n\n" 10 message "Posting to USENET..." call-process-region news-inews-program 0 "-h" "Posting to USENET... done" set-buffer-modified-p fboundp bury-buffer] 8 "\
 Send a news message using inews." nil])
-(fset 'news-mail-reply #[nil "À‰‰‰‰‰pŒeÈe!ˆÉÊ!ˆ`ËZ}ˆÌÍ!ÌÎ!ÌÏ!ÌĞ!ÑÒ!ˆÓÀ\n«ƒ\nªÔÕ\"‰«ˆ×Oª‚ØQ)À	&.‡" [nil buffer reply-to to date subject cc from goto-line search-forward "\n\n" 1 mail-fetch-field "from" "subject" "reply-to" "date" pop-to-buffer "*mail*" mail string-match "  *at \\|  *@ \\| *(\\| *<" stop-pos 0 "'s message of "] 8 "\
+(defvar news-reply-subject-prefix nil "\
+*The prefix to use when replying to a news message (such as \"Re:\").")
+(fset 'news-mail-reply #[nil "À‰‰‰‰‰‰‰‰p	\nŒ~ˆeebˆËÌ!ˆ`ÍZ}ˆÎÏ!\nÎĞ!ÎÑ!ÎÒ!ÎÓ!ÎÔ!«™«•Ö×Ø!ÙQ\"¬ˆÚQ\nÛÜ!ˆpİÀ«ƒª‚ÖŞ\n\"‰«ˆ\nàOª‚\náQ)À	&­Š\nqˆâã!ˆ«ƒcˆ«†«ƒÚcˆ­‚c).‡" [nil buffer b message-id references reply-to to date subject cc from search-forward "\n\n" 1 mail-fetch-field "from" "subject" "reply-to" "date" "references" "message-id" news-reply-subject-prefix string-match "^[ 	]*" regexp-quote "[ )t]*" " " pop-to-buffer "*mail*" mail "  *at \\|  *@ \\| *(\\| *<" stop-pos 0 "'s message of " mail-position-on-field "References"] 11 "\
 Mail a reply to the author of the current article.
 While composing the reply, use \\[news-reply-yank-original] to yank the
 original message into it." nil])

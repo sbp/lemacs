@@ -24,10 +24,22 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    and lwlib_CombineFileDatabase() instead of XrmCombineFileDatabase().
  */
 
+#ifndef __STDC_EXTENDED__
+#define __STDC_EXTENDED__
+#endif
+
+#include <stdlib.h>
+#include <unistd.h>
 #include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 #include <X11/Xlib.h>
 #include <X11/Xos.h>
 #include <X11/Intrinsic.h>
+#include <X11/Xmu/SysUtil.h>
+#include <sys/stat.h>
+
+extern char *index ();
 
 static int
 file_p (path)

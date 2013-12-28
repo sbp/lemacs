@@ -1,5 +1,5 @@
 /* Display generation from window structure and buffer text.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -68,7 +68,7 @@ static struct buffer *this_line_buffer;
   If this is nonzero, there is a message on the screen
   in the minibuffer and it should be erased as soon
   as it is no longer requested to appear. */
-char *previous_echo_glyphs;
+static char *previous_echo_glyphs;
 
 /* Nonzero means truncate lines in all windows less wide than the screen */
 int truncate_partial_width_windows;
@@ -76,13 +76,13 @@ int truncate_partial_width_windows;
 Lisp_Object Vglobal_mode_string;
 
 /* Marker for where to display an arrow on top of the buffer text.  */
-Lisp_Object Voverlay_arrow_position;
+extern Lisp_Object Voverlay_arrow_position;
 
 /* String to display for the arrow.  */
-Lisp_Object Voverlay_arrow_string;
+extern Lisp_Object Voverlay_arrow_string;
 
 /* Values of those variables at last redisplay.  */
-Lisp_Object last_arrow_position, last_arrow_string;
+static Lisp_Object last_arrow_position, last_arrow_string;
 
 /* Nonzero if overlay arrow has been displayed once in this window.  */
 static int overlay_arrow_seen;
@@ -107,12 +107,12 @@ int buffer_shared;
 static int cursor_vpos;
 static int cursor_hpos;
 
-int debug_end_pos;
+/*int debug_end_pos;*/
 
 /* Nonzero means display mode line highlighted */
 int mode_line_inverse_video;
 
-void mark_window_display_accurate ();
+static void mark_window_display_accurate ();
 static void redisplay_windows ();
 static void redisplay_window ();
 static void try_window ();
@@ -179,15 +179,15 @@ extern int face_cache_invalid;
 
 
 #ifdef MULTI_SCREEN
-void
+
+extern void clear_screen (void);
+extern void clear_screen_records (struct screen *);
+
+static void
 redraw_screen (s)
      SCREEN_PTR s;
 {
   SCREEN_PTR s2 = 0;
-#if 0 /* WTF? */
-  if (s != selected_screen)
-    return;
-#endif
 
   /* clear_screen doesn't take a screen argument, 
      so swap s into selected_screen */
@@ -305,7 +305,7 @@ char *message_buf;
 void
 message (m, a1, a2, a3)
      char *m;
-     int a1, a2, a3;
+     char *a1, *a2, *a3;
 {
   SCREEN_PTR s;
 
@@ -313,14 +313,17 @@ message (m, a1, a2, a3)
     {
       if (noninteractive_need_newline)
 	putc ('\n', stderr);
-      fprintf (stderr, m, a1, a2, a3);
-      fprintf (stderr, "\n");
+      if (m)                    /* m == 0 means clear echo-area msg */
+      {
+        fprintf (stderr, m, a1, a2, a3);
+        fprintf (stderr, "\n");
+      }
       fflush (stderr);
     }
   else if (INTERACTIVE)
     {
 #ifdef NO_ARG_ARRAY
-      int a[3];
+      char *a[3];
       a[0] = a1;
       a[1] = a2;
       a[2] = a3;
@@ -334,15 +337,27 @@ message (m, a1, a2, a3)
       if (!NILP (Vwindow_system) && !SCREEN_IS_X (s))
 	return;
 
+      if (!SCREEN_MESSAGE_BUF (s))
+        return;
+
+      if (!m)
+      {
+        /* Clear minibuffer message */
+        echo_area_glyphs = 0;
+        previous_echo_glyphs = 0;
+      }
+      else
+      {
 #ifdef NO_ARG_ARRAY
-      doprnt (SCREEN_MESSAGE_BUF (s),
-	      SCREEN_WIDTH (s), m, 0, 3, a);
+	doprnt (SCREEN_MESSAGE_BUF (s),
+		SCREEN_WIDTH (s), m, 0, 3, a);
 #else
-      doprnt (SCREEN_MESSAGE_BUF (s),
-	      SCREEN_WIDTH (s), m, 0, 3, &a1);
+	doprnt (SCREEN_MESSAGE_BUF (s),
+		SCREEN_WIDTH (s), m, 0, 3, &a1);
 #endif /* NO_ARG_ARRAY */
 
-      echo_area_glyphs = SCREEN_MESSAGE_BUF (s);
+	echo_area_glyphs = SCREEN_MESSAGE_BUF (s);
+      }
       if (in_display > 0 || updating_screen != 0
 	  || ! SCREEN_VISIBLE_P (s))
 	return;
@@ -368,7 +383,14 @@ message (m, a1, a2, a3)
    See Fcall_process; if you called it from here, it could be
    entered recursively.  */
 
-extern int menubar_has_changed;
+extern void update_psheets (void);
+extern int pos_tab_offset (struct window *, int); 
+extern void preserve_other_columns (struct window *); 
+extern void cancel_line (int, struct screen *);
+extern void request_sigio (void);
+extern void unrequest_sigio (void);
+extern void update_screen_menubars (void);
+extern void flush_face_cache (void);
 
 void
 redisplay ()
@@ -379,7 +401,6 @@ redisplay ()
   int all_windows;
   register int tlbufpos, tlendpos;
   struct position pos;
-  int redo_menubar;
 
   extern int detect_input_pending ();
   int input_pending = detect_input_pending ();
@@ -404,10 +425,10 @@ redisplay ()
       continue;
     
     s = XSCREEN (XCONS (tail)->car);
-    bzero (SCREEN_DESIRED_GLYPHS (s)->enable, SCREEN_HEIGHT (s));
+    memset (SCREEN_DESIRED_GLYPHS (s)->enable, 0, SCREEN_HEIGHT (s));
   }
 #else
-  bzero (SCREEN_DESIRED_GLYPHS (selected_screen)->enable,
+  memset (SCREEN_DESIRED_GLYPHS (selected_screen)->enable, 0,
 	 SCREEN_HEIGHT (selected_screen));
 #endif
 
@@ -724,7 +745,7 @@ redisplay_preserving_echo_area ()
     redisplay ();
 }
 
-void
+static void
 mark_window_display_accurate (window, flag)
      Lisp_Object window;
      int flag;
@@ -771,6 +792,8 @@ redisplay_windows (window)
   for (; !NILP (window); window = XWINDOW (window)->next)
     redisplay_window (window, 0);
 }
+
+extern void cancel_my_columns (struct window *);
 
 static void
 redisplay_window (window, just_this_one)
@@ -1136,6 +1159,8 @@ try_window (window, pos)
  or -1 to tell caller to find a new window start,
  or -2 to tell caller to do normal redisplay with same window start.  */
 
+extern int position_indentation (int);
+
 static int
 try_window_id (window)
      Lisp_Object window;
@@ -1485,6 +1510,7 @@ try_window_id (window)
   SCREEN_CURSOR_X (s) = max (0, cursor_hpos);
   SCREEN_CURSOR_Y (s) = cursor_vpos;
 
+#if 0
   if (debug_end_pos)
     {
       val = *compute_motion (window,
@@ -1498,6 +1524,7 @@ try_window_id (window)
 	  != Z - val.bufpos)
 	return 0;
     }
+#endif
 
   return 1;
 }
@@ -1509,6 +1536,7 @@ try_window_id (window)
    Characters in FROM are grouped into units of `sizeof GLYPH' chars;
    any extra chars at the end of FROM are ignored.  */
 
+#if 0
 GLYPH *
 copy_rope (t, s, from)
      register GLYPH *t; /* Copy to here. */
@@ -1526,14 +1554,15 @@ copy_rope (t, s, from)
     }
   return t;
 }
+#endif
 
-struct glyphs_from_chars char_glyphs;
+static struct glyphs_from_chars char_glyphs;
 
 static GLYPH measure_glyphs[80];
 
 #define GLYPH_SET_VALUE(g, v) ((g) = (v))
 
-struct glyphs_from_chars *
+static struct glyphs_from_chars *
 glyphs_from_char (screen, c, g, tab_width, ctl_arrow,
 		  fp, dp, hscroll, columns, tab_offset, pixel_values)
      SCREEN_PTR screen;
@@ -1642,7 +1671,7 @@ static EXTENT_FRAGMENT last_buffer_extfrag;
 static int last_extfrag_from_pos, last_extfrag_to_pos;
 static struct face *last_extfrag_face;
 
-struct glyphs_from_chars displayed_glyphs;
+static struct glyphs_from_chars displayed_glyphs;
 
 /* Determine how the character at POS in BUFFER would be displayed on
    SCREEN.  ONLY_NONCHARS means calculate only glyphs displayed around
@@ -1764,14 +1793,14 @@ glyphs_from_bufpos (screen, buffer, pos, dp, hscroll, columns, tab_offset,
 	     && n_classes < GLYPH_CLASS_VECTOR_SIZE - 1)
         {
           EXTENT current_extent = *extents_vec++;
-          Lisp_Object elt = EXTENT_BEGIN_GLYPH_AT (current_extent, pos);
+          GLYPH g = EXTENT_BEGIN_GLYPH_AT (current_extent, pos);
 
-          if (FIXNUMP (elt))
+          if (g)
             {
 #ifdef LINE_INFO_COLUMN
               if (screen->display.x->line_info_column_width
                   && glyph_in_column_p (class))
-                displayed_glyphs.info_column_glyphs = elt;
+                displayed_glyphs.info_column_glyphs = pix;
               else
 #endif
 #ifdef HAVE_X_WINDOWS
@@ -1780,10 +1809,10 @@ glyphs_from_bufpos (screen, buffer, pos, dp, hscroll, columns, tab_offset,
                     displayed_glyphs.n_nonfont++;
                     XSET (displayed_glyphs.begin_class[n_classes++],
                           Lisp_Extent, current_extent);
-                    *gp++ = XINT (elt);
+                    *gp++ = g;
                     displayed_glyphs.begin_columns++;
-                    displayed_glyphs.begin_pixel_width
-                      += x_bitmaps[XINT (elt)].width;
+                    displayed_glyphs.begin_pixel_width +=
+		      glyph_to_x_pixmap (g)->width;
                   }
                 else
 #endif
@@ -1895,9 +1924,8 @@ glyphs_from_bufpos (screen, buffer, pos, dp, hscroll, columns, tab_offset,
 
           if (current_extent->flags & EF_END_GLYPH)
             {
-              Lisp_Object elt = 
-                EXTENT_END_GLYPH_AT (current_extent, endpos);
-              if (FIXNUMP (elt))
+	      GLYPH g = EXTENT_END_GLYPH_AT (current_extent, endpos);
+              if (g)
                 {
                   frag_has_end_glyphs = 1;
 
@@ -1909,10 +1937,10 @@ glyphs_from_bufpos (screen, buffer, pos, dp, hscroll, columns, tab_offset,
                           displayed_glyphs.n_nonfont++;
                           XSET (displayed_glyphs.end_class[n_classes++],
                                 Lisp_Extent, current_extent);
-                          *gp++ = XINT (elt);
+                          *gp++ = g;
                           displayed_glyphs.end_columns++;
-                          displayed_glyphs.end_pixel_width 
-                            += x_bitmaps[XINT (elt)].width;
+                          displayed_glyphs.end_pixel_width +=
+			    glyph_to_x_pixmap (g)->width;
                         }
                       else
 #endif
@@ -1960,7 +1988,7 @@ glyphs_from_bufpos (screen, buffer, pos, dp, hscroll, columns, tab_offset,
   return &displayed_glyphs;
 }
 
-int
+static int
 new_run (screen, vpos, type, faceptr)
      SCREEN_PTR screen;
      int vpos, type;
@@ -1996,7 +2024,7 @@ glyph_pixel_width (g, t, f)
       break;
 
     case glyph:
-      return x_bitmaps[g].width;
+      return glyph_to_x_pixmap (g)->width;
       break;
 
     case space:
@@ -2009,71 +2037,6 @@ glyph_pixel_width (g, t, f)
     }
 }
 
-void
-stuff_glyph (glyph_lines, vpos, g, len)
-     struct screen_glyphs *glyph_lines;
-     int vpos, len;
-     GLYPH g;
-{
-  register int run = glyph_lines->nruns[vpos] - 1;
-  register int n = glyph_lines->used[vpos];
-
-  switch (glyph_lines->face_list[vpos][run].type)
-    {
-    case font:
-      {
-	glyph_lines->glyphs[vpos][n] = g;
-	glyph_lines->face_list[vpos][run].length++;
-	glyph_lines->face_list[vpos][run].pix_length
-	  += X_CHAR_WIDTH (glyph_lines->face_list[vpos][run].faceptr->font,
-			   ((g == TABGLYPH) ? ' ' : g));
-
-	glyph_lines->used[vpos]++;
-	glyph_lines->pix_width[vpos] += x_bitmaps[g].width;
-	glyph_lines->pix_height[vpos] = max (glyph_lines->pix_height[vpos],
-					     x_bitmaps[g].height);
-      }
-      break;
-
-    case column_glyph:
-      abort();
-
-    case glyph:
-      {
-	glyph_lines->glyphs[vpos][n] = g;
-	glyph_lines->face_list[vpos][run].length++;
-	glyph_lines->face_list[vpos][run].pix_length += x_bitmaps[g].width;
-
-	glyph_lines->used[vpos]++;
-	glyph_lines->pix_width[vpos] += x_bitmaps[g].width;
-	glyph_lines->pix_height[vpos] = max (glyph_lines->pix_height[vpos],
-					     x_bitmaps[g].height);
-      }
-      break;
-
-    case space:
-      {
-#if 0
-	glyph_lines->glyphs[vpos][n] = '?';
-#endif
-	glyph_lines->glyphs[vpos][n] = (GLYPH) len;
-	glyph_lines->face_list[vpos][run].length++;
-	glyph_lines->face_list[vpos][run].pix_length += len;
-
-	glyph_lines->used[vpos]++;
-	glyph_lines->pix_width[vpos] += len;
-      }
-      break;
-
-    case window:
-      abort ();
-      break;
-
-    default:
-      abort ();
-      break;
-    }
-}
 
 static void
 install_first_runs (s, vpos, pos, w)
@@ -2256,8 +2219,8 @@ right_shift_runs (s, vpos, run, nslots)
     {
       int n_to_move = nruns - run;
 
-      bcopy (&SCREEN_DESIRED_GLYPHS (s)->face_list[vpos][run],
-	     &SCREEN_DESIRED_GLYPHS (s)->face_list[vpos][run + nslots],
+      memcpy (&SCREEN_DESIRED_GLYPHS (s)->face_list[vpos][run + nslots],
+	      &SCREEN_DESIRED_GLYPHS (s)->face_list[vpos][run],
 	     (n_to_move * sizeof (struct run)));
     }
   SCREEN_DESIRED_GLYPHS (s)->nruns[vpos] += nslots;
@@ -2371,57 +2334,6 @@ overlay_glyph (s, vpos, g, type, class, faceptr, column, begin_p)
     += (new_pix_width - old_pix_width);
 }
 
-/* This appears to be dead code.  There are no references to it. */
-#if 0
-int
-extract_glyph (desired_glyphs, vpos)
-     register struct screen_glyphs *desired_glyphs;
-     register vpos;
-{
-  register int last_run = desired_glyphs->nruns[vpos] - 1;
-  register n = desired_glyphs->used[vpos] - 1;
-  register int pix_width;
-  register int val = 0;
-
-  if (desired_glyphs->face_list[vpos][last_run].type == font)
-    val = 1;
-
-  if (desired_glyphs->face_list[vpos][last_run].length > 1)
-    {
-      desired_glyphs->face_list[vpos][last_run].length--;
-      switch (desired_glyphs->face_list[vpos][last_run].type)
-	{
-	case font:
-	  pix_width
-	    = X_CHAR_WIDTH 
-              (desired_glyphs->face_list[vpos][last_run].faceptr->font,
-               ((desired_glyphs->glyphs[vpos][n] == TABGLYPH)
-                ? ' '
-                : desired_glyphs->glyphs[vpos][n]));
-	  break;
-
-	case glyph:
-	  pix_width = x_bitmaps[desired_glyphs->glyphs[vpos][n]].width;
-	  break;
-
-	case space: /* Should never have space run whose len is > 1. */
-	case column_glyph:
-	default:
-	  abort ();
-	}
-      desired_glyphs->face_list[vpos][last_run].pix_length -= pix_width;
-    }
-  else
-    {
-      pix_width = desired_glyphs->face_list[vpos][last_run].pix_length;
-      desired_glyphs->nruns[vpos]--;
-    }
-  desired_glyphs->used[vpos]--;
-  desired_glyphs->pix_width[vpos] -= pix_width;
-
-  return val;
-}
-#endif
 
 #ifdef HAVE_X_WINDOWS
 #define LEFT_OF_MARGIN \
@@ -2446,7 +2358,7 @@ extract_glyph (desired_glyphs, vpos)
    and where to display it, including a zero or negative hpos.
    The vpos field is not really a vpos; it is 1 unless the line is continued */
 
-struct position val_display_text_line;
+static struct position val_display_text_line;
 
 
 #ifdef LINE_INFO_COLUMN
@@ -2575,7 +2487,8 @@ display_text_line (w, start, vpos, hpos, taboffset)
 	}
       else
 	{
-	  append_glyph (s, vpos, RARROW_BITMAP, glyph, Qnil, this_face, 0);
+	  append_glyph (s, vpos, builtin_rarrow_pixmap.glyph_id,
+			glyph, Qnil, this_face, 0);
 	  /* column++; */ /* The overlay arrow doesn't count in tabs */
 	  cpos++;
 	}
@@ -2911,7 +2824,7 @@ display_text_line (w, start, vpos, hpos, taboffset)
 	      buffer_position = position_before_continuer;
 	      column = column_before_continuer;
 	      /* Fix this to add space to align on right margin */
-	      append_glyph (s, vpos, TRUNCATOR_BITMAP,
+	      append_glyph (s, vpos, builtin_truncator_pixmap.glyph_id,
 			    glyph, Qnil, this_face, 0);
 	    }
 	  else
@@ -2943,7 +2856,8 @@ display_text_line (w, start, vpos, hpos, taboffset)
 		}
 	      /* Maybe should add space to align on right margin */
 	      append_glyph 
-                (s, vpos, CONTINUER_BITMAP, glyph, Qnil, this_face, 0);
+                (s, vpos, builtin_continuer_pixmap.glyph_id,
+		 glyph, Qnil, this_face, 0);
 	    }
 	  else
 	    append_glyph (s, vpos, continuer, font, Qnil, this_face, 0);
@@ -3007,8 +2921,8 @@ display_text_line (w, start, vpos, hpos, taboffset)
 
   /* If hscroll and line not empty, insert truncation-at-left marker */
   if (hscroll && desired_glyphs->used[vpos] > 0)
-    overlay_glyph (s, vpos, CONTINUER_BITMAP, font, Qnil, this_face,
-		   INFO_COLUMN_ADJUST (0), 0);
+    overlay_glyph (s, vpos, builtin_continuer_pixmap.glyph_id,
+		   font, Qnil, this_face, INFO_COLUMN_ADJUST (0), 0);
   
   /* If w is a vertical window, but not rightmost, insert spaces, then
      insert the '|' separator. */
@@ -3312,13 +3226,15 @@ display_string (w, vpos, string, hpos, truncate,
   if (*string && truncate)
     {
       if (SCREEN_IS_TERMCAP (s))
-	append_glyph (s, vpos, TRUNCATOR_BITMAP, glyph, Qnil, this_face, 0);
+	append_glyph (s, vpos, builtin_truncator_pixmap.glyph_id,
+		      glyph, Qnil, this_face, 0);
       else
 	{
 	  while (desired_glyphs->pix_width[vpos]
-		 > MAX_LINE_WIDTH (s) - x_bitmaps[TRUNCATOR_BITMAP].width)
+		 > MAX_LINE_WIDTH (s) - builtin_truncator_pixmap.width)
 	    remove_glyph (s, vpos);
-	  append_glyph (s, vpos, TRUNCATOR_BITMAP, glyph, Qnil, this_face, 0);
+	  append_glyph (s, vpos, builtin_truncator_pixmap.glyph_id,
+			glyph, Qnil, this_face, 0);
 	}
     }
   else if (mincol > 0)
@@ -3601,6 +3517,9 @@ screen_title_display_string (w, vpos, string, hpos, truncate,
   return screen_title_buffer_index;
 }
 
+extern void x_set_title_from_char (struct screen *, char *);
+extern void x_set_icon_name_from_char (struct screen *, char *);
+
 void
 x_format_screen_title (s)
      struct screen *s;
@@ -3612,6 +3531,9 @@ x_format_screen_title (s)
 
   /* do not change for the minibuffer */
   if (MINI_WINDOW_P (w))
+    return;
+  /* protect from deleted buffers ! */
+  if (NILP (XBUFFER (w->buffer)->name))
     return;
   /* evaluate screen-title-format and screen-icon-title-format in the
      buffer of the selected window of the screen in question.
@@ -3681,44 +3603,8 @@ display_mode_line (w)
 #endif
 }
 
-int
-run_from_glyph_index (s, vpos, hpos)
-     SCREEN_PTR s;
-     register int vpos, hpos;
-{
-  register struct screen_glyphs *current_screen = SCREEN_CURRENT_GLYPHS (s);
-  register struct run *face_list;
-  register int run_len, this_run;
 
-  /* Paranoia */
-  if (hpos > current_screen->used[vpos])
-    return 0;
-
-  if (current_screen->nruns[vpos] == 1)
-    return 0;
-  if (hpos == current_screen->used[vpos])
-    return current_screen->nruns[vpos] - 1;
-
-  face_list = current_screen->face_list[hpos];
-  if (face_list[0].length == 0)
-    {
-      /* Paranoia */
-      if (hpos != 0)
-	return 0;
-
-      return 0;
-    }
-
-  this_run = 0;
-  run_len = face_list[this_run].length;
-  while (hpos >= run_len)
-    {
-      run_len += face_list[++this_run].length;
-    }
-  return this_run;
-}
-
-struct glyph_dimensions dimensions;
+static struct glyph_dimensions dimensions;
 
 struct glyph_dimensions *
 get_glyph_dimensions (s, hpos, vpos)
@@ -3728,7 +3614,7 @@ get_glyph_dimensions (s, hpos, vpos)
   register struct screen_glyphs *current_screen = SCREEN_CURRENT_GLYPHS (s);
   register struct run *face_list;
   register int run_len, this_run, pix_len;
-  XFontStruct *default_font = s->display.x->font;
+  XFontStruct *default_font = SCREEN_NORMAL_FACE (s).font;
 
   if (!current_screen->enable[vpos] || s->garbaged)
     return 0;
@@ -3852,7 +3738,7 @@ See also `overlay-arrow-string'.");
 If that fails to bring point back on screen, point is centered instead.\n\
 If this is zero, point is always centered after it moves off screen.");
 
-  DEFVAR_INT ("debug-end-pos", &debug_end_pos, "Don't ask");
+/*  DEFVAR_INT ("debug-end-pos", &debug_end_pos, "Don't ask");*/
 
   DEFVAR_BOOL ("truncate-partial-width-windows",
 	       &truncate_partial_width_windows,
@@ -3883,6 +3769,7 @@ See also the variable `screen-title-format'");
 }
 
 /* initialize the window system */
+void
 init_xdisp ()
 {
   Lisp_Object root_window;

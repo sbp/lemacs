@@ -1,11 +1,11 @@
 ;; GNU Emacs window commands aside from those written in C.
-;; Copyright (C) 1985, 1989 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -105,10 +105,3 @@ It can be later retrieved using \\[M-x register-to-window-config]."
 Use with a register previously set with \\[window-config-to-register]."
   (interactive "cRestore window configuration from register: ")
   (set-window-configuration (get-register name)))
-
-(define-key ctl-x-map "2" 'split-window-vertically)
-(define-key ctl-x-map "5" 'split-window-horizontally)
-(define-key ctl-x-map "6" 'window-config-to-register)
-(define-key ctl-x-map "7" 'register-to-window-config)
-(define-key ctl-x-map "}" 'enlarge-window-horizontally)
-(define-key ctl-x-map "{" 'shrink-window-horizontally)

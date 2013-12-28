@@ -31,8 +31,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "process.h"
 #include "events.h"
 #include "keymap.h"
-
-extern void format_event_object ();
+#include "insdel.h"
 
 #endif /* not standalone */
 
@@ -72,10 +71,11 @@ Lisp_Object Qprint_readably;
    Defined in xdisp.c */
 
 extern int noninteractive_need_newline;
-#ifdef MAX_PRINT_CHARS
-static int print_chars;
+
+/* These are only really used if #ifdef MAX_PRINT_CHARS */
 static int max_print;
-#endif /* MAX_PRINT_CHARS */
+static int print_chars;
+
 
 #define PRINTER_BUFFER_SIZE 4096
 static char *printer_buffer;
@@ -97,13 +97,15 @@ static char *printer_buffer_end;
 */ 
 
 #define PRINTPREPARE \
+   count = specpdl_depth; \
    printer_buffer = (char *) alloca (PRINTER_BUFFER_SIZE); \
    printer_buffer_fill = printer_buffer; \
    printer_buffer_end = printer_buffer + PRINTER_BUFFER_SIZE; \
    original = printcharfun; \
    if (NILP (printcharfun)) printcharfun = Qt; \
    if (BUFFERP (printcharfun)) \
-     { if (XBUFFER (printcharfun) != current_buffer) \
+     { record_unwind_protect (Fset_buffer, Fcurrent_buffer ()); \
+       if (XBUFFER (printcharfun) != current_buffer) \
 	 Fset_buffer (printcharfun); \
        printcharfun = Qnil;}\
    if (MARKERP (printcharfun)) \
@@ -120,14 +122,15 @@ static char *printer_buffer_end;
      Fset_marker (original, make_number (point), Qnil); \
    if (old_point >= 0) \
      SET_PT ((old_point >= start_point ? point - start_point : 0) + old_point); \
+   unbind_to (count, Qnil); \
    if (old != current_buffer) \
-     internal_set_buffer (old)
+     abort()
 
 #define PRINTCHAR(ch) printchar (ch, printcharfun)
 
 static void
 insert_in_printer_buffer (string, char_count)
-     char *string;
+     const char *string;
      int char_count;
 {
   char *new_end;
@@ -136,13 +139,13 @@ insert_in_printer_buffer (string, char_count)
      {
        int this_char_count = char_count - (new_end - printer_buffer_end);
 
-       bcopy (string, printer_buffer_fill, this_char_count);
+       memcpy (printer_buffer_fill, string, this_char_count);
        insert_raw_string (printer_buffer, printer_buffer_end - printer_buffer);
        printer_buffer_fill = printer_buffer;
        string += this_char_count;
        char_count -= this_char_count;
      }
-  bcopy (string, printer_buffer_fill, char_count);
+  memcpy (printer_buffer_fill, string, char_count);
   printer_buffer_fill += char_count;
 }
 
@@ -165,10 +168,9 @@ printchar (ch, fun)
 {
   Lisp_Object ch1;
 
-#ifdef MAX_PRINT_CHARS
-  if (max_print)
+  if (max_print != 0)
     print_chars++;
-#endif /* MAX_PRINT_CHARS */
+
 #ifndef standalone
   if (EQ (fun, Qnil))
     {
@@ -192,6 +194,8 @@ printchar (ch, fun)
 	  printbufidx = 0;
 	}
 
+      if (! SCREEN_MESSAGE_BUF(selected_screen))
+	abort ();
       if (printbufidx < SCREEN_WIDTH (selected_screen) - 1)
 	SCREEN_MESSAGE_BUF (selected_screen)[printbufidx++] = ch;
       SCREEN_MESSAGE_BUF (selected_screen)[printbufidx] = 0;
@@ -206,7 +210,7 @@ printchar (ch, fun)
 
 static void
 strout (ptr, size, printcharfun)
-     char *ptr;
+     const char *ptr;
      int size;
      Lisp_Object printcharfun;
 {
@@ -215,23 +219,19 @@ strout (ptr, size, printcharfun)
   if (EQ (printcharfun, Qnil))
     {
       insert_in_printer_buffer (ptr, size >= 0 ? size : strlen (ptr));
-#ifdef MAX_PRINT_CHARS
-      if (max_print)
-        print_chars += size >= 0 ? size : strlen(ptr);
-#endif /* MAX_PRINT_CHARS */
+      if (max_print != 0)
+        print_chars += ((size >= 0) ? size : strlen(ptr));
       return;
     }
   if (EQ (printcharfun, Qt))
     {
       i = size >= 0 ? size : strlen (ptr);
-#ifdef MAX_PRINT_CHARS
-      if (max_print)
+      if (max_print != 0)
         print_chars += i;
-#endif /* MAX_PRINT_CHARS */
 
       if (noninteractive)
 	{
-	  fwrite (ptr, 1, i, stdout);
+	  fwrite (ptr, 1, i, stderr);
 	  noninteractive_need_newline = 1;
 	  return;
 	}
@@ -244,7 +244,7 @@ strout (ptr, size, printcharfun)
 
       if (i > SCREEN_WIDTH (selected_screen) - printbufidx - 1)
 	i = SCREEN_WIDTH (selected_screen) - printbufidx - 1;
-      bcopy (ptr, &SCREEN_MESSAGE_BUF (selected_screen) [printbufidx], i);
+      memcpy (&SCREEN_MESSAGE_BUF (selected_screen) [printbufidx], ptr, i);
       printbufidx += i;
       SCREEN_MESSAGE_BUF (selected_screen) [printbufidx] = 0;
 
@@ -267,7 +267,7 @@ STREAM defaults to the value of `standard-output' (which see).")
 {
   struct buffer *old = current_buffer;
   int old_point = -1;
-  int start_point;
+  int start_point, count;
   Lisp_Object original;
 
   if (NILP (printcharfun))
@@ -279,14 +279,15 @@ STREAM defaults to the value of `standard-output' (which see).")
   return ch;
 }
 
+void
 write_string (data, size)
-     char *data;
+     const char *data;
      int size;
 {
   struct buffer *old = current_buffer;
   Lisp_Object printcharfun;
   int old_point = -1;
-  int start_point;
+  int start_point, count;
   Lisp_Object original;
 
   printcharfun = Vstandard_output;
@@ -296,6 +297,7 @@ write_string (data, size)
   PRINTFINISH;
 }
 
+void
 write_string_1 (data, size, printcharfun)
      char *data;
      int size;
@@ -303,7 +305,7 @@ write_string_1 (data, size, printcharfun)
 {
   struct buffer *old = current_buffer;
   int old_point = -1;
-  int start_point;
+  int start_point, count;
   Lisp_Object original;
 
   PRINTPREPARE;
@@ -316,7 +318,7 @@ write_string_1 (data, size, printcharfun)
 
 void
 temp_output_buffer_setup (bufname)
-    char *bufname;
+    const char *bufname;
 {
   register struct buffer *old = current_buffer;
   register Lisp_Object buf;
@@ -334,12 +336,12 @@ temp_output_buffer_setup (bufname)
 
 Lisp_Object
 internal_with_output_to_temp_buffer (bufname, function, args, same_screen)
-     char *bufname;
+     const char *bufname;
      Lisp_Object (*function) ();
      Lisp_Object args;
      Lisp_Object same_screen;
 {
-  int count = specpdl_ptr - specpdl;
+  int count = specpdl_depth;
   Lisp_Object buf, val;
 
   temp_output_buffer_setup (bufname);
@@ -349,8 +351,7 @@ internal_with_output_to_temp_buffer (bufname, function, args, same_screen)
 
   temp_output_buffer_show (buf, same_screen);
 
-  unbind_to (count);
-  return val;
+  return unbind_to (count, val);
 }
 
 DEFUN ("with-output-to-temp-buffer", Fwith_output_to_temp_buffer, Swith_output_to_temp_buffer,
@@ -361,14 +362,14 @@ All output done by BODY is inserted in that buffer by default.\n\
 The buffer is displayed in another window, but not selected.\n\
 The value of the last form in BODY is returned.\n\
 If BODY does not finish normally, the buffer BUFNAME is not displayed.\n\n\
-If variable `temp-buffer-show-hook' is non-nil, call it at the end\n\
+If variable `temp-buffer-show-function' is non-nil, call it at the end\n\
 to get the buffer displayed.  It gets one argument, the buffer to display.")
   (args)
      Lisp_Object args;
 {
   struct gcpro gcpro1;
   Lisp_Object name;
-  int count = specpdl_ptr - specpdl;
+  int count = specpdl_depth;
   Lisp_Object buf, val;
 
   GCPRO1(args);
@@ -383,8 +384,7 @@ to get the buffer displayed.  It gets one argument, the buffer to display.")
 
   temp_output_buffer_show (buf, Qnil);
 
-  unbind_to (count);
-  return val;
+  return unbind_to (count, val);
 }
 #endif /* not standalone */
 
@@ -398,7 +398,7 @@ If STREAM is omitted or nil, the value of `standard-output' is used.")
 {
   struct buffer *old = current_buffer;
   int old_point = -1;
-  int start_point;
+  int start_point, count;
   Lisp_Object original;
 
   if (NILP (printcharfun))
@@ -419,12 +419,10 @@ Output stream is STREAM, or value of `standard-output' (which see).")
 {
   struct buffer *old = current_buffer;
   int old_point = -1;
-  int start_point;
+  int start_point, count;
   Lisp_Object original;
 
-#ifdef MAX_PRINT_CHARS
   max_print = 0;
-#endif /* MAX_PRINT_CHARS */
   if (NILP (printcharfun))
     printcharfun = Vstandard_output;
   PRINTPREPARE;
@@ -447,19 +445,22 @@ second argument NOESCAPE is non-nil.")
 {
   struct buffer *old = current_buffer;
   int old_point = -1;
-  int start_point;
+  int start_point, count;
   Lisp_Object original, printcharfun;
+
+  /* erase buffer in case previous prin1-to-string terminated in error */
+  internal_set_buffer (XBUFFER (Vprin1_to_string_buffer));
+  Ferase_buffer ();
+  internal_set_buffer (old);
 
   printcharfun = Vprin1_to_string_buffer;
   PRINTPREPARE;
   print_depth = 0;
   print (obj, printcharfun, NILP (noescape));
-  /* Make Vprin1_to_string_buffer be the default buffer after PRINTFINSH */
   PRINTFINISH;
-  internal_set_buffer (XBUFFER (Vprin1_to_string_buffer));
   {
     struct gcpro gcpro1;
-
+    internal_set_buffer (XBUFFER (Vprin1_to_string_buffer));
     GCPRO1 (obj);
     obj = Fbuffer_string ();
     Ferase_buffer ();
@@ -479,7 +480,7 @@ Output stream is STREAM, or value of standard-output (which see).")
 {
   struct buffer *old = current_buffer;
   int old_point = -1;
-  int start_point;
+  int start_point, count;
   Lisp_Object original;
 
   if (NILP (printcharfun))
@@ -501,13 +502,14 @@ Output stream is STREAM, or value of `standard-output' (which see).")
 {
   struct buffer *old = current_buffer;
   int old_point = -1;
-  int start_point;
+  int start_point, count;
   Lisp_Object original;
 
-#ifdef MAX_PRINT_CHARS
   print_chars = 0;
+#ifdef MAX_PRINT_CHARS
   max_print = MAX_PRINT_CHARS;
-#endif /* MAX_PRINT_CHARS */
+#endif
+
   if (NILP (printcharfun))
     printcharfun = Vstandard_output;
   PRINTPREPARE;
@@ -516,10 +518,8 @@ Output stream is STREAM, or value of `standard-output' (which see).")
   print (obj, printcharfun, 1);
   PRINTCHAR ('\n');
   PRINTFINISH;
-#ifdef MAX_PRINT_CHARS
   max_print = 0;
   print_chars = 0;
-#endif /* MAX_PRINT_CHARS */
   return obj;
 }
 
@@ -589,17 +589,28 @@ float_to_string (buf, data)
      representation of that form not be corrupted by the printer.
    */
   {
-    register char *s;
-    for (s = buf; *s; s++)
+    register char *s = buf;
+    if (*s == '-') s++;
+    for (; *s; s++)
       /* if there's a non-digit, then there is a decimal point, or
 	 it's in exponential notation, both of which are ok. */
       if (*s < '0' || *s > '9')
-	return;
+	goto DONE;
     /* otherwise, we need to hack it. */
     *s++ = '.';
     *s++ = '0';
     *s = 0;
   }
+ DONE:
+
+  /* Some machines print "0.4" as ".4".  I don't like that. */
+  if (buf [0] == '.' || (buf [0] == '-' && buf [1] == '.'))
+    {
+      int i;
+      for (i = strlen (buf) + 1; i >= 0; i--)
+	buf [i+1] = buf [i];
+      buf [(buf [0] == '-' ? 1 : 0)] = '0';
+    }
 }
 #endif /* LISP_FLOAT_TYPE */
 
@@ -617,6 +628,9 @@ print (obj, printcharfun, escapeflag)
 
   QUIT;
 
+  if (noninteractive && EQ (printcharfun, Qt))
+    printcharfun = Qexternal_debugging_output;
+
   if (print_depth == 0 && EQ (printcharfun, Qt))
     printbufidx = strlen (SCREEN_MESSAGE_BUF (selected_screen));
 
@@ -624,8 +638,9 @@ print (obj, printcharfun, escapeflag)
 
   if (print_depth > 200)
     error ("Apparently circular structure being printed");
+
 #ifdef MAX_PRINT_CHARS
-  if (max_print && print_chars > max_print)
+  if (max_print != 0 && print_chars > max_print)
     {
       PRINTCHAR ('\n');
       print_chars = 0;
@@ -640,7 +655,8 @@ print (obj, printcharfun, escapeflag)
     {
     default:
       if (print_readably)
-	error ("printing illegal data type #o%3o", (int) XTYPE (obj));
+        error ("printing illegal data type #o%3o", (int) XTYPE (obj));
+
       /* We're in trouble if this happens!
 	 Probably should just abort () */
       strout ("#<EMACS BUG: ILLEGAL DATATYPE ", -1, printcharfun);
@@ -831,13 +847,13 @@ print (obj, printcharfun, escapeflag)
             }
 	  
 	  if (print_readably)
-	    {
+            {
 	      if (EXTENT_FLAGS(XEXTENT(obj)) & EF_DESTROYED)
 		error ("printing unreadable object #<destroyed extent>");
 	      else
 		error ("printing unreadable object #<extent [%d, %d)>",
-		       XINT(Fextent_start_position (obj)), 
-		       XINT(Fextent_end_position (obj)));
+                       XINT (Fextent_start_position (obj)), 
+                       XINT (Fextent_end_position (obj)));
 	    }
 	  
           if (EXTENT_FLAGS(XEXTENT(obj)) & EF_DESTROYED)
@@ -867,8 +883,10 @@ print (obj, printcharfun, escapeflag)
       if (escapeflag)
 	{
 	  if (print_readably)
-	    error ("printing unreadable object #<dup [%d, %d)>",
-		   XDUP(obj)->start, XDUP(obj)->end);
+            {
+              error ("printing unreadable object #<dup [%d, %d)>",
+                     XDUP(obj)->start, XDUP(obj)->end);
+            }
 	  
 	  strout ("#<dup ", -1, printcharfun);
           if (EXTENTP (XDUP(obj)->extent))
@@ -892,13 +910,14 @@ print (obj, printcharfun, escapeflag)
       break;
 
     case Lisp_Buffer:
-      if (print_readably) {
-	if (NILP (XBUFFER (obj)->name))
-	  error ("printing unreadable object #<killed buffer>");
-	else
-	  error ("printing unreadable object #<buffer %s>",
-		 XSTRING (XBUFFER (obj)->name)->data);
-      }
+      if (print_readably)
+         {
+           if (NILP (XBUFFER (obj)->name))
+             error ("printing unreadable object #<killed buffer>");
+           else
+             error ("printing unreadable object #<buffer %s>",
+                    XSTRING (XBUFFER (obj)->name)->data);
+         }
       if (NILP (XBUFFER (obj)->name))
 	strout ("#<killed buffer>", -1, printcharfun);
       else if (escapeflag)
@@ -915,9 +934,8 @@ print (obj, printcharfun, escapeflag)
       if (escapeflag)
 	{
 	  if (print_readably)
-	    error ("printing unreadable object #<process %s>",
-		   XSTRING (XPROCESS (obj)->name)->data);
-	  
+            error ("printing unreadable object #<process %s>",
+                   XSTRING (XPROCESS (obj)->name)->data);
 	  strout ("#<process ", -1, printcharfun);
 	  strout ((char *) XSTRING (XPROCESS (obj)->name)->data, -1, printcharfun);
 	  PRINTCHAR ('>');
@@ -928,9 +946,9 @@ print (obj, printcharfun, escapeflag)
 
     case Lisp_Window:
       if (print_readably)
-	error ("printing unreadable object #<window %d>",
-	       XFASTINT (XWINDOW (obj)->sequence_number));
-      
+        error ("printing unreadable object #<window %d>",
+               XFASTINT (XWINDOW (obj)->sequence_number));
+
       strout ("#<window ", -1, printcharfun);
       sprintf (buf, "%d", XFASTINT (XWINDOW (obj)->sequence_number));
       strout (buf, -1, printcharfun);
@@ -945,18 +963,16 @@ print (obj, printcharfun, escapeflag)
 
     case Lisp_Window_Configuration:
       if (print_readably)
-	error ("printing unreadable object #<window-configuration>");
-      
+        error ("printing unreadable object #<window-configuration>");
       strout ("#<window-configuration>", -1, printcharfun);
       break;
 
 #ifdef MULTI_SCREEN
     case Lisp_Screen:
       if (print_readably)
-	error ("printing unreadable object #<screen %s 0x%x>",
-	       XSTRING (XSCREEN (obj)->name)->data,
-	       XFASTINT (XSCREEN (obj)));
-      
+        error ("printing unreadable object #<screen %s 0x%x>",
+               XSTRING (XSCREEN (obj)->name)->data,
+               XFASTINT (XSCREEN (obj)));
       strout ("#<screen ", -1, printcharfun);
       strout ((char *) XSTRING (XSCREEN (obj)->name)->data, -1, printcharfun);
       sprintf (buf, " 0x%x", XFASTINT (XSCREEN (obj)));
@@ -967,8 +983,7 @@ print (obj, printcharfun, escapeflag)
 
     case Lisp_Marker:
       if (print_readably)
-	error ("printing unreadable object #<marker>");
-      
+        error ("printing unreadable object #<marker>");
       strout ("#<marker ", -1, printcharfun);
       if (!(XMARKER (obj)->buffer))
 	strout ("in no buffer", -1, printcharfun);
@@ -984,7 +999,8 @@ print (obj, printcharfun, escapeflag)
       break;
 
     case Lisp_Event:
-      if (print_readably) error ("printing unreadable object #<event>");
+      if (print_readably)
+        error ("printing unreadable object #<event>");
       switch (XEVENT (obj)->event_type) {
       case key_press_event:
       case button_press_event:
@@ -999,6 +1015,7 @@ print (obj, printcharfun, escapeflag)
 	  strout ("#<buttonup-event ",   -1, printcharfun); break;
 	case magic_event:
 	  strout ("#<magic-event ",      -1, printcharfun); break;
+	default: abort ();
 	}
 	format_event_object (buf, XEVENT (obj), 0);
 	strout (buf, -1, printcharfun);
@@ -1053,8 +1070,15 @@ print (obj, printcharfun, escapeflag)
 
     case Lisp_Keymap:
       {
+        struct Lisp_Keymap *keymap = XKEYMAP (obj);
+        Lisp_Object name = keymap->name;
 	int size = XFASTINT (Fkeymap_fullness (obj));
-	sprintf (buf, "#<keymap %d entr%s>", size, (size == 1) ? "y" : "ies");
+        strout ("#<keymap ", -1, printcharfun);
+        if (!NILP (name))
+          print (name, printcharfun, 1);
+	sprintf (buf, "%s%d entr%s>", 
+                 ((NILP (keymap->name)) ? "" : " "),
+                 size, ((size == 1) ? "y" : "ies"));
 	strout (buf, -1, printcharfun);
       }
       break;
@@ -1062,9 +1086,8 @@ print (obj, printcharfun, escapeflag)
 
     case Lisp_Subr:
       if (print_readably)
-	error ("printing unreadable object #<subr %s>",
-	       XSUBR (obj)->symbol_name);
-      
+        error ("printing unreadable object #<subr %s>",
+               XSUBR (obj)->symbol_name);
       strout ("#<subr ", -1, printcharfun);
       strout (XSUBR (obj)->symbol_name, -1, printcharfun);
       PRINTCHAR ('>');

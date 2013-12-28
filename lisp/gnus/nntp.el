@@ -421,14 +421,20 @@ in the current news group."
 
 (defun nntp-request-post ()
   "Post a new news in current buffer."
+  ;; Some hosts take fuckin' forever to post, so I added more status msgs.
+  (message "NNTP: awaiting POST connection...")
   (if (nntp-send-command "^[23].*\r$" "POST")
       (progn
+	(message "NNTP: got POST connection; encoding text...")
 	(nntp-encode-text)
+	(message "NNTP: got POST connection; sending text...")
 	(nntp-send-region-to-server (point-min) (point-max))
 	;; 1.2a NNTP's post command is buggy. "^M" (\r) is not
 	;;  appended to end of the status message.
-	(nntp-wait-for-response "^[23].*$")
-	)))
+	(message "NNTP: text sent; awaiting response...")
+	(prog1
+	    (nntp-wait-for-response "^[23].*$")
+	  (message "NNTP: post complete.")))))
 
 (defun nntp-default-sentinel (proc status)
   "Default sentinel function for NNTP server process."
@@ -588,12 +594,17 @@ in the current news group."
     (setq end (point-max))
     ;; `process-send-region' does not work if text to be sent is very
     ;;  large. I don't know maximum size of text sent correctly.
-    (let ((last nil)
-	  (size 100))			;Size of text sent at once.
+    (let* ((last nil)
+	   (size 100)			;Size of text sent at once.
+	   (total (/ (- end begin) size))
+	   (sent 0))
       (save-restriction
 	(narrow-to-region begin end)
 	(goto-char begin)
 	(while (not (eobp))
+	  (message "NNTP: got POST connection; sending text...(%d%%)"
+		   (/ (* 100 sent) total))
+	  (setq sent (+ sent 1))
 	  ;;(setq last (min end (+ (point) size)))
 	  ;; NEmacs gets confused if character at `last' is Kanji.
 	  (setq last (save-excursion

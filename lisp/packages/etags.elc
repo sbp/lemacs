@@ -1,6 +1,6 @@
-;;; compiled by jwz@thalidomide on Tue Sep  8 23:32:55 1992
-;;; from file /wg1/emacs-base/lisp/packages/etags.el
-;;; emacs version 19.2.23 Lucid.
+;;; compiled by jwz@thalidomide on Sun Dec 13 17:53:18 1992
+;;; from file /u/jwz/emacs19/lisp/packages/etags.el
+;;; emacs version 19.4 Lucid.
 ;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
@@ -126,7 +126,10 @@ The function is called with no args.")
 ****Function to call after a hook is found.
 Make it buffer-local in a mode hook.
 The function is called with no args.")
-(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇM‡" [find-tag-default #[nil "ÀÁ!«‹	Â>¬†ÃÄÅ®¹ŠhzÆ>¬ŠÇÈ!¬…ÉuˆªvÇÊ!«…ÉuˆªvËÊÌÍ#­–ÎÉuˆ`ÏĞ!ˆÇÑ!«…Éuˆªv`{!)‡" [boundp find-tag-default-hook (nil find-tag-default) data (funcall find-tag-default-hook) ((error (byte-code "ÀÁ\n\"ˆÃÄ!ˆÅ‡" [message "value of find-tag-default-hook signalled error: %s" data sit-for 1 nil] 3))) (119 95) looking-at "\\sw\\|\\s_\\|\\'" 1 "\\sw\\|\\s_" re-search-backward nil t regexp-quote forward-sexp -1 "\\s'"] 4] tag-completion-predicate #[(tag-symbol) "À	!­‰	J‰­ƒÃÄ‡" [boundp tag-symbol tag-symbol-tables found (byte-code "­’@	>«…ÂÃÄ\"ˆA‰¬oÅ‡" [tag-symbol-tables buffer-tag-table-list throw found t nil] 4)] 2] buffer-tag-table-symbol-list #[nil "ÀÁÂ \"‡" [mapcar #[(table-name) "À	\n\"‡" [intern table-name tag-completion-table] 3] buffer-tag-table-list] 3] find-tag-tag #[(prompt) "À Â ÄÄÇ	«ˆÈÉ\n	#ª‚\nÌÄ‰%‰Í˜«„	Cª‚,‡" [find-tag-default default buffer-tag-table-symbol-list buffer-tag-table-list nil tag-symbol-tables tag-name completing-read format "%s(default %s) " prompt tag-completion-table tag-completion-predicate ""] 7]] 2)
+(byte-code "ÀÁMˆÂÃMˆÄÅM‡" [find-tag-default #[nil "ÀÁ!«‹	Â>¬†ÃÄÅ®¹ŠhzÆ>¬ŠÇÈ!¬…ÉuˆªvÇÊ!«…ÉuˆªvËÊÌÍ#­–ÎÉuˆ`ÏĞ!ˆÇÑ!«…Éuˆªv`{!)‡" [boundp find-tag-default-hook (nil find-tag-default) data (funcall find-tag-default-hook) ((error (byte-code "ÀÁ\n\"ˆÃÄ!ˆÅ‡" [message "value of find-tag-default-hook signalled error: %s" data sit-for 1 nil] 3))) (119 95) looking-at "\\sw\\|\\s_\\|\\'" 1 "\\sw\\|\\s_" re-search-backward nil t regexp-quote forward-sexp -1 "\\s'"] 4] tag-completion-predicate #[(tag-symbol) "À	!­‰	J‰­ƒÃÄ‡" [boundp tag-symbol tag-symbol-tables found (byte-code "­’@	>«…ÂÃÄ\"ˆA‰¬oÅ‡" [tag-symbol-tables buffer-tag-table-list throw found t nil] 4)] 2] buffer-tag-table-symbol-list #[nil "ÀÁÂ \"‡" [mapcar #[(table-name) "À	\n\"‡" [intern table-name tag-completion-table] 3] buffer-tag-table-list] 3]] 2)
+(defvar find-tag-history nil "\
+History list for find-tag-tag")
+(fset 'find-tag-tag #[(prompt) "À Â ÄÄÇ	«ˆÈÉ\n	#ª‚\nÌÄ‰Í&‰Î˜«„	Cª‚,‡" [find-tag-default default buffer-tag-table-symbol-list buffer-tag-table-list nil tag-symbol-tables tag-name completing-read format "%s(default %s) " prompt tag-completion-table tag-completion-predicate find-tag-history ""] 8])
 (defvar last-tag-data nil "\
 Information for continuing a tag search.
 Is of the form (TAG POINT TAG-TABLE TAG-TABLE ...).")

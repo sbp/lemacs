@@ -14,24 +14,21 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-#ifndef EXTENTSDATA
-#define EXTENTSDATA
+#ifndef _EXTENTS_DATA_H_
+#define _EXTENTS_DATA_H_
+
+#ifndef ENERGIZE
+ERROR! extents-data.h is an Energize-only file
+#endif
 
 /****************************** Types *********************************/
 
-#ifdef ENERGIZE
 #include <request.h>
-#include <editorside.h>
+#include "editorside.h"
+
 #include "extents.h"
-#include <wimage.h>
 
-#else /* ! ENERGIZE */
-
-#define BITS32 unsigned int
-
-#endif /* ! ENERGIZE */
-
-typedef BITS32 Id;		/* Energize id */
+typedef BITS32 EId;		/* Energize id */
 
 /* In general, we keep positions in Energize form in our data structures,
    and only convert to Emacs positions as needed for Emacs operations. */
@@ -48,14 +45,14 @@ typedef BITS32 EmacsPos;
 #define OBJECT_SEAL_MASK 0x7FFFFFFF
 #define OBJECT_FREE_BIT  0x80000000
 
-#define OBJECT_SEAL(x) (((Extent_Data *)(x))->seal & OBJECT_SEAL_MASK)
-#define OBJECT_FREE(x) (((Extent_Data *)(x))->seal & OBJECT_FREE_BIT)
+#define OBJECT_SEAL(x) (((Energize_Extent_Data *)(x))->seal & OBJECT_SEAL_MASK)
+#define OBJECT_FREE(x) (((Energize_Extent_Data *)(x))->seal & OBJECT_FREE_BIT)
 #define SET_OBJECT_FREE(x) \
 { \
   /* if (OBJECT_FREE (x)) \
     error ("Free'ing already freed object 0x%x", x); \
-  ((Extent_Data *)(x))->seal |= OBJECT_FREE_BIT; \  */ \
-  free(x); \
+  ((Energize_Extent_Data *)(x))->seal |= OBJECT_FREE_BIT; \  */ \
+  xfree(x); \
 }
 
 #define CHECK_OBJECT(x, y) \
@@ -65,53 +62,23 @@ typedef BITS32 EmacsPos;
 ((OBJECT_SEAL(x) == BUF_INFO_SEAL) || (OBJECT_SEAL(x) == EXTENT_SEAL) || \
  (OBJECT_SEAL(x) == GDATA_CLASS_SEAL) || (OBJECT_SEAL(x) == GDATA_SEAL))
 
-enum Object_Free_Type  
+enum Energize_Object_Free_Type  
 { OFT_MAPHASH, OFT_STANDALONE, OFT_GC };
-typedef enum Object_Free_Type OFT;
-
-
-     
-enum Extent_Glyph_Type  
-{ EGT_START_GLYPH, EGT_END_GLYPH };
-                            
-typedef enum Extent_Glyph_Type EGT;
-
-#ifdef ENERGIZE
-
-struct Image_Entry_Struct
-{
-  Image *image;
-  int refcount;
-  char *defining_string;
-  Pixmap pixmap;
-  short height;
-  short width;
-  /* 0 if not assigned */
-  int	bitmap_index;
-};
-
-typedef struct Image_Entry_Struct *IMAGE;
-
-#endif /* ENERGIZE */
 
 typedef struct 
 {
   int seal;                     /* must be GDATA_CLASS_SEAL */
-  Id id;
+  EId id;
   short flags;
-#ifdef ENERGIZE
-  IMAGE image;
-#endif
+  GLYPH glyph;
 } GDataClass;
 
 typedef struct 
 {
   int seal;                     /* must be GDATA_SEAL */
-  Id id;
+  EId id;
   GDataClass *cl;
-#ifdef ENERGIZE
-  IMAGE image;
-#endif
+  GLYPH glyph;
   short flags;
   short attribute;              /* graphic attribute for extent chars */
   short modified_state;
@@ -122,13 +89,11 @@ typedef struct
 typedef struct 
 {
   int seal;                     /* must be EXTENT_SEAL */
-  Id id;
+  EId id;
   int extentType;               /* oneof CEAttribute, CEAbbreviation, etc. */
   Lisp_Object extent;           /* corresponding extent */
-#ifdef ENERGIZE
-  Lisp_Object start_glyph_index;
-  Lisp_Object end_glyph_index;
-#endif
+  struct x_pixmap *start_pixmap;
+  struct x_pixmap *end_pixmap;
   union
     {
       struct
@@ -144,21 +109,18 @@ typedef struct
           GenericData* gData;
         } generic;
     } u;
-} Extent_Data;
+} Energize_Extent_Data;
 
-
-#ifdef ENERGIZE
 
 /* Information about each Energize buffer */
 
 typedef struct 
 {
   int seal;                     /* must be BUF_INFO_SEAL */
-  Id id;                        /* Energize id for buffer */
+  EId id;                        /* Energize id for buffer */
   int flags;                    /* e.g. CBReadOnly or CBStandard */
   Editor *editor;               /* corresponding editor structure */
   c_hashtable id_to_object;     /* energize ids to extents, gdata & classes */
-  c_hashtable image_table;      /* buffer local glyphs table */
   Lisp_Object emacs_buffer;     /* corresponding emacs buffer */
   char	modified_state;		/* modified state as notified to Energize */
   char	editable;		/* Energize authorized user to edit buffer */
@@ -212,9 +174,7 @@ static struct buffer_type_struct
 #define UNINITIALIZED_BUFFER_TYPE "energize-unspecified-buffer"
 #define UNKNOWN_BUFFER_TYPE "energize-unknown-buffer"
 
-Extent_Data *energize_extent_data (EXTENT);
-void set_energize_extent_data (EXTENT, Extent_Data *);
+Energize_Extent_Data *energize_extent_data (EXTENT);
+void set_energize_extent_data (EXTENT, void *);
 
-#endif /* ENERGIZE */
-
-#endif /* EXTENTSDATA */
+#endif /* _EXTENTS_DATA_H_ */

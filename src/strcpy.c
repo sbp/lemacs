@@ -24,7 +24,7 @@ strcpy (char *to, const char *from)
       register unsigned long c;
       register unsigned long magic = MAGIC;
       register unsigned long not_magic = ~magic;
-      register unsigned long hi_bit = 0x80000000;
+/*      register unsigned long hi_bit = 0x80000000; */
 
       while (c = *from1)
         {

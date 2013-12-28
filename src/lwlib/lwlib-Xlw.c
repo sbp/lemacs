@@ -26,34 +26,43 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Menu callbacks */
 static void
-pre_hook (Widget w, caddr_t client_data, caddr_t call_data)
+pre_hook (Widget w, XtPointer client_data, XtPointer call_data)
 {
   XlwMenuWidget bar = (XlwMenuWidget)w;
   widget_instance* instance = (widget_instance*)client_data;
+  widget_value* val;
 
   if (w->core.being_destroyed)
     return;
 
+  val = lw_get_widget_value_for_widget (instance, w);
   if (instance->info->pre_activate_cb)
-    instance->info->pre_activate_cb (w, instance->info->id, NULL);
+    instance->info->pre_activate_cb (w, instance->info->id,
+				     val ? val->call_data : NULL);
 }
 
 static void
-pick_hook (Widget w, caddr_t client_data, caddr_t call_data)
+pick_hook (Widget w, XtPointer client_data, XtPointer call_data)
 {
   XlwMenuWidget bar = (XlwMenuWidget)w;
   widget_instance* instance = (widget_instance*)client_data;
-  widget_value* val = (widget_value*)call_data;
+  widget_value* contents_val = (widget_value*)call_data;
+  widget_value* widget_val;
+  XtPointer widget_arg;
 
   if (w->core.being_destroyed)
     return;
 
-  if (instance->info->selection_cb && val && val->enabled
-      && !val->contents)
-    instance->info->selection_cb (w, instance->info->id, val->call_data);
+  if (instance->info->selection_cb && contents_val && contents_val->enabled
+      && !contents_val->contents)
+    instance->info->selection_cb (w, instance->info->id,
+				  contents_val->call_data);
 
+  widget_val = lw_get_widget_value_for_widget (instance, w);
+  widget_arg = widget_val ? widget_val->call_data : NULL;
   if (instance->info->post_activate_cb)
-    instance->info->post_activate_cb (w, instance->info->id, NULL);
+    instance->info->post_activate_cb (w, instance->info->id, widget_arg);
+
 }
 
 /* creation functions */

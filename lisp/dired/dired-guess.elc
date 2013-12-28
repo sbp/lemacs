@@ -1,7 +1,7 @@
-;;; compiled by jwz@watergate on Tue Aug 18 17:13:35 1992
-;;; from file /wg1/emacs-base/lisp/dired/dired-guess.el
+;;; compiled by jwz@thalidomide on Tue Aug 18 17:08:28 1992
+;;; from file /u/jwz/emacs19/lisp/dired/dired-guess.el
 ;;; emacs version 19.2.2 Lucid.
-;;; bytecomp version 2.08;  7-aug-92.
+;;; bytecomp version 2.08;  2-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

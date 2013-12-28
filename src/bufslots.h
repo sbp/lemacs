@@ -1,11 +1,11 @@
 /* Definitions of marked slots in buffers
-   Copyright (C) 1990 Free Software Foundation, Inc.
+   Copyright (C) 1990, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -66,10 +66,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
     /* Keys that are bound local to this buffer */
     MARKED_SLOT (keymap);
-    /* Local bindings for mouse buttons, expressed as a keymap.  */
-    MARKED_SLOT (mouse_map);
-    /* Local bindings for function keys. */
-    MARKED_SLOT (function_key_map);
+
     /* This buffer's local abbrev table */
     MARKED_SLOT (abbrev_table);
     /* This buffer's syntax table. */

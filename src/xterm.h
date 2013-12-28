@@ -1,11 +1,11 @@
 /* Definitions and headers for communication with X protocol.
-   Copyright (C) 1989 Free Software Foundation, Inc.
+   Copyright (C) 1989, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -24,79 +24,40 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <X11/Xatom.h>
 #include <X11/Xresource.h>
 
-#ifdef ENERGIZE
-#include <cimage.h>
-#endif
-
 #include <X11/Intrinsic.h>  /* must be before lisp.h */
 
 #include "blockio.h"
 
-/* Define a queue for X-events.  One such queue is used for mouse clicks.
-   Another is used for expose events.  */
-
-#define EVENT_BUFFER_SIZE 64
-
-#define RES_CLASS "emacs"
-
-/* Max and Min sizes in character columns. */
-#define MINWIDTH 10
-#define MINHEIGHT 10
-#define MAXWIDTH 300
-#define MAXHEIGHT 80
-
-/* Pixel sized limits */
-#define MIN_BITMAP_WIDTH 4
 #define MAX_LINE_WIDTH(s) (PIXEL_WIDTH (s) \
 			    - (2 * (s)->display.x->internal_border_width))
 
-struct x_bitmap
+struct x_pixmap
 {
-  short width;
-  short height;
-  Pixmap image;
-#ifdef ENERGIZE
-  Image *cimage;
-#endif
+  Pixmap pixmap, mask;
+  GLYPH glyph_id;		/* index into glyph_to_x_pixmaps */
+  unsigned short face_id;	/* ~0 means use colors of current face */
+  unsigned int width;
+  unsigned int height;
+  unsigned int depth;		/* 0 depth means this is a bitmap of depth 1,
+				   and 1 represents the foreground color.
+				   Nonzero depth means that the cells of the
+				   pixmap are actual pixel values.  This
+				   matters because BlackPixel/WhitePixel vary.
+				 */
 };
 
-#ifdef ENERGIZE
-extern struct x_bitmap *x_bitmaps;
-extern struct x_bitmap *x_stipples;
-#else
-extern struct x_bitmap x_bitmaps[];
-extern struct x_bitmap x_stipples[];
-#endif
+extern struct x_pixmap builtin_continuer_pixmap;
+extern struct x_pixmap builtin_truncator_pixmap;
+extern struct x_pixmap builtin_rarrow_pixmap;
 
-#define SELECTION_BITMAP 0
-#define COMPRESS_BITMAP 1
-#define IBEGIN_BITMAP 2
-#define IEND_BITMAP 3
-#define CONTINUER_BITMAP 4
-#define TRUNCATOR_BITMAP 5
-#define RARROW_BITMAP 6
+extern struct x_pixmap *glyph_to_x_pixmap (GLYPH g);
 
-#ifdef ENERGIZE
-/* please keep this number up to date */
-#define PREDEFINED_BITMAPS_UPPER_BOUND 7
-#endif
-
-#define DEFAULT0_STIPPLE 0
-#define DEFAULT1_STIPPLE 1
-#define SELECTION_STIPPLE 2
-#define SECONDARY_SELECTION_STIPPLE 3
-#define OVERLAP_SELECTION_STIPPLE 4
 
 #define EOL_CURSOR_WIDTH 4
 
 #define XFlushQueue() {BLOCK_INPUT; XFlush(x_current_display); UNBLOCK_INPUT;}
-#define ROOT_WINDOW RootWindow (x_current_display, XDefaultScreen (x_current_display))
 #define FONT_TYPE XFontStruct
-#define Color XColor
 
-#define XExposeRegionEvent XExposeEvent
-#define Bitmap Pixmap			/* In X11, Bitmaps are are kind of
-					   Pixmap. */
 extern XCharStruct *x_char_info ();
 
 #define X_CHAR_WIDTH(font,ch) ((font)->per_char 		    \
@@ -106,7 +67,6 @@ extern XCharStruct *x_char_info ();
 
 #define FONT_WIDTH(f)	((f)->max_bounds.width)
 #define FONT_HEIGHT(f)	((f)->ascent + (f)->descent)
-#define TOTAL_HEIGHT(f)	((f)->ascent + (f)->descent + x_interline_space)
 #define FONT_BASE(f)    ((f)->ascent)
 
 #ifndef sigmask
@@ -122,99 +82,7 @@ extern struct screen *x_window_to_screen (Window);
 
 /* Variables associated with the X display screen this emacs is using. */
 
-/* How many screens this X display has. */
-extern Lisp_Object x_screen_count;
-
-/* The vendor supporting this X server. */
-extern Lisp_Object Vx_vendor;
-
-/* The vendor's release number for this X server. */
-extern Lisp_Object x_release;
-
-/* Height of this X screen in pixels. */
-extern Lisp_Object x_screen_height;
-
-/* Height of this X screen in millimeters. */
-extern Lisp_Object x_screen_height_mm;
-
-/* Width of this X screen in pixels. */
-extern Lisp_Object x_screen_width;
-
-/* Width of this X screen in millimeters. */
-extern Lisp_Object x_screen_width_mm;
-
-/* Does this X screen do backing store? */
-extern Lisp_Object Vx_backing_store;
-
-/* Does this X screen do save-unders? */
-extern Lisp_Object x_save_under;
-
-/* Number of planes for this screen. */
-extern Lisp_Object x_screen_planes;
-
-/* X Visual type of this screen. */
-extern Lisp_Object Vx_screen_visual;
-
-/* Pointer shapes */
-extern Lisp_Object Vx_pointer_shape;
-extern Lisp_Object Vx_nontext_pointer_shape;
-extern Lisp_Object Vx_mode_pointer_shape;
 extern Lisp_Object Vx_gc_pointer_shape;
-
-/* X Atoms used for client and window manager communication. */
-
-/* Atom for indicating window state to the window manager. */
-extern Atom Xatom_wm_change_state;
-
-/* When emacs became the selection owner. */
-extern Time x_begin_selection_own;
-
-/* The value of the current emacs selection. */
-extern Lisp_Object Vx_selection_value;
-
-/* Emacs' selection property identifier. */
-extern Atom Xatom_emacs_selection;
-
-/* Clipboard selection atom. */
-extern Atom Xatom_clipboard_selection;
-
-/* Clipboard atom. */
-extern Atom Xatom_clipboard;
-
-/* Atom for indicating incremental selection transfer. */
-extern Atom Xatom_incremental;
-
-/* Atom for indicating multiple selection request list */
-extern Atom Xatom_multiple;
-
-/* Atom for what targets emacs handles. */
-extern Atom Xatom_targets;
-
-/* Atom for indicating timstamp selection request */
-extern Atom Xatom_timestamp;
-
-/* Atom requesting we delete our selection. */
-extern Atom Xatom_delete;
-
-/* Selection magic. */
-extern Atom Xatom_insert_selection;
-
-/* Type of property for INSERT_SELECTION. */
-extern Atom Xatom_pair;
-
-/* More selection magic. */
-extern Atom Xatom_insert_property;
-
-/* Atom for indicating property type TEXT */
-extern Atom Xatom_text;
-
-/* Communication with window managers. */
-extern Atom Xatom_wm_protocols;
-
-/* Kinds of protocol things we may receive. */
-extern Atom Xatom_wm_take_focus;
-extern Atom Xatom_wm_save_yourself;
-extern Atom Xatom_wm_delete_window;
 
 
 #define PIXEL_WIDTH(s) ((s)->display.x->pixel_width)
@@ -257,7 +125,7 @@ struct x_display
   PIX_TYPE line_info_background_pixel;
 #endif
 
-  FONT_TYPE *font;
+/*  FONT_TYPE *font; */
   int text_height;
 
   /* Flag to set when the X window needs to be completely repainted. */
@@ -312,8 +180,8 @@ struct x_display
      one can have a mouse, and more than one can have keyboard focus.
    */
   char focus_p;
-  char mouse_p;
-  char input_p;
+/*  char mouse_p; */
+/*  char input_p; */
   
   /* 1 if the screen is completely visible on the display, 0 otherwise.
      if 0 the screen may have been iconified or may be totally
@@ -321,9 +189,5 @@ struct x_display
   char totally_visible_p;
 };
 
-extern struct screen *x_mouse_screen;
-
 /* Number of pixels below each line. */
 extern int x_interline_space;
-
-extern int reasonable_glyph_index_p ();

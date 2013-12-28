@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Sun Aug  2 16:57:26 1992
-;;; from file /wg1/emacs-base/lisp/vm/vm-vars.el
-;;; emacs version 19.2.2 Lucid.
-;;; bytecomp version 2.08;  2-aug-92.
+;;; compiled by jwz@thalidomide on Sun Aug  2 16:34:56 1992
+;;; from file /u/jwz/emacs19/lisp/vm/vm-vars.el
+;;; emacs version 19.2.5 Lucid.
+;;; bytecomp version 2.07; 15-jul-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

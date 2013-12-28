@@ -1,7 +1,7 @@
-;;; compiled by jwz@watergate on Tue Aug 18 17:17:11 1992
-;;; from file /wg1/emacs-base/lisp/gnus/gnusmisc.el
-;;; emacs version 19.2.2 Lucid.
-;;; bytecomp version 2.08;  7-aug-92.
+;;; compiled by jwz@thalidomide on Mon Dec 28 16:00:12 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/gnus/gnusmisc.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.08; 13-dec-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -25,11 +25,11 @@ unless it against the options line in the startup file (.newsrc).
 
 Entry to this mode calls gnus-Browse-killed-mode-hook with no arguments,
 if that value is non-nil." nil])
-(fset 'gnus-Browse-killed-groups #[nil "¨Ñ¡¬!à√!¨Ñ≈ «»!!à… à Õ à´èŒ@!càAâ¨qeb*á" [gnus-killed-assoc error "No killed newsgroups" get-buffer-window gnus-Browse-killed-buffer current-window-configuration gnus-winconf-browse-killed pop-to-buffer get-buffer-create gnus-Browse-killed-mode nil killed-assoc buffer-read-only erase-buffer gnus-Group-prepare-line] 4 "\
+(fset 'gnus-Browse-killed-groups #[nil "¨Ñ¡¬!à√!¨Ñ≈ «»!!à… à Õ à´èŒ@!càAâ¨qeb*á" [gnus-killed-assoc error "No killed newsgroups" get-buffer-window gnus-Browse-killed-buffer current-window-configuration gnus-winconf-browse-killed gnus-pop-to-buffer get-buffer-create gnus-Browse-killed-mode nil killed-assoc buffer-read-only erase-buffer gnus-Group-prepare-line] 4 "\
 Browse the killed newsgroups.
 The keys y and C-y yank the newsgroup on the current line into the
 Newsgroups buffer." nil])
-(fset 'gnus-Browse-killed-yank #[nil "¿ â´¶¬ƒ	\"«!à´Ö…!à«\n!àÀyà`Ãyà`|à*)Õ á" [gnus-Group-group-name group nil buffer-read-only assoc gnus-killed-assoc killed pop-to-buffer gnus-Group-buffer gnus-Group-insert-group gnus-Browse-killed-buffer 0 1 gnus-Browse-killed-check-buffer] 4 "\
+(fset 'gnus-Browse-killed-yank #[nil "¿ â´¶¬ƒ	\"«!à´Ö…!à«\n!àÀyà`Ãyà`|à*)Õ á" [gnus-Group-group-name group nil buffer-read-only assoc gnus-killed-assoc killed gnus-pop-to-buffer gnus-Group-buffer gnus-Group-insert-group gnus-Browse-killed-buffer 0 1 gnus-Browse-killed-check-buffer] 4 "\
 Yank current newsgroup to Newsgroup buffer." nil])
 (fset 'gnus-Browse-killed-check-buffer #[nil "?≠á¡\n!≠Ç√ á" [gnus-killed-assoc get-buffer gnus-Browse-killed-buffer gnus-Browse-killed-exit] 2 "\
 Exit if the buffer is empty by deleting the window and killing the buffer."])

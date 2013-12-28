@@ -1,3 +1,4 @@
+;;; Id: pcl-cvs-startup.el,v 1.2 1992/07/09 17:01:55 ceder Exp 
 (autoload 'cvs-update "pcl-cvs"
 	  "Run a 'cvs update' in the current working directory. Feed the
 output to a *cvs* buffer and run cvs-mode on it.

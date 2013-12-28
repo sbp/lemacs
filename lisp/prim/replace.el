@@ -1,11 +1,11 @@
 ;; Replace commands for Emacs.
-;; Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -18,12 +18,16 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
+(defvar minibuffer-regexp-history nil)
+
 (fset 'delete-non-matching-lines 'keep-lines)
 (defun keep-lines (regexp)
   "Delete all lines except those containing matches for REGEXP.
 A match split across lines preserves all the lines it lies in.
 Applies to all lines after point."
-  (interactive "sKeep lines (containing match for regexp): ")
+;;  (interactive "sKeep lines (containing match for regexp): ")
+  (interactive (list (read-string "Keep lines (containing match for regexp): "
+				  nil 'minibuffer-regexp-history)))
   (save-excursion
     (or (bolp) (forward-line 1))
     (let ((start (point)))
@@ -48,7 +52,9 @@ Applies to all lines after point."
   "Delete lines containing matches for REGEXP.
 If a match is split across lines, all the lines it lies in are deleted.
 Applies to lines after point."
-  (interactive "sFlush lines (containing match for regexp): ")
+;;  (interactive "sFlush lines (containing match for regexp): ")
+  (interactive (list (read-string "Flush lines (containing match for regexp): "
+				  nil 'minibuffer-regexp-history)))
   (save-excursion
     (while (and (not (eobp))
 		(re-search-forward regexp nil t))
@@ -60,7 +66,9 @@ Applies to lines after point."
 (fset 'count-matches 'how-many)
 (defun how-many (regexp)
   "Print number of matches for REGEXP following point."
-  (interactive "sHow many matches for (regexp): ")
+;;  (interactive "sHow many matches for (regexp): ")
+  (interactive (read-string "How many matches for (regexp): "
+			    nil 'minibuffer-regexp-history))
   (let ((count 0) opoint)
     (save-excursion
      (while (and (not (eobp))
@@ -147,7 +155,8 @@ It serves as a menu to find any of the occurrences in this buffer.
 \\[describe-mode] in that buffer will explain how."
   (interactive (list (setq occur-last-string
 			   (read-string "List lines matching regexp: "
-					occur-last-string))
+					occur-last-string
+					'minibuffer-regexp-history))
 		     current-prefix-arg))
   (setq nlines (if nlines (prefix-numeric-value nlines)
 		 list-matching-lines-default-context-lines))
@@ -380,8 +389,9 @@ which will run faster and do exactly what you probably want."
 			    (or replaced
 				(mapcar
 				 (function (lambda (elt)
-					     (and elt
-						  (marker-position elt))))
+					     (if (markerp elt)
+						 (marker-position elt)
+					       elt)))
 				 (match-data))))
 		      stack))
 	  (if replaced (setq replace-count (1+ replace-count)))))

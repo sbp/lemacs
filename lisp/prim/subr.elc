@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Sat Aug 29 19:43:22 1992
-;;; from file /wg1/emacs-base/lisp/prim/subr.el
-;;; emacs version 19.2.13 Lucid.
-;;; bytecomp version 2.08;  7-aug-92.
+;;; compiled by jwz@thalidomide on Fri Jan  1 18:01:28 1993
+;;; from file /cadillac-th/jwz/emacs19/lisp/prim/subr.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 29-dec-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,7 +10,14 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(fset 'one-window-p #[(&optional arg) "À ÁÀ \n­Â\"=‡" [selected-window next-window arg] 4 "\
+(defvar kill-buffer-hook nil "\
+Function or functions to be called when a buffer is killed.
+The value of this variable may be buffer-local.
+The buffer about to be killed is current when this hook is run.")
+(fset 'generate-new-buffer #[(name) "ÀÁ\n!!‡" [get-buffer-create generate-new-buffer-name name] 3 "\
+Create and return a buffer with a name based on NAME.
+Choose the buffer's name using `generate-new-buffer-name'."])
+(fset 'one-window-p #[(&optional nomini) "À ÁÀ \n­Â\"=‡" [selected-window next-window nomini] 4 "\
 Returns non-nil if there is only one window.
 Optional arg NOMINI non-nil means don't count the minibuffer
 even if it is active."])
@@ -29,27 +36,22 @@ represented by the octal number consisting of those digits.
 Optional argument PROMPT specifies a string to use to prompt the user."])
 (fset 'error #[(&rest args) "ÀÁÂÃ\"C\"ˆªu" [signal error apply format args] 5 "\
 Signal an error, making error message by passing all args to `format'."])
-(byte-code "ÀÁMˆÂÀÃÄ#‡" [undefined #[nil "À ‡" [ding] 1 nil nil] put suppress-keymap t] 4)
+(fset 'undefined #[nil "À ‡" [ding] 1 nil nil])
+(defun baud-rate nil "\
+Obsolete function returning the value of the `baud-rate' variable." baud-rate)
+(put 'undefined 'suppress-keymap t)
 (fset 'suppress-keymap #[(map &optional nodigits) "ÀÁ\n\"ˆ®ªÄÅÆ\"È	ÊË#ˆÌHÍX­”È	Î#ˆÌÌHTIˆªd)‡" [map-keymap #[(key binding) "Á=­‡ÂÄ!Æ#‡" [binding self-insert-command define-key map vector key undefined] 4] global-map nodigits make-string 1 48 string define-key map "-" negative-argument 0 57 digit-argument] 4 "\
 Make MAP override all normally self-inserting keys to be undefined.
 Normally, as an exception, digits and minus-sign are set to make prefix args,
 but optional second arg NODIGITS non-nil treats them like other chars."])
-(fset 'substitute-key-definition #[(olddef newdef keymap) "À	Â\"‡" [map-keymap keymap #[(key binding) "	=­…Â#‡" [binding olddef define-key keymap key newdef] 4]] 3 "\
+(fset 'substitute-key-definition #[(olddef newdef keymap) "ÀÁ\n\"‡" [map-keymap #[(key binding) "	=­…Â#‡" [binding olddef define-key keymap key newdef] 4] keymap] 3 "\
 Replace OLDDEF with NEWDEF for any keys in KEYMAP now defined as OLDDEF.
 In other words, OLDDEF is replaced with NEWDEF where ever it appears.
 Prefix keymaps reached from KEYMAP are not checked recursively;
 perhaps they ought to be."])
-(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕMˆÖ×MˆØÙMˆÚÛMˆÜİMˆŞßMˆàáMˆâãMˆäåMˆæçMˆèéMˆêëMˆìíMˆîïM‡" [ignore (lambda (&rest ignore)) make-syntax-table copy-syntax-table dot point dot-marker point-marker dot-min point-min dot-max point-max window-dot window-point set-window-dot set-window-point read-input read-string send-string process-send-string send-region process-send-region show-buffer set-window-buffer buffer-flush-undo buffer-disable-undo string= string-equal string< string-lessp mod % move-marker set-marker eql eq not null rplaca setcar rplacd setcdr beep ding indent-to-column indent-to backward-delete-char delete-backward-char] 2)
-(defvar global-map nil "\
-Default global keymap mapping Emacs keyboard input into commands.
-The value is a keymap which is usually (but not necessarily) Emacs's
-global map.")
-(defvar ctl-x-map nil "\
-Default keymap for C-x commands.
-The normal global definition of the character C-x indirects to this keymap.")
-(defvar esc-map nil "\
-Default keymap for ESC (meta) commands.
-The normal global definition of the character ESC indirects to this keymap.")
+(fset 'save-match-data '(macro . #[(&rest body) "ÀÁÂÃBÅEE‡" [let ((_match_data_ (match-data))) unwind-protect progn body (store-match-data _match_data_)] 5 "\
+Execute the BODY forms, restoring the global value of the match data."]))
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓMˆÔÕMˆÖ×MˆØÙMˆÚÛMˆÜİMˆŞßMˆàáMˆâãMˆäåMˆæçMˆèéMˆêëMˆìíMˆîïMˆğñKMˆòóKM‡" [ignore (lambda (&rest ignore)) make-syntax-table copy-syntax-table dot point dot-marker point-marker dot-min point-min dot-max point-max window-dot window-point set-window-dot set-window-point read-input read-string send-string process-send-string send-region process-send-region show-buffer set-window-buffer buffer-flush-undo buffer-disable-undo string= string-equal string< string-lessp mod % move-marker set-marker eql eq not null rplaca setcar rplacd setcdr beep ding indent-to-column indent-to backward-delete-char delete-backward-char search-forward-regexp re-search-forward search-backward-regexp re-search-backward] 2)
 (fset 'run-hooks #[(&rest hooklist) "­¬@Â	!«œ	J«˜	J‰<«@Ä=¬‡ÅÆ\"ˆªƒ ˆ))A‰¬UÇ‡" [hooklist sym boundp value lambda mapcar funcall nil] 4 "\
 Takes hook names and runs each one in turn.  Major mode functions use this.
 Each argument should be a symbol, a hook variable.
@@ -61,12 +63,19 @@ If it is a list, the elements are called, in order, with no arguments."])
 (defconst run-hooks 'run-hooks "\
 Variable by which C primitives find the function `run-hooks'.
 Don't change it.")
-(fset 'add-hook #[(hook-var function) "À	!¬„	ÂLˆ	J<«‡	J@Ã=«†	‰JCLˆ	J?­†		JBL‡" [boundp hook-var nil lambda function] 3 "\
+(fset 'add-hook #[(hook-var function &optional at-end) "À	!¬„	ÂLˆ	J‰<«†@Ä=«ƒC?­	«†C¤ªƒBL)‡" [boundp hook-var nil old lambda function at-end] 4 "\
 Add a function to a hook.
 First argument HOOK-VAR (a symbol) is the name of a hook, second
-argument FUNCTION is the function to add.
+ argument FUNCTION is the function to add.
+Third (optional) argument AT-END means to add the function at the end
+ of the hook list instead of the beginning.  If the function is already
+ present, this has no effect.
 Returns nil if FUNCTION was already present in HOOK-VAR, else new
-value of HOOK-VAR." "SAdd to hook-var (symbol): \naAdd which function to %s? "])
+ value of HOOK-VAR."])
+(fset 'remove-hook #[(hook-var function) "ÀÂ!¬ƒÀª—J‰=«…À‰ªŠ	:­†Å	\"L)‡" [nil val boundp hook-var function delq] 4 "\
+Remove a function from a hook, if it is present.
+First argument HOOK-VAR (a symbol) is the name of a hook, second
+ argument FUNCTION is the function to remove (compared with `eq')."])
 (fset 'momentary-string-display #[(string pos &optional exit-char message) "¬‚ÁÂÃ ÂÉŠ\nbˆÂË!ˆ`)Í®ÎÏ!\"ˆĞÑ !Ó!=®…‰.‡" [exit-char 32 nil buffer-modified-p buffer-file-name insert-end name modified buffer-read-only ((byte-code "«†Š	|ˆ)\nÄ!‡" [insert-end pos name buffer-file-name set-buffer-modified-p modified] 2)) pos insert-before-markers string message "Type %s to continue editing." single-key-description next-command-event allocate-event event event-to-character unread-command-event] 4 "\
 Momentarily display STRING in the buffer at POS.
 Display remains until next character is typed.
@@ -86,14 +95,6 @@ BUFFER is the buffer or (buffer-name) to associate with the process.
 Third arg is command name, the name of a shell command.
 Remaining arguments are the arguments for the command.
 Wildcards and redirection are handle as usual in the shell."])
-(fset 'eval-after-load #[(file form) "À	\n\"¬…	C\nBÀ	\n\"C¤ˆ‡" [assoc file after-load-alist form] 3 "\
-Arrange that, if FILE is ever loaded, FORM will be run at that time.
-This makes or adds to an entry on `after-load-alist'.
-FILE should be the name of a library, with no directory name."])
-(fset 'eval-next-after-load #[(file) "À	Â \"‡" [eval-after-load file read] 3 "\
-Read the following input sexp, and run it whenever FILE is loaded.
-This makes or adds to an entry on `after-load-alist'.
-FILE should be the name of a library, with no directory name."])
 (fset 'user-original-login-name #[nil "ÀÁ!®‡ÀÂ!®‚Ã ‡" [getenv "LOGNAME" "USER" user-login-name] 2 "\
 Return user's login name from original login.
 This tries to remain unaffected by `su', by looking in environment variables."])
@@ -101,3 +102,44 @@ This tries to remain unaffected by `su', by looking in environment variables."])
 Force the mode-line of the current buffer to be redisplayed.
 With optional non-nil ALL then force then force redisplay of all mode-lines."])
 (fset 'force-mode-line-update 'redraw-mode-line)
+(fset 'local-key-binding #[(keys) "À ‰­„Â	\")‡" [current-local-map map lookup-key keys] 4 "\
+Return the binding for command KEYS in current local keymap only.
+KEYS is a string, a vector of events, or a vector of key-description lists
+as described in the documentation for the `define-key' function.
+The binding is probably a symbol with a function definition; see
+the documentation for `lookup-key' for more information."])
+(fset 'global-key-binding #[(keys) "ÀÁ \n\"‡" [lookup-key current-global-map keys] 3 "\
+Return the binding for command KEYS in current global keymap only.
+KEYS is a string or vector of events, a sequence of keystrokes.
+The binding is probably a symbol with a function definition; see
+the documentation for `lookup-key' for more information."])
+(fset 'global-set-key #[(keys function) "ÀÁ \n#‡" [define-key current-global-map keys function] 4 "\
+Give KEY a global binding as COMMAND.
+COMMAND is a symbol naming an interactively-callable function.
+KEYS is a string, a vector of events, or a vector of key-description lists
+as described in the documentation for the `define-key' function.
+Note that if KEY has a local binding in the current buffer
+that local binding will continue to shadow any global binding." "kSet key globally: \nCSet key %s to command: "])
+(fset 'local-set-key #[(keys function) "À ¬…ÁÂ !ˆÃÀ #‡" [current-local-map use-local-map make-sparse-keymap define-key keys function] 4 "\
+Give KEY a local binding as COMMAND.
+COMMAND is a symbol naming an interactively-callable function.
+KEYS is a string, a vector of events, or a vector of key-description lists
+as described in the documentation for the `define-key' function.
+The binding goes in the current buffer's local map,
+which is shared with other buffers in the same major mode." "kSet key locally: \nCSet key %s locally to command: "])
+(fset 'global-unset-key #[(keys) "À	Â\"‡" [global-set-key keys nil] 3 "\
+Remove global binding of KEY.
+KEYS is a string, a vector of events, or a vector of key-description lists
+as described in the documentation for the `define-key' function." "kUnset key globally: "])
+(fset 'local-unset-key #[(keys) "À ­†ÁÀ \nÃ#‡" [current-local-map define-key keys nil] 4 "\
+Remove local binding of KEY.
+KEYS is a string, a vector of events, or a vector of key-description lists
+as described in the documentation for the `define-key' function." "kUnset key locally: "])
+(fset 'define-prefix-command #[(name &optional mapvar) "À Â	\"ˆ	Mˆ¬†	Lˆª‰Å=¬„	Lˆ)‡" [make-sparse-keymap map set-keymap-name name mapvar t] 3 "\
+Define COMMAND as a prefix command.
+A new sparse keymap is stored as COMMAND's function definition.
+If second optional argument MAPVAR is not specified,
+ COMMAND's value (as well as its function definition) is set to the keymap.
+If a second optional argument MAPVAR is given and is not `t',
+  the map is stored as its value.
+Regardless of MAPVAR, COMMAND's function-value is always set to the keymap."])

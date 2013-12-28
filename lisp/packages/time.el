@@ -107,3 +107,5 @@ echo area instead of in the mode-line."
       ;; Force redisplay of all buffers' mode lines to be considered.
       (save-excursion (set-buffer (other-buffer)))
       (set-buffer-modified-p (buffer-modified-p)))))
+
+(provide 'time)

@@ -1,5 +1,5 @@
 /* The portable interface to event_streams.
-   Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -84,6 +84,7 @@ static int keystrokes;
 
 
 
+#if 0
 static void
 maybe_kbd_translate (event)
      Lisp_Object event;
@@ -96,6 +97,7 @@ maybe_kbd_translate (event)
   c = XSTRING (Vkeyboard_translate_table)->data[c];
   Fcharacter_to_event (make_number (c), event);
 }
+#endif
 
 #define	max(a,b) ((a)>(b)?(a):(b))
 
@@ -108,7 +110,7 @@ maybe_do_auto_save ()
       !detect_input_pending ())
     {
       keystrokes = 0;
-      Fdo_auto_save (Qnil, Qnil);
+      Fdo_auto_save (Qnil);
     }
 }
 
@@ -136,7 +138,7 @@ execute_help_form (event)
   cancel_echoing ();
   Fnext_command_event (event);
   /* Remove the help from the screen */
-  unbind_to (count);
+  unbind_to (count, Qnil);
   redisplay ();
   if (event_to_character (XEVENT (event), 0) == ' ')
     {
@@ -282,6 +284,13 @@ Check that your $DISPLAY environment variable is properly set.\n"));
 }
 
 
+void maybe_status_notify (void);
+void update_status (struct Lisp_Process *);
+void finalize_kbd_macro_chars (void);
+void deactivate_process (Lisp_Object);
+int read_process_output (Lisp_Object, int);
+
+
 DEFUN ("next-event", Fnext_event, Snext_event, 1, 1, 0,
   "Given an event structure, fills it in with the next event available\n\
 from the window system or terminal driver.  Pass this object to\n\
@@ -307,10 +316,10 @@ which is often more appropriate.")
   if (!NILP (Vunread_command_event))
     {
       if (!EVENTP (Vunread_command_event) ||
-	  XEVENT (Vunread_command_event)->event_type != key_press_event &&
-	  XEVENT (Vunread_command_event)->event_type != button_press_event &&
-	  XEVENT (Vunread_command_event)->event_type != button_release_event &&
-	  XEVENT (Vunread_command_event)->event_type != menu_event)
+	  (XEVENT (Vunread_command_event)->event_type != key_press_event &&
+	   XEVENT (Vunread_command_event)->event_type != button_press_event &&
+	   XEVENT (Vunread_command_event)->event_type != button_release_event&&
+	   XEVENT (Vunread_command_event)->event_type != menu_event))
 	{
 	  Lisp_Object bogus = Vunread_command_event;
 	  Vunread_command_event = Qnil;
@@ -395,6 +404,8 @@ which is often more appropriate.")
 	      store_kbd_macro_event (event);
 	    }
 	}
+    default:
+      ;
     }
 
   /* If this is the help char and there is a help form, then execute the
@@ -593,9 +604,25 @@ from PROCESS.")
       switch (XEVENT (event)->event_type)
 	{
 	case process_event:
-	  if (EQ (XEVENT (event)->event.process.process, proc))
-	    proc = Qnil;
-	  /* fall through */
+	  {
+	    if (EQ (XEVENT (event)->event.process.process, proc))
+	      proc = Qnil;
+	    Fdispatch_event (event);
+
+	    /* We must call status_notify here to allow the
+	       event_stream->unselect_process_cb to be run if appropriate.
+	       Otherwise, dead fds may be selected for, and we will get a
+	       continuous stream of process events for them.  Since we don't
+	       return until all process events have been flushed, we would
+	       get stuck here, processing events on a process whose status
+	       was 'exit.  Call this after dispatch-event, or the fds will
+	       have been closed before we read the last data from them.
+	       It's safe for the filter to signal an error because
+	       status_notify() will be called on return to top-level.
+	     */
+	    maybe_status_notify ();
+	    break;
+	  }
 	case timeout_event:
 	case pointer_motion_event:
 	case magic_event:
@@ -630,22 +657,16 @@ lisp_number_to_milliseconds (secs, allow_0)
   fsecs = XINT (secs);
 #endif
   msecs = 1000 * fsecs;
+  if (fsecs < 0)
+    return Fsignal (Qerror, Fcons (build_string ("timeout is negative"),
+				   Fcons (secs, Qnil)));
+  if (!allow_0 && fsecs == 0)
+    return Fsignal (Qerror, Fcons (build_string ("timeout is non-positive"),
+				   Fcons (secs, Qnil)));
   if (fsecs >= (((unsigned int) 0xFFFFFFFF) / 1000))
     return Fsignal (Qerror, Fcons (build_string (
              "timeout would exceed 32 bits when represented in milliseconds"),
 			    Fcons (secs, Qnil)));
-  if (allow_0)
-    {
-      if (msecs < 0)
-	return Fsignal (Qerror, Fcons (build_string ("timeout is negative"),
-				       Fcons (secs, Qnil)));
-    }
-  else
-    {
-      if (msecs <= 0)
-	return Fsignal (Qerror, Fcons (build_string ("timeout is non-positive"),
-				       Fcons (secs, Qnil)));
-    }
   return msecs;
 }
 
@@ -658,10 +679,10 @@ ARG may be a float, meaning pause for some fractional part of a second.")
 {
   unsigned int msecs = lisp_number_to_milliseconds (n, 1);
   int id;
-  Lisp_Object result, event = 0;
+  Lisp_Object event = 0;
   struct gcpro gcpro1;
 
-  if (msecs < 0 || !event_stream)
+  if (!event_stream)
     return Qnil;
 
   GCPRO1 (event);
@@ -864,8 +885,12 @@ until the return to top-level (the same is true of process filters.)")
   unsigned long msecs = lisp_number_to_milliseconds (secs, 0);
   unsigned long msecs2 = (NILP (resignal) ? 0 :
 			  lisp_number_to_milliseconds (resignal, 0));
-  int id = event_stream->generate_wakeup_cb (msecs, msecs2, function, object);
-  Lisp_Object lid = make_number (id);
+  int id;
+  Lisp_Object lid;
+  if (noninteractive) error ("can't add timeouts in batch mode");
+  if (! event_stream) abort ();
+  id = event_stream->generate_wakeup_cb (msecs, msecs2, function, object);
+  lid = make_number (id);
   if (id != XINT (lid)) abort ();
   return lid;
 }
@@ -878,6 +903,8 @@ will cause that timeout to not be signalled if it hasn't been already.")
      Lisp_Object id;
 {
   CHECK_FIXNUM (id, 0);
+  if (noninteractive) error ("can't use timeouts in batch mode");
+  if (! event_stream) abort ();
   event_stream->disable_wakeup_cb (XINT (id));
   return Qnil;
 }
@@ -888,15 +915,13 @@ will cause that timeout to not be signalled if it hasn't been already.")
    the X server and the Energize server.)
  */
 void
-wait_delaying_user_input (predicate, closure)
-     int (*predicate) ();
-     void *closure;
+wait_delaying_user_input (int (*predicate) (void *arg), void *predicate_arg)
 {
   Lisp_Object event = Fallocate_event ();
   struct gcpro gcpro1;
   GCPRO1 (event);
 
-  while (!(*predicate) (closure))
+  while (!(*predicate) (predicate_arg))
     {
       QUIT;
       /* We're a generator of the command_event_queue, so we can't be a
@@ -1058,7 +1083,7 @@ echo_prompt (str)
 {
   int len = strlen (str);
   if (len > 200) return;
-  bcopy (str, command_builder->echobuf, len+1);
+  memcpy (command_builder->echobuf, str, len+1);
   command_builder->echoptr = command_builder->echobuf + len;
   command_builder->echo_keys = 1;
   maybe_echo_keys ();
@@ -1135,7 +1160,7 @@ command_builder_find_leaf (allow_menu_events_p)
     }
   else
     command_builder->leaf = Fkey_binding (command_builder->events);
-  unbind_to (count);
+  unbind_to (count, Qnil);
   UNGCPRO;
 
   /* If we didn't find a binding, and the last event in the sequence is
@@ -1385,8 +1410,12 @@ static void dispatch_command_event_internal ();
 
 extern Lisp_Object Vcurrent_mouse_event;
 extern int zmacs_region_active_p, zmacs_region_stays;
+extern void zmacs_update_region (void);
 
 extern int kbd_macro_end, pre_command_kbd_macro_end;
+
+static void pre_command_hook ();
+static void post_command_hook ();
 
 /* Add the given event to the command builder, and if that results in 
    a complete key sequence, either execute the corresponding command, or
@@ -1454,7 +1483,6 @@ compose_command (event, execute_p)
 
 	 This is pretty hairy, but I think it's the most intuitive behavior.
        */
-      int suppress_bitching = 0;
       struct Lisp_Event *terminal_event =
 	XEVENT (XVECTOR (command_builder->events)->contents [count-1]);
 
@@ -1487,6 +1515,12 @@ compose_command (event, execute_p)
 	strcpy (command_builder->echoptr,"not defined."); /* doo dah, doo dah*/
 	maybe_echo_keys ();
 	command_builder->echo_keys = 0;
+	/* Run the pre-command-hook before barfing about an undefined key. */
+	Vthis_command = Qnil;
+	pre_command_hook ();
+	/* Beep (but don't signal).  The post-command-hook doesn't run,
+	   just as it wouldn't run if we had executed a real command which
+	   signalled an error.  But maybe it should in this case. */
 	bitch_at_user (intern ("undefined-key"));
       }
       /* Reset the command builder to read the next sequence.
@@ -1517,9 +1551,6 @@ compose_command (event, execute_p)
 
 
 static void store_last_command_event ();
-static void pre_command_hook ();
-static void post_command_hook ();
-
 static void
 dispatch_command_event_internal (event, leaf)
      struct Lisp_Event *event;
@@ -1594,7 +1625,7 @@ dispatch_command_event_internal (event, leaf)
 	 if an error was actually signalled, so the setting back
 	 will only happen if it completed normally.
        */
-      unbind_to (count);
+      unbind_to (count, Qnil);
       reset_this_command_keys = 0;
     }
 
@@ -1740,6 +1771,7 @@ related function.")
   GCPRO1 (event);
 
   QUIT;
+  CHECK_STRING (prompt, 0);
   echo_prompt ((char *) XSTRING (prompt)->data);
 
   specbind (Qinhibit_quit, Qt);
@@ -1748,12 +1780,13 @@ related function.")
     result = dispatch_event_internal (Fnext_event (event), 0);
   Vquit_flag = Qnil;  /* In case we read a ^G */
   Fdeallocate_event (event);
-  unbind_to (count);
+  unbind_to (count, Qnil);
   UNGCPRO;
   return result;
 }
 
 
+void
 syms_of_event_stream ()
 {
   command_builder = (struct command_builder *)

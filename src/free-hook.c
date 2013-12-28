@@ -128,7 +128,9 @@ static void
 save_backtrace (FRAME *current_frame_ptr, fun_entry *table)
 {
   int i = 0;
+#ifdef SAVE_ARGS
   int j;
+#endif
   FRAME current_frame = *current_frame_ptr;
 
   /* Get up and out of free() */

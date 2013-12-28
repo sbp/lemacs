@@ -1,11 +1,11 @@
 /* Cursor motion calculation definitions for GNU Emacs
-   Copyright (C) 1985, 1989 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1989, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -160,10 +160,9 @@ extern short ospeed;		/* Output speed (from sg_ospeed) */
 #define losecursor()	(curX = -1, curY = -1)
 
 extern int cost;
-extern int evalcost ();
-
-extern void cmputc ();
-extern int cmcostinit ();
-extern int cmgoto ();
-extern int Wcm_clear ();
-extern int Wcm_init ();
+extern int evalcost (char c);
+extern int cmputc (char c);
+extern void cmcostinit (void);
+extern void cmgoto (int, int);
+extern void Wcm_clear (void);
+extern int Wcm_init (void);

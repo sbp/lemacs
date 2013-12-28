@@ -854,6 +854,13 @@ you can look at different buffers in the different screens. You can
 control the number of screens associated with the current display, by
 setting the variable `x-screen-count'.
 
+   The function `find-file-new-screen' is just like `find-file', but
+creates a new screen to display the buffer in first.
+
+   The function `switch-to-buffer-new-screen' is just like
+`switch-to-buffer', but creates a new screen to display the buffer in
+first.
+
    You can specify a different default screen size other than the one
 provided. Use the variable `screen-default-alist', which is an alist
 of default values for screen creation other than the first one.  These
@@ -885,8 +892,9 @@ applies:
      `auto-lower-screen' lowers a screen to the bottom when it is no
      longer selected. If true, `auto-raise-screen' raises a screen to
      the top when it is selected. Under X, most ICCCM-compliant window
-     managers will options to do this for you, but these variables are
-     provided in case you are using a broken window manager.
+     managers will have options to do this for you, but these
+     variables are provided in case you are using a broken window
+     manager.
 
    * to the name of the current screen (a screen's name is distinct
      from its title; the name is used for resource lookup, among other

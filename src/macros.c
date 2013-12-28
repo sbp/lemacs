@@ -201,6 +201,8 @@ pop_kbd_macro_event (event)
 	return;
       }
     break;
+  default:
+    error ("junk in executing-macro");
   }
 
   Fthrow (Qexecute_kbd_macro, Qt);
@@ -292,12 +294,11 @@ COUNT is a repeat count, or nil for once, or 0 for infinite loop.")
 	  VECTORP (Vexecuting_macro)));
 
   UNGCPRO;
-  unbind_to (count);
-
-  return Qnil;
+  return unbind_to (count, Qnil);
 }
 
 
+void
 init_macros ()
 {
   Vlast_kbd_macro = Qnil;
@@ -307,6 +308,7 @@ init_macros ()
   Vexecuting_macro = Qnil;
 }
 
+void
 syms_of_macros ()
 {
   kbd_macro_builder = Fmake_vector (100, Qnil);
@@ -333,11 +335,4 @@ nil if none executing.");
 
   DEFVAR_LISP ("last-kbd-macro", &Vlast_kbd_macro,
     "Last kbd macro defined, as a vector of events; nil if none defined.");
-}
-
-keys_of_macros ()
-{
-  initial_define_key (control_x_map, ('e'), "call-last-kbd-macro");
-  initial_define_key (control_x_map, ('('), "start-kbd-macro");
-  initial_define_key (control_x_map, (')'), "end-kbd-macro");
 }

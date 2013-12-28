@@ -37,17 +37,24 @@ the mode-motion-hook of the buffer of that window is run.")
 	 (screen (if window (window-screen window) (selected-screen)))
 	 (buffer (and window (window-buffer window)))
 	 (point (and buffer (event-point event))))
-    (if point
+    (if buffer
 	(save-excursion
 	  (set-buffer buffer)
-	  (goto-char point)
-	  (condition-case () (funcall backward) (error nil))
-	  (setq point (point))
-	  (condition-case () (funcall forward) (error nil))
-	  (if (and mode-motion-extent (extent-buffer mode-motion-extent))
-	      (set-extent-endpoints mode-motion-extent point (point))
-	    (setq mode-motion-extent (make-extent point (point)))
-	    (set-extent-attribute mode-motion-extent 'highlight))))))
+	  (if point
+	      (progn
+		(goto-char point)
+		(condition-case nil (funcall backward) (error nil))
+		(setq point (point))
+		(condition-case nil (funcall forward) (error nil))
+		(if (and mode-motion-extent (extent-buffer mode-motion-extent))
+		    (set-extent-endpoints mode-motion-extent point (point))
+		  (setq mode-motion-extent (make-extent point (point)))
+		  (set-extent-attribute mode-motion-extent 'highlight)))
+	    ;; not over text; zero the extent.
+	    (if (and mode-motion-extent (extent-buffer mode-motion-extent)
+		     (not (eq (extent-start-position mode-motion-extent)
+			      (extent-end-position mode-motion-extent))))
+		(set-extent-endpoints mode-motion-extent 1 1)))))))
 
 
 (defun mode-motion-highlight-line (event)
@@ -98,25 +105,40 @@ the mode-motion-hook of the buffer of that window is run.")
 			       'read-file-name-internal)))
     (mode-motion-highlight-internal
      event
-     (function (lambda () (mouse-track-beginning-of-word
-			   (if filename-kludge-p 'nonwhite t))))
-     (function (lambda ()
-		 (let ((p (point)) string)
-		   (mouse-track-end-of-word (if filename-kludge-p 'nonwhite t))
-		   (if (or (= p (point)) (null minibuffer-completion-table))
-		       (goto-char p)
-		     (setq string (buffer-substring p (point)))
-		     (if filename-kludge-p
-			 (setq string (minibuf-select-kludge-filename string)))
-		     (or (try-completion string minibuffer-completion-table
-					 minibuffer-completion-predicate)
-			 (goto-char p)))))))))
+     (function
+      (lambda () (mouse-track-beginning-of-word
+		  (if filename-kludge-p 'nonwhite t))))
+     (function
+      (lambda ()
+	(let ((p (point)) string)
+	  (mouse-track-end-of-word (if filename-kludge-p 'nonwhite t))
+	  (if (or (= p (point)) (null minibuffer-completion-table))
+	      (goto-char p)
+	    (setq string (buffer-substring p (point)))
+	    (if filename-kludge-p
+		(setq string (minibuf-select-kludge-filename string)))
+	    ;; try-completion bogusly returns a string even when that string
+	    ;; is complete if that string is also a prefix for other
+	    ;; completions.  This means that we can't just do the obvious
+	    ;; thing, (eq t (try-completion ...)).
+	    (let ((comp (try-completion string minibuffer-completion-table
+					minibuffer-completion-predicate)))
+	      (or (eq comp t)
+		  (and (equal comp string)
+		       (or (null minibuffer-completion-predicate)
+			   (stringp minibuffer-completion-predicate) ; ???
+			   (funcall minibuffer-completion-predicate
+				    (if (vectorp minibuffer-completion-table)
+					(intern-soft string
+					 minibuffer-completion-table)
+				      string))))
+		  (goto-char p))))))))))
 
 
 (defun minibuf-select-kludge-filename (string)
   (save-excursion
     (set-buffer mouse-grabbed-buffer) ; the minibuf
-    (concat (file-name-directory (buffer-string)) string)))
+    (expand-file-name (concat (file-name-directory (buffer-string)) string))))
 
 
 (defun minibuf-select-highlighted-completion (event)
@@ -125,27 +147,57 @@ When the minibuffer is being used to prompt the user for a completion,
 any valid completions which are visible on the screen will highlight
 when the mouse moves over them.  Clicking \\<minibuffer-local-map>\
 \\[minibuf-select-highlighted-completion] will select the
-highlighted completion under the mouse."
+highlighted completion under the mouse.
+
+If the mouse is clicked while while not over a highlighted completion,
+then the global binding of \\[minibuf-select-highlighted-completion] \
+will be executed instead.  In this\nway you can get at the normal global \
+behavior of \\[minibuf-select-highlighted-completion] as well as
+the special minibuffer behavior."
   (interactive "e")
-  (save-excursion
-    (minibuf-mouse-tracker event) ; make sure we're sync'd
-    (set-buffer (window-buffer (event-window event)))
-    (if (or (null mode-motion-extent)
-	    (= (extent-start-position mode-motion-extent)
-	       (extent-end-position mode-motion-extent)))
-	(if minibuffer-completion-table
-	    (error
-	     "Highlighted words are valid completions. You may select one.")
-	  (error "no completions")))
-    (let ((completion
-	   (buffer-substring (extent-start-position mode-motion-extent)
-			     (extent-end-position mode-motion-extent))))
-      (if (eq minibuffer-completion-table 'read-file-name-internal)
-	  (setq completion (minibuf-select-kludge-filename completion)))
-      (set-buffer mouse-grabbed-buffer)
-      (erase-buffer)
-      (insert completion))
-    (throw 'exit nil)))
+  (let ((filename-kludge-p (eq minibuffer-completion-table
+			       'read-file-name-internal))
+	completion
+	command-p)
+    (save-excursion
+      (minibuf-mouse-tracker event) ; make sure we're sync'd
+      (set-buffer (window-buffer (event-window event)))
+      (if (or (null mode-motion-extent)
+	      (= (extent-start-position mode-motion-extent)
+		 (extent-end-position mode-motion-extent)))
+	  (setq command-p t)
+	;; ...else user has selected a highlighted completion.
+	(setq completion
+	      (buffer-substring (extent-start-position mode-motion-extent)
+				(extent-end-position mode-motion-extent)))
+	(if filename-kludge-p
+	    (setq completion (minibuf-select-kludge-filename completion)))
+	;; narrow the extent so that it's not hanging around in *Completions*
+	(set-extent-endpoints mode-motion-extent 1 1)
+	(set-buffer mouse-grabbed-buffer)
+	(erase-buffer)
+	(insert completion)))
+    ;; we need to execute the command or do the throw outside of the
+    ;; save-excursion.
+    (if command-p
+	(let ((command (lookup-key global-map (vector current-mouse-event))))
+	  (if command
+	      (call-interactively command)
+	    (if minibuffer-completion-table
+		(error
+	      "Highlighted words are valid completions.  You may select one.")
+	      (error "no completions"))))
+      ;; things get confused if the minibuffer is terminated while
+      ;; not selected.
+      (select-window (minibuffer-window))
+      (if (and filename-kludge-p (file-directory-p completion))
+	  ;; if the user clicked middle on a directory name, display the
+	  ;; files in that directory.
+	  (progn
+	    (goto-char (point-max))
+	    (minibuffer-completion-help))
+	;; otherwise, terminate input
+	(throw 'exit nil)))))
 
 (define-key minibuffer-local-map 'button2
   'minibuf-select-highlighted-completion)

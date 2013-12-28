@@ -1,7 +1,7 @@
-;;; compiled by jwz@watergate on Tue Aug 18 17:16:59 1992
-;;; from file /wg1/emacs-base/lisp/gnus/gnus.el
-;;; emacs version 19.2.2 Lucid.
-;;; bytecomp version 2.08;  7-aug-92.
+;;; compiled by jwz@thalidomide on Thu Jan 14 00:57:01 1993
+;;; from file /u/jwz/emacs19/lisp/gnus/gnus.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 29-dec-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -442,8 +442,8 @@ Rewrite Date field in GMT to local in current buffer.")
 (byte-code "ÀÁÂ\"ˆÀÃÂ\"‡" [autoload timezone-make-sortable-date "timezone" timezone-parse-date] 3)
 (autoload 'rmail-output "rmailout" "\
 Append this message to Unix mail file named FILE-NAME." t)
-(byte-code "ÀÁÂ\"ˆÀÃÄ\"ˆÀÅÄ\"ˆÆÇÈÉ#ˆÆÊÈÉ#ˆÆËÈÉ#‡" [autoload mail-position-on-field "sendmail" mh-find-path "mh-e" mh-prompt-for-folder put gnus-Group-mode mode-class special gnus-Subject-mode gnus-Article-mode] 4)
-(fset 'gnus-eval-in-buffer-window '(macro . #[(buffer &rest forms) "ÀÁÂÃÄÅDD\"ÈEE‡" [let ((GNUSStartBufferWindow (selected-window))) unwind-protect append progn pop-to-buffer buffer forms (select-window GNUSStartBufferWindow)] 7 "\
+(byte-code "ÀÁÂ\"ˆÀÃÄ\"ˆÀÅÄ\"ˆÆÇÈÉ#ˆÆÊÈÉ#ˆÆËÈÉ#ˆÌÍM‡" [autoload mail-position-on-field "sendmail" mh-find-path "mh-e" mh-prompt-for-folder put gnus-Group-mode mode-class special gnus-Subject-mode gnus-Article-mode gnus-pop-to-buffer #[(buffer) "ÀÂ!)‡" [nil pre-display-buffer-function pop-to-buffer buffer] 2]] 4)
+(fset 'gnus-eval-in-buffer-window '(macro . #[(buffer &rest forms) "ÀÁÂÃÄÅDD\"ÈEE‡" [let ((GNUSStartBufferWindow (selected-window))) unwind-protect append progn gnus-pop-to-buffer buffer forms (select-window GNUSStartBufferWindow)] 7 "\
 Pop to BUFFER, evaluate FORMS, and then returns to original window."]))
 (fset 'gnus-make-hashtable '(macro . #[nil "À‡" [(make-abbrev-table)] 1]))
 (fset 'gnus-gethash '(macro . #[(string hashtable) "À	\nE‡" [abbrev-expansion string hashtable] 3 "\
@@ -1050,7 +1050,7 @@ Various hooks for customization:
     gnus-use-cross-reference to nil in this hook." nil])
 (fset 'gnus-Subject-setup-buffer #[nil "À	!«ƒ	q‡Â	!qˆÃ ‡" [get-buffer gnus-Subject-buffer get-buffer-create gnus-Subject-mode] 2 "\
 Initialize subject display buffer."])
-(fset 'gnus-Subject-read-group #[(group &optional show-all no-article) "ÀÁ\n\"ˆÃ\n\"«üÅ ˆÆÇ!ˆÈ ˆÆÉ!ˆÊ ËU«‰ÌÍÎ\"ˆÀÏ!‡«‡«ƒÒ ˆebˆ¬™«•Õ «‘pÖ!=­¼ËyˆØÙÍÎ#‡ÚÛ!ˆÜ!ˆİ ˆÖ!«™ß!«ŠqˆÍ á ˆ*ª…â!ˆËyˆØÙÍÎ#‡ã\n$\"«å ˆÀæçè\n\"!!ˆéË!‡ê ‡" [message "Retrieving newsgroup: %s..." group gnus-select-newsgroup show-all gnus-Subject-setup-buffer run-hooks gnus-Select-group-hook gnus-Subject-prepare gnus-Apply-kill-hook buffer-size 0 gnus-Subject-catch-up-and-exit nil t "No unread news" gnus-show-threads gnus-thread-hide-subtree gnus-Subject-hide-all-threads no-article gnus-auto-select-first gnus-Subject-first-unread-article get-buffer gnus-Subject-buffer search-forward ":" gnus-configure-windows SelectNewsgroup pop-to-buffer gnus-Subject-set-mode-line gnus-Article-buffer get-buffer-window buffer-read-only erase-buffer kill-buffer abbrev-expansion gnus-active-hashtb ding gnus-nntp-message format "Cannot select %s.  May be security or active file problem." sit-for gnus-Group-check-bogus-groups] 5 "\
+(fset 'gnus-Subject-read-group #[(group &optional show-all no-article) "ÀÁ\n\"ˆÃ\n\"«üÅ ˆÆÇ!ˆÈ ˆÆÉ!ˆÊ ËU«‰ÌÍÎ\"ˆÀÏ!‡«‡«ƒÒ ˆebˆ¬™«•Õ «‘pÖ!=­¼ËyˆØÙÍÎ#‡ÚÛ!ˆÜ!ˆİ ˆÖ!«™ß!«ŠqˆÍ á ˆ*ª…â!ˆËyˆØÙÍÎ#‡ã\n$\"«å ˆÀæçè\n\"!!ˆéË!‡ê ‡" [message "Retrieving newsgroup: %s..." group gnus-select-newsgroup show-all gnus-Subject-setup-buffer run-hooks gnus-Select-group-hook gnus-Subject-prepare gnus-Apply-kill-hook buffer-size 0 gnus-Subject-catch-up-and-exit nil t "No unread news" gnus-show-threads gnus-thread-hide-subtree gnus-Subject-hide-all-threads no-article gnus-auto-select-first gnus-Subject-first-unread-article get-buffer gnus-Subject-buffer search-forward ":" gnus-configure-windows SelectNewsgroup gnus-pop-to-buffer gnus-Subject-set-mode-line gnus-Article-buffer get-buffer-window buffer-read-only erase-buffer kill-buffer abbrev-expansion gnus-active-hashtb ding gnus-nntp-message format "Cannot select %s.  May be security or active file problem." sit-for gnus-Group-check-bogus-groups] 5 "\
 Start reading news in newsgroup GROUP.
 If optional 1st argument SHOW-ALL is non-nil, already read articles are
 also listed.
@@ -1108,11 +1108,11 @@ Go to previous N'th subject line.
 If optional argument UNREAD is non-nil, only unread article is selected." "p"])
 (fset 'gnus-Subject-prev-unread-subject #[(n) "À	Â\"‡" [gnus-Subject-prev-subject n t] 3 "\
 Go to previous N'th unread subject line." "p"])
-(fset 'gnus-Subject-expand-window #[nil "ÀÁ!ˆÂ!‡" [gnus-configure-windows ExpandSubject pop-to-buffer gnus-Subject-buffer] 2 "\
+(fset 'gnus-Subject-expand-window #[nil "ÀÁ!ˆÂ!‡" [gnus-configure-windows ExpandSubject gnus-pop-to-buffer gnus-Subject-buffer] 2 "\
 Expand Subject window to show headers full window." nil])
-(fset 'gnus-Subject-display-article #[(article &optional all-header) "??­™ÁÂ!ˆÃ!ˆÅ\"ˆÇ ˆÈ ˆÉÊ!ˆË‡" [article gnus-configure-windows SelectArticle pop-to-buffer gnus-Subject-buffer gnus-Article-prepare all-header gnus-Subject-recenter gnus-Subject-set-mode-line run-hooks gnus-Select-article-hook t] 3 "\
+(fset 'gnus-Subject-display-article #[(article &optional all-header) "??­™ÁÂ!ˆÃ!ˆÅ\"ˆÇ ˆÈ ˆÉÊ!ˆË‡" [article gnus-configure-windows SelectArticle gnus-pop-to-buffer gnus-Subject-buffer gnus-Article-prepare all-header gnus-Subject-recenter gnus-Subject-set-mode-line run-hooks gnus-Select-article-hook t] 3 "\
 Display ARTICLE in Article buffer."])
-(fset 'gnus-Subject-select-article #[(&optional all-headers force) "À \n«	\nU«ˆ«‹=¬†Æ	\"ªˆÇÈ!ˆÉ\n!)‡" [gnus-Subject-article-number article gnus-current-article force all-headers gnus-have-all-headers gnus-Subject-display-article gnus-configure-windows SelectArticle pop-to-buffer gnus-Subject-buffer] 3 "\
+(fset 'gnus-Subject-select-article #[(&optional all-headers force) "À \n«	\nU«ˆ«‹=¬†Æ	\"ªˆÇÈ!ˆÉ\n!)‡" [gnus-Subject-article-number article gnus-current-article force all-headers gnus-have-all-headers gnus-Subject-display-article gnus-configure-windows SelectArticle gnus-pop-to-buffer gnus-Subject-buffer] 3 "\
 Select the current article.
 Optional argument ALL-HEADERS is non-nil, show all headers."])
 (fset 'gnus-Subject-set-current-mark #[(&optional current-mark) "ŠqˆÁebˆÃÄÁÅ#«ŠÆÇ!ˆÈcˆebˆÃÉÊ\"ÁÅ#­ŠÆÌ!ˆ®Îc*‡" [gnus-Subject-buffer nil buffer-read-only re-search-forward "^.[ 	]+[0-9]+:[^ 	]" t delete-char -1 " " format "^.[ 	]+%d:" gnus-current-article 1 current-mark "+"] 4 "\
@@ -1128,14 +1128,14 @@ Select article before current one.
 If argument UNREAD is non-nil, only unread article is selected." "P"])
 (fset 'gnus-Subject-prev-unread-article #[nil "ÀÁ\n­‚Ã \"‡" [gnus-Subject-prev-article t gnus-auto-select-same gnus-Subject-subject-string] 3 "\
 Select unred article before current one." nil])
-(fset 'gnus-Subject-next-page #[(lines) "À Á«…U¬…Å!ª°ÆÇ!ˆÈ	!ˆÊ ÌÈ!ˆÎ!*\n«‰«…ĞÑ!ªŠ\n­‡?­‚Ò *‡" [gnus-Subject-article-number nil endp article gnus-current-article gnus-Subject-display-article gnus-configure-windows SelectArticle pop-to-buffer gnus-Subject-buffer selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-Article-buffer gnus-Article-next-page lines message "End of message" gnus-Subject-next-unread-article] 2 "\
+(fset 'gnus-Subject-next-page #[(lines) "À Á«…U¬…Å!ª°ÆÇ!ˆÈ	!ˆÊ ÌÈ!ˆÎ!*\n«‰«…ĞÑ!ªŠ\n­‡?­‚Ò *‡" [gnus-Subject-article-number nil endp article gnus-current-article gnus-Subject-display-article gnus-configure-windows SelectArticle gnus-pop-to-buffer gnus-Subject-buffer selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-Article-buffer gnus-Article-next-page lines message "End of message" gnus-Subject-next-unread-article] 2 "\
 Show next page of selected article.
 If end of artile, select next article.
 Argument LINES specifies lines to be scrolled up." "P"])
-(fset 'gnus-Subject-prev-page #[(lines) "À \n«…	\nU¬…Ã	!ª™ÄÅ!ˆÆ!ˆÈ 	ÊÆ!ˆÌ!*)‡" [gnus-Subject-article-number article gnus-current-article gnus-Subject-display-article gnus-configure-windows SelectArticle pop-to-buffer gnus-Subject-buffer selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-Article-buffer gnus-Article-prev-page lines] 2 "\
+(fset 'gnus-Subject-prev-page #[(lines) "À \n«…	\nU¬…Ã	!ª™ÄÅ!ˆÆ!ˆÈ 	ÊÆ!ˆÌ!*)‡" [gnus-Subject-article-number article gnus-current-article gnus-Subject-display-article gnus-configure-windows SelectArticle gnus-pop-to-buffer gnus-Subject-buffer selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-Article-buffer gnus-Article-prev-page lines] 2 "\
 Show previous page of selected article.
 Argument LINES specifies lines to be scrolled down." "P"])
-(fset 'gnus-Subject-scroll-up #[(lines) "À ˆÁ ÃÄ!ˆÇV«‹È!­ÉÊ!ª‹ÇW­…Ë[!*‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer lines 0 gnus-Article-next-page message "End of message" gnus-Article-prev-page] 2 "\
+(fset 'gnus-Subject-scroll-up #[(lines) "À ˆÁ ÃÄ!ˆÇV«‹È!­ÉÊ!ª‹ÇW­…Ë[!*‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer lines 0 gnus-Article-next-page message "End of message" gnus-Article-prev-page] 2 "\
 Scroll up (or down) one line current article.
 Argument LINES specifies lines to be scrolled up (or down if negative)." "p"])
 (fset 'gnus-Subject-next-same-subject #[nil "ÀÁÂ \"‡" [gnus-Subject-next-article nil gnus-Subject-subject-string] 3 "\
@@ -1146,31 +1146,31 @@ Select previous article which has the same subject as current one." nil])
 Select next unread article which has the same subject as current one." nil])
 (fset 'gnus-Subject-prev-unread-same-subject #[nil "ÀÁÂ \"‡" [gnus-Subject-prev-article t gnus-Subject-subject-string] 3 "\
 Select previous unread article which has the same subject as current one." nil])
-(fset 'gnus-Subject-refer-parent-article #[(child) "ÀÁ‰\"ˆÂ«…ÅÂ!ª¯Æ ÈÉ\n!ˆËÌ!‰«ÎÏ\"«ˆĞ”Ğ•O+;«…Å!ªƒÑÒ!)‡" [gnus-Subject-select-article t nil referenced-id child gnus-Subject-refer-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer gnus-fetch-field "References" references string-match "\\(<[^<>]+>\\)[^>]*\\'" 1 error "No more parents"] 4 "\
+(fset 'gnus-Subject-refer-parent-article #[(child) "ÀÁ‰\"ˆÂ«…ÅÂ!ª¯Æ ÈÉ\n!ˆËÌ!‰«ÎÏ\"«ˆĞ”Ğ•O+;«…Å!ªƒÑÒ!)‡" [gnus-Subject-select-article t nil referenced-id child gnus-Subject-refer-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer gnus-fetch-field "References" references string-match "\\(<[^<>]+>\\)[^>]*\\'" 1 error "No more parents"] 4 "\
 Refer parent article of current article.
 If a prefix argument CHILD is non-nil, go back to the child article
 using internally maintained articles history.
 NOTE: This command may not work with nnspool.el." "P"])
-(fset 'gnus-Subject-refer-article #[(message-id) "ÀÁ‰\"ˆ\n;«À\nGÃV«ºÄ ÆÇ!ˆÉÊ\n\"¬„Ë\nPÉÌ\n\"¬„\nÍPÎÏ!‰\nš¬@š¬‡B+ª‰@A\n;«…Ò\nÁ\"‡ÓÔ!‡" [gnus-Subject-select-article t message-id 0 selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer string-match "^<" "<" ">$" ">" gnus-fetch-field "Message-ID" current gnus-current-history gnus-Article-prepare error "No such references"] 4 "\
+(fset 'gnus-Subject-refer-article #[(message-id) "ÀÁ‰\"ˆ\n;«À\nGÃV«ºÄ ÆÇ!ˆÉÊ\n\"¬„Ë\nPÉÌ\n\"¬„\nÍPÎÏ!‰\nš¬@š¬‡B+ª‰@A\n;«…Ò\nÁ\"‡ÓÔ!‡" [gnus-Subject-select-article t message-id 0 selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer string-match "^<" "<" ">$" ">" gnus-fetch-field "Message-ID" current gnus-current-history gnus-Article-prepare error "No such references"] 4 "\
 Refer article specified by MESSAGE-ID.
 If the MESSAGE-ID is nil or an empty string, Message-ID is poped from
 internally maintained articles history.
 NOTE: This command may not work with nnspool.el." "sMessage-ID: "])
-(fset 'gnus-Subject-next-digest #[(nth) "À ˆÁ ÃÄ!ˆÆ®È!*‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer gnus-Article-next-digest nth 1] 2 "\
+(fset 'gnus-Subject-next-digest #[(nth) "À ˆÁ ÃÄ!ˆÆ®È!*‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer gnus-Article-next-digest nth 1] 2 "\
 Move to head of NTH next digested message." "p"])
-(fset 'gnus-Subject-prev-digest #[(nth) "À ˆÁ ÃÄ!ˆÆ®È!*‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer gnus-Article-prev-digest nth 1] 2 "\
+(fset 'gnus-Subject-prev-digest #[(nth) "À ˆÁ ÃÄ!ˆÆ®È!*‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer gnus-Article-prev-digest nth 1] 2 "\
 Move to head of NTH previous digested message." "p"])
 (fset 'gnus-Subject-first-unread-article #[nil "`ebˆÁÂÃÄ#«†ÅÆ !ªˆbˆÇÈ!ˆÃ)‡" [begin re-search-forward "^ [ 	]+[0-9]+:" nil t gnus-Subject-display-article gnus-Subject-article-number message "No more unread articles"] 4 "\
 Select first unread article. Return non-nil if successfully selected." nil])
-(fset 'gnus-Subject-isearch-article #[nil "À ˆÁ ÃÄ!ˆÆÇ!*‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer call-interactively isearch-forward] 2 "\
+(fset 'gnus-Subject-isearch-article #[nil "À ˆÁ ÃÄ!ˆÆ *‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer isearch-forward] 2 "\
 Do incremental search forward on current article." nil])
-(fset 'gnus-Subject-search-article-forward #[(regexp) "Á˜«‡\n®Áª‚ÃÄ\"«Å ÇÈ	!ˆÊË!*‡ÌÍ\"‡" [regexp "" gnus-last-search-regexp gnus-Subject-search-article nil selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer recenter 0 error "Search failed: \"%s\""] 3 "\
+(fset 'gnus-Subject-search-article-forward #[(regexp) "Á˜«‡\n®Áª‚ÃÄ\"«Å ÇÈ	!ˆÊË!*‡ÌÍ\"‡" [regexp "" gnus-last-search-regexp gnus-Subject-search-article nil selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer recenter 0 error "Search failed: \"%s\""] 3 "\
 Search for an article containing REGEXP forward.
 gnus-Select-article-hook is not called during the search." (byte-code "ÀÁ\n­„Ã\nÄQP!C‡" [read-string "Search forward (regexp): " gnus-last-search-regexp "(default " ") "] 5)])
-(fset 'gnus-Subject-search-article-backward #[(regexp) "Á˜«‡\n®Áª‚ÃÄ\"«Å ÇÈ	!ˆÊË!*‡ÌÍ\"‡" [regexp "" gnus-last-search-regexp gnus-Subject-search-article t selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer recenter 0 error "Search failed: \"%s\""] 3 "\
+(fset 'gnus-Subject-search-article-backward #[(regexp) "Á˜«‡\n®Áª‚ÃÄ\"«Å ÇÈ	!ˆÊË!*‡ÌÍ\"‡" [regexp "" gnus-last-search-regexp gnus-Subject-search-article t selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer recenter 0 error "Search failed: \"%s\""] 3 "\
 Search for an article containing REGEXP backward.
 gnus-Select-article-hook is not called during the search." (byte-code "ÀÁ\n­„Ã\nÄQP!C‡" [read-string "Search backward (regexp): " gnus-last-search-regexp "(default " ") "] 5)])
-(fset 'gnus-Subject-search-article #[(regexp &optional backward) "À‰	«ƒÂªÃÀ‰É ˆÊ ˆËÌ\"ˆÎ ĞÑ!ˆŒ~ˆÀÔ#+¬±ÕÖ	À‰#!«¨ËÌ\"ˆÎ ×Ñ!ˆŒ~ˆ	«ƒdªebˆÀÔ#+ªLËØ!ˆ=¬ƒ-‡" [nil backward re-search-backward re-search-forward last found re-search gnus-Mark-article-hook gnus-Select-article-hook gnus-Subject-show-all-threads gnus-Subject-select-article message "Searching article: %d..." gnus-current-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer regexp t gnus-Subject-display-article gnus-Subject-search-subject ((select-window GNUSStartBufferWindow)) "" gnus-last-article] 5 "\
+(fset 'gnus-Subject-search-article #[(regexp &optional backward) "À‰	«ƒÂªÃÀ‰É ˆÊ ˆËÌ\"ˆÎ ĞÑ!ˆŒ~ˆÀÔ#+¬±ÕÖ	À‰#!«¨ËÌ\"ˆÎ ×Ñ!ˆŒ~ˆ	«ƒdªebˆÀÔ#+ªLËØ!ˆ=¬ƒ-‡" [nil backward re-search-backward re-search-forward last found re-search gnus-Mark-article-hook gnus-Select-article-hook gnus-Subject-show-all-threads gnus-Subject-select-article message "Searching article: %d..." gnus-current-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer regexp t gnus-Subject-display-article gnus-Subject-search-subject ((select-window GNUSStartBufferWindow)) "" gnus-last-article] 5 "\
 Search for an article containing REGEXP.
 Optional argument BACKWARD means do search for backward.
 gnus-Select-article-hook is not called during the search."])
@@ -1178,9 +1178,9 @@ gnus-Select-article-hook is not called during the search."])
 If FIELD of article header matches REGEXP, execute COMMAND string.
 If FIELD is an empty string (or nil), entire article body is searched for.
 If optional (prefix) argument BACKWARD is non-nil, do backward instead." (byte-code "ÀÂÃÄÅÆ$)ÇÈ!ÉÊ!F‡" [t completion-ignore-case completing-read "Field name: " (("Number") ("Subject") ("From") ("Lines") ("Date") ("Id") ("Xref") ("References")) nil require-match read-string "Regexp: " read-key-sequence "Command: " current-prefix-arg] 5)])
-(fset 'gnus-Subject-beginning-of-article #[nil "À ˆÁ ÃÄ!ˆ~ˆÆ ˆ­‚È *‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer beginning-of-buffer gnus-break-pages gnus-narrow-to-page] 2 "\
+(fset 'gnus-Subject-beginning-of-article #[nil "À ˆÁ ÃÄ!ˆ~ˆÆ ˆ­‚È *‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer beginning-of-buffer gnus-break-pages gnus-narrow-to-page] 2 "\
 Go to beginning of article body" nil])
-(fset 'gnus-Subject-end-of-article #[nil "À ˆÁ ÃÄ!ˆ~ˆÆ ˆ­‚È *‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer end-of-buffer gnus-break-pages gnus-narrow-to-page] 2 "\
+(fset 'gnus-Subject-end-of-article #[nil "À ˆÁ ÃÄ!ˆ~ˆÆ ˆ­‚È *‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer end-of-buffer gnus-break-pages gnus-narrow-to-page] 2 "\
 Go to end of article body" nil])
 (fset 'gnus-Subject-goto-article #[(article &optional all-headers) "À	!­„Â	\"‡" [gnus-Subject-goto-subject article gnus-Subject-display-article all-headers] 3 "\
 Read ARTICLE if exists.
@@ -1194,7 +1194,7 @@ Show original header if pruned header currently shown, or vice versa.
 With arg, show original header iff arg is positive." "P"])
 (fset 'gnus-Subject-show-all-headers #[nil "ÀÁ‰\"‡" [gnus-Subject-select-article t] 3 "\
 Show original article header." nil])
-(fset 'gnus-Subject-stop-page-breaking #[nil "À ˆÁ ÃÄ!ˆ~*‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer] 2 "\
+(fset 'gnus-Subject-stop-page-breaking #[nil "À ˆÁ ÃÄ!ˆ~*‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer] 2 "\
 Stop page breaking by linefeed temporary (Widen article buffer)." nil])
 (fset 'gnus-Subject-kill-same-subject-and-select #[(unmark) "«„Á!ÂÃ \"ÅÆ­‚Ã \"ˆÈÉ«ƒÊªË#)‡" [unmark prefix-numeric-value gnus-Subject-mark-same-subject gnus-Subject-subject-string count gnus-Subject-next-article t gnus-auto-select-same message "%d articles are marked as %s" "unread" "read"] 4 "\
 Mark articles which has the same subject as read, and then select next.
@@ -1235,7 +1235,7 @@ Argument COUNT specifies number of articles unmarked" "p"])
 (fset 'gnus-Subject-clear-mark-backward #[(count) "ÁV­ÂÃÄ\"ˆÅÆÃ\"ˆS‰ªl‡" [count 0 gnus-Subject-mark-as-unread nil t gnus-Subject-prev-subject 1] 4 "\
 Remove current article's mark, and go backward.
 Argument COUNT specifies number of articles unmarked" "p"])
-(fset 'gnus-Subject-delete-marked-as-read #[nil "«ÁŠebˆÃÄ!ˆ)m«…ÅÆ!ªˆÇyˆÈÉÁÊ#)‡ËÌ!‡" [gnus-newsgroup-unreads nil buffer-read-only delete-non-matching-lines "^[ ---]" gnus-Subject-prev-subject 1 0 search-forward ":" t message "All articles are marked as read"] 4 "\
+(fset 'gnus-Subject-delete-marked-as-read #[nil "«ÁŠebˆÃÄ!ˆ)m«…ÅÆ!ªˆÇyˆÈÉÁÊ#)‡ËÌ!‡" [gnus-newsgroup-unreads nil buffer-read-only delete-non-matching-lines "^[-@ ]" gnus-Subject-prev-subject 1 0 search-forward ":" t message "All articles are marked as read"] 4 "\
 Delete lines which is marked as read." nil])
 (fset 'gnus-Subject-delete-marked-with #[(marks) "ÀŠebˆÂÃÅQ!ˆ)Æ ÇU®m«…ÈÉ!ªˆÇyˆÊËÀÌ#)‡" [nil buffer-read-only delete-matching-lines "^[" marks "]" buffer-size 0 gnus-Subject-prev-subject 1 search-forward ":" t] 4 "\
 Delete lines which are marked with MARKS (e.g. \"DK\")." "sMarks: "])
@@ -1289,11 +1289,11 @@ Optional argument REVERSE means reverse order."])
 (fset 'gnus-Subject-reselect-current-group #[(show-all) "À ÂÃ!ˆÄ!ˆÆÃ\"ˆÈ	!)‡" [gnus-Subject-article-number current-subject gnus-Subject-exit t gnus-Subject-jump-to-group gnus-newsgroup-name gnus-Group-read-group show-all gnus-Subject-goto-subject] 3 "\
 Once exit and then reselect the current newsgroup.
 Prefix argument SHOW-ALL means to select all articles." "P"])
-(fset 'gnus-Subject-caesar-message #[(rotnum) "À ˆÁ ˆÂ ÄÅ!ˆŒ~ˆÇÈ!ˆ`	Ê!ˆ	bˆÌÈ!,‡" [gnus-Subject-select-article gnus-overload-functions selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer move-to-window-line 0 last news-caesar-buffer-body rotnum recenter] 2 "\
+(fset 'gnus-Subject-caesar-message #[(rotnum) "À ˆÁ ˆÂ ÄÅ!ˆŒ~ˆÇÈ!ˆ`	Ê!ˆ	bˆÌÈ!,‡" [gnus-Subject-select-article gnus-overload-functions selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer move-to-window-line 0 last news-caesar-buffer-body rotnum recenter] 2 "\
 Caesar rotates all letters of current message by 13/47 places.
 With prefix arg, specifies the number of places to rotate each letter forward.
 Caesar rotates Japanese letters by 47 places in any case." "P"])
-(fset 'gnus-Subject-rmail-digest #[nil "À ˆÁÂ!ˆÄ!Æ	qˆÊp!ˆËÍ ˆÎ	!ˆÏĞ!ˆÑ ˆebˆÒ ˆÓ ˆÔ ˆÕ ˆËÖ×+‡" [gnus-Subject-select-article require rmail gnus-Article-buffer get-buffer-create gnus-Digest-buffer "" mail-header-separator digbuf artbuf buffer-disable-undo nil buffer-read-only erase-buffer insert-buffer-substring run-hooks gnus-Select-digest-hook gnus-convert-article-to-rmail rmail-insert-rmail-file-header rmail-mode rmail-set-message-counters rmail-show-message (byte-code "À ˆÁ ˆÂÄÆHPÈÉ!ˆÊC	##Ò!ÕÖ!ˆ×Ø!ˆÙ!ˆ«¢×ß!ˆÙ!ˆà ˆÙ!ˆáâã!!ˆ*ª”×ä!ˆÙ!ˆáâå!!ˆ)æ!ˆæ!ˆæ!ˆæ!‡" [undigestify-rmail-message rmail-expunge "GNUS Digest" buffer-file-name "Digest: " gnus-current-headers 1 mode-line-buffer-identification make-local-variable write-file-hooks #[nil "ÀÁ!ˆÂÃ!ˆÄ‡" [set-buffer-modified-p nil message "(No changes need to be saved)" no-need-to-write-this-buffer] 2] gnus-rmail-save-name gnus-newsgroup-name gnus-newsgroup-last-rmail rmail-last-rmail-file gnus-mail-save-name gnus-newsgroup-last-mail rmail-last-file get-buffer-create gnus-Digest-summary-buffer rmail-summary-buffer run-hooks gnus-Rmail-digest-hook gnus-configure-windows (1 0 0) pop-to-buffer gnus-Group-buffer gnus-digest-show-summary gnus-Digest-buffer gnus-Article-buffer gnus-Subject-buffer SelectArticle rmail-summary message substitute-command-keys "Type \\[rmail-summary-quit] to return to GNUS" ExpandSubject "Type \\[rmail-quit] to return to GNUS" bury-buffer] 4) ((error (byte-code "ÀÁ!ˆÂ!ˆÄ ˆÅÆ!‡" [set-buffer-modified-p nil kill-buffer digbuf ding message "Article is not a digest"] 2)))] 3 "\
+(fset 'gnus-Subject-rmail-digest #[nil "À ˆÁÂ!ˆÄ!Æ	qˆÊp!ˆËÍ ˆÎ	!ˆÏĞ!ˆÑ ˆebˆÒ ˆÓ ˆÔ ˆÕ ˆËÖ×+‡" [gnus-Subject-select-article require rmail gnus-Article-buffer get-buffer-create gnus-Digest-buffer "" mail-header-separator digbuf artbuf buffer-disable-undo nil buffer-read-only erase-buffer insert-buffer-substring run-hooks gnus-Select-digest-hook gnus-convert-article-to-rmail rmail-insert-rmail-file-header rmail-mode rmail-set-message-counters rmail-show-message (byte-code "À ˆÁ ˆÂÄÆHPÈÉ!ˆÊC	##Ò!ÕÖ!ˆ×Ø!ˆÙ!ˆ«¢×ß!ˆÙ!ˆà ˆÙ!ˆáâã!!ˆ*ª”×ä!ˆÙ!ˆáâå!!ˆ)æ!ˆæ!ˆæ!ˆæ!‡" [undigestify-rmail-message rmail-expunge "GNUS Digest" buffer-file-name "Digest: " gnus-current-headers 1 mode-line-buffer-identification make-local-variable write-file-hooks #[nil "ÀÁ!ˆÂÃ!ˆÄ‡" [set-buffer-modified-p nil message "(No changes need to be saved)" no-need-to-write-this-buffer] 2] gnus-rmail-save-name gnus-newsgroup-name gnus-newsgroup-last-rmail rmail-last-rmail-file gnus-mail-save-name gnus-newsgroup-last-mail rmail-last-file get-buffer-create gnus-Digest-summary-buffer rmail-summary-buffer run-hooks gnus-Rmail-digest-hook gnus-configure-windows (1 0 0) gnus-pop-to-buffer gnus-Group-buffer gnus-digest-show-summary gnus-Digest-buffer gnus-Article-buffer gnus-Subject-buffer SelectArticle rmail-summary message substitute-command-keys "Type \\[rmail-summary-quit] to return to GNUS" ExpandSubject "Type \\[rmail-quit] to return to GNUS" bury-buffer] 4) ((error (byte-code "ÀÁ!ˆÂ!ˆÄ ˆÅÆ!‡" [set-buffer-modified-p nil kill-buffer digbuf ding message "Article is not a digest"] 2)))] 3 "\
 Run RMAIL on current digest article.
 gnus-Select-digest-hook will be called with no arguments, if that
 value is non-nil. It is possible to modify the article so that Rmail
@@ -1303,25 +1303,25 @@ is non-nil. The hook is intended to customize Rmail mode." nil])
 (fset 'gnus-Subject-save-article #[nil "À	??	\"ˆ\n«„Ã\n!‡ÄÅ!‡" [gnus-Subject-select-article gnus-save-all-headers gnus-default-article-saver call-interactively error "No default saver is defined."] 3 "\
 Save this article using default saver function.
 Variable `gnus-default-article-saver' specifies the saver function." nil])
-(fset 'gnus-Subject-save-in-rmail #[(&optional filename) "À	??	\"ˆÂ ÄÅ!ˆŠŒ~ˆ	\n#¬‘ÍÎÏ!ĞQÑ!#ÒÑ!!ˆÓ!ˆ‰\n-‡" [gnus-Subject-select-article gnus-save-all-headers selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer gnus-rmail-save-name gnus-newsgroup-name gnus-current-headers gnus-newsgroup-last-rmail default-name filename read-file-name "Save article in Rmail file: (default " file-name-nondirectory ") " file-name-directory gnus-make-directory gnus-output-to-rmail] 4 "\
+(fset 'gnus-Subject-save-in-rmail #[(&optional filename) "À	??	\"ˆÂ ÄÅ!ˆŠŒ~ˆ	\n#¬‘ÍÎÏ!ĞQÑ!#ÒÑ!!ˆÓ!ˆ‰\n-‡" [gnus-Subject-select-article gnus-save-all-headers selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer gnus-rmail-save-name gnus-newsgroup-name gnus-current-headers gnus-newsgroup-last-rmail default-name filename read-file-name "Save article in Rmail file: (default " file-name-nondirectory ") " file-name-directory gnus-make-directory gnus-output-to-rmail] 4 "\
 Append this article to Rmail file.
 Optional argument FILENAME specifies file name.
 Directory to save to is default to `gnus-article-save-directory' which
 is initialized from the SAVEDIR environment variable." nil])
-(fset 'gnus-Subject-save-in-mail #[(&optional filename) "À	??	\"ˆÂ ÄÅ!ˆŠŒ~ˆ	\n#¬‘ÍÎÏ!ĞQÑ!#ÒÑ!!ˆÓ!ˆ‰\n-‡" [gnus-Subject-select-article gnus-save-all-headers selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer gnus-mail-save-name gnus-newsgroup-name gnus-current-headers gnus-newsgroup-last-mail default-name filename read-file-name "Save article in Unix mail file: (default " file-name-nondirectory ") " file-name-directory gnus-make-directory gnus-rmail-output] 4 "\
+(fset 'gnus-Subject-save-in-mail #[(&optional filename) "À	??	\"ˆÂ ÄÅ!ˆŠŒ~ˆ	\n#¬‘ÍÎÏ!ĞQÑ!#ÒÑ!!ˆÓ!ˆ‰\n-‡" [gnus-Subject-select-article gnus-save-all-headers selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer gnus-mail-save-name gnus-newsgroup-name gnus-current-headers gnus-newsgroup-last-mail default-name filename read-file-name "Save article in Unix mail file: (default " file-name-nondirectory ") " file-name-directory gnus-make-directory gnus-rmail-output] 4 "\
 Append this article to Unix mail file.
 Optional argument FILENAME specifies file name.
 Directory to save to is default to `gnus-article-save-directory' which
 is initialized from the SAVEDIR environment variable." nil])
-(fset 'gnus-Subject-save-in-file #[(&optional filename) "À	??	\"ˆÂ ÄÅ!ˆŠŒ~ˆ	\n#¬‘ÍÎÏ!ĞQÑ!#ÒÑ!!ˆÓ!ˆ‰\n-‡" [gnus-Subject-select-article gnus-save-all-headers selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer gnus-file-save-name gnus-newsgroup-name gnus-current-headers gnus-newsgroup-last-file default-name filename read-file-name "Save article in file: (default " file-name-nondirectory ") " file-name-directory gnus-make-directory gnus-output-to-file] 4 "\
+(fset 'gnus-Subject-save-in-file #[(&optional filename) "À	??	\"ˆÂ ÄÅ!ˆŠŒ~ˆ	\n#¬‘ÍÎÏ!ĞQÑ!#ÒÑ!!ˆÓ!ˆ‰\n-‡" [gnus-Subject-select-article gnus-save-all-headers selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer gnus-file-save-name gnus-newsgroup-name gnus-current-headers gnus-newsgroup-last-file default-name filename read-file-name "Save article in file: (default " file-name-nondirectory ") " file-name-directory gnus-make-directory gnus-output-to-file] 4 "\
 Append this article to file.
 Optional argument FILENAME specifies file name.
 Directory to save to is default to `gnus-article-save-directory' which
 is initialized from the SAVEDIR environment variable." nil])
-(fset 'gnus-Subject-save-in-folder #[(&optional folder) "À	??	\"ˆÂ ÄÅ!ˆŒ~ˆÇ ˆ®ÉÊ#Ï#ĞÑ!ÓÔedÕÖ\"ØØ&.‡" [gnus-Subject-select-article gnus-save-all-headers selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer mh-find-path folder mh-prompt-for-folder "Save article in" gnus-folder-save-name gnus-newsgroup-name gnus-current-headers gnus-newsgroup-last-folder t get-buffer-create " *GNUS rcvstore*" errbuf ((byte-code "qˆÁ ÂU«‡ÃÄ\"ˆª†ÃÆÇ \"ˆÈ!ˆ	Á‡" [errbuf buffer-size 0 message "Article saved in folder: %s" folder "%s" buffer-string kill-buffer gnus-newsgroup-last-folder] 3)) call-process-region expand-file-name "rcvstore" mh-lib nil] 8 "\
+(fset 'gnus-Subject-save-in-folder #[(&optional folder) "À	??	\"ˆÂ ÄÅ!ˆŒ~ˆÇ ˆ®ÉÊ#Ï#ĞÑ!ÓÔedÕÖ\"ØØ&.‡" [gnus-Subject-select-article gnus-save-all-headers selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer mh-find-path folder mh-prompt-for-folder "Save article in" gnus-folder-save-name gnus-newsgroup-name gnus-current-headers gnus-newsgroup-last-folder t get-buffer-create " *GNUS rcvstore*" errbuf ((byte-code "qˆÁ ÂU«‡ÃÄ\"ˆª†ÃÆÇ \"ˆÈ!ˆ	Á‡" [errbuf buffer-size 0 message "Article saved in folder: %s" folder "%s" buffer-string kill-buffer gnus-newsgroup-last-folder] 3)) call-process-region expand-file-name "rcvstore" mh-lib nil] 8 "\
 Save this article to MH folder (using `rcvstore' in MH library).
 Optional argument FOLDER specifies folder name." nil])
-(fset 'gnus-Subject-pipe-output #[nil "À ˆÁ ÃÄ!ˆŒ~ˆÆÇ\"‰	Ê˜«„	Ëed	Ì$ˆ	‰,‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer read-string "Shell command on article: " gnus-last-shell-command command "" shell-command-on-region nil] 6 "\
+(fset 'gnus-Subject-pipe-output #[nil "À ˆÁ ÃÄ!ˆŒ~ˆÆÇ\"‰	Ê˜«„	Ëed	Ì$ˆ	‰,‡" [gnus-Subject-select-article selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) gnus-pop-to-buffer gnus-Article-buffer read-string "Shell command on article: " gnus-last-shell-command command "" shell-command-on-region nil] 6 "\
 Pipe this article to subprocess." nil])
 (fset 'gnus-Subject-catch-up #[(all &optional quietly) "¬‹Á\n«ƒÃªÄ!­¨Å\n?­‚\"ÉÊ!ˆË ˆ­Ì@Í\"ˆA‰¬qÎ)‡" [quietly y-or-n-p all "Do you really want to mark everything as read? " "Delete all articles not marked as unread? " gnus-set-difference gnus-newsgroup-unreads gnus-newsgroup-marked unmarked message "" gnus-Subject-show-all-threads gnus-Subject-mark-as-read "C" nil] 4 "\
 Mark all articles not marked as unread in this newsgroup as read.
@@ -1337,10 +1337,10 @@ Mark all articles in this newsgroup as read, and then exit." nil])
 Edit a global KILL file." nil])
 (fset 'gnus-Subject-edit-local-kill #[nil "À Â!ˆÄÅÆ!!‡" [gnus-Subject-article-number gnus-current-kill-article gnus-Kill-file-edit-file gnus-newsgroup-name message substitute-command-keys "Editing a local KILL file (Type \\[gnus-Kill-file-exit] to exit)"] 3 "\
 Edit a local KILL file applied to the current newsgroup." nil])
-(fset 'gnus-Subject-exit #[(&optional temporary) "«ƒÁ ‡ÂÈÉ!ˆÊÌ\"#ˆ«ŒÎÏ=$qˆ«Ñ@Ï\"ˆA‰¬qÑ!ˆ-Ò!ˆÓÔ!ˆ?­Ö!«…Ø!ˆÖ!«…Ø!ˆÚÛ!ˆÜ!‡" [gnus-digest-mode gnus-unselect-digest-article nil gnus-newsgroup-headers gnus-newsgroup-unreads gnus-newsgroup-unselected gnus-newsgroup-marked updated run-hooks gnus-Exit-group-hook gnus-update-unread-articles gnus-newsgroup-name append gnus-use-cross-reference gnus-mark-as-read-by-xref t gnus-Group-buffer gnus-Group-update-group gnus-Group-jump-to-group gnus-Group-next-unread-group 1 temporary get-buffer gnus-Subject-buffer bury-buffer gnus-Article-buffer gnus-configure-windows ExitNewsgroup pop-to-buffer] 7 "\
+(fset 'gnus-Subject-exit #[(&optional temporary) "«ƒÁ ‡ÂÈÉ!ˆÊÌ\"#ˆ«ŒÎÏ=$qˆ«Ñ@Ï\"ˆA‰¬qÑ!ˆ-Ò!ˆÓÔ!ˆ?­Ö!«…Ø!ˆÖ!«…Ø!ˆÚÛ!ˆÜ!‡" [gnus-digest-mode gnus-unselect-digest-article nil gnus-newsgroup-headers gnus-newsgroup-unreads gnus-newsgroup-unselected gnus-newsgroup-marked updated run-hooks gnus-Exit-group-hook gnus-update-unread-articles gnus-newsgroup-name append gnus-use-cross-reference gnus-mark-as-read-by-xref t gnus-Group-buffer gnus-Group-update-group gnus-Group-jump-to-group gnus-Group-next-unread-group 1 temporary get-buffer gnus-Subject-buffer bury-buffer gnus-Article-buffer gnus-configure-windows ExitNewsgroup gnus-pop-to-buffer] 7 "\
 Exit reading current newsgroup, and then return to group selection mode.
 gnus-Exit-group-hook is called with no arguments if that value is non-nil." nil])
-(fset 'gnus-Subject-quit #[nil "ÀÁ!­©ÂÃ!ˆÄ!«„Æ!ˆÄ!«…Æ!ˆÈÉ!ˆÊ!ˆÌ!ˆÎÏ!‡" [y-or-n-p "Do you really wanna quit reading this group? " message "" get-buffer gnus-Subject-buffer bury-buffer gnus-Article-buffer gnus-configure-windows ExitNewsgroup pop-to-buffer gnus-Group-buffer gnus-Group-jump-to-group gnus-newsgroup-name gnus-Group-next-group 1] 2 "\
+(fset 'gnus-Subject-quit #[nil "ÀÁ!­©ÂÃ!ˆÄ!«„Æ!ˆÄ!«…Æ!ˆÈÉ!ˆÊ!ˆÌ!ˆÎÏ!‡" [y-or-n-p "Do you really wanna quit reading this group? " message "" get-buffer gnus-Subject-buffer bury-buffer gnus-Article-buffer gnus-configure-windows ExitNewsgroup gnus-pop-to-buffer gnus-Group-buffer gnus-Group-jump-to-group gnus-newsgroup-name gnus-Group-next-group 1] 2 "\
 Quit reading current newsgroup without updating read article info." nil])
 (fset 'gnus-Subject-describe-briefly #[nil "ÀÁÂ!ÁÃ!ÁÄ!ÁÅ!ÁÆ!ÁÇ!°!‡" [message substitute-command-keys "\\[gnus-Subject-next-page]:Select  " "\\[gnus-Subject-next-unread-article]:Forward  " "\\[gnus-Subject-prev-unread-article]:Backward  " "\\[gnus-Subject-exit]:Exit  " "\\[gnus-Info-find-node]:Run Info  " "\\[gnus-Subject-describe-briefly]:This help"] 8 "\
 Describe Subject mode commands briefly." nil])
@@ -1387,7 +1387,7 @@ Move to head of NTH previous digested message."])
 Read article specified by message-id around point." nil])
 (fset 'gnus-Article-pop-article #[nil "À‹‡" [((byte-code "qˆÁÂ!‡" [gnus-Subject-buffer gnus-Subject-refer-article nil] 2))] 1 "\
 Pop up article history." nil])
-(fset 'gnus-Article-show-subjects #[nil "ÀÁ!ˆÂ!ˆÄ!‡" [gnus-configure-windows SelectArticle pop-to-buffer gnus-Subject-buffer gnus-Subject-goto-subject gnus-current-article] 2 "\
+(fset 'gnus-Article-show-subjects #[nil "ÀÁ!ˆÂ!ˆÄ!‡" [gnus-configure-windows SelectArticle gnus-pop-to-buffer gnus-Subject-buffer gnus-Subject-goto-subject gnus-current-article] 2 "\
 Reconfigure windows to show headers." nil])
 (fset 'gnus-Article-describe-briefly #[nil "ÀÁÂ!ÁÃ!ÁÄ!ÁÅ!ÁÆ!°!‡" [message substitute-command-keys "\\[gnus-Article-next-page]:Next page  " "\\[gnus-Article-prev-page]:Prev page  " "\\[gnus-Article-show-subjects]:Show headers  " "\\[gnus-Info-find-node]:Run Info  " "\\[gnus-Article-describe-briefly]:This help"] 7 "\
 Describe Article mode commands briefly." nil])
@@ -1456,16 +1456,16 @@ than `D' should be used for articles which should really be deleted.
 
 Entry to this mode calls emacs-lisp-mode-hook and
 gnus-Kill-file-mode-hook with no arguments, if that value is non-nil." nil])
-(fset 'gnus-Kill-file-edit-file #[(newsgroup) "À	!ÃÄ\n!!ˆÅ\n!«‡ÆÅ\n!!¬„Ç É\n!\nÆ\n!«‡Ë\n!ˆª¾Í=«™ÎÏ!ˆË!ˆ\nÎÒ!ˆË\n!ˆ)ªŸÓ=«•ÎÔ!ˆË!ˆÖ!ˆ×\n!ˆª„Ø\n!ˆ)Ù )‡" [gnus-newsgroup-kill-file newsgroup file gnus-make-directory file-name-directory get-file-buffer get-buffer-window current-window-configuration gnus-winconf-kill-file find-file-noselect buffer pop-to-buffer major-mode gnus-Group-mode gnus-configure-windows (1 0 0) gnus-Group-buffer gnus-Subject-buffer (1 1 0) gnus-Subject-mode SelectArticle gnus-Article-buffer bury-buffer switch-to-buffer find-file-other-window gnus-Kill-file-mode] 3 "\
+(fset 'gnus-Kill-file-edit-file #[(newsgroup) "À	!ÃÄ\n!!ˆÅ\n!«‡ÆÅ\n!!¬„Ç É\n!\nÆ\n!«‡Ë\n!ˆª¾Í=«™ÎÏ!ˆË!ˆ\nÎÒ!ˆË\n!ˆ)ªŸÓ=«•ÎÔ!ˆË!ˆÖ!ˆ×\n!ˆª„Ø\n!ˆ)Ù )‡" [gnus-newsgroup-kill-file newsgroup file gnus-make-directory file-name-directory get-file-buffer get-buffer-window current-window-configuration gnus-winconf-kill-file find-file-noselect buffer gnus-pop-to-buffer major-mode gnus-Group-mode gnus-configure-windows (1 0 0) gnus-Group-buffer gnus-Subject-buffer (1 1 0) gnus-Subject-mode SelectArticle gnus-Article-buffer bury-buffer switch-to-buffer find-file-other-window gnus-Kill-file-mode] 3 "\
 Begin editing a KILL file of NEWSGROUP.
 If NEWSGROUP is nil, the global KILL file is selected." "sNewsgroup: "])
 (fset 'gnus-Kill-file-kill-by-subject #[nil "ÀÁÂ«‹ÄÅ\"ÇH!ªÈ!\"c‡" [format "(gnus-kill \"Subject\" %s)\n" prin1-to-string gnus-current-kill-article regexp-quote gnus-find-header-by-number gnus-newsgroup-headers 1 ""] 7 "\
 Insert KILL command for current subject." nil])
 (fset 'gnus-Kill-file-kill-by-author #[nil "ÀÁÂ«‹ÄÅ\"ÇH!ªÈ!\"c‡" [format "(gnus-kill \"From\" %s)\n" prin1-to-string gnus-current-kill-article regexp-quote gnus-find-header-by-number gnus-newsgroup-headers 2 ""] 7 "\
 Insert KILL command for current author." nil])
-(fset 'gnus-Kill-file-apply-buffer #[nil "«‘Á\n!«ŒÃÄ ÅQŠÇ‹*‡È ˆÉÊ!‡" [gnus-current-kill-article get-buffer gnus-Subject-buffer "(progn \n" buffer-string "\n)" string ((byte-code "À	!ˆÂÃ!@!‡" [pop-to-buffer gnus-Subject-buffer eval read-from-string string] 3)) ding message "No newsgroup is selected."] 3 "\
+(fset 'gnus-Kill-file-apply-buffer #[nil "«‘Á\n!«ŒÃÄ ÅQŠÇ‹*‡È ˆÉÊ!‡" [gnus-current-kill-article get-buffer gnus-Subject-buffer "(progn \n" buffer-string "\n)" string ((byte-code "À	!ˆÂÃ!@!‡" [gnus-pop-to-buffer gnus-Subject-buffer eval read-from-string string] 3)) ding message "No newsgroup is selected."] 3 "\
 Apply current buffer to current newsgroup." nil])
-(fset 'gnus-Kill-file-apply-last-sexp #[nil "«”Á\n!«ŠÃÄ!ˆ`)`{ŠÆ‹*‡Ç ˆÈÉ!‡" [gnus-current-kill-article get-buffer gnus-Subject-buffer forward-sexp -1 string ((byte-code "À	!ˆÂÃ!@!‡" [pop-to-buffer gnus-Subject-buffer eval read-from-string string] 3)) ding message "No newsgroup is selected."] 2 "\
+(fset 'gnus-Kill-file-apply-last-sexp #[nil "«”Á\n!«ŠÃÄ!ˆ`)`{ŠÆ‹*‡Ç ˆÈÉ!‡" [gnus-current-kill-article get-buffer gnus-Subject-buffer forward-sexp -1 string ((byte-code "À	!ˆÂÃ!@!‡" [gnus-pop-to-buffer gnus-Subject-buffer eval read-from-string string] 3)) ding message "No newsgroup is selected."] 2 "\
 Apply sexp before point in current buffer to current newsgroup." nil])
 (fset 'gnus-Kill-file-exit #[nil "À ˆpÂ!«†ÄÂ!!ˆÅ	!ˆ«…Ç!ˆÈÉ	!)‡" [save-buffer killbuf get-buffer gnus-Article-buffer bury-buffer delete-windows-on gnus-winconf-kill-file set-window-configuration nil kill-buffer] 3 "\
 Save a KILL file, then return to the previous buffer." nil])
@@ -1639,7 +1639,7 @@ Return a header which is a element of HEADERS and has NUMBER."])
 Return a header which is a element of HEADERS and has Message-ID."])
 (fset 'gnus-version #[nil "ÀÁ!«ÀÂ!«‰ÃÄ\n	%‡ÀÁ!«ˆÃÇ	$‡ÀÂ!«ˆÃÇ\n$‡ÃÈ#‡" [boundp mhspool-version nnspool-version message "%s; %s; %s; %s" gnus-version nntp-version "%s; %s; %s" "%s; %s"] 6 "\
 Version numbers of this version of GNUS." nil])
-(fset 'gnus-Info-find-node #[nil "ÀÁ!ˆ\nÃ=«‹ÄÅ!ˆÆ!ˆª\nÈ=«‰ÄÉ!ˆÆ\n!ˆËÍ\"Ï\nA!)‡" [require info major-mode gnus-Group-mode gnus-configure-windows (1 0 0) pop-to-buffer gnus-Group-buffer gnus-Subject-mode (0 1 0) gnus-Subject-buffer expand-file-name gnus-Info-directory nil Info-directory Info-goto-node gnus-Info-nodes] 3 "\
+(fset 'gnus-Info-find-node #[nil "ÀÁ!ˆ\nÃ=«‹ÄÅ!ˆÆ!ˆª\nÈ=«‰ÄÉ!ˆÆ\n!ˆËÍ\"Ï\nA!)‡" [require info major-mode gnus-Group-mode gnus-configure-windows (1 0 0) gnus-pop-to-buffer gnus-Group-buffer gnus-Subject-mode (0 1 0) gnus-Subject-buffer expand-file-name gnus-Info-directory nil Info-directory Info-goto-node gnus-Info-nodes] 3 "\
 Find Info documentation of GNUS." nil])
 (fset 'gnus-overload-functions #[(&optional overloads) "À	®\n	­¤	@	AÄ@!¬AA@«‰ÅAA@ÀÆ#ˆ@A@MˆªY*‡" [nil overloads gnus-overload-functions defs fboundp load nomessage] 4 "\
 Overload functions specified by optional argument OVERLOADS.

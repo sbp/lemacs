@@ -3,7 +3,7 @@
 ;; who says one can't have typeout windows in gnu emacs?
 ;; like ^r select buffer from its emacs lunar or tmacs libraries.
 
-;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -51,7 +51,9 @@ Calls value of  electric-buffer-menu-mode-hook  on entry if non-nil.
   (let (select buffer)
     (save-window-excursion
       (save-excursion
-	(save-window-excursion (list-buffers arg))
+	(save-window-excursion
+          (let ((temp-buffer-show-function 'ignore))
+	    (list-buffers arg)))
 	(setq buffer (window-buffer (Electric-pop-up-window "*Buffer List*")))
 	(unwind-protect
 	    (progn
@@ -87,7 +89,9 @@ Calls value of  electric-buffer-menu-mode-hook  on entry if non-nil.
 	    (if (prog1 (search-forward "\n>" nil t)
 		  (goto-char opoint) (set-marker opoint nil))
 		(Buffer-menu-select)
-	      (switch-to-buffer (Buffer-menu-buffer t))))))))
+	      (if (bufferp select)
+		  (switch-to-buffer select)
+		(switch-to-buffer (Buffer-menu-buffer t)))))))))
 
 (defun electric-buffer-menu-looper (state condition)
   (cond ((and condition
@@ -140,6 +144,7 @@ electric-buffer-menu-mode-hook if it is non-nil."
   (setq truncate-lines t)
   (setq buffer-read-only t)
   (setq major-mode 'Electric-buffer-menu-mode)
+  (setq mode-motion-hook 'mode-motion-highlight-line)
   (goto-char (point-min))
   (if (search-forward "\n." nil t) (forward-char -1))
   (run-hooks 'electric-buffer-menu-mode-hook))
@@ -160,9 +165,10 @@ electric-buffer-menu-mode-hook if it is non-nil."
       (while (< i 128)
 	(define-key map2 (make-string 1 i) 'Electric-buffer-menu-undefined)
 	(setq i (1+ i))))
-    (define-key map "\C-z" 'suspend-emacs)
+;;    (define-key map "\C-z" 'suspend-emacs)
     (define-key map "v" 'Electric-buffer-menu-mode-view-buffer)
-    (define-key map "\C-h" 'Helper-help)
+;;    (define-key map "\C-h" 'Helper-help)
+    (define-key map '(control h) 'Helper-help)
     (define-key map "?" 'Helper-describe-bindings)
     (define-key map "\C-c" nil)
     (define-key map "\C-c\C-c" 'Electric-buffer-menu-quit)
@@ -176,6 +182,7 @@ electric-buffer-menu-mode-hook if it is non-nil."
     (define-key map "\C-d" 'Buffer-menu-delete-backwards)
     ;(define-key map "\C-k" 'Buffer-menu-delete)
     (define-key map "\177" 'Buffer-menu-backup-unmark)
+    (define-key map 'backspace 'Buffer-menu-backup-unmark)
     (define-key map "~" 'Buffer-menu-not-modified)
     (define-key map "u" 'Buffer-menu-unmark)
     (let ((i ?0))
@@ -196,6 +203,8 @@ electric-buffer-menu-mode-hook if it is non-nil."
     (define-key map "\e\C-v" 'scroll-other-window)
     (define-key map "\e>" 'end-of-buffer)
     (define-key map "\e<" 'beginning-of-buffer)
+    (define-key map 'button2 'Electric-buffer-menu-mouse-select)
+    (define-key map 'button3 'Buffer-menu-popup-menu)
     (setq electric-buffer-menu-mode-map map)))
  
 (defun Electric-buffer-menu-exit ()
@@ -215,6 +224,11 @@ windows."
   (interactive)
   (throw 'electric-buffer-menu-select (point)))
 
+(defun Electric-buffer-menu-mouse-select (event)
+  (interactive "e")
+  (mouse-set-point event)
+  (Electric-buffer-menu-select))
+
 (defun Electric-buffer-menu-quit ()
   "Leave Electric Buffer Menu, restoring previous window configuration.
 Does not execute select, save, or delete commands."
@@ -224,15 +238,10 @@ Does not execute select, save, or delete commands."
 (defun Electric-buffer-menu-undefined ()
   (interactive)
   (ding)
-  (message (if (and (eq (key-binding "\C-c\C-c") 'Electric-buffer-menu-quit)
-		    (eq (key-binding " ") 'Electric-buffer-menu-select)
-		    (eq (key-binding "\C-h") 'Helper-help)
-		    (eq (key-binding "?") 'Helper-describe-bindings))
-	       "Type C-c C-c to exit, Space to select, C-h for help, ? for commands"
-	     (substitute-command-keys "\
+  (message (substitute-command-keys "\
 Type \\[Electric-buffer-menu-quit] to exit, \
 \\[Electric-buffer-menu-select] to select, \
-\\[Helper-help] for help, \\[Helper-describe-bindings] for commands.")))
+\\[Helper-help] for help, \\[Helper-describe-bindings] for commands."))
   (sit-for 4))
 
 (defun Electric-buffer-menu-mode-view-buffer ()

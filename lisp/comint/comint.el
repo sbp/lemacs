@@ -247,7 +247,8 @@ Entry to this mode runs the hooks on comint-mode-hook"
   (define-key comint-mode-map "\en" 'comint-next-similar-input)
   (define-key comint-mode-map "\es" 'comint-previous-similar-input)
   (define-key comint-mode-map "\C-m" 'comint-send-input)
-  (define-key comint-mode-map "\C-d" 'comint-delchar-or-maybe-eof)
+;; I've never met anyone who likes this.
+;;  (define-key comint-mode-map "\C-d" 'comint-delchar-or-maybe-eof)
   (define-key comint-mode-map "\C-a" 'comint-bol)
   (define-key comint-mode-map "\C-c\C-u" 'comint-kill-input)
   (define-key comint-mode-map "\C-c\C-w" 'backward-kill-word)

@@ -55,7 +55,6 @@ struct event_block {
 };
 
 static struct event_block *event_blocks;
-static int event_block_index;
 
 /* Make sure we lose quickly if we try to use this event */
 static void
@@ -124,7 +123,7 @@ free_unmarked_events ()			/* called from gc_sweep() */
 	  event_free_list = old_free_list;
 	  if (tmp == event_blocks)
 	    event_blocks = current;
-	  free (tmp);
+	  xfree (tmp);
 	} else {
 	  prev = current;
 	  current = current->next;
@@ -254,6 +253,7 @@ be made as with `allocate-event.'  See also the function `deallocate-event'.")
 }
 
 
+void
 syms_of_event_alloc ()
 {
   event_free_list = 0;

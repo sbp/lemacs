@@ -264,3 +264,5 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* This is how to get the device name of the control end of a pty.  */
 #define PTY_NAME_SPRINTF \
 	sprintf (pty_name, "/dev/ptym/pty%c%x", c, i);
+
+#define FLOAT_CATCH_SIGILL

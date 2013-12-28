@@ -1,7 +1,7 @@
-;;; compiled by jwz@watergate on Wed Aug 26 01:21:07 1992
-;;; from file /wg1/emacs-base/lisp/pcl-cvs/pcl-cvs.el
-;;; emacs version 19.2.12 Lucid.
-;;; bytecomp version 2.08;  7-aug-92.
+;;; compiled by jwz@thalidomide on Fri Nov  6 13:46:57 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/pcl-cvs/pcl-cvs.el
+;;; emacs version 19.3.5 Lucid.
+;;; bytecomp version 2.08; 27-aug-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -11,15 +11,14 @@
     (error "This file was compiled for Emacs19."))
 
 (byte-code "ÀÁ!ˆÂÃ!‡" [require cookie provide pcl-cvs] 2)
-(defvar cvs-program "/usr/local/bin/cvs" "\
+(defvar cvs-program "/usr/gnu/bin/cvs" "\
 *Full path to the cvs executable.")
-(defvar cvs-diff-program "/usr/local/bin/diff" "\
+(defvar cvs-diff-program "/usr/gnu/bin/diff" "\
 *Full path to the diff program.")
-(defvar cvs-rmdir-program "/usr/bin/rmdir" "\
+(defvar cvs-rmdir-program "/usr/gnu/bin/rmdir" "\
 *Full path to the rmdir program. Typically /bin/rmdir.")
-(byte-code "ÀÀ‡" [nil delete-exited-processes] 1)
 (defvar cvs-shell "/bin/sh" "\
-*Full path to a shell that can do redirection on stderr.")
+*Full path to a shell that can do redirection on stdout.")
 (defvar cvs-stdout-file nil "\
 Name of the file that holds the output that CVS sends to stdout.
 This variable is buffer local.")
@@ -52,7 +51,7 @@ Output from cvs is placed here by synchronous commands.")
 (defvar cvs-cvs-diff-flags nil "\
 *List of strings to use as flags to pass to ``cvs diff''.
 Do not confuse with cvs-diff-flags. Used by cvs-diff-cvs.
-Set this to '(" -u ") to get a Unidiff format, or '(" -c ") to get context diffs.")
+Set this to '(\"-u\") to get a Unidiff format, or '(\"-c\") to get context diffs.")
 (defvar cvs-diff-ignore-marks nil "\
 *Non-nil if cvs-diff and cvs-diff-backup should ignore any marked files.
 Normally they run diff on the files that are marked (with cvs-mark),
@@ -79,9 +78,9 @@ List of temporary buffers that should be discarded as soon as possible.
 Due to a bug in emacs 18.57 the sentinel can't discard them reliably.")
 (defvar cvs-inhibit-copyright-message nil "\
 *Non-nil means don't display a Copyright message in the ``*cvs*'' buffer.")
-(defconst pcl-cvs-version "1.03" "\
+(defconst pcl-cvs-version "1.03.1" "\
 A string denoting the current release version of pcl-cvs.")
-(defvar cvs-startup-message (byte-code "«‚Á‡Â‡" [cvs-inhibit-copyright-message "PCL-CVS release 1.03" "PCL-CVS release 1.03.  Copyright (C) 1992 Per Cederqvist\nPcl-cvs comes with absolutely no warranty; for details consult the manual.\nThis is free software, and you are welcome to redistribute it under certain\nconditions; again, consult the TeXinfo manual for details."] 1) "\
+(defvar cvs-startup-message (byte-code "«‚Á‡Â‡" [cvs-inhibit-copyright-message "PCL-CVS release 1.03.1" "PCL-CVS release 1.03.1.  Copyright (C) 1992 Per Cederqvist\nPcl-cvs comes with absolutely no warranty; for details consult the manual.\nThis is free software, and you are welcome to redistribute it under certain\nconditions; again, consult the TeXinfo manual for details."] 1) "\
 *Startup message for CVS.")
 (defvar cvs-update-running nil "\
 This is set to nil when no process is running, and to
@@ -192,7 +191,7 @@ If more than two arguments are given the remaining args are
 passed to PREDICATE."])
 (fset 'cvs-update-no-prompt #[nil "À	Â‰#‡" [cvs-do-update default-directory nil] 4 "\
 Run cvs update in current directory." nil])
-(fset 'cvs-do-update #[(directory local dont-change-disc) "À ˆÁÂ!!ÅÆÇÈO!ÉP!\nËÁÌÍ!®Î!ÏP!ÑÓ!¬…ÔÕ\"ˆÓÖP!¬…Ô×\"ˆ«šÙ!«”Ù!Ú=¬ˆÙ!Û=«„ÔÜ!ˆ­Şß ­áQ\nqˆ\"ãä!ˆ$Ñ%æç\n(é*ëì°%)íîÙ!!P/ğñ !ˆòó\"ˆôõ\"ˆö!eÑ“ˆ÷8ù:û$ˆü8ışÑ‰ÿ@ Q$\"ˆA B!‰B,‡" [save-some-buffers file-name-as-directory expand-file-name directory this-dir generate-new-buffer file-name-nondirectory 0 -1 "-update" update-buffer make-temp-name getenv "TMPDIR" "/tmp" "pcl-cvs." temp-name nil args file-directory-p error "%s is not a directory." "CVS" "%s does not contain CVS controlled files." cvs-update-running process-status run stop "Can't run two `cvs update' simultaneously." local " -l " " update " dont-change-disc " -n " default-directory make-local-variable cvs-stdout-file process-connection-type start-process "cvs" cvs-shell "-c" cvs-program " " " > " ": " symbol-name mode-line-process set-buffer-modified-p buffer-modified-p set-process-sentinel cvs-sentinel set-process-filter cvs-update-filter process-mark cookie-create cvs-buffer-name cvs-pp cvs-startup-message "---------- End -----" cookie-enter-first cvs-create-fileinfo MESSAGE "\n    Running `cvs update' in " "...\n" cvs-delete-unused-temporary-buffers cvs-buffers-to-delete] 10 "\
+(fset 'cvs-do-update #[(directory local dont-change-disc) "À ˆÁ\n!¬…ÃÄ\n\"ˆÅÆ!¬„ÃÇ!ˆÈÉ\n!!ÌÍÎÏO!ĞP!ÒÈÅÓ!®Ô!ÕP!×Ù!¬†ÃÚ\"ˆÙÛP!¬†ÃÜ\"ˆ«šŞ!«”Ş!ß=¬ˆŞ!à=«„Ãá!ˆ\"­ãä%­æQqˆ'èé!ˆ)×*ëì-î\nïğ°%)ñòŞ!!P3ôõ !ˆö÷\"ˆøù\"ˆú!e×“ˆû<ı>ÿ$ˆ@ <A B ×‰C D E °$\"ˆF G!‰G,‡" [save-some-buffers file-exists-p cvs-program error "%s: file not found (check setting of cvs-program)" getenv "CVSROOT" "You must set the CVSROOT environment variable before starting emacs." file-name-as-directory expand-file-name directory this-dir generate-new-buffer file-name-nondirectory 0 -1 "-update" update-buffer make-temp-name "TMPDIR" "/tmp" "pcl-cvs." temp-name nil args file-directory-p "%s is not a directory." "CVS" "%s does not contain CVS controlled files." cvs-update-running process-status run stop "Can't run two `cvs update' simultaneously." dont-change-disc " -n " " update " local " -l " default-directory make-local-variable cvs-stdout-file process-connection-type start-process "cvs" cvs-shell "-c" " " " > " ": " symbol-name mode-line-process set-buffer-modified-p buffer-modified-p set-process-sentinel cvs-sentinel set-process-filter cvs-update-filter process-mark cookie-create cvs-buffer-name cvs-pp cvs-startup-message "---------- End -----" cookie-enter-first cvs-create-fileinfo MESSAGE "\n    Running `cvs " "' in " "...\n" cvs-delete-unused-temporary-buffers cvs-buffers-to-delete] 11 "\
 Do a 'cvs update' in DIRECTORY.
 Args: DIRECTORY LOCAL DONT-CHANGE-DISC &optional NOTTHISWINDOW.
 If LOCAL is non-nil 'cvs update -l' is executed.
@@ -223,7 +222,7 @@ Full documentation is in the TeXinfo file.  These are the most useful commands:
 \\[cvs-log]   Run ``cvs log''.            \\[cvs-status]   Run ``cvs status''.
 
 Entry to this mode runs cvs-mode-hook.
-This description is updated for release 1.03 of pcl-cvs.
+This description is updated for release 1.03.1 of pcl-cvs.
 All bindings:
 \\{cvs-mode-map}" nil])
 (fset 'cvs-sentinel #[(proc msg) "ÀÁ\n!!¬…Ã\nÄ\"‡Å\n!Æ>­Ùpd`	ÊÁ\n!qˆËÌÅ\n!!PĞ!ÒÁ\n!\"ˆÁ\n!BBÔ!ˆ+Á\n!š?­“Á\n!qˆ	W«„	bˆq+‡" [buffer-name process-buffer proc set-process-buffer nil process-status (signal exit) obuf omax opoint ((byte-code "ÀÁ !ˆÂÂ‡" [set-buffer-modified-p buffer-modified-p nil cvs-update-running] 2)) ": " symbol-name mode-line-process cvs-stdout-file out-file find-file-noselect stdout-buffer cvs-parse-update cvs-buffers-to-delete delete-file] 4 "\
@@ -243,7 +242,7 @@ if you are convinced that the process that created the lock is dead." nil])
 Remove a directory."])
 (fset 'cvs-lock-file-p #[(file) "ÀÁ\n\"®ŠÀÃ\n\"®„ÀÄ\n\"‡" [string-match "^#cvs.tfl.[0-9]+$" file "^#cvs.rfl.[0-9]+$" "^#cvs.wfl.[0-9]+$"] 3 "\
 Return true if FILE looks like a CVS lock file."])
-(fset 'cvs-skip-line #[(stdout stderr regexp &optional arg) "À	!«ŒÂyˆ­”•{‡ÄÇ`$‡" [looking-at regexp 1 arg cvs-parse-error stdout stderr nil] 5 "\
+(fset 'cvs-skip-line #[(stdout stderr regexp &optional arg) "À	!«ŒÂyˆ­•”•{‡Äp=«ƒÇªÈ`$‡" [looking-at regexp 1 arg cvs-parse-error stdout stderr STDOUT STDERR] 5 "\
 Like forward-line, but check that the skipped line matches REGEXP.
 Args: STDOUT STDERR REGEXP &optional ARG.
 
@@ -259,7 +258,7 @@ Args: ROOT-DIR DIRNAME.
 Concatenates ROOT-DIR and DIRNAME to form an absolute path."])
 (fset 'cvs-compare-fileinfos #[(a b) "À	!À\n!™«‚Ã‡À	!À\n!˜¬‚Ä‡Å	!Æ=«‰Å\n!Æ=¬‚Ã‡Å\n!Æ=«‰Å	!Æ=¬‚Ä‡Ç	!Ç\n!™‡" [cvs-fileinfo->dir a b t nil cvs-fileinfo->type DIRCHANGE cvs-fileinfo->file-name] 3 "\
 Compare fileinfo A with fileinfo B and return t if A is `less'."])
-(fset 'cvs-parse-error #[(stdout-buffer stderr-buffer err-buf pos) "S	qˆÂ ˆÃcˆÄÆ±ˆÇcˆÈcˆÉcˆÊcˆËcˆÌcˆÍcˆÎcˆÏcˆĞcˆÑcˆŠqˆÓ )ŠqˆÓ )Ø=«„ª‚ÚÑ#OİŞZ\"cˆcˆßcˆàá!âİã\"±ˆäå Ñ±ˆæçèéê±ˆÑcˆİëG\"cˆcˆìcˆİíG\"cˆcˆîcˆïcˆğ ˆñò!-‡" [pos cvs-buffer-name erase-buffer "To: ceder@lysator.liu.se\n" "Subject: pcl-cvs " pcl-cvs-version " parse error.\n" "--text follows this line--\n\n" "This bug report is automatically generated by pcl-cvs\n" "because it doesn't understand some output from CVS.  Below\n" "is detailed information about the error.  Please send\n" "this, together with any information you think might be\n" "useful for me to fix the bug, to the address above.  But\n" "please check the \"known problems\" section of the\n" "documentation first.  Note that this buffer contains\n" "information that you might consider confidential.  You\n" "are encouraged to read through it before sending it.\n" "\n" stdout-buffer buffer-string stdout stderr-buffer stderr err-buf STDOUT errstr string-match errline-end errline format "Offending line (%d chars): >" "<\n" "Sent to " symbol-name " at pos " "%d\n" "Emacs-version: " emacs-version "Pcl-cvs !" "Id:" "!" ": " "!Id: pcl-cvs.el,v 1.52.2.1 1992/08/21 13:19:27 ceder Exp !\n" "--- Contents of stdout buffer (%d chars) ---\n" "--- End of stdout buffer ---\n" "--- Contents of stderr buffer (%d chars) ---\n" "--- End of stderr buffer ---\n" "End of bug report.\n" mail-mode error "CVS parse error - please report this bug."] 6 "\
+(fset 'cvs-parse-error #[(stdout-buffer stderr-buffer err-buf pos) "S	qˆÂÄ ˆÅcˆÆÈ±ˆÉcˆÊcˆËcˆÌcˆÍcˆÎcˆÏcˆĞcˆÑcˆÒcˆÓcˆÔcˆÕcˆÖcˆŠqˆØ )ŠqˆØ )İ=«„ª‚ßÓ#  O!âã Z\"cˆ!cˆäcˆåæ!çâè\"±ˆéê Ó±ˆëìíîï±ˆÓcˆâğG\"cˆcˆñcˆâòG\"cˆcˆócˆôcˆõö!ˆ÷ ˆøù!-‡" [pos cvs-buffer-name nil buffer-read-only erase-buffer "To: ceder@lysator.liu.se\n" "Subject: pcl-cvs " pcl-cvs-version " parse error.\n" "--text follows this line--\n\n" "This bug report is automatically generated by pcl-cvs\n" "because it doesn't understand some output from CVS.  Below\n" "is detailed information about the error.  Please send\n" "this, together with any information you think might be\n" "useful for me to fix the bug, to the address above.  But\n" "please check the \"known problems\" section of the\n" "documentation first.  Note that this buffer contains\n" "information that you might consider confidential.  You\n" "are encouraged to read through it before sending it.\n" "\n" "Press C-c C-c to send this email.\n\n" "Please state the version of these programs you are using:\n" "RCS:  \ndiff: \n\n" stdout-buffer buffer-string stdout stderr-buffer stderr err-buf STDOUT errstr string-match errline-end errline format "Offending line (%d chars): >" "<\n" "Sent to " symbol-name " at pos " "%d\n" "Emacs-version: " emacs-version "Pcl-cvs $" "Id:" "$" ": " "Id: pcl-cvs.el,v 1.52.2.3 1992/09/23 20:04:29 ceder Exp \n" "--- Contents of stdout buffer (%d chars) ---\n" "--- End of stdout buffer ---\n" "--- Contents of stderr buffer (%d chars) ---\n" "--- End of stderr buffer ---\n" "End of bug report.\n" require sendmail mail-mode error "CVS parse error - please report this bug."] 6 "\
 Handle a parse error when parsing the output from cvs.
 Args: STDOUT-BUFFER STDERR-BUFFER ERR-BUF POS.
 ERR-BUF should be 'STDOUT or 'STDERR."])
@@ -282,7 +281,7 @@ be sure that the stderr entry is always first)."])
 Return non-nil if TIN is a shadow entry.
 Args: CVS-BUF TIN.
 A TIN is a shadow entry if the previous tin contains the same file."])
-(fset 'cvs-parse-stderr #[(stdout-buffer stderr-buffer head dir) "À‹ˆ	‡" [((byte-code "qˆebˆ	‰`dWƒ¦ÄÅ!«¢Æ\nÇ”Ç•{\"ÉÊËÌ”Ì•{$C¡ˆAÇyˆªSÄÍ!¬…ÄÎ!«ŸÉÏĞÇ”Ç•{!Ì”Ì•{$C¡ˆAÇyˆª*ÄÑ!«…Çyˆª ÄÒ!« ÉÓĞÇ”Ç•{!Ì”Ì•{$C¡ˆAÇyˆ‚\n ÄÔ!«†Çyˆ‚\n ÄÕ!«†Çyˆ‚\n ÄÖ!« É×ĞÇ”Ç•{!Ì”Ì•{$C¡ˆAÇyˆ‚\n ÄØ!«ÉÙÇ”Ç•{Ì”Ì•{$C¡ˆAÇyˆ‚\n ÄÚ!«¦`ÇyˆÜŞß!#ˆÉàË`{$C¡ˆA)‚\n `Ë‰!\"#Üä#ˆÜåÇ$\"Üæ#ˆÜçÇ$!Äè!«¶Üè#ˆÜé#ˆÉê!#`{$+ì+-!î\"R\"ˆ+C¡ˆA)ª¦Éï!#`{$+ì+-!î\"R\"ˆ+C¡ˆA)+‚\n *Ë‡" [stderr-buffer dir root-dir current-dir looking-at "cvs update: Updating \\(.*\\)$" cvs-get-current-dir 1 head cvs-create-fileinfo DIRCHANGE nil 0 "cvs update: warning: \\(.*\\) is not (any longer) pertinent" "cvs update: \\(.*\\) is no longer in the repository" CVS-REMOVED file-name-nondirectory "cvs update: warning: .* was lost$" "^cvs update: move away \\(.*\\); it is in the way$" MOVE-AWAY "^$" "^cvs update: \\[..:..:..\\] waiting for .*lock in " "cvs update: conflict: \\(.*\\) is modified but no longer in the repository$" REM-CONFLICT "cvs update: conflict: removed \\(.*\\) was modified by second party" MOD-CONFLICT "cvs update: in directory " start cvs-skip-line stdout-buffer regexp-quote "cvs [update aborted]: there is no repository " REPOS-MISSING filename initial-revision complex-start "^RCS file: .*$" "^retrieving revision \\(.*\\)$" "^retrieving revision .*$" "^Merging differences between [0-9.]+ and [0-9.]+ into \\(.*\\)$" "^\\(rcs\\)?merge\\( warning\\)?: overlaps during merge$" "^cvs update: conflicts found in " CONFLICT fileinfo cvs-set-fileinfo->backup-file cvs-bakprefix "." MERGED] 7)) head] 1 "\
+(fset 'cvs-parse-stderr #[(stdout-buffer stderr-buffer head dir) "À‹ˆ	‡" [((byte-code "qˆebˆ	‰`dWƒÛÄÅ!«¢Æ\nÇ”Ç•{\"ÉÊËÌ”Ì•{$C¡ˆAÇyˆªSÄÍ!¬…ÄÎ!«ŸÉÏĞÇ”Ç•{!Ì”Ì•{$C¡ˆAÇyˆª*ÄÑ!«…Çyˆª ÄÒ!« ÉÓĞÇ”Ç•{!Ì”Ì•{$C¡ˆAÇyˆ‚\n ÄÔ!«†Çyˆ‚\n ÄÕ!«†Çyˆ‚\n ÄÖ!« É×ĞÇ”Ç•{!Ì”Ì•{$C¡ˆAÇyˆ‚\n ÄØ!«ÉÙÇ”Ç•{Ì”Ì•{$C¡ˆAÇyˆ‚\n ÄÚ!«¦`ÇyˆÜŞß!#ˆÉàË`{$C¡ˆA)‚\n `Ë‰!\"#Üä#ˆÜåÇ$\"Üæ#ˆÜçÇ$!Äè!«¶Üè#ˆÜé#ˆÉê!#`{$+ì+-!î\"R\"ˆ+C¡ˆA)ªÛÄï!«°Üğ#ˆÜñ#ˆÜò#ˆÉê!#`{$++C¡ˆA)ª¦Éó!#`{$+ì+-!î\"R\"ˆ+C¡ˆA)+‚\n *Ë‡" [stderr-buffer dir root-dir current-dir looking-at "cvs update: Updating \\(.*\\)$" cvs-get-current-dir 1 head cvs-create-fileinfo DIRCHANGE nil 0 "cvs update: warning: \\(.*\\) is not (any longer) pertinent" "cvs update: \\(.*\\) is no longer in the repository" CVS-REMOVED file-name-nondirectory "cvs update: warning: .* was lost$" "^cvs update: move away \\(.*\\); it is in the way$" MOVE-AWAY "^$" "^cvs update: \\[..:..:..\\] waiting for .*lock in " "cvs update: conflict: \\(.*\\) is modified but no longer in the repository$" REM-CONFLICT "cvs update: conflict: removed \\(.*\\) was modified by second party" MOD-CONFLICT "cvs update: in directory " start cvs-skip-line stdout-buffer regexp-quote "cvs [update aborted]: there is no repository " REPOS-MISSING filename initial-revision complex-start "^RCS file: .*$" "^retrieving revision \\(.*\\)$" "^retrieving revision .*$" "^Merging differences between [0-9.]+ and [0-9.]+ into \\(.*\\)$" "^\\(rcs\\)?merge\\( warning\\)?: overlaps during merge$" "^cvs update: conflicts found in " CONFLICT fileinfo cvs-set-fileinfo->backup-file cvs-bakprefix "." "^\\(rcs\\)?merge\\( warning\\)?: overlaps or other problems during merge$" "^\\(rcs\\)?merge\\( warning\\)?: overlaps .*during merge$" "^cvs update: could not merge " "^cvs update: restoring .* from backup file " MERGED] 7)) head] 1 "\
 Parse the output from CVS that is written to stderr.
 Args: STDOUT-BUFFER STDERR-BUFFER HEAD DIR
 STDOUT-BUFFER holds the output that cvs sent to stdout. It is only
@@ -371,7 +370,7 @@ Commands:
 \\[cvs-edit-done] checks in the file when you are ready.
 This mode is based on fundamental mode." nil])
 (byte-code "¬“Á ÂÃ!ˆÄÅÃ#ˆÄÆÇ#ˆÁ‡" [cvs-edit-mode-map make-sparse-keymap define-prefix-command cvs-control-c-prefix define-key "" "" cvs-edit-done] 4)
-(fset 'cvs-diff-cvs #[(&optional ignore-marks) "À ˆÁ\n«„?®…\n?­!Å ˆÆÇ!ˆÈ	ÊB#ˆ)ÆÌ!‡" [save-some-buffers cvs-get-marked ignore-marks cvs-diff-ignore-marks marked cvs-use-temp-buffer message "cvsdiffing..." cvs-execute-list cvs-program "diff" cvs-cvs-diff-flags "cvsdiffing... Done."] 5 "\
+(fset 'cvs-diff-cvs #[(&optional ignore-marks) "<¬„ÁÂ!ˆÃ ˆÄ«…?®†?­‚!È ˆÉÊ!ˆËÍB#ˆ)ÉÎ!‡" [cvs-cvs-diff-flags error "cvs-cvs-diff-flags should be a list of strings" save-some-buffers cvs-get-marked ignore-marks cvs-diff-ignore-marks marked cvs-use-temp-buffer message "cvsdiffing..." cvs-execute-list cvs-program "diff" "cvsdiffing... Done."] 5 "\
 Diff the selected files against the repository.
 The flags the variable cvs-cvs-diff-flags will be passed to ``cvs diff''.
 If the variable cvs-diff-ignore-marks is non-nil any marked files will
@@ -380,7 +379,7 @@ invert the influence from cvs-diff-ignore-marks." "P"])
 (fset 'cvs-backup-diffable #[(tin cvs-buf) "ÀÁ\n\"!‡" [cvs-fileinfo->backup-file cookie-cookie cvs-buf tin] 4 "\
 Check if the TIN is backup-diffable.
 It must have a backup file to be diffable."])
-(fset 'cvs-diff-backup #[(&optional ignore-marks) "À ˆÁÂÃ«„?®…?­!p#‰¬„ÇÈ!ˆÉ ˆÊË!ˆÌÍ$ˆ)ÊĞ!‡" [save-some-buffers cvs-filter cvs-backup-diffable cvs-get-marked ignore-marks cvs-diff-ignore-marks marked error "No ``Conflict'' or ``Merged'' file selected!" cvs-use-temp-buffer message "diffing..." cvs-execute-single-file-list cvs-diff-backup-extractor cvs-diff-program cvs-diff-flags "diffing... Done."] 6 "\
+(fset 'cvs-diff-backup #[(&optional ignore-marks) "<¬„ÁÂ!ˆÃ ˆÄÅÆ«…?®‡?­‚!p#‰	¬„ÁÊ!ˆË ˆÌÍ!ˆÎ	Ï$ˆ)ÌÑ!‡" [cvs-diff-flags error "cvs-diff-flags should be a list of strings." save-some-buffers cvs-filter cvs-backup-diffable cvs-get-marked ignore-marks cvs-diff-ignore-marks marked "No ``Conflict'' or ``Merged'' file selected!" cvs-use-temp-buffer message "diffing..." cvs-execute-single-file-list cvs-diff-backup-extractor cvs-diff-program "diffing... Done."] 6 "\
 Diff the files against the backup file.
 This command can be used on files that are marked with \"Merged\"
 or \"Conflict\" in the *cvs* buffer.
@@ -462,3 +461,4 @@ Add a ChangeLog entry in the ChangeLog of the current directory.
 Args: POS." "d"])
 (fset 'print-cvs-tin #[(foo) "Àp	\"ÂÃ!ÆÇ\"ˆÆÈ!\"ˆÆÉ\"ˆÆÊ!\"ˆÆÉ\"ˆÆË!\"ˆÆÉ\"ˆÆÌ!\"ˆÆÉ\"*‡" [cookie-cookie foo get-buffer-create "debug" stream cookie princ "==============\n" cvs-fileinfo->file-name "\n" cvs-fileinfo->dir cvs-fileinfo->full-log cvs-fileinfo->marked] 3 "\
 Debug utility."])
+(byte-code "ÀÁ\n\"«ŠÃÄÅ\"ˆÆÇÄ\"ˆÀ‡" [string-match "Lucid" emacs-version autoload pcl-cvs-fontify "pcl-cvs-lucid" add-hook cvs-mode-hook] 3)

@@ -1,9 +1,9 @@
 /* Extended regular expression matching and search.
-   Copyright (C) 1985 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 1, or (at your option)
+    the Free Software Foundation; either version 2, or (at your option)
     any later version.
 
     This program is distributed in the hope that it will be useful,
@@ -65,7 +65,7 @@ init_syntax_once ()
    if (done)
      return;
 
-   bzero (re_syntax_table, sizeof re_syntax_table);
+   memset (re_syntax_table, 0, sizeof re_syntax_table);
 
    for (c = 'a'; c <= 'z'; c++)
      re_syntax_table[c] = Sword;
@@ -111,6 +111,7 @@ static int obscure_syntax = 0;
 
 int
 re_set_syntax (syntax)
+     int syntax;
 {
   int ret;
 
@@ -400,7 +401,7 @@ re_compile_pattern (pattern, size, bufp)
 
 	  PATPUSH ((1 << BYTEWIDTH) / BYTEWIDTH);
 	  /* Clear the whole map */
-	  bzero (b, (1 << BYTEWIDTH) / BYTEWIDTH);
+	  memset (b, 0, (1 << BYTEWIDTH) / BYTEWIDTH);
 	  /* Read in characters and ranges, setting map bits */
 	  while (1)
 	    {
@@ -686,7 +687,7 @@ insert_jump (op, from, to, current_end)
  as bufp->fastmap.
  The other components of bufp describe the pattern to be used.  */
 
-void
+static void
 re_compile_fastmap (bufp)
      struct re_pattern_buffer *bufp;
 {
@@ -701,7 +702,7 @@ re_compile_fastmap (bufp)
   unsigned char *stackb[NFAILURES];
   unsigned char **stackp = stackb;
 
-  bzero (fastmap, (1 << BYTEWIDTH));
+  memset (fastmap, 0, (1 << BYTEWIDTH));
   bufp->fastmap_accurate = 1;
   bufp->can_be_null = 0;
       
@@ -1219,7 +1220,9 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 		if (mcnt > dend2 - d2)
 		  mcnt = dend2 - d2;
 		/* Compare that many; failure if mismatch, else skip them. */
-		if (translate ? bcmp_translate (d, d2, mcnt, translate) : bcmp (d, d2, mcnt))
+		if (translate
+		    ? bcmp_translate (d, d2, mcnt, translate)
+		    : memcmp (d, d2, mcnt))
 		  goto fail;
 		d += mcnt, d2 += mcnt;
 	      }
@@ -1296,7 +1299,7 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 		return -2;
 	      stackx = (unsigned char **) alloca (2 * (stacke - stackb)
 					 * sizeof (char *));
-	      bcopy (stackb, stackx, (stacke - stackb) * sizeof (char *));
+	      memcpy (stackx, stackb, (stacke - stackb) * sizeof (char *));
 	      stackp = stackx + (stackp - stackb);
 	      stacke = stackx + 2 * (stacke - stackb);
 	      stackb = stackx;
@@ -1369,7 +1372,7 @@ re_match_2 (pbufp, string1, size1, string2, size2, pos, regs, mstop)
 	      unsigned char **stackx
 		= (unsigned char **) alloca (2 * (stacke - stackb)
 					     * sizeof (char *));
-	      bcopy (stackb, stackx, (stacke - stackb) * sizeof (char *));
+	      memcpy (stackx, stackb, (stacke - stackb) * sizeof (char *));
 	      stackp = stackx + (stackp - stackb);
 	      stacke = stackx + 2 * (stacke - stackb);
 	      stackb = stackx;

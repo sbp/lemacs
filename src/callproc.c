@@ -1,5 +1,5 @@
 /* Synchronous subprocess invocation for GNU Emacs.
-   Copyright (C) 1985, 1986, 1987, 1988, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -17,11 +17,13 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-
-#include <stdio.h>		/* For sprintf */
-#include <signal.h>
-
 #include "config.h"
+#include "lisp.h"
+
+#include <stdio.h>
+#include <signal.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include <sys/types.h>
 #define PRIO_PROCESS 0
@@ -38,11 +40,15 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define O_WRONLY 1
 #endif
 
-#include "lisp.h"
+#if defined(sun) && !defined(USG)
+# include <vfork.h>
+#endif
+
 #include "commands.h"
 #include "buffer.h"
 #include "paths.h"
 #include "process.h"
+#include "insdel.h"
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
@@ -66,7 +72,7 @@ int synch_process_pid;
 
 /* True iff we are about to fork off a synchronous process or if we
    are waiting for it.  */
-int synch_process_alive;
+/* int synch_process_alive; */
 
 /* Nonzero => this is a string explaining death of synchronous subprocess.  */
 char *synch_process_death;
@@ -78,7 +84,7 @@ int synch_process_retcode;
 void child_setup ();
 
 
-Lisp_Object
+static Lisp_Object
 call_process_cleanup (fdpid)
      Lisp_Object fdpid;
 {
@@ -94,8 +100,9 @@ extern int errno;
 extern char *sys_errlist[];
 extern int sys_nerr;
 
-Lisp_Object fork_error;
+static Lisp_Object fork_error;
 
+static void
 report_fork_error (string, data)
      char *string;
      Lisp_Object data;
@@ -113,7 +120,7 @@ report_fork_error (string, data)
   fork_error = Fcons (build_string (string), Fcons (errstring, data));
 
   /* terminate this branch of the fork, without closing stdin/out/etc. */
-  _exit();
+  _exit (0);
 }
 
 #ifdef VMS
@@ -126,6 +133,8 @@ extern noshare char **environ;
 #else
 extern char **environ;
 #endif
+
+extern void wait_for_termination (int);
 
 DEFUN ("call-process", Fcall_process, Scall_process, 1, MANY, 0,
   "Call PROGRAM synchronously in separate process.\n\
@@ -147,7 +156,7 @@ If you quit, the process is killed with SIGKILL.")
   int filefd;
   register int pid;
   char buf[1024];
-  int count = specpdl_ptr - specpdl;
+  int count = specpdl_depth;
   register unsigned char **new_argv
     = (unsigned char **) alloca ((max (2, nargs - 2)) * sizeof (char *));
   struct buffer *old = current_buffer;
@@ -198,7 +207,7 @@ If you quit, the process is killed with SIGKILL.")
       report_file_error ("Opening process input file", Fcons (args[1], Qnil));
     }
   /* Search for program; barf if not found.  */
-  openp (Vexec_path, args[0], "", &path, 1);
+  locate_file (Vexec_path, args[0], "", &path, X_OK);
   if (NILP (path))
     {
       close (filefd);
@@ -329,18 +338,19 @@ If you quit, the process is killed with SIGKILL.")
 
   internal_set_buffer (old);
 
-  unbind_to (count);
+  unbind_to (count, Qnil);
 
   if (synch_process_death)
     return build_string (synch_process_death);
   return make_number (synch_process_retcode);
 }
 
-static void
+static Lisp_Object
 delete_temp_file (name)
      Lisp_Object name;
 {
-  unlink (XSTRING (name)->data);
+  unlink ((char *) XSTRING (name)->data);
+  return (Qnil);
 }
 
 DEFUN ("call-process-region", Fcall_process_region, Scall_process_region,
@@ -361,7 +371,7 @@ If you quit, the process is killed with SIGKILL.")
 {
   register Lisp_Object filename_string, start, end;
   char tempfile[20];
-  int count = specpdl_ptr - specpdl;
+  int count = specpdl_depth;
   Lisp_Object result;
 
   strcpy (tempfile, "/tmp/emacsXXXXXX");
@@ -378,8 +388,7 @@ If you quit, the process is killed with SIGKILL.")
 
   args[3] = filename_string;
   result = Fcall_process (nargs - 2, args + 2);
-  unbind_to (count);
-  return result;
+  return unbind_to (count, result);
 }
 
 /* This is the last thing run in a newly forked inferior
@@ -393,6 +402,11 @@ If you quit, the process is killed with SIGKILL.")
    of environ around the vfork and the call to this function.
 
    ENV is the environment for the subprocess. */
+
+extern void close_process_descs (void);
+extern void setpgrp_of_tty (int);
+
+extern pid_t setpgrp ();
 
 void
 child_setup (in, out, err, new_argv, env)
@@ -422,20 +436,19 @@ child_setup (in, out, err, new_argv, env)
 
       i = XSTRING (current_buffer->directory)->size;
       temp = (unsigned char *) alloca (i + 2);
-      bcopy (XSTRING (current_buffer->directory)->data, temp, i);
+      memcpy (temp, XSTRING (current_buffer->directory)->data, i);
       if (temp[i - 1] != '/') temp[i++] = '/';
       temp[i] = 0;
       /* Switch to that directory, and report any error.  */
 
 #if 0
- /* Lucid fix: don't report the chdir error, or ange-ftp.el doesn't work. */
+ /* don't report the chdir error, or ange-ftp.el doesn't work. */
       if (chdir (temp) < 0)
 	report_fork_error ("In chdir",
 			   Fcons (current_buffer->directory, Qnil));
 #else
-      chdir (temp);
+      chdir ((char *) temp);
 #endif
-
     }
 
 #ifndef MAINTAIN_ENVIRONMENT
@@ -500,11 +513,10 @@ child_setup (in, out, err, new_argv, env)
   _exit (1);
 }
 
+void
 init_callproc ()
 {
   register char * sh;
-  extern char **environ;
-  register char **envp;
   Lisp_Object execdir;
 
 #ifdef PATH_EXEC
@@ -543,12 +555,16 @@ init_callproc ()
 #ifndef CANNOT_DUMP
   if (initialized)
 #endif
-    for (envp = environ; *envp; envp++)
-      Vprocess_environment = Fcons (build_string (*envp),
-				    Vprocess_environment);
+    {
+      char **envp;
+      for (envp = environ; *envp; envp++)
+	Vprocess_environment = Fcons (build_string (*envp),
+				      Vprocess_environment);
+    }
 #endif /* MAINTAIN_ENVIRONMENT */
 }
 
+void
 syms_of_callproc ()
 {
   DEFVAR_LISP ("shell-file-name", &Vshell_file_name,

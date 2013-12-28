@@ -1,11 +1,11 @@
 /* Functions for memory limit warnings.
-   Copyright (C) 1990 Free Software Foundation, Inc.
+   Copyright (C) 1990, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -46,7 +46,7 @@ extern POINTER sbrk ();
 
 /* Get more memory space, complaining if we're near the end. */
 
-static POINTER
+static char *
 morecore_with_warning (size)
      register int size;
 {
@@ -107,6 +107,8 @@ morecore_with_warning (size)
   return result;
 }
 
+extern char *(* __morecore) ();     /* From gmalloc.c */
+
 /* Cause reinitialization based on job parameters;
    also declare where the end of pure storage is. */
 
@@ -115,12 +117,10 @@ malloc_init (start, warnfun)
      POINTER start;
      void (*warnfun) ();
 {
-  extern POINTER (* __morecore) ();     /* From gmalloc.c */
-
   if (start)
     data_space_start = start;
   lim_data = 0;
   warnlevel = 0;
   warnfunction = warnfun;
-  __morecore = &morecore_with_warning;
+  __morecore = morecore_with_warning;
 }

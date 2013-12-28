@@ -1,0 +1,48 @@
+;;; compiled by jwz@thalidomide on Tue Dec 29 23:01:52 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/gnus/gnus-speedups.el
+;;; emacs version 19.4.1 Lucid.
+;;; bytecomp version 2.09; 22-dec-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(require 'gnus)
+(fset 'gnus-find-new-newsgroups #[nil "¿â¡ ≈∆\"à≈»	\"à À\"à+á" [nil make-abbrev-table known-groups new-groups group mapcar #[(group) "¿	@\n\"√Lá" [intern group known-groups t] 3] gnus-killed-assoc #[(group) "¿	@\n\"√Lá" [intern group known-groups t] 3] gnus-newsrc-assoc mapatoms #[(sym) "¿	!´èƒ\n\"´â≠ïƒ\n\"≠è∆\n\"?≠á\nBâá" [symbol-name sym group gnus-newsrc-options-n-no string-match gnus-newsrc-options-n-yes abbrev-expansion known-groups new-groups] 3] gnus-active-hashtb] 3 "\
+Look for new newsgroups and return names.
+`-n' option of options line in .newsrc file is recognized."])
+(fset 'gnus-keyed-sort #[(list compare extract) "¿¡\n\"ƒ≈\"¿∆\")á" [mapcar #[(it) "	!	Bá" [extract it] 2] list keyed-list sort #[(a b) "	@\n@\"á" [compare a b] 3] #[(it) "Aá" [it] 1]] 3 "\
+Sort LIST stably and return the sorted list.  Does not modify LIST.
+Arguments are (LIST COMPARE EXTRACT).  Elements in the list are
+compared as if the predicate were:
+	(COMPARE (EXTRACT a) (EXTRACT b))
+but EXTRACT is run over each element of the list in a preprocessing
+stage for efficiency.  This reduces the number of EXTRACT calls from
+O(N log N) to O(N).
+
+Example: (gnus-keyed-sort load-path 'string< 'downcase)
+"])
+(fset 'gnus-keyed-sort-headers #[(compare extract) "¿	\n#âá" [gnus-keyed-sort gnus-newsgroup-headers compare extract] 4 "\
+Sort current group's headers by COMPARE and EXTRACT.  Sorting is
+done as if the predicate were
+	(COMPARE (EXTRACT a) (EXTRACT b))
+See 'gnus-keyed-sort for details.
+Note: interrupting the sort leaves the headers unsorted.
+"])
+(fset 'gnus-Subject-keyed-sort-subjects #[(compare extract &optional reverse) "¿ ¬\"à´Öü« à»	!)á" [gnus-Subject-article-number current gnus-keyed-sort-headers compare extract reverse gnus-newsgroup-headers gnus-Subject-prepare gnus-Subject-goto-subject] 3 "\
+Sort and redisplay the *Subject* buffer by COMPARE and EXTRACT.
+Calls 'gnus-keyed-sort-headers to do the sorting.  Optional argument
+REVERSE means to do an 'nreverse after sorting.
+"])
+(fset 'gnus-Subject-sort-by-subject #[(reverse) "¿¡\n´É√™Åƒ#á" [gnus-Subject-keyed-sort-subjects string< case-fold-search #[(it) "¿	¬H√\"óá" [gnus-simplify-subject it 1 re-only] 3] #[(it) "¿	¬H√\"á" [gnus-simplify-subject it 1 re-only] 3] reverse] 4 "\
+Sort *Subject* buffer by subject alphabetically.  Argument REVERSE
+means reverse order.  \"Re:\"s are ignored.  If 'case-fold-search, then
+case of letters will be ignored.
+" "P"])
+(byte-code "¿¡!¨Ñ¡¬Mà¿á" [fboundp gnus-sortable-date gnus-comparable-date] 2)
+(fset 'gnus-Subject-sort-by-date #[(reverse) "¿¡¬#á" [gnus-Subject-keyed-sort-subjects string< #[(it) "¿	¬H!á" [gnus-sortable-date it 5] 3] reverse] 4 "\
+Sort *Subject* buffer by posted date.  Argument REVERSE means
+reverse order." "P"])

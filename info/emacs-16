@@ -39,8 +39,8 @@ Key (Character) Index
 * > (Rmail):                            Rmail Motion.
 * C-<:                                  Setting Mark.
 * C->:                                  Setting Mark.
-* C-M-@:                                Lists.
 * C-M-@:                                Marking Objects.
+* C-M-@:                                Lists.
 * C-M-\:                                Indentation Commands.
 * C-M-\:                                Multi-line Indent.
 * C-M-a:                                Defuns.
@@ -51,13 +51,13 @@ Key (Character) Index
 * C-M-e:                                Defuns.
 * C-M-e (Fortran mode):                 Fortran Motion.
 * C-M-f:                                Lists.
-* C-M-h:                                Marking Objects.
 * C-M-h:                                Defuns.
+* C-M-h:                                Marking Objects.
 * C-M-h (Fortran mode):                 Fortran Motion.
 * C-M-k:                                Lists.
 * C-M-k:                                Killing.
-* C-M-l (Rmail):                        Rmail Make Summary.
 * C-M-l (Rmail):                        Rmail Labels.
+* C-M-l (Rmail):                        Rmail Make Summary.
 * C-M-n:                                Lists.
 * C-M-n (Rmail):                        Rmail Labels.
 * C-M-o:                                Indentation Commands.
@@ -67,14 +67,14 @@ Key (Character) Index
 * C-M-q (Fortran mode):                 ForIndent Commands.
 * C-M-r (Rmail):                        Rmail Make Summary.
 * C-M-s:                                Regexp Search.
-* C-M-t:                                Transpose.
 * C-M-t:                                Lists.
+* C-M-t:                                Transpose.
 * C-M-u:                                Lists.
-* C-M-v:                                Minibuffer Edit.
 * C-M-v:                                Other Window.
+* C-M-v:                                Minibuffer Edit.
 * C-M-w:                                Appending Kills.
-* C-M-x:                                Lisp Eval.
 * C-M-x:                                External Lisp.
+* C-M-x:                                Lisp Eval.
 * C-SPC:                                Setting Mark.
 * C-]:                                  Quitting.
 * C-]:                                  Recursive Edit.
@@ -145,6 +145,7 @@ Key (Character) Index
 * C-e:                                  Basic.
 * C-f:                                  Basic.
 * C-g:                                  Minibuffer.
+* C-g (isearch-mode):                   Incremental Search.
 * C-h:                                  Key Sequences.
 * C-h C-c:                              Help.
 * C-h C-d:                              Help.
@@ -152,24 +153,24 @@ Key (Character) Index
 * C-h a:                                Help.
 * C-h b:                                Help.
 * C-h c:                                Help.
-* C-h f:                                Help.
 * C-h f:                                Documentation.
+* C-h f:                                Help.
 * C-h i:                                Help.
 * C-h k:                                Help.
 * C-h l:                                Help.
 * C-h m:                                Help.
 * C-h n:                                Help.
 * C-h s:                                Syntax Change.
-* C-h t:                                Basic.
 * C-h t:                                Help.
+* C-h t:                                Basic.
+* C-h v:                                Examining.
 * C-h v:                                Help.
 * C-h v:                                Documentation.
-* C-h v:                                Examining.
 * C-h w:                                Help.
 * C-k:                                  Killing.
 * C-k:                                  Killing.
-* C-l:                                  Scrolling.
 * C-l:                                  Basic.
+* C-l:                                  Scrolling.
 * C-l (query-replace):                  Query Replace.
 * C-n:                                  Basic.
 * C-n (Rmail summary):                  Rmail Summary Edit.
@@ -178,11 +179,14 @@ Key (Character) Index
 * C-p:                                  Basic.
 * C-p (Rmail summary):                  Rmail Summary Edit.
 * C-q:                                  Basic.
+* C-q (isearch-mode):                   Incremental Search.
 * C-r:                                  Incremental Search.
+* C-r (isearch-mode):                   Incremental Search.
 * C-r (query-replace):                  Query Replace.
 * C-s:                                  Incremental Search.
-* C-t:                                  Basic.
+* C-s (isearch-mode):                   Incremental Search.
 * C-t:                                  Transpose.
+* C-t:                                  Basic.
 * C-u:                                  Arguments.
 * C-u - C-x ;:                          Comments.
 * C-u C-@:                              Mark Ring.
@@ -190,6 +194,7 @@ Key (Character) Index
 * C-u TAB:                              Multi-line Indent.
 * C-v:                                  Scrolling.
 * C-w:                                  Killing.
+* C-w (isearch-mode):                   Incremental Search.
 * C-w (query-replace):                  Query Replace.
 * C-x:                                  Key Sequences.
 * C-x $:                                Selective Display.
@@ -261,22 +266,24 @@ Key (Character) Index
 * C-x w:                                Narrowing.
 * C-x x:                                RegText.
 * C-y:                                  Kill Ring.
+* C-y (isearch-mode):                   Incremental Search.
 * C-z:                                  Exiting.
-* DEL:                                  Killing.
-* DEL:                                  Kill Errors.
+* DEL:                                  Major Modes.
 * DEL:                                  Basic.
 * DEL:                                  Program Modes.
-* DEL:                                  Major Modes.
+* DEL:                                  Killing.
+* DEL:                                  Kill Errors.
 * DEL (Rmail summary):                  Rmail Summary Edit.
 * DEL (Rmail):                          Rmail Scrolling.
+* DEL (isearch-mode):                   Incremental Search.
 * DEL (query-replace):                  Query Replace.
 * ESC:                                  Key Sequences.
 * ESC:                                  Meta Key.
 * ESC (query-replace):                  Query Replace.
 * Help:                                 Help.
-* LFD:                                  String Key Sequences.
 * LFD:                                  Basic Indent.
 * LFD:                                  Major Modes.
+* LFD:                                  String Key Sequences.
 * LFD (TeX mode):                       TeX Editing.
 * M-!:                                  Single Shell.
 * M-$:                                  Spelling.
@@ -293,26 +300,27 @@ Key (Character) Index
 * M-=:                                  Position Info.
 * M->:                                  Basic.
 * M-?:                                  Nroff Mode.
-* M-@:                                  Marking Objects.
 * M-@:                                  Words.
+* M-@:                                  Marking Objects.
 * M--:                                  Arguments.
 * M-- M-c:                              Fixing Case.
 * M-- M-l:                              Fixing Case.
 * M-- M-u:                              Fixing Case.
 * M-{ (TeX mode):                       TeX Editing.
 * M-} (TeX mode):                       TeX Editing.
-* M-DEL:                                Kill Errors.
 * M-DEL:                                Words.
+* M-DEL:                                Kill Errors.
 * M-DEL:                                Killing.
 * M-ESC:                                Lisp Eval.
 * M-LFD:                                Comments.
 * M-LFD (Fortran mode):                 ForIndent Commands.
 * M-SPC:                                Killing.
-* M-TAB:                                Lisp Completion.
 * M-TAB:                                Tabs in Picture.
+* M-TAB:                                Lisp Completion.
+* M-TAB (isearch-mode):                 Incremental Search.
 * M-[:                                  Paragraphs.
-* M-\:                                  Indentation Commands.
 * M-\:                                  Killing.
+* M-\:                                  Indentation Commands.
 * M-]:                                  Paragraphs.
 * M-^:                                  Killing.
 * M-^:                                  Indentation Commands.
@@ -331,20 +339,22 @@ Key (Character) Index
 * M-k:                                  Killing.
 * M-l:                                  Case.
 * M-m:                                  Indentation Commands.
-* M-n:                                  Nroff Mode.
 * M-n:                                  Repetition.
+* M-n:                                  Nroff Mode.
 * M-n (Rmail):                          Rmail Motion.
 * M-n (Shell mode):                     Shell Mode.
+* M-n (isearch-mode):                   Incremental Search.
 * M-p:                                  Repetition.
 * M-p:                                  Nroff Mode.
 * M-p (Rmail):                          Rmail Motion.
 * M-p (Shell mode):                     Shell Mode.
+* M-p (isearch-mode):                   Incremental Search.
 * M-q:                                  Fill Commands.
 * M-r:                                  Basic.
 * M-s:                                  Fill Commands.
 * M-s (Rmail):                          Rmail Motion.
-* M-t:                                  Words.
 * M-t:                                  Transpose.
+* M-t:                                  Words.
 * M-u:                                  Case.
 * M-v:                                  Scrolling.
 * M-w:                                  Kill Ring.
@@ -356,17 +366,18 @@ Key (Character) Index
 * META:                                 Meta Key.
 * RET:                                  Basic.
 * RET (Shell mode):                     Shell Mode.
+* RET (isearch-mode):                   Incremental Search.
 * SPC:                                  Completion.
 * SPC (Rmail summary):                  Rmail Summary Edit.
 * SPC (Rmail):                          Rmail Scrolling.
 * SPC (query-replace):                  Query Replace.
-* TAB:                                  Indentation.
 * TAB:                                  Major Modes.
-* TAB:                                  String Key Sequences.
-* TAB:                                  Indentation.
-* TAB:                                  Basic Indent.
 * TAB:                                  Text Mode.
 * TAB:                                  Completion.
+* TAB:                                  String Key Sequences.
+* TAB:                                  Indentation.
+* TAB:                                  Indentation.
+* TAB:                                  Basic Indent.
 * TAB (Shell mode):                     Shell Mode.
 * ^ (query-replace):                    Query Replace.
 * a (Rmail):                            Rmail Labels.
@@ -385,8 +396,8 @@ Key (Character) Index
 * g (Rmail):                            Rmail Files.
 * h (Rmail):                            Rmail Make Summary.
 * hyper key:                            Super and Hyper Keys.
-* hyper key:                            Keystrokes.
 * hyper key:                            Representing Keystrokes.
+* hyper key:                            Keystrokes.
 * i (Rmail):                            Rmail Files.
 * j (Rmail summary):                    Rmail Summary Edit.
 * j (Rmail):                            Rmail Motion.

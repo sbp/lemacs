@@ -1,10 +1,10 @@
-;; Copyright (C) 1985, 1986 Free Software Foundation, inc.
+;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -25,15 +25,7 @@
 
 (put 'file-locked 'error-conditions '(file-locked file-error error))
 
-(defun ask-user-about-lock (fn opponent)
-  "Ask user what to do when he wants to edit FILE but it is locked by USER.
-This function has a choice of three things to do:
-  do (signal 'buffer-file-locked (list FILE USER))
-    to refrain from editing the file
-  return t (grab the lock on the file)
-  return nil (edit the file even though it is locked).
-You can rewrite it to use any criterion you like to choose which one to do."
-  (discard-input)
+(defun ask-user-about-lock-minibuf (fn opponent)
   (save-window-excursion
     (let (answer)
       (while (null answer)
@@ -73,15 +65,7 @@ You can <q>uit; don't modify this file.")))
 (put
  'file-supersession 'error-conditions '(file-supersession file-error error))
 
-(defun ask-user-about-supersession-threat (fn)
-  "Ask a user who is about to modify an obsolete buffer what to do.
-This function has two choices: it can return, in which case the modification
-of the buffer will proceed, or it can (signal 'file-supersession (file)),
-in which case the proposed buffer modification will not be made.
-
-You can rewrite this to use any criterion you like to choose which one to do.
-The buffer in question is current when this function is called."
-  (discard-input)
+(defun ask-user-about-supersession-threat-minibuf (fn)
   (save-window-excursion
     (let (answer)
       (while (null answer)
@@ -122,3 +106,105 @@ Usually, you should type `n' and then `M-x revert-buffer',
 to get the latest version of the file, then make the change again.")))
 
 
+
+;;; dialog-box versions
+
+(defun ask-user-about-lock-dbox (fn opponent)
+  (let ((event (allocate-event))
+	(echo-keystrokes 0)
+	(dbox
+	 (cons
+	  (format "%s is locking %s\n
+	It has been detected that you want to modify a file that
+	someone else has already started modifying in Emacs."
+		  opponent fn)
+	  '(["Steal Lock\n\nThe other user will\nbecome the intruder" steal t]
+	    ["Proceed\n\nEdit file at your own\n\(and the other user's) risk"
+	     proceed t]
+	    nil
+	    ["Abort\n\nDon't modify the buffer\n" yield t]))))
+    (popup-dialog-box dbox)
+    (catch 'aual-done
+      (while t
+	(next-command-event event)
+	(cond ((and (menu-event-p event) (eq (event-object event) 'proceed))
+	       (throw 'aual-done nil))
+	      ((and (menu-event-p event) (eq (event-object event) 'steal))
+	       (throw 'aual-done t))
+	      ((and (menu-event-p event) (eq (event-object event) 'yield))
+	       (signal 'file-locked (list "File is locked" fn opponent)))
+	      ((button-release-event-p event) ;; don't beep twice
+	       nil)
+	      (t
+	       (beep)
+	       (message "please answer the dialog box")))))))
+
+(defun ask-user-about-supersession-threat-dbox (fn)
+  (let ((event (allocate-event))
+	(echo-keystrokes 0)
+	(dbox
+	 (cons
+	  (format "File %s has changed on disk
+since its buffer was last read in or saved.
+
+Do you really want to edit the buffer? " fn)
+	  '(["Yes\n\nEdit the buffer anyway,\nignoring the disk file"
+	     proceed t]
+	    ["No\n\nDon't modify the buffer\n" yield t]
+	    nil
+	    ["No\n\nDon't modify the buffer\nbut revert it" revert t]
+	    ))))
+    (popup-dialog-box dbox)
+    (catch 'auast-done
+      (while t
+	(next-command-event event)
+	(cond ((and (menu-event-p event) (eq (event-object event) 'proceed))
+	       (throw 'auast-done nil))
+	      ((and (menu-event-p event) (eq (event-object event) 'yield))
+	       (signal 'file-supersession (list "File changed on disk" fn)))
+	      ((and (menu-event-p event) (eq (event-object event) 'revert))
+	       (or (equal fn (buffer-file-name))
+		   (error "ask-user-about-supersession-threat called bogusly"))
+	       (revert-buffer nil t)
+	       (signal 'file-supersession
+		       (list "File changed on disk; reverted" fn)))
+	      ((button-release-event-p event) ;; don't beep twice
+	       nil)
+	      (t
+	       (beep)
+	       (message "please answer the dialog box")))))))
+
+
+;;; top-level
+
+(defun ask-user-about-lock (fn opponent)
+  "Ask user what to do when he wants to edit FILE but it is locked by USER.
+This function has a choice of three things to do:
+  do (signal 'buffer-file-locked (list FILE USER))
+    to refrain from editing the file
+  return t (grab the lock on the file)
+  return nil (edit the file even though it is locked).
+You can rewrite it to use any criterion you like to choose which one to do."
+  (discard-input)
+  (if (and (fboundp 'popup-dialog-box)
+	   (or (button-press-event-p last-command-event)
+	       (button-release-event-p last-command-event)
+	       (menu-event-p last-command-event)))
+      (ask-user-about-lock-dbox fn opponent)
+    (ask-user-about-lock-minibuf fn opponent)))
+
+(defun ask-user-about-supersession-threat (fn)
+  "Ask a user who is about to modify an obsolete buffer what to do.
+This function has two choices: it can return, in which case the modification
+of the buffer will proceed, or it can (signal 'file-supersession (file)),
+in which case the proposed buffer modification will not be made.
+
+You can rewrite this to use any criterion you like to choose which one to do.
+The buffer in question is current when this function is called."
+  (discard-input)
+  (if (and (fboundp 'popup-dialog-box)
+	   (or (button-press-event-p last-command-event)
+	       (button-release-event-p last-command-event)
+	       (menu-event-p last-command-event)))
+      (ask-user-about-supersession-threat-dbox fn)
+    (ask-user-about-supersession-threat-minibuf fn)))

@@ -16,6 +16,7 @@ struct Lisp_Keymap {
   int fullness;			/* How many entries there are in this table.
 				   This should be the same as the fullness
 				   of the `table', but hash.c is broken. */
+  Lisp_Object name;             /* Just for debugging convenience */
 };
 
-#define KEYMAP_SIZE ((sizeof (struct Lisp_Keymap) / sizeof (int)) - 2)
+#define KEYMAP_SIZE ((sizeof (struct Lisp_Keymap) / sizeof (Lisp_Object)) - 2)

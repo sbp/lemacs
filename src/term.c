@@ -31,6 +31,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "screen.h"
 #include "disptab.h"
 
+#ifndef tputs
+extern int tputs (char *, int, int (*) (char));
+extern int tgetent (char *, char *);
+extern int tgetflag (char *);
+extern int tgetnum (char *);
+#endif
+
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
@@ -56,7 +63,7 @@ int screen_height;		/* Number of lines */
 int must_write_spaces;		/* Nonzero means spaces in the text
 				   must actually be output; can't just skip
 				   over some columns to leave them blank.  */
-int min_padding_speed;		/* Speed below which no padding necessary */
+int min_padding_speed;	/* Speed below which no padding necessary */
 
 int line_ins_del_ok;		/* Terminal can insert and delete lines */
 int char_ins_del_ok;		/* Terminal can insert and delete chars */
@@ -106,63 +113,63 @@ Lisp_Object (*read_socket_hook) ();
 
 /* Strings, numbers and flags taken from the termcap entry.  */
 
-char *TS_ins_line;		/* termcap "al" */
-char *TS_ins_multi_lines;	/* "AL" (one parameter, # lines to insert) */
-char *TS_bell;			/* "bl" */
-char *TS_clr_to_bottom;		/* "cd" */
-char *TS_clr_line;		/* "ce", clear to end of line */
-char *TS_clr_screen;		/* "cl" */
-char *TS_set_scroll_region;	/* "cs" (2 params, first line and last line) */
-char *TS_set_scroll_region_1;   /* "cS" (4 params: total lines,
+static char *TS_ins_line;		/* termcap "al" */
+static char *TS_ins_multi_lines;	/* "AL" (one parameter, # lines to insert) */
+static char *TS_bell;			/* "bl" */
+static char *TS_clr_to_bottom;		/* "cd" */
+static char *TS_clr_line;		/* "ce", clear to end of line */
+static char *TS_clr_screen;		/* "cl" */
+static char *TS_set_scroll_region;	/* "cs" (2 params, first line and last line) */
+static char *TS_set_scroll_region_1;   /* "cS" (4 params: total lines,
 				   lines above scroll region, lines below it,
 				   total lines again) */
-char *TS_del_char;		/* "dc" */
-char *TS_del_multi_chars;	/* "DC" (one parameter, # chars to delete) */
-char *TS_del_line;		/* "dl" */
-char *TS_del_multi_lines;	/* "DL" (one parameter, # lines to delete) */
-char *TS_delete_mode;		/* "dm", enter character-delete mode */
-char *TS_end_delete_mode;	/* "ed", leave character-delete mode */
-char *TS_end_insert_mode;	/* "ei", leave character-insert mode */
-char *TS_ins_char;		/* "ic" */
-char *TS_ins_multi_chars;	/* "IC" (one parameter, # chars to insert) */
-char *TS_insert_mode;		/* "im", enter character-insert mode */
-char *TS_pad_inserted_char;	/* "ip".  Just padding, no commands.  */
-char *TS_end_keypad_mode;	/* "ke" */
-char *TS_keypad_mode;		/* "ks" */
-char *TS_pad_char;		/* "pc", char to use as padding */
-char *TS_repeat;		/* "rp" (2 params, # times to repeat
+static char *TS_del_char;		/* "dc" */
+static char *TS_del_multi_chars;	/* "DC" (one parameter, # chars to delete) */
+static char *TS_del_line;		/* "dl" */
+static char *TS_del_multi_lines;	/* "DL" (one parameter, # lines to delete) */
+static char *TS_delete_mode;		/* "dm", enter character-delete mode */
+static char *TS_end_delete_mode;	/* "ed", leave character-delete mode */
+static char *TS_end_insert_mode;	/* "ei", leave character-insert mode */
+static char *TS_ins_char;		/* "ic" */
+static char *TS_ins_multi_chars;	/* "IC" (one parameter, # chars to insert) */
+static char *TS_insert_mode;		/* "im", enter character-insert mode */
+static char *TS_pad_inserted_char;	/* "ip".  Just padding, no commands.  */
+static char *TS_end_keypad_mode;	/* "ke" */
+static char *TS_keypad_mode;		/* "ks" */
+static char *TS_pad_char;		/* "pc", char to use as padding */
+static char *TS_repeat;		/* "rp" (2 params, # times to repeat
 				   and character to be repeated) */
-char *TS_end_standout_mode;	/* "se" */
-char *TS_fwd_scroll;		/* "sf" */
-char *TS_standout_mode;		/* "so" */
-char *TS_rev_scroll;		/* "sr" */
-char *TS_end_termcap_modes;	/* "te" */
-char *TS_termcap_modes;		/* "ti" */
-char *TS_visible_bell;		/* "vb" */
-char *TS_end_visual_mode;	/* "ve" */
-char *TS_visual_mode;		/* "vi" */
-char *TS_set_window;		/* "wi" (4 params, start and end of window,
+static char *TS_end_standout_mode;	/* "se" */
+static char *TS_fwd_scroll;		/* "sf" */
+static char *TS_standout_mode;		/* "so" */
+static char *TS_rev_scroll;		/* "sr" */
+static char *TS_end_termcap_modes;	/* "te" */
+static char *TS_termcap_modes;		/* "ti" */
+static char *TS_visible_bell;		/* "vb" */
+static char *TS_end_visual_mode;	/* "ve" */
+static char *TS_visual_mode;		/* "vi" */
+static char *TS_set_window;		/* "wi" (4 params, start and end of window,
 				   each as vpos and hpos) */
-char *TS_underline_mode;	/* "us" */
-char *TS_end_underline_mode;	/* "ue" */
+static char *TS_underline_mode;	/* "us" */
+static char *TS_end_underline_mode;	/* "ue" */
 
-int TF_hazeltine;	/* termcap hz flag. */
-int TF_insmode_motion;	/* termcap mi flag: can move while in insert mode. */
-int TF_standout_motion;	/* termcap mi flag: can move while in standout mode. */
-int TF_underscore;	/* termcap ul flag: _ underlines if overstruck on
+static int TF_hazeltine;	/* termcap hz flag. */
+static int TF_insmode_motion;	/* termcap mi flag: can move while in insert mode. */
+static int TF_standout_motion;	/* termcap mi flag: can move while in standout mode. */
+static int TF_underscore;	/* termcap ul flag: _ underlines if overstruck on
 			   nonblank position.  Must clear before writing _.  */
-int TF_teleray;		/* termcap xt flag: many weird consequences.
+static int TF_teleray;		/* termcap xt flag: many weird consequences.
 			   For t1061. */
 
-int TF_xs;		/* Nonzero for "xs".  If set together with
+static int TF_xs;		/* Nonzero for "xs".  If set together with
 			   TN_standout_width == 0, it means don't bother
 			   to write any end-standout cookies.  */
 
 /* These are present if the terminal uses the magic cookie model. */
 
-int TN_standout_width;	/* termcap "sg" number: width occupied by standout
+static int TN_standout_width;	/* termcap "sg" number: width occupied by standout
 			   markers */
-int TN_underline_width;	/* termcap "ug" number: width occupied by underline
+static int TN_underline_width;	/* termcap "ug" number: width occupied by underline
 			   markers. */
 
 
@@ -211,7 +218,21 @@ SCREEN_PTR updating_screen;
 
 char *tparam ();
 
-void
+
+int 
+initial_screen_is_tty ()
+{
+#ifdef HAVE_X_WINDOWS
+  return (inhibit_window_system || !egetenv ("DISPLAY"));
+#else
+  return 1;
+#endif
+}
+
+
+
+
+static void
 set_scroll_region (start, stop)
      int start, stop;
 {
@@ -233,7 +254,7 @@ set_scroll_region (start, stop)
 		    stop, SCREEN_WIDTH (selected_screen));
     }
   OUTPUT (buf);
-  free (buf);
+  xfree (buf);
   losecursor ();
 }
 
@@ -252,7 +273,7 @@ set_terminal_window (size)
   set_scroll_region (0, specified_window);
 }
 
-void
+static void
 turn_on_insert ()
 {
   if (!insert_mode)
@@ -260,7 +281,7 @@ turn_on_insert ()
   insert_mode = 1;
 }
 
-void
+static void
 turn_off_insert ()
 {
   if (insert_mode)
@@ -422,7 +443,7 @@ ring_bell (sound)
 void
 set_terminal_modes ()
 {
-  if (egetenv ("DISPLAY") && !inhibit_window_system)
+  if (! initial_screen_is_tty ())
     return;
   if (CHECK_HOOK (set_terminal_modes_hook))
     {
@@ -531,8 +552,9 @@ cursor_to (row, col)
 
 /* Similar but don't take any account of the wasted characters.  */
 
-void
+static void
 raw_cursor_to (row, col)
+     int row, col;
 {
   register struct run *face_list = selected_screen->current_glyphs->face_list[row];
   int run_len;
@@ -619,7 +641,7 @@ write_raw_glyph (g)
 
    Note that the cursor may be moved, on terminals lacking a `ce' string.  */
 
-void
+static void
 clear_end_of_line_raw (first_unused_hpos)
      int first_unused_hpos;
 {
@@ -674,7 +696,7 @@ clear_end_of_line (first_unused_hpos)
 
 /* clear from cursor to end of screen */
 
-void
+static void
 clear_to_end ()
 {
   register int i;
@@ -688,7 +710,7 @@ clear_to_end ()
     {
       enter_background_mode ();
       OUTPUT (TS_clr_to_bottom);
-      bzero (chars_wasted + curY, SCREEN_HEIGHT (selected_screen) - curY);
+      memset (chars_wasted + curY, 0, SCREEN_HEIGHT (selected_screen) - curY);
     }
   else
     {
@@ -715,7 +737,7 @@ clear_screen ()
     {
       enter_background_mode ();
       OUTPUT (TS_clr_screen);
-      bzero (chars_wasted, SCREEN_HEIGHT (selected_screen));
+      memset (chars_wasted, 0, SCREEN_HEIGHT (selected_screen));
       cmat (0, 0);
     }
   else
@@ -798,7 +820,7 @@ insert_spaceglyphs (hpos, vpos, len)
 
       buf = tparam (TS_ins_multi_chars, 0, 0, len);
       OUTPUT1 (buf);
-      free (buf);
+      xfree (buf);
       return;
     }
 
@@ -841,7 +863,7 @@ insert_glyphs (hpos, vpos, len)
     {
       buf = tparam (TS_ins_multi_chars, 0, 0, len);
       OUTPUT1 (buf);
-      free (buf);
+      xfree (buf);
       write_glyphs (curX, curY, len);
       return;
     }
@@ -889,7 +911,7 @@ delete_glyphs (n)
     {
       buf = tparam (TS_del_multi_chars, 0, 0, n);
       OUTPUT1 (buf);
-      free (buf);
+      xfree (buf);
     }
   else
     for (i = 0; i < n; i++)
@@ -935,7 +957,7 @@ ins_del_lines (vpos, n)
       enter_background_mode ();
       buf = tparam (multi, 0, 0, i);
       OUTPUT (buf);
-      free (buf);
+      xfree (buf);
     }
   else if (single)
     {
@@ -963,14 +985,17 @@ ins_del_lines (vpos, n)
     {
       if (n < 0)
 	{
-	  bcopy (&chars_wasted[curY - n], &chars_wasted[curY], SCREEN_HEIGHT (selected_screen) - curY + n);
-	  bzero (&chars_wasted[SCREEN_HEIGHT (selected_screen) + n], - n);
+	  memcpy (&chars_wasted[curY], &chars_wasted[curY - n],
+		  SCREEN_HEIGHT (selected_screen) - curY + n);
+	  memset (&chars_wasted[SCREEN_HEIGHT (selected_screen) + n], 0, - n);
 	}
       else
 	{
-	  bcopy (&chars_wasted[curY], &copybuf[curY], SCREEN_HEIGHT (selected_screen) - curY - n);
-	  bcopy (&copybuf[curY], &chars_wasted[curY + n], SCREEN_HEIGHT (selected_screen) - curY - n);
-	  bzero (&chars_wasted[curY], n);
+	  memcpy (&copybuf[curY], &chars_wasted[curY],
+		  SCREEN_HEIGHT (selected_screen) - curY - n);
+	  memcpy (&chars_wasted[curY + n], &copybuf[curY],
+		  SCREEN_HEIGHT (selected_screen) - curY - n);
+	  memset (&chars_wasted[curY], 0, n);
 	}
     }
   if (!scroll_region_ok && memory_below_screen && n < 0)
@@ -1093,9 +1118,9 @@ calculate_ins_del_char_costs (screen)
     *p++ = (ins_startup_cost += ins_cost_per_char);
 }
 
-#ifdef HAVE_X_WINDOWS
-extern int x_screen_planes;
-#endif
+extern void do_line_insertion_deletion_costs (SCREEN_PTR, 
+					      char *, char *, char *, char *, 
+					      char *, char *, int);
 
 void
 calculate_costs (screen)
@@ -1112,7 +1137,7 @@ calculate_costs (screen)
   if (SCREEN_IS_X (screen))
     {
       do_line_insertion_deletion_costs (screen, 0, ".5*", 0, ".5*",
-					0, 0, x_screen_planes);
+					0, 0, 1 /*x_screen_planes*/);
       return;
     }
 #endif
@@ -1146,10 +1171,10 @@ calculate_costs (screen)
       = (int *) xmalloc (sizeof (int)
 			 + 2 * SCREEN_WIDTH (screen) * sizeof (int));
 
-  bzero (chars_wasted, SCREEN_HEIGHT (screen));
-  bzero (copybuf, SCREEN_HEIGHT (screen));
-  bzero (char_ins_del_vector, (sizeof (int)
-			       + 2 * SCREEN_WIDTH (screen) * sizeof (int)));
+  memset (chars_wasted, 0, SCREEN_HEIGHT (screen));
+  memset (copybuf, 0, SCREEN_HEIGHT (screen));
+  memset (char_ins_del_vector, 0,
+	  (sizeof (int) + 2 * SCREEN_WIDTH (screen) * sizeof (int)));
 
   if (s && (!TS_ins_line && !TS_del_line))
     do_line_insertion_deletion_costs (screen,
@@ -1177,12 +1202,16 @@ calculate_costs (screen)
 void
 fatal (str, arg1, arg2)
      char *str;
+     int arg1, arg2;
 {
   fprintf (stderr, "emacs: ");
   fprintf (stderr, str, arg1, arg2);
   fflush (stderr);
   exit (1);
 }
+
+extern int tabs_safe_p (void);
+extern void init_baud_rate (void);
 
 void
 term_init (terminal_type)
@@ -1195,6 +1224,9 @@ term_init (terminal_type)
   int status;
 
   extern char *tgetstr ();
+
+  if (! initial_screen_is_tty ())
+    return;
 
   Wcm_clear ();
   dont_calculate_costs = 0;
@@ -1404,9 +1436,6 @@ term_init (terminal_type)
   ScreenRows = SCREEN_HEIGHT (selected_screen);
   ScreenCols = SCREEN_WIDTH (selected_screen);
   specified_window = SCREEN_HEIGHT (selected_screen);
-
-  if (egetenv ("DISPLAY") && !inhibit_window_system)
-    return;
 
   if (Wcm_init () == -1)	/* can't do cursor motion */
     {

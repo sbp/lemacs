@@ -1,3 +1,4 @@
+;;;; Id: elib-node.el,v 1.1 1992/03/14 20:45:31 ceder Exp 
 ;;;; This file implements the nodes used in binary trees and
 ;;;; doubly linked lists
 ;;;;

@@ -1,4 +1,5 @@
 ;;; -*- Mode:Emacs-Lisp -*-
+;;; Copyright © 1992-1993 by Lucid, Inc.  All Rights Reserved.
 
 ;;; The names of the menu items (as emacs sees them) are short and ugly.
 ;;; These are the names by which the Energize protocol knows the commands.
@@ -13,6 +14,9 @@
 ;;; them; we do this via the energize-menu-item-table, which is an obarray
 ;;; hash table associating the names with the functions.  We do the reverse
 ;;; association via an 'energize-name property on the function's name symbol.
+;;;
+;;; Sometimes the short ugly names show up in error messages; probably we
+;;; should read the resource database to get the pretty names.
 
 (require 'menubar)
 
@@ -53,10 +57,8 @@ functions that invoke them.")
 
 (defun energize-warn-kernel-slow (pair)
   (setq energize-timeout-state (cdr energize-timeout-state))
-  (message (if (eq interrupt-char ?\C-g)
-	       "%s Type ^G to cancel%s"
-	     (format "%%s Type %c to cancel%%s" interrupt-char))
-	   (car pair) (car energize-timeout-state))
+  (message "%s Type %c to cancel%s"
+	   (car pair) interrupt-char (car energize-timeout-state))
   (rplacd pair t))
 
 (defmacro energize-with-timeout (notice &rest body)
@@ -86,7 +88,7 @@ functions that invoke them.")
 		 (interactive)
 		 (energize-execute-command (, name))))))
   ;; Return the menu-item descriptor.
-  (vector name function nil))
+  (vector name function nil nil))
 
 (defmacro energize-def-menu (menu-name &rest items)
   (` (list (, menu-name)
@@ -122,6 +124,9 @@ functions that invoke them.")
    ["Next Error"	next-error			t]
    ["Previous Error"	previous-error			t]
    "-----"
+   ["Visit Uses of Language Element"	energize-next-use-start 	t]
+   ["Next Use"				energize-next-use-command	t]
+   "-----"   
    ("findproject"	energize-find-project)
    ("project"		energize-pop-to-project-buffer)
    ("energize"		energize-pop-to-energize-buffer)
@@ -162,9 +167,10 @@ functions that invoke them.")
    ("innerframe"	energize-debugger-current-frame)
    ("upframe"		energize-debugger-up-frame)
    ("downframe"		energize-debugger-down-frame)
-   ("backtrace"		energize-debugger-backtrace)
+   ("listbacktrace"	energize-debugger-backtrace)
    "-----"
-   ("print"		energize-debugger-print)
+   ("printvalue"	energize-debugger-print)
+   ("printstarvalue"	energize-debugger-print-star)
    "-----"
    ("cleardebuggerlog"	energize-clear-debugger-log)
    ("closeprogram"	energize-debugger-kill-program)
@@ -172,39 +178,42 @@ functions that invoke them.")
    )
 
  (energize-def-menu "Compile"
-   ("buildanddebug"	energize-build-and-debug)
-   ("incrementalbuild"	energize-build)
-   ("buildprogram"	energize-full-build)
-   ("compileprogram"	energize-compile-target)
+   ("buildatarget"	energize-build-a-target)
+   ("custombuildatarget"	energize-custom-build-a-target)
    ("link"		energize-link-target)
    "-----"
-   ("compilemods"	energize-compile-file)
-   ("compilefile"	energize-full-compile-file)
-   ("compilecheck"	energize-check-for-errors)
+   ("defaultcompile"	energize-default-compile-file)
+   ("custombuildfile"	energize-custom-build-file)
    "-----"
    ("deleteallobjects"	energize-delete-object-files)
    )
 
- (energize-def-menu "Project"
-   ("newproject"		energize-new-project)
-   ("importproject"		energize-import-project)
+ ;; this item cannot use the energize-def-menu macro because some of the
+ ;; entries are not energize commands but lisp functions defined
+ ;; in energize-mode.el
+ (list "Project"
+   (energize-def-menu-item "newproject"		'energize-new-project)
+   (energize-def-menu-item "importproject"	'energize-import-project)
    "-----"
-   ("importprojectlist"		energize-import-project-list)
-   ("writeprojectlist"		energize-write-project-list)
+   (energize-def-menu-item "importprojectlist"	'energize-import-project-list)
+   (energize-def-menu-item "writeprojectlist"	'energize-write-project-list)
    "-----"
-   (energize-def-menu "addtarget"
-     ("addfiletarget"		energize-insert-file-target)
-     ("addexecutabletarget"	energize-insert-executable-target)
-     ("addlibrarytarget"	energize-insert-library-target)
-     ("addcollectiontarget"	energize-insert-collection-target))
-   ("abbreviatetargets"		energize-abbreviate-targets)
-   ("fulltargets"		energize-full-targets)
+   '("addprojectentry"
+     ["addrule"			energize-insert-rule nil]
+     ["addfiletarget"		energize-insert-file-target nil]
+     ["addexecutabletarget"	energize-insert-executable-target nil]
+     ["addlibrarytarget"	energize-insert-library-target nil]
+     ["addcollectiontarget"	energize-insert-collection-target nil]
+     ["addtargettarget"		energize-insert-target-target nil])
+   (energize-def-menu-item "abbreviatetargets"	'energize-abbreviate-targets)
+   (energize-def-menu-item "fulltargets"	'energize-full-targets)
    "-----"
-   ("showallfiles"		energize-show-all-files)
-   ("onlyshowsources"		energize-show-only-sources)
-   ("shownofiles"		energize-show-no-files)
+   (energize-def-menu-item "showallfiles"	'energize-show-all-files)
+   (energize-def-menu-item "onlyshowsources"	'energize-show-only-sources)
+   (energize-def-menu-item "shownofiles"	'energize-show-no-files)
    "-----"
-   ("revertproject"		energize-fully-revert-project-buffer)
+   (energize-def-menu-item "revertproject"
+			   		'energize-fully-revert-project-buffer)
    )
 
  buffers
@@ -258,12 +267,19 @@ Otherwise, just runs the normal emacs `manual-entry' command."
 	;; If the function which this item invokes is an Energize function
 	;; (determined by the presence of an 'energize-name property) then
 	;; make it be active iff it's on the active-items list.
-	(let ((active-p (memq fn active-items)))
-	  (if (eq (not active-p) (not (aref item 2)))
-	      nil
-	    (aset item 2 (not (not active-p)))
-	    t)))))
-   ((consp item)  ; descend nested submenus
+	(let ((active-p (assq fn active-items))
+	      (change-p nil))
+	  (if (not (eq (not active-p) (not (aref item 2))))
+	      (progn
+		(aset item 2 (not (not active-p)))
+		(setq change-p t)))
+	  (if (and active-p
+		   (not (equal (cdr active-p) (aref item 3))))
+	      (progn
+		(aset item 3 (cdr active-p))
+		(setq change-p t)))
+	  change-p))))
+   ((consp item)			; descend nested submenus
     (activate-energize-menu-items-internal (cdr item)))
    (t nil)))
 
@@ -283,7 +299,7 @@ Otherwise, just runs the normal emacs `manual-entry' command."
 	 (menubar
 	  (if (< (cdr (energize-protocol-level)) 7)
 	      (energize-with-timeout
-	       "Getting updated menubar from kernel..."
+	       "Getting updated menubar from Energize server..."
 	       (energize-list-menu (current-buffer) () selection-p))
 	    (append energize-menu-state energize-default-menu-state))))
     (delq nil
@@ -291,17 +307,20 @@ Otherwise, just runs the normal emacs `manual-entry' command."
 		     (and (vectorp x)
 			  (if (/= 0 (logand 1 (aref x 3)))
 			      nil
-			    (symbol-value
-			     (intern-soft (aref x 0)
-					  energize-menu-item-table)))))
+			    (cons
+			     (symbol-value
+			      (intern-soft (aref x 0)
+					   energize-menu-item-table))
+			     (aref x 4)))))
 		  menubar))))
 
-(defun activate-energize-menu-items-hook (nothing)
+(defun activate-energize-menu-items-hook ()
   ;; This is O^2 because of the `rassq', but it looks like the elisp part
   ;; of it only takes .03 seconds.  
   (if (connected-to-energize-p)
       (let* ((items current-menubar)
 	     (change-p nil)
+	     ;; dynamically used by activate-energize-menu-item-internal
 	     (active-items (energize-build-menubar-names))
 	     item)
 	(while items
@@ -312,12 +331,59 @@ Otherwise, just runs the normal emacs `manual-entry' command."
 		items (cdr items)))
 	(not change-p))))
 
+(add-hook 'activate-menubar-hook 'activate-energize-menu-items-hook t)
 
-(or (memq 'activate-energize-menu-items-hook activate-menubar-hook)
-    (setq activate-menubar-hook
-	  (nconc activate-menubar-hook '(activate-energize-menu-items-hook))))
+
+(defun deactivate-all-energize-menu-items ()
+  (let ((items current-menubar)
+	;; dynamically used by activate-energize-menu-item-internal
+	(active-items nil)
+	item)
+    (while items
+      (if (setq item (car items))
+	  (activate-energize-menu-items-internal
+	   (if (consp item) (cdr item) item)))
+      (setq items (cdr items)))))
+
+
+
+;;; Sensitization of the project menus
+(defun sensitize-project-menu-hook ()
+  "For use as a value of activate-menubar-hook.
+This function activates the \"add target\" menu items in project buffers"
+  (let* ((project-p (eq major-mode 'energize-project-mode))
+	 (project-menu
+	  (cdr (car (find-menu-item current-menubar '("Project")))))
+	 (target-menu
+	  (cdr (car (find-menu-item project-menu '("addprojectentry")))))
+	 (add-rule (car (find-menu-item target-menu '("addrule"))))
+	 (add-file (car (find-menu-item target-menu '("addfiletarget"))))
+	 (add-executable
+	  (car (find-menu-item target-menu '("addexecutabletarget"))))
+	 (add-library (car (find-menu-item target-menu '("addlibrarytarget"))))
+	 (add-collection
+	  (car (find-menu-item target-menu '("addcollectiontarget"))))
+	 (add-target
+	  (car (find-menu-item target-menu '("addtargettarget"))))
+	 (change-p
+	  (or (and add-rule (not (eq project-p (aref add-rule 2))))
+	      (and add-file (not (eq project-p (aref add-file 2))))
+	      (and add-executable (not (eq project-p (aref add-executable 2))))
+	      (and add-library (not (eq project-p (aref add-library 2))))
+	      (and add-collection (not (eq project-p (aref add-collection 2))))
+	      (and add-target (not (eq project-p (aref add-target 2)))))))
+    (if add-rule (aset add-rule 2 project-p))
+    (if add-file (aset add-file 2 project-p))
+    (if add-executable (aset add-executable 2 project-p))
+    (if add-library (aset add-library 2 project-p))
+    (if add-collection (aset add-collection 2 project-p))
+    (if add-target (aset add-target 2 project-p))
+    ;; return t to mean "no change" and nil to mean "recompute menubar"
+    (not change-p)))
+
+(add-hook 'activate-menubar-hook 'sensitize-project-menu-hook t)
+
  
-
 ;;; Popup-menus
 
 (defvar energize-popup-menu)
@@ -333,7 +399,7 @@ Otherwise, just runs the normal emacs `manual-entry' command."
     (if (null extent)
 	(error "No extent with an Energize menu here"))
     (energize-with-timeout
-     "Asking for extent menu to Energize server..."
+     "Asking Energize server for menu contents..."
      (setq choices
 	   (cdr
 	    (cdr
@@ -352,24 +418,11 @@ Otherwise, just runs the normal emacs `manual-entry' command."
 			      (list 'energize-execute-command
 				    (aref item 0)
 				    extent)
-			      (= 0 (logand 1 (aref item 3))))))
+			      (= 0 (logand 1 (aref item 3)))
+			      (aref item 4))))
 		 choices)))
-    (popup-menu 'energize-popup-menu)
-    ;;
-    ;; Setting zmacs-region-stays is necessary here because executing a
-    ;; command from a menu is really a two-command process: the first command
-    ;; (bound to the button-click) simply pops up the menu, and returns.
-    ;; This causes a sequence of magic-events (destined for the popup-menu
-    ;; widget) to begin.  Eventually, a menu item is selected, and a menu-
-    ;; event blip is pushed onto the end of the input stream, which is then
-    ;; executed by the event loop.
-    ;;
-    ;; So there are two command-events, with a bunch of magic-events between
-    ;; them.  We don't want the *first* command event to alter the state of
-    ;; the region, so that the region can be available as an argument for the
-    ;; second command.
-    ;;
-    (setq zmacs-region-stays t)))
+    (setq energize-popup-menu (external-editor-hack-popup energize-popup-menu))
+    (popup-menu 'energize-popup-menu)))
 
 
 ;;; Functions to interactively execute menu items by their names.
@@ -464,7 +517,8 @@ Otherwise, just runs the normal emacs `manual-entry' command."
 		    ()
 		    (x-get-selection-internal 'PRIMARY 'STRING)
 		  (error ""))))
-      (let ((energize-make-many-buffers-visible-should-enqueue-event ()))
+      (let ((energize-make-many-buffers-visible-should-enqueue-event
+	     (equal name "save")))
 	(energize-execute-command-internal buffer
 					   extent
 					   name
@@ -478,18 +532,17 @@ Otherwise, just runs the normal emacs `manual-entry' command."
 (defun setup-sparc-function-keys ()
   (if (not (eq window-system 'x))
       nil
-    (define-key global-map 'f20 'x-kill-primary-selection)   ; kp_cut
-    (define-key global-map 'f16 'x-copy-primary-selection)   ; kp_copy
-    (define-key global-map 'f18 'x-yank-clipboard-selection) ; kp_paste
-    (define-key global-map 'f29 'scroll-down)		     ; kp_pgup
-    (define-key global-map 'f35 'scroll-up)		     ; kp_pgdn
-    (define-key global-map 'f27 'beginning-of-buffer)	     ; kp_home
-    (define-key global-map 'r13 'end-of-buffer)		     ; kp_end
+    (define-key global-map 'f14 'undo)			     ; L4,  Undo
+    (define-key global-map 'f16 'x-copy-primary-selection)   ; L6,  Copy
+    (define-key global-map 'f18 'x-yank-clipboard-selection) ; L8,  Paste
+    (define-key global-map 'f20 'x-kill-primary-selection)   ; L10, Cut
+    (define-key global-map 'f27 'beginning-of-buffer)	     ; R7,  Home, KP_7
+    (define-key global-map 'r13 'end-of-buffer)		     ; R13, End,  KP_1
+    (define-key global-map 'f29 'scroll-down)		     ; R9,  PgUp, KP_9
+    (define-key global-map 'f35 'scroll-up)		     ; R15, PgDn, KP_3
     ))
 
-(or (memq 'setup-sparc-function-keys window-setup-hook)
-    (setq window-setup-hook
-	  (cons 'setup-sparc-function-keys window-setup-hook)))
+(add-hook 'window-setup-hook 'setup-sparc-function-keys)
 (setup-sparc-function-keys)
 (fset 'energize-announce 'play-sound)
 
@@ -500,8 +553,48 @@ Otherwise, just runs the normal emacs `manual-entry' command."
 (defun energize-check-if-buffer-locked ()
   (if (connected-to-energize-p)
       (energize-with-timeout
-       "Asking kernel if buffer is editable..."
+       "Asking Energize server if buffer is editable..."
        (energize-barf-if-buffer-locked))))
 
 (setq first-change-function 'energize-check-if-buffer-locked)
 
+
+;;; Here's a converter that makes emacs understand how to convert to
+;;; selections of type ENERGIZE.  Eventually the Energize server won't
+;;; be using the selection mechanism any more, I hope.
+
+(defun xselect-convert-to-energize (selection type value)
+  (let (str id start end tmp)
+    (cond ((and (consp value)
+		(markerp (car value))
+		(markerp (cdr value)))
+	   (setq id (energize-buffer-id (marker-buffer (car value)))
+		 start (1- (marker-position (car value)))  ; zero based
+		 end (1- (marker-position (cdr value)))))
+	  ((extentp value)
+	   (setq id (extent-to-generic-id value)
+		 start 0
+		 end 0)))
+    (if (null id)
+	nil
+      (setq str (make-string 12 0))
+      (if (< end start) (setq tmp start start end end tmp))
+      (aset str 0 (logand (ash (car id) -8) 255))
+      (aset str 1 (logand (car id) 255))
+      (aset str 2 (logand (ash (cdr id) -8) 255))
+      (aset str 3 (logand (cdr id) 255))
+      (aset str 4 (logand (ash start -24) 255))
+      (aset str 5 (logand (ash start -16) 255))
+      (aset str 6 (logand (ash start -8) 255))
+      (aset str 7 (logand start 255))
+      (aset str 8 (logand (ash end -24) 255))
+      (aset str 9 (logand (ash end -16) 255))
+      (aset str 10 (logand (ash end -8) 255))
+      (aset str 11 (logand end 255))
+      (cons 'ENERGIZE_OBJECT str))))
+
+
+(or (assq 'ENERGIZE_OBJECT selection-converter-alist)
+    (setq selection-converter-alist
+	  (cons '(ENERGIZE_OBJECT . xselect-convert-to-energize)
+		selection-converter-alist)))
