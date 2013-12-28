@@ -7,7 +7,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -32,11 +32,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define INTBITS 32              /* Number of bits in an int */
 
 #define LONGBITS 32             /* Number of bits in a long */
-
-/* Define BIG_ENDIAN iff lowest-numbered byte in a word
-   is the most significant byte.  */
-
-#define BIG_ENDIAN
 
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
@@ -129,7 +124,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 		 ? (sign_extend_temp | 0xFF000000) \
 		 : (sign_extend_temp & 0x00FFFFFF))
 
-#ifdef emacs /* Don't do this when makeing xmakefile! */
+#ifdef emacs /* Don't do this when making xmakefile! */
 extern int sign_extend_temp;
 #endif
 
@@ -156,3 +151,11 @@ extern int sign_extend_temp;
 #if u3b2
 #define NEED_PTEM_H
 #endif /* u3b2 */
+
+/* 3b2 does not have memmove, I'm told.  */
+/* It is safe to have no parens around the args in the safe_bcopy call,
+   and parens would screw up the prototype decl for memmove.  */
+#define	memmove(d, s, n) safe_bcopy (s, d, n)
+
+/* This affects filemode.c.  */
+#define NO_MODE_T

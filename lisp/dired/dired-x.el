@@ -1066,14 +1066,16 @@ not absolute ones like
   (dired-do-create-files 'relsymlink (function dired-make-relative-symlink)
 			   "RelSymLink" arg dired-keep-marker-relsymlink))
 
-(defun dired-do-relsymlink-regexp (regexp newname &optional whole-path)
+;; lemacs: added extra arg per tbarker@sun059.cpdsc.com (Ted Barker)
+(defun dired-do-relsymlink-regexp (regexp newname &optional arg whole-path)
   "RelSymlink all marked files containing REGEXP to NEWNAME.
 See functions `dired-rename-regexp' and `dired-do-relsymlink'
-  for more info."
+  for more info. With optional prefix ARG, will operate on ARG files following
+point if no files are marked."
   (interactive (dired-mark-read-regexp "RelSymLink"))
   (dired-do-create-files-regexp
    (function dired-make-relative-symlink)
-   "RelSymLink" nil regexp newname whole-path dired-keep-marker-relsymlink))
+   "RelSymLink" arg regexp newname whole-path dired-keep-marker-relsymlink))
 
 ;; Virtual dired mode to browse ls -lR listings
 ;; sk@sun5  7-Mar-1991 16:00

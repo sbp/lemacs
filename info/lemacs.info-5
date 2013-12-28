@@ -1,5 +1,5 @@
-This is Info file ../info/lemacs.info, produced by Makeinfo-1.55 from
-the input file lemacs.texinfo.
+This is Info file ../../info/lemacs.info, produced by Makeinfo-1.56
+from the input file lemacs.texinfo.
 
    This file documents the GNU Emacs editor.
 
@@ -22,6 +22,614 @@ manual into another language, under the above conditions for modified
 versions, except that the sections entitled "The GNU Manifesto",
 "Distribution" and "GNU General Public License" may be included in a
 translation approved by the author instead of in the original English.
+
+
+File: lemacs.info,  Node: Active Regions,  Prev: X Cut Buffers,  Up: Using X Selections
+
+Active Regions
+--------------
+
+   By default, both the text you select in an Emacs buffer using the
+click-and-drag mechanism and text you select by setting point and the
+mark is highlighted. You can use Emacs region commands as well as the
+Cut and Copy commands on the highlighted region you selected with the
+mouse.
+
+   If you prefer, you can make a distinction between text selected with
+the mouse and text selected with point and the mark by setting the
+variable `zmacs-regions' to `nil'.  In that case:
+
+   * The text selected with the mouse becomes both the X selection and
+     the Emacs selected region. You can use menu-bar commands as well
+     as Emacs region commands on it.
+
+   * The text selected with point and the mark is not highlighted. You
+     can only use Emacs region commands on it, not the menu-bar items.
+
+   Active regions originally come from Zmacs, the Lisp Machine editor.
+The idea behind them is that commands can only operate on a region when
+the region is in an "active" state.  Put simply, you can only operate on
+a region that is highlighted.
+
+   The variable `zmacs-regions' checks whether LISPM-style active
+regions should be used.  This means that commands that operate on the
+region (the area between point and the mark) only work while the region
+is in the active state, which is indicated by highlighting.  Most
+commands causes the region to not be in the active state; for example,
+`C-w' only works immediately after activating the region.
+
+   More specifically:
+   * Commands that operate on the region only work if the region is
+     active.
+
+   * Only a very small set of commands causes the region to become
+     active-- those commands whose semantics are to mark an area, such
+     as `mark-defun'.
+
+   * The region is deactivated after each command that is executed,
+     except that motion commands do not change whether the region is
+     active or not.
+
+   `set-mark-command' (`C-SPC') pushes a mark and activates the region.
+Moving the cursor with normal motion commands (`C-n', `C-p', etc.)
+will cause the region between point and the recently-pushed mark to be
+highlighted.  It will remain highlighted until some non-motion comand
+is executed.
+
+   `exchange-point-and-mark' (`C-x C-x') activates the region.  So if
+you mark a region and execute a command that operates on it, you can
+reactivate the same region with `C-x C-x' (or perhaps `C-x C-x C-x
+C-x') to operate on it again.
+
+   Generally, commands that push marks as a means of navigation, such as
+`beginning-of-buffer' (`M-<') and `end-of-buffer' (`M->'), do not
+activate the region.  However, commands that push marks as a means of
+marking an area of text, such as `mark-defun' (`M-C-h'), `mark-word'
+(`M-@'), and `mark-whole-buffer' (`C-x h'), do activate the region.
+
+   When `zmacs-regions' is `t', there is no distinction between the
+primary X selection and the active region selected by point and the
+mark.  To see this, set the mark (C-SPC) and move the cursor with any
+cursor-motion command: the region between point and mark is
+highlighted, and you can watch it grow and shrink as you move the
+cursor.
+
+   Any other commands besides cursor-motion commands (such as inserting
+or deleting text) will cause the region to no longer be active; it will
+no longer be highlighted, and will no longer be the primary selection.
+Errors also remove highlighting from a region.
+
+   Commands that require a region (such as `C-w') signal an error if
+the region is not active.  Certain commands cause the region to be in
+its active state.  The most common ones are `push-mark' (C-SPC) and
+`exchange-point-and-mark' (`C-x C-x').
+
+   When `zmacs-regions' is `t', programs can be non-intrusive on the
+state of the region by setting the variable `zmacs-region-stays' to a
+non-`nil' value.  If you are writing a new Emacs command that is
+conceptually a "motion" command and should not interfere with the
+current highlightedness of the region, then you may set this variable.
+It is reset to `nil' after each user command is executed.
+
+   When `zmacs-regions' is `t', programs can make the region between
+point and mark go into the active (highlighted) state by using the
+function `zmacs-activate-region'. Only a small number of commands
+should ever do this.
+
+   When `zmacs-regions' is `t', programs can deactivate the region
+between point and the mark by using `zmacs-deactivate-region'.  Note:
+you should not have to call this function; the command loop calls it
+when appropriate.
+
+
+File: lemacs.info,  Node: Accumulating Text,  Next: Rectangles,  Prev: Using X Selections,  Up: Top
+
+Accumulating Text
+=================
+
+   Usually you copy or move text by killing it and yanking it, but
+there are other ways that are useful for copying one block of text in
+many places, or for copying many scattered blocks of text into one
+place.
+
+   If you like, you can accumulate blocks of text from scattered
+locations either into a buffer or into a file.  The relevant commands
+are described here.  You can also use Emacs registers for storing and
+accumulating text.  *Note Registers::.
+
+`M-x append-to-buffer'
+     Append region to contents of specified buffer (`append-to-buffer').
+
+`M-x prepend-to-buffer'
+     Prepend region to contents of specified buffer.
+
+`M-x copy-to-buffer'
+     Copy region into specified buffer, deleting that buffer's old
+     contents.
+
+`M-x insert-buffer'
+     Insert contents of specified buffer into current buffer at point.
+
+`M-x append-to-file'
+     Append region to the end of the contents of specified file.
+
+   To accumulate text into a buffer, use the command `M-x
+append-to-buffer', which inserts a copy of the region into the buffer
+BUFFERNAME, at the location of point in that buffer.  If there is no
+buffer with the given name, one is created.
+
+   If you append text to a buffer that has been used for editing, the
+copied text goes to the place where point is.  Point in that buffer is
+left at the end of the copied text, so successive uses of
+`append-to-buffer' accumulate the text in the specified buffer in the
+same order as they were copied.  Strictly speaking, this command does
+not always append to the text already in the buffer; but if this command
+is the only command used to alter a buffer, it does always append to the
+existing text because point is always at the end.
+
+   `M-x prepend-to-buffer' is similar to `append-to-buffer', but point
+in the other buffer is left before the copied text, so successive
+prependings add text in reverse order.  `M-x copy-to-buffer' is
+similar, except that any existing text in the other buffer is deleted,
+so the buffer is left containing just the text newly copied into it.
+
+   You can retrieve the accumulated text from that buffer with `M-x
+insert-buffer', which takes BUFFERNAME as an argument.  It inserts a
+copy of the text in buffer BUFFERNAME into the selected buffer.  You
+could alternatively select the other buffer for editing, perhaps moving
+text from it by killing or with `append-to-buffer'.  *Note Buffers::,
+for background information on buffers.
+
+   Instead of accumulating text within Emacs in a buffer, you can append
+text directly into a file with `M-x append-to-file', which takes
+FILE-NAME as an argument.  It adds the text of the region to the end of
+the specified file.  The file is changed immediately on disk.  This
+command is normally used with files that are not being visited in
+Emacs.  Using it on a file that Emacs is visiting can produce confusing
+results, because the file's text inside Emacs does not change while the
+file itself changes.
+
+
+File: lemacs.info,  Node: Rectangles,  Next: Registers,  Prev: Accumulating Text,  Up: Top
+
+Rectangles
+==========
+
+   The rectangle commands affect rectangular areas of text: all
+characters between a certain pair of columns, in a certain range of
+lines.  Commands are provided to kill rectangles, yank killed
+rectangles, clear them out, or delete them.  Rectangle commands are
+useful with text in multicolumnar formats, like code with comments at
+the right, or for changing text into or out of such formats.
+
+   To specify the rectangle a command should work on, put the mark at
+one corner and point at the opposite corner.  The specified rectangle is
+called the "region-rectangle" because it is controlled about the same
+way the region is controlled.  Remember that a given combination of
+point and mark values can be interpreted either as specifying a region
+or as specifying a rectangle; it is up to the command that uses them to
+choose the interpretation.
+
+`M-x delete-rectangle'
+     Delete the text of the region-rectangle, moving any following text
+     on each line leftward to the left edge of the region-rectangle.
+
+`M-x kill-rectangle'
+     Similar, but also save the contents of the region-rectangle as the
+     "last killed rectangle".
+
+`M-x yank-rectangle'
+     Yank the last killed rectangle with its upper left corner at point.
+
+`M-x open-rectangle'
+     Insert blank space to fill the space of the region-rectangle.  The
+     previous contents of the region-rectangle are pushed rightward.
+
+`M-x clear-rectangle'
+     Clear the region-rectangle by replacing its contents with spaces.
+
+   The rectangle operations fall into two classes: commands deleting and
+moving rectangles, and commands for blank rectangles.
+
+   There are two ways to get rid of the text in a rectangle: you can
+discard the text (delete it) or save it as the "last killed" rectangle.
+The commands for these two ways are `M-x delete-rectangle' and `M-x
+kill-rectangle'.  In either case, the portion of each line that falls
+inside the rectangle's boundaries is deleted, causing following text
+(if any) on the line to move left.
+
+   Note that "killing" a rectangle is not killing in the usual sense;
+the rectangle is not stored in the kill ring, but in a special place
+that only records the most recently killed rectangle (that is, does not
+append to a killed rectangle).  Different yank commands have to be used
+and only one rectangle is stored, because yanking a rectangle is quite
+different from yanking linear text and yank-popping commands are
+difficult to make sense of.
+
+   Inserting a rectangle is the opposite of deleting one.  You specify
+where to put the upper left corner by putting point there.  The
+rectangle's first line is inserted at point, the rectangle's second line
+is inserted at a point one line vertically down, and so on.  The number
+of lines affected is determined by the height of the saved rectangle.
+
+   To insert the last killed rectangle, type `M-x yank-rectangle'.
+This can be used to convert single-column lists into double-column
+lists; kill the second half of the list as a rectangle and then yank it
+beside the first line of the list.
+
+   There are two commands for working with blank rectangles: `M-x
+clear-rectangle' erases existing text, and `M-x open-rectangle' inserts
+a blank rectangle.  Clearing a rectangle is equivalent to deleting it
+and then inserting a blank rectangle of the same size.
+
+   Rectangles can also be copied into and out of registers.  *Note
+Rectangle Registers: RegRect.
+
+
+File: lemacs.info,  Node: Registers,  Next: Display,  Prev: Rectangles,  Up: Top
+
+Registers
+*********
+
+   Emacs "registers" are places in which you can save text or positions
+for later use.  Text saved in a register can be copied into the buffer
+once or many times; a position saved in a register is used by moving
+point to that position.  Rectangles can also be copied into and out of
+registers (*note Rectangles::.).
+
+   Each register has a name, which is a single character.  A register
+can store either a piece of text, a position, or a rectangle, but only
+one thing at any given time.  Whatever you store in a register remains
+there until you store something else in that register.
+
+* Menu:
+
+* RegPos::    Saving positions in registers.
+* RegText::   Saving text in registers.
+* RegRect::   Saving rectangles in registers.
+
+`M-x view-register RET R'
+     Display a description of what register R contains.
+
+   `M-x view-register' reads a register name as an argument and then
+displays the contents of the specified register.
+
+
+File: lemacs.info,  Node: RegPos,  Next: RegText,  Prev: Registers,  Up: Registers
+
+Saving Positions in Registers
+=============================
+
+   Saving a position records a spot in a buffer so you can move back
+there later.  Moving to a saved position re-selects the buffer and
+moves point to the spot.
+
+`C-x r SPC R'
+     Save the location of point in register R (`point-to-register').
+
+`C-x r j R'
+     Jump to the location saved in register R (`register-to-point').
+
+   To save the current location of point in a register, choose a name R
+and type `C-x r SPC R'.  The register R retains the location thus saved
+until you store something else in that register.
+
+   The command `C-x r j R' moves point to the location recorded in
+register R.  The register is not affected; it continues to record the
+same location.  You can jump to the same position using the same
+register as often as you want.
+
+
+File: lemacs.info,  Node: RegText,  Next: RegRect,  Prev: RegPos,  Up: Registers
+
+Saving Text in Registers
+========================
+
+   When you want to insert a copy of the same piece of text many times,
+it can be impractical to use the kill ring, since each subsequent kill
+moves the piece of text further down on the ring.  It becomes hard to
+keep track of the argument needed to retrieve the same text with `C-y'.
+An alternative is to store the text in a register with `C-x r s'
+(`copy-to-register') and then retrieve it with `C-x r g'
+(`insert-register').
+
+`C-x r s R'
+     Copy region into register R (`copy-to-register').
+
+`C-x r g R'
+     Insert text contents of register R (`insert-register').
+
+   `C-x r s R' stores a copy of the text of the region into the
+register named R.  Given a numeric argument, `C-x r s' deletes the text
+from the buffer as well.
+
+   `C-x r g R' inserts the text from register R in the buffer.  By
+default it leaves point before the text and places the mark after it.
+With a numeric argument, it puts point after the text and the mark
+before it.
+
+
+File: lemacs.info,  Node: RegRect,  Prev: RegText,  Up: Registers
+
+Saving Rectangles in Registers
+==============================
+
+   A register can contain a rectangle instead of lines of text.  The
+rectangle is represented as a list of strings.  *Note Rectangles::, for
+basic information on rectangles and how to specify rectangles in a
+buffer.
+
+`C-x r r R'
+     Copy the region-rectangle into register
+     R(`copy-rectangle-to-register').  With a numeric argument, delete
+     it as well.
+
+`C-x r g R'
+     Insert the rectangle stored in register R (if it contains a
+     rectangle) (`insert-register').
+
+   The `C-x r g' command inserts linear text if the register contains
+that, or inserts a rectangle if the register contains one.
+
+
+File: lemacs.info,  Node: Display,  Next: Search,  Prev: Registers,  Up: Top
+
+Controlling the Display
+***********************
+
+   Since only part of a large buffer fits in the window, Emacs tries to
+show the part that is likely to be interesting.  The display control
+commands allow you to specify which part of the text you want to see.
+
+`C-l'
+     Clear screen and redisplay, scrolling the selected window to center
+     point vertically within it (`recenter').
+
+`C-v'
+     Scroll forward (a windowful or a specified number of lines)
+     (`scroll-up').
+
+`M-v'
+     Scroll backward (`scroll-down').
+
+`ARG C-l'
+     Scroll so point is on line ARG (`recenter').
+
+`C-x <'
+     Scroll text in current window to the left (`scroll-left').
+
+`C-x >'
+     Scroll to the right (`scroll-right').
+
+`C-x $'
+     Make deeply indented lines invisible (`set-selective-display').
+
+* Menu:
+
+* Scrolling::	           Moving text up and down in a window.
+* Horizontal Scrolling::   Moving text left and right in a window.
+* Selective Display::      Hiding lines with lots of indentation.
+* Display Vars::           Information on variables for customizing display.
+
+
+File: lemacs.info,  Node: Scrolling,  Next: Horizontal Scrolling,  Prev: Display,  Up: Display
+
+Scrolling
+=========
+
+   If a buffer contains text that is too large to fit entirely within
+the window that is displaying the buffer, Emacs shows a contiguous
+section of the text.  The section shown always contains point.
+
+   "Scrolling" means moving text up or down in the window so that
+different parts of the text are visible.  Scrolling forward means that
+text moves up, and new text appears at the bottom.  Scrolling backward
+moves text down and new text appears at the top.
+
+   Scrolling happens automatically if you move point past the bottom or
+top of the window.  You can also explicitly request scrolling with the
+commands in this section.
+
+`C-l'
+     Clear screen and redisplay, scrolling the selected window to center
+     point vertically within it (`recenter').
+
+`C-v'
+     Scroll forward (a windowful or a specified number of lines)
+     (`scroll-up').
+
+`M-v'
+     Scroll backward (`scroll-down').
+
+`ARG C-l'
+     Scroll so point is on line ARG (`recenter').
+
+   The most basic scrolling command is `C-l' (`recenter') with no
+argument.  It clears the entire screen and redisplays all windows.  In
+addition, it scrolls the selected window so that point is halfway down
+from the top of the window.
+
+   The scrolling commands `C-v' and `M-v' let you move all the text in
+the window up or down a few lines.  `C-v' (`scroll-up') with an
+argument shows you that many more lines at the bottom of the window,
+moving the text and point up together as `C-l' might.  `C-v' with a
+negative argument shows you more lines at the top of the window.
+`Meta-v' (`scroll-down') is like `C-v', but moves in the opposite
+direction.
+
+   To read the buffer a windowful at a time, use `C-v' with no
+argument.  `C-v' takes the last two lines at the bottom of the window
+and puts them at the top, followed by nearly a whole windowful of lines
+not previously visible.  Point moves to the new top of the window if it
+was in the text scrolled off the top.  `M-v' with no argument moves
+backward with similar overlap.  The number of lines of overlap across a
+`C-v' or `M-v' is controlled by the variable
+`next-screen-context-lines'; by default, it is two.
+
+   Another way to scroll is using `C-l' with a numeric argument.  `C-l'
+does not clear the screen when given an argument; it only scrolls the
+selected window.  With a positive argument N, `C-l' repositions text to
+put point N lines down from the top.  An argument of zero puts point on
+the very top line.  Point does not move with respect to the text;
+rather, the text and point move rigidly on the screen.  `C-l' with a
+negative argument puts point that many lines from the bottom of the
+window.  For example, `C-u - 1 C-l' puts point on the bottom line, and
+`C-u - 5 C-l' puts it five lines from the bottom.  Just `C-u' as
+argument, as in `C-u C-l', scrolls point to the center of the screen.
+
+   Scrolling happens automatically if point has moved out of the visible
+portion of the text when it is time to display.  Usually scrolling is
+done  to put point vertically centered within the window.  However, if
+the variable `scroll-step' has a non-zero value, an attempt is made to
+scroll the buffer by that many lines; if that is enough to bring point
+back into visibility, that is what happens.
+
+
+File: lemacs.info,  Node: Horizontal Scrolling,  Prev: Scrolling,  Up: Display
+
+Horizontal Scrolling
+====================
+
+`C-x <'
+     Scroll text in current window to the left (`scroll-left').
+
+`C-x >'
+     Scroll to the right (`scroll-right').
+
+   The text in a window can also be scrolled horizontally.  This means
+that each line of text is shifted sideways in the window, and one or
+more characters at the beginning of each line are not displayed at all.
+When a window has been scrolled horizontally in this way, text lines
+are truncated rather than continued (*note Continuation Lines::.), with
+a `$' appearing in the first column when there is text truncated to the
+left, and in the last column when there is text truncated to the right.
+
+   The command `C-x <' (`scroll-left') scrolls the selected window to
+the left by N columns with argument N.  With no argument, it scrolls by
+almost the full width of the window (two columns less, to be precise).
+`C-x >' (`scroll-right') scrolls similarly to the right.  The window
+cannot be scrolled any farther to the right once it is displaying
+normally (with each line starting at the window's left margin);
+attempting to do so has no effect.
+
+
+File: lemacs.info,  Node: Selective Display,  Next: Display Vars,  Prev: Display,  Up: Display
+
+Selective Display
+=================
+
+   Emacs can hide lines indented more than a certain number of columns
+(you specify how many columns).  This allows you  to get an overview of
+a part of a program.
+
+   To hide lines, type `C-x $' (`set-selective-display') with a numeric
+argument N.  (*Note Arguments::, for information on giving the
+argument.)  Lines with at least N columns of indentation disappear from
+the screen.  The only indication of their presence are three dots
+(`...'), which appear at the end of each visible line that is followed
+by one or more invisible ones.
+
+   The invisible lines are still present in the buffer, and most editing
+commands see them as usual, so it is very easy to put point in the
+middle of invisible text.  When this happens, the cursor appears at the
+end of the previous line, after the three dots.  If point is at the end
+of the visible line, before the newline that ends it, the cursor
+appears before the three dots.
+
+   The commands `C-n' and `C-p' move across the invisible lines as if
+they were not there.
+
+   To make everything visible again, type `C-x $' with no argument.
+
+
+File: lemacs.info,  Node: Display Vars,  Prev: Selective Display,  Up: Display
+
+Variables Controlling Display
+=============================
+
+   This section contains information for customization only.  Beginning
+users should skip it.
+
+   The variable `mode-line-inverse-video' controls whether the mode
+line is displayed in inverse video (assuming the terminal supports it);
+`nil' means don't do so.  *Note Mode Line::.
+
+   If the variable `inverse-video' is non-`nil', Emacs attempts to
+invert all the lines of the display from what they normally are.
+
+   When you reenter Emacs after suspending, Emacs normally clears the
+screen and redraws the entire display.  On some terminals with more than
+one page of memory, it is possible to arrange the termcap entry so that
+the `ti' and `te' strings (output to the terminal when Emacs is entered
+and exited, respectively) switch between pages of memory so as to use
+one page for Emacs and another page for other output.  In that case,
+you might want to set the variable `no-redraw-on-reenter' to non-`nil'
+so that Emacs will assume, when resumed, that the screen page it is
+using still contains what Emacs last wrote there.
+
+   The variable `echo-keystrokes' controls the echoing of
+multi-character keys; its value is the number of seconds of pause
+required to cause echoing to start, or zero, meaning don't echo at all.
+*Note Echo Area::.
+
+   If the variable `ctl-arrow' is `nil', control characters in the
+buffer are displayed with octal escape sequences, all except newline and
+tab.  If its value is `t', then control characters will be printed with
+an up-arrow, for example `^A'.
+
+   If its value is not `t' and not `nil', then characters whose code is
+greater than 160 (that is, the space character (32) with its high bit
+set) will be assumed to be printable, and will be displayed without
+alteration.  This is the default when running under X Windows, since
+Lucid Emacs assumes an ISO/8859-1 character set (also known as
+"Latin1").  The `ctl-arrow' variable may also be set to an integer, in
+which case all characters whose codes are greater than or equal to that
+value will be assumed to be printable.
+
+   Altering the value of `ctl-arrow' makes it local to the current
+buffer; until that time, the default value is in effect.  *Note
+Locals::.
+
+   Normally, a tab character in the buffer is displayed as whitespace
+which extends to the next display tab stop position, and display tab
+stops come at intervals equal to eight spaces.  The number of spaces
+per tab is controlled by the variable `tab-width', which is made local
+by changing it, just like `ctl-arrow'.  Note that how the tab character
+in the buffer is displayed has nothing to do with the definition of TAB
+as a command.
+
+   If you set the variable `selective-display-ellipses' to `nil', the
+three dots at the end of a line that precedes invisible lines do not
+appear.  There is no visible indication of the invisible lines.  This
+variable becomes local automatically when set.
+
+
+File: lemacs.info,  Node: Search,  Next: Fixit,  Prev: Display,  Up: Top
+
+Searching and Replacement
+*************************
+
+   Like other editors, Emacs has commands for searching for occurrences
+of a string.  The principal search command is unusual in that it is
+"incremental": it begins to search before you have finished typing the
+search string.  There are also non-incremental search commands more like
+those of other editors.
+
+   Besides the usual `replace-string' command that finds all
+occurrences of one string and replaces them with another, Emacs has a
+fancy replacement command called `query-replace' which asks
+interactively which occurrences to replace.
+
+* Menu:
+
+* Incremental Search::     Search happens as you type the string.
+* Non-Incremental Search:: Specify entire string and then search.
+* Word Search::            Search for sequence of words.
+* Regexp Search::          Search for match for a regexp.
+* Regexps::                Syntax of regular expressions.
+* Search Case::            To ignore case while searching, or not.
+* Replace::                Search, and replace some or all matches.
+* Other Repeating Search:: Operating on all matches for some regexp.
 
 
 File: lemacs.info,  Node: Incremental Search,  Next: Non-Incremental Search,  Prev: Search,  Up: Search
@@ -68,7 +676,7 @@ also stops the search and is then executed.  Thus, typing `C-a' exits
 the search and then moves to the beginning of the line.  RET is
 necessary only if the next command you want to type is a printing
 character, DEL, ESC, or another control character that is special
-within searches (`C-q', `C-w', `C-r', `C-s' or `C-y').
+within searches (`C-q', `C-w', `C-r', `C-s', or `C-y').
 
    Sometimes you search for `FOO' and find it, but were actually
 looking for a different occurance of it.  To move to the next occurrence
@@ -153,45 +761,45 @@ via the normal keybinding mechanism: simply add a binding to the
    These are the default bindings of isearch-mode:
 
 `DEL'
-     (`isearch-delete-char')  Delete a character from the incremental
-     search string.
+     Delete a character from the incremental search string
+     (`isearch-delete-char').
 
 `RET'
-     (`isearch-exit')  Exit incremental search.
+     Exit incremental search (`isearch-exit').
 
 `C-q'
-     (`isearch-quote-char')  Quote special characters for incremental
-     search.
+     Quote special characters for incremental search
+     (`isearch-quote-char').
 
 `C-s'
-     (`isearch-repeat-forward')  Repeat incremental search forward.
+     Repeat incremental search forward (`isearch-repeat-forward').
 
 `C-r'
-     (`isearch-repeat-reverse')  Repeat incremental search backward.
+     Repeat incremental search backward (`isearch-repeat-reverse').
 
 `C-y'
-     (`isearch-yank-line')  Pull rest of line from buffer into search
-     string.
+     Pull rest of line from buffer into search string
+     (`isearch-yank-line').
 
 `C-w'
-     (`isearch-yank-word')  Pull next word from buffer into search
-     string.
+     Pull next word from buffer into search string
+     (`isearch-yank-word').
 
 `C-g'
-     (`isearch-abort')  Cancels input back to what has been found
-     successfully, or aborts the isearch.
+     Cancels input back to what has been found successfully, or aborts
+     the isearch (`isearch-abort').
 
 `M-p'
-     (`isearch-ring-retreat')  Recall the previous element in the
-     isearch history ring.
+     Recall the previous element in the isearch history ring
+     (`isearch-ring-retreat').
 
 `M-n'
-     (`isearch-ring-advance')  Recall the next element in the isearch
-     history ring.
+     Recall the next element in the isearch history ring
+     (`isearch-ring-advance').
 
 `M-TAB'
-     (`isearch-complete')  Do completion on the elements in the isearch
-     history ring.
+     Do completion on the elements in the isearch history ring
+     (`isearch-complete').
 
    Any other character which is normally inserted into a buffer when
 typed is automatically added to the search string in isearch-mode.
@@ -237,9 +845,9 @@ require you type the entire search string before searching begins.
 `C-r RET STRING RET'
      Search backward for STRING.
 
-   To do a non-incremental search, first type `C-s RET' (or `C-s C-m'.
+   To do a non-incremental search, first type `C-s RET' (or `C-s C-m').
 This enters the minibuffer to read the search string.  Terminate the
-string with RET to start the search.  If the string is not found the
+string with RET to start the search.  If the string is not found, the
 search command gets an error.
 
    By default, `C-s' invokes incremental search, but if you give it an
@@ -253,9 +861,11 @@ commands to keys.  The reason that incremental search is programmed to
 invoke them as well is that `C-s RET' is the traditional sequence of
 characters used in Emacs to invoke non-incremental search.
 
-   Non-Incremental searches performed using `C-s RET' do not call
+   Non-incremental searches performed using `C-s RET' do not call
 `search-forward' right away.  They first check if the next character is
-`C-w', which requests a word search.  *Note Word Search::.
+`C-w', which requests a word search.
+
+   *Note Word Search::.
 
 
 File: lemacs.info,  Node: Word Search,  Next: Regexp Search,  Prev: Non-Incremental Search,  Up: Search
@@ -314,7 +924,8 @@ incrementally just like `C-s', but it treats the search string as a
 regexp rather than looking for an exact match against the text in the
 buffer.  Each time you add text to the search string, you make the
 regexp longer, and the new regexp is searched for.  A reverse regexp
-search command `isearch-backward-regexp' also exists but no key runs it.
+search command `isearch-backward-regexp' also exists, but no key runs
+it.
 
    All of the control characters that do special things within an
 ordinary incremental search have the same functionality in incremental
@@ -322,7 +933,7 @@ regexp search.  Typing `C-s' or `C-r' immediately after starting a
 search retrieves the last incremental search regexp used: incremental
 regexp and non-regexp searches have independent defaults.
 
-   Non-Incremental search for a regexp is done by the functions
+   Non-incremental search for a regexp is done by the functions
 `re-search-forward' and `re-search-backward'.  You can invoke them with
 `M-x' or bind them to keys.  You can also call `re-search-forward' by
 way of incremental regexp search with `C-M-s RET'.
@@ -358,7 +969,7 @@ following special characters:
 `. (Period)'
      is a special character that matches any single character except a
      newline.  Using concatenation, you can make regular expressions
-     like `a.b' which matches any three-character string which begins
+     like `a.b', which matches any three-character string which begins
      with `a' and ends with `b'.
 
 `*'
@@ -371,7 +982,7 @@ following special characters:
      `*' always applies to the smallest possible preceding expression.
      Thus, `fo*' has a repeating `o', not a repeating `fo'.
 
-     The matcher processes a `*' construct by matching, immediately, as
+     The matcher processes a `*' construct by immediately matching as
      many repetitions as it can find.  Then it continues with the rest
      of the pattern.  If that fails, backtracking occurs, discarding
      some of the matches of the `*'-modified construct in case that
@@ -383,13 +994,13 @@ following special characters:
      the rest of the regexp matches successfully.
 
 `+'
-     Is a suffix character similar to `*' except that it requires that
+     is a suffix character similar to `*' except that it requires that
      the preceding expression be matched at least once.  For example,
      `ca+r' will match the strings `car' and `caaaar' but not the
      string `cr', whereas `ca*r' would match all three strings.
 
 `?'
-     Is a suffix character similar to `*' except that it can match the
+     is a suffix character similar to `*' except that it can match the
      preceding expression either once or not at all.  For example,
      `ca?r' will match `car' or `cr'; nothing else.
 
@@ -404,12 +1015,12 @@ following special characters:
      You can include character ranges in a character set by writing two
      characters with a `-' between them.  Thus, `[a-z]' matches any
      lower-case letter.  Ranges may be intermixed freely with
-     individual characters, as in `[a-z$%.]', which matches any lower
-     case letter or `$', `%' or period.
+     individual characters, as in `[a-z$%.]', which matches any lower-
+     case letter or `$', `%', or period.
 
      Note that inside a character set the usual special characters are
      not special any more.  A completely different set of special
-     characters exists inside character sets: `]', `-' and `^'.
+     characters exists inside character sets: `]', `-', and `^'.
 
      To include a `]' in a character set, you must make it the first
      character.  For example, `[]a]' matches `]' or `a'.  To include a
@@ -548,7 +1159,7 @@ when encountered on their own.  Here is a table of `\' constructs.
 `\SCODE'
      matches any character whose syntax is not CODE.
 
-   Here is a complicated regexp, used by Emacs to recognize the end of a
+   Here is a complicated regexp used by Emacs to recognize the end of a
 sentence together with any whitespace that follows.  It is given in Lisp
 syntax to enable you to distinguish the spaces from the tab characters.
 In Lisp syntax, the string constant begins and ends with a
@@ -563,516 +1174,4 @@ or `!'; a character set matching close-brackets, quotes or parentheses,
 repeated any number of times; an alternative in backslash-parentheses
 that matches end-of-line, a tab or two spaces; and a character set
 matching whitespace characters, repeated any number of times.
-
-
-File: lemacs.info,  Node: Search Case,  Next: Replace,  Prev: Regexps,  Up: Search
-
-Searching and Case
-==================
-
-   All searches in Emacs normally ignore the case of the text they are
-searching through; if you specify searching for `FOO', `Foo' and `foo'
-are also considered a match.  Regexps, and in particular character
-sets, are included: `[aB]' matches `a' or `A' or `b' or `B'.
-
-   If you want a case-sensitive search, set the variable
-`case-fold-search' to `nil'.  Then all letters must match exactly,
-including case. `case-fold-search' is a per-buffer variable; altering
-it affects only the current buffer, but there is a default value which
-you can change as well.  *Note Locals::.
-
-
-File: lemacs.info,  Node: Replace,  Next: Other Repeating Search,  Prev: Search Case,  Up: Search
-
-Replacement Commands
-====================
-
-   Global search-and-replace operations are not needed as often in
-Emacs as they are in other editors, but they are available.  In
-addition to the simple `replace-string' command which is like that
-found in most editors, there is a `query-replace' command which asks
-you, for each occurrence of a pattern, whether to replace it.
-
-   The replace commands all replace one string (or regexp) with one
-replacement string.  It is possible to perform several replacements in
-parallel using the command `expand-region-abbrevs'.  *Note Expanding
-Abbrevs::.
-
-* Menu:
-
-* Unconditional Replace::  Replacing all matches for a string.
-* Regexp Replace::         Replacing all matches for a regexp.
-* Replacement and Case::   How replacements preserve case of letters.
-* Query Replace::          How to use querying.
-
-
-File: lemacs.info,  Node: Unconditional Replace,  Next: Regexp Replace,  Prev: Replace,  Up: Replace
-
-Unconditional Replacement
--------------------------
-
-`M-x replace-string RET STRING RET NEWSTRING RET'
-     Replace every occurrence of STRING with NEWSTRING.
-
-`M-x replace-regexp RET REGEXP RET NEWSTRING RET'
-     Replace every match for REGEXP with NEWSTRING.
-
-   To replace every instance of `foo' after point with `bar', use the
-command `M-x replace-string' with the two arguments `foo' and `bar'.
-Replacement occurs only after point: if you want to cover the whole
-buffer you must go to the beginning first.  By default, all occurrences
-up to the end of the buffer are replaced.  To limit replacement to part
-of the buffer, narrow to that part of the buffer before doing the
-replacement (*note Narrowing::.).
-
-   When `replace-string' exits, point is left at the last occurrence
-replaced.  The value of point when the `replace-string' command was
-issued is remembered on the mark ring; `C-u C-SPC' moves back there.
-
-   A numeric argument restricts replacement to matches that are
-surrounded by word boundaries.
-
-
-File: lemacs.info,  Node: Regexp Replace,  Next: Replacement and Case,  Prev: Unconditional Replace,  Up: Replace
-
-Regexp Replacement
-------------------
-
-   `replace-string' replaces exact matches for a single string.  The
-similar command `replace-regexp' replaces any match for a specified
-pattern.
-
-   In `replace-regexp', the NEWSTRING need not be constant.  It can
-refer to all or part of what is matched by the REGEXP.  `\&' in
-NEWSTRING stands for the entire text being replaced.  `\D' in
-NEWSTRING, where D is a digit, stands for whatever matched the D'th
-parenthesized grouping in REGEXP.  For example,
-
-     M-x replace-regexp RET c[ad]+r RET \&-safe RET
-
-would replace (for example) `cadr' with `cadr-safe' and `cddr' with
-`cddr-safe'.
-
-     M-x replace-regexp RET \(c[ad]+r\)-safe RET \1 RET
-
-would perform exactly the opposite replacements.  To include a `\' in
-the text to replace with, you must give `\\'.
-
-
-File: lemacs.info,  Node: Replacement and Case,  Next: Query Replace,  Prev: Regexp Replace,  Up: Replace
-
-Replace Commands and Case
--------------------------
-
-   If the arguments to a replace command are in lower case, the command
-preserves case when it makes a replacement.  Thus, the command
-
-     M-x replace-string RET foo RET bar RET
-
-replaces a lower case `foo' with a lower case `bar', `FOO' with `BAR',
-and `Foo' with `Bar'.  If upper case letters are used in the second
-argument, they remain upper case every time that argument is inserted.
-If upper case letters are used in the first argument, the second
-argument is always substituted exactly as given, with no case
-conversion.  Likewise, if the variable `case-replace' is set to `nil',
-replacement is done without case conversion.  If `case-fold-search' is
-set to `nil', case is significant in matching occurrences of `foo' to
-replace; also, case conversion of the replacement string is not done.
-
-
-File: lemacs.info,  Node: Query Replace,  Prev: Replacement and Case,  Up: Replace
-
-Query Replace
--------------
-
-`M-% STRING RET NEWSTRING RET'
-`M-x query-replace RET STRING RET NEWSTRING RET'
-     Replace some occurrences of STRING with NEWSTRING.
-
-`M-x query-replace-regexp RET REGEXP RET NEWSTRING RET'
-     Replace some matches for REGEXP with NEWSTRING.
-
-   If you want to change only some of the occurrences of `foo' to
-`bar', not all of them, you can (`query-replace') instead of `M-%'.
-This command finds occurrences of `foo' one by one, displays each
-occurrence, and asks you whether to replace it.  A numeric argument to
-`query-replace' tells it to consider only occurrences that are bounded
-by word-delimiter characters.
-
-   Aside from querying, `query-replace' works just like
-`replace-string', and `query-replace-regexp' works just like
-`replace-regexp'.
-
-   The things you can type when you are shown an occurrence of STRING
-or a match for REGEXP are:
-
-`SPC'
-     to replace the occurrence with NEWSTRING.  This preserves case,
-     just like `replace-string', provided `case-replace' is non-`nil',
-     as it normally is.
-
-`DEL'
-     to skip to the next occurrence without replacing this one.
-
-`, (Comma)'
-     to replace this occurrence and display the result.  You are then
-     prompted for another input character, however, since the
-     replacement has already been made, DEL and SPC are equivalent.  At
-     this point, you can type `C-r' (see below) to alter the replaced
-     text.  To undo the replacement, you can type `C-x u'.  This exits
-     the `query-replace'.  If you want to do further replacement you
-     must use `C-x ESC' to restart (*note Repetition::.).
-
-`ESC'
-     to exit without doing any more replacements.
-
-`. (Period)'
-     to replace this occurrence and then exit.
-
-`!'
-     to replace all remaining occurrences without asking again.
-
-`^'
-     to go back to the location of the previous occurrence (or what
-     used to be an occurrence), in case you changed it by mistake.
-     This works by popping the mark ring.  Only one `^' in a row is
-     allowed, because only one previous replacement location is kept
-     during `query-replace'.
-
-`C-r'
-     to enter a recursive editing level, in case the occurrence needs
-     to be edited rather than just replaced with NEWSTRING.  When you
-     are done, exit the recursive editing level with `C-M-c' and the
-     next occurrence will be displayed.  *Note Recursive Edit::.
-
-`C-w'
-     to delete the occurrence, and then enter a recursive editing level
-     as in `C-r'.  Use the recursive edit to insert text to replace the
-     deleted occurrence of STRING.  When done, exit the recursive
-     editing level with `C-M-c' and the next occurrence will be
-     displayed.
-
-`C-l'
-     to redisplay the screen and then give another answer.
-
-`C-h'
-     to display a message summarizing these options, then give another
-     answer.
-
-   If you type any other character, Emacs exits the `query-replace', and
-executes the character as a command.  To restart the `query-replace',
-use `C-x ESC', which repeats the `query-replace' because it used the
-minibuffer to read its arguments.  *Note C-x ESC: Repetition.
-
-
-File: lemacs.info,  Node: Other Repeating Search,  Prev: Replace,  Up: Search
-
-Other Search-and-Loop Commands
-==============================
-
-   Here are some other commands that find matches for a regular
-expression.  They all operate from point to the end of the buffer.
-
-`M-x occur'
-     Print each line that follows point and contains a match for the
-     specified regexp.  A numeric argument specifies the number of
-     context lines to print before and after each matching line; the
-     default is none.
-
-     The buffer `*Occur*' containing the output serves as a menu for
-     finding occurrences in their original context.  Find an occurrence
-     as listed in `*Occur*', position point there, and type `C-c C-c';
-     this switches to the buffer that was searched and moves point to
-     the original of the same occurrence.
-
-`M-x list-matching-lines'
-     Synonym for `M-x occur'.
-
-`M-x count-matches'
-     Print the number of matches following point for the specified
-     regexp.
-
-`M-x delete-non-matching-lines'
-     Delete each line that follows point and does not contain a match
-     for the specified regexp.
-
-`M-x delete-matching-lines'
-     Delete each line that follows point and contains a match for the
-     specified regexp.
-
-
-File: lemacs.info,  Node: Fixit,  Next: Files,  Prev: Search,  Up: Top
-
-Commands for Fixing Typos
-*************************
-
-   This chapter describes commands that are especially useful when you
-catch a mistake in your text just after you have made it, or change your
-mind while composing text on line.
-
-* Menu:
-
-* Kill Errors:: Commands to kill a batch of recently entered text.
-* Transpose::   Exchanging two characters, words, lines, lists...
-* Fixing Case:: Correcting case of last word entered.
-* Spelling::    Apply spelling checker to a word, or a whole file.
-
-
-File: lemacs.info,  Node: Kill Errors,  Next: Transpose,  Prev: Fixit,  Up: Fixit
-
-Killing Your Mistakes
-=====================
-
-`DEL'
-     Delete last character (`delete-backward-char').
-
-`M-DEL'
-     Kill last word (`backward-kill-word').
-
-`C-x DEL'
-     Kill to beginning of sentence (`backward-kill-sentence').
-
-   The DEL character (`delete-backward-char') is the most important
-correction command.  When used among graphic (self-inserting)
-characters, it can be thought of as canceling the last character typed.
-
-   When your mistake is longer than a couple of characters, it might be
-more convenient to use `M-DEL' or `C-x DEL'.  `M-DEL' kills back to the
-start of the last word, and `C-x DEL' kills back to the start of the
-last sentence.  `C-x DEL' is particularly useful when you are thinking
-of what to write as you type it, in case you change your mind about
-phrasing.  `M-DEL' and `C-x DEL' save the killed text for `C-y' and
-`M-y' to retrieve.  *Note Yanking::.
-
-   `M-DEL' is often useful even when you have typed only a few
-characters wrong, if you know you are confused in your typing and aren't
-sure exactly what you typed.  At such a time, you cannot correct with
-DEL except by looking at the screen to see what you did.  It requires
-less thought to kill the whole word and start over.
-
-
-File: lemacs.info,  Node: Transpose,  Next: Fixing Case,  Prev: Kill Errors,  Up: Fixit
-
-Transposing Text
-================
-
-`C-t'
-     Transpose two characters (`transpose-chars').
-
-`M-t'
-     Transpose two words (`transpose-words').
-
-`C-M-t'
-     Transpose two balanced expressions (`transpose-sexps').
-
-`C-x C-t'
-     Transpose two lines (`transpose-lines').
-
-   The common error of transposing two adjacent characters can be fixed
-with the `C-t' command (`transpose-chars').  Normally, `C-t' transposes
-the two characters on either side of point.  When given at the end of a
-line, `C-t' transposes the last two characters on the line, rather than
-transposing the last character of the line with the newline, which
-would be useless.  If you catch a transposition error right away, you
-can fix it with just `C-t'.  If you catch the error later,  move the
-cursor back to between the two transposed characters.  If you
-transposed a space with the last character of the word before it, the
-word motion commands are a good way of getting there.  Otherwise, a
-reverse search (`C-r') is often the best way.  *Note Search::.
-
-   `Meta-t' (`transpose-words') transposes the word before point with
-the word after point.  It moves point forward over a word, dragging the
-word preceding or containing point forward as well.  The punctuation
-characters between the words do not move.  For example, `FOO, BAR'
-transposes into `BAR, FOO' rather than `BAR FOO,'.
-
-   `C-M-t' (`transpose-sexps') is a similar command for transposing two
-expressions (*note Lists::.), and `C-x C-t' (`transpose-lines')
-exchanges lines.  It works like `M-t' but in determins the division of
-the text into syntactic units differently.
-
-   A numeric argument to a transpose command serves as a repeat count:
-it tells the transpose command to move the character (word, sexp, line)
-before or containing point across several other characters (words,
-sexps, lines).  For example, `C-u 3 C-t' moves the character before
-point forward across three other characters.  This is equivalent to
-repeating `C-t' three times.  `C-u - 4 M-t' moves the word before point
-backward across four words.  `C-u - C-M-t' would cancel the effect of
-plain `C-M-t'.
-
-   A numeric argument of zero transposes the character (word, sexp,
-line) ending after point with the one ending after the mark (otherwise a
-command with a repeat count of zero would do nothing).
-
-
-File: lemacs.info,  Node: Fixing Case,  Next: Spelling,  Prev: Transpose,  Up: Fixit
-
-Case Conversion
-===============
-
-`M-- M-l'
-     Convert last word to lower case.  Note `Meta--' is Meta-minus.
-
-`M-- M-u'
-     Convert last word to all upper case.
-
-`M-- M-c'
-     Convert last word to lower case with capital initial.
-
-   A  common error is to type words in the wrong case.  Because of this,
-the word case-conversion commands `M-l', `M-u' and `M-c' do not move
-the cursor when used with a negative argument.  As soon as you see you
-have mistyped the last word, you can simply case-convert it and
-continue typing.  *Note Case::.
-
-
-File: lemacs.info,  Node: Spelling,  Prev: Fixing Case,  Up: Fixit
-
-Checking and Correcting Spelling
-================================
-
-`M-$'
-     Check and correct spelling of word (`spell-word').
-
-`M-x spell-buffer'
-     Check and correct spelling of each word in the buffer.
-
-`M-x spell-region'
-     Check and correct spelling of each word in the region.
-
-`M-x spell-string'
-     Check spelling of specified word.
-
-   To check the spelling of the word before point, and optionally
-correct it, use the command `M-$' (`spell-word').  This command runs an
-inferior process containing the `spell' program to see whether the word
-is correct English.  If it is not, it asks you to edit the word (in the
-minibuffer) into a corrected spelling, and then performs a
-`query-replace' to substitute the corrected spelling for the old one
-throughout the buffer.
-
-   If you exit the minibuffer without altering the original spelling, it
-means you do not want to do anything to that word.  In that case, the
-`query-replace' is not done.
-
-   `M-x spell-buffer' checks each word in the buffer the same way that
-`spell-word' does, doing a `query-replace' for every incorrect word if
-appropriate.
-
-   `M-x spell-region' is similar to `spell-buffer' but operates only on
-the region, not the entire buffer.
-
-   `M-x spell-string' reads a string as an argument and checks whether
-that is a correctly spelled English word.  It prints a message giving
-the answer in the echo area.
-
-
-File: lemacs.info,  Node: Files,  Next: Buffers,  Prev: Fixit,  Up: Top
-
-File Handling
-*************
-
-   The basic unit of stored data in Unix is the "file".  To edit a file,
-you must tell Emacs to examine the file and prepare a buffer containing
-a copy of the file's text.  This is called "visiting" the file.  Editing
-commands apply directly to text in the buffer; that is, to the copy
-inside Emacs.  Your changes appear in the file itself only when you
-"save" the buffer back into the file.
-
-   In addition to visiting and saving files, Emacs can delete, copy,
-rename, and append to files, and operate on file directories.
-
-* Menu:
-
-* File Names::   How to type and edit file name arguments.
-* Visiting::     Visiting a file prepares Emacs to edit the file.
-* Saving::       Saving makes your changes permanent.
-* Reverting::    Reverting cancels all the changes not saved.
-* Auto Save::    Auto Save periodically protects against loss of data.
-* ListDir::      Listing the contents of a file directory.
-* Dired::        "Editing" a directory to delete, rename, etc.
-                  the files in it.
-* Misc File Ops:: Other things you can do on files.
-
-
-File: lemacs.info,  Node: File Names,  Next: Visiting,  Prev: Files,  Up: Files
-
-File Names
-==========
-
-   Most Emacs commands that operate on a file require you to specify the
-file name.  (Saving and reverting are exceptions; the buffer knows which
-file name to use for them.)  File names are specified in the minibuffer
-(*note Minibuffer::.).  "Completion" is available, to make it easier to
-specify long file names.  *Note Completion::.
-
-   There is always a "default file name" which is used if you enter an
-empty argument by typing just RET.  Normally the default file name is
-the name of the file visited in the current buffer; this makes it easy
-to operate on that file with any of the Emacs file commands.
-
-   Each buffer has a default directory, normally the same as the
-directory of the file visited in that buffer.  When Emacs reads a file
-name, the default directory is used if you do not specify a directory.
-If you specify a directory in a relative fashion, with a name that does
-not start with a slash, it is interpreted with respect to the default
-directory.  The default directory of the current buffer is kept in the
-variable `default-directory', which has a separate value in every
-buffer.  The value of the variable should end with a slash.
-
-   For example, if the default file name is `/u/rms/gnu/gnu.tasks' then
-the default directory is `/u/rms/gnu/'.  If you type just `foo', which
-does not specify a directory, it is short for `/u/rms/gnu/foo'.
-`../.login' would stand for `/u/rms/.login'.  `new/foo' would stand for
-the filename `/u/rms/gnu/new/foo'.
-
-   The variable `default-directory-alist' takes an alist of major modes
-and their opinions on `default-directory' as a Lisp expression to
-evaluate.  A resulting value of `nil' is ignored in favor of
-`default-directory'.
-
-   You can create a new directory with the function `make-directory',
-which takes as an argument a file name string. The current directory is
-displayed in the minibuffer when the function is called; you can delete
-the old directory name and supply a new directory name. For example, if
-the current directory is `/u/rms/gnu', you can delete `gnu' and type
-`oryx' and RET to create `/u/rms/oryx'.  Removing a directory is
-similar to creating one.  To remove a directory, use
-`remove-directory'; it takes one argument a file name string.
-
-   The command `M-x pwd' prints the current buffer's default directory,
-and the command `M-x cd' sets it (to a value read using the
-minibuffer).  A buffer's default directory changes only when the `cd'
-command is used.  A file-visiting buffer's default directory is
-initialized to the directory of the file that is visited there.  If a
-buffer is created with `C-x b', its default directory is copied from
-that of the buffer that was current at the time.
-
-   The default directory name actually appears in the minibuffer when
-the minibuffer becomes active to read a file name.  This serves two
-purposes: it shows you what the default is, so that you can type a
-relative file name and know with certainty what it will mean, and it
-allows you to edit the default to specify a different directory.  To
-inhibit the insertion of the default directory, set the variable
-`insert-default-directory' to `nil'.
-
-   Note that it is legitimate to type an absolute file name after you
-enter the minibuffer, ignoring the presence of the default directory
-name.  The final minibuffer contents may look invalid, but that is not
-so.  *Note Minibuffer File::.
-
-   `$' in a file name is used to substitute environment variables.  For
-example, if you have used the shell command `setenv FOO rms/hacks' to
-set up an environment variable named `FOO', then you can use
-`/u/$FOO/test.c' or `/u/${FOO}/test.c' as an abbreviation for
-`/u/rms/hacks/test.c'.  The environment variable name consists of all
-the alphanumeric characters after the `$'; alternatively, it may be
-enclosed in braces after the `$'.  Note that the `setenv' command
-affects Emacs only if done before Emacs is started.
-
-   To access a file with `$' in its name, type `$$'.  This pair is
-converted to a single `$' at the same time variable substitution is
-performed for single `$'.  The Lisp function that performs the
-substitution is called `substitute-in-file-name'.  The substitution is
-performed only on filenames read as such using the minibuffer.
 

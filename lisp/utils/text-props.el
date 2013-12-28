@@ -29,7 +29,7 @@
 ;;;
 ;;; However, keep in mind that this interface has been implemented because it
 ;;; is useful.  Compatibility with code written for FSF19 is a secondary goal
-;;; to having a clean and useful interface interface.
+;;; to having a clean and useful interface.
 ;;;
 ;;; The cruftier parts of the FSF API, such as the special handling of
 ;;; properties like `mouse-face', `front-sticky', and other properties whose
@@ -320,12 +320,41 @@
   (let ((extent nil)
 	(props nil)
 	new-props)
-    (while (setq extent (extent-at position buffer 'text-prop extent))
-      (setq new-props
-	    (if text-props-only
-		(let ((prop (extent-property extent 'text-prop)))
-		  (list prop (extent-property extent prop)))
-	      (extent-properties extent)))
+    (while (setq extent (extent-at position buffer
+				   (if text-props-only 'text-prop nil)
+				   extent))
+      (if text-props-only
+	  ;; Only return the one prop which the `text-prop' property points at.
+	  (let ((prop (extent-property extent 'text-prop)))
+	    (setq new-props (list prop (extent-property extent prop))))
+	;; Return all the properties...
+	(setq new-props (extent-properties extent))
+	;; ...but!  Don't return the `begin-glyph' or `end-glyph' properties
+	;; unless the position is exactly at the appropriate endpoint.  Yeah,
+	;; this is kind of a kludge.
+	;; #### Bug, this doesn't work for end-glyphs (on end-open extents)
+	;; because we've already passed the extent with the glyph by the time
+	;; it's appropriate to return the glyph.  We could return the end
+	;; glyph one character early I guess...  But then next-property-change
+	;; would have to stop one character early as well.  It could back up
+	;; when it hit an end-glyph...
+	;; #### Another bug, if there are multiple glyphs at the same position,
+	;; we only see the first one.
+	(cond ((extent-glyph extent)
+	       (if (/= position (if (extent-property extent 'begin-glyph)
+				    (extent-start-position extent)
+				  (extent-end-position extent)))
+		   (let ((rest new-props)
+			 prev)
+		     (while rest
+		       (cond ((or (eq (car rest) 'begin-glyph)
+				  (eq (car rest) 'end-glyph))
+			      (if prev
+				  (setcdr prev (cdr (cdr rest)))
+				(setq new-props (cdr (cdr new-props))))
+			      (setq rest nil)))
+		       (setq prev rest
+			     rest (cdr rest))))))))
       (cond ((null props)
 	     (setq props new-props))
 	    (t

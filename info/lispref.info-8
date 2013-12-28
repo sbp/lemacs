@@ -1,23 +1,21 @@
-Info file elisp, produced by Makeinfo, -*- Text -*- from input file
-elisp.texi.
+This is Info file ../../info/lispref.info, produced by Makeinfo-1.56
+from the input file lispref.texinfo.
 
-   This file documents GNU Emacs Lisp.
+   This version is newer than the second printed edition of the GNU
+Emacs Lisp Reference Manual.  It corresponds to Emacs Version 19.19.
 
-   This is edition 1.03 of the GNU Emacs Lisp Reference Manual,   for
-Emacs Version 18.
+   Published by the Free Software Foundation 675 Massachusetts Avenue
+Cambridge, MA 02139 USA
 
-   Published by the Free Software Foundation, 675 Massachusetts
-Avenue,  Cambridge, MA 02139 USA
+   Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
 
-   Copyright (C) 1990 Free Software Foundation, Inc.
-
-   Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
 
    Permission is granted to copy and distribute modified versions of
-this manual under the conditions for verbatim copying, provided that
-the entire resulting derived work is distributed under the terms of a
+this manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
 permission notice identical to this one.
 
    Permission is granted to copy and distribute translations of this
@@ -25,1225 +23,1138 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be stated in a
 translation approved by the Foundation.
 
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the Free Software
+Foundation instead of in the original English.
 
 
-File: elisp,  Node: Function Cells,  Next: Related Topics,  Prev: Anonymous Functions,  Up: Functions
+File: lispref.info,  Node: Defining Variables,  Next: Accessing Variables,  Prev: Void Variables,  Up: Variables
 
-Accessing Function Cell Contents
-================================
-
-   The "function definition" of a symbol is the object stored in the
-function cell of the symbol.  The functions described here access,
-test, and set the function cell of symbols.
-
- * Function: symbol-function SYMBOL
-     This returns the object in the function cell of SYMBOL.  If the
-     symbol's function cell is void, a `void-function' error is
-     signaled.
-
-     This function does not check that the returned object is a
-     legitimate function.
-
-          (defun bar (n) (+ n 2))
-               => bar
-          (symbol-function 'bar)
-               => (lambda (n) (+ n 2))
-          (fset 'baz 'bar)
-               => bar
-          (symbol-function 'baz)
-               => bar
-
-   If you have never given a symbol any function definition, we say
-that that symbol's function cell is "void".  In other words, the
-function cell does not have any Lisp object in it.  If you try to
-call such a symbol as a function, it signals a `void-function' error.
-
-   Note that void is not the same as `nil' or the symbol `void'.  The
-symbols `nil' and `void' are Lisp objects, and can be stored into a
-function cell just as any other object can be (and they can be valid
-functions if you define them in turn with `defun'); but `nil' or
-`void' is *an object*.  A void function cell contains no object
-whatsoever.
-
-   You can test the voidness of a symbol's function definition with
-`fboundp'.  After you have given a symbol a function definition, you
-can make it void once more using `fmakunbound'.
-
- * Function: fboundp SYMBOL
-     Returns `t' if the symbol has an object in its function cell,
-     `nil' otherwise.  It does not check that the object is a
-     legitimate function.
-
- * Function: fmakunbound SYMBOL
-     This function makes SYMBOL's function cell void, so that a
-     subsequent attempt to access this cell will cause a
-     `void-function' error.  (See also `makunbound', in *Note Local
-     Variables::.)
-
-          (defun foo (x) x)
-               => x
-          (fmakunbound 'foo)
-               => x
-          (foo 1)
-          error--> Symbol's function definition is void: foo
-
- * Function: fset SYMBOL OBJECT
-     This function stores OBJECT in the function cell of SYMBOL.  The
-     result is OBJECT.  Normally OBJECT should be a function or the
-     name of a function, but this is not checked.
-
-     There are three normal uses of this function:
-
-        * Copying one symbol's function definition to another.  (In
-          other words, making an alternate name for a function.)
-
-        * Giving a symbol a function definition that is not a list
-          and therefore cannot be made with `defun'.  *Note
-          Classifying Lists::, for an example of this usage.
-
-        * In constructs for defining or altering functions.  If
-          `defun' were not a primitive, it could be written in Lisp
-          (as a macro) using `fset'.
-
-     Here are examples of the first two uses:
-
-          ;; Give `first' the same definition `car' has.
-          (fset 'first (symbol-function 'car))
-               => #<subr car>
-          (first '(1 2 3))
-               => 1
-          
-          ;; Make the symbol `car' the function definition of `xfirst'.
-          (fset 'xfirst 'car)
-               => car
-          (xfirst '(1 2 3))
-               => 1
-          (symbol-function 'xfirst)
-               => car
-          (symbol-function (symbol-function 'xfirst))
-               => #<subr car>
-
-             ;; Define a named keyboard macro.
-          (fset 'kill-two-lines "\^u2\^k")
-               => "\^u2\^k"
-
-   When writing a function that extends a previously defined
-function, the following idiom is often used:
-
-     (fset 'old-foo (symbol-function 'foo))
-     
-     (defun foo ()
-       "Just like old-foo, except more so."
-       (old-foo)
-       (more-so))
-
-This does not work properly if `foo' has been defined to autoload. 
-In such a case, when `foo' calls `old-foo', Lisp will attempt to
-define `old-foo' by loading a file.  Since this presumably defines
-`foo' rather than `old-foo', it will not produce the proper results. 
-The only way to avoid this problem is to make sure the file is loaded
-before moving aside the old definition of `foo'.
-
-
-
-File: elisp,  Node: Related Topics,  Prev: Function Cells,  Up: Functions
-
-Other Topics Related to Functions
-=================================
-
-   Here is a table of several functions that do things related to
-function calling and function definitions.
-
-`apply'
-     *Note Calling Functions::.
-
-`autoload'
-     *Note Autoload::.
-
-`call-interactively'
-     *Note Interactive Call::.
-
-`commandp'
-     *Note Interactive Call::.
-
-`documentation'
-     *Note Accessing Documentation::.
-
-`eval'
-     *Note Eval::.
-
-`funcall'
-     *Note Calling Functions::.
-
-`ignore'
-     *Note Calling Functions::.
-
-`interactive'
-     *Note Using Interactive::.
-
-`interactive-p'
-     *Note Interactive Call::.
-
-`mapatoms'
-     *Note Creating Symbols::.
-
-`mapcar'
-     *Note Mapping Functions::.
-
-`mapconcat'
-     *Note Mapping Functions::.
-
-`undefined'
-     *Note Key Lookup::.
-
-
-
-File: elisp,  Node: Macros,  Next: Loading,  Prev: Functions,  Up: Top
-
-Macros
-******
-
-   "Macros" enable you to define new control constructs and other
-language features.  A macro is defined much like a function, but
-instead of telling how to compute a value, it tells how to compute
-another Lisp expression which will in turn compute the value.  We
-call this expression the "expansion" of the macro.
-
-   Macros can do this because they operate on the unevaluated
-expressions for the arguments, not on the argument values as
-functions do.  They can therefore construct an expansion containing
-these argument expressions or parts of them.
-
-* Menu:
-
-* Simple Macro::            A basic example.
-* Expansion::               How, when and why macros are expanded.
-* Compiling Macros::        How macros are expanded by the compiler.
-* Defining Macros::         How to write a macro definition.
-* Backquote::               Easier construction of list structure.
-* Problems with Macros::    Don't evaluate the macro arguments too many times.
-                              Don't hide the user's variables.
-
- 
-
-File: elisp,  Node: Simple Macro,  Next: Expansion,  Prev: Macros,  Up: Macros
-
-A Simple Example of a Macro
-===========================
-
-   Suppose we would like to define a Lisp construct to increment a
-variable value, much like the `++' operator in C.  We would like to
-write `(inc x)' and have the effect of `(setq x (1+ x))'.  Here's a
-macro definition that will do the job:
-
-     (defmacro inc (var)
-        (list 'setq var (list '1+ var)))
-
-   When this is called with `(inc x)', the argument `var' has the
-value `x'--*not* the *value* of `x'.  The body of the macro uses this
-to construct the expansion, which is `(setq x (1+ x))'.  Once the
-macro definition returns this expansion, Lisp proceeds to evaluate
-it, thus incrementing `x'.
-
-
-
-File: elisp,  Node: Expansion,  Next: Compiling Macros,  Prev: Simple Macro,  Up: Macros
-
-Expansion of a Macro Call
+Defining Global Variables
 =========================
 
-   A macro call looks just like a function call in that it is a list
-which starts with the name of the macro.  The rest of the elements of
-the list are the arguments of the macro.
+   You may announce your intention to use a symbol as a global variable
+with a definition, using `defconst' or `defvar'.
 
-   Evaluation of the macro call begins like evaluation of a function
-call except for one crucial difference: the macro arguments are the
-actual expressions appearing in the macro call.  They are not
-evaluated before they are given to the macro definition.  By
-contrast, the arguments of a function are results of evaluating the
-elements of the function call list.
+   In Emacs Lisp, definitions serve three purposes.  First, they inform
+the user who reads the code that certain symbols are *intended* to be
+used as variables.  Second, they inform the Lisp system of these things,
+supplying a value and documentation.  Third, they provide information to
+utilities such as `etags' and `make-docfile', which create data bases
+of the functions and variables in a program.
 
-   Having obtained the arguments, Lisp invokes the macro definition
-just as a function is invoked.  The argument variables of the macro
-are bound to the argument values from the macro call, or to a list of
-them in the case of a `&rest' argument.  And the macro body executes
-and returns its value just as a function body does.
+   The difference between `defconst' and `defvar' is primarily a matter
+of intent, serving to inform human readers of whether programs will
+change the variable.  Emacs Lisp does not restrict the ways in which a
+variable can be used based on `defconst' or `defvar' declarations.
+However, it also makes a difference for initialization: `defconst'
+unconditionally initializes the variable, while `defvar' initializes it
+only if it is void.
 
-   The second crucial difference between macros and functions is that
-the value returned by the macro body is not the value of the macro
-call.  Instead, it is an alternate expression for computing that
-value, also known as the "expansion" of the macro.  The Lisp
-interpreter proceeds to evaluate the expansion as soon as it comes
-back from the macro.
+   One would expect user option variables to be defined with
+`defconst', since programs do not change them.  Unfortunately, this has
+bad results if the definition is in a library that is not preloaded:
+`defconst' would override any prior value when the library is loaded.
+Users would like to be able to set the option in their init files, and
+override the default value given in the definition.  For this reason,
+user options must be defined with `defvar'.
 
-   Since the expansion is evaluated in the normal manner, it may
-contain calls to other macros.  It may even be a call to the same
-macro, though this is unusual.
+ - Special Form: defvar SYMBOL [VALUE [DOC-STRING]]
+     This special form informs a person reading your code that SYMBOL
+     will be used as a variable that the programs are likely to set or
+     change.  It is also used for all user option variables except in
+     the preloaded parts of Emacs.  Note that SYMBOL is not evaluated;
+     the symbol to be defined must appear explicitly in the `defvar'.
 
-   You can see the expansion of a given macro call by calling
-`macroexpand':
+     If SYMBOL already has a value (i.e., it is not void), VALUE is not
+     even evaluated, and SYMBOL's value remains unchanged.  If SYMBOL
+     is void and VALUE is specified, it is evaluated and SYMBOL is set
+     to the result.  (If VALUE is not specified, the value of SYMBOL is
+     not changed in any case.)
 
- * Function: macroexpand FORM &optional ENVIRONMENT
-     This function expands FORM, if it is a macro call.  If the
-     result is another macro call, it is expanded in turn, until
-     something which is not a macro call results.  That is the value
-     returned by `macroexpand'.  If FORM is not a macro call to begin
-     with, it is returned as given.
+     If SYMBOL has a buffer-local binding in the current buffer,
+     `defvar' sets the default value, not the local value.
 
-     Note that `macroexpand' does not look at the subexpressions of
-     FORM (although some macro definitions may do so).  If they are
-     macro calls themselves, `macroexpand' will not expand them.
+     If the DOC-STRING argument appears, it specifies the documentation
+     for the variable.  (This opportunity to specify documentation is
+     one of the main benefits of defining the variable.)  The
+     documentation is stored in the symbol's `variable-documentation'
+     property.  The Emacs help functions (*note Documentation::.) look
+     for this property.
 
-     If ENVIRONMENT is provided, it specifies an alist of macro
-     definitions that shadow the currently defined macros.  This is
-     used by byte compilation.
+     If the first character of DOC-STRING is `*', it means that this
+     variable is considered to be a user option.  This affects commands
+     such as `set-variable' and `edit-options'.
 
-          (defmacro inc (var)
-              (list 'setq var (list '1+ var)))
-               => inc
-          
-          (macroexpand '(inc r))
-               => (setq r (1+ r))
-          
-          (defmacro inc2 (var1 var2)
-              (list 'progn (list 'inc var1) (list 'inc var2)))
-               => inc2
-          
-          (macroexpand '(inc2 r s))
-               => (progn (inc r) (inc s))        ; `inc' not expanded here.
+     For example, this form defines `foo' but does not set its value:
 
- 
-
-File: elisp,  Node: Compiling Macros,  Next: Defining Macros,  Prev: Expansion,  Up: Macros
+          (defvar foo)
+               => foo
 
-Macros and Byte Compilation
-===========================
+     The following example sets the value of `bar' to `23', and gives
+     it a documentation string:
 
-   You might ask why we take the trouble to compute an expansion for
-a macro and then evaluate the expansion.  Why not have the macro body
-produce the desired results directly?  The reason has to do with
-compilation.
+          (defvar bar 23
+            "The normal weight of a bar.")
+               => bar
 
-   When a macro call appears in a Lisp program being compiled, the
-Lisp compiler calls the macro definition just as the interpreter
-would, and receives an expansion.  But instead of evaluating this
-expansion, it compiles expansion as if it had appeared directly in
-the program.  As a result, the compiled code produces the value and
-side effects intended for the macro, but executes at full compiled
-speed.  This would not work if the macro body computed the value and
-side effects itself--they would be computed at compile time, which is
-not useful.
+     The following form changes the documentation string for `bar',
+     making it a user option, but does not change the value, since `bar'
+     already has a value.  (The addition `(1+ 23)' is not even
+     performed.)
 
-   In order for compilation of macro calls to work, the macros must
-be defined in Lisp when the calls to them are compiled.  The compiler
-has a special feature to help you do this: if a file being compiled
-contains a `defmacro' form, the macro is defined temporarily for the
-rest of the compilation of that file.  To use this feature, you must
-define the macro in the same file where it is used and before its
-first use.
+          (defvar bar (1+ 23)
+            "*The normal weight of a bar.")
+               => bar
+          bar
+               => 23
 
-   While byte-compiling a file, any `require' calls at top-level are
-executed.  One way to ensure that necessary macro definitions are
-available during compilation is to require the file that defines them.
-*Note Features::.
+     Here is an equivalent expression for the `defvar' special form:
 
+          (defvar SYMBOL VALUE DOC-STRING)
+          ==
+          (progn
+            (if (not (boundp 'SYMBOL))
+                (setq SYMBOL VALUE))
+            (put 'SYMBOL 'variable-documentation 'DOC-STRING)
+            'SYMBOL)
 
-
-File: elisp,  Node: Defining Macros,  Next: Backquote,  Prev: Compiling Macros,  Up: Macros
+     The `defvar' form returns SYMBOL, but it is normally used at top
+     level in a file where its value does not matter.
 
-Defining Macros
-===============
+ - Special Form: defconst SYMBOL [VALUE [DOC-STRING]]
+     This special form informs a person reading your code that SYMBOL
+     has a global value, established here, that will not normally be
+     changed or locally bound by the execution of the program.  The
+     user, however, may be welcome to change it.  Note that SYMBOL is
+     not evaluated; the symbol to be defined must appear explicitly in
+     the `defconst'.
 
-   A Lisp macro is a list whose CAR is `macro'.  Its CDR should be a
-function; expansion of the macro works by applying the function (with
-`apply') to the list of unevaluated argument-expressions from the
-macro call.
+     `defconst' always evaluates VALUE and sets the global value of
+     SYMBOL to the result, provided VALUE is given.  If SYMBOL has a
+     buffer-local binding in the current buffer, `defconst' sets the
+     default value, not the local value.
 
-   It is possible to use an anonymous Lisp macro just like an
-anonymous function, but this is never done, because it does not make
-sense to pass an anonymous macro to mapping functions such as
-`mapcar'.  In practice, all Lisp macros have names, and they are
-usually defined with the special form `defmacro'.
+     *Please note:* don't use `defconst' for user option variables in
+     libraries that are not normally loaded.  The user should be able
+     to specify a value for such a variable in the `.emacs' file, so
+     that it will be in effect if and when the library is loaded later.
 
- * Special Form: defmacro NAME ARGUMENT-LIST BODY-FORMS...
-     `defmacro' defines the symbol NAME as a macro that looks like
-     this:
+     Here, `pi' is a constant that presumably ought not to be changed
+     by anyone (attempts by the Indiana State Legislature
+     notwithstanding).  As the second form illustrates, however, this
+     is only advisory.
 
-          (macro lambda ARGUMENT-LIST . BODY-FORMS)
+          (defconst pi 3 "Pi to one place.")
+               => pi
+          (setq pi 4)
+               => pi
+          pi
+               => 4
 
-     This macro object is stored in the function cell of NAME.  The
-     value returned by evaluating the `defmacro' form is NAME, but
-     usually we ignore this value.
+ - Function: user-variable-p VARIABLE
+     This function returns `t' if VARIABLE is a user option, intended
+     to be set by the user for customization, `nil' otherwise.
+     (Variables other than user options exist for the internal purposes
+     of Lisp programs, and users need not know about them.)
 
-     The shape and meaning of ARGUMENT-LIST is the same as in a
-     function, and the keywords `&rest' and `&optional' may be used
-     (*note Argument List::.).  Macros may have a documentation
-     string, but any `interactive' declaration is ignored since
-     macros cannot be called interactively.
+     User option variables are distinguished from other variables by the
+     first character of the `variable-documentation' property.  If the
+     property exists and is a string, and its first character is `*',
+     then the variable is a user option.
 
-
-
-File: elisp,  Node: Backquote,  Next: Problems with Macros,  Prev: Defining Macros,  Up: Macros
-
-Backquote
-=========
-
-   It could prove rather awkward to write macros of significant size,
-simply due to the number of times the function `list' needs to be
-called.  To make writing these forms easier, a macro ``' (often
-called "backquote") exists.
-
-   Backquote allows you to quote a list, but selectively evaluate
-elements of that list.  In the simplest case, it is identical to the
-special form `quote' (*note Quoting::.).  For example, these two
-forms yield identical results:
-
-     (` (a list of (+ 2 3) elements))
-          => (a list of (+ 2 3) elements)
-     (quote (a list of (+ 2 3) elements))
-          => (a list of (+ 2 3) elements)
-
-   By inserting a special marker, `,', inside of the argument to
-backquote, it is possible to evaluate desired portions of the argument:
-
-     (list 'a 'list 'of (+ 2 3) 'elements)
-          => (a list of 5 elements)
-     (` (a list of (, (+ 2 3)) elements))
-          => (a list of 5 elements)
-
-   It is also possible to have an evaluated list "spliced" into the
-resulting list by using the special marker `,@'.  The elements of the
-spliced list become elements at the same level as the other elements
-of the resulting list.  The equivalent code without using ``' is
-often unreadable.  Here are some examples:
-
-     (setq some-list '(2 3))
-          => (2 3)
-     (cons 1 (append some-list '(4) some-list))
-          => (1 2 3 4 2 3)
-     (` (1 (,@ some-list) 4 (,@ some-list)))
-          => (1 2 3 4 2 3)
-     
-     (setq list '(hack foo bar))
-          => (hack foo bar)
-     (cons 'use
-       (cons 'the
-         (cons 'words (append (cdr list) '(as elements)))))
-          => (use the words foo bar as elements)
-     (` (use the words (,@ (cdr list)) as elements (,@ nil)))
-          => (use the words foo bar as elements)
-
-   The reason for `(,@ nil)' is to avoid a bug in Emacs version 18. 
-The bug occurs when a call to `,@' is followed only by constant
-elements.  Thus,
-
-     (` (use the words (,@ (cdr list)) as elements))
-
-would not work, though it really ought to.  `(,@ nil)' avoids the
-problem by being a nonconstant element that does not affect the result.
-
- * Macro: ` LIST
-     This macro returns LIST as `quote' would, except that the list
-     is copied each time this expression is evaluated, and any
-     sublist of the form `(, SUBEXP)' is replaced by the value of
-     SUBEXP.  Any sublist of the form `(,@ LISTEXP)' is replaced by
-     evaluating LISTEXP and splicing its elements into the containing
-     list in place of this sublist.  (A single sublist can in this
-     way be replaced by any number of new elements in the containing
-     list.)
-
-     There are certain contexts in which `,' would not be recognized
-     and should not be used:
-
-          ;; Use of a `,' expression as the CDR of a list.
-          (` (a . (, 1)))                                 ; Not `(a . 1)'
-               => (a \, 1)                                
-          
-          ;; Use of `,' in a vector.
-          (` [a (, 1) c])                                 ; Not `[a 1 c]'
-               error--> Wrong type argument                      
-          
-          ;; Use of a `,' as the entire argument of ``'.
-          (` (, 2))                                       ; Not 2
-               => (\, 2)
-
-     Common Lisp note: in Common Lisp, `,' and `,@' are implemented
-     as reader macros, so they do not require parentheses.  Emacs
-     Lisp implements them as functions because reader macros are not
-     supported (to save space).
-
+   Note that if the `defconst' and `defvar' special forms are used
+while the variable has a local binding, the local binding's value is
+set, and the global binding is not changed.  This would be confusing.
+But the normal way to use these special forms is at top level in a file,
+where no local binding should be in effect.
 
 
-File: elisp,  Node: Problems with Macros,  Prev: Backquote,  Up: Macros
+File: lispref.info,  Node: Accessing Variables,  Next: Setting Variables,  Prev: Defining Variables,  Up: Variables
 
-Common Problems Using Macros
-============================
+Accessing Variable Values
+=========================
 
-   The basic facts of macro expansion have all been described above,
-but there consequences are often counterintuitive.  This section
-describes some important consequences that can lead to trouble, and
-rules to follow to avoid trouble.
+   The usual way to reference a variable is to write the symbol which
+names it (*note Symbol Forms::.).  This requires you to specify the
+variable name when you write the program.  Usually that is exactly what
+you want to do.  Occasionally you need to choose at run time which
+variable to reference; then you can use `symbol-value'.
+
+ - Function: symbol-value SYMBOL
+     This function returns the value of SYMBOL.  This is the value in
+     the innermost local binding of the symbol, or its global value if
+     it has no local bindings.
+
+          (setq abracadabra 5)
+               => 5
+          (setq foo 9)
+               => 9
+          
+          ;; Here the symbol `abracadabra'
+          ;;   is the symbol whose value is examined.
+          (let ((abracadabra 'foo))
+            (symbol-value 'abracadabra))
+               => foo
+          
+          ;; Here the value of `abracadabra',
+          ;;   which is `foo',
+          ;;   is the symbol whose value is examined.
+          (let ((abracadabra 'foo))
+            (symbol-value abracadabra))
+               => 9
+          
+          (symbol-value 'abracadabra)
+               => 5
+
+     A `void-variable' error is signaled if SYMBOL has neither a local
+     binding nor a global value.
+
+
+File: lispref.info,  Node: Setting Variables,  Next: Variable Scoping,  Prev: Accessing Variables,  Up: Variables
+
+How to Alter a Variable Value
+=============================
+
+   The usual way to change the value of a variable is with the special
+form `setq'.  When you need to compute the choice of variable at run
+time, use the function `set'.
+
+ - Special Form: setq [SYMBOL FORM]...
+     This special form is the most common method of changing a
+     variable's value.  Each SYMBOL is given a new value, which is the
+     result of evaluating the corresponding FORM.  The most-local
+     existing binding of the symbol is changed.
+
+     The value of the `setq' form is the value of the last FORM.
+
+          (setq x (1+ 2))
+               => 3
+          x                   ; `x' now has a global value.
+               => 3
+          (let ((x 5))
+            (setq x 6)        ; The local binding of `x' is set.
+            x)
+               => 6
+          x                   ; The global value is unchanged.
+               => 3
+
+     Note that the first FORM is evaluated, then the first SYMBOL is
+     set, then the second FORM is evaluated, then the second SYMBOL is
+     set, and so on:
+
+          (setq x 10          ; Notice that `x' is set before
+                y (1+ x))     ;   the value of `y' is computed.
+               => 11
+
+ - Function: set SYMBOL VALUE
+     This function sets SYMBOL's value to VALUE, then returns VALUE.
+     Since `set' is a function, the expression written for SYMBOL is
+     evaluated to obtain the symbol to be set.
+
+     The most-local existing binding of the variable is the binding
+     that is set; shadowed bindings are not affected.  If SYMBOL is not
+     actually a symbol, a `wrong-type-argument' error is signaled.
+
+          (set one 1)
+          error--> Symbol's value as variable is void: one
+          (set 'one 1)
+               => 1
+          (set 'two 'one)
+               => one
+          (set two 2)         ; `two' evaluates to symbol `one'.
+               => 2
+          one                 ; So it is `one' that was set.
+               => 2
+          (let ((one 1))      ; This binding of `one' is set,
+            (set 'one 3)      ;   not the global value.
+            one)
+               => 3
+          one
+               => 2
+
+     Logically speaking, `set' is a more fundamental primitive that
+     `setq'.  Any use of `setq' can be trivially rewritten to use
+     `set'; `setq' could even be defined as a macro, given the
+     availability of `set'.  However, `set' itself is rarely used;
+     beginners hardly need to know about it.  It is needed only when the
+     choice of variable to be set is made at run time.  For example, the
+     command `set-variable', which reads a variable name from the user
+     and then sets the variable, needs to use `set'.
+
+          Common Lisp note: in Common Lisp, `set' always changes the
+          symbol's special value, ignoring any lexical bindings.  In
+          Emacs Lisp, all variables and all bindings are special, so
+          `set' always affects the most local existing binding.
+
+
+File: lispref.info,  Node: Variable Scoping,  Next: Buffer-Local Variables,  Prev: Setting Variables,  Up: Variables
+
+Scoping Rules for Variable Bindings
+===================================
+
+   A given symbol `foo' may have several local variable bindings,
+established at different places in the Lisp program, as well as a global
+binding.  The most recently established binding takes precedence over
+the others.
+
+   Local bindings in Emacs Lisp have "indefinite scope" and "dynamic
+extent".  "Scope" refers to *where* textually in the source code the
+binding can be accessed.  Indefinite scope means that any part of the
+program can potentially access the variable binding.  "Extent" refers
+to *when*, as the program is executing, the binding exists.  Dynamic
+extent means that the binding lasts as long as the activation of the
+construct that established it.
+
+   The combination of dynamic extent and indefinite scope is called
+"dynamic scoping".  By contrast, most programming languages use
+"lexical scoping", in which references to a local variable must be
+textually within the function or block that binds the variable.
+
+     Common Lisp note: variables declared "special" in Common Lisp are
+     dynamically scoped like variables in Emacs Lisp.
 
 * Menu:
 
-* Argument Evaluation::    The expansion should evaluate each macro arg once.
-* Surprising Local Vars::  Local variable bindings in the expansion
-                              require special care.
-* Eval During Expansion::  Don't evaluate them; put them in the expansion.
-* Repeated Expansion::     Avoid depending on how many times expansion is done.
-
- 
-
-File: elisp,  Node: Argument Evaluation,  Next: Surprising Local Vars,  Prev: Problems with Macros,  Up: Problems with Macros
-
-Evaluating Macro Arguments Too Many Times
------------------------------------------
-
-   When defining a macro you must pay attention to the number of
-times the arguments will be evaluated when the expansion is executed.
-The following macro (used to facilitate iteration) illustrates the
-problem.  This macro allows us to write a simple "for" loop such as
-one might find in Pascal.
-
-     (defmacro for (var from init to final do &rest body)
-       "Execute a simple \"for\" loop, e.g.,
-         (for i from 1 to 10 do (print i))."
-       (list 'let (list (list var init))
-             (cons 'while (cons (list '<= var final)
-                                (append body (list (list 'inc var)))))))
-     => for
-     
-     (for i from 1 to 3 do
-        (setq square (* i i))
-        (princ (format "\n%d %d" i square)))
-     ==>
-     (let ((i 1))
-       (while (<= i 3)
-         (setq square (* i i))
-         (princ (format "%d      %d" i square))
-         (inc i)))
-     
-          -|1       1
-          -|2       4
-          -|3       9
-     => nil
-
-(The arguments `from', `to', and `do' in this macro are "syntactic
-sugar"; they are entirely ignored.  The idea is that you will write
-noise words (such as `from', `to', and `do') in those positions in
-the macro call.)
-
-   This macro suffers from the defect that FINAL is evaluated on
-every iteration.  If FINAL is a constant, this is not a problem.  If
-it is a more complex form, say `(long-complex-calculation x)', this
-can slow down the execution significantly.  If FINAL has side
-effects, executing it more than once is probably incorrect.
-
-   A well-designed macro definition takes steps to avoid this problem
-by producing an expansion that evaluates the argument expressions
-exactly once unless repeated evaluation is part of the intended
-purpose of the macro.  Here is a correct expansion for the `for' macro:
-
-     (let ((i 1)
-           (max 3))
-       (while (<= i max)
-         (setq square (* i i))
-         (princ (format "%d      %d" i square))
-         (inc i)))
-
-   Here is a macro definition that creates this expansion:
-
-     (defmacro for (var from init to final do &rest body)
-       "Execute a simple for loop: (for i from 1 to 10 do (print i))."
-       (` (let (((, var) (, init))
-                (max (, final)))
-            (while (<= (, var) max)
-              (,@ body)
-              (inc (, var))))))
-
-   Unfortunately, this introduces another problem.
-
-   Proceed to the following node.
-
+* Scope::          Scope means where in the program a value is visible.
+                     Comparison with other languages.
+* Extent::         Extent means how long in time a value exists.
+* Impl of Scope::  Two ways to implement dynamic scoping.
+* Using Scoping::  How to use dynamic scoping carefully and avoid problems.
 
 
-File: elisp,  Node: Surprising Local Vars,  Next: Eval During Expansion,  Prev: Argument Evaluation,  Up: Problems with Macros
+File: lispref.info,  Node: Scope,  Next: Extent,  Prev: Variable Scoping,  Up: Variable Scoping
 
-Local Variables in Macro Expansions
+Scope
+-----
+
+   Emacs Lisp uses "indefinite scope" for local variable bindings.
+This means that any function anywhere in the program text might access a
+given binding of a variable.  Consider the following function
+definitions:
+
+     (defun binder (x)   ; `x' is bound in `binder'.
+        (foo 5))         ; `foo' is some other function.
+     
+     (defun user ()      ; `x' is used in `user'.
+       (list x))
+
+   In a lexically scoped language, the binding of `x' from `binder'
+would never be accessible in `user', because `user' is not textually
+contained within the function `binder'.  However, in dynamically scoped
+Emacs Lisp, `user' may or may not refer to the binding of `x'
+established in `binder', depending on circumstances:
+
+   * If we call `user' directly without calling `binder' at all, then
+     whatever binding of `x' is found, it cannot come from `binder'.
+
+   * If we define `foo' as follows and call `binder', then the binding
+     made in `binder' will be seen in `user':
+
+          (defun foo (lose)
+            (user))
+
+   * If we define `foo' as follows and call `binder', then the binding
+     made in `binder' *will not* be seen in `user':
+
+          (defun foo (x)
+            (user))
+
+     Here, when `foo' is called by `binder', it binds `x'.  (The
+     binding in `foo' is said to "shadow" the one made in `binder'.)
+     Therefore, `user' will access the `x' bound by `foo' instead of
+     the one bound by `binder'.
+
+
+File: lispref.info,  Node: Extent,  Next: Impl of Scope,  Prev: Scope,  Up: Variable Scoping
+
+Extent
+------
+
+   "Extent" refers to the time during program execution that a variable
+name is valid.  In Emacs Lisp, a variable is valid only while the form
+that bound it is executing.  This is called "dynamic extent".  "Local"
+or "automatic" variables in most languages, including C and Pascal,
+have dynamic extent.
+
+   One alternative to dynamic extent is "indefinite extent".  This
+means that a variable binding can live on past the exit from the form
+that made the binding.  Common Lisp and Scheme, for example, support
+this, but Emacs Lisp does not.
+
+   To illustrate this, the function below, `make-add', returns a
+function that purports to add N to its own argument M.  This would work
+in Common Lisp, but it does not work as intended in Emacs Lisp, because
+after the call to `make-add' exits, the variable `n' is no longer bound
+to the actual argument 2.
+
+     (defun make-add (n)
+         (function (lambda (m) (+ n m))))  ; Return a function.
+          => make-add
+     (fset 'add2 (make-add 2))  ; Define function `add2'
+                                ;   with `(make-add 2)'.
+          => (lambda (m) (+ n m))
+     (add2 4)                   ; Try to add 2 to 4.
+     error--> Symbol's value as variable is void: n
+
+
+File: lispref.info,  Node: Impl of Scope,  Next: Using Scoping,  Prev: Extent,  Up: Variable Scoping
+
+Implementation of Dynamic Scoping
+---------------------------------
+
+   A simple sample implementation (which is not how Emacs Lisp actually
+works) may help you understand dynamic binding.  This technique is
+called "deep binding" and was used in early Lisp systems.
+
+   Suppose there is a stack of bindings: variable-value pairs.  At entry
+to a function or to a `let' form, we can push bindings on the stack for
+the arguments or local variables created there.  We can pop those
+bindings from the stack at exit from the binding construct.
+
+   We can find the value of a variable by searching the stack from top
+to bottom for a binding for that variable; the value from that binding
+is the value of the variable.  To set the variable, we search for the
+current binding, then store the new value into that binding.
+
+   As you can see, a function's bindings remain in effect as long as it
+continues execution, even during its calls to other functions.  That is
+why we say the extent of the binding is dynamic.  And any other function
+can refer to the bindings, if it uses the same variables while the
+bindings are in effect.  That is why we say the scope is indefinite.
+
+   The actual implementation of variable scoping in GNU Emacs Lisp uses
+a technique called "shallow binding".  Each variable has a standard
+place in which its current value is always found--the value cell of the
+symbol.
+
+   In shallow binding, setting the variable works by storing a value in
+the value cell.  When a new local binding is created, the local value is
+stored in the value cell, and the old value (belonging to a previous
+binding) is pushed on a stack.  When a binding is eliminated, the old
+value is popped off the stack and stored in the value cell.
+
+   We use shallow binding because it has the same results as deep
+binding, but runs faster, since there is never a need to search for a
+binding.
+
+
+File: lispref.info,  Node: Using Scoping,  Prev: Impl of Scope,  Up: Variable Scoping
+
+Proper Use of Dynamic Scoping
+-----------------------------
+
+   Binding a variable in one function and using it in another is a
+powerful technique, but if used without restraint, it can make programs
+hard to understand.  There are two clean ways to use this technique:
+
+   * Use or bind the variable only in a few related functions, written
+     close together in one file.  Such a variable is used for
+     communication within one program.
+
+     You should write comments to inform other programmers that they
+     can see all uses of the variable before them, and to advise them
+     not to add uses elsewhere.
+
+   * Give the variable a well-defined, documented meaning, and make all
+     appropriate functions refer to it (but not bind it or set it)
+     wherever that meaning is relevant.  For example, the variable
+     `case-fold-search' is defined as "non-`nil' means ignore case when
+     searching"; various search and replace functions refer to it
+     directly or through their subroutines, but do not bind or set it.
+
+     Then you can bind the variable in other programs, knowing reliably
+     what the effect will be.
+
+
+File: lispref.info,  Node: Buffer-Local Variables,  Prev: Variable Scoping,  Up: Variables
+
+Buffer-Local Variables
+======================
+
+   Global and local variable bindings are found in most programming
+languages in one form or another.  Emacs also supports another, unusual
+kind of variable binding: "buffer-local" bindings, which apply only to
+one buffer.  Emacs Lisp is meant for programming editing commands, and
+having different values for a variable in different buffers is an
+important customization method.
+
+* Menu:
+
+* Intro to Buffer-Local::      Introduction and concepts.
+* Creating Buffer-Local::      Creating and destroying buffer-local bindings.
+* Default Value::              The default value is seen in buffers
+                                 that don't have their own local values.
+
+
+File: lispref.info,  Node: Intro to Buffer-Local,  Next: Creating Buffer-Local,  Prev: Buffer-Local Variables,  Up: Buffer-Local Variables
+
+Introduction to Buffer-Local Variables
+--------------------------------------
+
+   A buffer-local variable has a buffer-local binding associated with a
+particular buffer.  The binding is in effect when that buffer is
+current; otherwise, it is not in effect.  If you set the variable while
+a buffer-local binding is in effect, the new value goes in that binding,
+so the global binding is unchanged; this means that the change is
+visible in that buffer alone.
+
+   A variable may have buffer-local bindings in some buffers but not in
+others.  The global binding is shared by all the buffers that don't have
+their own bindings.  Thus, if you set the variable in a buffer that does
+not have a buffer-local binding for it, the new value is visible in all
+buffers except those with buffer-local bindings.  (Here we are assuming
+that there are no `let'-style local bindings to complicate the issue.)
+
+   The most common use of buffer-local bindings is for major modes to
+change variables that control the behavior of commands.  For example, C
+mode and Lisp mode both set the variable `paragraph-start' to specify
+that only blank lines separate paragraphs.  They do this by making the
+variable buffer-local in the buffer that is being put into C mode or
+Lisp mode, and then setting it to the new value for that mode.
+
+   The usual way to make a buffer-local binding is with
+`make-local-variable', which is what major mode commands use.  This
+affects just the current buffer; all other buffers (including those yet
+to be created) continue to share the global value.
+
+   A more powerful operation is to mark the variable as "automatically
+buffer-local" by calling `make-variable-buffer-local'.  You can think
+of this as making the variable local in all buffers, even those yet to
+be created.  More precisely, the effect is that setting the variable
+automatically makes the variable local to the current buffer if it is
+not already so.  All buffers start out by sharing the global value of
+the variable as usual, but any `setq' creates a buffer-local binding
+for the current buffer.  The new value is stored in the buffer-local
+binding, leaving the (default) global binding untouched.  The global
+value can no longer be changed with `setq'; you need to use
+`setq-default' to do that.
+
+   *Warning:* when a variable has local values in one or more buffers,
+you can get Emacs very confused by binding the variable with `let',
+changing to a different current buffer in which a different binding is
+in effect, and then exiting the `let'.  To preserve your sanity, it is
+wise to avoid such situations.  If you use `save-excursion' around each
+piece of code that changes to a different current buffer, you will not
+have this problem.  Here is an example of incorrect code:
+
+     (setq foo 'b)
+     (set-buffer "a")
+     (make-local-variable 'foo)
+     (setq foo 'a)
+     (let ((foo 'temp))
+       (set-buffer "b")
+       ...)
+     foo => 'a      ; The old buffer-local value from buffer `a'
+                    ;   is now the default value.
+     (set-buffer "a")
+     foo => 'temp   ; The local value that should be gone
+                    ;   is now the buffer-local value in buffer `a'.
+
+But `save-excursion' as shown here avoids the problem:
+
+     (let ((foo 'temp))
+       (save-excursion
+         (set-buffer "b")
+         ...))
+
+   Local variables in a file you edit are also represented by
+buffer-local bindings for the buffer that holds the file within Emacs.
+*Note Auto Major Mode::.
+
+
+File: lispref.info,  Node: Creating Buffer-Local,  Next: Default Value,  Prev: Intro to Buffer-Local,  Up: Buffer-Local Variables
+
+Creating and Destroying Buffer-local Bindings
+---------------------------------------------
+
+ - Command: make-local-variable VARIABLE
+     This function creates a buffer-local binding in the current buffer
+     for VARIABLE (a symbol).  Other buffers are not affected.  The
+     value returned is VARIABLE.
+
+     The buffer-local value of VARIABLE starts out as the same value
+     VARIABLE previously had.  If VARIABLE was void, it remains void.
+
+          ;; In buffer `b1':
+          (setq foo 5)                ; Affects all buffers.
+               => 5
+          (make-local-variable 'foo)  ; Now it is local in `b1'.
+               => foo
+          foo                         ; That did not change
+               => 5                   ;   the value.
+          (setq foo 6)                ; Change the value
+               => 6                   ;   in `b1'.
+          foo
+               => 6
+          
+          ;; In buffer `b2', the value hasn't changed.
+          (save-excursion
+            (set-buffer "b2")
+            foo)
+               => 5
+
+ - Command: make-variable-buffer-local VARIABLE
+     This function marks VARIABLE (a symbol) automatically
+     buffer-local, so that any attempt to set it will make it local to
+     the current buffer at the time.
+
+     The value returned is VARIABLE.
+
+ - Function: buffer-local-variables &optional BUFFER
+     This function tells you what the buffer-local variables are in
+     buffer BUFFER.  It returns an association list (*note Association
+     Lists::.) in which each association contains one buffer-local
+     variable and its value.  When a buffer-local variable is void in
+     BUFFER, then it appears directly in the resulting list.  If BUFFER
+     is omitted, the current buffer is used.
+
+          (make-local-variable 'foobar)
+          (makunbound 'foobar)
+          (make-local-variable 'bind-me)
+          (setq bind-me 69)
+          (setq lcl (buffer-local-variables))
+              ;; First, built-in variables local in all buffers:
+          => ((mark-active . nil)
+              (buffer-undo-list nil)
+              (mode-name . "Fundamental")
+              ...
+              ;; Next, non-built-in local variables.
+              ;; This one is local and void:
+              foobar
+              ;; This one is local and nonvoid:
+              (bind-me . 69))
+
+     Note that storing new values into the CDRs of cons cells in this
+     list does *not* change the local values of the variables.
+
+ - Command: kill-local-variable VARIABLE
+     This function deletes the buffer-local binding (if any) for
+     VARIABLE (a symbol) in the current buffer.  As a result, the
+     global (default) binding of VARIABLE becomes visible in this
+     buffer.  Usually this results in a change in the value of
+     VARIABLE, since the global value is usually different from the
+     buffer-local value just eliminated.
+
+     It is possible to kill the local binding of a variable that
+     automatically becomes local when set.  This causes the variable to
+     show its global value in the current buffer.  However, if you set
+     the variable again, this will once again create a local value.
+
+     `kill-local-variable' returns VARIABLE.
+
+ - Function: kill-all-local-variables
+     This function eliminates all the buffer-local variable bindings of
+     the current buffer except for variables marker as "permanent".  As
+     a result, the buffer will see the default values of most variables.
+
+     This function also resets certain other information pertaining to
+     the buffer: its local keymap is set to `nil', its syntax table is
+     set to the value of `standard-syntax-table', and its abbrev table
+     is set to the value of `fundamental-mode-abbrev-table'.
+
+     Every major mode command begins by calling this function, which
+     has the effect of switching to Fundamental mode and erasing most
+     of the effects of the previous major mode.  To ensure that this
+     does its job, the variables that major modes set should not be
+     marked permanent.
+
+     `kill-all-local-variables' returns `nil'.
+
+   A local variable is "permanent" if the variable name (a symbol) has a
+`permanent-local' property that is non-`nil'.  Permanent locals are
+appropriate for data pertaining to where the file came from or how to
+save it, rather than with how to edit the contents.
+
+
+File: lispref.info,  Node: Default Value,  Prev: Creating Buffer-Local,  Up: Buffer-Local Variables
+
+The Default Value of a Buffer-Local Variable
+--------------------------------------------
+
+   The global value of a variable with buffer-local bindings is also
+called the "default" value, because it is the value that is in effect
+except when specifically overridden.
+
+   The functions `default-value' and `setq-default' allow you to access
+and change the default value regardless of whether the current buffer
+has a buffer-local binding.  For example, you could use `setq-default'
+to change the default setting of `paragraph-start' for most buffers;
+and this would work even when you are in a C or Lisp mode buffer which
+has a buffer-local value for this variable.
+
+   The special forms `defvar' and `defconst' also set the default value
+(if they set the variable at all), rather than any local value.
+
+ - Function: default-value SYMBOL
+     This function returns SYMBOL's default value.  This is the value
+     that is seen in buffers that do not have their own values for this
+     variable.  If SYMBOL is not buffer-local, this is equivalent to
+     `symbol-value' (*note Accessing Variables::.).
+
+ - Function: default-boundp VARIABLE
+     The function `default-boundp' tells you whether VARIABLE's default
+     value is nonvoid.  If `(default-boundp 'foo)' returns `nil', then
+     `(default-value 'foo)' would get an error.
+
+     `default-boundp' is to `default-value' as `boundp' is to
+     `symbol-value'.
+
+ - Special Form: setq-default SYMBOL VALUE
+     This sets the default value of SYMBOL to VALUE.  SYMBOL is not
+     evaluated, but VALUE is.  The value of the `setq-default' form is
+     VALUE.
+
+     If a SYMBOL is not buffer-local for the current buffer, and is not
+     marked automatically buffer-local, this has the same effect as
+     `setq'.  If SYMBOL is buffer-local for the current buffer, then
+     this changes the value that other buffers will see (as long as they
+     don't have a buffer-local value), but not the value that the
+     current buffer sees.
+
+          ;; In buffer `foo':
+          (make-local-variable 'local)
+               => local
+          (setq local 'value-in-foo)
+               => value-in-foo
+          (setq-default local 'new-default)
+               => new-default
+          local
+               => value-in-foo
+          (default-value 'local)
+               => new-default
+          
+          ;; In (the new) buffer `bar':
+          local
+               => new-default
+          (default-value 'local)
+               => new-default
+          (setq local 'another-default)
+               => another-default
+          (default-value 'local)
+               => another-default
+          
+          ;; Back in buffer `foo':
+          local
+               => value-in-foo
+          (default-value 'local)
+               => another-default
+
+ - Function: set-default SYMBOL VALUE
+     This function is like `setq-default', except that SYMBOL is
+     evaluated.
+
+          (set-default (car '(a b c)) 23)
+               => 23
+          (default-value 'a)
+               => 23
+
+
+File: lispref.info,  Node: Functions,  Next: Macros,  Prev: Variables,  Up: Top
+
+Functions
+*********
+
+   A Lisp program is composed mainly of Lisp functions.  This chapter
+explains what functions are, how they accept arguments, and how to
+define them.
+
+* Menu:
+
+* What Is a Function::    Lisp functions vs. primitives; terminology.
+* Lambda Expressions::    How functions are expressed as Lisp objects.
+* Function Names::        A symbol can serve as the name of a function.
+* Defining Functions::    Lisp expressions for defining functions.
+* Calling Functions::     How to use an existing function.
+* Mapping Functions::     Applying a function to each element of a list, etc.
+* Anonymous Functions::   Lambda expressions are functions with no names.
+* Function Cells::        Accessing or setting the function definition
+                            of a symbol.
+* Inline Functions::	  Defining functions that the compiler will open code.
+* Related Topics::        Cross-references to specific Lisp primitives
+                            that have a special bearing on how functions work.
+
+
+File: lispref.info,  Node: What Is a Function,  Next: Lambda Expressions,  Up: Functions
+
+What Is a Function?
+===================
+
+   In a general sense, a function is a rule for carrying on a
+computation given several values called "arguments".  The result of the
+computation is called the value of the function.  The computation can
+also have side effects: lasting changes in the values of variables or
+the contents of data structures.
+
+   Here are important terms for functions in Emacs Lisp and for other
+function-like objects.
+
+"function"
+     In Emacs Lisp, a "function" is anything that can be applied to
+     arguments in a Lisp program.  In some cases, we use it more
+     specifically to mean a function written in Lisp.  Special forms and
+     macros are not functions.
+
+"primitive"
+     A "primitive" is a function callable from Lisp that is written in
+     C, such as `car' or `append'.  These functions are also called
+     "built-in" functions or "subrs".  (Special forms are also
+     considered primitives.)
+
+     Usually the reason that a function is a primitives is because it is
+     fundamental, or provides a low-level interface to operating system
+     services, or because it needs to run fast.  Primitives can be
+     modified or added only by changing the C sources and recompiling
+     the editor.  See *Note Writing Emacs Primitives::.
+
+"lambda expression"
+     A "lambda expression" is a function written in Lisp.  These are
+     described in the following section.
+
+     *Note Lambda Expressions::.
+
+"special form"
+     A "special form" is a primitive that is like a function but does
+     not evaluate all of its arguments in the usual way.  It may
+     evaluate only some of the arguments, or may evaluate them in an
+     unusual order, or several times.  Many special forms are described
+     in *Note Control Structures::.
+
+"macro"
+     A "macro" is a construct defined in Lisp by the programmer.  It
+     differs from a function in that it translates a Lisp expression
+     that you write into an equivalent expression to be evaluated
+     instead of the original expression.  *Note Macros::, for how to
+     define and use macros.
+
+"command"
+     A "command" is an object that `command-execute' can invoke; it is
+     a possible definition for a key sequence.  Some functions are
+     commands; a function written in Lisp is a command if it contains an
+     interactive declaration (*note Defining Commands::.).  Such a
+     function can be called from Lisp expressions like other functions;
+     in this case, the fact that the function is a command makes no
+     difference.
+
+     Strings are commands also, even though they are not functions.  A
+     symbol is a command if its function definition is a command; such
+     symbols can be invoked with `M-x'.  The symbol is a function as
+     well if the definition is a function.  *Note Command Overview::.
+
+"keystroke command"
+     A "keystroke command" is a command that is bound to a key sequence
+     (typically one to three keystrokes).  The distinction is made here
+     merely to avoid confusion with the meaning of "command" in
+     non-Emacs editors; for programmers, the distinction is normally
+     unimportant.
+
+"byte-code function"
+     A "byte-code function" is a function that has been compiled by the
+     byte compiler.  *Note Byte-Code Type::.
+
+ - Function: subrp OBJECT
+     This function returns `t' if OBJECT is a built-in function (i.e. a
+     Lisp primitive).
+
+          (subrp 'message)            ; `message' is a symbol,
+               => nil                 ;   not a subr object.
+          (subrp (symbol-function 'message))
+               => t
+
+ - Function: byte-code-function-p OBJECT
+     This function returns `t' if OBJECT is a byte-code function.  For
+     example:
+
+          (byte-code-function-p (symbol-function 'next-line))
+               => t
+
+
+File: lispref.info,  Node: Lambda Expressions,  Next: Function Names,  Prev: What Is a Function,  Up: Functions
+
+Lambda Expressions
+==================
+
+   A function written in Lisp is a list that looks like this:
+
+     (lambda (ARG-VARIABLES...)
+       [DOCUMENTATION-STRING]
+       [INTERACTIVE-DECLARATION]
+       BODY-FORMS...)
+
+(Such a list is called a "lambda expression" for historical reasons,
+even though it is not really an expression at all--it is not a form
+that can be evaluated meaningfully.)
+
+* Menu:
+
+* Lambda Components::       The parts of a lambda expression.
+* Simple Lambda::           A simple example.
+* Argument List::           Details and special features of argument lists.
+* Function Documentation::  How to put documentation in a function.
+
+
+File: lispref.info,  Node: Lambda Components,  Next: Simple Lambda,  Up: Lambda Expressions
+
+Components of a Lambda Expression
+---------------------------------
+
+   A function written in Lisp (a "lambda expression") is a list that
+looks like this:
+
+     (lambda (ARG-VARIABLES...)
+       [DOCUMENTATION-STRING]
+       [INTERACTIVE-DECLARATION]
+       BODY-FORMS...)
+
+   The first element of a lambda expression is always the symbol
+`lambda'.  This indicates that the list represents a function.  The
+reason functions are defined to start with `lambda' is so that other
+lists, intended for other uses, will not accidentally be valid as
+functions.
+
+   The second element is a list of argument variable names (symbols).
+This is called the "lambda list".  When a Lisp function is called, the
+argument values are matched up against the variables in the lambda
+list, which are given local bindings with the values provided.  *Note
+Local Variables::.
+
+   The documentation string is an actual string that serves to describe
+the function for the Emacs help facilities.  *Note Function
+Documentation::.
+
+   The interactive declaration is a list of the form `(interactive
+CODE-STRING)'.  This declares how to provide arguments if the function
+is used interactively.  Functions with this declaration are called
+"commands"; they can be called using `M-x' or bound to a key.
+Functions not intended to be called in this way should not have
+interactive declarations.  *Note Defining Commands::, for how to write
+an interactive declaration.
+
+   The rest of the elements are the "body" of the function: the Lisp
+code to do the work of the function (or, as a Lisp programmer would say,
+"a list of Lisp forms to evaluate").  The value returned by the
+function is the value returned by the last element of the body.
+
+
+File: lispref.info,  Node: Simple Lambda,  Next: Argument List,  Prev: Lambda Components,  Up: Lambda Expressions
+
+A Simple Lambda-Expression Example
+----------------------------------
+
+   Consider for example the following function:
+
+     (lambda (a b c) (+ a b c))
+
+We can call this function by writing it as the CAR of an expression,
+like this:
+
+     ((lambda (a b c) (+ a b c))
+      1 2 3)
+
+The body of this lambda expression is evaluated with the variable `a'
+bound to 1, `b' bound to 2, and `c' bound to 3.  Evaluation of the body
+adds these three numbers, producing the result 6; therefore, this call
+to the function returns the value 6.
+
+   Note that the arguments can be the results of other function calls,
+as in this example:
+
+     ((lambda (a b c) (+ a b c))
+      1 (* 2 3) (- 5 4))
+
+Here all the arguments `1', `(* 2 3)', and `(- 5 4)' are evaluated,
+left to right.  Then the lambda expression is applied to the argument
+values 1, 6 and 1 to produce the value 8.
+
+   It is not often useful to write a lambda expression as the CAR of a
+form in this way.  You can get the same result, of making local
+variables and giving them values, using the special form `let' (*note
+Local Variables::.).  And `let' is clearer and easier to use.  In
+practice, lambda expressions are either stored as the function
+definitions of symbols, to produce named functions, or passed as
+arguments to other functions (*note Anonymous Functions::.).
+
+   However, calls to explicit lambda expressions were very useful in the
+old days of Lisp, before the special form `let' was invented.  At that
+time, they were the only way to bind and initialize local variables.
+
+
+File: lispref.info,  Node: Argument List,  Next: Function Documentation,  Prev: Simple Lambda,  Up: Lambda Expressions
+
+Advanced Features of Argument Lists
 -----------------------------------
 
-   In the previous section, the definition of `for' was fixed as
-follows to make the expansion evaluate the macro arguments the proper
-number of times:
+   Our simple sample function, `(lambda (a b c) (+ a b c))', specifies
+three argument variables, so it must be called with three arguments: if
+you try to call it with only two arguments or four arguments, you get a
+`wrong-number-of-arguments' error.
 
-     (defmacro for (var from init to final do &rest body)
-       "Execute a simple for loop: (for i from 1 to 10 do (print i))."
-       (` (let (((, var) (, init))
-                (max (, final)))
-            (while (<= (, var) max)
-              (,@ body)
-              (inc (, var))))))
+   It is often convenient to write a function that allows certain
+arguments to be omitted.  For example, the function `substring' accepts
+three arguments--a string, the start index and the end index--but the
+third argument defaults to the end of the string if you omit it.  It is
+also convenient for certain functions to accept an indefinite number of
+arguments, as the functions `and' and `+' do.
 
-   The new definition of `for' has a new problem: it introduces a
-local variable named `max' which the user does not expect.  This will
-cause trouble in examples such as the following:
+   To specify optional arguments that may be omitted when a function is
+called, simply include the keyword `&optional' before the optional
+arguments.  To specify a list of zero or more extra arguments, include
+the keyword `&rest' before one final argument.
 
-     (let ((max 0))
-       (for x from 0 to 10 do
-         (let ((this (frob x)))
-           (if (< max this)
-               (setq max this)))))
+   Thus, the complete syntax for an argument list is as follows:
 
-The references to `max' inside the body of the `for', which are
-supposed to refer to the user's binding of `max', will instead access
-the binding made by `for'.
+     (REQUIRED-VARS...
+      [&optional OPTIONAL-VARS...]
+      [&rest REST-VAR])
 
-   The way to correct this is to use an uninterned symbol instead of
-`max' (*note Creating Symbols::.).  The uninterned symbol can be
-bound and referred to just like any other symbol, but since it is
-created by `for', we know that it cannot appear in the user's program.
-Since it is not interned, there is no way the user can put it into
-the program later.  It will not appear anywhere except where put by
-`for'.  Here is a definition of `for' which works this way:
+The square brackets indicate that the `&optional' and `&rest' clauses,
+and the variables that follow them, are optional.
 
-     (defmacro for (var from init to final do &rest body)
-       "Execute a simple for loop: (for i from 1 to 10 do (print i))."
-       (let ((tempvar (make-symbol "max")))
-         (` (let (((, var) (, init))
-                  ((, tempvar) (, final)))
-              (while (<= (, var) (, tempvar))
-                     (,@ body)
-                     (inc (, var)))))))
+   A call to the function requires one actual argument for each of the
+REQUIRED-VARS.  There may be actual arguments for zero or more of the
+OPTIONAL-VARS, and there cannot be any more actual arguments than these
+unless `&rest' exists.  In that case, there may be any number of extra
+actual arguments.
 
-This creates an uninterned symbol named `max' and puts it in the
-expansion instead of the usual interned symbol `max' that appears in
-expressions ordinarily.
+   If actual arguments for the optional and rest variables are omitted,
+then they always default to `nil'.  However, the body of the function
+is free to consider `nil' an abbreviation for some other meaningful
+value.  This is what `substring' does; `nil' as the third argument
+means to use the length of the string supplied.  There is no way for the
+function to distinguish between an explicit argument of `nil' and an
+omitted argument.
 
+     Common Lisp note: Common Lisp allows the function to specify what
+     default value to use when an optional argument is omitted; GNU
+     Emacs Lisp always uses `nil'.
 
-
-File: elisp,  Node: Eval During Expansion,  Next: Repeated Expansion,  Prev: Surprising Local Vars,  Up: Problems with Macros
+   For example, an argument list that looks like this:
 
-Evaluating Macro Arguments in Expansion
----------------------------------------
+     (a b &optional c d &rest e)
 
-   Another problem can happen if you evaluate any of the macro
-argument expressions during the computation of the expansion, such as
-by calling `eval' (*note Eval::.).  If the argument is supposed to
-refer to the user's variables, you may have trouble if the user
-happens to use a variable with the same name as one of the macro
-arguments.  Inside the macro body, the macro argument binding is the
-most local binding of this variable, so any references inside the
-form being evaluated will refer to it.  Here is an example:
+binds `a' and `b' to the first two actual arguments, which are
+required.  If one or two more arguments are provided, `c' and `d' are
+bound to them respectively; any arguments after the first four are
+collected into a list and `e' is bound to that list.  If there are only
+two arguments, `c' is `nil'; if two or three arguments, `d' is `nil';
+if four arguments or fewer, `e' is `nil'.
 
-     (defmacro foo (a)
-       (list 'setq (eval a) t))
-          => foo
-     (setq x 'b)
-     (foo x) ==> (setq b t)
-          => t                  ; and `b' has been set.
-     ;; but
-     (setq a 'b)
-     (foo a) ==> (setq 'b t)     ; invalid!
-     error--> Symbol's value is void: b
+   There is no way to have required arguments following optional
+ones--it would not make sense.  To see why this must be so, suppose
+that `c' in the example were optional and `d' were required.  If three
+actual arguments are given; then which variable would the third
+argument be for?  Similarly, it makes no sense to have any more
+arguments (either required or optional) after a `&rest' argument.
 
-   It makes a difference whether the user types `a' or `x', because
-`a' conflicts with the macro argument variable `a'.
+   Here are some examples of argument lists and proper calls:
 
-   In general it is best to avoid calling `eval' in a macro
-definition at all.
-
+     ((lambda (n) (1+ n))                ; One required:
+      1)                                 ; requires exactly one argument.
+          => 2
+     ((lambda (n &optional n1)           ; One required and one optional:
+              (if n1 (+ n n1) (1+ n)))   ; 1 or 2 arguments.
+      1 2)
+          => 3
+     ((lambda (n &rest ns)               ; One required and one rest:
+              (+ n (apply '+ ns)))       ; 1 or more arguments.
+      1 2 3 4 5)
+          => 15
 
 
-File: elisp,  Node: Repeated Expansion,  Prev: Eval During Expansion,  Up: Problems with Macros
+File: lispref.info,  Node: Function Documentation,  Prev: Argument List,  Up: Lambda Expressions
 
-How Many Times is the Macro Expanded?
--------------------------------------
+Documentation Strings of Functions
+----------------------------------
 
-   Occasionally problems result from the fact that a macro call is
-expanded each time it is evaluated in an interpreted function, but is
-expanded only once (during compilation) for a compiled function.  If
-the macro definition has side effects, they will work differently
-depending on how many times the macro is expanded.
+   A lambda expression may optionally have a "documentation string" just
+after the lambda list.  This string does not affect execution of the
+function; it is a kind of comment, but a systematized comment which
+actually appears inside the Lisp world and can be used by the Emacs help
+facilities.  *Note Documentation::, for how the DOCUMENTATION-STRING is
+accessed.
 
-   In particular, constructing objects is a kind of side effect.  If
-the macro is called once, then the objects are constructed only once.
-In other words, the same structure of objects is used each time the
-macro call is executed.  In interpreted operation, the macro is
-reexpanded each time, producing a fresh collection of objects each
-time.  Usually this does not matter--the objects have the same
-contents whether they are shared or not.  But if the surrounding
-program does side effects on the objects, it makes a difference
-whether they are shared.  Here is an example:
+   It is a good idea to provide documentation strings for all commands,
+and for all other functions in your program that users of your program
+should know about; internal functions might as well have only comments,
+since comments don't take up any room when your program is loaded.
 
-     (defmacro new-object ()
-       (list 'quote (cons nil nil)))
-     
-     (defun initialize (condition)
-       (let ((object (new-object)))
-         (if condition
-     	(setcar object condition))
-         object))
+   The first line of the documentation string should stand on its own,
+because `apropos' displays just this first line.  It should consist of
+one or two complete sentences that summarize the function's purpose.
 
-If `initialize' is interpreted, a new list `(nil)' is constructed
-each time `initialize' is called.  Thus, no side-effect survives
-between calls.  If `initialize' is compiled, then the macro
-`new-object' is expanded during compilation, producing a single
-"constant" `(nil)' that is reused and altered each time `initialize'
-is called.
+   The start of the documentation string is usually indented, but since
+these spaces come before the starting double-quote, they are not part of
+the string.  Some people make a practice of indenting any additional
+lines of the string so that the text lines up.  *This is a mistake.*
+The indentation of the following lines is inside the string; what looks
+nice in the source code will look ugly when displayed by the help
+commands.
 
-
-
-File: elisp,  Node: Loading,  Next: Byte Compilation,  Prev: Macros,  Up: Top
-
-Loading
-*******
-
-   Loading a file of Lisp code means bringing its contents into the
-Lisp environment in the form of Lisp objects.  Emacs finds and opens
-the file, reads the text, evaluates each form, and then closes the
-file.
-
-   The load functions evaluate all the expressions in a file just as
-the `eval-current-buffer' function evaluates all the expressions in a
-buffer.  The difference is that the load functions read and evaluate
-the text in the file as found on disk, not the text in an Emacs buffer.
-
-   The loaded file must contain Lisp expressions, either as source
-code or, optionally, as byte-compiled code.  Each form in the file is
-called a "top-level form".  There is no special format for the forms
-in a loadable file; any form in a file may equally well be typed
-directly into a buffer and evaluated there.  (Indeed, most code is
-tested this way.)  Most often, the forms are function definitions and
-variable definitions.
-
-   A file containing Lisp code is often called a "library".  Thus,
-the "Rmail library" is a file containing code for Rmail mode. 
-Similarly, a "Lisp library directory" is a directory of files
-containing Lisp code.
-
-* Menu:
-
-* How Programs Do Loading::     The `load' function and others.
-* Autoload::                    Setting up a function to autoload.
-* Repeated Loading::            Precautions about loading a file twice.
-* Features::                    Loading a library if it isn't already loaded.
-
- 
-
-File: elisp,  Node: How Programs Do Loading,  Next: Autoload,  Prev: Loading,  Up: Loading
-
-How Programs Do Loading
-=======================
-
-   There are several interface functions for loading.  For example,
-the `autoload' function creates a Lisp object that loads a file when
-it is evaluated (*note Autoload::.).  `require' also causes files to
-be loaded (*note Features::.).  Ultimately, all these facilities call
-the `load' function to do the work.
-
- * Function: load FILENAME &optional MISSING-OK NOMESSAGE NOSUFFIX
-     This function finds and opens a file of Lisp code, evaluates all
-     the forms in it, and closes the file.
-
-     To find the file, `load' first looks for a file named
-     `FILENAME.elc', that is, for a file whose name has `.elc'
-     appended.  If such a file exists, it is loaded.  But if there is
-     no file by that name, then `load' looks for a file whose name
-     has `.el' appended.  If that file exists, it is loaded. 
-     Finally, if there is no file by either name, `load' looks for a
-     file named FILENAME with nothing appended, and loads it if it
-     exists.  (The `load' function is not clever about looking at
-     FILENAME.  In the perverse case of a file named `foo.el.el',
-     evaluation of `(load "foo.el")' will indeed find it.)
-
-     If the optional argument NOSUFFIX is non-`nil', then the
-     suffixes `.elc' and `.el' are not tried.  In this case, the file
-     name must be specified precisely.
-
-     If FILENAME is a relative file name, such as `foo.bar' or
-     `baz/foo.bar', Emacs searches for the file using the variable
-     `load-path'.  Emacs does this by appending FILENAME to each of
-     the directories listed in `load-path', and loading the first
-     file it finds whose name matches.  The current default directory
-     is tried only if it is specified in `load-path', where it is
-     represented as `nil'.  All three possible suffixes are tried in
-     the first directory in `load-path', then all three in the second
-     directory in `load-path', etc.
-
-     Messages like `Loading foo...' and `Loading foo...done' are
-     printed in the echo area while loading unless NOMESSAGE is
-     non-`nil'.
-
-     Any errors that are encountered while loading a file cause
-     `load' to abort.  If the load was done for the sake of
-     `autoload', certain kinds of top-level forms, those which define
-     functions, are undone.
-
-     The error `file-error' is signaled (with `Cannot open load file
-     FILENAME') if no file is found.  No error is signaled if
-     MISSING-OK is non-`nil'--then `load' just returns `nil'.
-
-     `load' returns `t' if the file loads successfully.
-
- * User Option: load-path
-     The value of this variable is a list of directories to search
-     when loading files with `load'.  Each element is a string (which
-     must be a directory name) or `nil' (which stands for the current
-     working directory).  The value of `load-path' is initialized
-     from the environment variable `EMACSLOADPATH', if it exists;
-     otherwise it is set to the default specified in
-     `emacs/src/paths.h' when Emacs is built.
-
-     The syntax of `EMACSLOADPATH' is the same as that of `PATH';
-     fields are separated by `:', and `.' is used for the current
-     default directory.  Here is an example of how to set your
-     `EMACSLOADPATH' variable from a `csh' `.login' file:
-
-          setenv EMACSLOADPATH .:/user/liberte/emacs:/usr/local/lib/emacs/lisp
-
-     Here is how to set it using `sh':
-
-          export EMACSLOADPATH
-          EMACSLOADPATH=.:/user/liberte/emacs:/usr/local/lib/emacs/lisp
-
-     Here is an example of code you can place in a `.emacs' file to
-     add several directories to the front of your default `load-path':
-
-          (setq load-path
-                (append
-                 (list nil
-                       "/user/liberte/emacs"
-                       "/usr/local/lisplib")
-                 load-path))
-
-     In this example, the path searches the current working directory
-     first, followed by `/user/liberte/emacs' and
-     `/usr/local/lisplib', which are then followed by the standard
-     directories for Lisp code.
-
-     When Emacs 18 is processing command options `-l' or `-load'
-     which specify Lisp libraries to be loaded, it temporarily adds
-     the current directory to the front of `load-path' so that files
-     in the current directory can be specified easily.  Emacs version
-     19 will also find such files in the current directory but
-     without altering `load-path'.
-
- * Variable: load-in-progress
-     This variable is non-`nil' if Emacs is in the process of loading
-     a file, and it is `nil' otherwise.  This is how `defun' and
-     `provide' determine whether a load is in progress, so that their
-     effect can be undone if the load fails.
-
-   To learn how `load' is used to build Emacs, see *Note Building
-Emacs::.
-
+   You may wonder how the documentation string could be optional, since
+there are required components of the function that follow it (the body).
+Since evaluation of a string returns that string, without any side
+effects, it has no effect if it is not the last form in the body.
+Thus, in practice, there is no confusion between the first form of the
+body and the documentation string; if the only body form is a string
+then it serves both as the return value and as the documentation.
 
 
-File: elisp,  Node: Autoload,  Next: Repeated Loading,  Prev: How Programs Do Loading,  Up: Loading
-
-Autoload
-========
-
-   The "autoload" facility allows you to make a function or macro
-available but put off loading its actual definition.  An attempt to
-call a symbol whose definition is an autoload object automatically
-reads the file to install the real definition and its other
-associated code, and then calls the real definition.
-
-   To prepare a function or macro for autoloading, you must call
-`autoload', specifying the function name and the name of the file to
-be loaded.  This is usually done when Emacs is first built, by files
-such as `emacs/lisp/loaddefs.el'.
-
-   The following example shows how `doctor' is prepared for
-autoloading in `loaddefs.el':
-
-     (autoload 'doctor "doctor"
-       "\
-     Switch to *doctor* buffer and start giving psychotherapy."
-       t)
-
-The backslash and newline immediately following the double-quote are
-a convention used only in the preloaded Lisp files such as
-`loaddefs.el'; they cause the documentation string to be put in the
-`etc/DOC' file.  (*Note Building Emacs::.)  In any other source file,
-you would write just this:
-
-     (autoload 'doctor "doctor"
-       "Switch to *doctor* buffer and start giving psychotherapy."
-       t)
-
-   Calling `autoload' creates an autoload object containing the name
-of the file and some other information, and makes this the definition
-of the specified symbol.  When you later try to call that symbol as a
-function or macro, the file is loaded; the loading should redefine
-that symbol with its proper definition.  After the file completes
-loading, the function or macro is called as if it had been there
-originally.
-
-   If, at the end of loading the file, the desired Lisp function or
-macro has not been defined, then the error `error' is signaled (with
-data `"Autoloading failed to define function FUNCTION-NAME"').
-
-   The autoloaded file may, of course, contain other definitions and
-may require or provide one or more features.  If the file is not
-completely loaded (due to an error in the evaluation of the contents)
-any function definitions or `provide' calls that occurred during the
-load are undone.  This is to ensure that the next attempt to call any
-function autoloading from this file will try again to load the file. 
-If not for this, then some of the functions in the file might appear
-defined, but they may fail to work properly for the lack of certain
-subroutines defined later in the file and not loaded successfully.
-
- * Function: autoload SYMBOL FILENAME &optional DOCSTRING INTERACTIVE
-          MACRO
-     This function defines the function (or macro) named SYMBOL so as
-     to load automatically from FILENAME.  The string FILENAME is a
-     file name which will be passed to `load' when the function is
-     called.
-
-     The argument DOCSTRING is the documentation string for the
-     function.  Normally, this is the same string that is in the
-     function definition itself.  This makes it possible to look at
-     the documentation without loading the real definition.
-
-     If INTERACTIVE is non-`nil', then the function can be called
-     interactively.  This lets completion in `M-x' work without
-     loading the function's real definition.  The complete
-     interactive specification need not be given here.  If MACRO is
-     non-`nil', then the function is really a macro.
-
-     If SYMBOL already has a non-`nil' function definition that is
-     not an autoload object, `autoload' does nothing and returns
-     `nil'.  If the function cell of SYMBOL is void, or is already an
-     autoload object, then it is set to an autoload object that looks
-     like this:
-
-          (autoload FILENAME DOCSTRING INTERACTIVE MACRO)
-
-     For example,
-
-          (symbol-function 'run-prolog)
-               => (autoload "prolog" 169681 t nil)
-
-     In this case, `"prolog"' is the name of the file to load, 169681
-     is the reference to the documentation string in the
-     `emacs/etc/DOC' file (*note Documentation Basics::.), `t' means
-     the function is interactive, and `nil' that it is not a macro.
-
-
-
-File: elisp,  Node: Repeated Loading,  Next: Features,  Prev: Autoload,  Up: Loading
-
-Repeated Loading
-================
-
-   You may load a file more than once in an Emacs session.  For
-example, after you have rewritten and reinstalled a function
-definition by editing it in a buffer, you may wish to return to the
-original version; you can do this by reloading the file in which it
-is located.
-
-   When you load or reload files, bear in mind that the `load' and
-`load-library' functions automatically load a byte-compiled file
-rather than a non-compiled file of similar name.  If you rewrite a
-file that you intend to save and reinstall, remember to byte-compile
-it if necessary; otherwise you may find yourself inadvertently
-reloading the older, byte-compiled file instead of your newer,
-non-compiled file!
-
-   When writing the forms in a library, keep in mind that the library
-might be loaded more than once.  For example, the choice of `defvar'
-vs. `defconst' for defining a variable depends on whether it is
-desirable to reinitialize the variable if the library is reloaded:
-`defconst' does so, and `defvar' does not.  (*Note Defining
-Variables::.)
-
-   The simplest way to add an element to an alist is like this:
-
-     (setq minor-mode-alist (cons '(leif-mode " Leif") minor-mode-alist))
-
-But this would add multiple elements if the library is reloaded.  To
-avoid the problem, write this:
-
-     (or (assq 'leif-mode minor-mode-alist)
-         (setq minor-mode-alist
-               (cons '(leif-mode " Leif") minor-mode-alist)))
-
-   Occasionally you will want to test explicitly whether a library
-has already been loaded; you can do so as follows:
-
-     (if (not (boundp 'foo-was-loaded))
-         EXECUTE-FIRST-TIME-ONLY)
-     
-     (setq foo-was-loaded t)
-
-
-
-File: elisp,  Node: Features,  Prev: Repeated Loading,  Up: Loading
-
-Features
-========
-
-   `provide' and `require' are an alternative to `autoload' for
-loading files automatically.  They work in terms of named "features".
-Autoloading is triggered by calling a specific function, but a
-feature is loaded the first time another program asks for it by name.
-
-   The use of named features simplifies the task of determining
-whether required definitions have been defined.  A feature name is a
-symbol that stands for a collection of functions, variables, etc.  A
-program that needs the collection may ensure that they are defined by
-"requiring" the feature.  If the file that contains the feature has
-not yet been loaded, then it will be loaded (or an error will be
-signaled if it cannot be loaded).  The file thus loaded must
-"provide" the required feature or an error will be signaled.
-
-   To require the presence of a feature, call `require' with the
-feature name as argument.  `require' looks in the global variable
-`features' to see whether the desired feature has been provided
-already.  If not, it loads the feature from the appropriate file. 
-This file should call `provide' at the top-level to add the feature
-to `features'.
-
-   Features are normally named after the files they are provided in
-so that `require' need not be given the file name.
-
-   For example, in `emacs/lisp/prolog.el',  the definition for
-`run-prolog' includes the following code:
-
-     (interactive)
-     (require 'shell)
-     (switch-to-buffer (make-shell "prolog" "prolog"))
-     (inferior-prolog-mode))
-
-The expression `(require 'shell)' loads the file `shell.el' if it has
-not yet been loaded.  This ensures that `make-shell' is defined.
-
-   The `shell.el' file contains the following top-level expression:
-
-     (provide 'shell)
-
-This adds `shell' to the global `features' list when the `shell' file
-is loaded, so that `(require 'shell)' will henceforth know that
-nothing needs to be done.
-
-   When `require' is used at top-level in a file, it takes effect if
-you byte-compile that file (*note Byte Compilation::.).  This is in
-case the required package contains macros that the byte compiler must
-know about.
-
-   Although top-level calls to `require' are evaluated during byte
-compilation, `provide' calls are not.  Therefore, you can ensure that
-a file of definitions is loaded before it is byte-compiled by
-including a `provide' followed by a `require' for the same feature,
-as in the following example.
-
-     (provide 'my-feature)  ; Ignored by byte compiler, evaluated by `load'.
-     (require 'my-feature)  ; Evaluated by byte compiler.
-
-  * Function: provide FEATURE
-     This function announces that FEATURE is now loaded, or being
-     loaded, into the current Emacs session.  This means that the
-     facilities associated with FEATURE are or will be available for
-     other Lisp programs.
-
-     The direct effect of calling `provide' is to add FEATURE to the
-     front of the list `features' if it is not already in the list. 
-     The argument FEATURE must be a symbol.  `provide' returns FEATURE.
-
-          features
-               => (bar bish)
-          
-          (provide 'foo)
-               => foo
-          features
-               => (foo bar bish)
-
-     During autoloading, if the file is not completely loaded (due to
-     an error in the evaluation of the contents) any function
-     definitions or `provide' calls that occurred during the load are
-     undone.  *Note Autoload::.
-
- * Function: require FEATURE &optional FILENAME
-     This function checks whether FEATURE is present in the current
-     Emacs session (using `(featurep FEATURE)'; see below).  If it is
-     not, then `require' loads FILENAME with `load'.  If FILENAME is
-     not supplied, then the name of the symbol FEATURE is used as the
-     file name to load.
-
-     If FEATURE is not provided after the file has been loaded, Emacs
-     will signal the error `error' (with data `Required feature
-     FEATURE was not provided').
-
- * Function: featurep FEATURE
-     This function returns `t' if FEATURE has been provided in the
-     current Emacs session (i.e., FEATURE is a member of `features'.)
-
- * Variable: features
-     The value of this variable is a list of symbols that are the
-     features loaded in the current Emacs session.  Each symbol was
-     put in this list with a call to `provide'.  The order of the
-     elements in the `features' list is not significant.
-
-
-
-File: elisp,  Node: Byte Compilation,  Next: Debugging,  Prev: Loading,  Up: Top
-
-Byte Compilation
-****************
-
-   GNU Emacs Lisp has a "compiler" that translates functions written
-in Lisp into a special representation called "byte-code" that can be
-executed more efficiently.  The compiler replaces Lisp function
-definitions with byte-code.  When a byte-code function is called, its
-definition is evaluated by the "byte-code interpreter".
-
-   Because the byte-compiled code is evaluated by the byte-code
-interpreter, instead of being executed directly by the machine's
-hardware (as true compiled code is), byte-code is completely
-transportable from machine to machine without recompilation.  It is
-not, however, as fast as true compiled code.
-
-   *Note Compilation Errors::, for how to investigate errors
-occurring in byte compilation.
-
-* Menu:
-
-* Compilation Functions::       Byte compilation functions.
-* Disassembly::                 Disassembling byte-code; how to read byte-code.
-
- 
-
-File: elisp,  Node: Compilation Functions,  Next: Disassembly,  Prev: Byte Compilation,  Up: Byte Compilation
-
-The Compilation Functions
-=========================
-
-   An individual function or macro definition may be byte-compiled
-with the `byte-compile' function.  A whole file may be byte-compiled
-with `byte-compile-file' and several files may be byte-compiled with
-`byte-recompile-directory' or `batch-byte-compile'.  Only `defun' and
-`defmacro' forms in a file are byte-compiled; other top-level forms
-are not altered by byte compilation.
-
-   Be careful when byte-compiling code that uses macros.  Macro calls
-are expanded when they are compiled, so the macros must already be
-defined for proper compilation.  For more details, see *Note
-Compiling Macros::.
-
-   While byte-compiling a file, any `require' calls at top-level are
-executed.  One way to ensure that necessary macro definitions are
-available during compilation is to require the file that defines them.
-*Note Features::.
-
-   A byte-compiled function is not as efficient as a primitive
-function written in C, but will run much faster than the version
-written in Lisp.  For a rough comparison, consider the example below:
-
-     (defun silly-loop (n)
-       "Return time before and after N iterations of a loop."
-       (let ((t1 (current-time-string)))
-         (while (> (setq n (1- n)) 
-                   0))
-         (list t1 (current-time-string))))
-     => silly-loop
-     
-     (silly-loop 100000)
-     => ("Thu Jan 12 20:18:38 1989" 
-         "Thu Jan 12 20:19:29 1989")  ; 51 seconds
-     
-     (byte-compile 'silly-loop)
-     => [Compiled code not shown]
-     
-     (silly-loop 100000)
-     => ("Thu Jan 12 20:21:04 1989" 
-         "Thu Jan 12 20:21:17 1989")  ; 13 seconds
-
-   In this example, the interpreted code required 51 seconds to run,
-whereas the byte-compiled code required 13 seconds.  These results
-are representative, but actual results will vary greatly.
-
- * Function: byte-compile SYMBOL
-     This function byte-compiles the function definition of SYMBOL,
-     replacing the previous definition with the compiled one.  The
-     function definition of SYMBOL must be the actual code for the
-     function; i.e., the compiler will not follow indirection to
-     another symbol.  `byte-compile' does not compile macros. 
-     `byte-compile' returns the new, compiled definition of SYMBOL.
-
-          (defun factorial (integer)
-            "Compute factorial of INTEGER."
-            (if (= 1 integer) 1
-              (* integer (factorial (1- integer)))))
-               => factorial
-          
-          (byte-compile 'factorial)
-               => (lambda (integer) 
-                           "Compute factorial of INTEGER." 
-                           (byte-code "\301^HU\203
-          ^@\301\202^Q^@\302^H\303^HS!\"\207"
-                                      [integer 1 * factorial] 4))
-
-     The string that is the first argument of `byte-code' is the
-     actual byte-code.  Each character in it is an instruction.  The
-     vector contains all the constants, variable names and function
-     names used by the function, except for certain primitives that
-     are coded as special instructions.
-
-     The `byte-compile' function is not autoloaded as are
-     `byte-compile-file' and `byte-recompile-directory'.
-
- * Command: byte-compile-file FILENAME
-     This function compiles a file of Lisp code named FILENAME into a
-     file of byte-code.  The output file's name is made by appending
-     `c' to the end of FILENAME.
-
-     Compilation works by reading the input file one form at a time. 
-     If it is a definition of a function or macro, the compiled
-     function or macro definition is written out.  Other forms are
-     copied out unchanged.  All comments are discarded when the input
-     file is read.
-
-     This command returns `t'.  When called interactively, it prompts
-     for the file name.
-
-          % ls -l push*
-          -rw-r--r--  1 lewis             791 Oct  5 20:31 push.el
-          
-          (byte-compile-file "~/emacs/push.el")
-               => t
-          
-          % ls -l push*
-          -rw-r--r--  1 lewis             791 Oct  5 20:31 push.el
-          -rw-rw-rw-  1 lewis             638 Oct  8 20:25 push.elc
-
- * Command: byte-recompile-directory DIRECTORY FLAG
-     This function recompiles every `.el' file in DIRECTORY that
-     needs recompilation.  A file needs recompilation if a `.elc'
-     file exists but is older than the `.el' file.
-
-     If a `.el' file exists, but there is no corresponding `.elc'
-     file, then FLAG is examined.  If it is `nil', the file is
-     ignored.  If it is non-`nil', the user is asked whether the file
-     should be compiled.
-
-     The returned value of this command is unpredictable.
-
- * Function: batch-byte-compile
-     This function runs `byte-compile-file' on the files remaining on
-     the command line.  This function must be used only in a batch
-     execution of Emacs, as it kills Emacs on completion.  Each file
-     will be processed, even if an error occurs while compiling a
-     previous file.  (The file with the error will not, of course,
-     produce any compiled code.)
-
-          % emacs -batch -f batch-byte-compile *.el
-
- * Function: byte-code CODE-STRING DATA-VECTOR MAX-STACK
-     This is the function that actually interprets byte-code.  A
-     byte-compiled function is actually defined with a body that
-     calls `byte-code'.  Don't call this function yourself.  Only the
-     byte compiler knows how to generate valid calls to this function.
-
+File: lispref.info,  Node: Function Names,  Next: Defining Functions,  Prev: Lambda Expressions,  Up: Functions
+
+Naming a Function
+=================
+
+   In most computer languages, every function has a name; the idea of a
+function without a name is nonsensical.  In Lisp, a function in the
+strictest sense has no name.  It is simply a list whose first element is
+`lambda', or a primitive subr-object.
+
+   However, a symbol can serve as the name of a function.  This happens
+when you put the function in the symbol's "function cell" (*note Symbol
+Components::.).  Then the symbol itself becomes a valid, callable
+function, equivalent to the list or subr-object that its function cell
+refers to.  The contents of the function cell are also called the
+symbol's "function definition".  When the evaluator finds the function
+definition to use in place of the symbol, we call that "symbol function
+indirection"; see *Note Function Indirection::.
+
+   In practice, nearly all functions are given names in this way and
+referred to through their names.  For example, the symbol `car' works
+as a function and does what it does because the primitive subr-object
+`#<subr car>' is stored in its function cell.
+
+   We give functions names because it is more convenient to refer to
+them by their names in other functions.  For primitive subr-objects
+such as `#<subr car>', names are the only way you can refer to them:
+there is no read syntax for such objects.  For functions written in
+Lisp, the name is more convenient to use in a call than an explicit
+lambda expression.  Also, a function with a name can refer to
+itself--it can be recursive.  Writing the function's name in its own
+definition is much more convenient than making the function definition
+point to itself (something that is not impossible but that has various
+disadvantages in practice).
+
+   Functions are often identified with the symbols used to name them.
+For example, we often speak of "the function `car'", not distinguishing
+between the symbol `car' and the primitive subr-object that is its
+function definition.  For most purposes, there is no need to
+distinguish.
+
+   Even so, keep in mind that a function need not have a unique name.
+While a given function object *usually* appears in the function cell of
+only one symbol, this is just a matter of convenience.  It is easy to
+store it in several symbols using `fset'; then each of the symbols is
+equally well a name for the same function.
+
+   A symbol used as a function name may also be used as a variable;
+these two uses of a symbol are independent and do not conflict.
 

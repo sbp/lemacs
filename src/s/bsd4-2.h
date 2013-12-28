@@ -1,5 +1,5 @@
 /* Definitions file for GNU Emacs running on bsd 4.2
-   Copyright (C) 1985, 1986, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -52,11 +52,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
  *	Define HAVE_TIMEVAL if the system supports the BSD style clock values.
- *	Define HAVE_SYS_TIME_H to include <sys/time.h> for a timeval structure.
+ *	Look in <sys/time.h> for a timeval structure.
  */
 
 #define HAVE_TIMEVAL
-#define HAVE_SYS_TIME_H
  
 /*
  *	Define HAVE_SELECT if the system supports the `select' system call.
@@ -77,11 +76,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Define HAVE_SOCKETS if system supports 4.2-compatible sockets.  */
 
 #define HAVE_SOCKETS
-
-/* Define HAVE_RENAME if system provides rename(2) */
-
-#define HAVE_RENAME
-
 
 /*
  *	Define NONSYSTEM_DIR_LIBRARY to make Emacs emulate
@@ -137,6 +131,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define SIGNALS_VIA_CHARACTERS
 
-#ifndef TIME_WITH_SYS_TIME
-#define TIME_WITH_SYS_TIME
-#endif
+/* We do have vfork.  */
+
+#define HAVE_VFORK
+
+/* Process groups work in the traditional BSD manner.  */
+
+#define BSD_PGRPS

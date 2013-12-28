@@ -1,0 +1,107 @@
+			      EOS README
+
+Eos ("Era on SPARCworks") is a lightweight editor integration for
+SPARCworks3.0.  It uses the ToolTalk integration facilities available
+in Era/Lemacs to register patterns that respond to the TooTalk
+messages generated in SPARCworks 3.0.
+
+Eos is already loaded in the Era binary image in this directory; it
+will add a "SPARCworks" menu with a menu item which contains an
+"Intro..."  button that will tell you about the package, an "Install
+for SW3.0..."  button to simplify making the Debugger adjustments, and
+ways to activate and deactivate the editor integration.  The
+introduction message is reproduced at the end of this README file.
+
+To load the package manually, load "eos-init" and then
+"eos-start". The second component includes those actions that cannot
+be dumped out into your xemacs.
+
+Feedback is welcome; send mail to eos-comments@cs.uiuc.edu.
+
+The editor integration is not a supported feature in SW3.0; the TT
+messages are, though, and that is the key to making such an
+integration possible.
+
+	SunPro
+
+
+======================================================================
+
+		SPARCworks Editor Integration
+
+Introduction
+
+SPARCworks is a set of integrated programming tools from SunPro that
+support the program development cycle. The tools are available in
+different product packages and include "programming-in-the-small" tools
+as well as groupware. SPARCworks tools communicate with one another using
+ToolTalk.
+
+Era/Lemacs is a version of the Emacs editor that provides interfaces
+to the selection service and to the ToolTalk service.  The Eos package
+("Era On Sparcworks") used these two interfaces to provide simple yet
+useful editor integration with two SPARCworks tools: the SourceBrowser
+and the Debugger.
+
+To use this integration, the user starts the SourceBrowser and the
+Debugger requesting that they do not contain a source pane, and then
+selects any Era screen (that is, a top-level X11 window) as the source
+display for the SourceBrowser and the Debugger.  The user then
+interacts with the Era/Lemacs screen in a way very similar to how the
+source panes of the SW tools were used.
+
+Instructions
+
+To use the editor integration, first start Era/Lemacs; its menu bar
+will have a menu titled SPARCworks. This menu contains four menu
+items, one to obtain this introductory message, another to perform
+customization for SW3.0 (needed for Debugger, not needed for
+SourceBrowser), and two more to control what Era/Lemacs screen to use
+(if any) for presenting source code.
+
+Next select an Era/Lemacs screen to be used to display SourceBrowser
+or Debugger sources; do this by using the menu items Select for
+SBrowser and Select for Debugger. Both menu items toggle to deselect a
+screen for the tool.  If no screens are selected for a given tool, the
+editor integration for that tool is disabled.
+
+After doing any needed customization, start the desired SPARCworks
+tool. Eos uses glyphs in a manner similar to how they are used in the
+source panes of the Source Browser and the Debugger. The main mode of
+interaction is to click on command buttons in the Source Browser and
+Debugger to invoke operations that operate on the selection or its
+position.
+
+Start the SourceBrowser with the -editor flag. All SourceBrowser
+commands will work as expected, except that only the current match of
+the current query will be given a glyph.  Next and prev will change
+the current match and the selected Era/Lemacs screen will display it.
+Requesting Source in the Call Grapher, the Class Grapher and the Class
+Browser will show the source in the selected Era/Lemacs screen.
+
+Start the debugger as usual (the -editor flag is not implemented) All
+commands that operate on the contents of the selection will work as
+expected.  Operations like up and down (done either in the command
+pane or in the Stack Inspector) will work as expected.  The Debugger
+commands: Stop At and Clear operate on the position of the
+selection. In SPARCworks 3.0, these commands do not work when the
+selection is owned by Era/Lemacs; therefore, an extension file has
+been provided for the Debugger that contains two replacements that
+work as expected. If you follow the instructions in Install SW3.0 from
+the SPARCworks menu, the two original buttons will be replaced with
+new buttons, which use the new commands.
+
+Disclaimers
+
+The preceeding user model is not necessarily indicative of any future
+directions for SPARCworks; however, you are encouraged to send us
+feedback via the Comments button in the About Box of either SPARCworks
+tool.
+
+The lightweight editor integration is not a supported feature in
+SW3.0; the TT messages are supported, though, and that is the key to
+making such an integration possible.
+
+Enjoy.
+
+	SunPro.

@@ -21,12 +21,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdio.h> /* for sprintf */
 
 /* Display Context for the icons */ 
-#include "xintrinsicp.h"
-#include <X11/CoreP.h>
+#include "xintrinsic.h"
 #include <X11/StringDefs.h>
-#include <X11/Xmu/Drawing.h>
 #ifdef USG	/* ####KLUDGE for Solaris 2.2 and up */
 #undef USG
 #include <X11/Xos.h>
@@ -53,6 +52,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "faces.h"
 #include "hash.h"
 
+#include "EmacsScreen.h"
+
 #define MAX_CACHED_FACES	30
 
 Lisp_Object Qface, Qfacep;
@@ -70,7 +71,6 @@ int mouse_highlight_priority;
 extern int extent_cache_invalid;
 
 void ensure_face_ready (struct screen* s, int f);
-static void compute_screen_line_height (struct screen *s);
 static struct face *get_screen_face (struct screen *s, int id);
 static struct face *Lisp_Face_to_face (Lisp_Object lisp_face,
 				       Lisp_Object screen);
@@ -110,25 +110,33 @@ struct Lisp_Face {
 
 static Lisp_Object mark_face (Lisp_Object, void (*) (Lisp_Object));
 static void print_face (Lisp_Object, Lisp_Object, int);
-static int sizeof_face (void *f) { return (sizeof (struct Lisp_Face)); }
 static int face_equal (Lisp_Object, Lisp_Object, int depth);
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_face, mark_face, print_face, 
-                               0, sizeof_face, face_equal);
+DEFINE_LRECORD_IMPLEMENTATION ("face", lrecord_face,
+			       mark_face, print_face, 0, face_equal,
+			       sizeof (struct Lisp_Face));
 
 #define FACEP(obj) RECORD_TYPEP((obj), lrecord_face)
 #define XFACE(obj) ((struct Lisp_Face *) (XPNTR (obj)))
 #define CHECK_FACE(x, i) \
   { if (!FACEP((x))) wrong_type_argument (Qfacep, (x)); }
 
+/* #### This is external so that it can be called by dispnew.c:mark_redisplay()
+   which won't be necessary once both kinds of faces are real lisp objects. */
+void
+mark_external_face (struct face *face, void (*markobj) (Lisp_Object))
+{
+  ((markobj) (face->font));
+  ((markobj) (face->foreground));
+  ((markobj) (face->background));
+  ((markobj) (face->back_pixmap));
+}
+
 static Lisp_Object
 mark_face (Lisp_Object obj, void (*markobj) (Lisp_Object))
 {
   struct Lisp_Face *face =  XFACE (obj);
   ((markobj) (face->name));
-  ((markobj) (face->face->font));
-  ((markobj) (face->face->foreground));
-  ((markobj) (face->face->background));
-  ((markobj) (face->face->back_pixmap));
+  mark_external_face (face->face, markobj);
   return (face->screen);
 }
 
@@ -289,7 +297,8 @@ If NAME is already a face, it is simply returned.")
      Lisp_Object name, screen;
 {
   Lisp_Object face = Ffind_face (name, screen);
-  CHECK_FACE (face, 0); /* may be nil */
+  if (NILP (face))
+    CHECK_FACE (name, 0); /* use `name' in error message */
   return face;
 }
 
@@ -426,7 +435,7 @@ DEFUN ("set-extent-face", Fset_extent_face, Sset_extent_face, 2, 2, 0,
   if (BUFFERP (extent_buffer (e)))
     {
       BUF_FACECHANGE (XBUFFER (extent_buffer (e)))++;
-      windows_or_buffers_changed++;
+      extents_changed++;
     }
 
   return face;
@@ -632,13 +641,10 @@ cache_face (struct face *face)
 
 
 static void
-invalidate_face_cache (struct screen *s, int deleting_screen_p)
+invalidate_face_cache (struct screen *s)
 {
   for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
     SET_SCREEN_GARBAGED (XSCREEN (XCONS (tail)->car));
-
-  if (! deleting_screen_p)
-    compute_screen_line_height (s);
 }
 
 
@@ -761,7 +767,7 @@ flush_face_cache ()
 }
 
 static void
-invalidate_face_cache (struct screen *s, int deleting_screen_p)
+invalidate_face_cache (struct screen *s)
 {
   Lisp_Object tail;
   face_cache_invalid = 1;
@@ -770,8 +776,6 @@ invalidate_face_cache (struct screen *s, int deleting_screen_p)
   for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
     SET_SCREEN_GARBAGED (XSCREEN (XCONS (tail)->car));
 
-  if (! deleting_screen_p)
-    compute_screen_line_height (s);
   if (face_cache_pending_flush)
     return;
   face_cache_pending_flush = face_cache;
@@ -786,25 +790,6 @@ invalidate_face_cache (struct screen *s, int deleting_screen_p)
 #ifndef MAX
 #define MAX(x,y) (((x)>(y))?(x):(y))
 #endif
-
-extern void EmacsScreenResize (Widget);
-
-static void
-compute_screen_line_height (struct screen *s)
-{
-  int old;
-  struct Lisp_Font *font;
-  if (! SCREEN_IS_X (s))
-    return;
-  if (NILP (SCREEN_DEFAULT_FONT (s)))
-    return;
-  font = XFONT (SCREEN_DEFAULT_FONT (s));
-
-  old = s->display.x->text_height;
-  s->display.x->text_height = font->ascent + font->descent;
-  if (old != s->display.x->text_height)
-    EmacsScreenResize (s->display.x->edit_widget);
-}
 
 static void
 reset_face (struct screen* s, struct face* face)
@@ -903,7 +888,8 @@ extern Lisp_Object Vlast_highlighted_extent;
 
 /* Computes the face associated with an overlapping set of extents */
 void 
-setup_extent_fragment_face_ptr (struct screen *s, EXTENT_FRAGMENT extfrag)
+setup_extent_fragment_face_ptr (struct screen *s, EXTENT_FRAGMENT extfrag,
+				int include_zero_width)
 {
   struct face face;
   EXTENT *vec = extfrag->extents_stack;
@@ -986,7 +972,8 @@ setup_extent_fragment_face_ptr (struct screen *s, EXTENT_FRAGMENT extfrag)
 	  if (current == &dummy_extent)
 	    /* this isn't a real extent; use the highlight face. */
 	    merge_faces (&SCREEN_HIGHLIGHT_FACE (s), &face);
-	  else if (extent_end (current) != extent_start (current))
+	  else if ((extent_end (current) != extent_start (current))
+		    || include_zero_width)
 	    /* Skip 0-length extents from the merge (is this necessary?) */
 	    merge_extent_face (s, current, &face);
 	}
@@ -1081,6 +1068,8 @@ get_screen_face (struct screen *s, int id)
 
 /* screens */
 
+extern Lisp_Object Vdebug_on_error;
+
 void
 init_screen_faces (struct screen *s)
 {
@@ -1103,6 +1092,8 @@ init_screen_faces (struct screen *s)
 
     {
       struct screen *oss = selected_screen;
+      Lisp_Object odoe = Vdebug_on_error;
+      int speccount = specpdl_depth ();
 
       if (purify_flag)
 	return;
@@ -1115,6 +1106,11 @@ init_screen_faces (struct screen *s)
        */
       gc_currently_forbidden = 1;
       Vinhibit_quit = Qt;
+      /* startup.el plays games with debug-on-error, which breaks the
+	 condition-case that `try-font' does from `make-screen-initial-faces'.
+	 Oh for a real condition system!!) */
+      Vdebug_on_error = Qnil;
+
       selected_screen = s;
       /* Might not really be necessary to change selected screen here, but
 	 it's a good idea for the benefit of random code that might be taking
@@ -1123,11 +1119,12 @@ init_screen_faces (struct screen *s)
       call1 (Qmake_screen_initial_faces, Fselected_screen ());
       selected_screen = oss;
       Vinhibit_quit = Qnil;
+      Vdebug_on_error = odoe;
       gc_currently_forbidden = 0;
 
       if (SCREEN_IS_X (s))
 	if (NILP (SCREEN_NORMAL_FACE (s).font))
-	  fatal(GETTEXT ("Unable to load any useable ISO8859-1 font; check X resources"));
+	  fatal(GETTEXT ("Unable to load any useable ISO8859-1 font; check X resources."));
     }
 }
 
@@ -1139,7 +1136,7 @@ free_screen_faces (struct screen *s)	/* called from Fdelete_screen() */
 
   /* This may be able to free some GCs, but unfortunately it will cause
      all screens to redisplay. */
-  invalidate_face_cache (s, 1);
+  invalidate_face_cache (s);
 
   for (i = 0; i < s->n_faces; i++)
     {
@@ -1186,9 +1183,9 @@ hash_faces_in_window (Lisp_Object window, c_hashtable face_hash)
       return;
     }
 
-  if (w->lines)
+  if (window_display_lines (w))
     {
-      l = w->lines;
+      l = window_display_lines (w);
       while (l)
 	{
 	  cb = l->body;
@@ -1200,10 +1197,10 @@ hash_faces_in_window (Lisp_Object window, c_hashtable face_hash)
 	  l = l->next;
 	}
     }
-  if (w->modeline)
+  if (window_display_modeline (w))
     {
-      cb = w->modeline->body;
-      while (cb != w->modeline->end)
+      cb = window_display_modeline (w)->body;
+      while (cb != window_display_modeline(w)->end)
 	{
 	  puthash (cb->face, cb->face, face_hash);
 	  cb = cb->next;
@@ -1303,6 +1300,7 @@ update_EmacsScreen (struct screen *s, CONST char *name, void *val)
   if (!strcmp (name, XtNfont))
     {
       Lisp_Object screen;
+      EmacsScreenRecomputeCellSize (s->display.x->edit_widget);
       XSETR (screen, Lisp_Screen, s);
       Fset_screen_size (screen,
 			make_number (s->width), make_number (s->height),
@@ -1365,7 +1363,7 @@ DEFUN ("set-face-attribute-internal", Fset_face_attribute_internal,
 #ifdef HAVE_X_WINDOWS
       if (!NILP (attr_value)) CHECK_FONT (attr_value, 0);
       face->font = attr_value;
-      if (s) invalidate_face_cache (s, 0);
+      if (s) invalidate_face_cache (s);
       if (s && id == 0)
 	update_EmacsScreen (s, XtNfont, XFONT (FACE_FONT (face))->font);
 #endif /* HAVE_X_WINDOWS */
@@ -1375,7 +1373,7 @@ DEFUN ("set-face-attribute-internal", Fset_face_attribute_internal,
 #ifdef HAVE_X_WINDOWS
       if (!NILP (attr_value)) CHECK_PIXEL (attr_value, 0);
       face->foreground = attr_value;
-      if (s) invalidate_face_cache (s, 0);
+      if (s) invalidate_face_cache (s);
       if (s && id == 0)
 	update_EmacsScreen (s, XtNforeground, (void *) FACE_FG_PIXEL (face));
 #endif /* HAVE_X_WINDOWS */
@@ -1385,7 +1383,7 @@ DEFUN ("set-face-attribute-internal", Fset_face_attribute_internal,
 #ifdef HAVE_X_WINDOWS
       if (!NILP (attr_value)) CHECK_PIXEL (attr_value, 0);
       face->background = attr_value;
-      if (s) invalidate_face_cache (s, 0);
+      if (s) invalidate_face_cache (s);
       if (s && id == 0)
 	update_EmacsScreen (s, XtNbackground, (void *) FACE_BG_PIXEL (face));
 #endif /* HAVE_X_WINDOWS */
@@ -1395,14 +1393,14 @@ DEFUN ("set-face-attribute-internal", Fset_face_attribute_internal,
 #ifdef HAVE_X_WINDOWS
       if (!NILP (attr_value)) CHECK_PIXMAP (attr_value, 0);
       face->back_pixmap = attr_value;
-      if (s) invalidate_face_cache (s, 0);
+      if (s) invalidate_face_cache (s);
 #endif /* HAVE_X_WINDOWS */
     }
   else if (EQ (attr_name, Qunderline))
     {
       int new = !NILP (attr_value);
       if (s && face->underline != new)
-	invalidate_face_cache (s, 0);
+	invalidate_face_cache (s);
       face->underline = new;
     }
   else

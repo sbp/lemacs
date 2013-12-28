@@ -3651,15 +3651,19 @@ is always equal to STRING."
 
 (defun dired-indent-rigidly (start end arg)
   ;; like indent-rigidly but has more efficient behavior w.r.t. the
-  ;; after-change-function (i.e., font-lock-mode.)
-  (let ((oacf (and (boundp 'after-change-function) after-change-function))
-	(after-change-function nil))
-    (save-excursion
+  ;; after-change-functions (i.e., font-lock-mode.)
+  (save-excursion
+    (let ((after-change-functions nil)
+	  (after-change-function nil))
       (goto-char end)
       (indent-rigidly start end arg)
-      (cond (oacf
-	     (funcall oacf start start (- end start))
-	     (funcall oacf start (point) 0))))))
+      ;; deletion
+      (run-hook-with-args 'after-change-functions start start (- end start))
+      (run-hook-with-args 'after-change-function  start start (- end start))
+      ;; insertion
+      (run-hook-with-args 'after-change-functions start (point) 0)
+      (run-hook-with-args 'after-change-function  start (point) 0)
+      )))
 
 (if (string-lessp emacs-version "19")
     (fset 'dired-indent-rigidly (symbol-function 'indent-rigidly)))

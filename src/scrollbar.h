@@ -28,7 +28,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 struct scrollbar_instance
 {
   /* Window scrollbar is "attached" to. */
-  Lisp_Object window;
+  struct window_mirror *mirror;
 
   /* Pointer to the scrollbar widget this structure describes. */
   Widget scrollbar_widget;
@@ -48,11 +48,13 @@ struct scrollbar_instance
 
   /* This points to the next scrollbar. */
   struct scrollbar_instance *next;
+
+  /* Is set if we have already set the backing_store attribute correctly */
+
+  int backing_store_initialized;
 };
 
-extern int scrollbar_width;
-extern void mark_scrollbar (struct scrollbar_instance *instance,
-			    void (*markobj) (Lisp_Object));
+extern void update_scrollbars (void);
 
 #endif /* HAVE_X_WINDOWS */
 #endif /* _EMACS_SCROLLBAR_H_ */

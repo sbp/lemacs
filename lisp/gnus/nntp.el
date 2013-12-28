@@ -24,21 +24,20 @@
 
 ;;; Code:
 
-(defvar nntp/rcs-revision (purecopy "!Revision: 1.10 !"))
-
-(provide 'nntp)
-;;(require 'backquote) ; not used here
+(require 'gnus)		; for the (poorly named) 'nntp-' accessor macros.
 (require 'chat)
 (or (fboundp 'open-network-stream) (require 'tcp))
+
+(defvar nntp/rcs-revision (purecopy "!Revision: 1.10.3 !"))
+
+(defvar nntp/default-nntp-port (purecopy "nntp")
+  "The default tcp port to use for nntp connections.")
 
 (defun nntp-last (x)
   "Returns the last link in the list LIST."
   (while (cdr x)
     (setq x (cdr x)))
   x)
-
-(defvar nntp/default-nntp-port (purecopy "nntp")
-  "The default tcp port to use for nntp connections.")
 
 ;;;;;;;;;;;;;;;;
 ;;; NNTP state.
@@ -66,7 +65,11 @@
 Don't use this, call the function `nntp-status-message' instead.")
 
 (defvar nntp/can-xover t
-  "Does this server understand the XOVER command?")
+  "Does this server understand the XOVER command?  (Computed.)")
+
+;; lemacs addition
+(defvar nntp/inhibit-xover nil
+  "If you have XOVER but it doesn't work, set this to t.")
 
 ;;;;;;;;;;;;;;;;
 ;;; The GNUS interface.
@@ -93,7 +96,7 @@ if successful."
   ;; XXX already open?
   (or service (setq service nntp/default-nntp-port))
   (setq nntp-status-string nil)
-  (setq nntp/can-xover t)
+  (setq nntp/can-xover (not nntp/inhibit-xover))  ; lemacs change
   (setq nntp-server-buffer (generate-new-buffer "*nntp*"))
   ;;(buffer-flush-undo nntp-server-buffer)
   (buffer-disable-undo nntp-server-buffer)
@@ -123,6 +126,11 @@ if successful."
 
 (defun nntp-server-opened ()
   "Are we currently connected?"
+  ;; if the buffer has died on us, kill all the rest.
+  (if (and nntp/connection
+	   (or (null nntp-server-buffer)
+	       (null (buffer-name nntp-server-buffer))))
+      (nntp-close-server))
   (and nntp/connection
        (memq (process-status nntp/connection) '(run open))))
 ;; XXX should we add stopped to this list?
@@ -189,6 +197,20 @@ Returns true if successful."
 	      (process-send-string nntp/connection "\r\n.\r\n")
 	      nil)))))
 
+;; lemacs: ckd addition to support by-ID retrieval
+(defun nntp-retrieve-headers-by-id (messageid)
+  "Returns the header data for MESSAGE-ID.
+MESSAGE-ID is a string like \"<12345@foo.com>\"."
+  (and messageid
+       (let ((result nil))
+	 (message "NNTP: retrieving headers...")
+	 ;; ckd: strictly speaking, nntp/headers wants a sequence but the
+	 ;; underlying NNTP command (HEAD) doesn't actually care, so this
+	 ;; still works.
+	 (setq result (nntp/headers messageid))
+	 (message "NNTP: retrieving headers...done")
+	 result)))
+
 (defun nntp-retrieve-headers (sequence)
   "Returns the header data for SEQUENCE in the current group.
 SEQUENCE is a sorted list of article numbers.
@@ -199,7 +221,7 @@ XXX describe the return value."
 	 (if nntp/can-xover
 	     (setq result (nntp/try-xover sequence)))
 	 (if (not nntp/can-xover)
-	     (setq result (nntp/headers sequence)))
+  	     (setq result (nntp/headers sequence)))
 	 (message "NNTP: retrieving headers...done")
 	 result)))
 
@@ -326,8 +348,8 @@ format.  Modifies point.  Returns nothing."
 
 (defun nntp/try-xover (sequence)
   "Try using the XOVER command to retrieve headers."
-  (let ( (lo (car sequence))
-	 (hi (car (nntp-last sequence))) )
+  (let ((lo (car sequence))
+	(hi (car (nntp-last sequence))))
     (nntp/command "XOVER" (concat (int-to-string lo) "-" (int-to-string hi)))
     (if (eq (nntp/response) 224)
 	(chat/with-data-until-dot-crlf nntp/connection
@@ -368,24 +390,41 @@ list of headers that match SEQUENCE (see 'nntp-retrieve-headers)."
     (while (and sequence (not (eobp)))
       (setq number (nntp/read-integer nil t))
 
+      ;; INN can report XOVER information *if* it is set up to do so.
+      ;; However, if it is not configured to do so, instead of replying
+      ;; to XOVER with some status code that we can detect, it responds
+      ;; with 224.  However, the data that it returns is useless to us:
+      ;; it's just a list of article numbers, with no other fields
+      ;; present.
+      ;;
+      ;; So, if after reading the number, the next character is not a
+      ;; tab, we must be in this state.  At that point, give up on XOVER
+      ;; and return nil.
+      ;;
+      ;; However, a working XOVER server will return an empty response
+      ;; for articles which don't exist - compare to the above-bug, which
+      ;; returns a line containing only an article number.  Be careful
+      ;; not to turn off XOVER in that case.
+      ;;
+      ;; ckd says that this bug is fixed in INN 1.4 and later: nnrpd
+      ;; will generate XOVER information the fly if there is no overview
+      ;; file.
+      ;;
       (if (not (= (following-char) ?\t))
-	  (progn
-	    ;; INN can report XOVER information *if* it is set up to do so.
-	    ;; However, if it is not configured to do so, instead of replying
-	    ;; to XOVER with some status code that we can detect, it responds
-	    ;; with 224.  However, the data that it returns is useless to us:
-	    ;; it's just a list of article numbers, with no other fields
-	    ;; present.
-	    ;;
-	    ;; So, if after reading the number, the next character is not a
-	    ;; tab, we must be in this state.  At that point, give up and
-	    ;; return nil.
-	    ;;
+	  (if (= (following-char) ?.)
+	      ;; EXCEPT if the next character is "." which means we are at
+	      ;; the end of the XOVER data.  In that case we probably tried
+	      ;; to get a cancelled article.  Clear the sequence and exit.--ckd
+	      (progn
+		(setq sequence nil)
+ 		(goto-char (point-max)))
+	    ;; We're losing.
 	    (setq sequence nil
 		  headers nil
 		  nntp/can-xover nil)
 	    (goto-char (point-max))
 	    )
+
 	;; else, the XOVER data appears to be for real.
 
 	(while (and sequence (< (car sequence) number))
@@ -399,19 +438,19 @@ list of headers that match SEQUENCE (see 'nntp-retrieve-headers)."
 	      ;; header: [num subject from xref lines date id refs]
 	      ;; overview: [num subject from date id refs lines chars misc]
 	      (setq header (make-vector 8 nil))
-	      (aset header 0 number)
-	      (forward-char)		; move past the "\t"
-	      (aset header 1 (nov/field))
-	      (aset header 2 (nov/field))
-	      (aset header 5 (nov/field))
-	      (aset header 6 (nov/field))
-	      (aset header 7 (nov/field))
+	      (nntp-set-header-number	  header number)
+	      (forward-char)		  ; move past the "\t"
+	      (nntp-set-header-subject	  header (nov/field))
+	      (nntp-set-header-from	  header (nov/field))
+	      (nntp-set-header-date	  header (nov/field))
+	      (nntp-set-header-id	  header (nov/field))
+	      (nntp-set-header-references header (nov/field))
 	      (nov/skip-field)
 	      ;; #### this could benefit from using nntp/read-integer
-	      (aset header 4 (string-to-int (nov/field)))
+	      (nntp-set-header-lines	  header (string-to-int (nov/field)))
 	      (backward-char)
 	      (if (search-forward "\txref: " eol t)
-		  (aset header 3 (nov/field)))
+		  (nntp-set-header-xref	  header (nov/field)))
 	      (setq headers (cons header headers))
 	      ))
 	(forward-line)
@@ -447,8 +486,9 @@ list of headers that match SEQUENCE (see 'nntp-retrieve-headers)."
 (defun nntp/article-get-xrefs ()
   "Fill in the Xref value in 'gnus-current-headers, if necessary.
 This is meant to be called in 'gnus-Article-prepare-hook."
-  (or (aref gnus-current-headers 3)
-      (let ( (case-fold-search nil) )
+  (or gnus-digest-mode
+      (nntp-header-xref gnus-current-headers)
+      (let ((case-fold-search t))       ;lemacs, was nil
 	(goto-char (point-min))
 	(search-forward "\n\n" nil 'end)
 	(save-restriction
@@ -478,12 +518,36 @@ This is meant to be called in 'gnus-Article-prepare-hook."
   (let ((L (length sequence))
 	(count 0))
     (while sequence
-      (accept-process-output)
       (process-send-string
        nntp/connection
        (concat "HEAD " (car sequence) "\r\n"))
       (if (= 0 (% count 5000))
 	  (gnus-lazy-message "NNTP: requesting headers... %d%%" (/ count L)))
+
+      ;; lemacs change: in order to avoid a potential deadlock, it is necessary
+      ;; to synchronize with the server occasionally.  At first I thought to do
+      ;; this by ressurecting the `nntp-maximum-request' variable, but that
+      ;; seems not to be enough.  Consider the following situation:
+      ;; - send N "head" requests
+      ;; - wait for a reply; get a bunch of lines back for the first N/2
+      ;;   requests.  As soon as no more input is available (because the
+      ;;   the server has momentarily stopped sending for whatever reason)
+      ;;   we continue
+      ;; - send N more "head" requests
+      ;; - get back another N/2 responses.
+      ;; In this way, we can easily fill up the buffer between us and the
+      ;; server, and get a deadlock, no matter what the value of
+      ;; `nntp-maximum-request' so long as it is greater than one.
+      ;;
+      ;; So, after each HEAD request, we wait for a reply for that request.
+      ;; This stinks.  It would be better to send N head requests, and then
+      ;; block waiting for N responses to come in.  However, the current
+      ;; structure of this code (in particular the implementation of
+      ;; nntp/parse-headers, using chat/with-data-until-string) makes that
+      ;; tricky.
+      ;;
+      (accept-process-output nntp/connection)
+
       (setq count (+ count 100))
       (setq sequence (cdr sequence))))
   )
@@ -545,22 +609,26 @@ This is meant to be called in 'gnus-Article-prepare-hook."
 	(setq char (downcase (following-char))) ; lemacs addition
 	(cond
 	 ((eq char ?s)
-	  (aset header 1 (nntp/header-value)))
+	  (nntp-set-header-subject header (nntp/header-value)))
 	 ((eq char ?f)
-	  (aset header 2 (nntp/header-value)))
+	  (nntp-set-header-from header (nntp/header-value)))
 	 ((eq char ?x)
-	  (aset header 3 (nntp/header-value)))
+	  (nntp-set-header-xref header (nntp/header-value)))
 	 ((eq char ?l)
 	  ;; #### this could benefit from using nntp/read-integer
-	  (aset header 4 (string-to-int (nntp/header-value))))
+	  (nntp-set-header-lines header (string-to-int (nntp/header-value))))
 	 ((eq char ?d)
-	  (aset header 5 (nntp/header-value)))
+	  (nntp-set-header-date header (nntp/header-value)))
 	 ((eq char ?m)
-	  (aset header 6 (nntp/header-value)))
+	  (nntp-set-header-id header (nntp/header-value)))
 	 ((eq char ?r)
-	  (aset header 7 (nntp/header-value)))
+	  (nntp-set-header-references header (nntp/header-value)))
 	 ))
       )
+    ;; lemacs addition: must have a subject and sender.
+    (or (nntp-header-subject header) (nntp-set-header-subject header ""))
+    (or (nntp-header-from header) (nntp-set-header-from header ""))
+
     ;; lemacs addition: if this article was requested by message id, try to
     ;; figure out what its article number in the current group is.  This can
     ;; only succeed if the article is a crosspost, or if this NNTP server adds
@@ -570,15 +638,58 @@ This is meant to be called in 'gnus-Article-prepare-hook."
     ;; articles are retrieved by message-id is when we're only getting a
     ;; single article.
     (and (not (numberp number))
-	 (stringp (aref header 3))
+	 (stringp (nntp-header-xref header))
 	 nntp/group
 	 (string-match (concat "[ \t]"
 			       (regexp-quote nntp/group)
 			       ":\\([0-9]+\\)")
-		       (aref header 3))
-	 (aset header 0 (car (read-from-string (aref header 3)
-					       (match-beginning 1)
-					       (match-end 1)))))
+		       (nntp-header-xref header))
+	 (setq number
+	       (aset header 0 (car (read-from-string (nntp-header-xref header)
+						     (match-beginning 1)
+						     (match-end 1))))))
+
+    ;; lemacs change from ckd: if the XPATH command is available, it will give
+    ;; us a list of paths for the article.  This means even if it is only
+    ;; posted to one group, and has no Xref, if that group is the current
+    ;; group then we can get a useful article number.  XPATH response is in
+    ;; the form '223 alt/foo/bar/350 alt/baz/ugh/1023'.  This serves as an
+    ;; extra fallback for the 'Xref' trick above.  XXX this code will do the
+    ;; wrong thing with alt.foo.bar if there also exists an alt.foo-bar group
+    ;; (because it uses the group name's dots as regexp characters).  We
+    ;; really should change . to / and use regexp-quote, but I haven't coded
+    ;; that part yet -- ckd 930124
+    ;;
+    ;; jwz asks: what NNTP servers always provide Xref, and which provide
+    ;; XPATH (and is that standardized at all) and is ther any overlap?
+    ;;
+;; Ok, I've disabled this because it breaks the world when -retrieve-headers
+;; or -retrieve-headers-by-id are called with more than one message ID.  You
+;; can't go and issue another command before you're done parsing the rest on
+;; the queue because that throws all that data away!!  -jwz
+;    (and (not (numberp number))
+;	 (let ((code nil)
+;	       (response-string nil))
+;	   (and (= 0 (aref header 0))
+;		nntp/group
+;		(progn
+;		  (nntp/command "XPATH" (aref header 6))
+;		  ;; we can't use nntp/response since we need the text of
+;		  ;; the line
+;		  (chat/with-data-until-string
+;		   "\n" nntp/connection
+;		   (setq code (nntp/read-integer (point-min))
+;			 response-string
+;			 (concat " "
+;				 (buffer-substring (+ (point-min) 4)
+;						   (- (point-max) 2))
+;				 " "))))
+;		(eq code 223)
+;		(string-match (concat " " nntp/group "/\\([0-9]+\\) ")
+;			      response-string)
+;		(aset header 0 (car (read-from-string response-string
+;						      (match-beginning 1)
+;						      (match-end 1)))))))
     header))
 
 ;;; ADDED for gnus3.15
@@ -594,5 +705,7 @@ This is meant to be called in 'gnus-Article-prepare-hook."
   (nntp/command "LIST DISTRIBUTIONS")
   (if (eq (nntp/response) 215)
       (nntp/wait-for-text)))
+
+(provide 'nntp)
 
 ;;; nntp.el ends here

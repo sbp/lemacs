@@ -1,5 +1,5 @@
-This is Info file ../info/lemacs.info, produced by Makeinfo-1.55 from
-the input file lemacs.texinfo.
+This is Info file ../../info/lemacs.info, produced by Makeinfo-1.56
+from the input file lemacs.texinfo.
 
    This file documents the GNU Emacs editor.
 
@@ -22,6 +22,541 @@ manual into another language, under the above conditions for modified
 versions, except that the sections entitled "The GNU Manifesto",
 "Distribution" and "GNU General Public License" may be included in a
 translation approved by the author instead of in the original English.
+
+
+File: lemacs.info,  Node: Mode Line,  Next: Emacs under X,  Prev: Echo Area,  Up: Screen
+
+The Mode Line
+=============
+
+   Each text window's last line is a "mode line" which describes what is
+going on in that window.  When there is only one text window, the mode
+line appears right above the echo area.  The mode line is in inverse
+video if the terminal supports that, starts and ends with dashes, and
+contains text like `Emacs: SOMETHING'.
+
+   If a mode line has something else in place of `Emacs: SOMETHING',
+the window above it is in a special subsystem such as Dired.  The mode
+line then indicates the status of the subsystem.
+
+   Normally, the mode line has the following appearance:
+
+     --CH-Emacs: BUF      (MAJOR MINOR)----POS------
+
+This gives information about the buffer being displayed in the window:
+the buffer's name, what major and minor modes are in use, whether the
+buffer's text has been changed, and how far down the buffer you are
+currently looking.
+
+   CH contains two stars (`**') if the text in the buffer has been
+edited (the buffer is "modified"), or two dashes (`--') if the buffer
+has not been edited.  Exception: for a read-only buffer, it is `%%'.
+
+   BUF is the name of the window's chosen "buffer".  The chosen buffer
+in the selected window (the window that the cursor is in) is also
+Emacs's selected buffer, the buffer in which editing takes place.  When
+we speak of what some command does to "the buffer", we mean the
+currently selected buffer.  *Note Buffers::.
+
+   POS tells you whether there is additional text above the top of the
+screen or below the bottom.  If your file is small and it is completely
+visible on the screen, POS is `All'.  Otherwise, POS is `Top' if you
+are looking at the beginning of the file, `Bot' if you are looking at
+the end of the file, or `NN%', where NN is the percentage of the file
+above the top of the screen.
+
+   MAJOR is the name of the "major mode" in effect in the buffer.  At
+any time, each buffer is in one and only one major mode.  The available
+major modes include Fundamental mode (the least specialized), Text
+mode, Lisp mode, and C mode.  *Note Major Modes::, for details on how
+the modes differ and how you select one.
+
+   MINOR is a list of some of the "minor modes" that are turned on in
+the window's chosen buffer.  For example, `Fill' means that Auto Fill
+mode is on.  `Abbrev' means that Word Abbrev mode is on.  `Ovwrt' means
+that Overwrite mode is on.  *Note Minor Modes::, for more information.
+`Narrow' means that the buffer being displayed has editing restricted
+to only a portion of its text.  This is not really a minor mode, but is
+like one.  *Note Narrowing::.  `Def' means that a keyboard macro is
+being defined.  *Note Keyboard Macros::.
+
+   Some buffers display additional information after the minor modes.
+For example, Rmail buffers display the current message number and the
+total number of messages.  Compilation buffers and Shell mode display
+the status of the subprocess.
+
+   If Emacs is currently inside a recursive editing level, square
+brackets (`[...]') appear around the parentheses that surround the
+modes.  If Emacs is in one recursive editing level within another,
+double square brackets appear, and so on.  Since information on
+recursive editing applies to Emacs in general and not to any one buffer,
+the square brackets appear in every mode line on the screen or not in
+any of them.  *Note Recursive Edit::.
+
+   Emacs can optionally display the time and system load in all mode
+lines.  To enable this feature, type `M-x display-time'.  The
+information added to the mode line usually appears after the file name,
+before the mode names and their parentheses.  It looks like this:
+
+     HH:MMpm L.LL [D]
+
+(Some fields may be missing if your operating system cannot support
+them.) HH and MM are the hour and minute, followed always by `am' or
+`pm'.  L.LL is the average number of running processes in the whole
+system recently.  D is an approximate index of the ratio of disk
+activity to CPU activity for all users.
+
+   The word `Mail' appears after the load level if there is mail for
+you that you have not read yet.
+
+   Customization note: the variable `mode-line-inverse-video' controls
+whether the mode line is displayed in inverse video (assuming the
+terminal supports it); `nil' means no inverse video.  The default is
+`t'.  For X screens, simply set the foreground and background colors
+appropriately.
+
+
+File: lemacs.info,  Node: Emacs under X,  Prev: Mode Line,  Up: Screen
+
+Using Emacs Under the X Window System
+=====================================
+
+   Lucid Emacs can be used with the X Window System and a window
+manager like MWM or TWM.  In that case, the X window manager opens,
+closes, and resizes Emacs screens.  You use the window manager's mouse
+gestures to perform the operations.  Consult your window manager guide
+or reference manual for information on manipulating X windows.
+
+   When you are working under X, each X window (that is, each Emacs
+screen) has a menu bar for mouse-controlled operations (*note Pull-down
+Menus::.).
+
+   Emacs under X is also a multi-screen Emacs.  You can use the New
+Screen menu item from the File menu to create a new Emacs screen in a
+new X window from the same process.  The different screens will share
+the same buffer list, but you can look at different buffers in the
+different screens.
+
+   The function `find-file-other-screen' is just like `find-file', but
+picks a new screen to display the buffer in first.  If there is only
+one screen, then a new screen is created; otherwise some other screen
+is used.  This is normally bound to `C-x 5 C-f', and is what the Open
+File, New Screen menu item does.
+
+   The function `switch-to-buffer-other-screen' is just like
+`switch-to-buffer', but picks a new screen to display the buffer in
+first.  If there is only one screen, then a new screen is created;
+otherwise some other screen is used.  This is normally bound to `C-x 5
+b'.
+
+   You can specify a different default screen size other than the one
+provided. Use the variable `default-screen-alist', which is an alist of
+default values for screen creation other than the first one.  These may
+be set in your init file, like this:
+
+       (setq default-screen-alist '((width . 80) (height . 55)))
+
+   For values specific to the first Emacs screen, you must use X
+resources.  The variable `x-screen-defaults' takes an alist of default
+screen creation parameters for X window screens.  These override what is
+specified in `~/.Xdefaults' but are overridden by the arguments to the
+particular call to `x-create-screen'.
+
+   When you create a new screen, the variable `create-screen-hook' is
+called with one argument, the screen just created.
+
+   If you want to close one or more of the X windows you created using
+New Screen, use the Close menu item from the File menu.
+
+   If you are working with multiple screens, some special information
+applies:
+   * Two variables, `screen-title-format' and
+     `screen-icon-title-format' determine the title of the screen and
+     the title of the icon that results if you shrink the screen.
+
+   * The variables `auto-lower-screen' and `auto-raise-screen' position
+     a screen. If true, `auto-lower-screen' lowers a screen to the
+     bottom when it is no longer selected. If true, `auto-raise-screen'
+     raises a screen to the top when it is selected. Under X, most
+     ICCCM-compliant window managers will have options to do this for
+     you, but these variables are provided in case you are using a
+     broken window manager.
+
+   * There is a new screen/modeline format directive, %S, which expands
+     to the name of the current screen (a screen's name is distinct
+     from its title; the name is used for resource lookup, among other
+     things, and the title is simply what appears above the window.)
+
+
+File: lemacs.info,  Node: Keystrokes,  Next: Pull-down Menus,  Prev: Screen,  Up: Top
+
+Keystrokes, Key Sequences, and Key Bindings
+*******************************************
+
+* Menu:
+
+* Intro to Keystrokes::      Keystrokes as building blocks of key sequences.
+* Representing Keystrokes::  Using lists of modifiers and keysyms to
+                             represent keystrokes.
+* Key Sequences::            Combine key strokes into key sequences you can
+                             bind to commands.
+* String Key Sequences::     Available for upward compatibility.
+* Meta Key::                 Using ESC to represent Meta
+* Super and Hyper Keys::     Adding modifier keys on certain keyboards.
+* Character Representation:: How characters appear in Emacs buffers.
+* Commands::                 How commands are bound to key sequences.
+
+
+File: lemacs.info,  Node: Intro to Keystrokes,  Next: Representing Keystrokes,  Prev: Keystrokes,  Up: Keystrokes
+
+Keystrokes as Building Blocks of Key Sequences
+==============================================
+
+   Earlier versions of GNU Emacs used only the ASCII character set,
+which defines 128 different character codes.  Some of these codes are
+assigned graphic symbols like `a' and `='; the rest are control
+characters, such as `Control-a' (also called `C-a').  `C-a' means you
+hold down the CTRL key and then press `a'.
+
+   Keybindings in Lucid Emacs are no longer restricted to the set of
+keystrokes that can be represented in ASCII.  Emacs can now tell the
+difference between, for example, `Control-h', `Control-Shift-h', and
+`Backspace'.
+
+   A keystroke is like a piano chord: you get it by simultaneously
+striking several keys.  To be more precise, a keystroke consists of a
+possibly empty set of modifiers followed by a single "keysym".  The set
+of modifiers is small; it consists of `Control', `Meta', `Super',
+`Hyper', and `Shift'.
+
+   The rest of the keys on your keyboard, along with the mouse buttons,
+make up the set of keysyms.  A keysym is usually what is printed on the
+keys on your keyboard.  Here is a table of some of the symbolic names
+for keysyms:
+`a,b,c...'
+     alphabetic keys
+
+`f1,f2...'
+     function keys
+
+`button1'
+     left mouse button
+
+`button2'
+     middle mouse button
+
+`button3'
+     right mouse button
+
+`button1up'
+     upstroke on the left mouse button
+
+`button2up'
+     upstroke on the middle mouse button
+
+`button3up'
+     upstroke on the right mouse button
+
+`return'
+     Return key
+
+   Use the variable `keyboard-translate-table' only if you are on a
+dumb tty, as it cannot handle input that cannot be represented as ASCII.
+The value of this variable is a string used as a translate table for
+keyboard input or `nil'.  Each character is looked up in this string
+and the contents used instead.  If the string is of length `n',
+character codes `N' and up are untranslated.  If you are running Emacs
+under X, you should do the translations with the `xmodmap' program
+instead.
+
+
+File: lemacs.info,  Node: Representing Keystrokes,  Next: Key Sequences,  Prev: Intro to Keystrokes,  Up: Keystrokes
+
+Representing Keystrokes
+-----------------------
+
+   Lucid Emacs represents keystrokes as lists. Each list consists of an
+arbitrary combination of modifiers followed by a single keysym at the
+end of the list.  If the keysym corresponds to an ASCII character, you
+can use its character code.  (A keystroke may also be represented by an
+event object, as returned by the `read-key-sequence' function;
+non-programmers need not worry about this.)
+
+   The following table gives some examples of how to list
+representations for keystrokes.  Each list consists of sets of
+modifiers followed by keysyms:
+
+`(control a)'
+     Pressing CTRL and `a' simultaneously.
+
+`(control ?a)'
+     Another way of writing the keystroke `C-a'.
+
+`(control 65)'
+     Yet another way of writing the keystroke `C-a'.
+
+`(break)'
+     Pressing the BREAK key.
+
+`(control meta button2up)'
+     Release the middle mouse button, while pressing CTRL and META.
+Note: As you define keystrokes, you can use the `shift' key only as a
+modifier with characters that do not have a second keysym on the same
+key, such as `backspace' and `tab'.  It is an error to define a
+keystroke using the shift modifier with keysyms such as `a' and `='.
+The correct forms are `A' and `+'.
+
+
+File: lemacs.info,  Node: Key Sequences,  Next: String Key Sequences,  Prev: Representing Keystrokes,  Up: Keystrokes
+
+Representing Key Sequences
+--------------------------
+
+   A "complete key sequence" is a sequence of keystrokes that Emacs
+understands as a unit.  Key sequences are significant because you can
+bind them to commands.  Note that not all sequences of keystrokes are
+possible key sequences.  In particular, the initial keystrokes in a key
+sequence must make up a "prefix key sequence".
+
+   Emacs represents a key sequence as a vector of keystrokes.  Thus, the
+schematic representation of a complete key sequence is as follows:
+
+       [(modifier .. modifer keysym) ... (modifier .. modifier keysym)]
+
+   Here are some examples of complete key sequences:
+
+`[(control c) (control a)]'
+     Typing `C-c' followed by `C-a'
+
+`[(control c) (control 65)]'
+     Typing `C-c' followed by `C-a'. (Using the ASCII code for the
+     character `a')
+
+`[(control c) (break)]'
+     Typing `C-c' followed by the `break' character.
+
+   A "prefix key sequence" is the beginning of a series of longer
+sequences that are valid key sequences; adding any single keystroke to
+the end of a prefix results in a valid key sequence.  For example,
+`control-x' is standardly defined as a prefix.  Thus there is a
+two-character key sequence starting with `C-x' for each valid
+keystroke, giving numerous possibilities.  Here are some samples:
+
+   * `[(control x) (c)]'
+
+   * `[(control x) (control c)]'
+
+   Adding one character to a prefix key does not have to form a complete
+key.  It could make another, longer prefix.  For example, `[(control x)
+(\4)]' is itself a prefix that leads to any number of different
+three-character keys, including `[(control x) (\4) (f)]', `[(control x)
+(\4) (b)]' and so on.  It would be possible to define one of those
+three-character sequences as a prefix, creating a series of
+four-character keys, but we did not define any of them this way.
+
+   By contrast, the two-character sequence `[(control f) (control k)]'
+is not a key, because the `(control f)' is a complete key sequence in
+itself.  You cannot give `[(control f (control k)]' an independent
+meaning as a command while `(control f)' is a complete sequence,
+because Emacs would understand C-f C-k as two commands.
+
+   The predefined prefix key sequences in Emacs are `(control c)',
+`(control x)', `(control h)', `[(control x) (\4)]', and `escape'.  You
+can customize Emacs and could make new prefix keys or eliminate the
+default key sequences.  *Note Key Bindings::.  For example, if you
+redefine `(control f)' as a prefix, `[(control f) (control k)]'
+automatically becomes a valid key sequence (complete, unless you define
+it as a prefix as well).  Conversely, if you remove the prefix
+definition of `[(control x) (\4)]', `[(control x) (\4) (f)]' (or
+`[(control x) (\4) ANYTHING]') is no longer a valid key sequence.
+
+   Note that the above paragraphs uses \4 instead of simply 4, because
+\4 is the symbol whose name is "4", and plain 4 is the integer 4, which
+would have been interpreted as the ASCII value.  Another way of
+representing the symbol whose name is "4" is to write ?4, which would be
+interpreted as the number 52, which is the ASCII code for the character
+"4".  We could therefore actually have written 52 directly, but that is
+far less clear.
+
+
+File: lemacs.info,  Node: String Key Sequences,  Next: Meta Key,  Prev: Key Sequences,  Up: Keystrokes
+
+String Key Sequences
+--------------------
+
+   For backward compatibility, you may also represent a key sequence
+using strings.  For example, we have the following equivalent
+representations:
+
+`"\C-c\C-c"'
+     `[(control c) (control c)]'
+
+`"\e\C-c"'
+     `[(meta control c)]'
+
+
+File: lemacs.info,  Node: Meta Key,  Next: Super and Hyper Keys,  Prev: String Key Sequences,  Up: Keystrokes
+
+Assignment of the META Key
+--------------------------
+
+   Not all terminals have the complete set of modifiers.  Terminals
+that have a Meta key allow you to type Meta characters by just holding
+that key down.  To type `Meta-a', hold down META and press `a'.  On
+those terminals, the META key works like the SHIFT key.  Such a key is
+not always labeled META, however, as this function is often a special
+option for a key with some other primary purpose.
+
+   If there is no META key, you can still type Meta characters using
+two-character sequences starting with ESC.  To enter `M-a', you could
+type `ESC a'.  To enter `C-M-a', you would type `ESC C-a'.  ESC is
+allowed on terminals with Meta keys, too, in case you have formed a
+habit of using it.
+
+   If you are running under X and do not have a META key, it is
+possible to reconfigure some other key to be a META key.  *Note Super
+and Hyper Keys::.
+
+   Emacs believes the terminal has a META key if the variable
+`meta-flag' is non-`nil'.  Normally this is set automatically according
+to the termcap entry for your terminal type.  However, sometimes the
+termcap entry is wrong, and then it is useful to set this variable
+yourself.  *Note Variables::, for how to do this.
+
+   Note: If you are running under the X window system, the setting of
+the `meta-flag' variable is irrelevant.
+
+
+File: lemacs.info,  Node: Super and Hyper Keys,  Next: Character Representation,  Prev: Meta Key,  Up: Keystrokes
+
+Assignment of the SUPER and HYPER Keys
+--------------------------------------
+
+   Most keyboards do not, by default, have SUPER or HYPER modifier
+keys.  Under X, you can simulate the SUPER or HYPER key if you want to
+bind keys to sequences using `super' and `hyper'.  You can use the
+`xmodmap' program to do this.
+
+   For example, to turn your CAPS-LOCK key into a SUPER key, do the
+following:
+
+   Create a file called `~/.xmodmap'.  In this file, place the lines
+
+     	remove Lock = Caps_Lock
+     	keysym Caps_Lock = Super_L
+     	add Mod2 = Super_L
+
+   The first line says that the key that is currently called `Caps_Lock'
+should no longer behave as a "lock" key.  The second line says that
+this should now be called `Super_L' instead.  The third line says that
+the key called `Super_L' should be a modifier key, which produces the
+`Mod2' modifier.
+
+   To create a META or HYPER key instead of a SUPER key, replace the
+word `Super' above with `Meta' or `Hyper'.
+
+   Just after you start up X, execute the command `xmodmap /.xmodmap'.
+You can add this command to the appropriate initialization file to have
+the command executed automatically.
+
+   If you have problems, see the documentation for the `xmodmap'
+program.  The X keyboard model is quite complicated, and explaining it
+is beyond the scope of this manual.  However, we reprint the following
+description from the X Protocol document for your convenience:
+
+   A list of keysyms is associated with each keycode. If that list
+(ignoring trailing `NoSymbol' entries) is a single keysym `K', then the
+list is treated as if it were the list ```K NoSymbol K NoSymbol'''. If
+the list (ignoring trailing `NoSymbol' entries) is a pair of keysyms
+`K1 K2', then the list is treated as if it were the list ```K1 K2 K1
+K2'''. If the list (ignoring trailing `NoSymbol' entries) is a triple
+of keysyms `K1 K2 K3', then the list is treated as if it were the list
+```K1 K2 K3 NoSymbol'''.
+
+   The first four elements of the list are split into two groups of
+keysyms. Group 1 contains the first and second keysyms; Group 2 contains
+third and fourth keysyms. Within each group, if the second element of
+the group is NoSymbol, then the group should be treated as if the second
+element were the same as the first element, except when the first
+element is an alphabetic keysym `K' for which both lowercase and
+uppercase forms are defined. In that case, the group should be treated
+as if the first element were the lowercase form of `K' and the second
+element were the uppercase form of `K'.
+
+   The standard rules for obtaining a keysym from a KeyPress event make
+use of only the Group 1 and Group 2 keysyms; no interpretation of other
+keysyms in the list is given here. (That is, the last four keysyms are
+unused.)
+
+   Which group to use is determined by modifier state. Switching between
+groups is controlled by the keysym named `Mode_switch'. Attach that
+keysym to some keycode and attach that keycode to any one of the
+modifiers Mod1 through Mod5. This modifier is called the "group
+modifier". For any keycode, Group 1 is used when the group modifier is
+off, and Group 2 is used when the group modifier is on.
+
+   Within a group, which keysym to use is also determined by modifier
+state. The first keysym is used when the `Shift' and `Lock' modifiers
+are off. The second keysym is used when the `Shift' modifier is on, or
+when the `Lock' modifier is on and the second keysym is uppercase
+alphabetic, or when the `Lock' modifier is on and is interpreted as
+`ShiftLock'. Otherwise, when the `Lock' modifier is on and is
+interpreted as `CapsLock', the state of the `Shift' modifier is applied
+first to select a keysym, but if that keysym is lower-case alphabetic,
+then the corresponding upper-case keysym is used instead.
+
+   In addition to the above information on keysyms, we also provide the
+following description of modifier mapping from the InterClient
+Communications Conventions Manual:
+
+   X11 supports 8 modifier bits, of which 3 are pre-assigned to
+`Shift', `Lock', and `Control'. Each modifier bit is controlled by the
+state of a set of keys, and these sets are specified in a table
+accessed by `GetModifierMapping()' and `SetModifierMapping()'.
+
+   A client needing to use one of the pre-assigned modifiers should
+assume that the modifier table has been set up correctly to control
+these modifiers. The `Lock' modifier should be interpreted as `Caps
+Lock' or `Shift Lock' according to whether the keycodes in its
+controlling set include `XK_Caps_Lock' or `XK_Shift_Lock'.
+
+   Clients should determine the meaning of a modifier bit from the
+keysyms being used to control it.
+
+   A client needing to use an extra modifier, for example `Meta',
+should:
+
+  1. Scan the existing modifier mappings.
+
+       1. If it finds a modifier that contains a keycode whose set of
+          keysyms includes `XK_Meta_L' or `XK_Meta_R', it should use
+          that modifier bit.
+
+       2. If there is no existing modifier controlled by `XK_Meta_L' or
+          `XK_Meta_R', it should select an unused modifier bit (one with
+          an empty controlling set) and:
+
+  2. If there is a keycode with `XL_Meta_L' in its set of keysyms, add
+     that keycode to the set for the chosen modifier, and then:
+
+       1. If there is a keycode with `XL_Meta_R' in its set of keysyms,
+          add that keycode to the set for the chosen modifier, and then:
+
+       2. If the controlling set is still empty, interact with the user
+          to select one or more keys to be `Meta'.
+
+  3. If there are no unused modifier bits, ask the user to take
+     corrective action.
+
+   This means that the `Mod1' modifier does not necessarily mean
+`Meta', although some applications (such as twm and emacs 18) assume
+that. Any of the five unassigned modifier bits could mean `Meta'; what
+matters is that a modifier bit is generated by a keycode which is bound
+to the keysym `Meta_L' or `Meta_R'.
+
+   Therefore, if you want to make a META key, the right way is to make
+the keycode in question generate both a `Meta' keysym and some
+previously-unassigned modifier bit.
 
 
 File: lemacs.info,  Node: Character Representation,  Next: Commands,  Prev: Super and Hyper Keys,  Up: Keystrokes
@@ -47,7 +582,7 @@ displayed as `\243'.
 Display Vars::.
 
 
-File: lemacs.info,  Node: Commands,  Next: Pull-down Menus,  Prev: Character Representation,  Up: Top
+File: lemacs.info,  Node: Commands,  Prev: Character Representation,  Up: Keystrokes
 
 Keys and Commands
 =================
@@ -97,12 +632,12 @@ documented in this manual exist just to facilitate customization: some
 command or other part of Emacs uses the variable and behaves
 differently depending on its setting.  Until you are interested in
 customizing, you can ignore the information about variables.  When you
-are ready to be interested, read the basic information on variables,
+are ready to be interested, read the basic information on variables, and
 then the information on individual variables will make sense.  *Note
 Variables::.
 
 
-File: lemacs.info,  Node: Pull-down Menus,  Next: Entering Emacs,  Prev: Commands,  Up: Top
+File: lemacs.info,  Node: Pull-down Menus,  Next: Entering Emacs,  Prev: Keystrokes,  Up: Top
 
 Lucid Emacs Pull-down Menus
 ===========================
@@ -121,7 +656,7 @@ File
 
 Edit
      Perform standard editing operations, such as cutting, copying,
-     pasting and killing selected text.
+     pasting, and killing selected text.
 
 Buffers
      Present a menu of buffers for selection as well as the option to
@@ -133,13 +668,13 @@ Help
    There are two ways of selecting an item from a pull-down menu:
 
    * Select an item in the menu bar by moving the cursor over it and
-     click the left mouse-button.  Then move the cursor over the item
-     you want to choose and click left again.
+     click the left mouse-button.  Then move the cursor over the menu
+     item you want to choose and click left again.
 
    * Select an item in the menu bar by moving the cursor over it and
      click and hold the left mouse-button.  With the mouse-button
-     depressed, move the cursor over the item you want, then release it
-     to make your selection.
+     depressed, move the cursor over the menu item you want, then
+     release it to make your selection.
 
    If a command in the pull-down menu is not applicable in a given
 situation, the command is disabled and its name appears faded.  You
@@ -172,24 +707,30 @@ separate window, usually together with some documentation.
 File: lemacs.info,  Node: File Menu,  Next: Edit Menu,  Prev: Pull-down Menus,  Up: Pull-down Menus
 
 The File Menu
-.............
+-------------
 
    The File menu bar item contains the items New Screen, Open File...,
 Save Buffer, Save Buffer As..., Revert Buffer, Print Buffer, Delete
 Screen, Kill Buffer and Exit Emacs on the pull-down menu.  If you
 select a menu item, Emacs executes the equivalent command.
 
-New Screen
-     Creates a new Emacs screen, that is, a new X window running under
-     the same Emacs process.  You can remove the screen using the Delete
-     Screen menu item. When you remove the last screen, you exit Emacs
-     and are prompted for confirmation.  This is bound to `C-x 5' by
-     default.
+Open File, New Screen...
+     Prompts you for a filename and loads that file into a new buffer
+     in a new Emacs screen, that is, a new X window running under the
+     same Emacs process.  You can remove the screen using the Delete
+     Screen menu item.  When you remove the last screen, you exit Emacs
+     and are prompted for confirmation.
 
 Open File...
      Prompts you for a filename and loads that file into a new buffer.
      Open File... is equivalent to the Emacs command `find-file' (`C-x
      C-f').
+
+Insert File...
+     Prompts you for a filename and inserts the contents of that file
+     into the current buffer.  The file associated with the current
+     buffer is not changed by this command.  This is equivalent to the
+     Emacs command `insert-file' (`C-x i').
 
 Save Buffer
      Writes and saves the current Emacs buffer as the latest version of
@@ -209,9 +750,20 @@ Revert Buffer
      Revert Buffer is equivalent to the Emacs command `revert-file'
      (`M-x revert-buffer').
 
+Kill Buffer
+     Kills the current buffer, prompting you first if there are unsaved
+     changes.  This is roughly equivalent to the Emacs command
+     `kill-buffer' (`C-x k'), except that `kill-buffer' prompts for the
+     name of a buffer to kill.
+
 Print Buffer
      Prints a hardcopy of the current buffer.  Equivalent to the Emacs
      command `print-buffer' (`M-x print-buffer').
+
+New Screen
+     Creates a new Emacs screen displaying the `*scratch*' buffer.  This
+     is like the Open File, New Screen... menu item, except that it does
+     not prompt for or load a file.
 
 Delete Screen
      Allows you to close all but one of the screens created by New
@@ -221,10 +773,21 @@ Delete Screen
      attempting to delete the last screen.  You have to choose Exit
      Emacs for that.
 
-Kill Buffer...
-     Prompts you for the name of a buffer to kill. The default is the
-     name of the currently selected buffer. Kill Buffer is equivalent
-     to the Emacs command `kill-buffer' (`C-x k').
+Split Screen
+     Divides the current window on the current screen into two
+     equal-sized windows, both displaying the same buffer.  Equivalent
+     to the Emacs command `split-window-vertically' (`C-x 2').
+
+Un-split (Keep This)
+     If the screen is divided into multiple windows, this removes all
+     windows other than the selected one.  Equivalent to the Emacs
+     command `delete-other-windows' (`C-x 1').
+
+Un-split (Keep Others)
+     If the screen is divided into multiple windows, this removes the
+     selected window from the screen, giving the space back to one of
+     the other windows.  Equivalent to the Emacs command `delete-window'
+     (`C-x 0').
 
 Exit Emacs
      Shuts down (kills) the Emacs process.  Equivalent to the Emacs
@@ -236,9 +799,9 @@ Exit Emacs
 File: lemacs.info,  Node: Edit Menu,  Next: Buffers Menu,  Prev: File Menu,  Up: Pull-down Menus
 
 The Edit Menu
-.............
+-------------
 
-   The Edit pull-down menu contains the Undo, Cut, Copy, Paste and
+   The Edit pull-down menu contains the Undo, Cut, Copy, Paste, and
 Clear menu items.  When you select a menu item, Emacs executes the
 equivalent command.  Most commands on the Edit menu work on a block of
 text, the X selection.  They appear faded until you select a block of
@@ -258,12 +821,13 @@ Cut
 Copy
      Makes a selected text block the X clipboard selection, and places
      it in the kill ring.  You can select text using one of the Emacs
-     region selection commands or select a text region with the mouse.
+     region selection commands or by selecting a text region with the
+     mouse.
 
 Paste
      Inserts the current value of the X clipboard selection in the
      current buffer.  Note that this is not necessarily the same as the
-     Emacs `yank' command because the Emacs kill ring and the X
+     Emacs `yank' command, because the Emacs kill ring and the X
      clipboard selection are not the same thing.  You can paste in text
      you have placed in the clipboard using Copy or Cut.  You can also
      use Paste to insert text that was pasted into the clipboard from
@@ -273,11 +837,26 @@ Clear
      Removes the selected text block from the current buffer but does
      not place it in the kill ring or the X clipboard selection.
 
+Start Macro Recording
+     After selecting this, Emacs will remember every keystroke you type
+     until End Macro Recording is selected.  This is the same as the
+     Emacs command `start-kbd-macro' (`C-x (').
+
+End Macro Recording
+     Selecting this tells emacs to stop remembering your keystrokes.
+     This is the same as the Emacs command `end-kbd-macro' (`C-x )').
+
+Execute Last Macro
+     Selecting this item will cause emacs to re-interpret all of the
+     keystrokes which were saved between selections of the Start Macro
+     Recording and End Macro Recording menu items.  This is the same as
+     the Emacs command `call-last-kbd-macro' (`C-x e').
+
 
 File: lemacs.info,  Node: Buffers Menu,  Next: Help Menu,  Prev: Edit Menu,  Up: Pull-down Menus
 
 The Buffers Menu
-................
+----------------
 
    The Buffers menu provides a selection of up to ten buffers and the
 item List All Buffers, which provides a Buffer List. *Note List
@@ -287,10 +866,10 @@ Buffers:: for more information.
 File: lemacs.info,  Node: Help Menu,  Next: Menu Customization,  Prev: Buffers Menu,  Up: Pull-down Menus
 
 The Help Menu
-.............
+-------------
 
    The Help Menu gives you access to Emacs Info and provides a menu
-equivalents for each of the choices you have when using `C-h'.  *Note
+equivalent for each of the choices you have when using `C-h'.  *Note
 Help:: for more information.
 
    The Help menu also gives access to UNIX online manual pages via the
@@ -307,10 +886,11 @@ menu items and disabling or enabling existing menu items.
 
    The following functions are available:
 `add-menu: (MENU-PATH MENU-NAME MENU-ITEMS &OPTIONAL BEFORE)'
-     Add a menu to the menubar or one of its submenus.
+     Add a menu to the menu bar or one of its submenus.
 
-`add-menu-item: (MENU-PATH ITEM-NAME FUNCTION ENABLED-P &OPTIONAL BEFORE)'
-     Add a menu item to a menu, creating the menu first if necessary.
+`add-menu-item: (MENU-PATH ITEM-NAME FUNCTION ENABLED-P
+     &optional before)' Add a menu item to a menu, creating the menu
+     first if necessary.
 
 `delete-menu-item: (PATH)'
      Remove the menu item defined by PATH from the menu hierarchy.
@@ -330,18 +910,18 @@ or submenu of the given name exists already, it is changed.
    MENU-PATH identifies the menu under which the new menu should be
 inserted.  It is a list of strings; for example, `("File")' names the
 top-level File menu.  `("File" "Foo")' names a hypothetical submenu of
-File.  If MENU-PATH is `nil', the menu is added to the menubar itself.
+File.  If MENU-PATH is `nil', the menu is added to the menu bar itself.
 
    MENU-NAME is the string naming the menu to be added.
 
    MENU-ITEMS is a list of menu item descriptions.  Each menu item
 should be a vector of three elements:
 
-   * A string, which is the name of the menu item.
+   * A string, which is the name of the menu item
 
-   * A symbol naming a command, or a form to evaluate.
+   * A symbol naming a command, or a form to evaluate
 
-   * `t' or `nil' to indicate whether the item is selectable.
+   * `t' or `nil' to indicate whether the item is selectable
 
    The optional argument BEFORE is the name of the menu before which
 the new menu or submenu should be added.  If the menu is already
@@ -390,7 +970,7 @@ not moved.
    PATH is a list of strings that identify the position of the menu
 item in the menu hierarchy.  `("File" "Save")' means the menu item
 called Save under the top level File menu.  `("Menu" "Foo" "Item")'
-means the menu item called Item under the FOO submenu of MENU.
+means the menu item called Item under the Foo submenu of Menu.
 
    To disable a menu item, use `disable-menu-item'.  The disabled menu
 item is grayed and can no longer be selected.  To make the item
@@ -448,8 +1028,8 @@ after it has been killed.
 
 `C-z'
      Suspend Emacs (`suspend-emacs').  If used under the X window
-     system, shrink the X window containing the Emacs screen to an
-     icon.  (see below)
+     system, shrink the X window containing the Emacs screen to an icon
+     (see below).
 
 `C-x C-c'
      Kill Emacs (`save-buffers-kill-emacs').
@@ -493,720 +1073,4 @@ are in Emacs. The meanings of `C-z' and `C-x C-c' as keys in Emacs were
 inspired by the standard Berkeley Unix meanings of `C-z' and `C-c', but
 that is their only relationship with Unix.  You could customize these
 keys to do anything (*note Keymaps::.).
-
-
-File: lemacs.info,  Node: Command Switches,  Next: Basic,  Prev: Exiting,  Up: Top
-
-Command Line Switches and Arguments
-===================================
-
-   GNU Emacs supports command line arguments you can use to request
-various actions when invoking Emacs.  The commands are for compatibility
-with other editors and for sophisticated activities.  If you are using
-Lucid Emacs under the X window system, you can also use a number of
-standard Xt command line arguments. Command line arguments are not
-usually needed for editing with Emacs; new users can skip this section.
-
-   Many editors are designed to be started afresh each time you want to
-edit.  You start the editor to edit one file; then exit the editor.  The
-next time you want to edit either another file or the same one, you
-start the editor again.  Under these circumstances, it makes sense to
-use a command line argument to say which file to edit.
-
-   The recommended way to use GNU Emacs is to start it only once, just
-after you log in, and do all your editing in the same Emacs process.
-Each time you want to edit a file, you visit it using the existing
-Emacs.  Emacs creates a new buffer for each file and (unless you kill
-some of the buffers), Emacs eventually has many files in it ready for
-editing.  Usually you do not kill the Emacs process until you are about
-to log out.  Since you usually read files by typing commands to Emacs,
-command line arguments for specifying a file Emacs is started are seldom
-needed.
-
-   Emacs accepts command-line arguments that specify files to visit,
-functions to call, and other activities and operating modes.  If you are
-running Lucid Emacs under the X window system, a number of standard Xt
-command line arguments are available as well.
-
-   The following sections list:
-   * Command line arguments that you can always use.
-
-   * Command line arguments that have to appear at the beginning of the
-     argument list.
-
-   * Command line arguments that are only relevant if you are running
-     Lucid Emacs under X.
-
-   Command line arguments are processed in the order they appear on the
-command line; however, certain arguments (the ones in the second table)
-must be at the front of the list if they are used.
-
-   Here are the arguments allowed:
-
-`FILE'
-     Visit FILE using `find-file'.  *Note Visiting::.
-
-`+LINENUM FILE'
-     Visit FILE using `find-file', then go to line number LINENUM in it.
-
-`-load FILE'
-`-l FILE'
-     Load a file FILE of Lisp code with the function `load'.  *Note
-     Lisp Libraries::.
-
-`-funcall FUNCTION'
-`-f FUNCTION'
-     Call Lisp function FUNCTION with no arguments.
-
-`-eval FUNCTION'
-     Interpret the next argument as a lisp expression, and evaluate it.
-     You must be very careful of the shell quoting here.
-
-`-insert FILE'
-`-i FILE'
-     Insert the contents of FILE into the current buffer.  This is like
-     what `M-x insert-buffer' does; *Note Misc File Ops::.
-
-`-kill'
-     Exit from Emacs without asking for confirmation.
-
-`-version'
-     Prints version information.  This implies `-batch'.
-
-          % emacs -version
-          GNU Emacs 19.6 Lucid of Thu Apr  1 1993 on thalidomide (berkeley-unix)
-
-`-help'
-     Prints a summary of command-line options, and exits.
-
-   The following arguments are recognized only at the beginning of the
-command line.  If more than one of them appears, they must appear in the
-order in which they appear in this table.
-
-`-t FILE'
-     Use FILE instead of the terminal for input and output. (This
-     option is currently not valid in Lucid Emacs)
-
-`-batch'
-     Run Emacs in "batch mode", which means that the text being edited
-     is not displayed and the standard Unix interrupt characters such as
-     `C-z' and `C-c' continue to have their normal effect.  Emacs in
-     batch mode outputs to `stderr' only what would normally be printed
-     in the echo area under program control.
-
-     Batch mode is used for running programs written in Emacs Lisp from
-     shell scripts, makefiles, and so on.  Normally the `-l' switch or
-     `-f' switch will be used as well, to invoke a Lisp program to do
-     the batch processing.
-
-     `-batch' implies `-q' (do not load an init file).  It also causes
-     Emacs to kill itself after all command switches have been
-     processed.  In addition, auto-saving is not done except in buffers
-     for which it has been explicitly requested.
-
-`-no-init-file'
-`-q'
-     Do not load your Emacs init file `~/.emacs'.
-
-`-no-site-file'
-     Do not load the site-specific init file `lisp/site-run.el'.
-
-`-user USER'
-`-u USER'
-     Load USER's Emacs init file `~USER/.emacs' instead of your own.
-
-   Note that the init file can get access to the command line argument
-values as the elements of a list in the variable `command-line-args'.
-(The arguments in the second table above will already have been
-processed and will not be in the list.)  The init file can override the
-normal processing of the other arguments by setting this variable.
-
-   One way to use command switches is to visit many files automatically:
-
-     emacs *.c
-
-passes each `.c' file as a separate argument to Emacs, so that Emacs
-visits each file (*note Visiting::.).
-
-   Here is an advanced example that assumes you have a Lisp program file
-called `hack-c-program.el' which, when loaded, performs some useful
-operation on the current buffer, expected to be a C program.
-
-     emacs -batch foo.c -l hack-c-program -f save-buffer -kill > log
-
-Here Emacs is told to visit `foo.c', load `hack-c-program.el' (which
-makes changes in the visited file), save `foo.c' (note that
-`save-buffer' is the function that `C-x C-s' is bound to), and then
-exit to the shell from which the command was executed.  `-batch'
-guarantees there will be no problem redirecting output to `log',
-because Emacs will not assume that it has a display terminal to work
-with.
-
-   If you are running Lucid Emacs under X, a number of options are
-available to control color, border, and window title and icon name:
-
-`-title TITLE'
-`-wn TITLE'
-`-T TITLE'
-     Use TITLE as the window title. This sets the `screen-title-format'
-     variable, which controls the title of the X window corresponding
-     to the selected screen.  This is the same format as
-     `mode-line-format'.
-
-`-iconname TITLE'
-`-in TITLE'
-     Use TITLE as the icon name. This sets the
-     `screen-icon-title-format' variable, which controls the title of
-     the icon corresponding to the selected screen.
-
-`-mc COLOR'
-     Use COLOR as the mouse color.
-
-`-cr COLOR'
-     Use COLOR as the text-cursor foreground color.
-
-   In addition, Lucid Emacs allows you to use a number of standard Xt
-command line arguments.
-
-`-background COLOR'
-`-bg COLOR'
-     Use COLOR as the background color.
-
-`-bordercolor COLOR'
-`-bd COLOR'
-     Use COLOR as the border color.
-
-`-borderwidth WIDTH'
-`-bw WIDTH'
-     Use WIDTH as the border width.
-
-`-display DISPLAY'
-`-d DISPLAY'
-     When running under the X window system, create the window
-     containing the Emacs screen on the display named DISPLAY.
-
-`-foreground COLOR'
-`-fg COLOR'
-     Use COLOR as the foreground color.
-
-`-font NAME'
-`-fn NAME'
-     Use NAME as the default font.
-
-`-geometry SPEC'
-`-geom SPEC'
-`-g SPEC'
-     Use the geometry (window size and/or position) specified by SPEC.
-
-`-iconic'
-     Start up iconified.
-
-`-rv'
-     Bring up Emacs in reverse video.
-
-`-name'
-     Use the resource manager resources specified by NAME.  The default
-     is to use the name of the program (`argv[0]') as the resource
-     manager name.
-
-`-xrm'
-     Read something into the resource database for this invocation of
-     Emacs only.
-
-
-File: lemacs.info,  Node: Basic,  Next: Undo,  Prev: Command Switches,  Up: Top
-
-Basic Editing Commands
-**********************
-
-   We now give the basics of how to enter text, make corrections, and
-save the text in a file.  If this material is new to you, you might
-learn it more easily by running the Emacs learn-by-doing tutorial.  To
-do this, type `Control-h t' (`help-with-tutorial').
-
-Inserting Text
-==============
-
-   To insert printing characters into the text you are editing, just
-type them.  This inserts the characters into the buffer at the cursor
-(that is, at "point"; *note Point::.).  The cursor moves forward.  Any
-characters after the cursor move forward too.  If the text in the buffer
-is `FOOBAR', with the cursor before the `B' and you type `XX', the
-result is `FOOXXBAR', with the cursor still before the `B'.
-
-   To "delete" text you have just inserted, use DEL.  DEL deletes the
-character BEFORE the cursor (not the one that the cursor is on top of
-or under; that is the character AFTER the cursor).  The cursor and all
-characters after it move backwards.  Therefore, if you type a printing
-character and then type DEL, they cancel out.
-
-   To end a line and start typing a new one, type RET.  This inserts a
-newline character in the buffer.  If point is in the middle of a line,
-RET splits the line.  Typing DEL when the cursor is at the beginning of
-a line rubs out the newline before the line, thus joining the line with
-the preceding line.
-
-   Emacs automatically splits lines when they become too long, if you
-turn on a special mode called "Auto Fill" mode.  *Note Filling::, for
-information on using Auto Fill mode.
-
-   Customization information: DEL, in most modes, runs the command
-`delete-backward-char'; RET runs the command `newline', and
-self-inserting printing characters run the command `self-insert', which
-inserts whatever character was typed to invoke it.  Some major modes
-rebind DEL to other commands.
-
-   Direct insertion works for printing characters and SPC, but other
-characters act as editing commands and do not insert themselves.  If
-you need to insert a control character or a character whose code is
-above 200 octal, you must "quote" it by typing the character
-`control-q' (`quoted-insert') first.  There are two ways to use `C-q':
-
-   * `Control-q' followed by any non-graphic character (even `C-g')
-     inserts that character.
-
-   * `Control-q' followed by three octal digits inserts the character
-     with the specified character code.
-
-A numeric argument to `C-q' specifies how many copies of the quoted
-character should be inserted (*note Arguments::.).
-
-   If you prefer to have text characters replace (overwrite) existing
-text instead of moving it to the right, you can enable Overwrite mode, a
-minor mode.  *Note Minor Modes::.
-
-Changing the Location of Point
-==============================
-
-   To do more than insert characters, you have to know how to move point
-(*note Point::.).  Here are a few of the available commands.
-
-`C-a'
-     Move to the beginning of the line (`beginning-of-line').
-
-`C-e'
-     Move to the end of the line (`end-of-line').
-
-`C-f'
-     Move forward one character (`forward-char').
-
-`C-b'
-     Move backward one character (`backward-char').
-
-`M-f'
-     Move forward one word (`forward-word').
-
-`M-b'
-     Move backward one word (`backward-word').
-
-`C-n'
-     Move down one line, vertically (`next-line').  This command
-     attempts to keep the horizontal position unchanged, so if you
-     start in the middle of one line, you end in the middle of the
-     next.  When on the last line of text, `C-n' creates a new line and
-     moves onto it.
-
-`C-p'
-     Move up one line, vertically (`previous-line').
-
-`C-l'
-     Clear the screen and reprint everything (`recenter').  Text moves
-     on the screen to bring point to the center of the window.
-
-`M-r'
-     Move point to left margin on the line halfway down the screen or
-     window (`move-to-window-line').  Text does not move on the screen.
-     A numeric argument says how many screen lines down from the top
-     of the window (zero for the top).  A negative argument counts from
-     the bottom (-1 for the bottom).
-
-`C-t'
-     Transpose two characters, the ones before and after the cursor
-     (`transpose-chars').
-
-`M-<'
-     Move to the top of the buffer (`beginning-of-buffer').  With
-     numeric argument N, move to N/10 of the way from the top.  *Note
-     Arguments::, for more information on numeric arguments.
-
-`M->'
-     Move to the end of the buffer (`end-of-buffer').
-
-`M-x goto-char'
-     Read a number N and move the cursor to character number N.
-     Position 1 is the beginning of the buffer.
-
-`M-x goto-line'
-     Read a number N and move cursor to line number N.  Line 1 is the
-     beginning of the buffer.
-
-`C-x C-n'
-     Use the current column of point as the "semi-permanent goal
-     column" for `C-n' and `C-p' (`set-goal-column').  Henceforth, those
-     commands always move to this column in each line moved into, or as
-     close as possible given the contents of the line.  This goal
-     column remains in effect until canceled.
-
-`C-u C-x C-n'
-     Cancel the goal column.  Henceforth, `C-n' and `C-p' once again
-     try to avoid changing the horizontal position, as usual.
-
-   If you set the variable `track-eol' to a non-`nil' value, `C-n' and
-`C-p' move to the end of the line when at the end of the starting line.
-By default, `track-eol' is `nil'.
-
-Erasing Text
-============
-
-`DEL'
-     Delete the character before the cursor (`delete-backward-char').
-
-`C-d'
-     Delete the character after the cursor (`delete-char').
-
-`C-k'
-     Kill to the end of the line (`kill-line').
-
-`M-d'
-     Kill forward to the end of the next word (`kill-word').
-
-`M-DEL'
-     Kill back to the beginning of the previous word
-     (`backward-kill-word').
-
-   In contrast to the DEL key, which deletes the character before the
-cursor, `Control-d' deletes the character after the cursor, causing the
-rest of the text on the line to shift left.  If `Control-d' is typed at
-the end of a line, that line and the next line are joined.
-
-   To erase a larger amount of text, use `Control-k', which kills a
-line at a time.  If you use `C-k' at the beginning or in the middle of
-a line, it kills all the text up to the end of the line.  If you use
-`C-k' at the end of a line, it joins that line and the next line.
-
-   *Note Killing::, for more flexible ways of killing text.
-
-Files
-=====
-
-   The commands above are sufficient for creating and altering text in
-an Emacs buffer.  More advanced Emacs commands just make things easier.
-But to keep any text permanently you must put it in a "file".  Files
-are named units of text which are stored by the operating system and
-which you can retrieve by name.  To look at or use the contents of a
-file in any way, including editing the file with Emacs, you must
-specify the file name.
-
-   Consider a file named `/usr/rms/foo.c'.  To begin editing this file
-from Emacs, type
-
-     C-x C-f /usr/rms/foo.c RET
-
-The file name is given as an "argument" to the command `C-x C-f'
-(`find-file').  The command uses the "minibuffer" to read the argument.
-You have to type RET to terminate the argument (*note Minibuffer::.).
-
-   You can also use the Open File... menu item from the File menu, then
-type the name of the file to the prompt.
-
-   Emacs obeys the command by "visiting" the file: it creates a buffer,
-copies the contents of the file into the buffer, and then displays the
-buffer for you to edit.  You can make changes in the buffer, and then
-"save" the file by typing `C-x C-s' (`save-buffer') or choosing Save
-Buffer from the File menu.  This makes the changes permanent by copying
-the altered contents of the buffer back into the file `/usr/rms/foo.c'.
-Until then, the changes are only inside your Emacs buffer, and the
-file `foo.c' is not changed.
-
-   To create a file, visit the file with `C-x C-f' as if it already
-existed or choose Open File from the File menu and provide the name for
-the new file in the minibuffer.  Emacs will create an empty buffer in
-which you can insert the text you want to put in the file.  When you
-save the buffer with `C-x C-s', or by choosing Save Buffer from the
-File menu, the file is created.
-
-   To learn more about using files, *note Files::..
-
-Help
-====
-
-   If you forget what a key does, you can use the Help character, `C-h'
-to find out: Type `C-h k' followed by the key you want to know about.
-For example, `C-h k C-n' tells you what `C-n' does.  `C-h' is a prefix
-key; `C-h k' is just one of its subcommands (the command
-`describe-key').  The other subcommands of `C-h' provide different
-kinds of help.  Type `C-h' three times to get a description of all the
-help facilities.  *Note Help::.
-
-* Menu:
-
-* Blank Lines::        Commands to make or delete blank lines.
-* Continuation Lines:: Lines too wide for the screen.
-* Position Info::      What page, line, row, or column is point on?
-* Arguments::	       Numeric arguments for repeating a command.
-
-
-File: lemacs.info,  Node: Blank Lines,  Next: Continuation Lines,  Prev: Basic,  Up: Basic
-
-Blank Lines
-===========
-
-   Here are special commands and techniques for entering and removing
-blank lines.
-
-`C-o'
-     Insert one or more blank lines after the cursor (`open-line').
-
-`C-x C-o'
-     Delete all but one of many consecutive blank lines
-     (`delete-blank-lines').
-
-   When you want to insert a new line of text before an existing line,
-you just type the new line of text, followed by RET.  If you prefer to
-first create a blank line and then insert the desired text, use the key
-`C-o' (`open-line'), which inserts a newline after point but leaves
-point in front of the newline.  Then type the text into the new line.
-`C-o F O O' has the same effect as `F O O RET', except for the final
-location of point.
-
-   To create several blank lines, type `C-o' several times, or give
-`C-o' an argument indicating how many blank lines to create.  *Note
-Arguments::, for more information.
-
-   If you have many blank lines in a row and want to get rid of them,
-use `C-x C-o' (`delete-blank-lines').  If point is on a blank line
-which is adjacent to at least one other blank line, `C-x C-o' deletes
-all but one of the blank lines.  If point is on a blank line with no
-other adjacent blank line, the sole blank line is deleted.  If point is
-on a non-blank line, `C-x C-o' deletes any blank lines following that
-non-blank line.
-
-
-File: lemacs.info,  Node: Continuation Lines,  Next: Position Info,  Prev: Blank Lines,  Up: Basic
-
-Continuation Lines
-==================
-
-   If you add too many characters to one line without breaking with a
-RET, the line grows to occupy two (or more) screen lines, with a curved
-arrow at the extreme right margin of all but the last line.  The curved
-arrow indicates that the following screen line is not really a distinct
-line in the text, but just the "continuation" of a line too long to fit
-the screen.  You can use Auto Fill mode, (*note Filling::.), to have
-Emacs insert newlines automatically when a line gets too long.
-
-   Instead of continuation, long lines can be displayed by "truncation".
-This means that all the characters that do not fit in the width of the
-screen or window do not appear at all.  They remain in the buffer,
-temporarily invisible.  Three diagonal dots in the last column (instead
-of the curved arrow inform you that truncation is in effect.
-
-   To turn off continuation for a particular buffer set the variable
-`truncate-lines' to non-`nil' in that buffer.  Truncation instead of
-continuation also happens whenever horizontal scrolling is in use, and
-optionally whenever side-by-side windows are in use (*note Windows::.).
-Altering the value of `truncate-lines' makes it local to the current
-buffer; until that time, the default value is in effect.  The default
-is initially `nil'.  *Note Locals::.
-
-
-File: lemacs.info,  Node: Position Info,  Next: Arguments,  Prev: Continuation Lines,  Up: Basic
-
-Cursor Position Information
-===========================
-
-   If you are accustomed to other display editors, you may be surprised
-that Emacs does not always display the page number or line number of
-point in the mode line.  In Emacs, this information is only rarely
-needed, and a number of commands are available to compute and print it.
-Since text is stored in a way that makes it difficult to compute the
-information, it is not displayed all the time.
-
-`M-x what-page'
-     Print page number of point, and line number within page.
-
-`M-x what-line'
-     Print line number of point in the buffer.
-
-`M-='
-     Print number of lines in the current region (`count-lines-region').
-
-`C-x ='
-     Print character code of character after point, character position
-     of point, and column of point (`what-cursor-position').
-
-   There are several commands for printing line numbers:
-   * `M-x what-line' counts lines from the beginning of the file and
-     prints the line number point is on.  The first line of the file is
-     line number 1.  You can use these numbers as arguments to `M-x
-     goto-line'.
-
-   * `M-x what-page' counts pages from the beginning of the file, and
-     counts lines within the page, printing both of them.  *Note
-     Pages::, for the command `C-x l' which counts the lines in the
-     current page.
-
-   * `M-=' (`count-lines-region'), prints the number of lines in the
-     region (*note Mark::.).
-
-   The command `C-x =' (`what-cursor-position') provides information
-about point and about the column the cursor is in.  It prints a line in
-the echo area that looks like this:
-
-     Char: x (0170)  point=65986 of 563027(12%)  x=44
-
-(In fact, this is the output produced when point is before the `x=44'
-in the example.)
-
-   The two values after `Char:' describe the character following point,
-first by showing it and second by giving its octal character code.
-
-   `point=' is followed by the position of point expressed as a
-character count.  The front of the buffer counts as position 1, one
-character later as 2, and so on.  The next, larger number is the total
-number of characters in the buffer.  Afterward in parentheses comes the
-position expressed as a percentage of the total size.
-
-   `x=' is followed by the horizontal position of point, in columns
-from the left edge of the window.
-
-   If the buffer has been narrowed, making some of the text at the
-beginning and the end temporarily invisible, `C-x =' prints additional
-text describing the current visible range.  For example, it might say
-
-     Char: x (0170)  point=65986 of 563025(12%) <65102 - 68533>  x=44
-
-where the two extra numbers give the smallest and largest character
-position that point is allowed to assume.  The characters between those
-two positions are the visible ones.  *Note Narrowing::.
-
-   If point is at the end of the buffer (or the end of the visible
-part), `C-x =' omits any description of the character after point.  The
-output looks like
-
-     point=563026 of 563025(100%)  x=0
-
-
-File: lemacs.info,  Node: Arguments,  Prev: Position Info,  Up: Basic
-
-Numeric Arguments
-=================
-
-   Any Emacs command can be given a "numeric argument".  Some commands
-interpret the argument as a repetition count.  For example, giving an
-argument of ten to the key `C-f' (the command `forward-char', move
-forward one character) moves forward ten characters.  With these
-commands, no argument is equivalent to an argument of one.  Negative
-arguments are allowed.  Often they tell a command to move or act
-backwards.
-
-   If your keyboard has a META key, the easiest way to specify a
-numeric argument is to type digits and/or a minus sign while holding
-down the the META key.  For example,
-     M-5 C-n
-
-moves down five lines.  The characters `Meta-1', `Meta-2', and so on,
-as well as `Meta--', do this because they are keys bound to commands
-(`digit-argument' and `negative-argument') that are defined to
-contribute to an argument for the next command.
-
-   Another way of specifying an argument is to use the `C-u'
-(`universal-argument') command followed by the digits of the argument.
-With `C-u', you can type the argument digits without holding down shift
-keys.  To type a negative argument, start with a minus sign.  Just a
-minus sign normally means -1.  `C-u' works on all terminals.
-
-   `C-u' followed by a character which is neither a digit nor a minus
-sign has the special meaning of "multiply by four".  It multiplies the
-argument for the next command by four.  `C-u' twice multiplies it by
-sixteen.  Thus, `C-u C-u C-f' moves forward sixteen characters.  This
-is a good way to move forward "fast", since it moves about 1/5 of a line
-in the usual size screen.  Other useful combinations are `C-u C-n',
-`C-u C-u C-n' (move down a good fraction of a screen), `C-u C-u C-o'
-(make "a lot" of blank lines), and `C-u C-k' (kill four lines).
-
-   Some commands care only about whether there is an argument, and not
-about its value.  For example, the command `M-q' (`fill-paragraph') with
-no argument fills text; with an argument, it justifies the text as well.
-(*Note Filling::, for more information on `M-q'.)  Just `C-u' is a
-handy way of providing an argument for such commands.
-
-   Some commands use the value of the argument as a repeat count, but do
-something peculiar when there is no argument.  For example, the command
-`C-k' (`kill-line') with argument N kills N lines, including their
-terminating newlines.  But `C-k' with no argument is special: it kills
-the text up to the next newline, or, if point is right at the end of
-the line, it kills the newline itself.  Thus, two `C-k' commands with
-no arguments can kill a non-blank line, just like `C-k' with an
-argument of one.  (*Note Killing::, for more information on `C-k'.)
-
-   A few commands treat a plain `C-u' differently from an ordinary
-argument.  A few others may treat an argument of just a minus sign
-differently from an argument of -1.  These unusual cases will be
-described when they come up; they are always for reasons of convenience
-of use of the individual command.
-
-
-File: lemacs.info,  Node: Undo,  Next: Minibuffer,  Prev: Basic,  Up: Top
-
-Undoing Changes
-***************
-
-   Emacs allows you to undo all changes you make to the text of a
-buffer, up to a certain amount of change (8000 characters).  Each
-buffer records changes individually, and the undo command always
-applies to the current buffer.  Usually each editing command makes a
-separate entry in the undo records, but some commands such as
-`query-replace' make many entries, and very simple commands such as
-self-inserting characters are often grouped to make undoing less
-tedious.
-
-`C-x u'
-     Undo one batch of changes (usually, one command worth) (`undo').
-
-`C-_'
-     The same.
-
-   The command `C-x u' or `C-_' allows you to undo changes.  The first
-time you give this command, it undoes the last change.  Point moves to
-the text affected by the undo, so you can see what was undone.
-
-   Consecutive repetitions of the `C-_' or `C-x u' commands undo
-earlier and earlier changes, back to the limit of what has been
-recorded.  If all recorded changes have already been undone, the undo
-command prints an error message and does nothing.
-
-   Any command other than an undo command breaks the sequence of undo
-commands.  Starting at this moment, the previous undo commands are
-considered ordinary changes that can themselves be undone.  Thus, you
-can redo changes you have undone by typing `C-f' or any other command
-that have no important effect, and then using more undo commands.
-
-   If you notice that a buffer has been modified accidentally, the
-easiest way to recover is to type `C-_' repeatedly until the stars
-disappear from the front of the mode line.  When that happens, all the
-modifications you made have been cancelled.  If you do not remember
-whether you changed the buffer deliberately, type `C-_' once. When you
-see Emacs undo the last change you made, you probably remember why you
-made it.  If the change was an accident, leave it undone.  If it was
-deliberate, redo the change as described in the preceding paragraph.
-
-   Whenever an undo command makes the stars disappear from the mode
-line, the buffer contents is the same as it was when the file was last
-read in or saved.
-
-   Not all buffers record undo information.  Buffers whose names start
-with spaces don't; these buffers are used internally by Emacs and its
-extensions to hold text that users don't normally look at or edit.
-Minibuffers, help buffers and documentation buffers also don't record
-undo information.
-
-   Emacs can remember at most 8000 or so characters of deleted or
-modified text in any one buffer for reinsertion by the undo command.
-There is also a limit on the number of individual insert, delete or
-change actions that Emacs can remembered.
-
-   There are two keys to run the `undo' command, `C-x u' and `C-_',
-because on some keyboards, it is not obvious how to type `C-_'. `C-x u'
-is an alternative you can type in the same fashion on any terminal.
 

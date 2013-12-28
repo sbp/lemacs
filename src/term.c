@@ -22,6 +22,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <ctype.h>
 #include "config.h"
 #include "lisp.h"
+#include "window.h"
 #include "termhooks.h"
 #include "termchar.h"
 #include "termopts.h"
@@ -54,6 +55,7 @@ extern int tgetent (CONST char *, CONST char *);
 extern int tgetflag (CONST char *);
 extern int tgetnum (CONST char *);
 extern char *tgetstr (CONST char *, char **);
+extern void tputs (CONST char *, int, void (*)(int));
 #endif
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
@@ -132,7 +134,7 @@ void (*shift_region_hook) (struct window *,
 void (*cursor_to_hook) (struct line_header *,
                         struct char_block *, 
                         int row, int col, 
-                        struct window *, struct screen *);
+                        struct window_mirror *, struct screen *);
 /* void (*raw_cursor_to_hook) (); */
 
 void (*clear_to_end_hook) (void);
@@ -300,11 +302,11 @@ text_width (Lisp_Object font, unsigned char *s, int l)
  */
 void
 cursor_to (struct line_header *l, struct char_block *cb, int row,
-	     int col, struct window *win, struct screen *s)
+	     int col, struct window_mirror *mir, struct screen *s)
 {
   if (CHECK_HOOK (cursor_to_hook))
     {
-      (*cursor_to_hook) (l,cb,row,col,win,s);
+      (*cursor_to_hook) (l,cb,row,col,mir,s);
       return;
     }
 }
@@ -1137,9 +1139,9 @@ term_init (terminal_type)
 
   status = tgetent (tbuf, terminal_type);
   if (status < 0)
-    fatal ("Cannot open termcap database file.\n");
+    fatal ("Cannot open termcap database file.");
   if (status == 0)
-    fatal ("Terminal type %s is not defined.\n", terminal_type);
+    fatal ("Terminal type %s is not defined.", terminal_type);
 
 #ifdef TERMINFO
   combuf = (char *) xmalloc (2044);
@@ -1352,14 +1354,14 @@ term_init (terminal_type)
 It lacks the ability to position the cursor.\n\
 If that is not the actual type of terminal you have, use either the\n\
 DCL command `SET TERMINAL/DEVICE= ...' for DEC-compatible terminals,\n\
-or `define EMACS_TERM \"terminal type\"' for non-DEC terminals.\n",
+or `define EMACS_TERM \"terminal type\"' for non-DEC terminals.",
 	     terminal_type);
 #else
       fatal ("Terminal type \"%s\" is not powerful enough to run Emacs.\n\
 It lacks the ability to position the cursor.\n\
 If that is not the actual type of terminal you have,\n\
 use the C-shell command `setenv TERM ...' to specify the correct type.\n\
-It may be necessary to do `unsetenv TERMCAP' as well.\n",
+It may be necessary to do `unsetenv TERMCAP' as well.",
 	     terminal_type);
 #endif
     }

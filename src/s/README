@@ -1,0 +1,49 @@
+This directory contains C header files containing
+operating-system-specific definitions.  Each file describes a
+particular operating system.  The emacs configuration script edits
+../config.h to include the appropriate one of these files, and then
+each emacs source file includes config.h.
+
+template.h is a generic template for system descriptions; it describes
+the parameters a system file can specify.
+
+General Lucid Emacs Changes
+---------------------------
+The following is a list of those changes made globally across all
+files.  They are not marked individually in each header file.  All
+other changes should be preceeded by a comment /* lemacs change */.
+
+
+1. Changed all defines of the type:
+
+      #define [read|write|open|close] sys_[read|write|open|close]
+
+      to
+
+      #define emacs_[read|write|open|close] sys_[read|write|open|close]
+
+
+   The revised comment is:
+
+      /* On USG systems the system calls are interruptable by signals
+	 that the user program has elected to catch.  Thus the system
+	 call must be retried in these cases.  All calls to read,
+	 write, and open in emacs are really calls to emacs_read, etc.
+	 We define emacs_read to be sys_read (which is defined in
+	 sysdep.c for this system.)  If these were not defined, they
+	 would be defined to be open, etc.  We can't just "#define
+	 open sys_open" because of prototype problems.  */
+
+
+2. Removed all instances of #undef SIGIO and replaced them with
+   #define BROKEN_SIGIO.  Jamie says:
+
+   /* use BROKEN_SIGIO instead of this kludge -- jwz */
+
+
+3.  All instances of HAVE_GETWD, HAVE_GETPAGESIZE, HAVE_DUP2,
+    HAVE_UNISTD_H, HAVE_GETTIMEOFDAY and NEED_REALPATH removed.  We
+    detect these automatically with configure.
+
+4.  All instances of HAVE_X11 replaced with HAVE_X_WINDOWS.  We don't
+    support X10 or earlier so the HAVE_X11 define was purged.

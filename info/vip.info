@@ -22,7 +22,7 @@ versions.
 
 Indirect:
 vip.info-1: 729
-vip.info-2: 49752
+vip.info-2: 50044
 
 Tag Table:
 (Indirect)
@@ -49,26 +49,26 @@ Node: Buffer Commands18523
 Node: File Commands19008
 Node: Misc Commands19375
 Node: Vi Commands19791
-Node: Numeric Arguments20559
-Node: Important Keys21054
-Node: Buffers and Windows22797
-Node: Files25019
-Node: Viewing the Buffer28249
-Node: Mark Commands30143
-Node: Motion Commands31002
-Node: Searching and Replacing36532
-Node: Modifying Commands38804
-Node: Delete Commands40239
-Node: Yank Commands41943
-Node: Put Back Commands42828
-Node: Change Commands44282
-Node: Repeating and Undoing Modifications45302
-Node: Other Vi Commands46122
-Node: Commands in Insert Mode49752
-Node: Ex Commands51822
-Node: Ex Command Reference53002
-Node: Customization59489
-Node: Customizing Constants59911
-Node: Customizing Key Bindings61235
+Node: Numeric Arguments20776
+Node: Important Keys21271
+Node: Buffers and Windows23014
+Node: Files25236
+Node: Viewing the Buffer28466
+Node: Mark Commands30360
+Node: Motion Commands31219
+Node: Searching and Replacing36749
+Node: Modifying Commands39021
+Node: Delete Commands40574
+Node: Yank Commands42278
+Node: Put Back Commands43163
+Node: Change Commands44617
+Node: Repeating and Undoing Modifications45637
+Node: Other Vi Commands46431
+Node: Commands in Insert Mode50044
+Node: Ex Commands52094
+Node: Ex Command Reference53262
+Node: Customization59749
+Node: Customizing Constants60171
+Node: Customizing Key Bindings61495
 
 End Tag Table

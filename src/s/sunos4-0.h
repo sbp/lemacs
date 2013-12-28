@@ -5,9 +5,6 @@
 
 #include "bsd4-2.h"
 
-#define HAVE_RINT
-#define HAVE_LOGB
-
 #ifndef HAVE_SYS_TIME_H
 #define HAVE_SYS_TIME_H
 #endif
@@ -21,6 +18,7 @@
   /* The new sunOS unexec eliminates the need for a custom crt0.o, so we
      can just let the compiler invoke the linker and don't have to guess
      what options it might have passed it. */
+# define ORDINARY_LINK
 # define START_FILES
 # define LD_CMD $(CC)
 # ifndef LD_SWITCH_SYSTEM
@@ -34,9 +32,6 @@
 # define UNEXEC unexsunos4.o
 #endif
 
-/* Sun4s running SunOS 4+ usually have sound support. */
-#define USE_SOUND
-
 #define RUN_TIME_REMAP
 
 /* SunOS provides strcoll() and setlocale(). */
@@ -46,6 +41,11 @@
    sysdep.c from introducing bogus symbols */
 #define TEXT_START 0
 #define DATA_START 0
+
+/* lemacs change -- Sun CC needs this to default to ANSI */
+#if __SUNPRO_C
+#define C_SWITCH_SYSTEM -Xa
+#endif
 
 #ifndef THIS_IS_YMAKEFILE
 #ifdef __STDC__

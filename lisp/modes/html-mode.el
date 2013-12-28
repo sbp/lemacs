@@ -255,7 +255,7 @@ to the first person who tells me why not.")
 (defvar html-emphasize-color "yellow"
   "*Color for highlighting HTML something-or-others in Epoch or Lucid Emacs.")
 
-(defvar html-document-previewer "/usr/local/bin/X11/Mosaic"
+(defvar html-document-previewer "xmosaic"
   "*Program to be used to preview HTML documents.  Program is assumed
 to accept a single argument, a filename containing a file to view; program
 is also assumed to follow the Mosaic convention of handling SIGUSR1 as
@@ -744,7 +744,7 @@ it with signals as long as it's alive."
                                  tmp-file))))
       ;; We've got a running previewer; use it via SIGUSR1.
       (save-excursion
-        (let ((config-file (format "/tmp/Mosaic.%d" 
+        (let ((config-file (format "/tmp/xmosaic.%d" 
                                    (process-id html-previewer-process))))
           (set-buffer (generate-new-buffer "*html-preview-tmp*"))
           (insert "goto\nfile:" tmp-file "\n")

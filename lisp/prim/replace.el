@@ -25,8 +25,8 @@
 
 ;;; Code:
 
-(defvar case-replace t
-  "*Non-nil means query-replace should preserve case in replacements.")
+(defvar case-replace t "\
+*Non-nil means query-replace should preserve case in replacements.")
 
 (defvar query-replace-history nil)
 
@@ -274,6 +274,7 @@ match.  A negative number means to include that many lines before the match.
 A positive number means to include that many lines both before and after.")
 
 ;;>>> Should be named list-matching-lines-whole-buffer
+;; lemacs addition
 (defvar occur-whole-buffer nil
   "If t, occur operates on whole buffer, otherwise occur starts from point.
 default is nil.")
@@ -395,7 +396,7 @@ It serves as a menu to find any of the occurrences in this buffer.
 ;; to make that display both SPC and Y.
 (defvar query-replace-help (purecopy
   "Type Space or `y' to replace one match, Delete or `n' to skip to next,
-ESC or `q' to exit, Period to replace one match and exit,
+RET or `q' to exit, Period to replace one match and exit,
 Comma to replace but not move point immediately,
 C-r to enter recursive edit (\\[exit-recursive-edit] to get out again),
 C-w to delete match and recursive edit,
@@ -460,7 +461,7 @@ Don't use this in your own program unless you want to query and set the mark
 just as `query-replace' does.  Instead, write a simple loop like this:
   (while (re-search-forward \"foo[ \t]+bar\" nil t)
     (replace-match \"foobar\" nil nil))
-which will run faster and do exactly what you probably want."
+which will run faster and probably do exactly what you want."
   (or map (setq map query-replace-map))
   (let ((event (allocate-event))
 	(nocasify (not (and case-fold-search case-replace
@@ -561,12 +562,17 @@ which will run faster and do exactly what you probably want."
 		   (setq keep-going nil)
 		   (setq done t))
 		  ((eq def 'backup)
-		   (let ((elt (car stack)))
-		     (goto-char (car elt))
-		     (setq replaced (eq t (cdr elt)))
-		     (or replaced
-			 (store-match-data (cdr elt)))
-		     (setq stack (cdr stack))))		     
+                   (if stack
+                       (let ((elt (car stack)))
+                         (goto-char (car elt))
+                         (setq replaced (eq t (cdr elt)))
+                         (or replaced
+                             (store-match-data (cdr elt)))
+                         (setq stack (cdr stack)))
+                       (progn
+			 (message "No previous match")
+			 (ding 'no-terminate)
+			 (sit-for 1))))
 		  ((eq def 'act)
 		   (or replaced
 		       (replace-match next-replacement nocasify literal))

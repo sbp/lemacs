@@ -31,8 +31,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 #endif
 
-/* lemacs addition by Greg.Onufer@eng.sun.com */
-#ifdef HAVE_UTIMBUF
+#ifdef HAVE_UTIME_H
 # include <utime.h>
 #endif
 
@@ -98,11 +97,18 @@ extern long timezone;
 extern int gettimeofday ();
 #endif
 
+#if defined (MOTOROLA_DELTA) || defined (m88000)
+#define EMACS_GET_TIME(time)					\
+{								\
+   gettimeofday (&(time));					\
+}
+#else
 #define EMACS_GET_TIME(time)					\
 {								\
   struct timezone dummy;					\
   gettimeofday (&(time), &dummy);				\
 }
+#endif /* !(MOTOROLA_DELTA || m88000) */
 
 #define EMACS_ADD_TIME(dest, src1, src2)			\
 {								\
@@ -145,10 +151,7 @@ extern int gettimeofday ();
 
 #ifdef USE_UTIME
 
-/* lemacs addition by Greg.Onufer@eng.sun.com for Solaris 2.3.
-   Presumably other SVR4-derived systems have the same interface.
- */
-# ifdef HAVE_UTIMBUF
+# ifdef HAVE_UTIME_H
 
 #define EMACS_SET_UTIMES(path, atime, mtime)			\
   {								\
@@ -158,7 +161,7 @@ extern int gettimeofday ();
     utime ((path), &tv);					\
   }
 
-# else /* !HAVE_UTIMBUF */
+# else /* !HAVE_UTIME_H */
 
 #define EMACS_SET_UTIMES(path, atime, mtime)			\
   {								\
@@ -168,7 +171,7 @@ extern int gettimeofday ();
     utime ((path), tv);						\
   }
 
-# endif /* !HAVE_UTIMBUF */
+# endif /* !HAVE_UTIME_H */
 
 #else /* ! defined (USE_UTIME) */
 

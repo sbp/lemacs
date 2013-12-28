@@ -201,14 +201,14 @@ add_to_set_of_chars (set_of_chars *set, wchar_t c)
 
 /* Test c for membership in set.
 */
-BOOL
+int
 in_set_of_chars (set_of_chars *set, wchar_t c)
 {
-  BOOL result;
+  int result;
 
   if (set->anychar)
-    return TRUE;
-  result = (wschr (set->data, c) ? TRUE : FALSE);
+    return 1;
+  result = (wschr (set->data, c) ? 1 : 0);
   if (set->complement)
     result = !result;
   return result;
@@ -223,6 +223,10 @@ in_set_of_chars (set_of_chars *set, wchar_t c)
    I made this a function instead of a macro so that it would be easier to
    pass the address of the character to XwcTextEscapement.
 */
+
+/* #### This function is used in exactly one place (glyphs_from_bufpos())
+   and duplcates XTtext_width.  It should be removed. */
+
 int
 x_char_width (XFontSet font_set, wchar_t wc)
 {

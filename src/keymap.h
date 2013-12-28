@@ -1,5 +1,5 @@
-/* keymap-hacking prototypes
-   Copyright (C) 1992, 1993 Free Software Foundation, Inc.
+/* prototypes for keymap-hacking
+   Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -30,9 +30,12 @@ extern Lisp_Object Qkeymapp;
 
 extern Lisp_Object get_keymap (Lisp_Object object, int error, int autoload);
 extern Lisp_Object lookup_keys (Lisp_Object keymap, 
-                                int nkeys, Lisp_Object *);
+                                int nkeys, Lisp_Object *,
+                                int accept_default);
 extern Lisp_Object lookup_events (Lisp_Object event_head,
-                                  int nmaps, Lisp_Object maps[]);
+                                  int nmaps, Lisp_Object maps[],
+                                  int accept_default);
+extern Lisp_Object event_binding (Lisp_Object event0, int accept_default);
 
 extern Lisp_Object Fkey_description (Lisp_Object keys);
 extern Lisp_Object Fsingle_key_description (Lisp_Object key);
@@ -46,6 +49,12 @@ extern Lisp_Object Fkeymap_name (Lisp_Object keymap);
 extern Lisp_Object Fset_keymap_name (Lisp_Object keymap, Lisp_Object name);
 extern Lisp_Object Fkeymap_prompt (Lisp_Object keymap, Lisp_Object inherit);
 extern Lisp_Object Fset_keymap_prompt (Lisp_Object keymap, Lisp_Object prompt);
+
+extern int relevant_keymaps_to_search (Lisp_Object keys,
+                                       int max_maps, Lisp_Object maps[]);
+extern void describe_map_tree (Lisp_Object startmap, int partial,
+                               Lisp_Object shadow, Lisp_Object prefix,
+                               int mice_only_p);
 
 extern int interrupt_char;
 extern Lisp_Object help_char;

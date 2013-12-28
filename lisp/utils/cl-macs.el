@@ -1404,7 +1404,7 @@ values.  For compatibility, (values A B C) is a synonym for (list A B C)."
 
 	((and (eq (car-safe spec) 'warn) (boundp 'byte-compile-warnings))
 	 (if (eq byte-compile-warnings t)
-	     (setq byte-compile-warnings byte-compile-warning-types))
+	     (setq byte-compile-warnings byte-compile-default-warnings))
 	 (while (setq spec (cdr spec))
 	   (if (consp (car spec))
 	       (if (eq (cadar spec) 0)

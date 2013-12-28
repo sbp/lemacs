@@ -60,12 +60,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "sysdep.h"
 
 
-/* Whether usage tracking is turned on (Sun only) */
-Lisp_Object Vusage_tracking;
-#ifdef USAGE_TRACKING
-#include <ut.h>
-#endif
-
 #ifndef O_RDWR
 #define O_RDWR 2
 #endif
@@ -80,13 +74,22 @@ Lisp_Object Vcommand_line_args;
   on subsequent starts.  */
 int initialized;
 
-/* Variable whose value is symbol giving operating system type */
+/* Variable whose value is symbol giving operating system type. */
 Lisp_Object Vsystem_type;
 
+/* Variable whose value is string giving configuration built for.  */
+Lisp_Object Vsystem_configuration;
+  
 /* Variable holding the name used to invoke emacs, and the full path
    used to get to the actual exec file. */
 Lisp_Object Vinvocation_name;
 Lisp_Object Vexecution_path;
+
+#if 0 /* RMSmacs */
+/* The directory name in which to find subdirs such as lisp and etc.
+   nil means get them only from PATH_LOADSEARCH.  */
+Lisp_Object Vinstallation_directory;
+#endif
 
 /* If non-zero, emacs should not attempt to use an window-specific code,
    but instead should use the virtual terminal under which it was started */
@@ -118,6 +121,7 @@ int noninteractive;
 
 int noninteractive1;
 
+extern int always_gc;           /* hack */
 extern void syms_of_abbrev (void);
 extern void init_alloc (void), syms_of_alloc (void), init_alloc_once (void);
 extern void init_buffer (void), syms_of_buffer (void), init_buffer_once (void);
@@ -162,9 +166,12 @@ extern void keys_of_keymap (void);
 extern void syms_of_print (void);
 extern void init_process (void), syms_of_process (void);
 extern void syms_of_screen (void);
-extern void syms_of_scrollbar (void);
 extern void syms_of_search (void);
-extern void syms_of_sparcworks (void), syms_of_tooltalk (void);
+#ifdef POSIX_SIGNALS
+extern void init_signals (void);
+#endif
+extern void init_sunpro (void), syms_of_sunpro (void);
+extern void syms_of_tooltalk (void);
 extern void syms_of_syntax (void), init_syntax_once (void);
 extern void init_sys_modes (void);
 extern void syms_of_undo (void);
@@ -172,6 +179,9 @@ extern void syms_of_window (void), init_window_once (void);
 extern void init_xdisp (void), syms_of_xdisp (void);
 extern void syms_of_xfns (void), syms_of_xobjs (void);
 extern void syms_of_xselect (void);
+#ifdef EPOCH
+extern void syms_of_epoch (void);
+#endif
 #ifdef EMACS_BTL
 extern void syms_of_btl (void);
 #endif
@@ -219,7 +229,9 @@ fatal_error_signal (sig)
      Remember that since we're in a signal handler, the signal we're
      going to send is probably blocked, so we have to unblock it if we
      want to really receive it.  */
+#ifndef MSDOS
   sigunblock (sigmask (fatal_error_code));
+#endif /* !MSDOS */
   kill (getpid (), fatal_error_code);
 #endif /* not VMS */
   SIGRETURN;
@@ -250,6 +262,7 @@ fatal (CONST char *fmt, ...)
 
   fprintf (stderr, "emacs: ");
   vfprintf (stderr, fmt, args);
+  fprintf (stderr, "\n");
 
   va_end (args);
   fflush (stderr);
@@ -257,6 +270,17 @@ fatal (CONST char *fmt, ...)
 }
 
 
+#ifdef SIGDANGER
+
+/* Handler for SIGDANGER.  */
+SIGTYPE
+memory_warning_signal (int sig)
+{
+  signal (sig, memory_warning_signal);
+
+  malloc_warning (GETTEXT ("Operating system warns that virtual memory is running low.\n"));
+}
+#endif
 
 /* Code for dealing with Lisp access to the Unix command line */
 
@@ -356,12 +380,21 @@ main_1 (int argc, char **argv, char **envp)
 
   clearerr (stdin);
 
-#ifdef BSD
+#ifdef BSD_PGRPS
+  if (initialized)
   {
     inherited_pgroup = EMACS_GETPGRP (0);
+#  if	defined(__osf__) /* lemacs: <grunwald@foobar.cs.colorado.edu> */
     setpgrp (0, getpid ());
+#  else
+    setpgid (0, getpid ());
+#  endif /* __osf__ */
   }
-#endif /* BSD */
+#else
+#if defined (USG5) && defined (INTERRUPT_INPUT)
+  setpgrp ();
+#endif
+#endif /* BSD_PGRPS */
 
 #ifdef APOLLO
 #ifndef APOLLO_SR10
@@ -384,15 +417,29 @@ main_1 (int argc, char **argv, char **envp)
     }
 #endif	/* not SYSTEM_MALLOC */
 
+#ifdef MSDOS
+  /* We do all file input/output as binary files.  When we need to translate
+     newlines, we do that manually.  */
+  _fmode = O_BINARY;
+  (stdin)->_flag &= ~_IOTEXT;
+  (stdout)->_flag &= ~_IOTEXT;
+  (stderr)->_flag &= ~_IOTEXT;
+#endif /* MSDOS */
+
 #ifdef PRIO_PROCESS
   if (emacs_priority != 0)
     nice (emacs_priority);
   setuid (getuid ());
 #endif /* PRIO_PROCESS */
 
-#ifdef BSD
+#ifdef BSD_PGRPS
+  /* lemacs: BSD -> BSD_PGRPS by <grunwald@foobar.cs.colorado.edu> */
   /* interrupt_input has trouble if we aren't in a separate process group.  */
+#  if	defined(__osf__) /* lemacs: <grunwald@foobar.cs.colorado.edu> */
   setpgrp (getpid (), getpid ());
+#  else
+  setpgid (getpid (), getpid ());
+#  endif /* __osf__ */
 #endif
 
   inhibit_window_system = 0;
@@ -408,21 +455,15 @@ main_1 (int argc, char **argv, char **envp)
       result = emacs_open (argv[skip_args], O_RDWR, 2 );
       if (result < 0)
 	{
-	  CONST char *errstring;
-
-	  if (errno >= 0 && errno < sys_nerr)
-	    errstring = sys_errlist[errno];
-	  else
-	    errstring = "undocumented error code";
-	  fatal ("%s: %s\n", argv[skip_args], errstring);
+	  fatal ("%s: %s", argv[skip_args], strerror (errno));
 	}
       dup (0);
       if (! isatty (0))
-	fatal ("%s: not a tty\n", argv[skip_args]);
+	fatal ("%s: not a tty", argv[skip_args]);
 
-      fprintf (stderr, "Using %s\n", ttyname (0));
+      fprintf (stderr, "Using %s", ttyname (0));
 #if 0
-      fprintf (stderr, "Using %s\n", argv[skip_args]);
+      fprintf (stderr, "Using %s", argv[skip_args]);
 #endif
 #ifdef HAVE_X_WINDOWS
       inhibit_window_system = 1;	/* -t => -nw */
@@ -498,19 +539,14 @@ main_1 (int argc, char **argv, char **envp)
       signal (SIGXFSZ, fatal_error_signal);
 #endif /* SIGXFSZ */
 
-#ifdef AIX
-      signal (SIGDANGER, fatal_error_signal);
-      signal (20, fatal_error_signal);
-      signal (21, fatal_error_signal);
-      signal (22, fatal_error_signal);
-      signal (24, fatal_error_signal);
-#if 0 /* mvn@library.ucla.edu says these are SIGIO on AIX 3.2.4.  */
-      signal (23, fatal_error_signal);
-#ifdef SIGIO
-      signal (SIGAIO, fatal_error_signal);
-      signal (SIGPTY, fatal_error_signal);
+#ifdef SIGDANGER
+      /* This just means available memory is getting low.  */
+      signal (SIGDANGER, memory_warning_signal);
 #endif
-#endif /* 0 */
+
+#ifdef AIX
+/* 20 is SIGCHLD, 21 is SIGTTIN, 22 is SIGTTOU.  */
+      signal (SIGXCPU, fatal_error_signal);
 #ifndef _I386
       signal (SIGIOINT, fatal_error_signal);
 #endif
@@ -541,10 +577,21 @@ main_1 (int argc, char **argv, char **envp)
     }
 
   init_alloc ();
-  init_callproc ();	/* Must be called before egetenv(). */
   init_eval ();
+
+  if (always_gc)                /* purification debugging hack */
+    garbage_collect_1 ();
+
+  init_callproc ();	/* Must be called before egetenv(). */
   init_data ();
   init_lread ();
+
+#ifdef MSDOS
+  /* Call early 'cause init_environment needs it.  */
+  init_dosfns ();
+  /* Set defaults for several environment variables.  */
+  if (initialized) init_environment (argc, argv, skip_args);
+#endif
 
 #if defined (I18N2) || defined (I18N3) || defined (I18N4)
   setlocale (LC_ALL, "");
@@ -583,6 +630,9 @@ main_1 (int argc, char **argv, char **envp)
 #endif /* CLASH_DETECTION */
 #ifdef DRAGNDROP
   init_xtfunc ();
+#endif
+#ifdef SUNPRO
+  init_sunpro ();
 #endif
 
 /* Intern the names of all standard functions and variables; define standard keys */
@@ -646,8 +696,10 @@ main_1 (int argc, char **argv, char **envp)
       syms_of_xfns ();
       syms_of_xobjs ();
       syms_of_xselect ();
+#ifdef EPOCH
+      syms_of_epoch ();
+#endif
       syms_of_menubar ();
-      syms_of_scrollbar ();
 #endif /* HAVE_X_WINDOWS */
       syms_of_faces ();
       syms_of_events ();
@@ -679,8 +731,8 @@ main_1 (int argc, char **argv, char **envp)
       syms_of_tooltalk ();
 #endif
 
-#ifdef SPARCWORKS
-      syms_of_sparcworks ();
+#ifdef SUNPRO
+      syms_of_sunpro ();
 #endif
 
 #ifdef DRAGNDROP
@@ -736,34 +788,37 @@ main_1 (int argc, char **argv, char **envp)
 
   initialized = 1;
 
-#ifdef USAGE_TRACKING
-  if (!noninteractive) {
-    Vusage_tracking = Qt;
-    ut_initialize(NULL, NULL, NULL);
-  } else {
-    Vusage_tracking = Qnil;
-  }
-#else
-  Vusage_tracking = Qnil;
-#endif
-
   /* This never returns.  */
   initial_command_loop (load_me);
   /* NOTREACHED */
 }
 
+#define RUNNABLE_TEMACS
+
 #ifdef RUNNABLE_TEMACS
 
 #include <setjmp.h>
 static jmp_buf run_temacs_catch;
-/* Wow!  Fixed limits!  Unix compatibility!  Icepicks in my forehead! */
-static int run_temacs_argc;
-static char *run_temacs_argv[100];
-static char run_temacs_args[1000];
 
+static int run_temacs_argc;
+static char **run_temacs_argv;
+static char *run_temacs_args;
+static int run_temacs_argv_size;
+static int run_temacs_args_size;
 
 extern int gc_in_progress;
 extern int waiting_for_input;
+
+#define DO_REALLOC(basevar, sizevar, needed_size, type) \
+do {\
+  while ((sizevar) < (needed_size)) {\
+    int newsize = 2*(sizevar);\
+    if (newsize < 32)\
+      newsize = 32;\
+    (basevar) = (type *) xrealloc (basevar, (newsize)*sizeof(type));\
+    (sizevar) = newsize;\
+  }\
+} while (0)
 
 DEFUN ("run-emacs-from-temacs",
        Frun_emacs_from_temacs, Srun_emacs_from_temacs, 0, MANY, 0,
@@ -779,6 +834,7 @@ DEFUN ("run-emacs-from-temacs",
 {
   int ac;
   int namesize;
+  int total_len;
 
   if (gc_in_progress) abort ();
 
@@ -786,19 +842,24 @@ DEFUN ("run-emacs-from-temacs",
     error ("I've lost my temacs-hood.");
 
   namesize = string_length (XSTRING (Vexecution_path)) + 1;
-  if (namesize >= sizeof (run_temacs_args))
-    error ("execution-path string is too long");
-  if (nargs >= (countof (run_temacs_argv)))
-    error ("too many args");
-  memcpy (run_temacs_args, (char *) XSTRING (Vexecution_path)->data, namesize);
-  run_temacs_argv [0] = run_temacs_args;
-  for (ac = 0; ac < nargs; ac++)
+
+  for (ac = 0, total_len = namesize; ac < nargs; ac++)
     {
       int s;
       CHECK_STRING (args[ac], ac);
       s = string_length (XSTRING (args[ac])) + 1;
-      if (s + namesize > sizeof (run_temacs_args))
-        error ("lose lose");
+      total_len += s;
+    }
+  DO_REALLOC (run_temacs_args, run_temacs_args_size, total_len, char);
+  DO_REALLOC (run_temacs_argv, run_temacs_argv_size, nargs+1, char *);
+
+  memcpy (run_temacs_args, (char *) XSTRING (Vexecution_path)->data,
+	  namesize);
+  run_temacs_argv [0] = run_temacs_args;
+  for (ac = 0; ac < nargs; ac++)
+    {
+      int s;
+      s = string_length (XSTRING (args[ac])) + 1;
       memcpy (run_temacs_args + namesize, XSTRING (args[ac])->data, s);
       run_temacs_argv [ac + 1] = run_temacs_args + namesize;
       namesize += s;
@@ -808,7 +869,7 @@ DEFUN ("run-emacs-from-temacs",
   waiting_for_input = 0;
   purify_flag = 0;
   run_temacs_argc = nargs + 1;
-  report_pure_usage (1);
+  report_pure_usage (1, 0);
   _longjmp (run_temacs_catch, 1);
   return Qnil; /* not reached; warning suppression */
 }
@@ -840,6 +901,28 @@ main (argc, argv, envp)
 #endif /* RUNNABLE_TEMACS */
   main_1 (argc, argv, envp);
 }
+
+
+#ifdef USE_ASSERTIONS
+/* This highly dubious kludge redefines `abort' to call `assert (0)' instead,
+   with the (single) benefit of printing the line number when emacs crashes.
+
+   This cannot be redefined to bring up a dialog box, or ignore the error, 
+   or anything other than dump a core file and exit, because by the time this
+   has gotten called, emacs is in a dangerously unknown state.  If we abort(),
+   then we will (try our best to) autosave all modified buffers, and then exit.
+   If we do anything here, we may get a SEGV instead of an abort, in which case
+   the autosave won't happen and the user can lose data.
+ */
+
+void assert_failed (char *file, int line, char *expr)
+{
+  fprintf (stderr, "Fatal error: assertion failed, file %s, line %d\n",
+	   file, line);
+#undef abort	/* avoid infinite #define loop... */
+  abort ();
+}
+#endif /* USE_ASSERTIONS */
 
 
 DEFUN ("kill-emacs", Fkill_emacs, Skill_emacs, 0, 1, "P",
@@ -896,6 +979,9 @@ all of which are called before Emacs is actually killed.")
 static void
 shut_down_emacs (int sig, int no_x, Lisp_Object stuff)
 {
+  /* Prevent running of hooks from now on.  */
+  Vrun_hooks = Qnil;
+
   /* If we are controlling the terminal, reset terminal modes */
 #ifdef EMACS_HAVE_TTY_PGRP
   {
@@ -908,7 +994,7 @@ shut_down_emacs (int sig, int no_x, Lisp_Object stuff)
 	fflush (stdout);
 	reset_sys_modes ();
 	if (sig && sig != SIGTERM)
-	  fprintf (stderr, "Fatal error (%d).", sig);
+	  fprintf (stderr, "Fatal error (%d).\n", sig);
       }
   }
 #else
@@ -918,20 +1004,16 @@ shut_down_emacs (int sig, int no_x, Lisp_Object stuff)
 
   stuff_buffered_input (stuff);
 
+  Fdo_auto_save (Qt, Qnil);	/* do this before anything hazardous */
   kill_buffer_processes (Qnil);
-  Fdo_auto_save (Qt, Qnil);
 
 #ifdef CLASH_DETECTION
   unlock_all_files ();
 #endif
 
 #ifdef TOOLTALK
-#ifdef SPARCWORKS
-  quit_tt();
-#else
   tt_session_quit (tt_default_session());
   tt_close();
-#endif
 #endif
 
 #ifdef VMS
@@ -1034,7 +1116,7 @@ and announce itself normally when it is run.")
   tem = purify_flag;
   purify_flag = 0;
 
-  report_pure_usage (1);
+  report_pure_usage (1, 1);
 
   fflush (stderr);
   fflush (stdout);
@@ -1144,13 +1226,15 @@ This is the same as `(file-name-nondirectory execution-path)'.");
     "Value is symbol indicating type of operating system you are using.");
   Vsystem_type = intern (SYSTEM_TYPE);
 
+#ifndef CONFIGURATION
+# define CONFIGURATION "UNKNOWN"
+#endif
+  DEFVAR_LISP ("system-configuration", &Vsystem_configuration,
+    "Value is string indicating configuration Emacs was built for.");
+  Vsystem_configuration = Fpurecopy (build_string (CONFIGURATION));
+
   DEFVAR_BOOL ("noninteractive", &noninteractive1,
     "Non-nil means Emacs is running without interactive terminal.");
-
-/* What is this? -jwz
- *  DEFVAR_LISP ("usage-tracking", &Vusage_tracking,
- *    "Whether usage tracking is turned on (Sun only).");
- *  Vusage_tracking = Qnil; */
 
   DEFVAR_INT ("emacs-priority", &emacs_priority,
     "Priority for Emacs to run at.\n\

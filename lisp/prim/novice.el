@@ -43,7 +43,8 @@
   (let (char)
     (save-window-excursion
      (with-output-to-temp-buffer "*Help*"
-       (if (eq (event-to-character (aref (this-command-keys) 0)) ?\r)
+       (if (or (equal (this-command-keys) []) ;lemacs kludge
+	       (eq (event-to-character (aref (this-command-keys) 0)) ?\r))
 	   (princ "You have invoked the disabled command ")
 	 (princ "You have typed ")
 	 (princ (key-description (this-command-keys)))
@@ -72,16 +73,17 @@ Y to try it and enable it (no questions if you use it again),
 N to do nothing (command remains disabled)."))
      (message "Type y, n or Space: ")
      (let ((cursor-in-echo-area t))
-       (while (not (memq (setq char (downcase (event-to-character
-					       (next-command-event))))
-			 '(?  ?y ?n)))
+       (while (not (memq (setq char (event-to-character (next-command-event)))
+                         '(?  ?y ?n ?Y ?N)))
 	 (ding nil 'y-or-n-p)
 	 (discard-input)
 	 (message "Please type y, n or Space: "))))
+    (message nil)
+    (setq char (downcase char))
     (if (= char ?y)
 	(if (y-or-n-p "Enable command for future editing sessions also? ")
 	    (enable-command this-command)
-	  (put this-command 'disabled nil)))
+            (put this-command 'disabled nil)))
     (if (/= char ?n)
 	(call-interactively this-command))))
 

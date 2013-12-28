@@ -1,6 +1,6 @@
 ;;; gnus-virt.el --- framework for "virtual" newsgroups
 
-;; Copyright (C) 1993 Jamie Zawinski <jwz@lucid.com>
+;; Copyright (C) 1993, 1994 Jamie Zawinski <jwz@lucid.com>
 
 ;; This file is part of GNU Emacs.
 
@@ -92,7 +92,7 @@ Writer macros for the vector are defined as `nntp-set-header-FIELD'."
 	   (lambda ()
 	     (if last-group (gnus-request-group last-group))
 	     (setq per-group-queue (nreverse per-group-queue))
-	     (let* ((new (gnus-retrieve-headers per-group-queue))
+	     (let* ((new (gnus-retrieve-headers-by-id per-group-queue))
 		    (new-rest new)
 		    (ids-rest per-group-queue)
 		    )

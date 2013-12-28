@@ -1,16 +1,16 @@
-This is Info file ./gdb.info, produced by Makeinfo-1.55 from the input
-file gdb-all.texi.
+This is Info file ./gdb.info, produced by Makeinfo-1.52 from the input
+file gdb.texinfo.
 
 START-INFO-DIR-ENTRY
-* Gdb: (gdb).                   The GNU debugger.
+* Gdb::                         The GNU debugger.
 END-INFO-DIR-ENTRY
    This file documents the GNU debugger GDB.
 
-   This is Edition 4.06, October 1992, of `Debugging with GDB: the GNU
-Source-Level Debugger' for GDB Version 4.7.
+   This is Edition 4.09, August 1993, of `Debugging with GDB: the GNU
+Source-Level Debugger' for GDB Version 4.11.
 
-   Copyright (C) 1988, 1989, 1990, 1991, 1992 Free Software Foundation,
-Inc.
+   Copyright (C) 1988, '89, '90, '91, '92, '93 Free Software
+Foundation, Inc.
 
    Permission is granted to make and distribute verbatim copies of this
 manual provided the copyright notice and this permission notice are
@@ -18,21 +18,17 @@ preserved on all copies.
 
    Permission is granted to copy and distribute modified versions of
 this manual under the conditions for verbatim copying, provided also
-that the section entitled "GNU General Public License" is included
-exactly as in the original, and provided that the entire resulting
-derived work is distributed under the terms of a permission notice
-identical to this one.
+that the entire resulting derived work is distributed under the terms
+of a permission notice identical to this one.
 
    Permission is granted to copy and distribute translations of this
 manual into another language, under the above conditions for modified
-versions, except that the section entitled "GNU General Public License"
-may be included in a translation approved by the Free Software
-Foundation instead of in the original English.
+versions.
 
 
 File: gdb.info,  Node: Attach,  Next: Kill Process,  Prev: Input/Output,  Up: Running
 
-Debugging an Already-Running Process
+Debugging an already-running process
 ====================================
 
 `attach PROCESS-ID'
@@ -45,9 +41,10 @@ Debugging an Already-Running Process
      `attach' will not repeat if you press RET a second time after
      executing the command.
 
-   To use `attach', you must be debugging in an environment which
-supports processes.  You must also have permission to send the process a
-signal, and it must have the same effective user ID as the GDB process.
+   To use `attach', your program must be running in an environment
+which supports processes; for example, `attach' does not work for
+programs on bare-board targets that lack an operating system.  You must
+also have permission to send the process a signal.
 
    When using `attach', you should first use the `file' command to
 specify the program running in the process and load its symbol table.
@@ -63,7 +60,7 @@ GDB to the process.
 
 `detach'
      When you have finished debugging the attached process, you can use
-     the `detach' command to release it from GDB's control.  Detaching
+     the `detach' command to release it from GDB control.  Detaching
      the process continues its execution.  After the `detach' command,
      that process and GDB become completely independent once more, and
      you are ready to `attach' another process or start one with `run'.
@@ -74,12 +71,12 @@ GDB to the process.
 process, you kill that process.  By default, you will be asked for
 confirmation if you try to do either of these things; you can control
 whether or not you need to confirm by using the `set confirm' command
-(*note Optional Warnings and Messages: Messages/Warnings.).
+(*note Optional warnings and messages: Messages/Warnings.).
 
 
 File: gdb.info,  Node: Kill Process,  Next: Process Information,  Prev: Attach,  Up: Running
 
-Killing the Child Process
+Killing the child process
 =========================
 
 `kill'
@@ -104,7 +101,7 @@ breakpoint settings).
 
 File: gdb.info,  Node: Process Information,  Prev: Kill Process,  Up: Running
 
-Additional Process Information
+Additional process information
 ==============================
 
    Some operating systems provide a facility called `/proc' that can be
@@ -126,9 +123,8 @@ kinds of information about the process running your program.
      and its children.
 
 `info proc id'
-     Report on the process ID's related to your program: its own
-     process id, the id of its parent, the process group id, and the
-     session id.
+     Report on the process IDs related to your program: its own process
+     ID, the ID of its parent, the process group ID, and the session ID.
 
 `info proc status'
      General information on the state of the process.  If the process is
@@ -144,13 +140,13 @@ File: gdb.info,  Node: Stopping,  Next: Stack,  Prev: Running,  Up: Top
 Stopping and Continuing
 ***********************
 
-   The principal purpose of using a debugger is so that you can stop
+   The principal purposes of using a debugger are so that you can stop
 your program before it terminates; or so that, if your program runs into
 trouble, you can investigate and find out why.
 
-   Inside GDB, your program may stop for any of several reasons, such
-as a signal, a breakpoint, or reaching a new line after a GDB command
-such as `step'.  You may then examine and change variables, set new
+   Inside GDB, your program may stop for any of several reasons, such as
+a signal, a breakpoint, or reaching a new line after a GDB command such
+as `step'.  You may then examine and change variables, set new
 breakpoints or remove old ones, and then continue execution.  Usually,
 the messages shown by GDB provide ample explanation of the status of
 your program--but you can also explicitly request this information at
@@ -162,32 +158,40 @@ any time.
 
 * Menu:
 
-* Breakpoints::                 Breakpoints, Watchpoints, and Exceptions
-* Continuing and Stepping::     Resuming Execution
+
+* Breakpoints::                 Breakpoints, watchpoints, and exceptions
+
+
+* Continuing and Stepping::     Resuming execution
+
 * Signals::                     Signals
 
 
 File: gdb.info,  Node: Breakpoints,  Next: Continuing and Stepping,  Up: Stopping
 
-Breakpoints, Watchpoints, and Exceptions
+Breakpoints, watchpoints, and exceptions
 ========================================
 
    A "breakpoint" makes your program stop whenever a certain point in
 the program is reached.  For each breakpoint, you can add various
 conditions to control in finer detail whether your program will stop.
 You can set breakpoints with the `break' command and its variants
-(*note Setting Breakpoints: Set Breaks.), to specify the place where
+(*note Setting breakpoints: Set Breaks.), to specify the place where
 your program should stop by line number, function name or exact address
 in the program.  In languages with exception handling (such as GNU
 C++), you can also set breakpoints where an exception is raised (*note
-Breakpoints and Exceptions: Exception Handling.).
+Breakpoints and exceptions: Exception Handling.).
 
    A "watchpoint" is a special breakpoint that stops your program when
 the value of an expression changes.  You must use a different command
-to set watchpoints (*note Setting Watchpoints: Set Watchpoints.), but
+to set watchpoints (*note Setting watchpoints: Set Watchpoints.), but
 aside from that, you can manage a watchpoint like any other breakpoint:
 you enable, disable, and delete both breakpoints and watchpoints using
 the same commands.
+
+   You can arrange to have values from your program displayed
+automatically whenever GDB stops at a breakpoint.  *Note Automatic
+display: Auto Display.
 
    GDB assigns a number to each breakpoint or watchpoint when you
 create it; these numbers are successive integers starting with one.  In
@@ -198,25 +202,29 @@ effect on your program until you enable it again.
 
 * Menu:
 
-* Set Breaks::                  Setting Breakpoints
-* Set Watchpoints::             Setting Watchpoints
-* Exception Handling::          Breakpoints and Exceptions
-* Delete Breaks::               Deleting Breakpoints
-* Disabling::                   Disabling Breakpoints
-* Conditions::                  Break Conditions
-* Break Commands::              Breakpoint Command Lists
-* Breakpoint Menus::            Breakpoint Menus
-* Error in Breakpoints::
+* Set Breaks::                  Setting breakpoints
+* Set Watchpoints::             Setting watchpoints
+
+* Exception Handling::          Breakpoints and exceptions
+
+* Delete Breaks::               Deleting breakpoints
+* Disabling::                   Disabling breakpoints
+* Conditions::                  Break conditions
+* Break Commands::              Breakpoint command lists
+
+* Breakpoint Menus::            Breakpoint menus
+
+* Error in Breakpoints::        "Cannot insert breakpoints"
 
 
 File: gdb.info,  Node: Set Breaks,  Next: Set Watchpoints,  Up: Breakpoints
 
-Setting Breakpoints
+Setting breakpoints
 -------------------
 
    Breakpoints are set with the `break' command (abbreviated `b').  The
 debugger convenience variable `$bpnum' records the number of the
-beakpoint you've set most recently; see *Note Convenience Variables:
+beakpoint you've set most recently; see *Note Convenience variables:
 Convenience Vars, for a discussion of what you can do with convenience
 variables.
 
@@ -226,7 +234,8 @@ variables.
      Set a breakpoint at entry to function FUNCTION.  When using source
      languages that permit overloading of symbols, such as C++,
      FUNCTION may refer to more than one possible place to break.
-     *Note Breakpoint Menus::, for a discussion of that situation.
+     *Note Breakpoint menus: Breakpoint Menus, for a discussion of that
+     situation.
 
 `break +OFFSET'
 `break -OFFSET'
@@ -277,14 +286,14 @@ variables.
      each time the breakpoint is reached, and stop only if the value is
      nonzero--that is, if COND evaluates as true.  `...' stands for one
      of the possible arguments described above (or no argument)
-     specifying where to break.  *Note Break Conditions: Conditions,
+     specifying where to break.  *Note Break conditions: Conditions,
      for more information on breakpoint conditions.
 
 `tbreak ARGS'
      Set a breakpoint enabled only for one stop.  ARGS are the same as
      for the `break' command, and the breakpoint is set in the same
      way, but the breakpoint is automatically disabled after the first
-     time your program stops there.  *Note Disabling Breakpoints:
+     time your program stops there.  *Note Disabling breakpoints:
      Disabling.
 
 `rbreak REGEX'
@@ -324,18 +333,19 @@ variables.
           Where the breakpoint is in the source for your program, as a
           file and line number.
 
-     Breakpoint commands, if any, are listed after the line for the
-     corresponding breakpoint.
+     If a breakpoint is conditional, `info break' shows the condition on
+     the line following the affected breakpoint; breakpoint commands,
+     if any, are listed after that.
 
      `info break' with a breakpoint number N as argument lists only
      that breakpoint.  The convenience variable `$_' and the default
      examining-address for the `x' command are set to the address of
-     the last breakpoint listed (*note Examining Memory: Memory.).
+     the last breakpoint listed (*note Examining memory: Memory.).
 
    GDB allows you to set any number of breakpoints at the same place in
 your program.  There is nothing silly or meaningless about this.  When
 the breakpoints are conditional, this is even useful (*note Break
-Conditions: Conditions.).
+conditions: Conditions.).
 
    GDB itself sometimes sets breakpoints in your program for special
 purposes, such as proper handling of `longjmp' (in C programs).  These
@@ -375,7 +385,7 @@ internal breakpoints are assigned negative numbers, starting with `-1';
 
 File: gdb.info,  Node: Set Watchpoints,  Next: Exception Handling,  Prev: Set Breaks,  Up: Breakpoints
 
-Setting Watchpoints
+Setting watchpoints
 -------------------
 
    You can use a watchpoint to stop execution whenever the value of an
@@ -383,7 +393,7 @@ expression changes, without having to predict a particular place where
 this may happen.
 
    Watchpoints currently execute two orders of magnitude more slowly
-than other breakpoints, but this can well be worth it to catch errors
+than other breakpoints, but this can be well worth it to catch errors
 where you have no clue what part of your program is the culprit.  Some
 processors provide special hardware to support watchpoint evaluation;
 future releases of GDB will use such hardware if it is available.
@@ -398,7 +408,7 @@ future releases of GDB will use such hardware if it is available.
 
 File: gdb.info,  Node: Exception Handling,  Next: Delete Breaks,  Prev: Set Watchpoints,  Up: Breakpoints
 
-Breakpoints and Exceptions
+Breakpoints and exceptions
 --------------------------
 
    Some languages, such as GNU C++, implement exception handling.  You
@@ -412,7 +422,7 @@ given point in time.
      catch.
 
    You can use `info catch' to list active exception handlers.  *Note
-Information About a Frame: Frame Info.
+Information about a frame: Frame Info.
 
    There are currently some limitations to exception handling in GDB.
 These will be corrected in a future release.
@@ -445,10 +455,10 @@ has the following ANSI C interface:
          void __raise_exception (void **ADDR, void *ID);
 
 To make the debugger catch all exceptions before any stack unwinding
-takes place, set a breakpoint on `__raise_exception' (*note Breakpoints
-Watchpoints and Exceptions: Breakpoints.).
+takes place, set a breakpoint on `__raise_exception' (*note
+Breakpoints; watchpoints; and exceptions: Breakpoints.).
 
-   With a conditional breakpoint (*note Break Conditions: Conditions.)
+   With a conditional breakpoint (*note Break conditions: Conditions.)
 that depends on the value of ID, you can stop your program when a
 specific exception is raised.  You can use multiple conditional
 breakpoints to stop your program when any of a number of exceptions are
@@ -457,7 +467,7 @@ raised.
 
 File: gdb.info,  Node: Delete Breaks,  Next: Disabling,  Prev: Exception Handling,  Up: Breakpoints
 
-Deleting Breakpoints
+Deleting breakpoints
 --------------------
 
    It is often necessary to eliminate a breakpoint or watchpoint once it
@@ -477,7 +487,7 @@ address.
 
 `clear'
      Delete any breakpoints at the next instruction to be executed in
-     the selected stack frame (*note Selecting a Frame: Selection.).
+     the selected stack frame (*note Selecting a frame: Selection.).
      When the innermost frame is selected, this is a good way to delete
      a breakpoint where your program just stopped.
 
@@ -499,7 +509,7 @@ address.
 
 File: gdb.info,  Node: Disabling,  Next: Conditions,  Prev: Delete Breaks,  Up: Breakpoints
 
-Disabling Breakpoints
+Disabling breakpoints
 ---------------------
 
    Rather than deleting a breakpoint or watchpoint, you might prefer to
@@ -550,18 +560,18 @@ and watchpoints:
      of the breakpoints will be deleted the next time it stops your
      program.
 
-   Save for a breakpoint set with `tbreak' (*note Setting Breakpoints:
+   Save for a breakpoint set with `tbreak' (*note Setting breakpoints:
 Set Breaks.), breakpoints that you set are initially enabled;
 subsequently, they become disabled or enabled only when you use one of
 the commands above.  (The command `until' can set and delete a
 breakpoint of its own, but it will not change the state of your other
-breakpoints; see *Note Continuing and Stepping: Continuing and
+breakpoints; see *Note Continuing and stepping: Continuing and
 Stepping.)
 
 
 File: gdb.info,  Node: Conditions,  Next: Break Commands,  Prev: Disabling,  Up: Breakpoints
 
-Break Conditions
+Break conditions
 ----------------
 
    The simplest sort of breakpoint breaks every time your program
@@ -592,11 +602,11 @@ case, GDB might see the other breakpoint first and stop your program
 without checking the condition of this one.)  Note that breakpoint
 commands are usually more convenient and flexible for the purpose of
 performing side effects when a breakpoint is reached (*note Breakpoint
-Command Lists: Break Commands.).
+command lists: Break Commands.).
 
    Break conditions can be specified when a breakpoint is set, by using
 `if' in the arguments to the `break' command.  *Note Setting
-Breakpoints: Set Breaks.  They can also be changed at any time with the
+breakpoints: Set Breaks.  They can also be changed at any time with the
 `condition' command.  The `watch' command does not recognize the `if'
 keyword; `condition' is the only way to impose a further condition on a
 watchpoint.
@@ -634,33 +644,24 @@ N, the breakpoint will not stop the next N times it is reached.
      To make the breakpoint stop the next time it is reached, specify a
      count of zero.
 
-`continue COUNT'
-`c COUNT'
-`fg COUNT'
-     Continue execution of your program, setting the ignore count of the
-     breakpoint where your program stopped to COUNT minus one.  Thus,
-     your program will not stop at this breakpoint until the COUNT'th
-     time it is reached.
+     When you use `continue' to resume execution of your program from a
+     breakpoint, you can specify an ignore count directly as an
+     argument to `continue', rather than using `ignore'.  *Note
+     Continuing and stepping: Continuing and Stepping.
 
-     An argument to this command is meaningful only when your program
-     stopped due to a breakpoint.  At other times, the argument to
-     `continue' is ignored.
+     If a breakpoint has a positive ignore count and a condition, the
+     condition is not checked.  Once the ignore count reaches zero, the
+     condition will be checked.
 
-     The synonym `fg' is provided purely for convenience, and has
-     exactly the same behavior as other forms of the command.
-
-   If a breakpoint has a positive ignore count and a condition, the
-condition is not checked.  Once the ignore count reaches zero, the
-condition will be checked.
-
-   You could achieve the effect of the ignore count with a condition
-such as `$foo-- <= 0' using a debugger convenience variable that is
-decremented each time.  *Note Convenience Variables: Convenience Vars.
+     You could achieve the effect of the ignore count with a condition
+     such as `$foo-- <= 0' using a debugger convenience variable that
+     is decremented each time.  *Note Convenience variables:
+     Convenience Vars.
 
 
 File: gdb.info,  Node: Break Commands,  Next: Breakpoint Menus,  Prev: Conditions,  Up: Breakpoints
 
-Breakpoint Command Lists
+Breakpoint command lists
 ------------------------
 
    You can give any breakpoint (or watchpoint) a series of commands to
@@ -686,18 +687,24 @@ disabled within a COMMAND-LIST.
 
    You can use breakpoint commands to start your program up again.
 Simply use the `continue' command, or `step', or any other command that
-resumes execution.  Subsequent commands in the command list are ignored.
+resumes execution.
 
-   If the first command specified is `silent', the usual message about
-stopping at a breakpoint is not printed.  This may be desirable for
-breakpoints that are to print a specific message and then continue.  If
-the remaining commands too print nothing, you will see no sign that the
-breakpoint was reached at all.  `silent' is meaningful only at the
-beginning of a breakpoint command list.
+   Any other commands in the command list, after a command that resumes
+execution, are ignored.  This is because any time you resume execution
+(even with a simple `next' or `step'), you may encounter another
+breakpoint--which could have its own command list, leading to
+ambiguities about which list to execute.
 
-   The commands `echo' and `output' that allow you to print precisely
-controlled output are often useful in silent breakpoints.  *Note
-Commands for Controlled Output: Output.
+   If the first command you specify in a command list is `silent', the
+usual message about stopping at a breakpoint is not printed.  This may
+be desirable for breakpoints that are to print a specific message and
+then continue.  If none of the remaining commands print anything, you
+will see no sign that the breakpoint was reached.  `silent' is
+meaningful only at the beginning of a breakpoint command list.
+
+   The commands `echo', `output', and `printf' allow you to print
+precisely controlled output, and are often useful in silent
+breakpoints.  *Note Commands for controlled output: Output.
 
    For example, here is how you could use breakpoint commands to print
 the value of `x' at entry to `foo' whenever `x' is positive.
@@ -705,9 +712,7 @@ the value of `x' at entry to `foo' whenever `x' is positive.
      break foo if x>0
      commands
      silent
-     echo x is\040
-     output x
-     echo \n
+     printf "x is %d\n",x
      cont
      end
 
@@ -726,29 +731,10 @@ that no output is produced.  Here is an example:
      cont
      end
 
-   One deficiency in the operation of automatically continuing
-breakpoints under Unix appears when your program uses raw mode for the
-terminal.  GDB switches back to its own terminal modes (not raw) before
-executing commands, and then must switch back to raw mode when your
-program is continued.  This causes any pending terminal input to be
-lost.
-
-   Under Unix, you can get around this problem by writing actions into
-the breakpoint condition rather than in commands.  For example
-
-     condition 5  (x = y + 4), 0
-
-specifies a condition expression (*note Expressions: Expressions.) that
-will change `x' as needed, then always have the value zero so your
-program will not stop.  No input is lost here, because GDB evaluates
-break conditions without changing the terminal modes.  When you want to
-have nontrivial conditions for performing the side effects, the
-operators `&&', `||' and `?...:' may be useful.
-
 
 File: gdb.info,  Node: Breakpoint Menus,  Next: Error in Breakpoints,  Prev: Break Commands,  Up: Breakpoints
 
-Breakpoint Menus
+Breakpoint menus
 ----------------
 
    Some programming languages (notably C++) permit a single function
@@ -782,13 +768,14 @@ particular definitions of that function name:
      Breakpoint 2 at 0xb344: file String.cc, line 875.
      Breakpoint 3 at 0xafcc: file String.cc, line 846.
      Multiple breakpoints were set.
-     Use the "delete" command to delete unwanted breakpoints.
+     Use the "delete" command to delete unwanted
+      breakpoints.
      (gdb)
 
 
 File: gdb.info,  Node: Error in Breakpoints,  Prev: Breakpoint Menus,  Up: Breakpoints
 
-"Cannot Insert Breakpoints"
+"Cannot insert breakpoints"
 ---------------------------
 
    Under some operating systems, breakpoints cannot be used in a
@@ -812,7 +799,7 @@ causes GDB to stop the other process.
 
 File: gdb.info,  Node: Continuing and Stepping,  Next: Signals,  Prev: Breakpoints,  Up: Stopping
 
-Continuing and Stepping
+Continuing and stepping
 =======================
 
    "Continuing" means resuming program execution until your program
@@ -820,29 +807,38 @@ completes normally.  In contrast, "stepping" means executing just one
 more "step" of your program, where "step" may mean either one line of
 source code, or one machine instruction (depending on what particular
 command you use).  Either when continuing or when stepping, your
-program may stop even sooner, due to a breakpoint or to a signal.  (If
-due to a signal, you may want to use `handle', or use `signal 0' to
-resume execution.  *Note Signals: Signals.)
+program may stop even sooner, due to a breakpoint or a signal.  (If due
+to a signal, you may want to use `handle', or use `signal 0' to resume
+execution.  *Note Signals: Signals.)
 
 `continue [IGNORE-COUNT]'
+`c [IGNORE-COUNT]'
+`fg [IGNORE-COUNT]'
      Resume program execution, at the address where your program last
      stopped; any breakpoints set at that address are bypassed.  The
      optional argument IGNORE-COUNT allows you to specify a further
      number of times to ignore a breakpoint at this location; its
-     effect is like that of `ignore' (*note Break Conditions:
+     effect is like that of `ignore' (*note Break conditions:
      Conditions.).
 
-     To resume execution at a different place, you can use `return'
-     (*note Returning from a Function: Returning.) to go back to the
-     calling function; or `jump' (*note Continuing at a Different
-     Address: Jumping.) to go to an arbitrary location in your program.
+     The argument IGNORE-COUNT is meaningful only when your program
+     stopped due to a breakpoint.  At other times, the argument to
+     `continue' is ignored.
+
+     The synonyms `c' and `fg' are provided purely for convenience, and
+     have exactly the same behavior as `continue'.
+
+   To resume execution at a different place, you can use `return'
+(*note Returning from a function: Returning.) to go back to the calling
+function; or `jump' (*note Continuing at a different address: Jumping.)
+to go to an arbitrary location in your program.
 
    A typical technique for using stepping is to set a breakpoint (*note
-Breakpoints Watchpoints and Exceptions: Breakpoints.) at the beginning
-of the function or the section of your program where a problem is
-believed to lie, run your program until it stops at that breakpoint,
-and then step through the suspect area, examining the variables that
-are interesting, until you see the problem happen.
+Breakpoints; watchpoints; and exceptions: Breakpoints.) at the
+beginning of the function or the section of your program where a
+problem is believed to lie, run your program until it stops at that
+breakpoint, and then step through the suspect area, examining the
+variables that are interesting, until you see the problem happen.
 
 `step'
      Continue running your program until control reaches a different
@@ -851,12 +847,12 @@ are interesting, until you see the problem happen.
 
           *Warning:* If you use the `step' command while control is
           within a function that was compiled without debugging
-          information, execution will proceed until control reaches
-          another function.
+          information, execution proceeds until control reaches a
+          function that does have debugging information.
 
 `step COUNT'
      Continue running as in `step', but do so COUNT times.  If a
-     breakpoint is reached or a signal not related to stepping occurs
+     breakpoint is reached, or a signal not related to stepping occurs
      before COUNT steps, stepping stops right away.
 
 `next [COUNT]'
@@ -878,7 +874,7 @@ are interesting, until you see the problem happen.
      frame returns.  Print the returned value (if any).
 
      Contrast this with the `return' command (*note Returning from a
-     Function: Returning.).
+     function: Returning.).
 
 `until'
 `u'
@@ -926,7 +922,7 @@ are interesting, until you see the problem happen.
      Continue running your program until either the specified location
      is reached, or the current stack frame returns.  LOCATION is any of
      the forms of argument acceptable to `break' (*note Setting
-     Breakpoints: Set Breaks.).  This form of the command uses
+     breakpoints: Set Breaks.).  This form of the command uses
      breakpoints, and hence is quicker than `until' without an argument.
 
 `stepi'
@@ -937,7 +933,7 @@ are interesting, until you see the problem happen.
      It is often useful to do `display/i $pc' when stepping by machine
      instructions.  This will cause the next instruction to be executed
      to be displayed automatically at each stop.  *Note Automatic
-     Display: Auto Display.
+     display: Auto Display.
 
      An argument is a repeat count, as in `step'.
 
@@ -1016,12 +1012,12 @@ Their full names are:
 `nopass'
      GDB should not allow your program to see this signal.
 
-   When a signal has been set to stop your program, your program cannot
-see the signal until you continue.  It will see the signal then, if
-`pass' is in effect for the signal in question *at that time*.  In
-other words, after GDB reports a signal, you can use the `handle'
-command with `pass' or `nopass' to control whether that signal will be
-seen by your program when you later continue it.
+   When a signal stops your program, the signal is not visible until you
+continue.  Your program will see the signal then, if `pass' is in
+effect for the signal in question *at that time*.  In other words,
+after GDB reports a signal, you can use the `handle' command with
+`pass' or `nopass' to control whether that signal will be seen by your
+program when you later continue it.
 
    You can also use the `signal' command to prevent your program from
 seeing a signal, or cause it to see a signal it normally would not see,
@@ -1030,7 +1026,7 @@ stopped due to some sort of memory reference error, you might store
 correct values into the erroneous variables and continue, hoping to see
 more execution; but your program would probably terminate immediately as
 a result of the fatal signal once it saw the signal.  To prevent this,
-you can continue with `signal 0'.  *Note Giving your Program a Signal:
+you can continue with `signal 0'.  *Note Giving your program a signal:
 Signaling.
 
 
@@ -1053,26 +1049,28 @@ All the stack frames are allocated in a region of memory called the
 allow you to see all of this information.
 
    One of the stack frames is "selected" by GDB and many GDB commands
-refer implicitly to the selected frame.  In particular, whenever you ask
-GDB for the value of a variable in your program, the value is found in
-the selected frame.  There are special GDB commands to select whichever
-frame you are interested in.
+refer implicitly to the selected frame.  In particular, whenever you
+ask GDB for the value of a variable in your program, the value is found
+in the selected frame.  There are special GDB commands to select
+whichever frame you are interested in.
 
    When your program stops, GDB automatically selects the currently
 executing frame and describes it briefly as the `frame' command does
-(*note Information About a Frame: Frame Info.).
+(*note Information about a frame: Frame Info.).
 
 * Menu:
 
-* Frames::                      Stack Frames
+* Frames::                      Stack frames
 * Backtrace::                   Backtraces
-* Selection::                   Selecting a Frame
-* Frame Info::                  Information on a Frame
+* Selection::                   Selecting a frame
+* Frame Info::                  Information on a frame
+
+* MIPS Stack::                  MIPS machines and the function stack
 
 
 File: gdb.info,  Node: Frames,  Next: Backtrace,  Up: Stack
 
-Stack Frames
+Stack frames
 ============
 
    The call stack is divided up into contiguous pieces called "stack
@@ -1103,8 +1101,8 @@ upward.  These numbers do not really exist in your program; they are
 assigned by GDB to give you a way of designating stack frames in GDB
 commands.
 
-   Some compilers allow functions to be compiled so that they operate
-without stack frames.  (For example, the `gcc' option
+   Some compilers provide a way to compile functions so that they
+operate without stack frames.  (For example, the `gcc' option
 `-fomit-frame-pointer' will generate functions without a frame.) This
 is occasionally done with heavily used library functions to save the
 frame setup time.  GDB has limited facilities for dealing with these

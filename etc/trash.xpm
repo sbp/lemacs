@@ -5,11 +5,9 @@ static char *trash[] = {
 "     32     46       4    1		   16    23",
 /*  colors */
 "  c None	m None",
+"= c gray85	m white",
+"- c gray75	m white",
 "# c black	m black",
-"= c white	m white",
-"- c white	m white",
-/* "= c gray85	m white", */
-/* "- c gray75	m white", */
 /*  pixels */
 "                                ",
 "             ######             ",

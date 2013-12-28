@@ -34,8 +34,8 @@ struct symbol_value_magic
       default_buffer_forward,   /* Forward Lisp_Object into Vbuffer_defaults */
       current_buffer_forward,   /* Forward Lisp_Object into current_buffer */
       /*some_buffer_forward,       Either current_buffer or buffer_defaults */
-      buffer_local,             /* make-local-variable */
-      some_buffer_local,        /* make-variable-buffer-local */
+      buffer_local,             /* make-variable-buffer-local */
+      some_buffer_local,        /* make-local-variable */
       unbound_marker            /* Only Qunbound actually has this tag */
     } type;
 };

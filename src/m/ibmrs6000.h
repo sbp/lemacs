@@ -5,7 +5,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -30,11 +30,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define INTBITS 32		/* Number of bits in an int */
 
 #define LONGBITS 32		/* Number of bits in a long */
-
-/* Define BIG_ENDIAN iff lowest-numbered byte in a word
-   is the most significant byte.  */
-
-#define BIG_ENDIAN
 
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
@@ -102,29 +97,48 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    Define neither one if an assembler-language alloca
    in the file alloca.s should be used.	 */
 
+/* Note: aix3-2.h defines HAVE_ALLOCA; aix3-1.h doesn't.  */
 #ifndef HAVE_ALLOCA
 #define C_ALLOCA
 #define STACK_DIRECTION -1 /* tell alloca.c which way it grows */
 #endif
 
-/* Specify the font for X to use.  */
-
-#define X_DEFAULT_FONT "Rom14.500"
+/* Specify the font for X to use.
+   This used to be Rom14.500; that's nice on the X server shipped with
+   the RS/6000, but it's not available on other servers.  */
+#define X_DEFAULT_FONT "fixed"
 
 /* Here override various assumptions in ymakefile */
 
 #define OBJECTS_MACHINE hftctl.o
 #define C_SWITCH_MACHINE -D_BSD
+
+#ifdef AIX3_2
+/* IBM's X11R5 use -lIM and -liconv in AIX 3.2.2.  */
 #define LIBS_MACHINE -lrts -lIM -liconv
+#else
+#define LIBS_MACHINE -lIM
+#endif
+
 #define START_FILES
-#define HAVE_DUP2
-#define HAVE_GETTIMEOFDAY
 #define HAVE_SYSVIPC
-#define HAVE_SETSID
-#define HAVE_GETWD
 /*** BUILD 9008 - FIONREAD problem still exists in X-Windows. ***/
 #define BROKEN_FIONREAD
 
 /* Don't try to include sioctl.h or ptem.h.  */
 #undef NEED_SIOCTL
 #undef NEED_PTEM_H
+
+#define ORDINARY_LINK
+
+/* lemacs change -- automatically add the correct path for smt.exp if
+   it exists. */
+#ifdef AIX_SMT_EXP
+#define LD_SWITCH_MACHINE -Wl,-bnso,-bnodelcsect,-bI:/lib/syscalls.exp,-bI:AIX_SMT_EXP
+#else
+#define LD_SWITCH_MACHINE -Wl,-bnso,-bnodelcsect,-bI:/lib/syscalls.exp
+#endif
+
+/* AIX supposedly doesn't use this interface, but on thr RS/6000
+   it apparently does.  */
+#define NLIST_STRUCT

@@ -1,5 +1,5 @@
 ;;; Simple POP (RFC 1460) client for VM
-;;; Copyright (C) 1993 Kyle E. Jones
+;;; Copyright (C) 1993, 1994 Kyle E. Jones
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -21,10 +21,19 @@
 (defun vm-pop-move-mail (source destination)
   (let ((process nil)
 	(folder-type vm-folder-type)
+	(save-password nil)
+	(handler (and (fboundp 'find-file-name-handler)
+		      (condition-case ()
+			  (find-file-name-handler source nil)
+			(wrong-number-of-arguments
+			  (find-file-name-handler source)))))
 	greeting timestamp n message-count
 	host port auth user pass source-list process-buffer)
     (unwind-protect
 	(catch 'done
+	  (if handler
+	      (throw 'done
+		     (funcall handler 'vm-pop-move-mail source destination)))
 	  ;; parse the maildrop
 	  (setq source-list (vm-parse source "\\([^:]+\\):?")
 		host (nth 0 source-list)
@@ -51,6 +60,15 @@
 	  (if (null pass)
 	      (error "No password in POP maildrop specification, \"%s\""
 		     source))
+	  (if (equal pass "*")
+	      (progn
+		(setq pass (car (cdr (assoc source vm-pop-passwords))))
+		(if (null pass)
+		    (setq pass
+			  (vm-read-password
+			   (format "POP password for %s: "
+				   (vm-safe-popdrop-string source)))
+			  save-password t))))
 	  ;; get the trace buffer
 	  (setq process-buffer
 		(get-buffer-create (format "trace of POP session to %s" host)))
@@ -99,6 +117,10 @@
 			(throw 'done nil)))
 		  (t (error "Don't know how to authenticate with %s" auth)))
 	    ;; we're in.
+	    ;; save the password if we read it from the user.
+	    (if save-password
+		(setq vm-pop-passwords (cons (list source pass)
+					     vm-pop-passwords)))
 	    ;; find out how many messages are in the box.
 	    (vm-pop-send-command process "STAT")
 	    (setq message-count (vm-pop-read-stat-response process))
@@ -177,10 +199,31 @@
     ;; Some POP servers strip leading and trailing message
     ;; separators, some don't.  Figure out what kind we're
     ;; talking to and do the right thing.
-    (if (eq (vm-get-folder-type) 'unknown)
+    (if (eq (save-restriction (narrow-to-region start end)
+			      (vm-get-folder-type))
+	    'unknown)
 	(progn
+	  (vm-munge-message-separators vm-folder-type start end)
 	  (goto-char start)
+	  ;; avoid the consing and stat() call for all but babyl
+	  ;; files, since this will probably slow things down.
+	  ;; only babyl files have the folder header, and we
+	  ;; should only insert it if the crash box is empty.
+	  (if (and (eq vm-folder-type 'babyl)
+		   (let ((attrs (file-attributes crash)))
+		     (or (null attrs) (equal 0 (nth 7 attrs)))))
+	      (let ((opoint (point)))
+		(vm-convert-folder-header nil vm-folder-type)
+		;; if start is a marker, then it was moved
+		;; forward by the insertion.  restore it.
+		(setq start opoint)
+		(goto-char start)
+		(vm-skip-past-folder-header)))
 	  (insert (vm-leading-message-separator))
+	  ;; this will not find the trailing message separator but
+	  ;; for the Content-Length stuff counting from eob is
+	  ;; the same thing in this case.
+	  (vm-convert-folder-type-headers nil vm-folder-type)
 	  (goto-char end)
 	  (insert-before-markers (vm-trailing-message-separator))))
     (write-region start end crash t 0)
@@ -195,9 +238,9 @@
     (while (and (< (point) end) (search-forward "\r\n"  end t))
       (replace-match "\n" t t))
     (goto-char start)
-    ;; .. -> .
-    (while (and (< (point) end) (re-search-forward "^\\.\\.$"  end t))
-      (replace-match "." t t)
+    ;; chop leading dots
+    (while (and (< (point) end) (re-search-forward "^\\."  end t))
+      (replace-match "" t t)
       (forward-char)))
   (set-marker end nil))
 

@@ -1,5 +1,5 @@
 /* machine description file for Bull SPS-7.
-   Copyright (C) 1986, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1986 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -31,10 +31,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define LONGBITS 32		/* Number of bits in a long */
 
-/* 68000 has lowest-numbered byte as most significant */
-
-#define BIG_ENDIAN
-
 /* Say this machine is a 68000 */
 
 #ifndef m68000
@@ -52,7 +48,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define EXPLICIT_SIGN_EXTEND
 
 /* Data type of load average, as read out of kmem.  */
-/* Suspect there is something wierd about this machine, so turn it off.  */
+/* Suspect there is something weird about this machine, so turn it off.  */
 
 /* #define LOAD_AVE_TYPE long */
 
@@ -117,12 +113,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    Here we assume that signal.h is included before config.h
    so that we can override it here.  */
   
-/* #undef SIGIO		use BROKEN_SIGIO instead of this kludge -- jwz */
 #define BROKEN_SIGIO
-
-/* Some additional system facilities exist.  */
-
-#define HAVE_DUP2
 
 /* Other than 68020 use ld16, as32, or undefine (defaults ld and as). */
 

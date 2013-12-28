@@ -22,6 +22,10 @@ what you give them.   Help stamp out software-hoarding!  */
 #ifndef _EMACS_REGEX_H_
 #define _EMACS_REGEX_H_
 
+#ifdef I18N4
+# include "intl.h"	/* #### for the "dubious crud" */
+#endif
+
 /* Define number of parens for which we record the beginnings and ends.
    This affects how much space the `struct re_registers' type takes up.  */
 #ifndef RE_NREGS

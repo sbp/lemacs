@@ -55,19 +55,42 @@ struct extent
 	 way is significant.  Note that we only have 16 bits to work with, and
 	 that if you add a flag, there are numerous places in extents.c that
 	 need to know about it.
+
+	 Another consideration is that some of these properties are accessed
+	 during redisplay, so it's good for access to them to be fast (a bit
+	 reference instead of a search down a plist.)
+
+	 `glyph_layout' is unusual in that it has 4 states instead of 2.
+
+	 if `glyph' is non-0, then one or both of `begin_glyph_p' and
+	 `end_glyph_p' must be true.
+
+	 If only one of `begin_glyph_p' and `end_glyph_p' is true, then
+	 `glyph' is it.  
+
+	 If both `begin_glyph_p' and `end_glyph_p' are true, then `glyph' is
+	 the start glyph, and the end glyph is (car plist).  The actual plist
+	 is in (cdr plist).  This is an optimization based on the fact that
+	 double-glyph extents are pretty rare.
+
+	 Actually, any extents with glyphs are fairly rare, so we could just
+	 as easily have removed the `glyph' slot and used the first two elts
+	 of the plist for both of them, but that doesn't gain us anything -
+	 because of alignment constraints that wouldn't cause this structure
+	 to shrink.
        */
       unsigned int detached	: 1;  /* 1   whether it's in a buffer        */
       unsigned int destroyed	: 1;  /* 2   whether it's alive              */
       unsigned int glyph_layout	: 2;  /* 4   text, margins, or whitespace    */
-      unsigned int glyph_end_p	: 1;  /* 5   start-glyph or end-glyph        */
-      unsigned int start_open	: 1;  /* 6   insertion behavior at start     */
-      unsigned int end_open	: 1;  /* 7   insertion behavior at end       */
-      unsigned int read_only	: 1;  /* 8   text under extent is read-only  */
-      unsigned int highlight	: 1;  /* 9   mouse motion highlights it      */
-      unsigned int unique	: 1;  /* 10  there may be only one attached  */
-      unsigned int duplicable	: 1;  /* 11  copied to strings by kill/undo  */
-      unsigned int invisible	: 1;  /* 12  unimplemented                   */
-      unsigned int unused_13	: 1;  /* 13				     */
+      unsigned int begin_glyph_p: 1;  /* 5   whether there is a start-glyph  */
+      unsigned int end_glyph_p  : 1;  /* 6   whether there is an end-glyph   */
+      unsigned int start_open	: 1;  /* 7   insertion behavior at start     */
+      unsigned int end_open	: 1;  /* 8   insertion behavior at end       */
+      unsigned int read_only	: 1;  /* 9   text under extent is read-only  */
+      unsigned int highlight	: 1;  /* 10  mouse motion highlights it      */
+      unsigned int unique	: 1;  /* 11  there may be only one attached  */
+      unsigned int duplicable	: 1;  /* 12  copied to strings by kill/undo  */
+      unsigned int invisible	: 1;  /* 13  unimplemented                   */
       unsigned int unused_14	: 1;  /* 14				     */
       unsigned int unused_15	: 1;  /* 15				     */
       unsigned int unused_16	: 1;  /* 16				     */
@@ -84,9 +107,22 @@ typedef struct extent *EXTENT;
 #define extent_start(e) ((e)->ehead.end)
 #define extent_end(e) ((e)->ehead.start)
 
-#define extent_glyph(e)   ((e)->flags.glyph)
 #define extent_face_id(e) ((e)->flags.face_id)
 #define extent_priority(e) ((e)->flags.priority)
+
+/* If begin_glyph_p, it's in the glyph slot. */
+#define extent_begin_glyph(e) ((e)->flags.begin_glyph_p			   \
+			       ? (e)->flags.glyph			   \
+			       : (GLYPH) 0)
+
+/* If just end_glyph_p, it's in the glyph slot.
+   If both begin_glyph_p and end_glyph_p, it's the car of the plist.
+ */
+#define extent_end_glyph(e)   ((e)->flags.end_glyph_p			   \
+			       ? ((e)->flags.begin_glyph_p		   \
+				  ? (GLYPH) XINT (XCONS ((e)->plist)->car) \
+				  : (e)->flags.glyph)			   \
+			       : (GLYPH) 0)
 
 
 /* the layouts for glyphs (extent->flags.glyph_layout).  Must fit in 2 bits. */
@@ -99,8 +135,8 @@ typedef struct extent *EXTENT;
 
 #define EXTENT_DETACHED_P(e)	((e)->flags.detached)
 #define EXTENT_DESTROYED_P(e)	((e)->flags.destroyed)
-#define EXTENT_START_GLYPH_P(e)	(extent_glyph(e) && !(e)->flags.glyph_end_p)
-#define EXTENT_END_GLYPH_P(e)	(extent_glyph(e) &&  (e)->flags.glyph_end_p)
+#define EXTENT_BEGIN_GLYPH_P(e)	((e)->flags.begin_glyph_p)
+#define EXTENT_END_GLYPH_P(e)	((e)->flags.end_glyph_p)
 #define EXTENT_START_OPEN_P(e)	((e)->flags.start_open)
 #define EXTENT_END_OPEN_P(e)	((e)->flags.end_open)
 #define EXTENT_READ_ONLY_P(e)	((e)->flags.read_only)
@@ -212,6 +248,8 @@ struct extent_fragment
   struct buffer *buf;
   int modiff;
   int face_change;
+  /* screen of buffer for this fragment */
+  struct screen *s;
   /* covers buffer positions [from, to-1] */
   LISP_WORD_TYPE from;
   LISP_WORD_TYPE to;
@@ -275,7 +313,8 @@ extern void free_buffer_cached_stack (struct buffer *b);
 extern void detach_buffer_extents (struct buffer *b);
 extern EXTENT_FRAGMENT buffer_extent_fragment_at (int pos, 
                                                   struct buffer *buf,
-                                                  struct screen *s);
+                                                  struct screen *s,
+						  int include_zero_width);
 extern void process_extents_for_insertion (int opoint, int length, 
                                            struct buffer *buf);
 extern void process_extents_for_deletion (int from, int to, int start, int end,
@@ -292,7 +331,8 @@ extern Lisp_Object shift_replicas (Lisp_Object dup_list, int offset, int length)
 extern void syms_of_extents (void);
    
 extern void setup_extent_fragment_face_ptr (struct screen *s,
-					    EXTENT_FRAGMENT extfrag);
+					    EXTENT_FRAGMENT extfrag,
+					    int include_zero_width);
 
 extern int extent_cache_invalid;
 

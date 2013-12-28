@@ -1,33 +1,1524 @@
-Sat Jan  8 18:57:18 1994  William M. Perry  (wmperry@indiana.edu)
+Thu May 12 16:03:56 1994  William M. Perry  (wmperry@indiana.edu)
 
-* w3-gopher.el: CSO searching now works.
+* w3-lemacs.el: Fixed a few image-related quirks.
 
-* w3-vars.el: *** empty log message ***
+
+* w3-lemacs.el: Removed cursor changing code.
+
+
+* w3.el: Forgot to (widen) after the new MIME parasing code.
+
+
+* w3.el: Rewrote w3-parse-mime-headers to extract its information from the
+buffer instead of doing lots of work on strings/etc.  Also rewrote
+part of the guessing of mime-types when no content-type explicitly
+given.
+
+* w3.el: The no_proxy environment variable can now hold a unix-shell-type
+comma-separated list of wildcards, and it will be transformed into a
+real regular expression.
+
+* w3.el: Will now send Pragma: no-cache when doing a reload. . .
+Also now supports the no_proxy environment variable.
+
+* w3.el:
+Fixed a few places where w3-insert-graphic was still called the old way.
+Also fixed problem where local images weren't being converted correctly.
+
+* w3-lemacs.el, w3.el: Fixed various compilation errors
+
+* w3-lemacs.el:
+Basis for ismap image clicking enabled.  Sends off quite the wrong
+area (x,y relative to emacs frame, not the image).  Should be trivial
+to fix with a few additions to the C code.
+
+
+* w3.el:
+Seem to have fixed the problem of inlined images not being used as links.
+
+
+* w3-lemacs.el:
+w3-find-specific-link will now highlight the correct extent until
+input is available.
+
+* w3.el: Finally really fixed the bug in the infinite recursion when building
+lists.  Problem was with unterminated lists.
+
+* w3.el: Following a named link (#XXX) will now push the mark so you can get
+back to it with C-u C-space
+
+Wed May 11 22:35:33 1994  William M. Perry  (wmperry@indiana.edu)
+
+
+* w3.el: Fixed problem of remote files being formatted incorrectly.
+w3-buffer-is-hypertext was not always returning the correct value.
+
+
+* w3.el: Links within headers should look better now.
+
+* w3-emacs19.el:
+New versions of the overlay-specific functions, plus changed the
+default under emacs19 to be using overlays.
+
+* w3-emacs19.el: Few patches for highlighting headers.
+
+* w3.el: No longer assume temporary files go in /tmp... now uses
+w3-temporary-directory and expand-file-name for all temporary file
+creations
+
+
+* w3.el: Patches from Bob Weiner to get asynchronous retrieval through a 'host
+gateway working.
+
+* w3.el:
+Hopefully fixed the not-guessing-if-a-buffer-is-html bug for remote file access
+
+* w3.el: Fixed problem in w3-follow-link with NAMEd links with no href.
+
+* w3.el: Fixed problem with infinite recursion during list building.
+
+* mailcap: Initial revision
 
 * w3-vars.el:
-Changed default value of w3-delimit-emphasis to take MULE into account.
+w3-mime-viewers has been trimmed down a lot, will depend on the users
+mailcap much more.
 
-* w3-url.el:
-Added function w3-build-url that will build a URL in stages.  Not used
-anywhere yet.  Thanks to T.V. Raman for suggesting it.
+* dist.Makefile: Can now 'make mailcap'
 
-* w3-vars.el: *** empty log message ***
+* w3.el: w3-parse-mailcap can now take a URL.
 
-* w3-gopher.el:
-Fixed gopher support for using gateways.  Won't give errors at top and
-bottom of buffer.
+* w3.el: Killing of HTML comments will now make sure there is whitespace where
+the comment used to be. ie: (some text<!-- ack -->more text ==> some
+text more text)
 
-* w3-misc.el:
-Changed w3-hexify-string so that it won't hex slashes in the string.
+* w3.el: Fixed problem where text immediately after a </pre> tag but before a
+<p> tag weren't filled correctly.
 
-* w3.el: Another check for efs-auto added
+* w3.el: Changed w3-mailcap-entry-passes-test to check for the common "test -n
+$DISPLAY" cases and handle them automatically in elisp instead of
+shelling out to check the return status.
 
-* c390.tex, w3-auth.el, w3-cache.el, w3-docomp.el, w3-emacs.el, w3-emacs19.el, w3-epoch.el, w3-forms.el, w3-gopher.el, w3-html+.el, w3-hyperbole.el, w3-lists.el, w3-lucid.el, w3-mime.el, w3-misc.el, w3-mosaic.el, w3-mule.el, w3-new-lucid.el, w3-next.el, w3-parse.el, w3-print.el, w3-typecheck.el, w3-url.el, w3-vars.el, w3-viewers.el, w3.el, w3.tex, w3.texi:
+* w3.el: Changed all after-hook-function references to be after-hook-functions,
+and use add-hook instead of explicit setq's
+
+* w3.el: The mailcap parsing routine now honors the 'test' clause
+
+* w3.el: fixed problem in w3-parse-args
+
+Tue May 10 23:56:29 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3-lemacs.el: Few changes to the extent handling code.  No more hacks for
+w3-fix-extent-endpoints or w3-insert
+
+* w3.texinfo: Few bug fixes to the docs.
+
+* w3-experimental.el: Now almost looks halfway formatted
+
+Mon May  9 20:41:03 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3-lemacs.el:
+If an image is more than 1/2 the size of the current screen, it will
+be moved down onto a line by itself.
+
+* w3.el: Fixed bug in title handling if there was an end tag like <title >
+
+* w3-lemacs.el:
+Workaround for bug in lucid emacs where deleting text in map-extents
+would do _very_ bad things.  Loading inlined images/mpegs would
+sometimes cause it to crash.
+
+* w3-lemacs.el: More changes to the image handling
+
+Sun May  8 17:46:14 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3-lemacs.el: Changed to using annotations for inlined images
+
+Sat May  7 16:22:58 1994  William M. Perry  (wmperry@indiana.edu)
+
+
+* w3.el: Changed w3-file-attributes to not use HTTP/1.0 to HEAD a file unless
+w3-be-anal-about-file-attributes is non-nil
+
+* w3-lemacs.el:
+Can now filter inlined image loads based on MIME type and/or file size.
+
+Thu May  5 16:26:19 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3-lemacs.el: New submenu for lemacs - restrict image loads by type.
+
+* w3.el: Fixed problem in the after-change-function yet again.
+
+
+* w3.el: Few changes to the after-change-function handling, as well as changes
+to the mpeg loading code
+
+* w3-lemacs.el:
+New menu items for showing inlined mpegs or not, as well as functions
+to load single and multiple delayed mpegs.
+
+* w3-vars.el: New variable w3-delay-mpeg-loads
+
+* w3-emacs19.el:
+Builtin support for mouse-movement keys, if 19.23 ever works with them...
+
+Tue May  3 20:25:40 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3-lemacs.el, w3-vars.el, w3.el:
+Lucid emacs 19.10 or higher can now display inlined mpegs by default.
+Use <embed src="url of mpeg to play" type="video/mpeg"> to try it out.
+
+Mon May  2 22:02:21 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3.texinfo:
+Added in documentation of the emacs19 faces hacking for dumb terminals
+
+* w3-lemacs.el: Applied patch by Alastair Burt to fix dumb typo on my part.
+
+* w3.el: Few changes to the 'host gateway code
+
+* w3-emacs19.el: Fixed problem in w3-find-specific-link in emacs19
+
+
+* w3.el: Changed w3-parse-args to extract the information out f the original
+buffer instead of wasting 2 or 3 string/buffer creations
+
+* w3-vars.el: Changes to the w3-parse-args-syntax-table
+
+Sun May  1 22:58:34 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3.el:
+Fixed problem in w3-after-change-function and escaping % from w3-lazy-message
+
+Fri Apr 29 21:48:26 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3-vars.el: New variables for keeping track of status messages better
+
+* w3.el: New way of doing the HTTP transfer status messages.  Now uses the
+after-change-function if available.  This way even asynchronous
+transfers get the good XXX of YYY (ZZ%) transfer messages.  Also now
+support the Status: header, which will be shown instead of the normal
+XXX bytes message.
+
+* w3-vars.el: More HTML+ entities
+
+Thu Apr 28 14:51:32 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3.el: Fixed a few problems with the x-exec stuff.
+
+* w3-emacs.el: Fixed problem in v18 mouse support
+
+Wed Apr 27 16:14:01 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3-vars.el:
+New variables w3-mime-editors, w3-mime-bitmaps, w3-mime-composers, and
+w3-mime-printers that are initialized from the entries in the mailcap
+file
+
+* w3.el: Rewrote w3-parse-mailcap so that it keeps a _LOT_ more information
+from the mailcap file, including composers, editors, labels, and
+bitmaps.
+
+* w3-emacs19.el, w3-old-lemacs.el: Few changes to the options and popup menus
+
+* w3-lemacs.el: New options menu for new lemacs
+
+* w3-vars.el: Revamped the main menu and popup menus to be shorter
+
+* w3-lemacs.el:
+Changed w3-zone-at and w3-zone-data to use new 'w3delayed for delayed images.
+
+* w3.el: Reworked who delayed image processing works.  You can now click on a
+delayed image and it will load just that image.  Similar to how the
+Mosaic clients work.  Also, the ALT tag is inserted if available.  It
+is deleted from the buffer when the image is loaded.
+
+Tue Apr 26 21:33:26 1994  William M. Perry  (wmperry@indiana.edu)
+
+
+Mon Apr 25 22:18:00 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3-experimental.el: New parser now honors the <plaintext> tag
+
+* w3-new.el: Initial revision
+
+* w3-lemacs.el:
+Should have fixed the ugly interaction between emacs-vers.el and lemacs 19.9
+
+* w3.el: Fixed problem in w3-fix-unknown-tags
+
+Sun Apr 24 19:30:51 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3.el:
+A few fixes to the native wais handling - still a little broken though.
+
+* w3-vars.el:
+Changed the help on xxxx menu item to fetch the .html files instead of
+the ones with no extensions - our server sends text/plain with no
+extension - ugh
+
+
+Sat Apr 23 18:57:30 1994  William M. Perry  (wmperry@indiana.edu)
+
+
+* w3.el: Fixed a problem in w3-parse-relative-link that would cause #X links to
+be doubled to #X#X
+
+* w3-emacs19.el:
+Can now choose whether you want to use overlays or text properties for
+keeping track of the internal w3 information.  Try
+(put 'w3-emacs19 'use-overlays t) in your .emacs to try it out.
+
+Fri Apr 22 15:44:48 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3-new-emacs19.el: Initial revision
+
+* w3-emacs19.el: Removed ugly emacs 19.23 hack that could mess up buffers
+
+* w3.el: Added a function to generate a FORM for posting/mailing a reply to a
+newsgroup.
+
+* w3-lemacs.el: Added w3-view-ppm to view p[bp]m files in an xwindow glyph
+
+Thu Apr 21 20:37:24 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3-vars.el: Redid the help menu
+
+* w3-lemacs.el:
+Changed button binding and menu stuff to conform to new lucid emacs style
+
+* w3.el: Changed w3-prepare-buffer to return the title of the document
+
+Wed Apr 20 20:20:29 1994  William M. Perry  (wmperry@indiana.edu)
+
+
+* w3-experimental.el:
+w3-parse-buffer will now swallow newlines when it is supposed to.  Parses the entire whats-new page in under 2 seconds.  Zoooom. :)
+
+Tue Apr 19 23:17:48 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3.el: Fixed up w3-parse-args so that it can deal with no trailing " or ' on
+an attribute that started with one.
+
+* w3-experimental.el: New start on a new parser
+
+* w3-lemacs.el: Fixed a few of the w3-toggle-xxxx
+
+* w3.el: Made epoch use the old V18-style kill-emacs-hook
+
+* w3.el: Fixed problem with headers having the last char moved down onto a new
+line when using w3-emacs19-hack-faces-p
+
+
+* w3.el: Try using .newsrc-SERVERNAME before just plain old .newsrc.
+
+* w3-docomp.el: More defvar's
+
+* w3.el:
+Backed out one optimization of w3-parse-args that caused emacs19 to barf.
+
+* w3.el: w3-news-server now consults gnus-default-nntp-server,
+gnus-nntp-server, and nntp-server-name if they're bound and non-nil
+and != "".
+
+* w3-emacs19.el:
+Use glyphs in the display table so that emacs doesn't get as confused
+about the cursor position when using w3-emacs19-hack-faces-p
+
+
+* w3.el: Moved the finding of #xxx links after the loading of images, just in
+case point gets confused.  If no #xxx link, make sure to go to
+(point-min)
+
+Mon Apr 18 23:40:19 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3.el:
+Optimized w3-parse-args some more.  Thanks to jwz@lucid.com for the input
+
+* w3.el: Fixed problems with ../ as the first part of a relative url
+
+* w3-lemacs.el:
+Wrapped the new definition of the options menu in a check for the
+latest version of lemacs
+
+* w3-lemacs.el:
+Changed the menus to use the new 19.10 method of menus so that it uses
+Toggle buttons, etc.
+
+* w3.el: Finished implementing the SRC attribute for SUBMIT buttons
+
+* w3-emacs19.el: Added a hack-vt102 function
+
+* w3.el: New w3-parse-args
+
+
+* w3.el: Added support for a SRC attribute to the submit button
+
+Sun Apr 17 22:28:08 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3.el: Fixed error message in w3-hotlist-add-entry, and added function
+w3-hotlist-refresh.
+
+* w3.texinfo: New hotlist func
+
+Fri Apr 15 21:25:21 1994  William M. Perry  (wmperry@indiana.edu)
+
+
+* w3-vars.el: Removed some obsolete variables
+
+* w3.el: Fixed the history mechanisms
+
+
+* w3-vars.el: Moved defvar of w3-emacs19-hack-faces-p into main variables file.
+Also moved the default setting of w3-delimit-emphasis and
+w3-delimit-links into w3-do-setup so they will be set correctly if
+dumped with emacs.
+
+
+* w3-emacs19.el: Can now hack faces for xterm and linux console
+
+* w3.el: Added in support for user:password@hostname ftp URLs
+
+
+* w3-emacs19.el: Fixed problems in w3-mouse-handler
+
+* w3-emacs19.el: If you are using VT100's and emacs 19.22, you CAN GET BOLD AND
+UNDERLINED text now.  Please try setting the variable
+w3-emacs19-hack-faces-p to non-nil.  To get rid of it, use M-x
+w3-emacs19-unhack-vt100
+
+
+* w3.el:
+Fixed bug in w3-parse-relative-link that could cause major problems with
+~ and w3-current-file = nil.
+
+Thu Apr 14 22:28:06 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3-lemacs.el:
+Removed colorize-pixmap call since lemacs takes care of that now.
+
+* w3.el: Fixed problem in w3-search where it did not nuke the last search term
+from the url before appending the latest search string.
+
+* w3.el: the x-exec URL handler will now make sure that all returned messages
+are HTTP/1.0 messages, using the return value of call-process-region
+to get the HTTP/1.0 return status code if one is not explicitly given
+by the script.
+
+* w3.el: Include definition of emacs19-ism 'setenv' for old versions of emacs.
+This function is required to use the x-exec URL.
+
+* w3.el: Fixed some odd formatting of <hr>
+
+
+* w3.el: Added support for the x-exec url
+
+Wed Apr 13 21:58:09 1994  William M. Perry  (wmperry@indiana.edu)
+
+
+* w3.el: Fixed problem in w3-fix-proxy
+
+* w3-emacs19.el:
+Fixed a problem with emacs 19.23 and the previous-single-property-change
+
+* w3-lemacs.el: Fixed w3-insert to deal with extent-start > extent-end
+
+* w3.el: Fixed the proxy support so that w3-view-url will show the url of the
+proxy'd document, not the entiry 'proxyservice''realurl' garbage
+
+* w3.el: Fixed w3-parse-args yet again...
+
+* w3.el: Few fixes to the newsrc parsing (unbound variables from cut&paste)
+
+* w3.el: Lots more news work.  Now supports parsing the newsrc and only showing
+unread articles in newsgroups, as well as displaying a list of all the
+newsgroups (distinguishes subscribed and unsubscribed groups).
+
+* w3.el: Added links to post to the newsgroup and reply to the author in news
+handling
+
+* w3-vars.el: Added newspost to the list of allowable link types
+
+* w3.el: w3-view-url now works with news: urls
+w3-parse-relative-link now works with news: urls
+w3-format-whole-newsgroup now spits out valid HTML+, and better looking too
+w3-format-news now spits out valid HTML+, looks like GNUS under lucid
+
+Tue Apr 12 08:01:20 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3.el: Fixed problem where using a gateway could screw up the recognition of
+an http/1.0 response
+
+* w3-emacs.el, w3-emacs19.el, w3-epoch.el, w3-lemacs.el, w3-old-lemacs.el:
+Changed w3-forward-link and w3-back-link to take a prefix-arg for
+how many links to go forward.
+
+* w3.el:
+Fixed a bug in w3-parse-relative-link that would expand ~/ when it shouldn't
+
+Mon Apr 11 23:27:43 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3.el: Revamped w3-create-multipart-request to only use valid separator chars
+
+
+* w3.el: Fixed problem in w3-parse-docs-menu.  Added code to create a MIME
+multi-part request.
+
+* w3.el: Fixed problem in w3-form-encode for name=isindex when it wasn't the
+only entry area in the form (a submit button, etc)
+
+* w3.el: fixed problem in list-expansion
+
+* w3.el: Fixed problem in w3-parse-args if something was (read) as a number
+instead of a string.
+
+* w3.el: Fixed a problem in w3-parse-args with emacs19
+
+Sun Apr 10 21:51:40 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3-emacs19.el: w3-add-zone now uses the mouse-face property in emacs 19.23
+
+* w3-emacs19.el: Fixed various problems related to lmenu in emacs 19.23
+
+* w3.el: Fix to the mosaic docs-menu parsing
+
+* w3.el: No longer send the SUBMIT button when submitting forms
+
+* w3.el: New code to parse the Mosaic documents.menu file to add user-specified
+menus in lucid/FSF19
+
+
+Sat Apr  9 20:49:30 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3.el: Rewrote the SGML-comment killing code... should work better now.  Not
+sure if it is still compatible with the Mosaic way of killing
+comments, but Mosaic is broken in that regard, so I don't really
+care. :)
+
+* w3.el: w3-show-hotlist will show the hotlist entries in the same order that
+they were stored, instead of the old reverse-order behavior.  Also
+changed some of the automatically generated HTML to be strictly
+correct HTML+.
+
+* w3-vars.el:
+Also removed www.cis.ohio-state.edu from the bad-server-list... is now
+an HTTP/1.0 server
+
+* w3-vars.el:
+Removed cs.indiana.edu from the w3-bad-server-list, as we have finally
+upgraded to plexus.
+
+* w3.el: w3-submit-bug now sends me the URL of the current buffer (if any)
+
+* w3.el: Fixed a problem with file:./foo being interpreted wrong.
+
+* w3.el: Rewrote w3-basepath and w3-parse-relative-link to use
+expand-file-name, file-name-nondirectory, and file-name-directory.
+More reliable than the old regular expressions
+
+
+* w3.texinfo: Fixed more texinfo bugs.
+
+* w3-search.el: Few tweaks in searching.
+
+* w3.el: Another bugfix to w3-parse-args
+
+* w3.el: Generate errors for non-existent local files now
+
+Fri Apr  8 23:10:20 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3-vars.el: Fixed all the missing HTML entities, and fixed several others.
+
+* w3.el: Fixed problem in w3-insert-entities-in-string using &nsp; instead of
+&ensp;
+
+* w3.el: Added a 'binary' option to w3-save-as
+
+* w3.el: New w3-parse-args
+
+
+* w3.texinfo:
+Wrote the PGP/PEM doc. (well, borrowed them from robm@ncsa.uiuc.edu).
+
+* w3.texinfo: Wrote the using with vm and using with gnus nodes.
+
+* w3.el: Added an autoload for w3-follow-link
+
+* w3.texinfo: Fixed a few reference problems.
+
+* w3.texinfo: Lots of variable definitions added.
+
+Thu Apr  7 22:32:06 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3.texinfo: Actually wrote the gateway/firewall documentation.
+
+* w3-emacs19.el: Fix-extent-endpoints will now work better.
+
+* w3.el: Fixed a problem with w3-create-mime-request and interaction with the
+CMU-BEAK server
+
+* w3.el: Fixed w3-parse-args for good I hope... now infers missing "s
+
+* w3.texinfo: Fixed some validation errors
+
+* w3.el: Ignore case in completing-read in w3-use-links
+
+<hr> parsing should now be more robust.  Paragraph filling after the
+<hr> will no longer be hosed.
+
+* w3.el: More work on w3-parse-args - think I got it right this time.
+
+* w3.texinfo: Fixed problem with setting the info filename
+
+* w3.texinfo: Fixed a few heirarchy bugs
+
+* w3.el: Rewrote w3-insert-entities-in-string to use mapconcat - quicker/more
+efficient than lots of string-matches and substrings, especially for
+small strings.
+
+Fixed problem in w3-parse-args that would swallow multiple spaces,
+even from quoted attributes (ALT=" " => ALT=" ")
+
+* w3-vars.el: Added &lt back into the w3-html-entities list.
+
+* w3.el: Fixed bug in the single-form-entry-in-a-form submission.  Was only
+sending the form value, not the name/value pair.
+
+Reworded the 'fixing bad html' messages to be 'checking for bad html'
+so that it wouldn't confuse people and make them look for bad html
+that wasn't there.
+
+Also fixed w3-fixup-bad-html so that it would work more often.
+
+Fixed the annoying problem of a blank line between the first and
+second lines of any type of list if there was a <p> tag before it.
+
+Fixed problem with the <p align=indent> handling.  Was inserting the
+extra tab too early sometimes.
+
+Fixed a problem in w3-parse-args that would cause it to return the
+wrong values for attributes like alt="" - it would return ("alt=")
+instead of ("alt" . "").
+
+* w3.el:
+Added in code to try and load the file w3-site-init.  To fix site-wide stuff.
+
+Wed Apr  6 23:13:59 1994  William M. Perry  (wmperry@indiana.edu)
+
+* w3.el: Fixed problem with unbound data-directory in v18 emacs
+
+* w3.texinfo, w3.tex, w3.el, w3-vars.el, w3-search.el, w3-old-lemacs.el, w3-next.el, w3-mule.el, w3-mac.el, w3-lemacs.el, w3-hyperbole.el, w3-experimental.el, w3-epoch.el, w3-emacs19.el, w3-emacs.el, w3-docomp.el, dist.Makefile, c390.tex:
 Initial revision
 
-Thu Dec 30 14:43:38 1993  William M. Perry  (wmperry@indiana.edu)
+Wed Apr  6 20:34:34 1994  William M. Perry  (wmperry@indiana.edu)
+* Release version 2.1
+* w3.texinfo: Merged in new texinfo documentation.
+* w3-vars.el: More keybindings
+* w3.el: Added in first pass at a multi-part/www-form creation function.
+* w3.el: Fixed a problem with setting up the kill-emacs-hook in emacs 18
 
-* w3-gopher+.el, w3-newparse.el: Initial revision
+Tue Apr  5 21:53:52 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Added back in support for the <em> tag.
+* w3-vars.el, w3.el: Added new w3-gateway-method 'tcp.  This will do a
+  (require 'tcp), then set the w3-gateway-method to be 'native.
+* w3-vars.el: Fixed typo in w3-html-entities - left off a ; in &lt
+* w3.el: Fixed problem with handling upper-case types in urls (HTTP did
+  not go to w3-http, etc.)
+* w3-vars.el: Fixed wrong-case entity &Szlig...
+* w3-vars.el: Added application/postscript to the default
+  w3-embedded-data-converters variable.
+* w3.el: Fixed bug in unordered list building - would sometimes not insert
+  a ' ' after the indentation.  Also added a function to embed postscript
+  in a document.
+* w3.el: Added function w3-embed-eqn to embed 'application/eqn' types in
+  the forms of bitmaps.  Requires 'pstoxbm' 'groff' and 'eqn'.
+* w3.el: Added code to w3-kill-emacs-func to clean up the /tmp storage
+  area.
+* w3-vars.el, w3.el: Added support for the <embed> attribute.
+* w3-lemacs.el: Check for errors in colorize-pixmap, or else further
+  conversions will fail if one does.
+
+Mon Apr  4 21:42:40 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-vars.el: Added _ALL_ known entities from the latest HTML+ specification.
+* w3.el: unNAMEd input fields will now have their TYPE as the name.
+* w3.el: The submit buttons name/value pair will now be passed to the
+  server when a form is submitted.
+* w3-emacs19.el: Added in a fix for http:/xxxxx/yyy/ to become
+  http://xxxxx/yyy/ for the file-name-handler-alist
+* w3.el: Added handling of <UL PLAIN> lists - no bullets.
+* w3-lemacs.el, w3-vars.el, w3.el: Got rid of kludgey way of colorizing
+  Xbitmaps in newer versions of lucid emacs.  Now uses the built-in
+  function colorize-pixmap.  Much faster/reliable than piping it through
+  'sed'.
+* w3-lemacs.el: Removed the 1+ error with extents.  Since I no longer use
+  'end-open and 'start-open properties in lucid its no longer necessary.
+
+Sun Apr  3 18:55:42 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: w3-handle-graphics now resolves relative links when
+  w3-insert-graphic is undefined.  Was causing problems with documents
+  with a <BASE ...> tag.  Thanks to Stephen G Simpson for noticing the
+  problem.
+* w3-vars.el: Added keybinding M-return to be w3-follow-inlined-image
+* w3.el: Expanded lots of function doc strings. Fixed bug in resetting
+  radio buttons so that they all don't turn on.
+* w3-lemacs.el: Working versions of w3-hide-zone, w3-unhide-zone, and
+  w3-zone-hidden-p for lucid emacs.
+
+Sat Apr  2 21:26:18 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Fixed problem in invisible list handling
+* w3.el: Fix for headers bleeding over into the body when filling
+  paragraphs.
+* w3.el: <BR> now works for right/left/center/just aligned paragraphs.
+* w3-vars.el: Fixed a few problems in w3-persistent-variables
+* w3.el: More informative messages during parsing.  Fixed <BR> tags in
+  lists. More messing with paragraph filling.
+* w3.el: Fix to w3-process-status for w3-gateway-method of 'host. Fix to
+  w3-save-as.  Lots of changes to the non-list paragraph filling.  Now
+  supports the align attribute of HTML+ (center, left, right, indent, and
+  justify work)
+
+Fri Apr  1 18:02:51 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Fixed problem in w3-handle-graphics with the new w3-parse-args
+  routine
+* w3.el: More use of w3-parse-args instead of old crufty regexps 20 times
+* w3.el: <HR> is now honored within <PRE> segments.
+* w3-lemacs.el, w3-vars.el, w3.el: Changed some more of the internal
+  caching - should be able to just (load-file (w3-find-in-cache
+  "someurl")) and get the exact same buffer.
+* w3.el: Use rings for the internal cache of documents.
+
+Thu Mar 31 19:37:58 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: New way to parse out <link> tags... keep rel and rev separate...
+
+Wed Mar 30 20:41:49 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Few documentation string changes
+
+Tue Mar 29 22:10:10 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-vars.el: Added application/x-tar to the default mime-viewers list
+* w3.el: Show what filename is being passed to the viewer subprocess in
+  w3-pass-to-viewer, slightly more informative this way.
+* w3-emacs19.el: Rewrote w3-fix-extent-endpoints for emacs19 so that a few
+  forms formatting bugs would be fixed.
+* w3.el: Fixed problem with previewing buffers who's name started with a
+  '/'. Thanks to Carl Witty (cwitty@ai.mit.edu) for noticing the problem.
+* w3.el, w3-vars.el: New variable w3-graphics-always-show-entities.  If t
+  (the default), then the small inlined graphics will always be shown,
+  regardless of the value of w3-delay-image-loads.
+* w3.el: Fixed problem with removing carriage returns from binary gopher
+  transfers.
+
+Mon Mar 28 23:36:39 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Changed w3-parse-args to not screw up on quoted multi-word
+  attribute values
+
+Wed Mar 30 20:41:49 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Few documentation string changes
+
+Tue Mar 29 22:10:10 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-vars.el: Added application/x-tar to the default mime-viewers list
+* w3.el: Show what filename is being passed to the viewer subprocess in
+  w3-pass-to-viewer, slightly more informative this way.
+* w3-emacs19.el: Rewrote w3-fix-extent-endpoints for emacs19 so that a few
+  forms formatting bugs would be fixed.
+* w3.el: Fixed problem with previewing buffers who's name started with a
+  '/'.  Thanks to Carl Witty (cwitty@ai.mit.edu) for noticing the problem.
+* w3.el, w3-vars.el: New variable w3-graphics-always-show-entities.  If t
+  (the default), then the small inlined graphics will always be shown,
+  regardless of the value of w3-delay-image-loads.
+* w3.el: More fixes for binary gopher transfers
+* w3.el: Fixed problem with removing carriage returns from binary gopher
+  transfers. 
+
+Mon Mar 28 23:36:39 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-emacs.el, w3-emacs19.el, w3-epoch.el, w3-lemacs.el, w3-old-lemacs.el:
+  New function w3-zone-hidden-p
+* w3.el: Changed w3-parse-args to not screw up on quoted multi-word
+  attribute values
+
+Thu Mar 24 22:49:50 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Fixed w3-hexify-string so it strips out entity references
+* w3-emacs19.el: Fixed problem where w3-zone-start/w3-zone-end could
+  return nil if the end of the zone was at point-min/point-max
+* w3-emacs.el, w3-emacs19.el, w3-epoch.el, w3-lemacs.el, w3-old-lemacs.el:
+  Added functions w3-hide-zone and w3-unhide-zone
+* w3.el: Can now unhide expandable lists (all this only works in FSF emacs
+  19)
+* w3.el: Added in support for <OL|UL|DL FOLDED="yes">, to hide sublists.
+* w3.el: Removed changing of w3-xxx-delimit-links when following links for
+  now. Did not work 100% of the time.
+* w3-emacs19.el: Now get rid of annoying automatically-turned-on-menubar
+  in emacs19...
+
+Wed Mar 23 23:53:22 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Changed all calls to process-status to be w3-process-status
+* w3.el: Added function w3-accept-process-output that will block and
+  timeout on a read instead of exiting immediately in emacs' that support
+  it (everything but vanilla 18.59 and mule)
+* dist.Makefile: Added target to compile w3-mac
+
+
+Tue Mar 22 23:05:07 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-emacs19.el: Wrote a w3-insert for emacs19 that nukes all text
+  properties after insertion
+* w3-emacs.el, w3-emacs19.el, w3-epoch.el, w3-lemacs.el, w3-old-lemacs.el,
+  w3-vars.el: Now check for whether hyperbole has been loaded before
+  binding any mouse keys so as not to interfere with it.
+* w3.el: Fixed problem with graphic entities.
+* w3-lemacs.el: Slightly better formatting of the image error buffer
+* dist.Makefile: Fixed install problem with w3-mac.el
+* w3-emacs19.el, w3-vars.el, w3.el: Changed all references from dps-xxx to
+  ns-xxx to make w3 work with the beta1 release of emacs19 for NeXTstep
+* w3.el: More work on the 'host type gateway
+* w3.el: Lots of work on the new gateway support.
+* w3.el: Few cleanups... work on the history mechanism
+* w3.el: A hypertext link in the current buffer is changed to use the
+  w3-visited-node-style when it is followed.
+* w3-emacs.el: Check to make sure that system-type is next-mach before
+  loading the Emacs 18.xx NeXT extensions
+* w3.el: Fixes to the image code and the OPTION/SELECT form parsing.
+* w3-vars.el: Changes to w3-graphic-converter-alist
+* w3-lemacs.el: Stop using start-open and 'end-open properties
+
+Mon Mar 21 22:40:01 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-emacs19.el, w3-epoch.el, w3-lemacs.el, w3-old-lemacs.el: Put in code
+  to actually create the new w3-visited-node-style face.
+* w3-lemacs.el: Fixed problem with w3-insert at the end of the buffer
+* w3.el: Changed the icon directory to be a list of possible sites, keep
+  the hits in w3-icon-path-cache to save time.  Adds the ..../etc/w3/
+  directory to the search path automatically in w3-do-setup
+* w3.el: Stuck in a few nntp-XXXX macros from gnus.el so I don't have to
+  require 'gnus
+* w3.el: New variable w3-link-delimiter-info.  This can be a function that
+  should return a string to insert at the end of a hypertext link.
+  Intended for things like 'interestingness' functions, etc, but can be
+  used for just about anything.  It is passed the full url of the link as
+  its only argument.
+* w3.el: Must now specify w3-link-start-delimiter and
+  w3-link-end-delimiter as a cons pair.  The car is the string to insert
+  before/after a link that has not been visited before, and the cdr is the
+  string to insert before/after a link that has been visited.
+* w3.el: Can now specify whether personal annotations should appear at the
+  top or bottom of a document.  Variable w3-annotation-position can be
+  either 'top or 'bottom.
+* w3-emacs19.el: Fixed the problem with going from the first form button
+  on a page to a previous hyperlink button.
+* w3-lemacs.el: Rewrote w3-insert for lucid 19.9+...
+* w3.el: Fixed several forms-related problems.
+* w3.el: Input type=hidden implemented
+* w3.el: Now strips out ?... from urls that you are searching on.  No more
+  xxxx?xxx?yyy.
+* New definition of b0, so authentication shouldn't bomb on some urls
+  anymore
+* w3-vars.el: Added new face - w3-visited-node-style - that is used
+  instead of w3-node-style if the url has been visited already.
+
+Fri Mar 18 13:50:59 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Fixed problem with usernames in ftp links not being carried over
+  with relative links (w3-parse-relative-link xxx).
+* w3-emacs19.el: w3-zone-data now correctly returns w3graphic zones.
+* w3-docomp.el: Added in stuff so that new lucid doesn't barf out warnings
+  when compiling w3-old-lemacs.el
+
+Thu Mar 17 18:54:08 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-vars.el: Minor change to w3-link-begin-regexp
+* w3.el: New function w3-parse-args that takes an attribute block from an
+  SGML element and returns an assoc list of attributes and their values.
+  Lots of changes throughout the code to take advantage of it.  No more
+  (string-match <funky regexp> x), etc.
+* w3-vars.el: Added entry for x-pixmap in graphic converter alist
+* w3-vars.el: Fixed dumb problem with menus and the newly renamed hotlist
+  functions
+* w3.el: Fixed problem with double typing when w3-use-hypertext-gopher is nil.
+* w3.el: Added code in to keep the old value of kill-emacs-hook laying
+  around in emacs18 so that w3 doesn't overwrite any of the other hooks.
+
+Mon Mar 14 22:10:37 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-vars.el: Added a few items to the menus
+
+Sun Mar 13 22:43:16 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Fixed dumb problem in w3-save-as... thanks to Eyvind Ness
+  <Eyvind.Ness@hrp.no> for pointing it out
+
+Fri Mar 11 23:05:04 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Set w3-delayed-images to nil so you can't load them twice...
+* w3-vars.el: New variable w3-form-cursor that specifies the cursor to use
+  when entering a form.
+* w3-lemacs.el: Clicking on an image will work correctly in lucid emacs
+  now... was not returning a 'w3graphic object with w3-zone-data
+* w3-lemacs.el: Changed w3-add-zone to take advantage of my proposed
+  change to x-track-pointer, just in case it is included...
+* w3-vars.el: Fixed problem in the entities list with &Szlig; being
+  capitalized...
+
+Wed Mar  9 21:29:25 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Make sure that the delimiters around headers don't extend over
+  two or more lines - looked real ugly if you had multi-line headers.
+* w3.el: Fixed emacs-18 problem with kill-emacs-hook being a list of
+  functions. Also changed the way w3-mode saves/restores a list of
+  buffer-local variables - new variable w3-persistent-variables is a list
+  of variables to preserve when entering w3-mode.  Much easier to add new
+  vars to than adding in a (setq xxx (nth yyyy tmp)) in w3-mode.
+
+Mon Mar  7 13:34:28 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Rewrote w3-grok-gopher-link so it doesn't create huge strings
+  every time it is invoked.  Caused LOTS of garbage collection.  Using
+  skip-chars-forward works _much_ faster and is more efficient.
+
+Sun Mar  6 23:05:21 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-vars.el: New variable w3-personal-mail-address that is sent as the
+  From: field in http/1.0 requests
+* w3-vars.el: Fixed documentation strings to not have entity references in
+  them. Also extended documentation for several variables.
+* w3-vars.el: Changed default value of w3-track-mouse to be t.
+* w3-old-lemacs.el: New version of w3-mouse-handler for old versions of
+  lucid.
+* w3.el: Rewrote w3-load-delayed images to use mapcar and apply instead of
+  taking the (nth x (car something) to extract the info.  Should be
+  faster, although probably not noticeable.  Also load the images in
+  reverse order, so they appear in the correct order.
+* w3.el: Fixed DUMBASS problem in w3-create-mime-request.  Was sending a
+  full url instead of just the filename portion in an HTTP/1.0 request.
+* w3-vars.el, w3.el: Added uuencoding and uudecoding functions.  Needed
+  for sending ripem auth requests
+
+Sat Mar  5 21:09:46 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Fixed problem with w3-basepath and null arguments.
+* w3.el: Fixed relative links from within previewed buffers.
+* w3.el: Fixed fill-out forms post submissions, and general problem with
+  w3-create-mime-request and w3-request-extra-headers
+* w3.el: Fixed problem with dired-type listings of files in w3-mode
+* w3.el: Corrected check for file size of -1 in w3-format-directory
+* w3.el: Changed default content-type to be text/plain.  If there is no
+  content-type defined, try to figure out if a buffer is hypertext or not,
+  and set the content-type to text/html if it is.
+* w3.el: The graphical entities can now be specified as a list of two
+  strings. First is the bitmap filename, the second is similar to the ALT
+  tag in images.
+
+Fri Mar  4 21:57:48 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-vars.el: New variable w3-wais-to-mime that converts wais doctypes
+  into MIME content-types
+* w3.el: New way to retrieve wais doc-ids... doesn't work all the time
+  though - why not?
+* w3.el: Removed the call to dps-display-color-cells, as it causes a
+  coredump in all the versions I have ever tried on the NeXT.
+* w3-lemacs.el: Fixed problem with quoting percents in w3-track-mouse.
+
+Thu Mar  3 18:57:03 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Fixed problem in new header handling.
+* w3.el: w3-file-attributes will no longer choke if given a null argument.
+* w3-search.el: Remove all '#XXXX' references from URLs, so it is easier
+  to tell if we have visited them before
+* w3-vars.el: Changed w3-header-chars-assoc to use characters instead of
+  strings, and use make-string to make the header delimiters the same size
+  as the header.  This can still mess up on headers with inlined images,
+  but all in all it looks much better.  Thanks to Jared Rhine for the
+  suggestion.
+* w3.el: Changed lots of functions to use mapcar instead of while loops -
+  sould be slightly faster.
+* w3.el: Added hook to kill-emacs-hook to write out the global history if
+  necessary.  Also rewrote part of w3-write-global-history 
+
+Wed Mar  2 21:57:44 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Fixed problem with w3-file-attributes and non-existend
+  local/remote files.
+* dist.Makefile: Added mac and searching files to the distribution.
+* w3.el: w3-retrieve now updates w3-global-history-completion-list
+* w3.el: w3-fetch now does a completing read so that you can have
+  completion based on your .mosaic-global-history file.
+* w3-search.el: w3-do-search can now take an optional BASE argument, that
+  is the url to start searching from.  The search function also now checks
+  to see if there is a buffer visiting a url in the queue before
+  retrieving it.
+* w3.el: w3-save-as now uses w3-current-source if possible.  Saves time on
+  retrieval.
+* w3-vars.el: Fixed menu entry for 'View Source' that was still calling
+  old function names.
+* w3-lemacs.el: If w3-track-mouse is non-nil, and w3-link-cursor is
+  defined, change the mouse cursor to w3-link-cursor when over a link.
+  w3-link-cursor defaults to "hand2".  w3-link-cursor is set up in
+  w3-do-setup only if w3-link-cursor is a string, so the user can set it
+  to a pixmap in their .emacs file if they wish.
+* w3.el: <BR>s in lists now handled better.
+* w3.el: The new graphic entity support now honors the
+  w3-delay-image-loads variable
+
+Tue Mar  1 23:55:50 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-lemacs.el, w3-epoch.el: Added binding of w3-source to 't' so that
+  w3-retrieve will always grab a buffer for retrieving inlined images
+* w3-search.el: Miscellaneous fixes...
+* w3.el: More changes to w3-file-attributes to compensate for HTTP/1.0
+  servers that don't implement HEAD
+* w3.el: Fixed error in determining if a URL exists or not in
+  w3-file-attributes
+* w3.el: w3-file-attributes won't send a HEAD request to a known
+  non-http/1.0 server
+* w3-search.el: Can now specify the search term as a function, and it will
+  be funcall'd with the URL as an argument.  RESTRICTION can be either a
+  regular expression or a function name - if string-match or funcall
+  against the URL fails, don't insert it into the queue.  Also now smarter
+  about not visiting the same URL multiple times.
+* w3.el: Fixed a dumb mistake in w3-file-attributes
+* w3-search.el: The searching functions work now.  Takes a regular
+  expression and a max-hops argument.  Returns a list of URLs that the
+  regular expression was found in.
+* w3-emacs19.el: Fixed problem with radio buttons/checkboxes at the end of
+  lines in emacs19
+* w3.el: Don't send the referer: field if using as a home-page or manually
+  requested URL
+
+Mon Feb 28 22:12:18 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-emacs19.el, w3-lemacs.el, w3-old-lemacs.el, w3-vars.el: Removed
+  redundant definitions of w3-XXXX-menu.  w3-options-menu is still in each
+  file, since new lucid emacs has some extra features I can use in it.
+* w3.el: Will no longer copy local files into a buffer, then into /tmp
+  when passing to an external viewer - creates a symbolic link instead.
+
+Mon Feb 28 03:24:33 1994  William M. Perry  (wmperry@indiana.edu)
+* Release of v2.0.22
+* w3.texinfo: Description of new proxy services.
+* w3.el: Fixed problem in w3-fix-ampersands
+
+Sun Feb 27 23:37:53 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-vars.el: Fixed un-escaped "s in defvar for w3-proxy-services
+* w3.el: Changed gopher/ftp/file directory handling to use the new
+  graphical entities instead of IMG
+* w3-vars.el: New variable w3-graphics-entities-alist holds an assoc list
+  of entities and the names of bitmaps to replace them with.
+  w3-icon-directory is appended to the front of each filename
+  automatically.
+  New variable w3-gopher-icons which holds the new graphic entity
+  references to describe each type of object.
+* w3.el: Tweaks to wais code... seems to be working now.
+* w3.el: Fixed stupid problem in the basic authorization code where I
+  wasn't setting the variable in a while loop to (cdr var)
+* w3.el: Added in proxy gateway support as put forth by Lou Montulli and
+  others.  Uses the new ACCESS_proxy environment variables.
+* w3.el: Multiline text entry boxes now reset correctly when
+  w3-revert-form is called
+* w3.el: Single input-area forms now submit themselves after you enter the
+  data.  No need for a submit button.
+* w3.el: Fixed error in w3-http, where it was sending the output of
+  w3-view-this-url instead of w3-view-url to w3-create-mime-request.
+  Referer: fields will work better now.
+  Basic authorization will now work with inheritance from protected
+  directories. (/foo/bar/baz.html is protected, then so is
+  /foo/bar/quuux.html, as is /foo/bar/baz/temp.html, etc)
+* w3.el: Wais support seems to be working...
+* w3.el: More fixes to the wais searching functions.
+
+Sat Feb 26 20:44:39 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Changed w3-prepare-buffer to take an optional argument,
+  no-display, which if t will keep it from renaming the buffer and
+  displaying it.
+* w3-vars.el: Added &lt and &gt to the list of entities, even though they
+  are wrong, since so many people seem to be using them.
+* w3.el: Strip out port numbers in ftp requests.
+* w3-lemacs.el: Spaces are now inserted after a graphic in lucid, and the
+  graphic extent is only on that one space.
+* w3-emacs19.el, w3-lemacs.el, w3-old-lemacs.el: Changed w3-zone-at to
+  return the extent, not the data.
+* w3.el: Better cleaning of telnet buffers before parsing.
+* w3.el: Fully implemented the Referer: field.  Also, w3-mime-response-p
+  should be a little more robust.  Should also kill an http request when
+  using the gateway support.
+* w3-vars.el: New variable w3-telnet-header-regexp that takes the place of
+  w3-telnet-header-length.  Addition of dvi, tex, and texinfo files to the
+  w3-mime-extensions list.
+* w3.el: Few changes to w3-format-directory in case file-attributes
+  returns nil
+* w3-emacs.el: w3-map-links will actually work in emacs 18 now.
+
+Fri Feb 25 23:17:51 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-lemacs.el: Another dumb mistake in w3-zone-at
+* w3-emacs.el, w3-emacs19.el, w3-lemacs.el, w3-old-lemacs.el, w3.el: Fixed
+  dumb mistakes in w3-zone-at and the newly rewritten commands
+* w3.el: Fixed a few typos in w3-source-document
+* w3-emacs.el, w3-emacs19.el, w3-epoch.el, w3-lemacs.el, w3-old-lemacs.el,
+  w3.el: Rewrote w3-load-delayed-images, w3-view-this-url, and
+  w3-follow-link to use the generic w3-zone-at/w3-zone-data functions, so
+  they won't have to be in the emacs-specific files anymore.  Much easier
+  to maintain them this way.
+* w3-emacs.el, w3-emacs19.el, w3-epoch.el, w3-lemacs.el, w3-old-lemacs.el,
+  w3.el: Removed all emacs-specific versions of w3-complete-link, and put
+  w3-complete-link into w3.el and have it use the new w3-map-links.
+  Easier to maintain.
+* w3-emacs.el, w3-emacs19.el, w3-lemacs.el, w3-old-lemacs.el: New function
+  w3-map-links that calls a specified function on all the links in a
+  certain buffer.
+* w3-mac.el: Basic support for Macintosh menus... wrote a function to use
+  the lucid style menu descriptions.
+* w3-lemacs.el: Fixed problem with bad add-menu structure when the Options
+  menu already exists.
+
+Thu Feb 24 22:37:32 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.texinfo: New chapter on future directions
+* w3-epoch.el: Fixed epoch graphics handling so it won't get a buffer
+  read-only-error, and also won't always look in w3-working-buffer, in
+  case the buffer has been renamed by the time it gets called.
+* w3.el: Renamed several functions so that it will be easier for new users
+  to do command completion (all hotlist stuff is w3-hotlist-XXX, etc).
+  Also several new functions to operate on the url the cursor is on
+  (w3-mail-document-under-point, w3-source-document-at-point, others).
+* w3-vars.el: Changed lots of keybindings.  General rule is now that
+  lowercase keys act on the current URL, and uppercase works on the url
+  under point. Major changes:
+  s -> document source, NOT SEARCH
+  M-s -> search document
+  p -> print document, NOT back link
+  Q -> w3-leave-buffer
+* w3.el: Rewrote w3-store-in-cache so that it stores info on disk instead
+  of in memory - can have a larger cache this way and not use up all your
+  memory.
+* w3-lemacs.el: New function w3-write-zones that creates lisp expressions
+  that restores extents when it is eval'd.
+
+Wed Feb 23 03:50:06 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: A few more changes to the wais code
+* w3.el: More refinements to the WAIS code... now outputs URLs that are
+  like lynx/Mosaic, and also compatible with the WAIS gateway that NCSA
+  provides.
+
+Tue Feb 22 23:39:43 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-old-lemacs.el: Fixed a few nesting errors in w3-view-this-url
+* w3-emacs19.el: Few fixes to file-name-handler stuff
+* w3.el: WAIS handling can now output an html document of a search.
+  Outputs the score and the file name.  Also function to retrieve a
+  document given its doc-id.
+* w3-emacs19.el: Patch for setting up the file-name-handler-alist from
+  jsc@mit.edu
+* w3.el: New function to parse out the .mosaic-global-history file and
+  store it in an assoc list for use in completion.
+* w3-mac.el: Initial revision
+* w3.el: More changes to the wais handling code.
+* w3-vars.el: New variable w3-waisq-prog that controls where the waisq
+  executable is looked for.
+* w3.el: Small change to w3-convert-html-to-latex to have slightly better
+  stripping of unknown tags.
+  Skeleton of wais support - requires waisq from Thinking Machines Corp's
+  wais8-5b1.
+
+Mon Feb 21 17:36:25 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: New function w3-quotify-attributes to try and fix bad html docs.
+* w3.el: Added a few changes to convert-html-to-latex to honor
+  w3-latex-docstyle, and also allows inlining of postscript images.
+  Thanks to benno@rainbow.ldgo.columbia.edu (Benno Blumenthal) for the
+  batches.
+
+* w3-vars.el: New variable w3-latex-docstyle that controls what
+  documentstyle a latex document has.  Useful for going into two-column
+  mode or doublesided, etc.
+* w3-lemacs.el: Changed w3-back-link to go to 1+ the extent start position
+  to get around (extent-at) bug
+* w3-vars.el: Added www to the nonrelative link regular expression so that
+  links of that type will be parsed correctly.  New variable
+  w3-current-source holds the HTML source of a document.
+* w3.el: Most of the automatically generated html can now be referenced
+  with URLs like WWW://type/data.  Errors are generated this way, and you
+  can get the source for things like hotlists, history lists, help items,
+  etc.
+  Now stores the complete source of a document in a buffer-local variable,
+  so printing/mailing HTML and/or LaTeX is _MUCH_ faster, as is getting
+  the documents source - never any need to refetch it.  w3-reload-document
+  still does a fresh fetch though.
+* w3-emacs.el: w3-next-zone and w3-previous-zone now skip 'w3graphic zones
+* w3.el: Fixed small bug in re-insertion of SELECT menu items.  Stuck too
+  many spaces at the end of it.
+* w3-emacs.el: Make sure that x-popup-menu is bound before fset'ing
+  w3-x-popup-menu to it when in emacs 18
+
+Fri Feb 18 02:50:42 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Fixed problem in the textarea handling... misplaced a )...
+
+Thu Feb 17 19:38:50 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Fixed problem with w3-quotify-percents and null arguments...
+* w3-emacs.el, w3-emacs19.el, w3-lemacs.el, w3-old-lemacs.el, w3.el: Use
+  w3-quotify-percents in the (format ...) command in w3-view-this-url and
+  w3-view-url so that form queries don't mess up the format command` and
+  make it think it needs more arguments.
+* w3-emacs.el: Use insert-before markes in emacs 18
+* w3.el: Append fill-prefix to the paragraph parsing code.
+
+Wed Feb 16 21:47:33 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-emacs19.el: Fixed dumb mistake in the setting up of
+  file-name-handler-alist... losing because of a misplaced ')'.  Gotta
+  love lisp :)
+* w3.el: Lots more file-ish type functions that will work with URLs.
+  w3-directory-p, real file-attributes, and stubs for more.
+* w3-emacs19.el: Redid the file-name-handler functions.  Stole
+  layout/ideas from the ange-ftp stuff from v19.
+* w3.el: Will check if running on a mono display and do dithering if it
+  is. Fixed problem with <LINK> parsing where it would delete too many
+  chars. Fixed problem with queries in w3-form-encode... too many &'s
+  Few more NeXTstep changes.
+* w3-lemacs.el: Lemacs menu's should no longer nuke people's Options menu
+  if it already exists.  Will add a submenu called 'WWW' to the
+  already-existing menu.
+* w3-emacs19.el: Added file-name-handler-alist support for emacs 19.
+  Works for find-file-other-window, find-file-other-screen, file-exists-p,
+  file-readable-p, file-executable-p, file-attributes, and
+  file-directory-p.
+* w3.el: Added new functions w3-file-size and w3-file-exists.
+* w3-emacs19.el: A few changes for NeXTstep emacs 19.  Menus now work,
+  storing URLS into the kill ring/NeXT clipboard, and loading of lmenu if
+  in dps. Still no [x|dps]-popup-menu though.
+
+Tue Feb 15 03:42:45 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Fixed w3-form-encode so that it actually returns the correct
+  query string if in a gopher or isindex form area...
+
+Mon Feb 14 19:12:31 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Multiline text area entry should now work in emacs 18 (put the
+  w3-do-text-entry outside of the save-excursion)
+* w3.el: Make w3-prepare-buffer mark the buffer as not modified.
+* w3-lemacs.el: Change w3-insert to insert-before-markers so that inlined
+  images will show up in the right place more often.
+
+Sat Feb 12 03:15:46 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Fixed a read-only buffer problem when fetching images...
+* w3-lemacs.el: New version of w3-track-mouse that doesn't need to move
+  (point) in the buffer... should be faster.
+
+Thu Feb 10 21:47:56 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Moved the image parsing until after everything else has been
+  parsed... this should fix everyones problems with inlined images
+  disappearing sometimes - they were attached to parts of the buffer that
+  was removed by other parsing routines.
+* dist.Makefile: The making of w3.info now changes the setfilename
+  directive in w3.texinfo to point to INFODIR.
+* w3-lemacs.el: Set end-open and start-open extent properties if setting
+  up a form.
+* w3.el: Fixed a type in one of the mule/forms patches.
+* w3-mule.el, w3-vars.el, w3.el: Miscellaneous fixes from Shin-ya Sato
+  <sato@mahler.NTT.JP> that make forms work much better in Mule.
+
+Wed Feb  9 23:37:11 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-lemacs.el: Don't mess with graphic extents in w3-fix-extent-endpoints
+* w3-epoch.el, w3-lemacs.el, w3-vars.el, w3.el: More error checking in the
+  image code
+* w3.el: Fixed typo in w3-fetch-with-pgp...
+* w3.el: Slightly more intelligent way of doing w3-form-encode.
+
+Mon Feb  7 03:31:17 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.texinfo: miscellaneous fixes/grammatical fixups
+* w3-epoch.el, w3-lemacs.el: Removed stupid message about possibly failing
+  to load an image because of the color map.
+
+Sun Feb  6 19:24:27 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-vars.el: Changed w3-default-homepage to be defvar'd to nil, so that
+  w3-do-setup will grab the WWW_HOME variable if it can.
+* w3.texinfo: Fixed a few stupid bugs in @node structures that occurred
+  because I removed a node.
+* w3.el: Fix entity references in <TITLE> of documents.
+
+Sat Feb  5 02:55:05 1994  William M. Perry  (wmperry@indiana.edu)
+* Version 2.0 released.
+* w3.el: w3-public-key-exists will actually work now.
+* w3.el: Moved the w3-handle-graphics call within the let binding of
+  w3-handle-base, so that inlined images will work with <BASE> tags.  This
+  also fixes the problem of not being able to select the link an image is
+  covering with an ALT tag.
+* w3.el: Renamed w3-lemacs-19.8 to w3-old-lemacs because of problems with
+  v18 byte compiler.
+
+Fri Feb  4 17:11:03 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-vars.el: Change w3-running-lemacs and w3-running-new-lucid to be
+  w3-running-old-lemacs and w3-running-lemacs, respectively.
+* w3-epoch.el, w3-lemacs.el, w3-vars.el, w3.el: Revamped some of the
+  w3-insert-graphic code so the conversion functions can be shared between
+  epoch & lucid.  Also added in code so that people with only XBM support
+  can use the inlined image code.
+* w3.el: Added functions to grab the servers public key from finger
+  information if possible when using PGP and PEM encryption
+* w3-html+.el: Much better table parsing routines - still not finished yet.
+
+Thu Feb  3 22:17:19 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Allow ~s in urls in w3-get-url-at-point
+* w3.el: Moved just the variable definitions to an outside file to ease
+  byte-compiling.  No longer loads whole w3.el just to get variable
+  definitions
+* w3.el: Moved w3-load-flavors into w3-do-setup
+
+Wed Feb  2 22:41:48 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: w3-make-sequence now returns the sequence in ascending order.
+* w3.el: Changed the nntp/flee handling in w3-nntp-stat-newsgroup so that
+  it won't hang indefinitely.
+* w3.el: Made a few changes to the require functions so that mailcrypt and
+  nntp are not required until absolutely necessary.
+* w3-hyperbole.el: New version from jsc@mit.edu
+* w3-mule.el: Changed w3-grok-gopher-url to w3-grok-gopher-href
+* w3-docomp.el, w3-new-lucid.el: More compiler warnings fixed
+
+Tue Feb  1 21:47:04 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Fixed a few problems in w3-grok-http-href
+* w3.el: Support for the <BASE> tag.  New w3-grok-*-href functions that
+  can be used anywhere and return lists of server/port/file/etc.
+
+Mon Jan 31 22:32:52 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-new-lucid.el: Fixed a free variable reference in w3-insert-graphics
+* w3-emacs.el, w3-emacs19.el, w3-epoch.el, w3-lucid.el, w3-new-lucid.el,
+  w3-next.el, w3.el: Moved some version-specific stuff out of the
+  definition of w3-mode and into the function w3-mode-version-specifics in
+  the w3-*.el files.
+* w3.el: Set w3-delimit-emphasis and w3-delimit-links to nil when doing
+  batch fetches.
+* w3.el: Mailing and batch-fetching now insert a <BASE> tag if
+  sending/saving the raw HTML.
+* w3.el: Fixed a few typos in w3-tn3270
+* w3-emacs19.el: Fixed a misplaced ( so that w3-follow-inlined-image works
+  in emacs19
+* w3.el: Added more descriptive function documentation to the autoloaded
+  functions.
+* w3.el: New variable w3-use-transparent.  If t, then it will use
+  transparent.el to do telnet/tn3270 links.  This is automatically set to
+  nil if you are in lucid emacs, epoch, or in a windowing system.
+* w3-mule.el: Added function w3-m2psbuffer that will print a buffer as
+  postscript in mule.
+* Renamed w3.texi to w3.texinfo
+* w3.el: Replaced <= with equal in case file size is nil...
+
+Sun Jan 30 18:40:16 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Added support for PGP and PEM encryption of requests.  Requires
+  the excellent mailcrypt.el by Jin S Choi (jsc@mit.edu)
+* w3.el: Added autoloads for 'gopher-dispatch-object and 'html-mode if
+  they didn't already exist.  Also added a patch from Jamie Zawinski that
+  fixes the ###autoload statements used by autoload.el
+* w3.texi: Now creates .info files just fine from makeinfo.
+
+Sat Jan 29 23:35:59 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-emacs19.el, w3-epoch.el, w3-lucid.el, w3-new-lucid.el, w3.el: Added
+  an (fset 'w3-insert 'insert) to all but the epoch file, and used the
+  w3-insert written by Henry A. Rowley that will keep the zones intact.
+  Replaced all occurences of (insert) with (w3-insert)
+* w3-epoch.el: Getting the resource for underlining should work now.
+* w3.el: w3-add-document-to-hotlist now checks to see if the current
+  document is already in the hotlist.  If it is, it signals an error.
+* w3-new-lucid.el: Fixed problem in converting xbitmaps - left out a ' in
+  the sed command
+* w3-epoch.el, w3-new-lucid.el, w3.el: Changed how the
+  w3-graphic-converter-alist is specified.  Must now leave off the
+  ppmtoxpm command, and leave a stray '| ' at the en end of the
+  conversion.  The contents of the variable w3-ppmtoxpm-command are
+  appended to this string.
+* w3.el: Added a w3-convert-code-for-mule call in w3-sentinel if
+  w3-be-asynchronous is t.
+* w3-new-lucid.el: Several changes suggested by Jamie Zawinski
+  (jwz@lucid.com) More errror checking for the image loading, and display
+  a buffer describing each error in a buffer after parsing the buffer.
+  Also, if the image load fails, put a 'w3graphic zone over the [alt] tag.
+* w3.el: Several changes suggested by Jamie Zawinski (jwz@lucid.com) The
+  small extent made for graphics has the 'w3graphic property, so using
+  w3-follow-inlined-image on it will retrieve the full picture (for things
+  like lucid where it gets clipped to the line height).  No longer shows
+  'read 1 byte' messages - will only show a message when it has acually
+  received some info.
+* w3.el: Removed assumption that /usr/lib/X11/rgb.txt exists when using
+  ppmtoxpm
+
+Fri Jan 28 13:39:11 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Applied patch from dliu@faraday-gw.njit.edu (Dong Liu) that fixed
+  a stupid problem with the w3-use-starting-points function.
+
+Wed Jan 26 23:36:02 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-new-lucid.el: Changed w3-add-zone to always set end-open and
+  start-open - need more data for bug fixes.
+* w3-new-lucid.el: Added patch from Alastair Burt <burt@dfki.uni-kl.de> to
+  fix not being able to get past graphic extents in 19.9
+* w3.el: The w3-nonrelative-link regexp now includes wais link types.
+* w3-emacs.el: Added a patch from arup@cmu.edu that fixed yet another dumb
+  mistake on my part in the emacs 18 w3-follow-link function.
+* w3.el: Basics of w3-pem-auth for the new httpd pgp/pem security
+* w3.texi: Documentation mime-types parsing, and viewer specifications.
+* w3.el: Viewers can now be lists, in which case it will be passed thru
+  'eval'.
+
+Tue Jan 25 20:33:15 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-emacs.el: Fix from arup@cmu.edu for a problem in w3-follow-link for
+  emacs 18
+* w3-new-lucid.el: The problem with coredumps with lots of empty links in
+  lemacs 19.9 should (hopefully) be fixed.
+* w3.el: Added wais gateway support - not sure if it  works, but I get the
+  same results as I do with Mosaic, so good enough.
+* w3.el: Asynchronous retrieval over http works again.
+* w3-new-lucid.el, w3-epoch.el: Made sure w3-insert-graphic retrieved
+  graphics synchronously.
+
+Mon Jan 24 23:30:40 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Added w3-use-starting-documents and w3-show-starting-documents
+  that display the contents of the hotlist-type w3-starting-documents
+  variable.
+* w3.el: Added function w3-insert-formatted-url... inserts a formatted <A
+  HREF...></A> construct in a buffer.  Url is the url of the current
+  buffer (or link under point with prefix arg), text of the link defaults
+  to the title of the buffer or the text of the link under cursor.  Buffer
+  to insert into is prompted for.
+* w3-emacs19.el, w3-epoch.el, w3-lucid.el, w3-new-lucid.el: Added function
+  w3-zone-at that returns the zone at the position passed to the function
+  (can be point or marker).
+* w3.el: Changed the inlined images to have the highlight attribute if
+  possible.
+* w3-emacs.el, w3-emacs19.el, w3-new-lucid.el, w3.el: Rewrote lots of
+  functions so that inlined images are stored in their own zone, and
+  control-middle-mouse-button or M-x w3-follow-inlined-image will fetch
+  the inlined image and send it to an external viewer. w3-follow-link will
+  also get an inlined image if it cannot find a hyperlink or a form entry
+  area under cursor.
+* w3-emacs.el: Added w3-zone-eq for emacs 18 so that radio buttons will
+  work.
+* w3.el: Changed w3-handle-graphics so that if w3-delay-image-loads is t,
+  use a marker instead of an absolute (point) reference.
+* w3-new-lucid.el: Fixed a problem in the delayed image loading - would
+  always try to find w3-working-buffer, which would (should) not exist
+  when doing a delayed load.
+* w3-new-lucid.el: Added missing interactive spec to
+  w3-load-delayed-images
+* w3-new-lucid.el: Added function w3-load-delayed-images, and activated
+  the delay image load menu choice, added load delayed images menu choice.
+* w3.el: A few changes to the gopher support - should recognize gopher
+  directories more reliably.
+* dist.Makefile: Fixed distribution makefile to use the new system of 1
+  large file.
+* w3.el: Fixed problem with radio buttons - if more than one was set due
+  to bad use of the CHECKED argument, then it would not let you turn one
+  of them off.
+
+Sat Jan 22 12:36:28 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Fixed problem where unknown tags in a <PRE> or <XMP> segment were
+  getting nuked - bad when trying to show source code with < and > in them
+  - large chunks would disappear.  Thanks to Magnus Y Alvestad
+  <magnus@ii.uib.no> for noticing the problem.
+
+Fri Jan 21 20:52:24 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Merged most of the files into one large one.
+* w3.el: Parse out mime-types file if it exists at startup.
+* w3-epoch.el: Changed epoch to use the class name Emacs instead of emacs.
+* w3.texi: Fixed dumb mistake in documentation about w3-mode-hooks and
+  list indentation
+* w3.el: Keep/restore tab-stop-list when going into w3-mode
+* w3-new-lucid.el, w3-lucid.el, w3-emacs19.el: Renamed a few menu items,
+  and activated 'forward' and 'back' buttons.
+
+Thu Jan 20 23:27:31 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-epoch.el: No longer remove numbers and periods from zones in
+  w3-fix-extent-endpoints
+* dist.Makefile: Fixed the 'make install' target.
+
+Thu Jan 20 15:55:04 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-parse.el: Did a bit of cleaning up in the parsing code -
+  obsolete/short functions removed or merged.
+
+Wed Jan 19 20:15:14 1994  William M. Perry  (wmperry@indiana.edu)
+* w3.el: Added version # of efs/ange-ftp to the bug report template.
+* w3-new-lucid.el: Took out deletion of region when conversion of pixmaps
+  failed . . . don't need it in lucid
+* w3-new-lucid.el: Put in quick hack to go to 1+ extent-start-position to
+  get around bug in lemacs 19.9
+* w3-new-lucid.el, w3-epoch.el: Changes to the graphics code to work with
+  the new w3-request-* variables
+* w3-forms.el, w3-mime.el, w3-misc.el, w3-url.el, w3-vars.el: Using new
+  variables to control extra headers in MIME requests, as well as
+  specifying methods/data.
+
+Tue Jan 18 15:13:33 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-mime.el: Changed mailcap parsing to strip out leading/trailing spaces
+* w3-forms.el: Changed w3-form-encode to check if the query is empty
+  before doing a substring.  Thanks to Michael Jankowski for noticing the
+  problem
+* w3-forms.el: Applied patch from Michael Jankowski to fix a problem in
+  w3-finish-text-entry in emacs 19 - tried to change text properties in a
+  read-only buffer
+* w3-misc.el, w3-mule.el, w3-url.el, w3-viewers.el: Miscellaneous patches
+  by Shin-ya Sato <sato@mahler.ntt.jp> for MULE support
+* w3-lucid.el, w3-new-lucid.el: Removed reference to 'value' from
+  w3-x-popup-menu - might not always be bound.
+* w3-url.el: Changed newsgroup handling yet again - can now work with
+  either Flee's nntp or the original nntp.el by Umeda.  No longer
+  require's gnus.
+* w3-new-lucid.el: Wrapped the make-pixmap call in a condition-case for
+  safety.
+* w3-epoch.el: Changed w3-insert-graphic to insert a '^' to attach the
+  graphic to.
+* w3-new-lucid.el: Changed w3-insert-graphic to create a larger extent
+  instead of using '^' - looks much better now.
+* w3-parse.el: Changed w3-handle-graphics to not insert a '^' for each
+  graphic - leave that up to w3-insert-graphic if it needs it.
+
+Mon Jan 17 22:32:40 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-vars.el: Added image/x-xbitmap to the list of graphics converters.
+* w3-lists.el, w3-parse.el: Changed handling of <LI SRC> to only check if
+  w3-insert-graphic is defined, not hardcoded just for epoch.
+* w3-url.el: Directory listings in local file and ftp access now have
+  icons.
+* w3-epoch.el: Cacheing of images will now only store the image once, not
+  once for every time it is used.
+* w3-new-lucid.el: Graphics work now - image/xbm's are translated into the
+  foreground and background color of the 'default face.
+* w3-gopher.el: Gopher handling now spits out icons with appropriate ALT
+  refs.
+* w3-epoch.el: w3-insert-graphic is now only defined if epoch was compiled
+  with graphic zone support.
+
+Sat Jan 15 20:20:59 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-gopher.el: Added patch to w3-grok-gopher-link from Alastair Burt.
+  Also added support for gopher urls with searches embedded in them
+  (Mosaic-style searches with '?' instead of tab.
+* w3.el: Added printing of whether you are in Mule, and the window system
+  andd window system version in w3-submit-bug.
+
+Fri Jan 14 22:37:42 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-mime.el: Fixed authentication - was looking for the wrong header.
+  Also added support for using the URI: field instead of the Location:
+  field to get in sync with the latest HTTP/1.0 specification.
+* w3-lists.el: Few more message->w3-lazy-message conversion
+
+Thu Jan 13 23:15:36 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-gopher.el: Added patches to w3-gopher.el from Alastair Burt
+  <burt@dfki.uni-kl.de> that fixed a few problems.
+* w3-mule.el, w3-url.el: Miscellaneous mule enhancements
+
+Wed Jan 12 19:41:05 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-new-lucid.el: Fixed problem with my misunderstanding of the 'end-open
+  and 'start-open extent properties.
+* w3-lucid.el, w3-new-lucid.el: Added patch by Alastair Burt
+  <burt@dfki.uni-kl.de> that changes w3-x-popup-menu to do a
+  completing-read if the last event was not a button/menu event.
+* w3-viewers.el: Fixed w3-save-binary-file
+* w3-mime.el: Changed w3-parse-mailcap to use new variable
+  w3-mime-mailcap-overrides.  If t, then entries in the users mailcap file
+  will replace the defaults in w3-mime-viewers.
+* w3-misc.el: Changed w3-upcase-region so that it will not touch entity
+  declarations either.
+
+Mon Jan 10 22:43:51 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-parse.el: REL and REV attributes of links can now be comma-separated
+  lists.
+* w3-parse.el: Fixed broken regular expression in <LINK> parsing
+* w3-lists.el: Fixed problem of paragraphs within lists having the
+  highlighting stripped from the first character.
+* w3-parse.el, w3-url.el: Changed most of the unimportant 'message's to
+  use w3-lazy-message instead.
+* w3-url.el: Added variable w3-show-status.  If nil, no messages will be
+  shown in the modeline showing where the current retrieval/parse is at.
+* w3-parse.el: Added patch by Rainer Pruy
+  <Rainer.Pruy@informatik.uni-erlangen.de> that shows the SRC attribute of
+  IMG tags if no ALT tag is given.
+* w3-emacs.el: Added mouse support for emacs 18
+
+Sat Jan  8 20:32:46 1994  William M. Perry  (wmperry@indiana.edu)
+* w3-url.el: more support for bad HTTP: links
+* w3-misc.el, w3-mule.el, w3-viewers.el: Applied a patch from Shin-ya Sato
+  <sato@mahler.ntt.jp> that keeps MULE from encoding binary data it
+  receives from subprocesses, etc.
+* w3.el: Added tab-width to the list of variables saved in w3-mode.
+* w3-gopher.el: CSO searching now works.
+* w3-vars.el: Changed default value of w3-delimit-emphasis to take MULE
+  into account.
+* w3-url.el: Added function w3-build-url that will build a URL in stages.
+  Not used anywhere yet.  Thanks to T.V. Raman for suggesting it.
+* w3-gopher.el: Fixed gopher support for using gateways.  Won't give
+  errors at top and bottom of buffer.
+* w3-misc.el: Changed w3-hexify-string so that it won't hex slashes in the
+  string.
+* w3.el: Another check for efs-auto added
 
 Fri Jan  7 23:53:19 1994  William M. Perry  (wmperry@indiana.edu)
 * w3.el: Changed checking of efs/ange-ftp to also check for efs-auto

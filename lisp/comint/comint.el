@@ -791,7 +791,9 @@ See also `comint-read-input-ring'."
 
 ;; lemacs change
 (defun comint-restore-window-config (conf &optional message)
-  (message "%s" (or message "Press space to flush"))
+  ;; Don't obscure buffer being edited
+  (or (eq (selected-window) (minibuffer-window))
+      (message "%s" (or message "Press space to flush")))
   (sit-for 0)
   (if (if (fboundp 'next-command-event)
           ;; lemacs
@@ -1517,52 +1519,57 @@ in your hook, `comint-mode-hook'."
 ;;; Just enter m-x send-invisible and type in your line.
 
 (defun comint-read-noecho (prompt &optional stars)
-  "Read a single line of text from user without echoing, and return it. 
-Prompt with argument PROMPT, a string.  Optional argument STARS causes
-input to be echoed with '*' characters on the prompt line.  Input ends with
-RET, LFD, or ESC.  DEL or C-h rubs out.  C-u kills line.  C-g aborts (if
-`inhibit-quit' is set because e.g. this function was called from a process
-filter and C-g is pressed, this function returns nil rather than a string).
+  "Read a password from the user.
+See documentation of `read-passwd' for more info."
+  (read-passwd prompt))
 
-Note that the keystrokes comprising the text can still be recovered
-\(temporarily) with \\[view-lossage].  This may be a security bug for some
-applications."
-  (let ((ans "")
-	(c 0)
-	(echo-keystrokes 0)
-	(cursor-in-echo-area t)
-        (done nil))
-    (while (not done)
-      (if stars
-          (message "%s%s" prompt (make-string (length ans) ?*))
-	(message prompt))
-      (setq c (read-char))
-      (cond ((= c ?\C-g)
-             ;; This function may get called from a process filter, where
-             ;; inhibit-quit is set.  In later versions of emacs read-char
-             ;; may clear quit-flag itself and return C-g.  That would make
-             ;; it impossible to quit this loop in a simple way, so
-             ;; re-enable it here (for backward-compatibility the check for
-             ;; quit-flag below would still be necessary, so this is seems
-             ;; like the simplest way to do things).
-             (setq quit-flag t
-                   done t))
-            ((or (= c ?\r) (= c ?\n) (= c ?\e))
-             (setq done t))
-            ((= c ?\C-u)
-             (setq ans ""))
-            ((and (/= c ?\b) (/= c ?\177))
-             (setq ans (concat ans (char-to-string c))))
-            ((> (length ans) 0)
-             (setq ans (substring ans 0 -1)))))
-    (if quit-flag
-        ;; Emulate a true quit, except that we have to return a value.
-        (prog1
-            (setq quit-flag nil)
-          (message "Quit")
-          (beep t))
-      (message nil)
-      ans)))
+;(defun comint-read-noecho (prompt &optional stars)
+;  "Read a single line of text from user without echoing, and return it. 
+;Prompt with argument PROMPT, a string.  Optional argument STARS causes
+;input to be echoed with '*' characters on the prompt line.  Input ends with
+;RET, LFD, or ESC.  DEL or C-h rubs out.  C-u kills line.  C-g aborts (if
+;`inhibit-quit' is set because e.g. this function was called from a process
+;filter and C-g is pressed, this function returns nil rather than a string).
+;
+;Note that the keystrokes comprising the text can still be recovered
+;\(temporarily) with \\[view-lossage].  This may be a security bug for some
+;applications."
+;  (let ((ans "")
+;	(c 0)
+;	(echo-keystrokes 0)
+;	(cursor-in-echo-area t)
+;        (done nil))
+;    (while (not done)
+;      (if stars
+;          (message "%s%s" prompt (make-string (length ans) ?*))
+;	(message prompt))
+;      (setq c (read-char))
+;      (cond ((= c ?\C-g)
+;             ;; This function may get called from a process filter, where
+;             ;; inhibit-quit is set.  In later versions of emacs read-char
+;             ;; may clear quit-flag itself and return C-g.  That would make
+;             ;; it impossible to quit this loop in a simple way, so
+;             ;; re-enable it here (for backward-compatibility the check for
+;             ;; quit-flag below would still be necessary, so this is seems
+;             ;; like the simplest way to do things).
+;             (setq quit-flag t
+;                   done t))
+;            ((or (= c ?\r) (= c ?\n) (= c ?\e))
+;             (setq done t))
+;            ((= c ?\C-u)
+;             (setq ans ""))
+;            ((and (/= c ?\b) (/= c ?\177))
+;             (setq ans (concat ans (char-to-string c))))
+;            ((> (length ans) 0)
+;             (setq ans (substring ans 0 -1)))))
+;    (if quit-flag
+;        ;; Emulate a true quit, except that we have to return a value.
+;        (prog1
+;            (setq quit-flag nil)
+;          (message "Quit")
+;          (beep t))
+;      (message nil)
+;      ans)))
 
 (defun send-invisible (str)
   "Read a string without echoing.
@@ -1979,7 +1986,8 @@ Environment variables are substituted."
     (if (re-search-backward "[^~/A-Za-z0-9+@:_.$#,={}-]" nil 'move)
 	(forward-char 1))
     ;; Anchor the search forwards.
-    (if (not (looking-at "[~/A-Za-z0-9+@:_.$#,={}-]")) (error ""))
+    (if (not (looking-at "[~/A-Za-z0-9+@:_.$#,={}-]"))
+        (error "No filename to complete")) ;lemacs change
     (re-search-forward "[~/A-Za-z0-9+@:_.$#,={}-]+")
     (substitute-in-file-name
      (buffer-substring (match-beginning 0) (match-end 0)))))
@@ -1991,7 +1999,8 @@ Environment variables are substituted."
     (if (re-search-backward "[^A-Za-z0-9_${}]" nil 'move)
 	(forward-char 1))
     ;; Anchor the search forwards.
-    (if (not (looking-at "\\$")) (error ""))
+    (if (not (looking-at "\\$"))
+        (error ""))
     (re-search-forward "\\${?[A-Za-z0-9_]+}?")
     (buffer-substring (match-beginning 0) (match-end 0))))
 
@@ -2052,13 +2061,15 @@ dependent on the value of `comint-completion-autolist'."
          (pathdir (file-name-directory filename))
          (pathnondir (file-name-nondirectory filename))
          (directory (if pathdir (comint-directory pathdir) default-directory))
-	 (completion (file-name-completion pathnondir directory)))
+	 (completion (file-name-completion pathnondir directory))
+         ;; lemacs addition: Don't obscure buffer being edited
+         (no-message (eq (selected-window) (minibuffer-window))))
     (cond ((null completion)
-           (message "No completions of %s" filename)
+           (or no-message (message "No completions of %s" filename))
            (ding))
           ((eq completion t)            ; Means already completed "file".
            (if comint-completion-addsuffix (insert " "))
-           (message "Sole completion"))
+           (or no-message (message "Sole completion")))
           ((string-equal completion "") ; Means completion on "directory/".
            (comint-dynamic-list-filename-completions))
           (t                            ; Completion string returned.
@@ -2071,20 +2082,20 @@ dependent on the value of `comint-completion-autolist'."
                     (if comint-completion-addsuffix
                         (insert (if (file-directory-p file) "/" " ")))
                     ;; lemacs change
-                    ;(message "Completed")
+                    ;(or no-message (message "Completed"))
                     )
                    ((and comint-completion-recexact comint-completion-addsuffix
                          (string-equal pathnondir completion)
                          (file-exists-p file))
                     ;; It's not unique, but user wants shortest match.
                     (insert (if (file-directory-p file) "/" " "))
-                    (message "Completed shortest"))
+                    (or no-message (message "Completed shortest")))
                    ((or comint-completion-autolist
                         (string-equal pathnondir completion))
                     ;; It's not unique, list possible completions.
                     (comint-dynamic-list-filename-completions))
                    (t
-                    (message "Partially completed"))))))))
+                    (or no-message (message "Partially completed")))))))))
 
 
 (defun comint-replace-by-expanded-filename ()

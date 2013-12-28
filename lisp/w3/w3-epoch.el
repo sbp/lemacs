@@ -21,7 +21,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Epoch Enhancements
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(require 'w3-vars)
 
 (defun w3-make-face (new-name def-fn def-fg def-bg def-ulp)
   "Create a style named NAME, and read in some standard resources.  Default
@@ -29,14 +28,14 @@ to font DEF-FN, foreground DEF-FG, background DEF-FG, and underlining to
 DEF-ULP"
   (let* ((face (make-style))
 	 (name (symbol-name new-name))
-	 (fn   (or (epoch::get-default (concat "emacs*" name ".attributeFont"))
+	 (fn   (or (epoch::get-default (concat "Emacs*" name ".attributeFont"))
 		   def-fn))
 	 (fg   (or (epoch::get-default
-		    (concat "emacs*" name ".attributeForeground")) def-fg))
+		    (concat "Emacs*" name ".attributeForeground")) def-fg))
 	 (bg   (or (epoch::get-default
-		    (concat "emacs*" name ".attributeBackground")) def-bg))
+		    (concat "Emacs*" name ".attributeBackground")) def-bg))
 	 (ulp  (or (epoch::get-default 
-		    (concat "emacs*" name ".attributeUnderline")) def-ulp)))
+		    (concat "Emacs*" name ".attributeUnderline")) def-ulp)))
     (if fn
 	(condition-case ()
 	    (set-style-font face fn)
@@ -49,7 +48,10 @@ DEF-ULP"
 	(condition-case ()
 	    (set-style-background face bg)
 	  (error (message "Color `%s' not allocated for face `%s'" bg name))))
-    (if ulp (set-style-underline face "white"))
+    (if (and
+	 (stringp ulp)
+	 (w3-member (downcase ulp) '("true" "on" "yes" "t")))
+	(set-style-underline face "white"))
     (set-variable new-name face)))
 
 (defun w3-create-faces ()
@@ -64,6 +66,7 @@ DEF-ULP"
   (w3-make-face 'w3-superscript-style nil "pink" nil nil)
   (w3-make-face 'w3-subscript-style nil "pink" nil t)
   (w3-make-face 'w3-strikethru-style nil "red" nil t)
+  (w3-make-face 'w3-visited-node-style nil "red" nil nil)
   (w3-make-face 'w3-default-style nil nil nil nil))
 
 (defvar w3-mouse-map (create-mouse-map))
@@ -86,14 +89,29 @@ DEF-ULP"
 (fset 'w3-zone-start 'epoch::zone-start)
 (fset 'w3-zone-end 'epoch::zone-end)
 (fset 'w3-zone-eq 'eq)
+(fset 'w3-zone-at 'epoch::zone-at)
+
+(defun w3-zone-hidden-p (start end)
+  "Return t iff the region from start to end is invisible."
+  nil)
+
+(defun w3-unhide-zone (start end)
+  "Make a region from START TO END visible. (epoch-unfunctional)"
+  nil)
+
+(defun w3-hide-zone (start end)
+  "Make a region from START to END invisible. (epoch-nonfunctional)"
+  nil)
 
 (defun w3-all-zones ()
   "Return all the zones in this buffer."
   (epoch::zones-in-region (point-min) (point-max)))
 
-(defun w3-forward-link ()
+(defun w3-forward-link (p)
   "Go forward 1 link"
-  (interactive)
+  (interactive "P")
+  (if (and p (/= 1 p))
+      (w3-forward-link (1- p)))
   (let* ((thezones (epoch::zones-in-region 
 		    (if (epoch::zone-at (point))
 			(1+ (epoch::zone-end (epoch::zone-at (point))))
@@ -107,9 +125,11 @@ DEF-ULP"
     (if (car thezones)
 	(goto-char (epoch::zone-start (car thezones))))))
 
-(defun w3-back-link ()
+(defun w3-back-link (p)
   "Go back 1 link"
-  (interactive)
+  (interactive "P")
+  (if (and p (/= 1 p))
+      (w3-back-link (1- p)))
   (let* ((thezones (epoch::zones-in-region
 		    (point-min)
 		    (if (epoch::zone-at (point))
@@ -137,11 +157,9 @@ DEF-ULP"
     (while x
       (let ((st (epoch::zone-start (car x)))
 	    (nd (epoch::zone-end (car x))))
-	(while (memq (char-after (1- nd)) '(9 13 10 32 ?1 ?2 ?3 ?4 ?5 ?6 ?7
-					      ?8 ?9 ?0 ?. ?*))
+	(while (memq (char-after (1- nd)) '(?\t ?\r ?\n ?\ ))
 	  (setq nd (1- nd)))
-	(while (memq (char-after st) '(9 13 10 32 ?1 ?2 ?3 ?4 ?5 ?6 ?7
-					 ?8 ?9 ?0 ?. ?*))
+	(while (memq (char-after st) '(?\t ?\r ?\n ?\ ))
 	  (setq st (1+ st)))
 	(epoch::move-zone (car x) st nd))
       (setq x (cdr x)))))
@@ -180,25 +198,17 @@ DEF-ULP"
   (let ((zone (add-zone start end style)))
     (epoch::set-zone-data zone data)))
 
-(define-mouse w3-mouse-map mouse-middle mouse-down 'w3-follow-mouse)
-
-(defun w3-view-this-url (&optional no-show)
-  "View the URL of the link (if any) under point"
-  (interactive)
-  (if (epoch::zone-at (point))
-      (let ((data (epoch::zone-data (epoch::zone-at (point)))))
-	(if (and (equal (car data) 'w3)
-		 (not (memq (cdr data) '(address style header))))
-	    (if (not no-show)
-		(message "%s" (car (cdr (cdr data))))
-	      (car (cdr (cdr data))))
-	  (error "Not on a link!")))))
+(if (boundp 'hyperb:version)
+    nil
+  (define-mouse w3-mouse-map mouse-middle mouse-down 'w3-follow-mouse))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Graphics handling
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defun w3-insert-graphic (name pt align alt)
-  "Insert the graphic pointed to by the URL NAME, at buffer position POINT,
+(if (and (fboundp 'add-graphic-zone)
+	 (fboundp 'epoch::read-pixmap-file))
+    (defun w3-insert-graphic (name pt align alt)
+      "Insert the graphic pointed to by the URL NAME, at buffer position POINT,
 with alignment specified by ALIGN (one of 'center 'top or 'bottom).  If the
 conversion of the picture fails for any reason, use ALT as the alternative
 text.  If the reading of the pixmap is successful, the url and a pointer to
@@ -210,47 +220,45 @@ that of the emacs screen.  Will look better that way.
 
   If epoch was not compiled with graphics zone support, this function
 does nothing."
-  (goto-char pt)
-  (if (fboundp 'epoch::read-pixmap-file) (save-excursion
-    (let ((bit nil)
-	  (converter nil)
-	  (fname (w3-generate-unique-filename)))
-      (if (string-match w3-nonrelative-link name)
-	  nil
-	(setq name (w3-parse-relative-link name)))
-      (let ((w3-working-buffer " *W3GRAPH*"))
-	(if (assoc name w3-graphics-list)
-	    (progn
-	      (message "Reusing image...")
-	      (setq bit (cdr (assoc name w3-graphics-list))))
-	  (progn
-	    (w3-retrieve name)		; this should leave us in *W3GRAPH*
-	    (if (not w3-current-mime-type)
-		(setq w3-current-mime-type
-		      (w3-extension-to-mime
-		       (w3-file-extension w3-current-file))))
-	    (setq converter
-		  (assoc w3-current-mime-type w3-graphic-converter-alist))
-	    (if (not converter)
-		(message "Cannot convert %s to www/present!" w3-current-mime-type)
+      (goto-char pt)
+      (insert "^")
+      (let ((bit nil)
+	    (converter nil)
+	    (add-to-list nil)
+	    (lnk (cdr name))
+	    (w3-request-method "GET")
+	    (w3-be-asynchronous nil)
+	    (w3-request-data nil)
+	    (w3-source t)
+	    (w3-request-extra-headers nil)
+	    (fname (w3-generate-unique-filename)))
+	(setq name (car name))
+	(if (string-match w3-nonrelative-link name)
+	    nil
+	  (setq name (w3-parse-relative-link name)))
+	(save-excursion
+	  (let ((w3-working-buffer " *W3GRAPH*"))
+	    (if (assoc name w3-graphics-list)
+		(progn
+		  (message "Reusing image...")
+		  (setq bit (cdr (assoc name w3-graphics-list))))
 	      (progn
-		(message "Converting image %s (%s)..." w3-current-file
-			 w3-current-mime-type)
-		(shell-command-on-region
-		 (point-min) (point-max)
-		 (format (concat (cdr converter) " %s > %s")
-			 (if w3-max-colors
-			     (format "ppmquant %d |" w3-max-colors) "")
-			 ""
-;			 (if (equal "image/xbm" w3-current-mime-type)
-;			     "| sed 's/c white/c grey80/g'" "")
-			 fname) t)
+		(w3-retrieve name)
+		(setq add-to-list t)
+		(w3-convert-graphic-to-useable-format w3-working-buffer
+						      fname
+						      nil)
 		(message "Reading image %s..." w3-current-file)
-		(setq bit (epoch::read-pixmap-file fname))
-		(delete-file fname))))))
-      (set-buffer w3-working-buffer)
-      (if bit
-	  (progn
+		(condition-case ()
+		    (setq bit (epoch::read-pixmap-file fname))
+		  (error nil))
+		(condition-case ()
+		    (delete-file fname)
+		  (error nil))))))
+	(and add-to-list
+	     (setq w3-graphics-list
+		   (cons (cons name bit) w3-graphics-list)))
+	(if bit
 	    (add-graphic-zone bit pt (1+ pt)
 			      (cond
 			       ((eq align 'top) 0)
@@ -258,13 +266,11 @@ does nothing."
 			       ((eq align 'bottom) 100)
 			       (t 50))
 			      '(w3 pic) (current-buffer))
-	    (setq w3-graphics-list
-		  (cons (cons name bit) w3-graphics-list)))
-	(progn
-	  (message "Conversion failed, probably because of colormap.")
-	  (goto-char pt)
-	  (delete-region pt (1+ pt))
-	  (insert alt)))))))
+	  (progn
+	    (goto-char pt)
+	    (delete-region pt (1+ pt))
+	    (insert alt)
+	    (w3-add-zone pt (point) nil (list 'w3graphic name) t))))))
 
 (defun w3-create-hrule ()
   "Create a pixmap that is the width of the current buffer.  This
@@ -276,7 +282,7 @@ to draw a line with dashes."
   (if (not (fboundp 'read-pixmap-file)) nil
   (let ((width (- (window-pixwidth) 10))
 	x bit f)
-    (setq x (concat "/* XPM */\nstatis char * scratch [] = {\n"
+    (setq x (concat "/* XPM */\nstatic char * scratch [] = {\n"
 		    (format "\"%d 4 2 1\",\n" width)
 		    (format "\"       c %s\",\n" "gray80") 
 		    (format "\".      c %s\",\n" "black")
@@ -295,43 +301,38 @@ to draw a line with dashes."
 		  (read-pixmap-file f))))
     bit)))
 
-(defun w3-complete-link ()
-  "Choose a link from this buffer."
-  (interactive)
-  (let ((all (w3-all-zones))
-	x y z data)
-    (while all
-      (setq data (epoch::zone-data (car all)))
-      (if (and (memq (car data) '(w3 w3form))
-	       (not (symbolp (cdr data))))
-	  (setq x (cons data x)))
-      (setq all (cdr all)))
-    (if (not x) (error "No links in current document."))
-    (while x
-      (setq y (cons (cons (w3-strip-leading-spaces (nth 3 (car x)))
-			  (nth 2 (car x))) y)
-	    x (cdr x)))
-    (setq z (completing-read "Link: " y nil t))
-    (w3-fetch (cdr (assoc z y)))))
-
-(defun w3-load-delayed-images ()
-  "Load inlined images that were delayed, if necessary.
-This function searches through w3-delayed-images and fetches the
-appropriate picture for each point in the buffer and inserts it."
-  (let (url pt align alt tmp)
-    (while w3-delayed-images
-      (setq tmp (car w3-delayed-images)
-	    url (nth 0 tmp)
-	    pt (nth 1 tmp)
-	    align (nth 2 tmp)
-	    alt (nth 3 tmp)
-	    w3-delayed-images (cdr w3-delayed-images))
-      (w3-insert-graphic url pt align alt))))  
+(defun w3-insert (&rest args)
+  (let ((start (point))
+	(zones (zones-at (point))))
+    (prog1
+	(apply 'insert-before-markers args)
+      (mapcar (function (lambda (zone)
+			  (if (equal (zone-start zone) start)
+			      (move-zone zone (point) (zone-end zone)))))
+	      zones))))
 
 (defun w3-setup-version-specifics ()
   "Set up routine for Lucid emacs 19.9"
   nil)
 
 (fset 'w3-store-in-x-clipboard 'epoch::store-cut-buffer)
+
+(defun w3-map-links (function &optional buffer from to maparg)
+  "Map FUNCTION over the hypertext links which overlap region in BUFFER,
+starting at FROM and ending at TO.  FUNCTION is called with the arguments
+linkdata, MAPARG.
+The arguments FROM, TO, MAPARG, and BUFFER default to the beginning of
+BUFFER, the end of BUFFER, nil, and (current-buffer), respectively."
+  (mapcar (function
+	   (lambda (x)
+	     (if (eq (w3-zone-data x) 'w3)
+		 (funcall function (w3-zone-data x) maparg))
+	     nil)) (epoch::zones-in-region (or from (point-min))
+					   (or to (point-max))))
+  nil)
+
+(defun w3-mode-version-specifics ()
+  "Epoch specific stuff for w3-mode"
+  (use-local-mouse-map w3-mouse-map))
 
 (provide 'w3-epoch)

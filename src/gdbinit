@@ -1,0 +1,169 @@
+# some useful commands for debugging emacs with gdb 4.* or better
+
+set args -batch -l loadup.el run-temacs -q
+show args
+
+# if you use Purify, do this:
+# set env PURIFYOPTIONS -pointer-mask=0x0fffffff
+
+
+define frob
+#call = Fprin1 ($tem, Qexternal_debugging_output)
+# compensate for GDB struct-passing bug
+set debug_temp = $
+call debug_print (&debug_temp)
+printf "\n"
+end
+
+define lbt
+# "&" to compensate for GDB struct-passing bug
+call Fbacktrace (&Qexternal_debugging_output, &Qt)
+end
+
+
+
+
+set $vector_length_mask = ~(1<<31)
+
+define xtype
+# this is really xgctype, as we mask off the mark bit
+output (enum Lisp_Type) ($.gu.type)
+echo \n
+end
+
+define xint
+print $.s.val
+end
+
+define xmarkbit
+print $.gu.markbit
+end
+
+define xrecord
+print (struct lrecord_header *) $.gu.val
+output *($->implementation)
+echo \n
+end
+
+define xcons
+print (struct Lisp_Cons *) $.gu.val
+end
+
+define xbuffer
+print (struct buffer *) $.gu.val
+end
+
+define xvector
+print (struct Lisp_Vector *) $.gu.val
+end
+
+define xsubr
+print (struct Lisp_Subr *) $.gu.val
+end
+
+define xstring
+print (struct Lisp_String *) $.gu.val
+output (char *) $->data
+echo \n
+end
+
+define xsymbol
+print (struct Lisp_Symbol *) $.gu.val
+output *($->name->data) @ ($->name->size & $vector_length_mask)
+echo \n
+end
+
+define xmarker
+print (struct Lisp_Marker *) $.gu.val
+end
+
+define xwindow
+print (struct window *) $.gu.val
+end
+
+define xprocess
+print (struct Lisp_Process *) $.gu.val
+end
+
+define xevent
+print (struct Lisp_Event *) $.gu.val
+end
+
+define xkeymap
+print (struct keymap *) $.gu.val
+end
+
+define xscreen
+print (struct screen *) $.gu.val
+end
+
+define xbytecode
+print (struct Lisp_Bytecode *) $.gu.val
+end
+
+define xextent
+print (struct extent *) $.gu.val
+end
+
+define xhashtable
+print (struct hashtable_struct *) $.gu.val
+end
+
+define xpixmap
+print (struct Lisp_Pixmap *) $.gu.val
+end
+
+define xfont
+print (struct Lisp_Font *) $.gu.val
+end
+
+
+define car
+set $tem = ((struct Lisp_Cons *) $.gu.val)->car
+end
+
+define cdr
+set $tem = ((struct Lisp_Cons *) $.gu.val)->cdr
+end
+
+define string-length
+print ((struct Lisp_String *) $.gu.val)->size & $vector_length_mask
+end
+
+define string-contents
+print (char *) ((struct Lisp_String *) $.gu.val)->data
+end
+
+define vector-length
+print ((struct Lisp_Vector *) $.gu.val)->size & $vector_length_mask
+end
+
+define vector-contents
+set $tem = (struct Lisp_Vector *) $.gu.val
+print *($tem->contents) @ ($tem->size & $vector_length_mask)
+set $ = $tem->contents
+end
+
+define symbol-name
+set $tem = ((struct Lisp_Symbol *) $.gu.val)->name
+output *($tem->data) @ ($tem->size & $vector_length_mask)
+echo \n
+set $type = Lisp_String
+echo \n
+end
+
+define symbol-value
+set $tem = ((struct Lisp_Symbol *) $.gu.val)->value
+end
+
+define symbol-function
+set $tem = ((struct Lisp_Symbol *) $.gu.val)->function
+end
+
+define symbol-plist
+set $tem = ((struct Lisp_Symbol *) $.gu.val)->plist
+end
+
+define wtype
+p $->core.widget_class->core_class.class_name
+end

@@ -1,5 +1,5 @@
 ;;; -*- Mode:Emacs-Lisp -*-
-;;; Copyright © 1990-1993 by Lucid, Inc.  All Rights Reserved.
+;;; Copyright © 1990-1994 by Lucid, Inc.  All Rights Reserved.
 
 (defvar energize-auto-raise-screen t
   "If T screens are automatically raised when Energize wants to show them.")
@@ -145,12 +145,13 @@ All buffers will be displayed in the currently selected screen."
 	     (69 . attributeModifiedText)
 	     ))))
 
-(defun energize-initialize-faces ()
-  (let ((rest energize-attributes-mapping))
-    (while rest
-      (let ((name (cdr (car rest))))
-	(or (find-face name) (make-face name))
-	(setq rest (cdr rest))))))
+;; Make the faces before emacs is dumped - this should be ok, they will be
+;; initialized from the resource database when the first screen is created.
+(let ((rest energize-attributes-mapping))
+  (while rest
+    (make-face (cdr (car rest)))
+    (setq rest (cdr rest))))
+
 
 (defun any-energize-buffers-p ()
   (let ((rest (buffer-list))
@@ -189,7 +190,6 @@ userid USER."
 	   energize-disconnect-hook)))
 
     (connect-to-energize-internal server enarg)
-    (energize-initialize-faces)
     ;; Wait for the Top-Level buffer to be created.
     ;; This really should happen down in C, but...
     (let ((p (or (get-process "energize")
@@ -300,7 +300,7 @@ Has to be called after Emacs has been connected to Energize"
 		     (remove-hook 'write-file-data-hooks
 				  'energize-write-data-hook)
 		     (setq revert-buffer-insert-file-contents-function nil)
-		     (ad-Orig-normal-mode) ; #### necessary?
+		     (ad-Orig-normal-mode-after-energize) ; #### necessary?
 		     )
 		    (t ; non-source-file Energize buffers
 		     (set-buffer-modified-p nil)
@@ -463,7 +463,24 @@ Has to be called after Emacs has been connected to Energize"
 		 (current-buffer) start end)
     (energize-send-buffer-modified t start end)))
 
-(setq before-change-function 'energize-send-buffer-modified-1)
+(add-hook 'before-change-functions 'energize-send-buffer-modified-1)
+
+;;; Reverting buffers
+;;; This is called when Energize has informed us that a buffer has changed
+;;; on disk, and we need to revert.
+
+(defun energize-auto-revert-buffer (buf)
+  (cond ((not (file-exists-p (buffer-file-name buf)))
+	 ;; Signal an error here?  Naah, let someone else deal with it.
+	 nil)
+	;; If it's not modified, just revert.  If it is modified, ask.
+	((or (not (buffer-modified-p buf))
+	     (yes-or-no-p
+	      (format "File %s changed on disk.  Discard your edits? "
+		      (file-name-nondirectory (buffer-file-name buf)))))
+	 (save-excursion
+	   (set-buffer buf)
+	   (revert-buffer t t)))))
 
 ;;; Energize kernel busy hook
 
@@ -479,13 +496,14 @@ Has to be called after Emacs has been connected to Energize"
   (if (not (energize-buffer-p (current-buffer)))
       nil
     (if (not state)
+	;; If we're unmodifying the buffer, un-highlight all Energize extents.
 	(let ((e (next-extent (current-buffer))))
 	  (while e
 	    (if (and (extent-property e 'energize)
 		     (eq (extent-face e) 'attributeModifiedText))
 		(set-extent-face e nil))
 	    (setq e (next-extent e)))))
-    (energize-send-buffer-modified t start end)))
+    (energize-send-buffer-modified state start end)))
 
 (setq energize-buffer-modified-hook 'energize-send-buffer-modified-2)
 
@@ -526,18 +544,21 @@ Has to be called after Emacs has been connected to Energize"
 ;;; Originally defined in screen.el
 ;;; If we're being invoked with -energize, then set the default
 ;;; screen name to "energize"
+;;; This is a total kludge; there ought to be a hook that gets
+;;; run before the first screen is created (either before or
+;;; after term/x-win.el is loaded.)
 
-(or (fboundp 'energize-orig-multi-minibuffer-startup)
-    (fset 'energize-orig-multi-minibuffer-startup
-	  (symbol-function 'multi-minibuffer-startup)))
+(or (fboundp 'energize-orig-screen-initialize)
+    (fset 'energize-orig-screen-initialize
+	  (symbol-function 'screen-initialize)))
 
-(defun multi-minibuffer-startup (window-system-switches)
+(defun screen-initialize ()
   (if (let ((rest energize-args))
-	(catch 'foo
+	(catch 'done
 	  (while rest
 	    (if (member (car (car rest)) command-line-args)
-		(throw 'foo t))
+		(throw 'done t))
 	    (setq rest (cdr rest)))
 	  nil))
       (setq default-screen-name "energize"))
-  (energize-orig-multi-minibuffer-startup window-system-switches))
+  (energize-orig-screen-initialize))

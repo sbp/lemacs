@@ -1,8 +1,11 @@
-;;; Id: eiffel3.el,v 1.35 1993/10/27 21:38:11 tynor Exp 
+;;; Id: eiffel3.el,v 1.55 1994/03/30 16:11:06 tynor Exp 
 ;;;--------------------------------------------------------------------------
-;;; TowerEiffel 1.0
-;;; Tower Technology Corporation
-;;; Copyright (c) 1993 - All rights reserved.
+;;; TowerEiffel -- Copyright (c) 1993,1994 Tower Technology Corporation. 
+;;; All Rights Reserved.
+;;; 
+;;; Use, duplication, or disclosure is subject to restrictions as set forth 
+;;; in subdivision (c)(1)(ii) of the Rights in Technical Data and Computer 
+;;; Software clause at DFARS 252.227-7013.
 ;;;
 ;;; This file is made available for use and distribution under the same terms 
 ;;; as GNU Emacs. Such availability of this elisp file should not be construed 
@@ -31,18 +34,30 @@
 ;;;
 ;;;        (load "tinstall")
 ;;;
+;;;  TOWER EIFFEL
+;;;    TowerEiffel provides additional Emacs support for Eiffel
+;;;    programming that integrates Emacs with Tower's Eiffel compiler,
+;;;    documentation, and browsing tools. For more information on
+;;;    these tools and their Emacs interface contact:
+;;;
+;;;        Tower Technology Corporation
+;;;        1501 Koenig Dr.
+;;;        Austin TX, 78756
+;;;  
+;;;  	   tower@twr.com (to reach a human being)
+;;;  	   info@twr.com  (automated file server)
+;;;  	   (512)452-1721 (FAX)
+;;;  	   (512)452-9455 (phone)
+;;;
 ;;;  SUPPORT
 ;;;    Please send bug reports, fixes or enhancements to:
 ;;;	   fred.hart@atlanta.twr.com
 ;;;
 ;;;  COMPATIBILITY:
-;;;    This file has been tested with Epoch 4, Emacs 18, Lemacs
-;;;    19.6 and 19.8. It has not yet been tested with Gnu Emacs 19.
-;;;    Syntax highlighting is currently supported only under Lemacs
-;;;    with lhilit.el.
-;;;
-;;;    (Editorial from jwz: lhilit.el is slow and otherwise obsolete.
-;;;	  Someone please convert this to use font-lock-mode instead.)
+;;;    This file has been tested with Epoch 4.0, Emacs 18.59, Lemacs
+;;;    19.6 and 19.8 and Gnu Emacs 19.  Syntax highlighting is
+;;;    currently supported under Lemacs with lhilit.el and
+;;;    font-lock.el or Gnu Emacs 19.22 with hilit19.el.
 ;;;
 ;;;  COMMANDS
 ;;;    eif-backward-sexp
@@ -91,10 +106,10 @@
 ;;;              Detection of lemacs and epoch.                  ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defvar running-lemacs  (string-match "Lucid" emacs-version))
-(defvar running-lemacs19-6 (and running-lemacs (string-match "19.6" emacs-version)))
-(defvar running-lemacs19-8 (and running-lemacs (string-match "19.8" emacs-version)))
+(defvar running-lemacs (string-match "Lucid" emacs-version))
 (defvar running-epoch  (and (boundp 'epoch::version) epoch::version))
+(defvar running-gnu19  (string-match "^19\.[0-9]+\.[0-9]+$" emacs-version))
+(defvar running-emx    (eq system-type 'emx))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;              Indentation Amount Variables.                   ;;;
@@ -186,176 +201,322 @@ actual indentation of a continued statement line. Can be
 negative.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;                  Lucid Emacs hilit support                   ;;;
+;;;           font-lock, lhilit, and hilit19 support             ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(if (featurep 'lhilit)
-    (progn
-      ;; The value for a font variable must either be a string
-      ;; specifying a valid font, the symbol 'default meaning the
-      ;; default font, or the symbol 'context meaning the font of the
-      ;; surrounding text. 
-      ;;
-      ;; Simlarly, the value for a color variable must either be a string
-      ;; specifying a valid color, the symbol 'default meaning the
-      ;; default foreground color, or the symbol 'context meaning the
-      ;; foregound color of the  surrounding text. 
-      (defvar comment-font 'default
-	"The font in which to display comments in Eiffel and Ace files (either a font name string or 'default or 'context)")
-      (defvar comment-color "red3" 
-	"Color of comments in Eiffel and Ace files (either a color name string or 'default or 'context)")
+;; The value for a font variable must either be a string
+;; specifying a valid font, the symbol 'default meaning the
+;; default font, or the symbol 'context meaning the font of the
+;; surrounding text. 
+;;
+;; Simlarly, the value for a color variable must either be a string
+;; specifying a valid color, the symbol 'default meaning the
+;; default foreground color, or the symbol 'context meaning the
+;; foregound color of the  surrounding text. 
 
-      (defvar hidden-comment-font 'default
-	"The font in which to display hidden comments in Eiffel and Ace files (either a font name string or 'default or 'context)")
-      (defvar hidden-comment-color "forestgreen" 
-	"Color of hidden comments in Eiffel and Ace files (either a color name string or 'default or 'context)")
+(if (or (featurep 'font-lock) (featurep 'lhilit) (featurep 'hilit19)) (progn
 
-      (defvar major-keyword-font "-*-fixed-bold-*-*-*-*-120-*-*-*-*-*-*"
-	"The font in which to display major keywords in Eiffel and Ace files (either a font name string or 'default or 'context)")
-      (defvar major-keyword-color 'default
-	"Color of major keywords in Eiffel and Ace files (either a color name string or 'default or 'context)")
+(if (eq system-type 'emx) (progn
+(defvar eif-comment-font 'default
+  "The font in which to display comments in Eiffel and Ace files (either a font name string or 'default or 'context)")
+(defvar eif-comment-color "firebrick" 
+  "Color of comments in Eiffel and Ace files (either a color name string or 'default or 'context)")
 
-      (defvar assertion-keyword-font "-*-fixed-bold-*-*-*-*-120-*-*-*-*-*-*"
-	"The font in which to display assertion keywords in Eiffel and Ace files (either a font name string or 'default or 'context)")
-      (defvar assertion-keyword-color "slate blue"
-	"Color of assertion keywords in Eiffel and Ace files (either a color name string or 'default or 'context)")
+(defvar eif-hidden-comment-font 'default
+  "The font in which to display hidden comments in Eiffel and Ace files (either a font name string or 'default or 'context)")
+(defvar eif-hidden-comment-color "os2darkgreen" 
+  "Color of hidden comments in Eiffel and Ace files (either a color name string or 'default or 'context)")
 
-      (defvar minor-keyword-font "-*-fixed-bold-*-*-*-*-120-*-*-*-*-*-*"
-	"The font in which to display minor keywords in Eiffel and Ace files (either a font name string or 'default or 'context)")
-      (defvar minor-keyword-color 'default
-	"Color of minor-keywords in Eiffel and Ace files (either a color name string or 'default or 'context)")
+(defvar eif-major-keyword-font 'default
+  "The font in which to display major keywords in Eiffel and Ace files (either a font name string or 'default or 'context)")
+(defvar eif-major-keyword-color 'default
+  "Color of major keywords in Eiffel and Ace files (either a color name string or 'default or 'context)")
 
-      (defvar string-font 'default
-	"The font in which to display literal strings in Eiffel and Ace files (either a font name string or 'default or 'context)")
-      (defvar string-color "brown"
-	"Color of literal strings in Eiffel and Ace files (either a color name string or 'default or 'context)")
+(defvar eif-assertion-keyword-font 'default
+  "The font in which to display assertion keywords in Eiffel and Ace files (either a font name string or 'default or 'context)")
+(defvar eif-assertion-keyword-color "os2darkblue"
+  "Color of assertion keywords in Eiffel and Ace files (either a color name string or 'default or 'context)")
 
-      (defvar quoted-feature-font "-*-times-bold-i-*-*-*-120-*-*-*-*-*-*"
-	"The font in which to display features names enclosed in `'s in Eiffel and Ace file comments (either a font name string or 'default or 'context)")
-      (defvar quoted-feature-color 'context 
-	"Color of features names enclosed in `'s in Eiffel and Ace file comments (either a color name string or 'default or 'context)")
+(defvar eif-minor-keyword-font 'default
+  "The font in which to display minor keywords in Eiffel and Ace files (either a font name string or 'default or 'context)")
+(defvar eif-minor-keyword-color 'default
+  "Color of minor-keywords in Eiffel and Ace files (either a color name string or 'default or 'context)")
 
-      (defvar default-foreground-color 'default
-	"Default text color in Eiffel and Ace files (either a color name string or 'default or 'context)")
+(defvar eif-string-font 'default
+  "The font in which to display literal strings in Eiffel and Ace files (either a font name string or 'default or 'context)")
+(defvar eif-string-color "os2darkcyan"
+  "Color of literal strings in Eiffel and Ace files (either a color name string or 'default or 'context)")
 
-      (defvar disable-color nil "Should hilighting not use colors")
+(defvar eif-quoted-feature-font 'default
+  "The font in which to display features names enclosed in `'s in Eiffel and Ace file comments (either a font name string or 'default or 'context)")
+(defvar eif-quoted-feature-color 'context 
+  "Color of features names enclosed in `'s in Eiffel and Ace file comments (either a color name string or 'default or 'context)")
+)
+
+(defvar eif-comment-font 'default
+  "The font in which to display comments in Eiffel and Ace files (either a font name string or 'default or 'context)")
+(defvar eif-comment-color "red3" 
+  "Color of comments in Eiffel and Ace files (either a color name string or 'default or 'context)")
+
+(defvar eif-hidden-comment-font 'default
+  "The font in which to display hidden comments in Eiffel and Ace files (either a font name string or 'default or 'context)")
+(defvar eif-hidden-comment-color "forestgreen" 
+  "Color of hidden comments in Eiffel and Ace files (either a color name string or 'default or 'context)")
+
+(defvar eif-major-keyword-font "-*-fixed-bold-*-*-*-*-100-*-*-*-*-*-*"
+  "The font in which to display major keywords in Eiffel and Ace files (either a font name string or 'default or 'context)")
+(defvar eif-major-keyword-color 'default
+  "Color of major keywords in Eiffel and Ace files (either a color name string or 'default or 'context)")
+
+(defvar eif-assertion-keyword-font "-*-fixed-bold-*-*-*-*-100-*-*-*-*-*-*"
+  "The font in which to display assertion keywords in Eiffel and Ace files (either a font name string or 'default or 'context)")
+(defvar eif-assertion-keyword-color "slate blue"
+  "Color of assertion keywords in Eiffel and Ace files (either a color name string or 'default or 'context)")
+
+(defvar eif-minor-keyword-font "-*-fixed-bold-*-*-*-*-100-*-*-*-*-*-*"
+  "The font in which to display minor keywords in Eiffel and Ace files (either a font name string or 'default or 'context)")
+(defvar eif-minor-keyword-color 'default
+  "Color of minor-keywords in Eiffel and Ace files (either a color name string or 'default or 'context)")
+
+(defvar eif-string-font 'default 
+  "The font in which to display literal strings in Eiffel and Ace files (either a font name string or 'default or 'context)")
+(defvar eif-string-color "sienna"
+  "Color of literal strings in Eiffel and Ace files (either a color name string or 'default or 'context)")
+
+(defvar eif-quoted-feature-font "-*-times-medium-i-*-*-*-120-*-*-*-*-*-*"
+  "The font in which to display features names enclosed in `'s in Eiffel and Ace file comments (either a font name string or 'default or 'context)")
+(defvar eif-quoted-feature-color 'context 
+  "Color of features names enclosed in `'s in Eiffel and Ace file comments (either a color name string or 'default or 'context)")
+) ;; else not emx
+
+(defvar default-foreground-color 'default
+  "Default text color in Eiffel and Ace files (either a color name string or 'default or 'context)")
+
+(defvar disable-color nil "Should hilighting not use colors")
 
 
-      (defun eif-set-foreground (face color)
-	"Set the FACE's foreground color to COLOR if COLOR is a string, to the default foreground color if COLOR is 'default, or to the color of the surrounding text if COLOR is 'context"
-	(cond ((stringp color)
-	       (cond (running-lemacs (set-face-foreground face color))
-		     (running-epoch nil)
-		     )
+(defun eif-set-foreground (face color)
+  "Set the FACE's foreground color to COLOR if COLOR is a string, to the default foreground color if COLOR is 'default, or to the color of the surrounding text if COLOR is 'context"
+  (cond ((stringp color)
+	 (cond (running-lemacs (set-face-foreground face color))
+	       (running-epoch  nil)
+	       (running-gnu19  (set-face-foreground face color))
 	       )
-	      ((eq color 'context)
-	       (cond (running-lemacs (set-face-foreground face nil))
-		     (running-epoch nil)
-		     )
+	 )
+	((eq color 'context)
+	 (cond (running-lemacs (set-face-foreground face nil))
+	       (running-epoch  nil)
+	       (running-gnu19  (set-face-foreground face nil))
 	       )
-	      ((eq color 'default)
-	       (cond (running-lemacs 
-		      (set-face-foreground face (face-foreground 'default))
-		      )
-		     (running-epoch nil)
-		     )
+	 )
+	((eq color 'default)
+	 (cond (running-lemacs 
+		(set-face-foreground face (face-foreground 'default))
+		)
+	       (running-epoch nil)
+	       (running-gnu19
+		(set-face-foreground face (face-foreground 'default))
+		)
 	       )
-	      )
+	 )
 	)
-
-      (defun eif-set-font (face font)
-	"Set the FACE's font to FONT if FONT is a string, to the default font if FONT is 'default, or to the font of the surrounding text if FONT is 'context"
-	(cond ((stringp font)
-	       (cond (running-lemacs (set-face-font face font))
-		     (runing-epoch nil)
-		     )
-	       )
-	      ((eq font 'context)
-	       (cond (running-lemacs (set-face-font face nil))
-		     (runing-epoch nil)
-		     )
-	       )
-	      ((eq font 'default)
-	       (cond (running-lemacs (set-face-font face (face-font 'default)))
-		     (runing-epoch nil)
-		     )
-	       )
-	  )
-	)
-
-      (defun eif-init-color ()
-	"Reset the Eiffel fonts and faces from the values of their repective variables"
-	(hilit::create-face-if-needed 'comment nil)
-	(hilit::create-face-if-needed 'hidden-comment nil)
-	(hilit::create-face-if-needed 'major-keyword nil)
-	(hilit::create-face-if-needed 'minor-keyword nil)
-	(hilit::create-face-if-needed 'quoted-feature nil)
-	(hilit::create-face-if-needed 'assertion nil)
-	(hilit::create-face-if-needed 'string nil)
-
-	(if (and (x-color-display-p) (not disable-color))
-	    (progn
-	      (eif-set-foreground 'comment         comment-color)
-	      (eif-set-font       'comment         comment-font)
-	      (eif-set-foreground 'hidden-comment  hidden-comment-color)
-	      (eif-set-font       'hidden-comment  hidden-comment-font)
-	      (eif-set-foreground 'quoted-feature  quoted-feature-color)
-	      (eif-set-font       'quoted-feature  quoted-feature-font)
-	      (eif-set-foreground 'major-keyword   major-keyword-color)
-	      (eif-set-font       'major-keyword   major-keyword-font)
-	      (eif-set-foreground 'minor-keyword   minor-keyword-color)
-	      (eif-set-font       'minor-keyword   minor-keyword-font)
-	      (eif-set-foreground 'assertion       assertion-keyword-color)
-	      (eif-set-font       'assertion       assertion-keyword-font)
-	      (eif-set-foreground 'string          string-color)
-	      (eif-set-font       'string          string-font)
-	      )
-	  (eif-set-foreground 'comment         default-foreground-color)
-	  (eif-set-font       'comment         comment-font)
-	  (eif-set-foreground 'hidden-comment  default-foreground-color)
-	  (eif-set-font       'hidden-comment  hidden-comment-font)
-	  (eif-set-foreground 'quoted-feature  default-foreground-color)
-	  (eif-set-font       'quoted-feature  quoted-feature-font)
-	  (eif-set-foreground 'major-keyword   default-foreground-color)
-	  (eif-set-font       'major-keyword   major-keyword-font)
-	  (eif-set-foreground 'minor-keyword   default-foreground-color)
-	  (eif-set-font       'minor-keyword   minor-keyword-font)
-	  (eif-set-foreground 'assertion       default-foreground-color)
-	  (eif-set-font       'assertion       assertion-keyword-font)
-	  (eif-set-foreground 'string          default-foreground-color)
-	  (eif-set-font       'string          string-font)
-	  )
-	)
-
-      (eif-init-color)
-
-      ;; ---- Eiffel mode -----	
-      ;; NOTE: The order of keywords below is generally alphabetical except 
-      ;; when one keyword is the prefix of another (e.g. "and" & "and then")
-      ;; In such cases, the prefix keyword MUST be the last one.
-      (defvar eiffel-mode-hilit
-	    '(
-	      ("--|.*" nil hidden-comment 4)	;; hidden comments
-	      ("--[^\n|].*\\|--$" nil comment 3);; comments
-	      ("`[^`']*'" nil quoted-feature 5)	;; quoted expr's in comments
-	      ("^creation\\|^deferred[ \t]*class\\|^expanded[ \t]*class\\|^class\\|^feature\\|^indexing\\|^inherit\\|^obsolete" nil major-keyword 1) ;; major keywords
-	      ("[ \t\n)(,;]\\(alias\\|all\\|and then\\|and\\|as\\|debug\\|deferred\\|do\\|else\\|elseif\\|end\\|export\\|external\\|from\\|frozen\\|if not\\|if\\|implies not\\|implies\\|infix\\|inspect\\|is\\|like\\|local\\|loop\\|not\\|obsolete\\|old\\|once\\|or else\\|or\\|prefix\\|redefine\\|rename\\|rescue\\|retry\\|select\\|strip\\|then\\|undefine\\|until\\|when\\|xor\\)[ \t\n)(,;]" nil minor-keyword 0) ;; minor keywords
-	      ("[ \t\n)(,;]\\(check\\|ensure then\\|ensure\\|invariant\\|require else\\|require\\|variant\\)[ \t\n)(,;]" nil assertion 2) ;; assertions
-	      ("\\(\"\"\\)\\|\\(\"\\([^\"%]\\|%.\\|%\n\\)+\"\\)" nil string 2) ;; strings
-	      ))
-      (hilit::mode-list-update "Eiffel" eiffel-mode-hilit)
-    ;; ---- Ace mode -----	
-      (defvar ace-mode-hilit
-	    '(
-	      ("--|.*"    nil hidden-comment 2)	;; hidden comments
-	      ("--[^\n|].*\\|--$" nil comment 1);; comments
-	      ("`[^`']*'" nil quoted-feature)	;; quoted expr's in comments
-	      ("^system\\|^default\\|^root\\|^cluster" nil major-keyword);; major keywords
-
-	      ))
-      (hilit::mode-list-update "Ace" ace-mode-hilit)
-      )
   )
+
+(defun eif-set-font (face font)
+  "Set the FACE's font to FONT if FONT is a string, to the default font if FONT is 'default, or to the font of the surrounding text if FONT is 'context"
+  (cond ((stringp font)
+	 (cond (running-lemacs (set-face-font face font))
+	       (running-epoch nil)
+	       (running-gnu19 (set-face-font face font))
+	       )
+	 )
+	((eq font 'context)
+	 (cond (running-lemacs (set-face-font face nil))
+	       (running-epoch nil)
+	       (running-gnu19 (set-face-font face nil))
+	       )
+	 )
+	((eq font 'default)
+	 (cond (running-lemacs (set-face-font face (face-font 'default)))
+	       (running-epoch nil)
+	       (running-gnu19 (set-face-font face (face-font 'default)))
+	       )
+	 )
+	)
+  )
+
+(defun eif-supports-color-p ()
+  (and (not disable-color)
+       (or (and running-gnu19  (x-display-color-p))
+	   (and running-lemacs (x-color-display-p))
+	   )
+       )
+)
+
+(defun eif-init-color ()
+  "Reset the Eiffel fonts and faces from the values of their repective variables"
+  (make-face 'eif-comment)
+  (make-face 'eif-hidden-comment)
+  (make-face 'eif-major-keyword)
+  (make-face 'eif-minor-keyword)
+  (make-face 'eif-quoted-feature)
+  (make-face 'eif-assertion)
+  (make-face 'eif-string)
+
+  (if (eif-supports-color-p)
+      (progn
+	(eif-set-foreground 'eif-comment         eif-comment-color)
+	(eif-set-font       'eif-comment         eif-comment-font)
+	(eif-set-foreground 'eif-hidden-comment  eif-hidden-comment-color)
+	(eif-set-font       'eif-hidden-comment  eif-hidden-comment-font)
+	(eif-set-foreground 'eif-quoted-feature  eif-quoted-feature-color)
+	(eif-set-font       'eif-quoted-feature  eif-quoted-feature-font)
+	(eif-set-foreground 'eif-major-keyword   eif-major-keyword-color)
+	(eif-set-font       'eif-major-keyword   eif-major-keyword-font)
+	(eif-set-foreground 'eif-minor-keyword   eif-minor-keyword-color)
+	(eif-set-font       'eif-minor-keyword   eif-minor-keyword-font)
+	(eif-set-foreground 'eif-assertion       eif-assertion-keyword-color)
+	(eif-set-font       'eif-assertion       eif-assertion-keyword-font)
+	(eif-set-foreground 'eif-string          eif-string-color)
+	(eif-set-font       'eif-string          eif-string-font)
+	)
+    (eif-set-foreground 'eif-comment         default-foreground-color)
+    (eif-set-font       'eif-comment         eif-comment-font)
+    (eif-set-foreground 'eif-hidden-comment  default-foreground-color)
+    (eif-set-font       'eif-hidden-comment  eif-hidden-comment-font)
+    (eif-set-foreground 'eif-quoted-feature  default-foreground-color)
+    (eif-set-font       'eif-quoted-feature  eif-quoted-feature-font)
+    (eif-set-foreground 'eif-major-keyword   default-foreground-color)
+    (eif-set-font       'eif-major-keyword   eif-major-keyword-font)
+    (eif-set-foreground 'eif-minor-keyword   default-foreground-color)
+    (eif-set-font       'eif-minor-keyword   eif-minor-keyword-font)
+    (eif-set-foreground 'eif-assertion       default-foreground-color)
+    (eif-set-font       'eif-assertion       eif-assertion-keyword-font)
+    (eif-set-foreground 'eif-string          default-foreground-color)
+    (eif-set-font       'eif-string          eif-string-font)
+    )
+
+  (cond ((featurep 'font-lock)
+	 (copy-face 'eif-comment        'font-lock-comment-face)
+	 (copy-face 'eif-string         'font-lock-string-face)
+	 )
+	((and (featurep 'hilit19)
+	      (not (eq 'eif-comment (car hilit-predefined-face-list)))
+	      )
+	 (setq hilit-predefined-face-list
+	       (append '(eif-comment
+			 eif-hidden-comment
+			 eif-major-keyword
+			 eif-minor-keyword
+			 eif-quoted-feature
+			 eif-assertion
+			 eif-string
+			)
+		       hilit-predefined-face-list
+		       )
+	       )
+	 )
+    )
+  )
+
+(eif-init-color)
+
+)) ;; matches "(if () (progn" above that checks for a highlighting package
+
+(cond ((featurep 'font-lock)
+       (copy-face 'eif-comment        'font-lock-comment-face)
+       (copy-face 'eif-string         'font-lock-string-face)
+       (defconst eiffel-font-lock-keywords
+	 (purecopy
+	  '(;; major keywords
+	    ("\\(^[ \t]*\\|[ \t]+\\)creation\\|^deferred[ \t]+class\\|^expanded[ \t]+class\\|^class\\|^feature\\|^indexing\\|\\(^[ \t]*\\|[ \t]+\\)inherit\\|^obsolete" 0 eif-major-keyword nil)
+	    ;; assertions
+	    ("\\(^\\|[^_\n]\\<\\)\\(check\\|ensure then\\|ensure\\|invariant\\|require else\\|require\\|variant\\)\\($\\|\\>[^_\n]\\)" 2 eif-assertion nil)
+	    ;; minor keywords
+	    ("\\(^\\|[^_\n]\\<\\)\\(alias\\|all\\|and not\\|and then\\|and\\|as\\|debug\\|deferred\\|do\\|else\\|elseif\\|end\\|export\\|external\\|from\\|frozen\\|if not\\|if\\|implies not\\|implies\\|infix\\|inspect\\|is deferred\\|is\\|like\\|local\\|loop\\|not\\|obsolete\\|old\\|once\\|or else\\|or not\\|or\\|prefix\\|redefine\\|rename\\|rescue\\|retry\\|select\\|strip\\|then\\|undefine\\|until\\|when\\|xor\\)\\($\\|\\>[^_\n]\\)" 2 eif-minor-keyword nil)
+	    ;; hidden comments
+	    ("--|.*" 0 eif-hidden-comment t)
+	    ;; quoted expr's in comments
+	    ("`[^`']*'" 0 eif-quoted-feature t)
+	    )
+	  )
+	 "Regular expressions to use with font-lock mode.")
+       (defconst ace-font-lock-keywords
+	 (purecopy
+	  '(;; major keywords
+	    ("^system\\|^default\\|^root\\|^cluster\\|^external\\|[ \t\n]end\\($\\|\\>[^_\n]\\)" 0 eif-major-keyword nil)
+	    ;; hidden comments
+	    ("--|.*" 0 eif-hidden-comment t)
+	    ;; quoted expr's in comments
+	    ("`[^`']*'" 0 eif-quoted-feature t)
+	    )
+	  )
+	 "Ace regular expressions to use with font-lock mode.")
+       )
+      ((featurep 'lhilit)
+
+       ;; ---- Eiffel mode -----	
+       ;; NOTE: The order of keywords below is generally alphabetical except 
+       ;; when one keyword is the prefix of another (e.g. "and" & "and then")
+       ;; In such cases, the prefix keyword MUST be the last one.
+       (defvar eiffel-mode-hilit
+	 '(
+	   ("--|.*" nil eif-hidden-comment 4);; hidden comments
+	   ("--[^\n|].*\\|--$" nil eif-comment 3);; comments
+	   ("`[^`']*'" nil eif-quoted-feature 5);; quoted expr's in comments
+	   ("^creation\\|^deferred[ \t]*class\\|^expanded[ \t]*class\\|^class\\|^feature\\|^indexing\\|^inherit\\|^obsolete" nil eif-major-keyword 1);; major keywords
+	   ("\\(^\\|[^_\n]\\<\\)\\(alias\\|all\\|and not\\|and then\\|and\\|as\\|debug\\|deferred\\|do\\|else\\|elseif\\|end\\|export\\|external\\|from\\|frozen\\|if not\\|if\\|implies not\\|implies\\|infix\\|inspect\\|is deferred\\|is\\|like\\|local\\|loop\\|not\\|obsolete\\|old\\|once\\|or else\\|or not\\|or\\|prefix\\|redefine\\|rename\\|rescue\\|retry\\|select\\|strip\\|then\\|undefine\\|until\\|when\\|xor\\)\\($\\|\\>[^_\n]\\)" nil eif-minor-keyword 0 2) ;; minor keywords
+	   ("\\(^\\|[^_\n]\\<\\)\\(check\\|ensure then\\|ensure\\|invariant\\|require else\\|require\\|variant\\)\\($\\|\\>[^_\n]\\)" nil eif-assertion 2 2) ;; assertions
+	   ("\\(\"\"\\)\\|\\(\"\\([^\"%]\\|%.\\|%\n\\)+\"\\)" nil eif-string 2);; strings
+	   ))
+       (hilit::mode-list-update "Eiffel" eiffel-mode-hilit)
+       ;; ---- Ace mode -----	
+       (defvar ace-mode-hilit
+	 '(
+	   ("--|.*"    nil eif-hidden-comment 2);; hidden comments
+	   ("--[^\n|].*\\|--$" nil eif-comment 1);; comments
+	   ("`[^`']*'" nil eif-quoted-feature);; quoted expr's in comments
+	   ("^system\\|^default\\|^root\\|^cluster\\|^external\\|[ \t\n]end\\($\\|\\>[^_\n]\\)" nil eif-major-keyword);; major keywords
+
+	   ))
+       (hilit::mode-list-update "Ace" ace-mode-hilit)
+       )
+      ;;
+      ;; NOTE: The hilit19 colors and fonts are _not_ set via the eif-*
+      ;;       faces, fonts, and foreground variables defined above. They
+      ;;       use their own face names which describe the colors and fonts
+      ;;       to use. See hilit19.el for more info.
+      ((featurep 'hilit19)
+
+       ;; ---- Eiffel mode -----	
+       ;; NOTE: The order of keywords below is generally alphabetical except 
+       ;; when one keyword is the prefix of another (e.g. "and" & "and then")
+       ;; In such cases, the prefix keyword MUST be the last one.
+       (hilit-set-mode-patterns
+	'eiffel-mode
+ 	 '(
+	   ("--|.*" nil eif-hidden-comment);; hidden comments
+	   ("--[^\n|].*\\|--$" nil eif-comment);; comments
+	   ("`[^`']*'" nil eif-quoted-feature);; quoted expr's in comments
+	   ("^creation\\|^deferred[ \t]*class\\|^expanded[ \t]*class\\|^class\\|^feature\\|^indexing\\|^inherit\\|^obsolete" nil eif-major-keyword);; major keywords
+	   ("\\(^\\|[^_\n]\\<\\)\\(alias\\|all\\|and not\\|and then\\|and\\|as\\|debug\\|deferred\\|do\\|else\\|elseif\\|end\\|export\\|external\\|from\\|frozen\\|if not\\|if\\|implies not\\|implies\\|infix\\|inspect\\|is deferred\\|is\\|like\\|local\\|loop\\|not\\|obsolete\\|old\\|once\\|or else\\|or not\\|or\\|prefix\\|redefine\\|rename\\|rescue\\|retry\\|select\\|strip\\|then\\|undefine\\|until\\|when\\|xor\\)\\($\\|\\>[^_\n]\\)" 2 eif-minor-keyword) ;; minor keywords
+	   ("\\(^\\|[^_\n]\\<\\)\\(check\\|ensure then\\|ensure\\|invariant\\|require else\\|require\\|variant\\)\\($\\|\\>[^_\n]\\)" 2 eif-assertion) ;; assertions
+	   ("\\(\"\"\\)\\|\\(\"\\([^\"%]\\|%.\\|%\n\\)+\"\\)"  eif-string);; strings
+	   )
+	 )
+       ;; ---- Ace mode -----	
+       (hilit-set-mode-patterns
+	'ace-mode
+	 '(
+	   ("--|.*"    nil eif-hidden-comment);; hidden comments
+	   ("--[^\n|].*\\|--$" nil eif-comment);; comments
+	   ("`[^`']*'" nil italic);; quoted expr's in comments
+	   ("^system\\|^default\\|^root\\|^cluster\\|^external\\|[ \t\n]end\\($\\|\\>[^_\n]\\)" nil eif-major-keyword);; major keywords
+
+	   )
+	 )
+       )
+      )
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;     No user-customizable definitions below this point.       ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -527,6 +688,9 @@ eif-control-flow-matching-keywords)"
   "The `if' or `inspect' keywords."
   )
 
+(defvar eif-then-keyword ".*[ \t)]then[ \t]*$" 
+  "The keyword `then' with possible leading text.")
+
 (defvar eif-solitary-then-keyword "then" "The keyword `then'.")
 
 (defvar eif-then-matching-keywords "\\(if\\|elseif\\|when\\)"
@@ -581,7 +745,7 @@ indentation of the obsolete-keyword."
   )
 
 (defvar eif-multiline-routine-is-keyword-regexp
-  ".*([^)]*)\\([ \t\n]*\\|[ \t\n]*:[][ \t\nA-Za-x0-9_]*\\)is[ 	]*\\(--.*\\)?$"
+  ".*([^)]*)\\([ \t\n]*\\|[ \t\n]*:[][ \t\nA-Za-x0-9_,]*\\)is[ 	]*\\(--.*\\)?$"
   "The `is' keyword (with some context)."
   )
 
@@ -618,6 +782,7 @@ constructs do not require correct indentation of the preceding line."
 	(originally-looking-at-comment nil)
 	(kw-match nil)
 	(continuation)
+	(id-colon)
 	)
     
     (save-excursion
@@ -816,6 +981,12 @@ constructs do not require correct indentation of the preceding line."
 	      (setq continuation t)
 	    (setq continuation nil)
 	    )
+	  ;; Record whether the line being indented begins with an "<id> :"
+	  ;; This is used in indenting assertion tag expressions.
+	  (if (looking-at "[ 	]*[a-zA-Z0-9_]+[ 	]*:")
+	      (setq id-colon t)
+	    (setq id-colon nil)
+	    )
 	  
 	  (previous-line 1)
 	  (beginning-of-line)
@@ -864,6 +1035,9 @@ constructs do not require correct indentation of the preceding line."
 				 )
 		       )
 		 )
+		((looking-at eif-then-keyword)
+		 (setq indent (eif-current-line-indent))
+		 )
 		((looking-at eif-end-keyword)
 		 (if (= (setq indent (eif-current-line-indent)) 
 			(eif-feature-level-kw-indent-m)
@@ -876,6 +1050,7 @@ constructs do not require correct indentation of the preceding line."
 		   )
 		 )
 		((looking-at eif-variable-or-const-regexp)
+		 ;;Either a variable declaration or a pre or post condition tag
 		 (if originally-looking-at-comment
 		     ;; Then  the line we are trying to indent is a comment
 		     (if (= (setq indent (eif-current-line-indent)) 
@@ -887,7 +1062,10 @@ constructs do not require correct indentation of the preceding line."
 		       (setq indent (+ indent (eif-body-comment-indent-m)))
 		       )
 		   ;; Else  the line being indented is not a comment
-		   (setq indent (eif-current-line-indent))
+		   (if (setq indent (eif-indent-assertion-continuation id-colon))
+		       indent
+		     (setq indent (eif-current-line-indent))
+		     )
 		   )
 		 )
 		((not (looking-at eif-all-keywords-regexp))
@@ -954,6 +1132,34 @@ constructs do not require correct indentation of the preceding line."
       )
   )
 
+(defun eif-indent-assertion-continuation (id-colon)
+  "Are we inside a pre or a post condition clause on a line that is a continuation of a multi-line assertion beginning with a tag. If so, return the indentation of the continuation line."
+  (let ((limit (point)))
+    (if (save-excursion 
+	  (if (re-search-backward (concat eif-feature-level-keywords "\\|"
+					  eif-end-keyword-regexp) nil t) 
+	      (if (looking-at "ensure\\|require")
+		  (setq limit (point))
+		nil
+		)
+	    nil
+	    )
+	  )
+	(save-excursion
+	  (end-of-line)
+	  (if (and (not id-colon) (re-search-backward ": *" limit t))
+	      (progn
+		(goto-char (match-end 0))
+		(current-column)
+		)
+	    nil
+	    )
+	  )
+      nil
+      )
+    )
+  )
+
 (defun eif-matching-indent (matching-keyword-regexp)
   "Search backward from the point looking for one of the keywords
 in the MATCHING-KEYWORD-REGEXP. Return the indentation of the
@@ -1006,9 +1212,9 @@ found.  If an `end' keyword occurs prior to finding one of the
 keywords in MATCHING-KEYWORD-REGEXP and it terminates a check
 clause, set the value of eif-matching-indent to the indentation of
 the `end' minus the value of eif-check-keyword-indent."
-  (let ((search-regexp (concat "[^a-z0-9A-Z_]" 
+  (let ((search-regexp (concat "[^a-z0-9A-Z_.]" 
 			       eif-end-keyword 
-			       "[^a-z0-9A-Z_]\\|[^a-z0-9A-Z_]" 
+			       "[^a-z0-9A-Z_.]\\|[^a-z0-9A-Z_.]" 
 			       matching-keyword-regexp
 			       )
 		       )
@@ -1152,13 +1358,13 @@ considered part of the string."
   );; e-in-quoted-string
 
 (defvar eif-opening-regexp 
-  "[^a-z_0-9]\\(check\\|deferred\\|do\\|once\\|from\\|if\\|inspect\\)[^a-z_0-9]"
+  "\\<\\(external\\|check\\|deferred\\|do\\|once\\|from\\|if\\|inspect\\)\\>"
   "Keywords that open eiffel nesting constructs."
   )
-(defvar eif-closing-regexp "[^a-z_0-9]\\(end\\)[^a-z_0-9]"
+(defvar eif-closing-regexp "\\<end\\>"
   "Keywords that close eiffel nesting constructs."
   )
-(defvar eif-do-regexp "[^a-z_0-9]\\(do\\)[^a-z_0-9]"
+(defvar eif-do-regexp "\\<do\\>"
   "Keyword that opens eiffel routine body."
   )
 (defvar eif-opening-or-closing-regexp 
@@ -1195,156 +1401,157 @@ construct containing the point."
 	(success   nil)
 	(start-point nil)
 	)
-    (save-excursion
-      (setq eif-matching-kw-for-end "") ;; public variable set by this function
-      (setq start-point (point))
-      (end-of-line)
-      (setq search-end (1+ (point)))
-      (beginning-of-line)
-      ;; Set starting state: If direction was specified use it.
-      ;; If direction is nil, search for a keyword on the current line
-      ;; If the keyword in in eif-opening-regexp, set the search 
-      ;; direction to 'forward, if the keyword on the current line is `end' 
-      ;; set the search direction to 'backward.
-      (cond ((eq direction 'forward)
-	     (end-of-line) ;; So we wont see any keywords on the current line
-	     (setq nesting-level 1)
-	     )
-	    ((eq direction 'backward)
-	     (beginning-of-line) ;; So we wont see any keywords on the current line
-	     (setq nesting-level -1)
-	     )
-	    ((and (re-search-forward eif-opening-regexp search-end t)
-		  (not (or (eif-in-quoted-string-p)
-			   (eif-in-comment-p)
-			   )
-		       )
-		  )
-	     (setq match-start (1+ (match-beginning 0)))
-	     (goto-char match-start) 
-	     (if (not (or (eif-in-quoted-string-p) (eif-in-comment-p)))
+    (unwind-protect
+	(save-excursion
+	  (modify-syntax-entry ?_  "w  ")
+	  (setq eif-matching-kw-for-end "");; public variable set by this function
+	  (setq start-point (point))
+	  (end-of-line)
+	  (setq search-end (point))
+	  (beginning-of-line)
+	  ;; Set starting state: If direction was specified use it.
+	  ;; If direction is nil, search for a keyword on the current line
+	  ;; If the keyword in in eif-opening-regexp, set the search 
+	  ;; direction to 'forward, if the keyword on the current line is `end' 
+	  ;; set the search direction to 'backward.
+	  (cond ((eq direction 'forward)
+		 (end-of-line);; So we wont see any keywords on the current line
 		 (setq nesting-level 1)
-	       )
-	     (setq opening-keyword 
-		   (cons (buffer-substring match-start (- (match-end 0) 1))
-			 opening-keyword
-			 )
-		   )
-	     )
-	    ((and (progn (beginning-of-line) t)
-	          (re-search-forward eif-closing-regexp search-end t)
-		  (not (or (eif-in-quoted-string-p)
-			   (eif-in-comment-p)
-			   )
-		       )
-		  )
-	     (goto-char (1+ (match-beginning 0)))
-	     (if (not (or (eif-in-quoted-string-p) (eif-in-comment-p)))
+		 )
+		((eq direction 'backward)
+		 (beginning-of-line);; So we wont see any keywords on the current line
 		 (setq nesting-level -1)
-	       )
-	     )
-	    )
-      ;; Perform the search
-      (while (not (= nesting-level 0))
-	(if (> nesting-level 0)
-	    ;; Then search forward for the next keyword not in a comment
-	    (while (and (re-search-forward eif-opening-or-closing-regexp nil t)
-			(goto-char (setq match-start (match-beginning 0)))
-			(setq match-end   (match-end 0))
-			(setq success t)
-			(or (eif-in-quoted-string-p) (eif-in-comment-p))
-			)
-	      (goto-char match-end)
-	      (setq success nil)
-	      )
-	  ;; Else search backward for the next keyword not in a comment
-	  (while (and (re-search-backward eif-opening-or-closing-regexp nil t)
-		      (goto-char (setq match-start (match-beginning 0)))
-		      (setq success t)
-		      (or (eif-in-quoted-string-p) (eif-in-comment-p))
+		 )
+		((and (re-search-forward eif-opening-regexp search-end t)
+		      (not (or (eif-in-quoted-string-p)
+			       (eif-in-comment-p)
+			       )
+			   )
 		      )
-	    (setq success nil)
-	    )
-	  )
-	(cond ((and (looking-at eif-opening-regexp) success)
-	       ;; Found an opening keyword
-	       (if (> nesting-level 0)
-		   ;; Then
-		   (if (looking-at eif-do-regexp)
+		 (setq match-start (match-beginning 0))
+		 (goto-char match-start) 
+		 (if (not (or (eif-in-quoted-string-p) (eif-in-comment-p)))
+		     (setq nesting-level 1)
+		   )
+		 (setq opening-keyword 
+		       (cons (buffer-substring match-start (match-end 0))
+			     opening-keyword
+			     )
+		       )
+		 (goto-char (match-end 0))
+		 )
+		((and (progn (beginning-of-line) t)
+		      (re-search-forward eif-closing-regexp search-end t)
+		      (not (or (eif-in-quoted-string-p)
+			       (eif-in-comment-p)
+			       )
+			   )
+		      )
+		 (goto-char (match-beginning 0))
+		 (if (not (or (eif-in-quoted-string-p) (eif-in-comment-p)))
+		     (setq nesting-level -1)
+		   )
+		 )
+		)
+	  ;; Perform the search
+	  (while (not (= nesting-level 0))
+	    (if (> nesting-level 0)
+		;; Then search forward for the next keyword not in a comment
+		(while (and (re-search-forward eif-opening-or-closing-regexp nil t)
+			    (goto-char (setq match-start (match-beginning 0)))
+			    (setq match-end   (match-end 0))
+			    (setq success t)
+			    (or (eif-in-quoted-string-p) (eif-in-comment-p))
+			    )
+		  (goto-char match-end)
+		  (setq success nil)
+		  )
+	      ;; Else search backward for the next keyword not in a comment
+	      (while (and (re-search-backward eif-opening-or-closing-regexp nil t)
+			  (goto-char (setq match-start (match-beginning 0)))
+			  (setq success t)
+			  (or (eif-in-quoted-string-p) (eif-in-comment-p))
+			  )
+		(setq success nil)
+		)
+	      )
+	    (cond ((and (looking-at eif-opening-regexp) success)
+		   ;; Found an opening keyword
+		   (if (> nesting-level 0)
 		       ;; Then
-		       (setq nesting-level -1)
+		       (if (looking-at eif-do-regexp)
+			   ;; Then
+			   (setq nesting-level -1)
+			 ;; Else
+			 (setq opening-keyword 
+			       (cons (buffer-substring match-start (match-end 0))
+				     opening-keyword
+				     )
+			       )
+			 (goto-char (match-end 0))
+			 )
+		     ;; Else
+		     (if (= nesting-level -1)
+			 ;; Then
+			 (progn
+			   (setq eif-matching-kw-for-end
+				 (buffer-substring match-start (match-end 0))
+				 )
+			   (if (looking-at "[ \t\n]+") (goto-char (match-end 0)))
+			   )
+		       ;; Else
+		       (if (looking-at eif-do-regexp)
+			   ;; Then
+			   (progn
+			     (goto-char (eif-matching-line nil 'forward))
+			     (setq nesting-level -1)
+			     )
+			 )
+		       )
+		     (setq opening-keyword (cdr opening-keyword))
+		     (if return-line-break
+			 (beginning-of-line)
+		       )
+		     )
+		   (setq nesting-level (1+ nesting-level))
+		   )
+		  ((and (looking-at eif-closing-regexp) success)
+		   ;; Found an opening keyword
+		   (if (> nesting-level 0)
+		       ;; Then
+		       (progn
+			 (setq opening-keyword (cdr opening-keyword))
+			 (if return-line-break
+			     (end-of-line)
+			   )
+			 (goto-char (match-end 0))
+			 )
 		     ;; Else
 		     (setq opening-keyword 
-			   (cons (buffer-substring (1+ match-start)
-						   (1- (match-end 0))
+			   (cons (buffer-substring (match-beginning 0) 
+						   (match-end 0)
 						   )
 				 opening-keyword
 				 )
 			   )
-		     (goto-char (1- (match-end 0)))
 		     )
-		 ;; Else
-		 (if (= nesting-level -1)
-		     ;; Then
-		     (progn
-		       (setq eif-matching-kw-for-end
-			     (buffer-substring (1+ match-start)
-					       (1- (match-end 0))
-					       )
-			     )
-		       (if (looking-at "\n") (forward-char 1))
-		       )
-		   ;; Else
-		   (if (looking-at eif-do-regexp)
-		       ;; Then
-		       (progn
-			 (goto-char (eif-matching-line nil 'forward))
-			 (setq nesting-level -1)
-			 )
-		     )
+		   (setq nesting-level (1- nesting-level))
 		   )
-		 (setq opening-keyword (cdr opening-keyword))
-		 (if return-line-break
-		     (beginning-of-line)
-		   )
-		 )
-	       (setq nesting-level (1+ nesting-level))
-	      )
-	      ((and (looking-at eif-closing-regexp) success)
-	       ;; Found an opening keyword
-	       (if (> nesting-level 0)
-		   ;; Then
-		   (progn
-		     (setq opening-keyword (cdr opening-keyword))
-		     (if return-line-break
-			 (end-of-line)
-		       )
-		     (goto-char (1- (match-end 0)))
+		  (t (message (concat "Could not find match"
+				      (if (car opening-keyword) 
+					  (concat " for: " (car opening-keyword))
+					)
+				      )
+			      )
+		     (goto-char start-point)
+		     (setq nesting-level 0)
 		     )
-		 ;; Else
-		 (setq opening-keyword 
-		       (cons (buffer-substring (match-beginning 0) 
-					       (1- (match-end 0))
-					       )
-			     opening-keyword
-			     )
-		       )
-		 )
-	       (setq nesting-level (1- nesting-level))
-	       )
-	      (t (message (concat "Could not find match"
-				  (if (car opening-keyword) 
-				      (concat " for: " (car opening-keyword))
-				    )
-				  )
-			  )
-		 (goto-char start-point)
-		 (setq nesting-level 0)
-		 )
-	      );; cond
-	);; while
-      (setq matching-point (point))
-      );; save-excursion
+		  );; cond
+	    );; while
+	  (setq matching-point (point))      
+	  );; save-excursion
+      (modify-syntax-entry ?_  "_  ")
+      );; unwind-protect
     (set-mark matching-point)
     );; let
   );; eif-matching-line 
@@ -1510,13 +1717,13 @@ only that line is indented"
     (modify-syntax-entry ?\] ")[  " table)
     (modify-syntax-entry ?\{ "(}  " table)
     (modify-syntax-entry ?\} "){  " table)
-    (modify-syntax-entry ?' "." table)
+    (modify-syntax-entry ?' "\"" table)
     (modify-syntax-entry ?` "." table)
     (modify-syntax-entry ?/ "." table)
     (modify-syntax-entry ?* "." table)
     (modify-syntax-entry ?+ "." table)
     (modify-syntax-entry ?= "." table)
-    (modify-syntax-entry ?% "/" table)
+    (modify-syntax-entry ?% "\\" table)
     (modify-syntax-entry ?< "." table)
     (modify-syntax-entry ?> "." table)
     (modify-syntax-entry ?& "." table)
@@ -1526,9 +1733,8 @@ only that line is indented"
     (modify-syntax-entry ?! "." table)
     (modify-syntax-entry ?. "." table)
     (setq eiffel-mode-syntax-table table))
-  )
+    )
 
-  
 (if eiffel-mode-map
     nil  
   (setq eiffel-mode-map (make-sparse-keymap))
@@ -1545,9 +1751,9 @@ only that line is indented"
   (setq major-mode 'eiffel-mode)
   (setq mode-name "Eiffel")
   (use-local-map eiffel-mode-map)
+  (set-syntax-table eiffel-mode-syntax-table)
   (run-hooks 'eiffel-mode-hook)
   (setq local-abbrev-table eiffel-mode-abbrev-table)
-  (set-syntax-table eiffel-mode-syntax-table)
   )
 
 (defun eif-in-comment-p ()
@@ -1611,8 +1817,8 @@ Returns t if successful, nil if not."
   (interactive)
   (let ((paren-count 0))
     (save-excursion
-      (while (re-search-backward "[()]" nil t)
-	(if (looking-at "(")
+      (while (re-search-backward "[][()]" nil t)
+	(if (looking-at "[[(]")
 	    (setq paren-count (1+ paren-count))
 	  (setq paren-count (1- paren-count))
 	  )

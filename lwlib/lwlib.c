@@ -1,5 +1,5 @@
 /* A general interface to the widgets of different toolkits.
-   Copyright (C) 1992, 1993 Lucid, Inc.
+   Copyright (C) 1992, 1993, 1994 Lucid, Inc.
 
 This file is part of the Lucid Widget Library.
 
@@ -265,6 +265,7 @@ copy_widget_value_tree (widget_value* val, change_type change)
     return val;
 
   copy = malloc_widget_value ();
+  copy->type = val->type;
   copy->name = safe_strdup (val->name);
   copy->value = safe_strdup (val->value);
   copy->key = safe_strdup (val->key);
@@ -477,6 +478,13 @@ merge_widget_value (widget_value* val1, widget_value* val2, int level)
   
   change = NO_CHANGE;
 
+  if (val1->type != val2->type)
+    {
+      EXPLAIN (val1->name, change, STRUCTURAL_CHANGE, "type change",
+	       val1->type, val2->type);
+      change = max (change, STRUCTURAL_CHANGE);
+      val1->type = val2->type;
+    }
   if (safe_strcmp (val1->name, val2->name))
     {
       EXPLAIN (val1->name, change, STRUCTURAL_CHANGE, "name change",
@@ -560,8 +568,10 @@ merge_widget_value (widget_value* val1, widget_value* val2, int level)
   else if (merged_next)
     {
       if (merged_next->change)
+      {
 	EXPLAIN (val1->name, change, merged_next->change, "(following change)",
 		 0, 0);
+      }
       change = max (change, merged_next->change);
     }
 
@@ -916,8 +926,10 @@ destroy_one_instance (widget_instance* instance)
 	xaw_destroy_instance (instance);
       else
 #endif
-	/* do not remove the empty statement */
-	;
+        {
+          /* do not remove the empty statement */
+          ;
+        }
     }
 
   free_widget_instance (instance);

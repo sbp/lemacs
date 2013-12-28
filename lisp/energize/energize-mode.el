@@ -597,16 +597,15 @@ You cannot get them back until you recompile the file."
   (let ((last-e (if not-this-one 'none nil))
 	e result)
     (save-excursion
-      (let ((p (point)))
-	(while (not (or result
-			(if prev (bobp) (eobp))))
-	  (setq e (extent-at (point) (current-buffer)))
-	  (if (and (not (eq e last-e))
-		   (not (eq last-e 'none)))
-	      (setq result
-		    (energize-menu-item-for-name e command)))
-	  (forward-char (if prev -1 1))
-	  (setq last-e e))))
+      (while (not (or result
+		      (if prev (bobp) (eobp))))
+	(setq e (extent-at (point) (current-buffer)))
+	(if (and (not (eq e last-e))
+		 (not (eq last-e 'none)))
+	    (setq result
+		  (energize-menu-item-for-name e command)))
+	(forward-char (if prev -1 1))
+	(setq last-e e)))
     (if result e)))
 
 (defun energize-next-extent-on-line-for (command not-this-one)
@@ -694,29 +693,93 @@ You cannot get them back until you recompile the file."
 
 
 (defun energize-project-prune-unused-rules ()
-  "Deletes all unused rules from the Rules: part of a Project buffer."
+  "Deletes all unused rules from the Rules: part of a Project buffer,
+and renumbers the remaining rules sequentally."
   (interactive)
   (save-excursion
     (goto-char (point-min))
-    (search-forward " Rules:")
+    (re-search-forward "^[ \t]+Rules:")
     (forward-line 1)
     (let ((rules-regexp "^[ \t]*\\(\\.[a-zA-Z]+\\(([0-9]+)\\)?\\):")
-	  p rule eor)
+	  (all-rules nil)
+	  eor)
+      ;;
+      ;; Gather the contents of the Rule section, and find its end.
+      ;;
       (save-excursion
 	(while (looking-at rules-regexp)
+	  (setq all-rules (cons (list (buffer-substring (match-beginning 1)
+							(match-end 1))
+				      (point-marker))
+				all-rules))
 	  (while (progn (end-of-line) (= (preceding-char) ?\\))
 	    (forward-line 1))
 	  (forward-line 1))
-	(setq eor (point)))
-      (while (looking-at rules-regexp)
-	(while (looking-at rules-regexp)
-	  (setq p (point))
-	  (setq rule (buffer-substring (match-beginning 1) (match-end 1)))
-	  (while (progn (end-of-line) (= (preceding-char) ?\\))
-	    (forward-line 1))
-	  (forward-line 1)
-	  (or (save-excursion
-		(goto-char eor)
-		(re-search-forward (concat "^[ \t]+" (regexp-quote rule) ":")
-				   nil t))
-	      (delete-region p (point))))))))
+	(setq eor (point-marker)))
+      (setq all-rules (nreverse all-rules))
+      (let ((rest all-rules)
+	    rule)
+	;;
+	;; Walk through the buffer gathering references to the rules.
+	;;
+	(while rest
+	  (setq rule (car rest))
+	  (goto-char eor)
+	  (let ((pattern (concat "^[ \t]+" (regexp-quote (car rule)) ":")))
+	    (while (re-search-forward pattern nil t)
+	      (setcdr (cdr rule)
+		      (cons (set-marker (make-marker) (match-beginning 0))
+			    (cdr (cdr rule))))))
+	  (setq rest (cdr rest)))
+	;;
+	;; Delete those rules that have no references.
+	;;
+	(goto-char eor)
+	(setq rest all-rules)
+	(while rest
+	  (setq rule (car rest))
+	  (if (null (cdr (cdr rule)))
+	      (let ((p (nth 1 rule)))
+		(goto-char p)
+		(while (progn (end-of-line) (= (preceding-char) ?\\))
+		  (forward-line 1))
+		(forward-line 1)
+		(delete-region p (point))
+		(set-marker p nil)
+		(setq all-rules (delq rule all-rules))
+		))
+	  (setq rest (cdr rest)))
+	;;
+	;; Renumber the remaining rules sequentally.
+	;;
+	(goto-char eor)
+	(setq rest all-rules)
+	(let ((i 1))
+	  (while rest
+	    (setq rule (car rest))
+	    (let ((referents (cdr rule))) ; including definition
+	      (while referents
+		(goto-char (car referents))
+		(or (and (looking-at
+			  (concat "^[ \t]+" (regexp-quote (car rule)) ":"))
+			 (looking-at "[^:(]+\\((\\([0-9]+\\))\\|\\):"))
+		    (error "internal error"))
+		(if (null (match-beginning 2))
+		    (progn
+		      (goto-char (match-beginning 1))
+		      (insert "(" (int-to-string i) ")"))
+		  (goto-char (match-beginning 2))
+		  (delete-region (match-beginning 2) (match-end 2))
+		  (insert (int-to-string i)))
+		(set-marker (car referents) nil)
+		(setq referents (cdr referents))))
+	    (setq i (1+ i))
+	    (setq rest (cdr rest))))
+	;;
+	;; TODO:
+	;; - order the Rule Users list in the same order as the Rules list.
+	;; - or, order the Rule Users list by number of files, and then
+	;;   order the Rules list the same as that (numbered sequentially.)
+	;; - or, order the Rules list by length-of-rule (= complicatedness.)
+	)
+      (set-marker eor nil))))

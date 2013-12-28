@@ -50,7 +50,7 @@ ERROR!! one of THIS_IS_X11R4 or THIS_IS_X11R5 must be defined.
    ##  functionally equivalent for our purposes.
  */
 
-#if __STDC__
+#if __STDC__ || defined(STDC_HEADERS)
 #define Const const
 #else
 #define Const /**/

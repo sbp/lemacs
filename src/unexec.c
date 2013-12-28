@@ -169,7 +169,7 @@ pointer looks like an int) but not on all machines.
 #define PERROR(file) report_error (file, new)
 #endif
 
-#if __STDC__
+#if __STDC__ || defined(STDC_HEADERS)
 
 /* I don't know how correct this attempt to get more prototypes is... */
 # if defined(sun) && defined(_POSIX_SOURCE)
@@ -206,8 +206,32 @@ pointer looks like an int) but not on all machines.
 int need_coff_header = 1;
 #include <coff-encap/a.out.encap.h> /* The location might be a poor assumption */
 #else
+#ifdef MSDOS
+#include <../go32/gotypes.h>
+#include <../go32/ed/coff.h>
+#define filehdr external_filehdr
+#define scnhdr external_scnhdr
+#define syment external_syment
+#define auxent external_auxent
+#define n_numaux e_numaux
+#define n_type e_type
+struct aouthdr
+{
+  word16 	magic;		/* type of file				*/
+  word16	vstamp;		/* version stamp			*/
+  word32	tsize;		/* text size in bytes, padded to FW bdry*/
+  word32	dsize;		/* initialized data "  "		*/
+  word32	bsize;		/* uninitialized data "   "		*/
+  word32	entry;		/* entry pt.				*/
+  word32 	text_start;	/* base of text used for this file */
+  word32 	data_start;	/* base of data used for this file */
+};
+
+
+#else /* not MSDOS */
 #include <a.out.h>
-#endif
+#endif /* not MSDOS */
+#endif /* not COFF_ENCAPSULATE */
 
 /* Define getpagesize () if the system does not.
    Note that this may depend on symbols defined in a.out.h
@@ -247,7 +271,7 @@ typedef long ptrdiff_t;
 #ifndef HPUX
 /* not sure where this for NetBSD should really go
    and it probably applies to other systems */
-#ifndef __NetBSD__
+#if !defined(__NetBSD__) && !defined(__bsdi__)
 extern void *sbrk (ptrdiff_t);
 #else
 extern char *sbrk ();
@@ -984,7 +1008,11 @@ write_segment (new, ptr, end)
 	 a gap between the old text segment and the old data segment.
 	 This gap has probably been remapped into part of the text segment.
 	 So write zeros for it.  */
-      if (ret == -1 && errno == EFAULT)
+      if (ret == -1
+#ifdef EFAULT
+          && errno == EFAULT
+#endif
+          )
 	write (new, zeros, nwrite);
       else if (nwrite != ret)
 	{
@@ -1089,6 +1117,7 @@ mark_x (name)
    a reasonable size buffer.  But I don't have time to work on such
    things, so I am installing it as submitted to me.  -- RMS.  */
 
+int
 adjust_lnnoptrs (writedesc, readdesc, new_name)
      int writedesc;
      int readdesc;
@@ -1107,7 +1136,11 @@ adjust_lnnoptrs (writedesc, readdesc, new_name)
   if (!lnnoptr || !f_hdr.f_symptr)
     return 0;
 
+#ifdef MSDOS
+  if ((new = writedesc) < 0)
+#else
   if ((new = open (new_name, 2)) < 0)
+#endif
     {
       PERROR (new_name);
       return -1;
@@ -1129,7 +1162,9 @@ adjust_lnnoptrs (writedesc, readdesc, new_name)
 	  }
 	}
     }
+#ifndef MSDOS
   close (new);
+#endif
 }
 
 #endif /* COFF_BSD_SYMBOLS */

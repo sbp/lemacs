@@ -53,13 +53,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef NO_TERMIO
 #include <termio.h>
 #endif /* not NO_TERMIO */
+#ifndef INCLUDED_FCNTL
+#define INCLUDED_FCNTL
 #include <fcntl.h>
-#else
+#endif /* INCLUDED_FCNTL */
+#else /* not HAVE_TERMIO */
 #ifdef HAVE_TERMIOS
 #if defined(_AIX) && defined(_I386)
 #include <termios.h>		/* termios.h needs to be before termio.h */
 #include <termio.h>
-#else
+#else /* not HAVE_TERMIOS */
 #ifndef NO_TERMIO
 #ifndef HPUX /* >>> Should define NO_TERMIO */
 #include <termio.h>
@@ -67,14 +70,17 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif /* NO_TERMIO */
 #include <termios.h>
 #endif /* _AIX && _I386 */
+#define INCLUDED_FCNTL
 #include <fcntl.h>
 #else /* neither HAVE_TERMIO nor HAVE_TERMIOS */
 #ifndef VMS
 #ifdef linux
 #include <bsd/sgtty.h>
 #else
+#ifndef MSDOS
 #include <sgtty.h>
-#endif
+#endif /* MSDOS */
+#endif /* not linux */
 #else /* VMS */
 #include <descrip.h>
 static struct iosb
@@ -354,8 +360,12 @@ struct emacs_tty {
 #ifdef VMS
   struct sensemode main;
 #else
+#ifdef MSDOS
+  int main;
+#else
   struct sgttyb main;
-#endif
+#endif /* !MSDOS */
+#endif /* !VMS */
 #endif
 #endif
 
@@ -387,7 +397,11 @@ struct emacs_tty {
 
 #ifdef HAVE_TERMIOS
 
+#ifdef TABDLY
 #define EMACS_TTY_TABS_OK(p) (((p)->main.c_oflag & TABDLY) != TAB3)
+#else
+#define EMACS_TTY_TABS_OK(p) 1
+#endif
 
 #else /* not def HAVE_TERMIOS */
 #ifdef HAVE_TERMIO
@@ -401,7 +415,11 @@ struct emacs_tty {
 
 #else
 
+#ifdef MSDOS
+#define EMACS_TTY_TABS_OK(p) 0
+#else /* not MSDOS */
 #define EMACS_TTY_TABS_OK(p) (((p)->main.sg_flags & XTABS) != XTABS)
+#endif /* not MSDOS */
 
 #endif /* not def VMS */
 #endif /* not def HAVE_TERMIO */

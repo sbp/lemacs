@@ -40,17 +40,19 @@
 ;; We don't want to have any undo records in the dumped Emacs.
 (buffer-disable-undo (get-buffer (gettext "*scratch*")))
 
-;; lread.c has prepended "../lisp/prim" to load-path, which is how this file
-;; has been found.  At this point, enough of emacs has been initialized that 
-;; we can call directory-files and get the rest of the dirs (so that we can
-;; dump stuff from modes/ and packages/.)
+;; lread.c (or src/Makefile.in.in) has prepended "${srcdir}/../lisp/prim" to
+;; load-path, which is how this file has been found.  At this point, enough
+;; of emacs has been initialized that we can call directory-files and get the
+;; rest of the dirs (so that we can dump stuff from modes/ and packages/.)
 ;;
-(setq load-path (nconc (directory-files "../lisp" t "^[^-.]" nil 'dirs-only)
-		       (cons "../lisp" load-path)))
+(let ((temp-path (expand-file-name ".." (car load-path))))
+  (setq load-path (nconc (directory-files temp-path t "^[^-.]" nil 'dirs-only)
+			 (cons temp-path load-path))))
 
 (setq load-warn-when-source-newer t ; set to nil at the end
       load-warn-when-source-only t)
 
+(load "version.el")  ;Don't get confused if someone compiled version.el by mistake.
 (load "bytecomp-runtime")		; define defsubst
 (garbage-collect)
 (load "subr")
@@ -119,21 +121,37 @@
 (if (fboundp 'x-create-screen)	; preload the X code, for faster startup.
     (progn
       (require 'screen)
+      (garbage-collect)
       (require 'menubar)
+      (garbage-collect)
+      (load "x11/x-font-menu")
+      (garbage-collect)
+      (if (fboundp 'popup-dialog-box)
+	  (require 'dialog))
       (require 'x-faces)
+      (garbage-collect)
       (require 'x-iso8859-1)
+      (garbage-collect)
       (require 'x-mouse)
+      (garbage-collect)
       (require 'xselect)
+      (garbage-collect)
       ))
 
-(load "version.el")  ;Don't get confused if someone compiled version.el by mistake.
+(if (fboundp (intern-soft "create-tooltalk-message"))	; #ifdef TOOLTALK
+    (progn
+      (load "tooltalk/tooltalk-load")
+      (garbage-collect)))
 
-(load "bytecomp-runtime")  ; needs version.el to know what emacs it's in.
+(if (fboundp (intern-soft "handle-energize-request"))	; #ifdef ENERGIZE
+    (progn
+      (load "energize/energize-load.el")
+      (garbage-collect)))
 
-(if (fboundp (intern-soft "handle-energize-request"))
-    (load "energize/energize-load.el"))
-
-(garbage-collect)
+(if (fboundp (intern-soft "has-usage-tracking-p"))	; #ifdef SUNPRO
+    (progn
+      (load "sunpro/sunpro-load.el")
+      (garbage-collect)))
 
 
 (setq load-warn-when-source-newer nil ; set to t at top of file
@@ -142,13 +160,16 @@
 (setq debugger 'debug)
 (setq debug-on-error nil)
 
+(if (or (equal (nth 4 command-line-args) "no-site-file")
+	(equal (nth 5 command-line-args) "no-site-file"))
+    (setq site-start-file nil))
 
 ;If you want additional libraries to be preloaded and their
 ;doc strings kept in the DOC file rather than in core,
 ;you may load them with a "site-load.el" file.
 ;But you must also cause them to be scanned when the DOC file
-;is generated.  For VMS, you must edit ../etc/makedoc.com.
-;For other systems, you must edit ../src/ymakefile.
+;is generated.  For VMS, you must edit ../../vms/makedoc.com.
+;For other systems, you must edit ../../src/Makefile.in.in.
 (if (load "site-load" t)
     (garbage-collect))
 
@@ -173,8 +194,8 @@
 			  (substring name (match-end 0)))))
 	    (if (string-match "-+\\'" name)
 		(setq name (substring name 0 (match-beginning 0))))
-	    (copy-file (expand-file-name "../etc/DOC")
-		       (concat (expand-file-name "../etc/DOC-") name)
+	    (copy-file (expand-file-name "DOC" "../lib-src")
+		       (expand-file-name (concat "DOC-" name) "../lib-src")
 		       t)
 	    (Snarf-documentation (concat "DOC-" name)))
 	(Snarf-documentation "DOC"))
@@ -185,14 +206,8 @@
 ;Note: You can cause additional libraries to be preloaded
 ;by writing a site-init.el that loads them.
 ;See also "site-load" above.
-(load "site-init" t)
-
-(if (fboundp (intern-soft "create-tooltalk-message"))
-    (progn
-      (load "tooltalk/load-tooltalk")
-      (load "utils/annotations")
-      ))
-(garbage-collect)
+(if (stringp site-start-file)
+    (load "site-init" t))
 
 ;; At this point, we're ready to resume undo recording for scratch.
 (buffer-enable-undo (gettext "*scratch*"))
@@ -237,9 +252,12 @@
 (if (or (equal (nth 3 command-line-args) "run-temacs")
 	(equal (nth 4 command-line-args) "run-temacs"))
     (progn
-      (princ (gettext "\nSnarfing doc...\n") #'external-debugging-output)
-      (Snarf-documentation "DOC")
-      (Verify-documentation)
+      ;; purify-flag is nil if called from loadup-el.el.
+      (if purify-flag
+	  (progn
+	    (princ (gettext "\nSnarfing doc...\n") #'external-debugging-output)
+	    (Snarf-documentation "DOC")
+	    (Verify-documentation)))
       (princ (gettext "\nBootstrapping from temacs...\n")
 	     #'external-debugging-output)
       (setq purify-flag nil)
@@ -252,6 +270,20 @@
 
 ;; Avoid error if user loads some more libraries now.
 (setq purify-flag nil)
+
+;; If you are using 'recompile', then you should have used -l loadup-el.el
+;; so that the .el files always get loaded (the .elc files may be out-of-
+;; date or bad).
+(if (or (equal (nth 3 command-line-args) "recompile")
+	(equal (nth 4 command-line-args) "recompile"))
+    (progn
+      (let ((command-line-args-left
+             (nthcdr (if (equal (nth 3 command-line-args) "recompile")
+                         4 5)
+                     command-line-args)))
+	(batch-byte-recompile-directory)
+	(kill-emacs))))
+
 
 ;; For machines with CANNOT_DUMP defined in config.h,
 ;; this file must be loaded each time Emacs is run.

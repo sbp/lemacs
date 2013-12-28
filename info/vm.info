@@ -780,7 +780,7 @@ and @ (`vm-send-digest').
 
    Typing `z' puts you into a `*mail*' buffer just like `m', except the
 current message appears as the body of the message in the `*mail*'
-buffer. The forwarded message is surrounded by RFC 934 complaint
+buffer. The forwarded message is surrounded by RFC 934 compliant
 message delimiters.  If the variable `vm-rfc934-forwarding' is
 non-`nil' "^-" to "- -" character stuffing is done to the forwarded
 message (this is the default).  This behavior is required if the

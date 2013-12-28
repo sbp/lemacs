@@ -1,23 +1,23 @@
-/* machine description file for the Motorola delta running System V.3.
-   tested on sys1147 (mvme147 - based system).
-   Copyright (C) 1986 Free Software Foundation, Inc.
+/* Machine description file for the Motorola Delta.
+   Tested on mvme147 board using R3V7 without X.  Tested with gcc.
+   Tested on mvme167 board using R3V7 without X.  Tested with cc, gnucc, gcc.
+   Copyright (C) 1986, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
-GNU Emacs is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY.  No author or distributor
-accepts responsibility to anyone for the consequences of using it
-or for whether it serves any particular purpose or works at all,
-unless he says so in writing.  Refer to the GNU Emacs General Public
-License for full details.
+GNU Emacs is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
-Everyone is granted permission to copy, modify and redistribute
-GNU Emacs, but only under the conditions described in the
-GNU Emacs General Public License.   A copy of this license is
-supposed to have been given to you along with GNU Emacs so you
-can know your rights and responsibilities.  It should be in a
-file named COPYING.  Among other things, the copyright notice
-and this notice must be preserved on all copies.  */
+GNU Emacs is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GNU Emacs; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
 /* The following line tells the configuration script what sort of 
@@ -33,11 +33,6 @@ and this notice must be preserved on all copies.  */
 
 #define LONGBITS 32		/* Number of bits in a long */
 
-/* Define BIG_ENDIAN iff lowest-numbered byte in a word
-   is the most significant byte.  */
-
-#define BIG_ENDIAN
-
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
 
@@ -50,21 +45,17 @@ and this notice must be preserved on all copies.  */
 
 /* Now define a symbol for the cpu type, if your compiler
    does not define it automatically:
-   vax, m68000, ns16000, pyramid, orion, tahoe and APOLLO
-   are the ones defined so far.  */
+   Ones defined so far include vax, m68000, ns16000, pyramid,
+   orion, tahoe, APOLLO and many others */
+
 #define m68000
-#define NO_REMAP
-
-#define HAVE_SYSVIPC
-
-#define HAVE_PTYS
-#define SYSV_PTYS
+#define MOTOROLA_DELTA
 
 /* Use type int rather than a union, to represent Lisp_Object */
 /* This is desirable for most machines.  */
 
 #define NO_UNION_TYPE 
-#define SWITCH_ENUM_BUG
+
 /* Define EXPLICIT_SIGN_EXTEND if XINT must explicitly sign-extend
    the 24-bit bit field into an int.  In other words, if bit fields
    are always unsigned.
@@ -103,61 +94,134 @@ and this notice must be preserved on all copies.  */
    Define neither one if an assembler-language alloca
    in the file alloca.s should be used.  */
 
-/*#define C_ALLOCA */
-/*#define HAVE_ALLOCA */
+/* #define C_ALLOCA */
+/* #define HAVE_ALLOCA */
 
-#ifdef __GNUC__
-/* easy. use builtin one. also be sure that no other ones are tried out. */
-# define alloca __builtin_alloca
-# define HAVE_ALLOCA
-# undef C_ALLOCA
-#else
-# ifdef C_ALLOCA
-#  define STACK_DIRECTION (-1)	 /* C_ALLOCA needs to know about stack. */
-# else /* C_ALLOCA */
-#  ifndef HAVE_ALLOCA
-#   define BAT_ALLOCA            /* if not in library, alloca.s needs this. */
-#  endif /* HAVE_ALLOCA */
-# endif /* C_ALLOCA */
-#endif /* __GNUC__ */
+/* Define NO_REMAP if memory segmentation makes it not work well
+   to change the boundary between the text section and data section
+   when Emacs is dumped.  If you define this, the preloaded Lisp
+   code will not be sharable; but that's better than failing completely.  */
 
-/* The standard C library is -lcieee, not -lc.
-   Also use the PW library, which contains alloca.
-   DO NOT USE -lPW. That version of alloca is broken, at last until version
-   SVR3V5.1 . -riku@field.fi */
+#define NO_REMAP
 
-#define LIB_STANDARD -lc
+/* Some really obscure 4.2-based systems (like Sequent DYNIX)
+ * do not support asynchronous I/O (using SIGIO) on sockets,
+ * even though it works fine on tty's.  If you have one of
+ * these systems, define the following, and then use it in
+ * config.h (or elsewhere) to decide when (not) to use SIGIO.
+ *
+ * You'd think this would go in an operating-system description file,
+ * but since it only occurs on some, but not all, BSD systems, the
+ * reasonable place to select for it is in the machine description
+ * file.
+ */
 
+/* #define NO_SOCK_SIGIO */
+
+
+/* Define these if you want to edit files up to 32Mbytes.
+   Leaving them undefined (files up to 8 Mbytes) should be more efficient. */
+  
+/* #define VALBITS 26
+   #define GCTYPEBITS 5 */
+
+/* Undefine this if you don't want the machine slow down when a buffer
+   is modified. */
+
+#define CLASH_DETECTION
+
+/* Machine specific stuff */
+#define HAVE_PTYS
+#define SYSV_PTYS
+#define HAVE_SELECT
+#define HAVE_SOCKETS		/***** only if NSE has been installed *****/
+#define HAVE_TIMEVAL
+#define SIGNALS_VIA_CHARACTERS
+#define BROKEN_CLOSEDIR		/* builtin closedir is interruptible */
+#undef HAVE_BCOPY		/* b* functions are just stubs to mem* ones */
+#define bcopy(from,to,bytes)	memcpy(to,from,bytes)
+#define bzero(to,bytes)		memset(to,0,bytes)
+#define bcmp memcmp
+#define memmove safe_bcopy	/* for overlapping copies */
+#undef KERNEL_FILE
+#define KERNEL_FILE "/sysv68"
+#undef LDAV_SYMBOL
+#ifdef SIGIO
+ /* R3V7 has SIGIO, but interrupt input does not work yet.
+    Let's go on with cbreak code. */
+/* # define INTERRUPT_INPUT */
+#endif
+
+/* The standard C library is -lc881, not -lc.
+   -lbsd brings sigblock and sigsetmask.
+   DO NOT USE -lPW. That version of alloca is broken in versions R3V5,
+   R3V6, R3V7. -riku@field.fi -pot@cnuce.cnr.it. */
+
+#define LIB_STANDARD -lc881
+#define LIB_MATH -lm881
 #define LIBS_TERMCAP -lcurses
-
-/* define this if you want to use X11 */
-#undef HAVE_X_WINDOWS
+#define LIBS_SYSTEM -lbsd
+#undef sigsetmask
 
 #ifdef HAVE_X_WINDOWS
-/* debug switches enabled because of some difficulties w/X11 */
+/* I have not tested X, but I think these are obsolete, so let's
+   commment them -pot@cnuce.cnr.it */
+/* debug switches enabled because of some difficulties w/X11
 # define C_DEBUG_SWITCH -g
 # define OBJECTS_MACHINE -lg
 # define C_OPTIMIZE_SWITCH
 # define CANNOT_DUMP
-/*# define XDEBUG*/
-# define X11
-/* X library implements these. */
-# define BSTRING
+# define XDEBUG */
 /* X library is in 'nonstandard' location. */
-# define LD_SWITCH_MACHINE -L/usr/lib/X11/
-#else
-/* No sufficient justification for this.  */
-/* # define C_DEBUG_SWITCH */
-# define C_OPTIMIZE_SWITCH -O
+/* This should be taken care of by configure -pot@cnuce.cnr.it
+# define LD_SWITCH_MACHINE -L/usr/lib/X11/ */
+# define HAVE_RANDOM
+# define BROKEN_FIONREAD	/* pearce@ll.mit.edu says this is needed. */
+# define HAVE_XSCREENNUMBEROFSCREEN
+# undef LIB_X11_LIB		/* no shared libraries */
+# define LIB_X11_LIB -lX11
+# undef USG_SHARED_LIBRARIES    /* once again, no shared libs */
+# undef LIBX11_SYSTEM		/* no -lpt as usg5-3.h expects */
+# define LIBX11_SYSTEM -lnls -lnsl_s
 #endif /* HAVE_X_WINDOWS */
 
-/* enable batdevice-dependent code to compile. */
-#define BAT68K
+#ifdef __GNUC__
+ /* Use builtin alloca. Also be sure that no other ones are tried out. */
+# define alloca __builtin_alloca
+# define HAVE_ALLOCA
+ /* Union lisp objects do not yet work as of 19.15. */
+/* # undef NO_UNION_TYPE */
 
-#define HAVE_SOCKETS
+/* There are three ways to use the gnucc provided with R3V7.  Either
+   link /bin/ccd/cc to /bin/cc and then configure (supposing that CC
+   is unset or set to cc).  Or configure like this: `CC=/bin/ccd/cc
+   configure', or else configure like this: `CC=gnucc configure'. */
 
-/* crt0.c should use the vax-bsd style of entry, with no dummy args.  */
+# ifdef __STDC__
+ /* Compiling with gnucc (not through ccd).  This means -traditional is
+    not set.  Let us set it, because (as of emacs 19.21) gmalloc.c
+    includes <stddef.h>, and we don't have that (as of SYSV68 R3V7).
+    Removing the -finline-functions option to gnucc causes an
+    executable emacs smaller by about 10%. */
+#  define C_SWITCH_MACHINE -mfp0ret -m68881 -traditional -Dconst= -fdelayed-branch -fstrength-reduce -finline-functions -fcaller-saves
+#  define LIB_GCC /lib/gnulib881
+# endif /* __STDC__ */
 
+#else
+ /* Not __GNUC__, use the alloca in alloca.s. */
 
-/* emacs's magic number isn't temacs's;
-   temacs is writeable text (the default!).  */
+ /* Try to guess if we are using the Green Hills Compiler */
+# if defined mc68000 && defined MC68000
+ /* Required only for use with Green Hills compiler:
+	-ga	 Because alloca relies on stack frames. This option forces
+		 the Green Hills compiler to create stack frames even for
+		 functions with few local variables. */
+#  define C_SWITCH_MACHINE -ga -O
+#  define GAP_USE_BCOPY		/* *++to = *++from  is inefficient */
+#  define BCOPY_DOWNWARD_SAFE	/* bcopy does: mov.b (%a1)+,(%a0)+ */
+# else
+ /* We are using the standard AT&T Portable C Compiler */
+#  define SWITCH_ENUM_BUG
+# endif
+
+#endif /* not __GNUC__ */

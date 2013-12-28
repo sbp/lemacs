@@ -1,23 +1,21 @@
-Info file elisp, produced by Makeinfo, -*- Text -*- from input file
-elisp.texi.
+This is Info file ../../info/lispref.info, produced by Makeinfo-1.56
+from the input file lispref.texinfo.
 
-   This file documents GNU Emacs Lisp.
+   This version is newer than the second printed edition of the GNU
+Emacs Lisp Reference Manual.  It corresponds to Emacs Version 19.19.
 
-   This is edition 1.03 of the GNU Emacs Lisp Reference Manual,   for
-Emacs Version 18.
+   Published by the Free Software Foundation 675 Massachusetts Avenue
+Cambridge, MA 02139 USA
 
-   Published by the Free Software Foundation, 675 Massachusetts
-Avenue,  Cambridge, MA 02139 USA
+   Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
 
-   Copyright (C) 1990 Free Software Foundation, Inc.
-
-   Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
 
    Permission is granted to copy and distribute modified versions of
-this manual under the conditions for verbatim copying, provided that
-the entire resulting derived work is distributed under the terms of a
+this manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
 permission notice identical to this one.
 
    Permission is granted to copy and distribute translations of this
@@ -25,1210 +23,1191 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be stated in a
 translation approved by the Foundation.
 
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the Free Software
+Foundation instead of in the original English.
 
 
-File: elisp,  Node: Splitting Windows,  Next: Deleting Windows,  Prev: Basic Windows,  Up: Windows
+File: lispref.info,  Node: Key Binding Commands,  Next: Scanning Keymaps,  Prev: Changing Key Bindings,  Up: Keymaps
 
-Splitting Windows
-=================
+Commands for Binding Keys
+=========================
 
-   The functions described here are the primitives used to split a
-window into two windows.  Two higher level functions sometimes split
-a window, but not always: `pop-to-buffer' and `display-buffer' (*note
-Displaying Buffers::.).
+   This section describes some convenient interactive interfaces for
+changing key bindings.  They work by calling `define-key'.
 
-   The functions described here do not accept a buffer as an argument.
-They let the two "halves" of the split window display the same buffer
-previously visible in the window that was split.
+ - Command: global-set-key KEY DEFINITION
+     This function sets the binding of KEY in the current global map to
+     DEFINITION.
 
- * Function: one-window-p &optional NO-MINI
-     This function returns non-`nil' if there is only one window. 
-     The argument NO-MINI, if non-`nil', means don't count the
-     minibuffer even if it is active; otherwise, the minibuffer
-     window is included, if active, in the total number of windows
-     which is compared against one.
+          (global-set-key KEY DEFINITION)
+          ==
+          (define-key (current-global-map) KEY DEFINITION)
 
- * Command: split-window &optional WINDOW SIZE HORIZONTAL
-     This function splits WINDOW into two windows.  The original
-     window WINDOW remains the selected window, but occupies only
-     part of its former screen area.  The rest is occupied by a newly
-     created window which is returned as the value of this function.
+ - Command: global-unset-key KEY
+     This function removes the binding of KEY from the current global
+     map.
 
-     If HORIZONTAL is non-`nil', then WINDOW splits side by side,
-     keeping the leftmost SIZE columns and giving the rest of the
-     columns to the new window.  Otherwise, it splits into halves one
-     above the other, keeping the upper SIZE lines and giving the
-     rest of the lines to the new window.  The original window is
-     therefore the right-hand or upper of the two, and the new window
-     is the left-hand or lower.
+     One use of this function is in preparation for defining a longer
+     key which uses it implicitly as a prefix--which would not be
+     allowed if KEY has a non-prefix binding.  For example:
 
-     If WINDOW is omitted or `nil', then the selected window is
-     split.  If SIZE is omitted or `nil', then WINDOW is divided
-     evenly into two parts.  (If there is an odd line, it is
-     allocated to the new window.)  When `split-window' is called
-     interactively, all its arguments are `nil'.
+          (global-unset-key "\C-l")
+              => nil
 
-     The following example starts with one window on a screen that is
-     50 lines high by 80 columns wide; then the window is split.
+          (global-set-key "\C-l\C-l" 'redraw-display)
+              => nil
 
-          (setq w (selected-window))
-               => #<window 8 on windows.texi>
-          (window-edges)                  ; Edges in order: left--top--right--bottom
-               => (0 0 80 50)
-          
-          (setq w2 (split-window w 15))   ; Returns window created
-               => #<window 28 on windows.texi>
-          (window-edges w2)
-               => (0 15 80 50)            ; Bottom window; top is line 15
-          (window-edges w)
-               => (0 0 80 15)             ; Top window
+     This function is implemented simply using `define-key':
 
-     The screen looks like this:
+          (global-unset-key KEY)
+          ==
+          (define-key (current-global-map) KEY nil)
 
-                   __________ 
-                  |          |  line 0  
-                  |    w     |
-                  |__________|
-                  |          |  line 15
-                  |    w2    |
-                  |__________|
-                                line 50
-           column 0   column 80
+ - Command: local-set-key KEY DEFINITION
+     This function sets the binding of KEY in the current local keymap
+     to DEFINITION.
 
-     Next, the top window is split horizontally:
+          (local-set-key KEY DEFINITION)
+          ==
+          (define-key (current-local-map) KEY DEFINITION)
 
-          (setq w3 (split-window w 35 t))
-               => #<window 32 on windows.texi>
-          (window-edges w3)
-               => (35 0 80 15)  ; Left edge at column 35
-          (window-edges w)
-               => (0 0 35 15)   ; Right edge at column 35
-          (window-edges w2)
-               => (0 15 80 50)  ; Bottom window unchanged
+ - Command: local-unset-key KEY
+     This function removes the binding of KEY from the current local
+     map.
 
-     Now, the screen looks like this:
-
-               column 35
-                   __________ 
-                  |   |      |  line 0  
-                  | w |  w3  |
-                  |___|______|
-                  |          |  line 15
-                  |    w2    |
-                  |__________|
-                                line 50
-           column 0   column 80
-
- * Command: split-window-vertically SIZE
-     This function splits the selected window into two windows, one
-     above the other, leaving the selected window with SIZE lines.
-
-     This function is simply an interface to `split-windows'.  Here
-     is the complete function definition for it:
-
-          (defun split-window-vertically (&optional arg)
-            "Split selected window into two windows, one above the other..."
-            (interactive "P")
-            (split-window nil (and arg (prefix-numeric-value arg))))
-
- * Command: split-window-horizontally SIZE
-     This function splits the selected window into two windows
-     side-by-side, leaving the selected window with SIZE columns.
-
-     This function is simply an interface to `split-windows'.  Here
-     is the complete definition for `split-window-horizontally'
-     (except for part of the documentation string):
-
-          (defun split-window-horizontally (&optional arg)
-            "Split selected window into two windows side by side..."
-            (interactive "P")
-            (split-window nil (and arg (prefix-numeric-value arg)) t))
-
+          (local-unset-key KEY)
+          ==
+          (define-key (current-local-map) KEY nil)
 
 
-File: elisp,  Node: Deleting Windows,  Next: Selecting Windows,  Prev: Splitting Windows,  Up: Windows
+File: lispref.info,  Node: Scanning Keymaps,  Prev: Key Binding Commands,  Up: Keymaps
 
-Deleting Windows
+Scanning Keymaps
 ================
 
-   A "deleted window" no longer appears on the screen.  In Emacs
-version 18, the space it took up on the screen is divided
-proportionally among all siblings; in version 19, the space is given
-to one adjacent sibling.
+   This section describes functions used to scan all the current keymaps
+for the sake of printing help information.
 
- * Command: delete-window &optional WINDOW
-     This function removes WINDOW from the display.  If WINDOW is
-     omitted, then the selected window is deleted.  An error is
-     signaled if there is only one window when `delete-window' is
-     called.
+ - Function: accessible-keymaps KEYMAP &optional PREFIX
+     This function returns a list of all the keymaps that can be
+     accessed (via prefix keys) from KEYMAP.  The value is an
+     association list with elements of the form `(KEY . MAP)', where
+     KEY is a prefix key whose definition in KEYMAP is MAP.
 
-          *Warning:* erroneous information or fatal errors may result
-          from using a deleted window.  Use `(window-point WINDOW)'
-          to test whether a window has been deleted; it yields `nil'
-          for a deleted window.
+     The elements of the alist are ordered so that the KEY increases in
+     length.  The first element is always `("" . KEYMAP)', because the
+     specified keymap is accessible from itself with a prefix of no
+     events.
 
-     This function returns `nil'.
+     If PREFIX is given, it should be a prefix key sequence; then
+     `accessible-keymaps' includes only the submaps whose prefixes start
+     with PREFIX.  These elements look just as they do in the value of
+     `(accessible-keymaps)'; the only difference is that some elements
+     are omitted.
 
-     When `delete-window' is called interactively, WINDOW defaults to
-     the selected window.
+     In the example below, the returned alist indicates that the key
+     ESC, which is displayed as `^[', is a prefix key whose definition
+     is the sparse keymap `(keymap (83 . center-paragraph) (115 .
+     foo))'.
 
- * Command: delete-other-windows &optional WINDOW
-     This function makes WINDOW the only window on the screen by
-     deleting all the other windows.  If WINDOW is omitted or `nil',
-     then the selected window is used by default.
+          (accessible-keymaps (current-local-map))
+          =>(("" keymap
+                (27 keymap   ; Note this keymap for ESC is repeated below.
+                    (83 . center-paragraph)
+                    (115 . center-line))
+                (9 . tab-to-tab-stop))
 
-     The result is `nil'.
+          ("^[" keymap
+              (83 . center-paragraph)
+              (115 . foo)))
 
- * Command: delete-windows-on BUFFER
-     This function deletes all windows showing BUFFER.  If there are
-     no windows showing BUFFER, then this function does nothing.  If
-     all windows are showing BUFFER (including the case where there
-     is only one window), then the screen reverts to having a single
-     window showing the buffer chosen by `other-buffer'.  *Note The
-     Buffer List::.
-
-     If there are several windows showing different buffers, then
-     those showing BUFFER are removed, and the others are expanded to
-     fill the void.
-
-     The result is `nil'.
-
-
-
-File: elisp,  Node: Selecting Windows,  Next: Cyclic Window Ordering,  Prev: Deleting Windows,  Up: Windows
-
-Selecting Windows
-=================
-
-   When a window is selected, the buffer in the window becomes the
-current buffer, and the cursor will appear in it.
-
- * Function: selected-window
-     This function returns the selected window.  This is the window
-     in which the cursor appears and to which many commands apply.
-
- * Function: select-window WINDOW
-     This function makes WINDOW the selected window.  The cursor then
-     appears in WINDOW (on redisplay).  The buffer being displayed in
-     WINDOW is immediately designated the current buffer.
-
-     The return value is WINDOW.
-
-          (setq w (next-window))
-          (select-window w)
-               => #<window 65 on windows.texi>
-
-   The following functions choose one of the windows on the screen,
-offering various criteria for the choice.
-
- * Function: get-lru-window
-     This function returns the window least recently "used" (that is,
-     selected).  The selected window is always the most recently used
+     In the following example, `C-h' is a prefix key that uses a sparse
+     keymap starting with `(keymap (118 . describe-variable)...)'.
+     Another prefix, `C-x 4', uses a keymap which happens to be
+     `ctl-x-4-map'.  The event `mode-line' is one of several dummy
+     events used as prefixes for mouse actions in special parts of a
      window.
 
-     The selected window can be the least recently used window if it
-     is the only window.  A newly created window becomes the least
-     recently used window until it is selected.  The minibuffer
-     window is not considered a candidate.
+          (accessible-keymaps (current-global-map))
+          => (("" keymap [set-mark-command beginning-of-line ...
+                             delete-backward-char])
 
- * Function: get-largest-window
-     This function returns the window with the largest area (height
-     times width).  If there are no side-by-side windows, then this
-     is the window with the most lines.  The minibuffer window is not
-     considered a candidate.
+          ("^H" keymap (118 . describe-variable) ...
+               (8 . help-for-help))
 
-     If there are two windows of the same size, then the function
-     returns the window which is first in the cyclic ordering of
-     windows (see following section), starting from the selected
-     window.
+          ("^X" keymap [x-flush-mouse-queue ...
+               backward-kill-sentence])
 
+          ("^[" keymap [mark-sexp backward-sexp ...
+               backward-kill-word])
+              ("^X4" keymap (15 . display-buffer) ...)
+          ([mode-line] keymap
+               (S-mouse-2 . mouse-split-window-horizontally) ...))
 
-
-File: elisp,  Node: Cyclic Window Ordering,  Next: Buffers and Windows,  Prev: Selecting Windows,  Up: Windows
+     These are not all the keymaps you would see in an actual case.
 
-Cycling Ordering of Windows
-===========================
+ - Function: where-is-internal COMMAND &optional KEYMAP FIRSTONLY
+     This function returns a list of key sequences (of any length) that
+     are bound to COMMAND in KEYMAP and the global keymap.  The
+     argument COMMAND can be any object; it is compared with all keymap
+     entries using `eq'.  If KEYMAP is not supplied, then the global
+     map alone is used.
 
-   When you use the command `C-x o' (`other-window') to select the
-next window, it moves through all the windows on the screen in a
-specific cyclic order.  For any given configuration of windows, this
-order never varies.  It is called the "cyclic ordering of windows".
+     If FIRSTONLY is non-`nil', then the value is a single string
+     representing the first key sequence found, rather than a list of
+     all possible key sequences.
 
-   This ordering generally goes from top to bottom, and from left to
-right.  But it may go down first or go right first, depending on the
-order in which the screen, or the windows within the screen, were
-split.
+     This function is used by `where-is' (*note Help: (emacs)Help.).
 
-   If the screen was first split vertically (into windows one above
-each other), and then the subwindows were split horizontally, then
-the ordering is left to right in the top, and then left to right in
-the next lower part of the screen, and so on.  If the screen was
-first split horizontally, the ordering is top to bottom in the left
-part, and so on.  In general, within each set of siblings at any
-level in the window tree, the order is left to right, or top to bottom.
+          (where-is-internal 'describe-function)
+              => ("\^hf" "\^hd")
 
- * Function: next-window WINDOW &optional MINIBUF
-     This function returns the window following WINDOW in the cyclic
-     ordering of windows.  This is the window which `C-x o' would
-     select if done when WINDOW is selected.  If WINDOW is the only
-     window visible, then this function returns WINDOW.
+ - Command: describe-bindings PREFIX
+     This function creates a listing of all defined keys, and their
+     definitions.  The listing is put in a buffer named `*Help*', which
+     is then displayed in a window.
 
-     The value of the argument MINIBUF determines whether the
-     minibuffer is included in the window order.  Normally, when
-     MINIBUF is `nil', the minibuffer is included if it is currently
-     active; this is the behavior of `C-x o'.
+     A meta character is shown as ESC followed by the corresponding
+     non-meta character.  Control characters are indicated with `C-'.
 
-     If MINIBUF is `t', then the cyclic ordering includes the
-     minibuffer window even if it is not active.  If MINIBUF is
-     neither `t' nor `nil', then the minibuffer window is not
-     included even if it is active.  (The minibuffer window is active
-     while the minibuffer is in use.  *Note Minibuffers::.)
+     When several characters with consecutive ASCII codes have the same
+     definition, they are shown together, as `FIRSTCHAR..LASTCHAR'.  In
+     this instance, you need to know the ASCII codes to understand
+     which characters this means.  For example, in the default global
+     map, the characters `SPC .. ~' are described by a single line.
+     SPC is ASCII 32, `~' is ASCII 126, and the characters between them
+     include all the normal printing characters, (e.g., letters,
+     digits, punctuation, etc.); all these characters are bound to
+     `self-insert-command'.
 
-     This example shows two windows, which both happen to be
-     displaying the same buffer:
-
-          (selected-window)
-               => #<window 56 on windows.texi>
-          (next-window (selected-window))
-               => #<window 52 on windows.texi>
-          (next-window (next-window (selected-window)))
-               => #<window 56 on windows.texi>
-
- * Function: previous-window WINDOW
-     This function returns the window preceding WINDOW in the cyclic
-     ordering of windows.
-
- * Command: other-window COUNT
-     This function selects the COUNTth next window in the cyclic
-     order.  If count is negative, then it selects the -COUNTth
-     preceding window.  It returns `nil'.
-
-     In an interactive call, COUNT is the numeric prefix argument.
-
+     If PREFIX is non-`nil', it should be a prefix key; then only keys
+     that start with PREFIX are described.
 
 
-File: elisp,  Node: Buffers and Windows,  Next: Displaying Buffers,  Prev: Cyclic Window Ordering,  Up: Windows
+File: lispref.info,  Node: Menus,  Next: Dialog Boxes,  Prev: Keymaps,  Up: Top
 
-Buffers and Windows
-===================
+Menus
+*****
 
-   This section describes low-level functions to examine windows or
-to show buffers in windows in a precisely controlled fashion.
+* Menu:
 
-   *Note Displaying Buffers::, for
-
-   related functions that find a window to use and specify a buffer
-for it.  The functions described there are easier to use than these,
-but they employ heuristics in choosing or creating a window; use
-these functions when you need complete control.
-
- * Function: set-window-buffer WINDOW BUFFER-OR-NAME
-     This function makes WINDOW display BUFFER-OR-NAME as its
-     contents.  It returns `nil'.
-
-          (set-window-buffer (selected-window) "foo")
-               => nil
-
- * Function: window-buffer &optional WINDOW
-     This function returns the buffer that WINDOW is displaying.  If
-     WINDOW is omitted, then this function returns the buffer for the
-     selected window.
-
-          (window-buffer)
-               => #<buffer windows.texi>
-
- * Function: get-buffer-window BUFFER-OR-NAME
-     This function returns a window currently displaying
-     BUFFER-OR-NAME, or `nil' if there is none.  If there are several
-     such windows, then the function returns the first one in the
-     cyclic ordering of windows, starting from the selected window. 
-     *Note Cyclic Window Ordering::.
-
- * Command: replace-buffer-in-windows BUFFER
-     This function replaces BUFFER with some other buffer in all
-     windows displaying it.  The other buffer used is chosen with
-     `other-buffer'.  In the usual applications of this function, you
-     don't care which other buffer is used; you just want to make
-     sure that BUFFER is off the screen.
-
-     This function returns `nil'.
-
+* Menu Format::
+* Menubar Format::
+* Menubar::
+* Modifying Menus::
+* Pop-Up Menus::
+* Menu Hooks::
+* Buffers Menu::
 
 
-File: elisp,  Node: Displaying Buffers,  Next: Window Point,  Prev: Buffers and Windows,  Up: Windows
+File: lispref.info,  Node: Menu Format,  Next: Menubar Format,  Up: Menus
 
-Displaying Buffers in Windows
-=============================
+Format of Menus
+===============
 
-   In this section we describe convenient functions that choose a
-window automatically and use it to display a specified buffer.  These
-functions can also split an existing window in certain circumstances.
-We also describe variables that parameterize the heuristics used for
-choosing a window.
+   A menu is described using a "menu description", which is a list of
+menu items, strings, and submenus.  The menu description specifies which
+items are present in the menu, what function each item invokes, and
+whether the item is selectable or not.  Pop-up menus are directly
+described with a menu description, while menubars are described slightly
+differently (see below).
 
-   *Note Buffers and Windows::, for
+   The first element of a menu must be a string, which is the name of
+the menu.  This is the string that will be displayed in the parent menu
+or menubar, if any.  This string is not displayed in the menu itself,
+except in the case of the top level pop-up menu, where there is no
+parent.  In this case, the string will be displayed at the top of the
+menu if `popup-menu-titles' is non-`nil'.
 
-   low-level functions that give you more precise control.
+   The rest of the menu consists of elements as follows:
 
-   Do not use the functions in this section in order to make a buffer
-current so that a Lisp program can access or modify it; they are too
-drastic for that purpose, since they change the display of buffers on
-the screen, which is gratuitous and will surprise the user.  Instead,
-use `set-buffer' (*note Current Buffer::.) and `save-excursion'
-(*note Excursions::.), which designate buffers as current for
-programmed access without affecting the display of buffers in windows.
+   * A "menu item", which is a vector of three or four elements as
+     follows:
 
- * Command: switch-to-buffer BUFFER-OR-NAME &optional NORECORD
-     This function makes BUFFER-OR-NAME the current buffer, and also
-     displays the buffer in the selected window.  This means that a
-     human can see the buffer and subsequent keyboard commands will
-     apply to it.  Contrast this with `set-buffer', which makes
-     BUFFER-OR-NAME the current buffer but does not display it in the
-     selected window.  *Note Current Buffer::.
+        - the name of the menu item (a string);
 
-     If BUFFER-OR-NAME does not identify an existing buffer, then a
-     new buffer by that name is created.
+        - the "callback" of that item;
 
-     Normally the specified buffer is put at the front of the buffer
-     list.  This affects the operation of `other-buffer'.  However,
-     if NORECORD is non-`nil', this is not done.  *Note The Buffer
-     List::.
+        - whether this item is active (selectable);
 
-     The `switch-to-buffer' function is often used interactively, as
-     the binding of `C-x b'.  It is also used frequently in programs.
-     It always returns `nil'.
+        - and an optional string to append to the name.
 
- * Command: switch-to-buffer-other-window BUFFER-OR-NAME
-     This function makes BUFFER-OR-NAME the current buffer and
-     displays it in a window not currently selected.  It then selects
-     that window.  The handling of the buffer is the same as in
-     `switch-to-buffer'.
+     If the callback of a menu item is a symbol, then it must name a
+     command.  It will be invoked with `call-interactively'.  If it is
+     a list, then it is evaluated with `eval'.
 
-     The previously selected window is absolutely never used to
-     display the buffer.  If it is the only window, then it is split
-     to make a distinct window for this purpose.  If the selected
-     window is already displaying the buffer, then it continues to do
-     so, but another window is nonetheless found to display it in as
-     well.
+     The third element of a menu item should either be `t', `nil', or a
+     form to evaluate (with no arguments) to decide whether this item
+     should be selectable.
 
- * Function: pop-to-buffer BUFFER-OR-NAME &optional OTHER-WINDOW
-     This function makes BUFFER-OR-NAME the current buffer and
-     switches to it in some window, preferably not the window
-     previously selected.  The "popped-to" window becomes the
-     selected window.
+     The fourth element of a menu item is a convenient way of adding
+     the name of a command's "argument" to the menu, like `Kill Buffer
+     NAME'.
 
-     If the variable `pop-up-windows' is non-`nil', windows may be
-     split to create a new window that is different from the original
-     window.
+   * If an element of a menu is a string, then that string will be
+     presented in the menu as unselectable text.
 
-     If OTHER-WINDOW is non-`nil', `pop-to-buffer' finds or creates
-     another window even if BUFFER-OR-NAME is already visible in the
-     selected window.  Thus BUFFER-OR-NAME could end up displayed in
-     two windows.  On the other hand, if BUFFER-OR-NAME is already
-     displayed in the selected window and OTHER-WINDOW is `nil', then
-     the selected window is considered sufficient display for
-     BUFFER-OR-NAME, so that nothing needs to be done.
+   * If an element of a menu is a string consisting solely of hyphens,
+     then that item will be presented as a solid horizontal line.
 
-     If BUFFER-OR-NAME is a string that does not name an existing
-     buffer, a buffer by that name is created.
+   * If an element of a menu is a list, it is treated as a submenu.
+     The name of that submenu (the first element in the list) will be
+     used as the name of the item representing this menu on the parent.
 
-     An example use of this function is found at the end of *Note
-     Filter Functions::.
+   The syntax, more precisely:
 
- * Function: display-buffer BUFFER-OR-NAME &optional NOT-THIS-WINDOW
-     This function makes BUFFER-OR-NAME appear in some window, like
-     `pop-to-buffer', but it does not select that window and does not
-     make the buffer current.  The identity of the selected window is
-     unaltered by this function.
-
-     If NOT-THIS-WINDOW is non-`nil', it means that the specified
-     buffer should be displayed in a window other than the selected
-     one, even if it is already on display in the selected window. 
-     This can cause the buffer to appear in two windows at once. 
-     Otherwise, if BUFFER-OR-NAME is already being displayed in any
-     window, that is good enough, so this function does nothing.
-
-     If the variable `pop-up-windows' is non-`nil', windows can be
-     split to display the buffer.  If there are multiple windows,
-     `display-buffer' will split the largest window if it has more
-     than the number of lines specified by the variable
-     `split-height-threshold'.
-
-     `display-buffer' returns the window chosen to display
-     BUFFER-OR-NAME.
-
- * User Option: pop-up-windows
-     This variable controls whether `display-buffer' makes new
-     windows.  If it is non-`nil' and there is only one window on the
-     screen, then that window is split.  If it is `nil', then
-     `display-buffer' does not split the single window, but rather
-     replaces its buffer.
-
-     This variable also affects `pop-to-buffer', which uses
-     `display-buffer' as a subroutine.
-
- * User Option: split-height-threshold
-     This variable determines when `display-buffer' may split a
-     window, if there are multiple windows.  `display-buffer' splits
-     the largest window if it has at least this many lines.
-
-     If there is only one window, it is split regardless of this
-     value, provided `pop-up-windows' is non-`nil'.
-
+        form		:=  <something to pass to `eval'>
+        command	:=  <a symbol or string, to pass to `call-interactively'>
+        callback 	:=  command | form
+        active-p	:=  <t, nil, or a form to evaluate to decide whether this
+     		    item should be selectable>
+        text		:=  <string, non selectable>
+        name		:=  <string>
+        argument	:=  <string>
+        menu-item	:=  '['  name callback active-p [ argument ]  ']'
+        menu		:=  '(' name [ menu-item | menu | text ]+ ')'
 
 
-File: elisp,  Node: Window Point,  Next: Window Start,  Prev: Displaying Buffers,  Up: Windows
+File: lispref.info,  Node: Menubar Format,  Next: Menubar,  Prev: Menu Format,  Up: Menus
 
-Window Point
-============
-
-   Each window has its own value of point, independent of the value
-of point in other windows displaying the same buffer.  This makes it
-useful to have multiple windows showing one buffer.
-
-   * The window point is established when a window is first created;
-     it is initialized from the buffer's point, or from the window
-     point of another window opened on the buffer if such a window
-     exists.
-
-   * Selecting a window sets the value of point in its buffer to the
-     window's value of point.  Conversely, deselecting a window
-     copies the buffer's value of point into the window.  Thus, when
-     you switch between windows that display a given buffer, the
-     point value for the selected window is in effect in the buffer,
-     while the point values for the other windows are stored in those
-     windows.
-
-   * As long as the selected window displays the current buffer, the
-     window's point and the buffer's point always move together; they
-     remain equal.
-
-   * *Note Positions::, for more details on positions.
-
-   As far as the user is concerned, point is where the cursor is, and
-when the user switches to another buffer, the cursor jumps to the
-position of point in that buffer.
-
- * Function: window-point WINDOW
-     This function returns the current position of point in WINDOW. 
-     For a nonselected window, this is the value point would have (in
-     that window's buffer) if that window were selected.
-
-     When WINDOW is the selected window and its buffer is also the
-     current buffer, the value returned is the same as point in that
-     buffer.
-
-     Strictly speaking, it would be more correct to return the
-     "top-level" value of point, outside of any `save-excursion'
-     forms.  But that value is hard to find.
-
- * Function: set-window-point WINDOW POSITION
-     This function positions point in WINDOW at position POSITION in
-     WINDOW's buffer.
-
-
-
-File: elisp,  Node: Window Start,  Next: Vertical Scrolling,  Prev: Window Point,  Up: Windows
-
-The Display-Start Position
-==========================
-
-   Each window contains a marker used to keep track of a buffer
-position which specifies where in the buffer display should start. 
-This position is called the "display-start" position of the window. 
-The character after this position is the one that appears at the
-upper left corner of the window.  It is usually, but not inevitably,
-at the beginning of a text line.
-
- * Function: window-start &optional WINDOW
-     This function returns the display-start position of window
-     WINDOW.  If WINDOW is `nil', the selected window is used.
-
-          (window-start)
-               => 7058
-
-     For a more complicated example of use, see the description of
-     `count-lines' in *Note Text Lines::.
-
- * Function: set-window-start WINDOW POSITION &optional NOFORCE
-     This function sets the display-start position of WINDOW to
-     POSITION in WINDOW's buffer.
-
-     The display routines insist that the position of point be
-     visible when a buffer is displayed.  Normally, they change the
-     display-start position (that is, scroll the window) whenever
-     necessary to make point visible.  However, if you specify the
-     start position with this function with `nil' for NOFORCE, it
-     means you want display to start at POSITION even if that would
-     put the location of point off the screen.  What the display
-     routines do in this case is move point instead, to the left
-     margin on the middle line in the window.
-
-     For example, if point is 1 and you attempt to set the start of
-     the window to 2, then the position of point would be "above" the
-     top of the window.  The display routines would automatically
-     move point if it is still 1 when redisplay occurs.  Here is an
-     example:
-
-          ;; Here is what `foo' looks like before executing
-          ;; the `set-window-start' expression.
-
-             ---------- Buffer: foo ----------
-          -!-This is the contents of buffer foo.
-          2
-          3
-          4
-          5
-          6
-          ---------- Buffer: foo ----------
-
-
-                    (set-window-start (selected-window) (1+ (window-start)))
-          
-          ;; Here is what `foo' looks like after executing
-          ;; the `set-window-start' expression.
-
-             ---------- Buffer: foo ----------
-          his is the contents of buffer foo.
-          2
-          3
-          -!-4
-          5
-          6
-          ---------- Buffer: foo ----------
-          
-               => 2
-
-     However, when NOFORCE is non-`nil', `set-window-start' does
-     nothing if the specified start position would make point
-     invisible.
-
-     This function returns POSITION, regardless of whether the
-     NOFORCE option caused that position to be overruled.
-
- * Function: pos-visible-in-window-p &optional POSITION WINDOW
-     This function returns `t' if POSITION is within the range of
-     text currently visible on the screen in WINDOW.  It returns
-     `nil' if POSITION is scrolled vertically out of view.  The
-     argument POSITION defaults to the current position of point;
-     WINDOW, to the selected window.  Here is an example:
-
-          (or (pos-visible-in-window-p (point) (selected-window))
-              (recenter 0))
-
-     The `pos-visible-in-window-p' function considers only vertical
-     scrolling.  It returns `t' if POSITION is out of view only
-     because WINDOW has been scrolled horizontally.  *Note Horizontal
-     Scrolling::.
-
-
-
-File: elisp,  Node: Vertical Scrolling,  Next: Horizontal Scrolling,  Prev: Window Start,  Up: Windows
-
-Vertical Scrolling
-==================
-
-   Vertical scrolling means moving the text up or down in a window. 
-It works by changing the value of the window's display-start
-location.  It may also change the value of `window-point' to keep it
-on the screen.
-
-   In the commands `scroll-up' and `scroll-down', the directions "up"
-and "down" refer to the motion of the text in the buffer at which you
-are looking through the window.  Imagine that the text is written on
-a long roll of paper and that the scrolling commands move the paper
-up and down.  Thus, if you are looking at text in the middle of a
-buffer and repeatedly call `scroll-down', you will eventually see the
-beginning of the buffer.
-
-   Some people have urged that the opposite convention be used: they
-imagine that the window moves over text that remains in place.  Then
-"down" commands would take you to the end of the buffer.  This view
-is more consistent with the actual relationship between windows and
-the text in the buffer, but it is less like what the user sees.  The
-position of a window on the terminal does not move, and short
-scrolling commands clearly move the text up or down on the screen. 
-We have chosen names that fit the user's point of view.
-
-   The scrolling functions (aside from `scroll-other-window') will
-have unpredictable results if the current buffer is different from
-the buffer that is displayed in the selected window.  *Note Current
-Buffer::.
-
- * Command: scroll-up &optional COUNT
-     This function scrolls the text in the selected window upward
-     COUNT lines.  If COUNT is negative, scrolling is actually
-     downward.
-
-     If COUNT is `nil' (or omitted), then the length of the scroll is
-     `next-screen-context-lines' lines less than the usable height of
-     the window (not counting its mode line).
-
-     `scroll-up' returns `nil'.
-
- * Command: scroll-down &optional COUNT
-     This function scrolls the text in the selected window downward
-     COUNT lines.  If COUNT is negative, scrolling is actually upward.
-
-     If COUNT is omitted or `nil', then the length of the scroll is
-     `next-screen-context-lines' lines less than the usable height of
-     the window.
-
-     `scroll-down' returns `nil'.
-
- * Command: scroll-other-window &optional COUNT
-     This function scrolls the text in another window upward COUNT
-     lines.  Negative values of COUNT, or `nil', are handled as in
-     `scroll-up'.
-
-     The window that is scrolled is normally the one following the
-     selected window in the cyclic ordering of windows--the window
-     that `next-window' would return.  *Note Cyclic Window Ordering::.
-
-     If the selected window is the minibuffer, the next window is
-     normally the one at the top left corner.  However, you can
-     specify the window to scroll by binding the variable
-     `minibuffer-scroll-window'.  This variable has no effect when
-     any other window is selected.  *Note Minibuffer Misc::.
-
-     When the minibuffer is active, it is the next window if the
-     selected window is the one at the bottom right corner.  In this
-     case, `scroll-other-window' will attempt to scroll the
-     minibuffer.  If the minibuffer contains just one line, that line
-     will be redisplayed after the echo area momentarily displays the
-     message "Beginning of buffer".
-
- * User Option: scroll-step
-     This variable controls how scrolling is done automatically when
-     point moves off the screen.  If the value is zero, then the text
-     is scrolled so that point is centered vertically in the window. 
-     If the value is a positive integer N, then if it is possible to
-     bring point back on screen by scrolling N lines in either
-     direction, that is done; otherwise, point is centered vertically
-     as usual.  The default value is zero.
-
- * User Option: next-screen-context-lines
-     The value of this variable is the number of lines of continuity
-     to retain when scrolling by full screens.  For example, when
-     `scroll-up' executes, this many lines that were visible at the
-     bottom of the window move to the top of the window.  The default
-     value is `2'.
-
- * Command: recenter &optional COUNT
-     This function scrolls the selected window to put the text where
-     point is located at a specified screen position.
-
-     If COUNT is a nonnegative number, it puts the line containing
-     point COUNT lines down from the top of the window.  If COUNT is
-     a negative number, then it counts upward from the bottom of the
-     window, so that -1 stands for the last usable line in the window.
-     If COUNT is a non-`nil' list, then it stands for the line in the
-     middle of the window.
-
-     If COUNT is `nil', then it puts the line containing point in the
-     middle of the window, then clears and redisplays the entire
-     screen.
-
-     When `recenter' is called interactively, Emacs sets COUNT to the
-     raw prefix argument.  Thus, typing `C-u' as the prefix sets the
-     COUNT to a non-`nil' list, while typing `C-u 4' sets COUNT to 4,
-     which positions the current line four lines from the top.
-
-     Typing `C-u 0 C-l' positions the current line at the top of the
-     window.  This action is so handy that some people bind the
-     command to a function key.  For example,
-
-          (defun line-to-top-of-window ()
-            "Scroll the selected window up so current line moves to the top.
-          Replaces three keystroke sequence C-u 0 C-l."
-            (interactive) 
-            (recenter 0))
-          
-          (global-set-key "\C-cl" 'line-to-top-of-window)
-
-
-
-File: elisp,  Node: Horizontal Scrolling,  Next: Size of Window,  Prev: Vertical Scrolling,  Up: Windows
-
-Horizontal Scrolling
-====================
-
-   Because we read English first from top to bottom and second from
-left to right, horizontal scrolling is not like vertical scrolling. 
-Vertical scrolling involves selection of a contiguous portion of text
-to display.  Horizontal scrolling causes part of each line to go off
-screen.  The amount of horizontal scrolling is therefore specified as
-a number of columns rather than as a position in the buffer.  It has
-nothing to do with the display-start position returned by
-`window-start'.
-
-   Usually, no horizontal scrolling is in effect; then the leftmost
-column is at the left edge of the window.  In this state, scrolling
-to the right is meaningless, since there is no data to the left of
-the screen to be revealed by it, so it is not allowed.  Scrolling to
-the left is allowed; it causes the first columns of text to go off
-the edge of the window and can reveal additional columns on the right
-that were truncated before.  Once a window has a nonzero amount of
-leftward horizontal scrolling, you can scroll it back to the right,
-but only so far as to reduce the net horizontal scroll to zero. 
-There is no limit to how far left you can scroll, but eventually all
-the text will disappear off the left edge.
-
- * Command: scroll-left COUNT
-     This function scrolls the selected window COUNT columns to the
-     left (or to the right if COUNT is negative).  The return value
-     is the total amount of leftward horizontal scrolling in effect
-     after the change--just like the value returned by
-     `window-hscroll'.
-
- * Command: scroll-right COUNT
-     This function scrolls the selected window COUNT columns to the
-     right  (or to the left if COUNT is negative).  The return value
-     is the total amount of leftward horizontal scrolling in effect
-     after the change--just like the value returned by
-     `window-hscroll'.
-
-     Once you scroll a window as far right as it can go, back to its
-     normal position where the total leftward scrolling is zero,
-     attempts to scroll any farther have no effect.
-
- * Function: window-hscroll &optional WINDOW
-     This function returns the total leftward horizontal scrolling of
-     WINDOW--the number of columns by which the text in WINDOW is
-     scrolled left past the left margin.
-
-     The value is never negative.  It is zero when no horizontal
-     scrolling has been done in WINDOW (which is usually the case).
-
-     If WINDOW is `nil', the selected window is used.
-
-          (window-hscroll)
-               => 0
-          (scroll-left 5)
-               => 5
-          (window-hscroll)
-               => 5
-
- * Function: set-window-hscroll WINDOW COLUMNS
-     This function sets the number of columns from the left margin
-     that WINDOW is scrolled to the value of COLUMNS.  The argument
-     COLUMNS should be zero or positive; if not, it is taken as zero.
-
-     The value returned is COLUMNS.
-
-          (set-window-hscroll (selected-window) 10)
-               => 10
-
-   Here is how you can determine whether a given position POSITION is
-off the screen due to horizontal scrolling:
-
-     (save-excursion 
-       (goto-char POSITION)
-       (and 
-        (>= (- (current-column) (window-hscroll WINDOW)) 0)
-        (< (- (current-column) (window-hscroll WINDOW))
-           (window-width WINDOW))))
-
-
-
-File: elisp,  Node: Size of Window,  Next: Resizing Windows,  Prev: Horizontal Scrolling,  Up: Windows
-
-The Size of a Window
-====================
-
-   An Emacs window is rectangular, and its size information consists
-of the height (the number of lines) and the width (the number of
-character positions in each line).  The mode line is included in the
-height.  For a window that does not abut the right hand edge of the
-screen, the column of `|' characters that separates it from the
-window on the right is included in the width.
-
-   The following three functions return size information about a
-window:
-
- * Function: window-height &optional WINDOW
-     This function returns the number of lines in WINDOW, including
-     its mode line.  If WINDOW fills the entire screen, this is one
-     less than the value of `(screen-height)' (since the last line is
-     always reserved for the minibuffer).
-
-     If WINDOW is `nil', the function uses the selected window.
-
-          (window-height)
-               => 23
-          (split-window-vertically)
-               => #<window 4 on windows.texi>
-          (window-height)
-               => 11
-
- * Function: window-width &optional WINDOW
-     This function returns the number of columns in WINDOW.  If
-     WINDOW fills the entire screen, this is the same as the value of
-     `(screen-width)'.
-
-     If WINDOW is `nil', the function uses the selected window.
-
-          (window-width)
-               => 80
-
- * Function: window-edges &optional WINDOW
-     This function returns a list of the edge coordinates of WINDOW. 
-     If WINDOW is `nil', the selected window is used.
-
-     The order of the list is `(LEFT TOP RIGHT BOTTOM)', all elements
-     relative to 0, 0 at the top left corner of the screen.  The
-     element RIGHT of the value is one more than the rightmost column
-     used by WINDOW, and BOTTOM is one more than the bottommost row
-     used by WINDOW and its mode-line.
-
-     Here is the result obtained on a typical 24-line terminal with
-     just one window:
-
-          (window-edges (selected-window))
-               => (0 0 80 23)
-
-     If WINDOW is at the upper left corner of the screen, RIGHT and
-     BOTTOM are the same as the values returned by `(window-width)'
-     and `(window-height)' respectively, and TOP and BOTTOM are zero.
-     For example, the edges of the following window are `0 0 5 8'. 
-     Assuming that the screen has more than 8 columns, the last
-     column of the window (column 7) holds a border rather than text.
-     The last row (row 4) holds the mode line, shown here with
-     `xxxxxxxxx'.
-
-                     0    
-                     _______
-                  0 |       | 
-                    |       |   
-                    |       | 
-                    |       | 
-                    xxxxxxxxx  4
-          
-                            7
-
-     When there are side-by-side windows, any window not at the right
-     edge of the screen has a border in its last column.  This border
-     counts as one column in the width of the window.  A window never
-     includes a border on its left, since the border there belongs to
-     the window to the left.
-
-     In the following example, let's imagine that the screen is 7
-     columns wide.  Then the edges of the left window are `0 0 4 3'
-     and the edges of the right window are `4 0 7 3'.
-
-                     ___ ___
-                    |   |   |    
-                    |   |   |    
-                    xxxxxxxxx 
-          
-                     0  34  7
-
-
-
-File: elisp,  Node: Resizing Windows,  Next: Window Configurations,  Prev: Size of Window,  Up: Windows
-
-Changing the Size of a Window
-=============================
-
-   The window size functions fall into two classes: high-level
-commands that change the size of windows and low-level functions that
-access window size.  Emacs does not permit overlapping windows or
-gaps between windows, so resizing one window affects other windows.
-
- * Command: enlarge-window SIZE &optional HORIZONTAL
-     This function makes the selected window SIZE lines bigger,
-     stealing lines from neighboring windows.  It generally tries to
-     steal equal numbers of lines from the other windows.  If a
-     window from which lines are stolen shrinks below
-     `window-min-height', then that window disappears.
-
-     If HORIZONTAL is non-`nil', then this function makes WINDOW
-     wider by SIZE columns, stealing columns as it does lines.  If a
-     window from which lines are stolen shrinks below
-     `window-min-width', then that window disappears.
-
-     If the screen is smaller than SIZE lines (or columns), then the
-     function makes the window occupy the entire height (or width) of
-     the screen.
-
-     If SIZE is negative, this function shrinks the window by -SIZE
-     lines.  If it becomes shorter than `window-min-height', it
-     disappears.
-
-     `enlarge-window' returns `nil'.
-
- * Command: enlarge-window-horizontally COLUMNS
-     This function makes the selected window COLUMNS wider.  It could
-     be defined as follows:
-
-          (defun enlarge-window-horizontally (columns)
-            (enlarge-window columns t))
-
- * Command: shrink-window SIZE &optional HORIZONTAL
-     This function is like `enlarge-window' but negates the argument
-     SIZE, making the selected window smaller by giving lines (or
-     columns) to the other windows.  If the window shrinks below
-     `window-min-height' or `window-min-width', then it disappears.
-
-     If SIZE is negative, the window is enlarged by -SIZE lines.
-
- * Command: shrink-window-horizontally COLUMNS
-     This function makes the selected window COLUMNS narrower.  It
-     could be defined as follows:
-
-          (defun shrink-window-horizontally (columns)
-            (shrink-window columns t))
-
-   The following two variables constrain the window size changing
-functions to a minimum height and width.
-
- * User Option: window-min-height
-     The value of this variable determines how short a window may
-     become before it disappears.  A window disappears when it
-     becomes smaller than `window-min-height', and no window may be
-     created that is smaller.  The absolute minimum height is two
-     (allowing one line for the mode line, and one line for the
-     buffer display).  Actions which change window sizes reset this
-     variable to two if it is less than two.  The default value is 4.
-
- * User Option: window-min-width
-     The value of this variable determines how narrow a window may
-     become before it disappears.  A window disappears when it
-     becomes narrower than `window-min-width', and no window may be
-     created that is narrower.  The absolute minimum width is one;
-     any value below that is ignored.  The default value is 10.
-
-
-
-File: elisp,  Node: Window Configurations,  Prev: Resizing Windows,  Up: Windows
-
-Window Configurations
+Format of the Menubar
 =====================
 
-   "Window configurations" record entire screen layouts--all windows,
-their sizes, which buffers they contain, what part of each buffer is
-displayed, and the values of point and the mark.  You can bring back
-an entire previous screen layout by restoring a window configuration
-that you had previously saved.
+   A menubar is a list of menus, menu items, and strings.  The format is
+similar to that of a menu, except:
 
- * Function: current-window-configuration
-     This function returns a new object representing Emacs's current
-     window configuration, namely the number of windows, their sizes
-     and current buffers, which window is the selected window, and
-     for each window the displayed buffer, the display-start
-     position, and the positions of point and the mark.  An exception
-     is made for point in the current buffer, whose value is not saved.
+   * The first item need not be a string, and is not treated specially.
 
- * Function: set-window-configuration CONFIGURATION
-     This function restores the configuration of Emacs's windows and
-     buffers to the state specified by CONFIGURATION.  The argument
-     CONFIGURATION must be a value that was previously returned by
-     `current-window-configuration'.
+   * A string consisting solely of hyphens is not treated specially.
 
-     Here is a way of using this function to get the same effect as
-     `save-window-excursion':
-
-          (let ((config (current-window-configuration)))
-            (unwind-protect
-                (progn (split-window-vertically nil)
-                       ...)
-              (set-window-configuration config)))
-
- * Special Form: save-window-excursion FORMS...
-     This special form executes FORMS in sequence, preserving window
-     sizes and contents, including the value of point and the portion
-     of the buffer which is visible.  However, it does not restore
-     the value of point in the current buffer; use `save-excursion'
-     for that.
-
-     The return value is the value of the final form in FORMS.  For
-     example:
-
-          (split-window)
-               => #<window 25 on control.texi>
-          (setq w (selected-window))
-               => #<window 19 on control.texi>
-          (save-window-excursion
-            (delete-other-windows w)
-            (switch-to-buffer "foo")
-            'do-something)
-               => do-something
-            ;; The screen is now split again.
-
-    Primitives to look inside of window configurations would make
-sense, but none are implemented.  It is not clear they are useful
-enough to be worth implementing.
-
+   * If an element of a menubar is `nil', then it is used to represent
+     the division between the set of menubar items which are flush-left
+     and those which are flush-right.  (Note: this isn't completely
+     implemented yet.)
 
 
-File: elisp,  Node: Positions,  Next: Markers,  Prev: Windows,  Up: Top
+File: lispref.info,  Node: Menubar,  Next: Modifying Menus,  Prev: Menubar Format,  Up: Menus
 
-Positions
-*********
+Menubar
+=======
 
-   A "position" is the index of a character in the text of buffer. 
-More precisely, a position identifies the place between two
-characters (or before the first character, or after the last
-character), so we can speak of the character before or after a given
-position.  However, the character after a position is often said to
-be "at" that position.
+ - Variable: current-menubar
+     This variable holds the description of the current menubar.  This
+     may be buffer-local.  When the menubar is changed, the function
+     `set-menubar-dirty-flag' has to be called in order for the menubar
+     to be updated on the screen.
 
-   Positions are usually represented as integers starting from 1, but
-can also be represented as "markers"--special objects which relocate
-automatically when text is inserted or deleted so they stay with the
-surrounding characters.  *Note Markers::.
+ - Function: set-menubar-dirty-flag
+     This function tells Emacs that the menubar widget has to be
+     updated.  Changes to the menubar will generally not be visible
+     until this function is called.
+
+   The following convenience functions are provided for setting the
+menubar.  They are equivalent to doing the appropriate action to change
+`current-menubar', and then calling `set-menubar-dirty-flag'.  Note
+that these functions copy their argument using `copy-sequence'.
+
+ - Function: set-menubar MENUBAR
+     This function sets the default menubar to be MENUBAR (*note Menu
+     Format::.).  This is the menubar that will be visible in buffers
+     that have not defined their own, buffer-local menubar.
+
+ - Function: set-buffer-menubar MENUBAR
+     This function sets the buffer-local menubar to be MENUBAR.  This
+     does not change the menubar in any buffers other than the current
+     one.
+
+   Miscellaneous:
+
+ - Variable: menubar-show-keybindings
+     If true, the menubar will display keyboard equivalents.  If false,
+     only the command names will be displayed.
+
+
+File: lispref.info,  Node: Modifying Menus,  Next: Pop-Up Menus,  Prev: Menubar,  Up: Menus
+
+Modifying Menus
+===============
+
+   The following functions are provided to modify the menubar of one of
+its submenus.  Note that these functions modify the menu in-place,
+rather than copying it and making a new menu.
+
+   Some of these functions take a "menu path", which is a list of
+strings identifying the menu to be modified.  For example, `("File")'
+names the top-level "File" menu.  `("File" "Foo")' names a hypothetical
+submenu of "File".
+
+   Others take a "menu item path", which is similar to a menu path but
+also specifies a particular item to be modified.  For example, `("File"
+"Save")' means the menu item called "Save" under the top-level "File"
+menu.  `("Menu" "Foo" "Item")' means the menu item called "Item" under
+the "Foo" submenu of "Menu".
+
+ - Function: add-menu MENU-PATH MENU-NAME MENU-ITEMS &optional BEFORE
+     This function adds a menu to the menubar or one of its submenus.
+     If the named menu exists already, it is changed.
+
+     MENU-PATH identifies the menu under which the new menu should be
+     inserted.  If MENU-PATH is `nil', then the menu will be added to
+     the menubar itself.
+
+     MENU-NAME is the string naming the menu to be added; MENU-ITEMS is
+     a list of menu items, strings, and submenus.  These two arguments
+     are the same as the first and following elements of a menu
+     description (*note Menu Format::.).
+
+     BEFORE, if provided, is the name of a menu before which this menu
+     should be added, if this menu is not on its parent already.  If the
+     menu is already present, it will not be moved.
+
+ - Function: add-menu-item MENU-PATH ITEM-NAME FUNCTION ENABLED-P
+          &optional BEFORE
+     This function adds a menu item to some menu, creating the menu
+     first if necessary.  If the named item exists already, it is
+     changed.
+
+     MENU-PATH identifies the menu under which the new menu item should
+     be inserted. ITEM-NAME, FUNCTION, and ENABLED-P are the first,
+     second, and third elements of a menu item vector (*note Menu
+     Format::.).
+
+     BEFORE, if provided, is the name of a menu item before which this
+     item should be added, if this item is not on the menu already.  If
+     the item is already present, it will not be moved.
+
+ - Function: delete-menu-item MENU-ITEM-PATH
+     This function removes the menu item specified by MENU-ITEM-PATH
+     from the menu hierarchy.
+
+ - Function: enable-menu-item MENU-ITEM-PATH
+     This function makes the menu item specified by MENU-ITEM-PATH be
+     selectable.
+
+ - Function: disable-menu-item MENU-ITEM-PATH
+     This function makes the menu item specified by MENU-ITEM-PATH be
+     unselectable.
+
+ - Function: relabel-menu-item MENU-ITEM-PATH NEW-NAME
+     This function changes the string of the menu item specified by
+     MENU-ITEM-PATH.  NEW-NAME is the string that the menu item will be
+     printed as from now on.
+
+   The following function can be used to search for a particular item in
+a menubar specification, given a path to the item.
+
+ - Function: find-menu-item MENUBAR MENU-ITEM-PATH &optional PARENT
+     This function searches MENUBAR for the item given by
+     MENU-ITEM-PATH starting from PARENT (`nil' means start at the top
+     of MENUBAR).  This function returns `(ITEM . PARENT)', where
+     PARENT is the immediate parent of the item found (a menu
+     description), and ITEM is either a vector, list, or string,
+     depending on the nature of the menu item.
+
+     This function signals an error if the item is not found.
+
+
+File: lispref.info,  Node: Menu Hooks,  Next: Buffers Menu,  Prev: Pop-Up Menus,  Up: Menus
+
+Menu Hooks
+==========
+
+ - Variable: menu-no-selection-hook
+     This is a normal hook that will be called when a menu or dialog
+     box is dismissed without a selection having been made.
+
+ - Variable: activate-menubar-hook
+     This is a function or list of functions that is called before a
+     menubar menu is pulled down.  The functions in the hook should
+     interrogate and modify the value of `current-menubar' as desired.
+
+     The functions on this hook are invoked after the mouse goes down,
+     but before the menu is mapped, and may be used to activate,
+     deactivate, add, or delete items from the menus.
+
+     These functions may return the symbol `t' to assert that they have
+     made no changes to the menubar.  If any other value is returned,
+     the menubar is recomputed.  If `t' is returned but the menubar has
+     been changed, then the changes may not show up right away.
+     Returning `nil' when the menubar has not changed is not so bad;
+     more computation will be done, but redisplay of the menubar will
+     still be performed optimally.
+
+   The following two functions are provided for use in
+`activate-menubar-hook' and are automatically added to the hook at
+startup time.
+
+ - Function: sensitize-file-and-edit-menus-hook
+     This function changes the sensitivity of these `File' and `Edit'
+     menu items:
+
+    `Cut'
+          Sensitive only when Emacs owns the primary X Selection (if
+          `zmacs-regions' is `t', this is equivalent to saying that
+          there is a region selected).
+
+    `Copy'
+          Sensitive only when Emacs owns the primary X Selection.
+
+    `Clear'
+          Sensitive only when Emacs owns the primary X Selection.
+
+    `Paste'
+          Sensitive only when there is an owner for the X Clipboard
+          Selection.
+
+    `Undo'
+          Sensitive only when there is undo information.  While in the
+          midst of an undo, this is changed to `Undo More'.
+
+    `Kill Buffer'
+          Has the name of the current buffer appended to it.
+
+    `Print Buffer'
+          Has the name of the current buffer appended to it.
+
+    `Save Buffer'
+          Has the name of the current buffer appended to it, and is
+          sensitive only when the current buffer is modified.
+
+    `Revert Buffer'
+          Has the name of the current buffer appended to it, and is
+          sensitive only when the current buffer has a file.
+
+    `Delete Screen'
+          Sensitive only when there is more than one visible screen.
+
+ - Function: build-buffers-menu-hook
+     This function changes the contents of the `Buffers' menu to
+     correspond to the current set of buffers.  Only the
+     most-recently-used few buffers will be listed on the menu, for
+     efficiency reasons.  *Note Buffers Menu::, for options controlling
+     how the `Buffers' menu will be displayed.
+
+
+File: lispref.info,  Node: Buffers Menu,  Prev: Menu Hooks,  Up: Menus
+
+Buffers Menu
+============
+
+   The following options control how the `Buffers' menu is displayed.
+This is a list of all (or a subset of) the buffers currently in
+existence, and is updated dynamically.
+
+ - User Option: buffers-menu-max-size
+     This user option holds the maximum number of entries which may
+     appear on the `Buffers' menu.  If this is 10, then only the ten
+     most-recently-selected buffers will be shown.  If this is `nil',
+     then all buffers will be shown.  Setting this to a large number or
+     `nil' will slow down menu responsiveness.
+
+ - Function: format-buffers-menu-line BUFFER
+     This function returns a string to represent BUFFER in the
+     `Buffers' menu.  `nil' means the buffer shouldn't be listed.  You
+     can redefine this.
+
+ - User Option: complex-buffers-menu-p
+     If true, the `Buffers' menu will contain several commands, as
+     submenus of each buffer line.  If this is false, then there will
+     be only one command: select that buffer.
+
+ - User Option: buffers-menu-switch-to-buffer-function
+     This user option holds the function to call to select a buffer
+     from the `Buffers' menu.  `switch-to-buffer' is a good choice, as
+     is `pop-to-buffer'.
+
+
+File: lispref.info,  Node: Pop-Up Menus,  Next: Menu Hooks,  Prev: Modifying Menus,  Up: Menus
+
+Pop-Up Menus
+============
+
+ - Function: popup-menu MENU-DESC
+     This function pops up a menu specified by MENU-DESC, which is a
+     menu description (*note Menu Format::.).  The menu is displayed at
+     the current mouse position.
+
+ - Function: popup-menu-up-p
+     This function returns `t' if a pop-up menu is up, `nil' otherwise.
+
+ - Variable: popup-menu-titles
+     If true (the default), pop-up menus will have title bars at the
+     top.
+
+
+File: lispref.info,  Node: Dialog Boxes,  Next: Modes,  Prev: Menus,  Up: Top
+
+Dialog Boxes
+************
 
 * Menu:
 
-* Point::         The special position where editing takes place.
-* Motion::        Changing point.
-* Excursions::    Temporary motion and buffer changes.
-* Narrowing::     Restricting editing to a portion of the buffer.
-
- 
-
-File: elisp,  Node: Point,  Next: Motion,  Prev: Positions,  Up: Positions
-
-Point
-=====
-
-   "Point" is a special buffer position used by many editing
-commands, including the self-inserting typed characters and text
-insertion functions.  Other commands move point through the text to
-allow editing and insertion at different places.
-
-   Like other positions, point designates a place between two
-characters (or before the first character, or after the last
-character), rather than a particular character.  Many terminals
-display the cursor over the character that immediately follows point;
-on such terminals, point is actually before the character on which
-the cursor sits.
-
-   The value of point is a number between 1 and the buffer size plus 1.
-If narrowing is in effect (*note Narrowing::.), then point is
-constrained to fall within the accessible portion of the buffer
-(possibly at one end of it).
-
-   Each buffer has its own value of point, which is independent of
-the value of point in other buffers.  Each window also has a value of
-point, which is independent of the value of point in other windows on
-the same buffer.  This is why point can have different values in
-various windows that display the same buffer.  When a buffer appears
-in only one window, the buffer's point and the window's point
-normally have the same value, so the distinction is rarely important.
-*Note Window Point::, for more details.
-
- * Function: point
-     This function returns the position of point in the current
-     buffer, as an integer.
-
-          (point)
-               => 175
-
- * Function: point-min
-     This function returns the minimum accessible value of point in
-     the current buffer.  This is 1, unless narrowing is in effect,
-     in which case it is the position of the start of the region that
-     you narrowed to.  (*Note Narrowing::.)
-
- * Function: point-max
-     This function returns the maximum accessible value of point in
-     the current buffer.  This is `(1+ (buffer-size))', unless
-     narrowing is in effect, in which case it is the position of the
-     end of the region that you narrowed to.  (*Note Narrowing::).
-
- * Function: buffer-end FLAG
-     This function returns `(point-min)' if FLAG is less than 1,
-     `(point-max)' otherwise.  The argument FLAG must be a number.
-
- * Function: buffer-size
-     This function returns the total number of characters in the
-     current buffer.  In the absence of any narrowing (*note
-     Narrowing::.), `point-max' returns a value one larger than this.
-
-          (buffer-size)
-               => 35
-          (point-max)
-               => 36
-
- * Variable: buffer-saved-size
-     The value of this buffer-local variable is the former length of
-     the current buffer, as of the last time it was read in, saved or
-     auto-saved.
-
+* Dialog Box Format::
+* Dialog Box Functions::
 
 
-File: elisp,  Node: Motion,  Next: Excursions,  Prev: Point,  Up: Positions
+File: lispref.info,  Node: Dialog Box Format,  Next: Dialog Box Functions,  Up: Dialog Boxes
 
-Motion
-======
+Dialog Box Format
+=================
 
-   Motion functions change the value of point, either relative to the
-current value of point, relative to the beginning or end of the
-buffer, or relative to the edges of the selected window.
+   A dialog box description is a list.
+
+   * The first element of the list is a string to display in the dialog
+     box.
+
+   * The rest of the elements are descriptions of the dialog box's
+     buttons.  Each one is a vector of three elements:
+        - The first element is the text of the button.
+
+        - The second element is the "callback".
+
+        - The third element is `t' or `nil', whether this button is
+          selectable.
+
+   If the callback of a button is a symbol, then it must name a command.
+It will be invoked with `call-interactively'.  If it is a list, then it
+is evaluated with `eval'.
+
+   One (and only one) of the buttons may be `nil'.  This marker means
+that all following buttons should be flushright instead of flushleft.
+
+   The syntax, more precisely:
+
+        form		:=  <something to pass to `eval'>
+        command	:=  <a symbol or string, to pass to `call-interactively'>
+        callback 	:=  command | form
+        active-p	:=  <t, nil, or a form to evaluate to decide whether this
+     		    button should be selectable>
+        name		:=  <string>
+        partition	:=  'nil'
+        button	:=  '['  name callback active-p ']'
+        dialog	:=  '(' name [ button ]+ [ partition [ button ]+ ] ')'
+
+
+File: lispref.info,  Node: Dialog Box Functions,  Prev: Dialog Box Format,  Up: Dialog Boxes
+
+Dialog Box Functions
+====================
+
+ - Function: popup-dialog-box DBOX-DESC
+     This function pops up a dialog box.  DBOX-DESC describes how the
+     dialog box will appear (*note Dialog Box Format::.).
+
+   *Note Yes-or-No Queries::, for functions to ask a yes/no question
+using a dialog box.
+
+
+File: lispref.info,  Node: Modes,  Next: Documentation,  Prev: Dialog Boxes,  Up: Top
+
+Major and Minor Modes
+*********************
+
+   A "mode" is a set of definitions that customize Emacs and can be
+turned on and off while you edit.  There are two varieties of modes:
+"major modes", which are mutually exclusive and used for editing
+particular kinds of text, and "minor modes", which provide features that
+may be enabled individually.
+
+   This chapter covers both major and minor modes, the way they are
+indicated in the mode line, and how they run hooks supplied by the user.
+Related topics such as keymaps and syntax tables are covered in separate
+chapters.  (*Note Keymaps::, and *Note Syntax Tables::.)
 
 * Menu:
 
-* Character Motion::       Moving in terms of characters.
-* Word Motion::            Moving in terms of words.
-* Buffer End Motion::      Moving to the beginning or end of the buffer.
-* Text Lines::             Moving in terms of lines of text.
-* Screen Lines::           Moving in terms of lines as displayed.
-* Vertical Motion::        Implementation of `next-line' and 
-                             `previous-line'.
-* List Motion::            Moving by parsing lists and sexps.
-* Skipping Characters::    Skipping characters belonging to a certain set.
+* Major Modes::        Defining major modes.
+* Minor Modes::        Defining minor modes.
+* Mode Line Format::   Customizing the text that appears in the mode line.
+* Hooks::              How to use hooks; how to write code that provides hooks.
 
- 
 
-File: elisp,  Node: Character Motion,  Next: Word Motion,  Prev: Motion,  Up: Motion
+File: lispref.info,  Node: Major Modes,  Next: Minor Modes,  Prev: Modes,  Up: Modes
 
-Motion by Characters
---------------------
+Major Modes
+===========
 
-   These functions move point based on a count of characters. 
-`goto-char' is a fundamental primitive because it is the way to move
-point to a specified position.
+   Major modes specialize Emacs for editing particular kinds of text.
+Each buffer has only one major mode at a time.
 
- * Command: goto-char POSITION
-     This function sets point in the current buffer to the value
-     POSITION.  If POSITION is less than 1, then point is set to the
-     beginning of the buffer.  If it is greater than the length of
-     the buffer, then point is set to the end of the buffer.
+   The least specialized major mode is called "Fundamental mode".  This
+mode has no mode-specific definitions or variable settings, so each
+Emacs command behaves in its default manner, and each option is in its
+default state.  All other major modes redefine various keys and options.
+For example, Lisp Interaction mode provides special key bindings for
+LFD (`eval-print-last-sexp'), TAB (`lisp-indent-line'), and other keys.
 
-     If narrowing is in effect, then the position is still measured
-     from the beginning of the buffer, but point cannot be moved
-     outside of the accessible portion.  Therefore, if POSITION is
-     too small, point is set to the beginning of the accessible
-     portion of the text; if POSITION is too large, point is set to
-     the end.
+   When you need to write several editing commands to help you perform a
+specialized editing task, creating a new major mode is usually a good
+idea.  In practice, writing a major mode is easy (in contrast to
+writing a minor mode, which is often difficult).
 
-     When this function is called interactively, POSITION is the
-     numeric prefix argument, if provided; otherwise it is read from
-     the minibuffer.
+   If the new mode is similar to an old one, it is often unwise to
+modify the old one to serve two purposes, since it may become harder to
+use and maintain.  Instead, copy and rename an existing major mode
+definition and alter it for its new function.  For example, Rmail Edit
+mode, which is in `emacs/lisp/rmailedit.el', is a major mode that is
+very similar to Text mode except that it provides three additional
+commands.  Its definition is distinct from that of Text mode, but was
+derived from it.
 
-     `goto-char' returns POSITION.
+   Rmail Edit mode is an example of a case where one piece of text is
+put temporarily into a different major mode so it can be edited in a
+different way (with ordinary Emacs commands rather than Rmail).  In such
+cases, the temporary major mode usually has a command to switch back to
+the buffer's usual mode (Rmail mode, in this case).  You might be
+tempted to present the temporary redefinitions inside a recursive edit
+and restore the usual ones when the user exits; but this is a bad idea
+because it constrains the user's options when it is done in more than
+one buffer: recursive edits must be exited most-recently-entered first.
+Using alternative major modes avoids this limitation.  *Note Recursive
+Editing::.
 
- * Command: forward-char &optional COUNT
-     This function moves point forward, towards the end of the
-     buffer, COUNT characters (or backward, towards the beginning of
-     the buffer, if COUNT is negative).  If the function attempts to
-     move point past the beginning or end of the buffer (or the
-     limits of the accessible portion, when narrowing is in effect),
-     an error is signaled with error code `beginning-of-buffer' or
-     `end-of-buffer'.
+   The standard GNU Emacs Lisp library directory contains the code for
+several major modes, in files including `text-mode.el', `texinfo.el',
+`lisp-mode.el', `c-mode.el', and `rmail.el'.  You can look at these
+libraries to see how modes are written.  Text mode is perhaps the
+simplest major mode aside from Fundamental mode.  Rmail mode is a
+rather complicated, full-featured mode.
 
-     In an interactive call, COUNT is the numeric prefix argument.
+* Menu:
 
- * Command: backward-char &optional COUNT
-     This function moves point backward, towards the beginning of the
-     buffer, COUNT characters (or forward, towards the end of the
-     buffer, if COUNT is negative).  If the function attempts to move
-     point past the beginning or end of the buffer (or the limits of
-     the accessible portion, when narrowing is in effect), an error
-     is signaled with error code `beginning-of-buffer' or
-     `end-of-buffer'.
+* Major Mode Conventions::  Coding conventions for keymaps, etc.
+* Example Major Modes::     Text mode and Lisp modes.
+* Auto Major Mode::         How Emacs chooses the major mode automatically.
+* Mode Help::               Finding out how to use a mode.
 
-     In an interactive call, COUNT is the numeric prefix argument.
+
+File: lispref.info,  Node: Major Mode Conventions,  Next: Example Major Modes,  Prev: Major Modes,  Up: Major Modes
 
+Major Mode Conventions
+----------------------
+
+   The code for existing major modes follows various coding conventions,
+including conventions for local keymap and syntax table initialization,
+global names, and hooks.  Please keep these conventions in mind when you
+create a new major mode:
+
+   * Define a command whose name ends in `-mode', with no arguments,
+     that switches to the new mode in the current buffer.  This command
+     should set up the keymap, syntax table, and local variables in an
+     existing buffer without changing the buffer's text.
+
+   * Write a documentation string for this command which describes the
+     special commands available in this mode.  `C-h m'
+     (`describe-mode') will print this.
+
+     The documentation string may include the special documentation
+     substrings, `\[COMMAND]', `\{KEYMAP}', and `\<KEYMAP>', that
+     enable the documentation to adapt automatically to the user's own
+     key bindings.  *Note Keys in Documentation::.  The `describe-mode'
+     function replaces these special documentation substrings with
+     their current meanings.  *Note Accessing Documentation::.
+
+   * The major mode command should set the variable `major-mode' to the
+     major mode command symbol.  This is how `describe-mode' discovers
+     which documentation to print.
+
+   * The major mode command should set the variable `mode-name' to the
+     "pretty" name of the mode, as a string.  This appears in the mode
+     line.
+
+   * Since all global names are in the same name space, all the global
+     variables, constants, and functions that are part of the mode
+     should have names that start with the major mode name (or with an
+     abbreviation of it if the name is long).  *Note Style Tips::.
+
+   * The major mode should usually have its own keymap, which is used
+     as the local keymap in all buffers in that mode.  The major mode
+     function should call `use-local-map' to install this local map.
+     *Note Active Keymaps::, for more information.
+
+     This keymap should be kept in a global variable named
+     `MODENAME-mode-map'.  Normally the library that defines the mode
+     sets this variable.  Use `defvar' to set the variable, so that it
+     is not reinitialized if it already has a value.  (Such
+     reinitialization could discard customizations made by the user.)
+
+   * The mode may have its own syntax table or may share one with other
+     related modes.  If it has its own syntax table, it should store
+     this in a variable named `MODENAME-mode-syntax-table'.  The reasons
+     for this are the same as for using a keymap variable.  *Note
+     Syntax Tables::.
+
+   * The mode may have its own abbrev table or may share one with other
+     related modes.  If it has its own abbrev table, it should store
+     this in a variable named `MODENAME-mode-abbrev-table'.  *Note
+     Abbrev Tables::.
+
+   * To give a variable a buffer-local binding, use
+     `make-local-variable' in the major mode command, not
+     `make-variable-buffer-local'.  The latter function would make the
+     variable local to every buffer in which it is subsequently set,
+     which would affect buffers that do not use this mode.  It is
+     undesirable for a mode to have such global effects.  *Note
+     Buffer-Local Variables::.
+
+   * If hooks are appropriate for the mode, the major mode command
+     should run the hooks after completing all other initialization so
+     the user may further customize any of the settings.  *Note Hooks::.
+
+   * If this mode is appropriate only for specially-prepared text, then
+     the major mode command symbol should have a property named
+     `mode-class' with value `special', put on as follows:
+
+          (put 'funny-mode 'mode-class 'special)
+
+     This tells Emacs that new buffers created while the current buffer
+     has Funny mode should not inherit Funny mode.  Modes such as
+     Dired, Rmail, and Buffer List use this feature.
+
+   * If it is desirable that Emacs use the new mode by default after
+     visiting files with certain recognizable names, add an element to
+     `auto-mode-alist' to select the mode for those file names.  If you
+     define the mode command to autoload, you should add this element
+     in the same file that calls `autoload'.  Otherwise, it is
+     sufficient to add the element in the file that contains the mode
+     definition.  *Note Auto Major Mode::.
+
+   * In the documentation, you should provide a sample `autoload' form
+     and an example of how to add to `auto-mode-alist', that users can
+     include in their `.emacs' files.
+
+   * The top level forms in the file defining the mode should be
+     written so that they may be evaluated more than once without
+     adverse consequences.  Even if you never load the file more than
+     once, someone else will.
+
+
+File: lispref.info,  Node: Example Major Modes,  Next: Auto Major Mode,  Prev: Major Mode Conventions,  Up: Major Modes
+
+Major Mode Examples
+-------------------
+
+   Text mode is perhaps the simplest mode besides Fundamental mode.
+Here are excerpts from  `text-mode.el' that illustrate many of the
+conventions listed above:
+
+     ;; Create mode-specific tables.
+     (defvar text-mode-syntax-table nil
+       "Syntax table used while in text mode.")
+
+     (if text-mode-syntax-table
+         ()              ; Do not change the table if it is already set up.
+       (setq text-mode-syntax-table (make-syntax-table))
+       (modify-syntax-entry ?\" ".   " text-mode-syntax-table)
+       (modify-syntax-entry ?\\ ".   " text-mode-syntax-table)
+       (modify-syntax-entry ?' "w   " text-mode-syntax-table))
+
+     (defvar text-mode-abbrev-table nil
+       "Abbrev table used while in text mode.")
+     (define-abbrev-table 'text-mode-abbrev-table ())
+
+     (defvar text-mode-map nil)   ; Create a mode-specific keymap.
+     
+     (if text-mode-map
+         ()              ; Do not change the keymap if it is already set up.
+       (setq text-mode-map (make-sparse-keymap))
+       (define-key text-mode-map "\t" 'tab-to-tab-stop)
+       (define-key text-mode-map "\es" 'center-line)
+       (define-key text-mode-map "\eS" 'center-paragraph))
+
+   Here is the complete major mode function definition for Text mode:
+
+     (defun text-mode ()
+       "Major mode for editing text intended for humans to read.
+      Special commands: \\{text-mode-map}
+
+     Turning on text-mode runs the hook `text-mode-hook'."
+       (interactive)
+       (kill-all-local-variables)
+
+     (use-local-map text-mode-map)     ; This provides the local keymap.
+       (setq mode-name "Text")           ; This name goes into the mode line.
+       (setq major-mode 'text-mode)      ; This is how `describe-mode'
+                                         ;   finds the doc string to print.
+       (setq local-abbrev-table text-mode-abbrev-table)
+       (set-syntax-table text-mode-syntax-table)
+       (run-hooks 'text-mode-hook))      ; Finally, this permits the user to
+                                         ;   customize the mode with a hook.
+
+   The three Lisp modes (Lisp mode, Emacs Lisp mode, and Lisp
+Interaction mode) have more features than Text mode and the code is
+correspondingly more complicated.  Here are excerpts from
+`lisp-mode.el' that illustrate how these modes are written.
+
+     ;; Create mode-specific table variables.
+     (defvar lisp-mode-syntax-table nil "")
+     (defvar emacs-lisp-mode-syntax-table nil "")
+     (defvar lisp-mode-abbrev-table nil "")
+
+     (if (not emacs-lisp-mode-syntax-table) ; Do not change the table
+                                            ;   if it is already set.
+         (let ((i 0))
+           (setq emacs-lisp-mode-syntax-table (make-syntax-table))
+
+     ;; Set syntax of chars up to 0 to class of chars that are
+           ;;   part of symbol names but not words.
+           ;;   (The number 0 is `48' in the ASCII character set.)
+           (while (< i ?0)
+             (modify-syntax-entry i "_   " emacs-lisp-mode-syntax-table)
+             (setq i (1+ i)))
+           ...
+
+     ;; Set the syntax for other characters.
+           (modify-syntax-entry ?  "    " emacs-lisp-mode-syntax-table)
+           (modify-syntax-entry ?\t "    " emacs-lisp-mode-syntax-table)
+           ...
+
+     (modify-syntax-entry ?\( "()  " emacs-lisp-mode-syntax-table)
+           (modify-syntax-entry ?\) ")(  " emacs-lisp-mode-syntax-table)
+           ...))
+     ;; Create an abbrev table for lisp-mode.
+     (define-abbrev-table 'lisp-mode-abbrev-table ())
+
+   Much code is shared among the three Lisp modes.  The following
+function sets various variables; it is called by each of the major Lisp
+mode functions:
+
+     (defun lisp-mode-variables (lisp-syntax)
+       ;; The `lisp-syntax' argument is `nil' in Emacs Lisp mode,
+       ;;   and `t' in the other two Lisp modes.
+       (cond (lisp-syntax
+              (if (not lisp-mode-syntax-table)
+                  ;; The Emacs Lisp mode syntax table always exists, but
+                  ;;   the Lisp Mode syntax table is created the first time a
+                  ;;   mode that needs it is called.  This is to save space.
+
+     (progn (setq lisp-mode-syntax-table
+                            (copy-syntax-table emacs-lisp-mode-syntax-table))
+                         ;; Change some entries for Lisp mode.
+                         (modify-syntax-entry ?\| "\"   "
+                                              lisp-mode-syntax-table)
+                         (modify-syntax-entry ?\[ "_   "
+                                              lisp-mode-syntax-table)
+                         (modify-syntax-entry ?\] "_   "
+                                              lisp-mode-syntax-table)))
+
+     (set-syntax-table lisp-mode-syntax-table)))
+       (setq local-abbrev-table lisp-mode-abbrev-table)
+       ...)
+
+   Functions such as `forward-paragraph' use the value of the
+`paragraph-start' variable.  Since Lisp code is different from ordinary
+text, the `paragraph-start' variable needs to be set specially to
+handle Lisp.  Also, comments are indented in a special fashion in Lisp
+and the Lisp modes need their own mode-specific
+`comment-indent-function'.  The code to set these variables is the rest
+of `lisp-mode-variables'.
+
+     (make-local-variable 'paragraph-start)
+       (setq paragraph-start (concat "^$\\|" page-delimiter))
+       ...
+
+     (make-local-variable 'comment-indent-function)
+       (setq comment-indent-function 'lisp-comment-indent))
+
+   Each of the different Lisp modes has a slightly different keymap.
+For example, Lisp mode binds `C-c C-l' to `run-lisp', but the other
+Lisp modes do not.  However, all Lisp modes have some commands in
+common.  The following function adds these common commands to a given
+keymap.
+
+     (defun lisp-mode-commands (map)
+       (define-key map "\e\C-q" 'indent-sexp)
+       (define-key map "\177" 'backward-delete-char-untabify)
+       (define-key map "\t" 'lisp-indent-line))
+
+   Here is an example of using `lisp-mode-commands' to initialize a
+keymap, as part of the code for Emacs Lisp mode.  First we declare a
+variable with `defvar' to hold the mode-specific keymap.  When this
+`defvar' executes, it sets the variable to `nil' if it was void.  Then
+we set up the keymap if the variable is `nil'.
+
+   This code avoids changing the keymap or the variable if it is already
+set up.  This lets the user customize the keymap if he or she so wishes.
+
+     (defvar emacs-lisp-mode-map () "")
+     
+     (if emacs-lisp-mode-map
+         ()
+       (setq emacs-lisp-mode-map (make-sparse-keymap))
+       (define-key emacs-lisp-mode-map "\e\C-x" 'eval-defun)
+       (lisp-mode-commands emacs-lisp-mode-map))
+
+   Finally, here is the complete major mode function definition for
+Emacs Lisp mode.
+
+     (defun emacs-lisp-mode ()
+       "Major mode for editing Lisp code to run in Emacs.
+     Commands:
+     Delete converts tabs to spaces as it moves back.
+     Blank lines separate paragraphs.  Semicolons start comments.
+     \\{emacs-lisp-mode-map}
+
+     Entry to this mode runs the hook `emacs-lisp-mode-hook'."
+       (interactive)
+       (kill-all-local-variables)
+       (use-local-map emacs-lisp-mode-map)    ; This provides the local keymap.
+       (set-syntax-table emacs-lisp-mode-syntax-table)
+
+     (setq major-mode 'emacs-lisp-mode)     ; This is how `describe-mode'
+                                              ;   finds out what to describe.
+       (setq mode-name "Emacs-Lisp")          ; This goes into the mode line.
+       (lisp-mode-variables nil)              ; This define various variables.
+       (run-hooks 'emacs-lisp-mode-hook))     ; This permits the user to use a
+                                              ;   hook to customize the mode.
+
+
+File: lispref.info,  Node: Auto Major Mode,  Next: Mode Help,  Prev: Example Major Modes,  Up: Major Modes
+
+How Emacs Chooses a Major Mode
+------------------------------
+
+   Based on information in the file name or in the file itself, Emacs
+automatically selects a major mode for the new buffer when a file is
+visited.
+
+ - Command: fundamental-mode
+     Fundamental mode is a major mode that is not specialized for
+     anything in particular.  Other major modes are defined in effect
+     by comparison with this one--their definitions say what to change,
+     starting from Fundamental mode.  The `fundamental-mode' function
+     does *not* run any hooks, so it is not readily customizable.
+
+ - Command: normal-mode &optional FIND-FILE
+     This function establishes the proper major mode and local variable
+     bindings for the current buffer.  First it calls `set-auto-mode',
+     then it runs `hack-local-variables' to parse, and bind or evaluate
+     as appropriate, any local variables.
+
+     If the FIND-FILE argument to `normal-mode' is non-`nil',
+     `normal-mode' assumes that the `find-file' function is calling it.
+     In this case, it may process a local variables list at the end of
+     the file.  The variable `enable-local-variables' controls whether
+     to do so.
+
+     If you run `normal-mode' yourself, the argument FIND-FILE is
+     normally `nil'.  In this case, `normal-mode' unconditionally
+     processes any local variables list.  *Note Local Variables in
+     Files: (emacs)File variables, for the syntax of the local
+     variables section of a file.
+
+     `normal-mode' uses `condition-case' around the call to the major
+     mode function, so errors are caught and reported as a `File mode
+     specification error',  followed by the original error message.
+
+ - User Option: enable-local-variables
+     This variable controls processing of local variables lists in files
+     being visited.  A value of `t' means process the local variables
+     lists unconditionally; `nil' means ignore them; anything else means
+     ask the user what to do for each file.  The default value is `t'.
+
+ - User Option: enable-local-eval
+     This variable controls processing of `Eval:' in local variables
+     lists in files being visited.  A value of `t' means process them
+     unconditionally; `nil' means ignore them; anything else means ask
+     the user what to do for each file.  The default value is `maybe'.
+
+ - Function: set-auto-mode
+     This function selects the major mode that is appropriate for the
+     current buffer.  It may base its decision on the value of the `-*-'
+     line, on the visited file name (using `auto-mode-alist'), or on the
+     value of a local variable).  However, this function does not look
+     for the `mode:' local variable near the end of a file; the
+     `hack-local-variables' function does that.  *Note How Major Modes
+     are Chosen: (emacs)Choosing Modes.
+
+ - User Option: default-major-mode
+     This variable holds the default major mode for new buffers.  The
+     standard value is `fundamental-mode'.
+
+     If the value of `default-major-mode' is `nil', Emacs uses the
+     (previously) current buffer's major mode for the major mode of a
+     new buffer.  However, if the major mode symbol has a `mode-class'
+     property with value `special', then it is not used for new buffers;
+     Fundamental mode is used instead.  The modes that have this
+     property are those such as Dired and Rmail that are useful only
+     with text that has been specially prepared.
+
+ - Variable: initial-major-mode
+     The value of this variable determines the major mode of the initial
+     `*scratch*' buffer.  The value should be a symbol that is a major
+     mode command name.  The default value is `lisp-interaction-mode'.
+
+ - Variable: auto-mode-alist
+     This variable contains an association list of file name patterns
+     (regular expressions; *note Regular Expressions::.) and
+     corresponding major mode functions.  Usually, the file name
+     patterns test for suffixes, such as `.el' and `.c', but this need
+     not be the case.  Each element of the alist looks like `(REGEXP .
+     mODE-FUNCTION)'.
+
+     For example,
+
+          (("^/tmp/fol/" . text-mode)
+           ("\\.texinfo$" . texinfo-mode)
+           ("\\.texi$" . texinfo-mode)
+
+          ("\\.el$" . emacs-lisp-mode)
+           ("\\.c$" . c-mode)
+           ("\\.h$" . c-mode)
+           ...)
+
+     When you visit a file whose *expanded* file name (*note File Name
+     Expansion::.) matches a REGEXP, `set-auto-mode' calls the
+     corresponding MODE-FUNCTION.  This feature enables Emacs to select
+     the proper major mode for most files.
+
+     Here is an example of how to prepend several pattern pairs to
+     `auto-mode-alist'.  (You might use this sort of expression in your
+     `.emacs' file.)
+
+          (setq auto-mode-alist
+            (append
+             ;; Filename starts with a dot.
+             '(("/\\.[^/]*$" . fundamental-mode)
+               ;; Filename has no dot.
+               ("[^\\./]*$" . fundamental-mode)
+               ("\\.C$" . c++-mode))
+             auto-mode-alist))
+
+ - Function: hack-local-variables &optional FORCE
+     This function parses, and binds or evaluates as appropriate, any
+     local variables for the current buffer.
+
+     The handling of `enable-local-variables' documented for
+     `normal-mode' actually takes place here.  The argument FORCE
+     reflects the argument FIND-FILE given to `normal-mode'.
+
+
+File: lispref.info,  Node: Mode Help,  Prev: Auto Major Mode,  Up: Major Modes
+
+Getting Help about a Major Mode
+-------------------------------
+
+   The `describe-mode' function is used to provide information about
+major modes.  It is normally called with `C-h m'.  The `describe-mode'
+function uses the value of `major-mode', which is why every major mode
+function needs to set the `major-mode' variable.
+
+ - Command: describe-mode
+     This function displays the documentation of the current major mode.
+
+     The `describe-mode' function calls the `documentation' function
+     using the value of `major-mode' as an argument.  Thus, it displays
+     the documentation string of the major mode function.  (*Note
+     Accessing Documentation::.)
+
+ - Variable: major-mode
+     This variable holds the symbol for the current buffer's major
+     mode.  This symbol should be the name of the function that is
+     called to initialize the mode.  The `describe-mode' function uses
+     the documentation string of this symbol as the documentation of
+     the major mode.
+
+
+File: lispref.info,  Node: Minor Modes,  Next: Mode Line Format,  Prev: Major Modes,  Up: Modes
+
+Minor Modes
+===========
+
+   A "minor mode" provides features that users may enable or disable
+independently of the choice of major mode.  Minor modes can be enabled
+individually or in combination.  Minor modes would be better named
+"Generally available, optional feature modes" except that such a name is
+unwieldy.
+
+   A minor mode is not usually a modification of single major mode.  For
+example, Auto Fill mode may be used in any major mode that permits text
+insertion.  To be general, a minor mode must be effectively independent
+of the things major modes do.
+
+   A minor mode is often much more difficult to implement than a major
+mode.  One reason is that you should be able to deactivate a minor mode
+and restore the environment of the major mode to the state it was in
+before the minor mode was activated.
+
+   Often the biggest problem in implementing a minor mode is finding a
+way to insert the necessary hook into the rest of Emacs.  Minor mode
+keymaps make this easier.
+
+* Menu:
+
+* Minor Mode Conventions::      Tips for writing a minor mode.
+* Keymaps and Minor Modes::     How a minor mode can have its own keymap.
+
+
+File: lispref.info,  Node: Minor Mode Conventions,  Next: Keymaps and Minor Modes,  Up: Minor Modes
+
+Conventions for Writing Minor Modes
+-----------------------------------
+
+   There are conventions for writing minor modes just as there are for
+major modes.  Several of the major mode conventions apply to minor
+modes as well: those regarding the name of the mode initialization
+function, the names of global symbols, and the use of keymaps and other
+tables.
+
+   In addition, there are several conventions that are specific to
+minor modes.
+
+   * Make a variable whose name ends in `-mode' to represent the minor
+     mode.  Its value should enable or disable the mode (`nil' to
+     disable; anything else to enable.)  We call this the "mode
+     variable".
+
+     This variable is used in conjunction with the `minor-mode-alist' to
+     display the minor mode name in the mode line.  It can also enable
+     or disable a minor mode keymap.  Individual commands or hooks can
+     also check the variable's value.
+
+     If you want the minor mode to be enabled separately in each buffer,
+     make the variable buffer-local.
+
+   * Define a command whose name is the same as the mode variable.  Its
+     job is to enable and disable the mode by setting the variable.
+
+     The command should accept one optional argument.  If the argument
+     is `nil', it should toggle the mode (turn it on if it is off, and
+     off if it is on).  Otherwise, it should turn the mode on if the
+     argument is a positive integer, a symbol other than `nil' or `-',
+     or a list whose CAR is such an integer or symbol; it should turn
+     the mode off otherwise.
+
+     Here is an example taken from the definition of `overwrite-mode'.
+     It shows the use of `overwrite-mode' as a variable which enables or
+     disables the mode's behavior.
+
+          (setq overwrite-mode
+                (if (null arg) (not overwrite-mode)
+                  (> (prefix-numeric-value arg) 0)))
+
+   * Add an element to `minor-mode-alist' for each minor mode (*note
+     Mode Line Variables::.).  This element should be a list of the
+     following form:
+
+          (MODE-VARIABLE STRING)
+
+     Here MODE-VARIABLE is the variable that controls enablement of the
+     minor mode, and STRING is a short string, starting with a space,
+     to represent the mode in the mode line.  These strings must be
+     short so that there is room for several of them at once.
+
+     When you add an element to `minor-mode-alist', use `assq' to check
+     for an existing element, to avoid duplication.  For example:
+
+          (or (assq 'leif-mode minor-mode-alist)
+              (setq minor-mode-alist
+                    (cons '(leif-mode " Leif") minor-mode-alist)))
 

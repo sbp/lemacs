@@ -5,7 +5,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -37,10 +37,6 @@ NOTE-END */
 
 #define LONGBITS 32		/* Number of bits in a long */
 
-/* i386 is not big-endian: lowest numbered byte is least significant. */
-
-/* #undef BIG_ENDIAN */
-
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
 
@@ -58,8 +54,6 @@ NOTE-END */
 
 #define INTEL386
 #define aix386
-#undef  SYSTEM_TYPE
-#define SYSTEM_TYPE "ibm-aix-386"
 
 #define IBMAIX
 
@@ -123,11 +117,15 @@ so disable it for them.  */
 #endif
 
 #define BSTRING
-#define HAVE_DUP2
-#define HAVE_GETTIMEOFDAY
 #define HAVE_SELECT
 #define HAVE_TIMEVAL
 #define HAVE_VFORK
+#undef  HAVE_TERMIO
+#define HAVE_TERMIOS
+
+/* Send signals to subprocesses by "typing" special chars at them.  */
+
+#define SIGNALS_VIA_CHARACTERS
 
 /*
  * 	Define SYSV_SYSTEM_DIR to use the V.3 getdents/readir
@@ -210,7 +208,7 @@ so disable it for them.  */
 #endif
 /* -g fails to work, so it is omitted.  */
 /* tranle says that -fstrength-reduce does not help.  */
-#define C_DEBUG_SWITCH -O -fwritable-strings
+#define C_DEBUG_SWITCH
 #else
 #define C_ALLOCA
 #define STACK_DIRECTION -1 /* tell alloca.c which way it grows */
@@ -219,19 +217,20 @@ so disable it for them.  */
 
 #define OBJECTS_MACHINE hftctl.o
 #define LD_SWITCH_MACHINE -T0x00400000 -K -e start
+#define LIBS_DEBUG		/* no -lg on aix ps/2 */
 
 #ifdef USG5_3
 #define XICCC
-#define HAVE_GETWD
-#define HAVE_RENAME
 #undef LD_SWITCH_MACHINE
 #define LD_SWITCH_MACHINE -T0x0 -K -e start
 
 /* Things defined in s-usg5-3.h that need to be overridden.  */
 #undef NOMULTIPLEJOBS
 #undef BROKEN_TIOCGETC
+#undef BROKEN_TIOCGWINSZ
 #undef LIBX10_SYSTEM
 #undef LIBX11_SYSTEM
+#undef LIB_X11_LIB
 #endif
 
 /* Shared libraries are supported in a patch release of ps/2 1.2.1.

@@ -47,7 +47,16 @@
 	;; This is the window-start value found by the search.
 	(found-start nil)
 	(opoint (point))
-	(vm-ml-attributes-string vm-ml-attributes-string)
+	(vm-ml-message-new vm-ml-message-new)
+	(vm-ml-message-unread vm-ml-message-unread)
+	(vm-ml-message-read vm-ml-message-read)
+	(vm-ml-message-edited vm-ml-message-edited)
+	(vm-ml-message-replied vm-ml-message-replied)
+	(vm-ml-message-forwarded vm-ml-message-forwarded)
+	(vm-ml-message-filed vm-ml-message-filed)
+	(vm-ml-message-written vm-ml-message-written)
+	(vm-ml-message-marked vm-ml-message-marked)
+	(vm-ml-message-deleted vm-ml-message-deleted)
 	(vm-ml-message-number vm-ml-message-number)
 	(vm-message-pointer vm-message-pointer)
 	(inhibit-quit t))  ;Prevent ^G from quitting immediately.
@@ -269,14 +278,17 @@
 	  invalid-regexp (nth 6 cmd)
 	  wrapped (nth 7 cmd)
 	  barrier (nth 8 cmd)
-	  vm-ml-attributes-string (nth 9 cmd)
+; unused now
+;	  vm-ml-attributes-string (nth 9 cmd)
 	  vm-ml-message-number (nth 10 cmd)
 	  vm-message-pointer (nth 11 cmd))
     (if vm-summary-buffer
 	(save-excursion
 	  (set-buffer vm-summary-buffer)
-	  (setq vm-ml-attributes-string (nth 9 cmd)
-		vm-ml-message-number (nth 10 cmd))))
+	  (setq
+	   ; unused now
+	   ;vm-ml-attributes-string (nth 9 cmd)
+	   vm-ml-message-number (nth 10 cmd))))
     (goto-char (car (cdr (cdr cmd))))
     (vm-set-summary-pointer (car vm-message-pointer))))
 
@@ -284,7 +296,10 @@
   (setq cmds (cons (list search-string search-message (point)
 			 success forward other-end invalid-regexp
 			 wrapped barrier
-			 vm-ml-attributes-string vm-ml-message-number
+; unused now
+;			 vm-ml-attributes-string
+			 nil
+			 vm-ml-message-number
 			 vm-message-pointer)
 		   cmds)))
 
@@ -388,9 +403,8 @@ literally."
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
   (vm-error-if-folder-empty)
-  (vm-set-window-configuration 'searching-folder)
-  (if (null (get-buffer-window (current-buffer)))
-      (vm-display-current-message-buffer))
+  (vm-error-if-virtual-folder)
+  (vm-display (current-buffer) t '(vm-isearch-forward) '(vm-isearch-forward))
   (let ((clip-head (point-min))
 	(clip-tail (point-max))
 	(old-w (selected-window)))
@@ -398,6 +412,45 @@ literally."
 	(progn (select-window (get-buffer-window (current-buffer)))
 	       (widen)
 	       (vm-isearch t vm-search-using-regexps)
+	       (vm-update-search-position t)
+	       ;; vm-show-current-message only adjusts (point-max),
+	       ;; it doesn't change (point-min).
+	       (narrow-to-region
+		(if (< (point) (vm-vheaders-of (car vm-message-pointer)))
+		    (vm-start-of (car vm-message-pointer))
+		  (vm-vheaders-of (car vm-message-pointer)))
+		(point-max))
+	       (vm-show-current-message)
+	       (setq vm-system-state 'reading)
+	       ;; turn the clipping unwind into a noop
+	       (setq clip-head (point-min))
+	       (setq clip-tail (point-max)))
+      (narrow-to-region clip-head clip-tail)
+      (select-window old-w))))
+
+(defun vm-isearch-backward ()
+  "Incrementally search backward through the current folder's messages.
+Usage is identical to the standard Emacs incremental search.
+When the search terminates the message containing point will be selected.
+
+If the variable vm-search-using-regexps is non-nil, regular expressions
+are understood; nil means the search will be for the input string taken
+literally."
+  (interactive)
+  (vm-follow-summary-cursor)
+  (vm-select-folder-buffer)
+  (vm-check-for-killed-summary)
+  (vm-error-if-folder-empty)
+  (vm-error-if-virtual-folder)
+  (vm-display (current-buffer) t '(vm-isearch-backward)
+	      (list 'vm-isearch-backward 'searching-message))
+  (let ((clip-head (point-min))
+	(clip-tail (point-max))
+	(old-w (selected-window)))
+    (unwind-protect
+	(progn (select-window (get-buffer-window (current-buffer)))
+	       (widen)
+	       (vm-isearch nil vm-search-using-regexps)
 	       (vm-update-search-position t)
 	       ;; vm-show-current-message only adjusts (point-max),
 	       ;; it doesn't change (point-min).

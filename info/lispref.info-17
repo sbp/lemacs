@@ -1,23 +1,21 @@
-Info file elisp, produced by Makeinfo, -*- Text -*- from input file
-elisp.texi.
+This is Info file ../../info/lispref.info, produced by Makeinfo-1.56
+from the input file lispref.texinfo.
 
-   This file documents GNU Emacs Lisp.
+   This version is newer than the second printed edition of the GNU
+Emacs Lisp Reference Manual.  It corresponds to Emacs Version 19.19.
 
-   This is edition 1.03 of the GNU Emacs Lisp Reference Manual,   for
-Emacs Version 18.
+   Published by the Free Software Foundation 675 Massachusetts Avenue
+Cambridge, MA 02139 USA
 
-   Published by the Free Software Foundation, 675 Massachusetts
-Avenue,  Cambridge, MA 02139 USA
+   Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
 
-   Copyright (C) 1990 Free Software Foundation, Inc.
-
-   Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
 
    Permission is granted to copy and distribute modified versions of
-this manual under the conditions for verbatim copying, provided that
-the entire resulting derived work is distributed under the terms of a
+this manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
 permission notice identical to this one.
 
    Permission is granted to copy and distribute translations of this
@@ -25,1209 +23,1194 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be stated in a
 translation approved by the Foundation.
 
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the Free Software
+Foundation instead of in the original English.
 
 
-File: elisp,  Node: Word Motion,  Next: Buffer End Motion,  Prev: Character Motion,  Up: Motion
+File: lispref.info,  Node: Keymaps and Minor Modes,  Prev: Minor Mode Conventions,  Up: Minor Modes
 
-Motion by Words
----------------
+Keymaps and Minor Modes
+-----------------------
 
-   These functions for parsing words use the syntax table to decide
-whether a given character is part of a word.  *Note Syntax Tables::.
+   As of Emacs version 19, each minor mode can have its own keymap
+which is active when the mode is enabled.  *Note Active Keymaps::.  To
+set up a keymap for a minor mode, add an element to the alist
+`minor-mode-map-alist'.
 
- * Command: forward-word COUNT
-     This function moves point forward COUNT words (or backward if
-     COUNT is negative).  Normally it returns `t'.  If this motion
-     encounters the beginning or end of the buffer, or the limits of
-     the accessible portion when narrowing is in effect, point stops
-     there and the value is `nil'.
+   One use of minor mode keymaps is to modify the behavior of certain
+self-inserting characters so that they do something else as well as
+self-insert.  This is the only way to accomplish this in general, since
+there is no way to customize what `self-insert-command' does except in
+certain special cases (designed for abbrevs and Auto Fill mode).  (Do
+not try substituting your own definition of `self-insert-command' for
+the standard one.  The editor command loop handles this function
+specially.)
 
-     In an interactive call, COUNT is set to the numeric prefix
-     argument.
+ - Variable: minor-mode-map-alist
+     This variable is an alist of elements element that look like this:
 
- * Command: backward-word COUNT
-     This function just like `forward-word', except that it moves
-     backward until encountering the front of a word, rather than
-     forward.
+          (VARIABLE . KEYMAP)
 
-     In an interactive call, COUNT is set to the numeric prefix
-     argument.
+     where VARIABLE is the variable which indicates whether the minor
+     mode is enabled, and KEYMAP is the keymap.  The keymap KEYMAP is
+     active whenever VARIABLE has a non-`nil' value.
 
-     This function is rarely used in programs, as it is more
-     efficient to call `forward-word' with negative argument.
+     Note that elements of `minor-mode-map-alist' do not have the same
+     structure as elements of `minor-mode-alist'.  The map must be the
+     CDR of the element; a list with the map as the second element will
+     not do.
 
+     What's more, the keymap itself must appear in the CDR.  It does not
+     work to store a variable in the CDR and make the map the value of
+     that variable.
 
-
-File: elisp,  Node: Buffer End Motion,  Next: Text Lines,  Prev: Word Motion,  Up: Motion
-
-Motion to an End of the Buffer
-------------------------------
-
-   To move point to the beginning of the buffer, write:
-
-     (goto-char (point-min))
-
-Likewise, to move to the end of the buffer, use:
-
-     (goto-char (point-max))
-
-   Here are two commands which users use to do these things.  They
-are documented here to warn you not to use them in Lisp programs,
-because they set the mark and display messages in the echo area.
-
- * Command: beginning-of-buffer &optional N
-     This function moves point to the beginning of the buffer (or the
-     limits of the accessible portion, when narrowing is in effect),
-     setting the mark at the previous position.  If N is non-`nil',
-     then it puts point N tenths of the way from the beginning of the
-     buffer.
-
-     In an interactive call, N is the numeric prefix argument, if
-     provided; otherwise N defaults to `nil'.
-
-     Don't use this function in Lisp programs!
-
- * Command: end-of-buffer &optional N
-     This function moves point to the end of the buffer (or the
-     limits of the accessible portion, when narrowing is in effect),
-     setting the mark at the previous position.  If N is non-`nil',
-     then it puts point N tenths of the way from the end.
-
-     In an interactive call, N is the numeric prefix argument, if
-     provided; otherwise N defaults to `nil'.
-
-     Don't use this function in Lisp programs!
-
+     When more than one minor mode keymap is active, their order of
+     priority is the order of `minor-mode-map-alist'.  But you should
+     design minor modes so that they don't interfere with each other.
+     If you do this properly, the order will not matter.
 
 
-File: elisp,  Node: Text Lines,  Next: Screen Lines,  Prev: Buffer End Motion,  Up: Motion
+File: lispref.info,  Node: Mode Line Format,  Next: Hooks,  Prev: Minor Modes,  Up: Modes
 
-Motion by Text Lines
---------------------
-
-   Text lines are portions of the buffer delimited by newline
-characters, which are regarded as part of the previous line.  The
-first text line begins at the beginning of the buffer, and the last
-text line ends at the end of the buffer whether or not the last
-character is a newline.  The division of the buffer into text lines
-is not affected by the width of the window, or by how tabs and
-control characters are displayed.
-
- * Command: goto-line LINE
-     This function moves point to the front of the LINEth line,
-     counting from line 1 at beginning of buffer.  If LINE is less
-     than 1, then point is set to the beginning of the buffer.  If
-     LINE is greater than the number of lines in the buffer, then
-     point is set to the *end of the last line* of the buffer.
-
-     If narrowing is in effect, then LINE still counts from the
-     beginning of the buffer, but point cannot go outside the
-     accessible portion.  So point is set at the beginning or end of
-     the accessible portion of the text if the line number specifies
-     a position that is inaccessible.
-
-     The return value of `goto-line' is the difference between LINE
-     and the line number of the line to which point actually was able
-     move (before taking account of any narrowing).  Thus, the value
-     is positive if the scan encounters the end of the buffer.
-
-     In an interactive call, LINE is the numeric prefix argument if
-     one has been provided.  Otherwise LINE is read in the minibuffer.
-
- * Command: beginning-of-line &optional COUNT
-     This function moves point to the beginning of the current line. 
-     With an argument COUNT not `nil' or 1, it moves forward COUNT-1
-     lines and then to the beginning of the line.
-
-     If this function reaches the end of the buffer (or of the
-     accessible portion, if narrowing is in effect), it positions
-     point at the beginning of the last line.  No error is signaled.
-
- * Command: end-of-line &optional COUNT
-     This function moves point to the end of the current line.  With
-     an argument COUNT not `nil' or 1, it moves forward COUNT-1 lines
-     and then to the end of the line.
-
-     If this function reaches the end of the buffer (or of the
-     accessible portion, if narrowing is in effect), it positions
-     point at the end of the last line.  No error is signaled.
-
- * Command: forward-line &optional COUNT
-     This function moves point forward COUNT lines, to the beginning
-     of the line.  If COUNT is negative, it moves point -COUNT lines
-     backward, to the beginning of the line.
-
-     If the beginning or end of the buffer (or of the accessible
-     portion) is encountered before that many lines are found, then
-     point stops at the beginning or end.  No error is signaled.
-
-     `forward-line' returns the difference between COUNT and the
-     number of lines actually moved.  If you attempt to move down
-     five lines from the beginning of a buffer that has only three
-     lines, point will positioned at the end of the last line, and
-     the value will be 2.
-
-     In an interactive call, COUNT is the numeric prefix argument.
-
- * Function: count-lines START END
-     This function returns the number of lines between the positions
-     START and END in the current buffer.  If START and END are
-     equal, then it returns 0.  Otherwise it returns at least 1, even
-     if START and END are on the same line.  This is because the text
-     between them, considered in isolation, must contain at least one
-     line unless it is empty.
-
-     Here is an example of using `count-lines':
-
-          (defun current-line ()
-            "Return the vertical position of point in the selected window.  
-          Top line is 0.  Counts each text line only once, even if it wraps."
-            (+ (count-lines (window-start) (point))
-               (if (= (current-column) 0) 1 0)
-               -1))
-
-   Also see the functions `bolp' and `eolp' in *Note Near Point::. 
-These functions do not move point, but test whether it is already at
-the beginning or end of a line.
-
-
-
-File: elisp,  Node: Screen Lines,  Next: Vertical Motion,  Prev: Text Lines,  Up: Motion
-
-Motion by Screen Lines
-----------------------
-
-   The line functions in the previous section count text lines,
-delimited only by newline characters.  By contrast, these functions
-count screen lines, which are defined by the way the text appears on
-the screen.  A text line is a single screen line if it is short
-enough to fit the width of the selected window, but otherwise it may
-occupy several screen lines.
-
-   In some cases, text lines are truncated on the screen rather than
-continued onto additional screen lines.  Then `vertical-motion' moves
-point just like `forward-line'.  *Note Truncation::.
-
-   Because the width of a given string depends on the flags which
-control the appearance of certain characters, `vertical-motion' will
-behave differently on a given piece of text found in different
-buffers.  It will even act differently in different windows showing
-the same buffer, because the width may differ and so may the
-truncation flag.  *Note Control Char Display::.
-
- * Function: vertical-motion COUNT
-     This function moves point to the start of the screen line COUNT
-     screen lines down from the screen line containing point.  If
-     COUNT is negative, it moves up instead.
-
-     This function returns the number of lines moved.  The value may
-     be less in absolute value than COUNT if the beginning or end of
-     the buffer was reached.
-
- * Command: move-to-window-line COUNT
-     This function moves point with respect to the text currently
-     displayed in the selected window.  Point is moved to the
-     beginning of the screen line COUNT screen lines from the top of
-     the window.  If COUNT is negative, point moves either to the
-     beginning of the line -COUNT lines from the bottom or else to
-     the last line of the buffer if the buffer ends above the
-     specified screen position.
-
-     If COUNT is `nil', then point moves to the beginning of the line
-     in the middle of the window.  If the absolute value of COUNT is
-     greater than the size of the window, then point moves to the
-     place which would appear on that screen line if the window were
-     tall enough.  This will probably cause the next redisplay to
-     scroll to bring that location onto the screen.
-
-     In an interactive call, COUNT is the numeric prefix argument.
-
-     The value returned is the window line number, with the top line
-     in the window numbered 0.
-
-
-
-File: elisp,  Node: Vertical Motion,  Next: List Motion,  Prev: Screen Lines,  Up: Motion
-
-The User-Level Vertical Motion Commands
----------------------------------------
-
-   A goal column is useful if you want to edit text such as a table
-in which you want to move point to a certain column on each line. 
-The goal column affects the vertical text line motion commands,
-`next-line' and `previous-line'.  *Note : (emacs)Basic.
-
- * User Option: goal-column
-     This variable holds an explicitly specified goal column for
-     vertical line motion commands.  If it is an integer, it
-     specifies a column, and these commands try to move to that
-     column on each line.  If it is `nil', then the commands set
-     their own goal columns.  Any other value is invalid.
-
- * Variable: temporary-goal-column
-     This variable holds the temporary goal column during a sequence
-     of consecutive vertical line motion commands.  It is overridden
-     by `goal-column' if that is non-`nil'.  It is set each time a
-     vertical motion command is invoked, unless the previous command
-     was also a vertical motion command.
-
- * User Option: track-eol
-     This variable controls how the vertical line motion commands
-     operate when starting at the end of a line.  If `track-eol' is
-     non-`nil', then vertical motion starting at the end of a line
-     will keep to the ends of lines.  This means moving to the end of
-     each line moved onto.  The value of `track-eol' has no effect if
-     point is not at the end of a line when the first vertical motion
-     command is given.
-
-     `track-eol' has its effect by causing `temporary-goal-column' to
-     be set to 9999 instead of to the current column.
-
- * Command: set-goal-column UNSET
-     This command sets the variable `goal-column' to specify a
-     permanent goal column for the vertical line motion commands.  If
-     UNSET is `nil', then `goal-column' is set to the current column
-     of point.  If UNSET is non-`nil', then `goal-column' is set to
-     `nil'.
-
-     This function is intended for interactive use; and in an
-     interactive call, UNSET is the raw prefix argument.
-
-
-
-File: elisp,  Node: List Motion,  Next: Skipping Characters,  Prev: Vertical Motion,  Up: Motion
-
-Moving over Lists and Other Balanced Expressions
-------------------------------------------------
-
-   Here are several functions concerned with balanced-parenthesis
-expressions (also called "sexps" in connection with moving across
-them in Emacs).  The syntax table controls how these functions
-interpret various characters; see *Note Syntax Tables::.  *Note
-Parsing Expressions::, for lower-level primitives for scanning sexps
-or parts of sexps.  For user-level commands, see *Note : (emacs)Lists
-and Sexps.
-
- * Command: forward-list ARG
-     Move forward across ARG balanced groups of parentheses.  (Other
-     syntatic entities such as words or paired string quotes are
-     ignored.)
-
- * Command: backward-list ARG
-     Move backward across ARG balanced groups of parentheses.  (Other
-     syntatic entities such as words or paired string quotes are
-     ignored.)
-
- * Command: up-list ARG
-     Move forward out of ARG levels of parentheses.  A negative
-     argument means move backward but still to a less deep spot.
-
- * Command: down-list ARG
-     Move forward down ARG levels of parentheses.  A negative
-     argument means move backward but still go down ARG level.
-
- * Command: forward-sexp ARG
-     Move forward across ARG balanced expressions.  Balanced
-     expressions include both those delimited by parentheses and
-     other kinds, such as words and string constants.  For example,
-
-          ---------- Buffer: foo ----------
-          (concat-!- "foo " (car x) y z)
-          ---------- Buffer: foo ----------
-          
-          (forward-sexp 3)
-               => nil
-          
-          ---------- Buffer: foo ----------
-          (concat "foo " (car x) y-!- z)
-          ---------- Buffer: foo ----------
-
- * Command: backward-sexp ARG
-     Move backward across ARG balanced expressions.
-
-
-
-File: elisp,  Node: Skipping Characters,  Prev: List Motion,  Up: Motion
-
-Skipping Characters
--------------------
-
-   The following two functions move point over a specified set of
-characters.  For example, they are often used to skip whitespace.
-
- * Function: skip-chars-forward CHARACTER-SET &optional LIMIT
-     This function moves point in the current buffer forward,
-     skipping over a given set of characters.  Emacs first examines
-     the character following point; if it matches CHARACTER-SET, then
-     point is advanced and the next character is examined.  This
-     continues until a character is found that does not match.  The
-     function returns `nil'.
-
-     The argument CHARACTER-SET is like the inside of a `[...]' in a
-     regular expression except that `]' is never special and `\'
-     quotes `^', `-' or `\'.  Thus, `"a-zA-Z"' skips over all
-     letters, stopping before the first nonletter, and `"^a-zA-Z'"
-     skips nonletters stopping before the first letter.  *Note
-     Regular Expressions::.
-
-     If LIMIT is supplied (it must be a number or a marker), it
-     specifies the maximum position in the buffer that point can be
-     skipped to.  Point will stop at or before LIMIT.
-
-     In the following example, point is initially located directly
-     before the `T'.  After the form is evaluated, point is located
-     at the end of that line (between the `t' of `hat' and the
-     newline).  The function skips all letters and spaces, but not
-     newlines.
-
-          ---------- Buffer: foo ----------
-          I read "-!-The cat in the hat
-          comes back" twice.
-          ---------- Buffer: foo ----------
-          
-          (skip-chars-forward "a-zA-Z ")
-               => nil
-          
-          ---------- Buffer: foo ----------
-          I read "The cat in the hat-!-
-          comes back" twice.
-          ---------- Buffer: foo ----------
-
- * Function: skip-chars-backward CHARACTER-SET &optional LIMIT
-     This function moves point backward, skipping characters that
-     match CHARACTER-SET.  It just like `skip-chars-forward' except
-     for the direction of motion.
-
-
-
-File: elisp,  Node: Excursions,  Next: Narrowing,  Prev: Motion,  Up: Positions
-
-Excursions
-==========
-
-   It is often useful to move point "temporarily" within a localized
-portion of the program, or to switch buffers temporarily.  This is
-called an "excursion", and it is done with the `save-excursion'
-special form.  This construct saves the current buffer and its values
-of point and the mark so they can be restored after the completion of
-the excursion.
-
-   The forms for saving and restoring the configuration of windows
-are described elsewhere (*note Window Configurations::.).
-
- * Special Form: save-excursion FORMS...
-     The `save-excursion' special form saves the identity of the
-     current buffer and the values of point and the mark in it,
-     evaluates FORMS, and finally restores the buffer and its saved
-     values of point and the mark.  All three saved values are
-     restored even in case of an abnormal exit via throw or error
-     (*note Nonlocal Exits::.).
-
-     The `save-excursion' special form is the standard way to switch
-     buffers or move point within one part of a program and avoid
-     affecting the rest of the program.  It is used more than 500
-     times in the Lisp sources of Emacs.
-
-     The values of point and the mark for other buffers are not saved
-     by `save-excursion', so any changes made to point and the mark
-     in the other buffers will remain in effect after
-     `save-excursion' exits.
-
-     Likewise, `save-excursion' does not restore window-buffer
-     correspondences altered by functions such as `switch-to-buffer'.
-     One way to restore these correspondences, and the selected
-     window, is to use `save-window-excursion' inside
-     `save-excursion' (*note Window Configurations::.).
-
-     The value returned by `save-excursion' is the result of the last
-     of FORMS, or `nil' if no FORMS are given.
-
-          (save-excursion
-            FORMS)
-          ==      
-          (let ((old-buf (current-buffer))
-                (old-pnt (point-marker))
-                (old-mark (copy-marker (mark-marker))))
-            (unwind-protect
-                (progn FORMS)
-              (set-buffer old-buf)
-              (goto-char old-pnt)
-              (set-marker (mark-marker) old-mark)))
-
-
-
-File: elisp,  Node: Narrowing,  Prev: Excursions,  Up: Positions
-
-Narrowing
-=========
-
-   "Narrowing" means limiting the text addressable by Emacs editing
-commands to a limited range of characters in a buffer.  The text that
-remains addressable is called the "accessible portion" of the buffer.
-
-   Narrowing is specified with two buffer positions which become the
-beginning and end of the accessible portion.  For most editing
-commands these positions replace the values of the beginning and end
-of the buffer.  While narrowing is in effect, no text outside the
-accessible portion is displayed, and point cannot move outside the
-accessible portion.
-
-   Values such as positions or line numbers which usually count from
-the beginning of the buffer continue to do so, but the functions
-which use them will refuse to operate on text that is inaccessible.
-
-   The commands for saving buffers are unaffected by narrowing; the
-entire buffer is saved regardless of the any narrowing.
-
- * Command: narrow-to-region START END
-     This function sets the accessible portion of the current buffer
-     to start at START and end at END.  Both arguments should be
-     character positions.
-
-     In an interactive call, START and END are set to the bounds of
-     the current region (point and the mark, with the smallest first).
-
- * Command: narrow-to-page MOVE-COUNT
-     This function sets the accessible portion of the current buffer
-     to include just the current page.  An optional first argument
-     MOVE-COUNT non-`nil' means to move forward or backward by
-     MOVE-COUNT pages and then narrow.
-
-     In an interactive call, MOVE-COUNT is set to the numeric prefix
-     argument.
-
- * Command: widen
-     This function cancels any narrowing in the current buffer, so
-     that the entire contents are accessible.  This is called
-     "widening".  It is equivalent to the following expression:
-
-          (narrow-to-region 1 (1+ (buffer-size)))
-
- * Special Form: save-restriction FORMS...
-     This special form saves the current bounds of the accessible
-     portion, evaluates FORMS, and finally restores the saved bounds,
-     thus restoring the same state of narrowing (or absence thereof)
-     formerly in effect.  The state of narrowing is restored even in
-     the event of an abnormal exit via throw or error (*note Nonlocal
-     Exits::.).  Therefore, this construct is a clean way to narrow a
-     buffer temporarily.
-
-     The value returned by `save-restriction' is that returned by the
-     last of FORMS, or `nil' if no forms were given.
-
-     *Note:* it is easy to make a mistake when using
-     `save-restriction'.  Read the entire description here before you
-     try it.
-
-     Point and the mark are *not* restored by this special form; use
-     `save-excursion' for that.  If you use both `save-restriction'
-     and `save-excursion' together, `save-excursion' should come
-     first (on the outside).  Otherwise, the old point value would be
-     restored with temporary narrowing still in effect.  If the old
-     point value were outside the limits of the temporary narrowing,
-     this would fail to restore it accurately.
-
-     The `save-restriction' special form records the values of the
-     beginning and end of the accessible portion as distances from
-     the beginning and end of the buffer.  In other words, it records
-     the amount of inaccessible text before and after the accessible
-     portion.
-
-     This technique yields correct results if the body of the form
-     does further narrowing.  However, `save-restriction' can become
-     confused if the body widens and then makes changes outside the
-     area of the saved narrowing.  When this is what you want to do,
-     `save-restriction' is not the right tool for the job.  Here is
-     what you must do instead:
-
-          (let ((beg (point-min-marker))
-                (end (point-max-marker)))
-            (unwind-protect
-                (progn BODY)
-              (narrow-to-region beg end)))
-
-     Here is a simple example of correct use of `save-restriction':
-
-          ---------- Buffer: foo ----------
-          This is the contents of foo
-          This is the contents of foo
-          This is the contents of foo-!-
-          ---------- Buffer: foo ----------
-          
-          (save-excursion
-            (save-restriction
-              (goto-char 1)
-              (forward-line 2)
-              (narrow-to-region 1 (point))
-              (goto-char (point-min))
-              (replace-string "foo" "bar")))
-          
-          ---------- Buffer: foo ----------
-          This is the contents of bar
-          This is the contents of bar
-          This is the contents of foo-!-
-          ---------- Buffer: foo ----------
-
-
-
-File: elisp,  Node: Markers,  Next: Text,  Prev: Positions,  Up: Top
-
-Markers
-*******
-
-   A "marker" is a Lisp object used to specify a position in a buffer
-relative to the surrounding text.  A marker changes its offset from
-the beginning of the buffer automatically whenever text is inserted
-or deleted, so that it stays with the two characters on either side
-of it.
-
-* Menu:
-
-* Overview of Markers::      The components of a marker, and how it relocates.
-* Predicates on Markers::    Testing whether an object is a marker.
-* Creating Markers::         Making empty markers or markers at certain places.
-* Information from Markers:: Finding the marker's buffer or character position.
-* Changing Markers::         Moving the marker to a new buffer or position.
-* The Mark::                 How "the mark" is implemented with a marker.
-* The Region::               How to access "the region".
-
- 
-
-File: elisp,  Node: Overview of Markers,  Next: Predicates on Markers,  Prev: Markers,  Up: Markers
-
-Overview of Markers
-===================
-
-   A marker specifies a buffer and a position in that buffer.  The
-marker can be used to represent a position in the functions that
-require one, just as an integer could be used.  *Note Positions::,
-for a complete description of positions.
-
-   A marker has two attributes: the marker position, and the marker
-buffer.  The marker position is an integer which is equivalent (at
-the moment) to the marker as a position in that buffer; however, as
-text is inserted or deleted in the buffer, the marker is relocated,
-so that its integer equivalent changes.  The idea is that a marker
-positioned between two characters in a buffer will remain between
-those two characters despite any changes made to the contents of the
-buffer; thus, a marker's offset from the beginning of a buffer may
-change often during the life of the marker.
-
-   If the text around a marker is deleted, the marker is repositioned
-between the characters immediately before and after the deleted text.
-If text is inserted at the position of a marker, the marker remains
-in front of the new text unless it is inserted with
-`insert-before-markers' (*note Insertion::.).  When text is inserted
-or deleted somewhere before the marker position (not next to the
-marker), the marker moves back and forth with the two neighboring
-characters.
-
-   When a buffer is modified, all of its markers must be checked so
-that they can be relocated if necessary.  This slows processing in a
-buffer with a large number of markers.  For this reason, it is a good
-idea to make a marker point nowhere if you are sure you don't need it
-any more.  Unreferenced markers will eventually be garbage collected,
-but until then will continue to be updated if they do point somewhere.
-
-   Because it is quite common to perform arithmetic operations on a
-marker position, most of the arithmetic operations (including `+' and
-`-') accept markers as arguments.  In such cases, the current
-position of the marker is used.
-
-   Here are examples of creating markers, setting markers, and moving
-point to markers:
-
-     ;; Make a new marker that initially does not point anywhere:
-     (setq m1 (make-marker))
-          => #<marker in no buffer>
-     
-     ;; Set `m1' to point between the 100th and 101st characters.
-     ;; in the current buffer:
-     (set-marker m1 100)
-          => #<marker at 100 in markers.texi>
-     
-     ;; Now insert one character at the beginning of the buffer:
-     (goto-char (point-min))
-          => 1
-     (insert "Q")
-          => nil
-     
-     ;; `m1' is updated appropriately.
-     m1
-          => #<marker at 101 in markers.texi>
-     
-     ;; Two markers that point to the same position
-     ;; are not `eq', but they are `equal'.
-     (setq m2 (copy-marker m1))
-          => #<marker at 101 in markers.texi>
-     (eq m1 m2)
-          => nil
-     (equal m1 m2)
-          => t
-     
-     ;; When you are finished using a marker, make it point nowhere.
-     (set-marker m1 nil)
-          => #<marker in no buffer>
-
-
-
-File: elisp,  Node: Predicates on Markers,  Next: Creating Markers,  Prev: Overview of Markers,  Up: Markers
-
-Predicates on Markers
-=====================
-
-   You can test an object to see whether it is a marker, or whether
-it is either an integer or a marker.  The latter test is useful when
-you are using the arithmetic functions that work with both markers
-and integers.
-
- * Function: markerp OBJECT
-     This function returns `t' if OBJECT is a marker, `nil'
-     otherwise.  In particular, integers are not markers, even though
-     many functions will accept either a marker or an integer.
-
- * Function: integer-or-marker-p OBJECT
-     This function returns `t' if OBJECT is an integer or a marker,
-     `nil' otherwise.
-
-
-
-File: elisp,  Node: Creating Markers,  Next: Information from Markers,  Prev: Predicates on Markers,  Up: Markers
-
-Functions That Create Markers
-=============================
-
-   When you create a new marker, you can make it point nowhere, or
-point to the present position of point, or to the beginning or end of
-the accessible portion of the buffer, or to the same place as another
-given marker.
-
- * Function: make-marker
-     This functions returns a newly allocated marker that does not
-     point anywhere.
-
-          (make-marker)
-               => #<marker in no buffer>
-
- * Function: point-marker
-     This function returns a new marker that points to the present
-     position of point in the current buffer.  *Note Point::.  For an
-     example, see `copy-marker', below.
-
- * Function: point-min-marker
-     This function returns a new marker that points to the beginning
-     of the accessible portion of the buffer.  This will be the
-     beginning of the buffer unless narrowing is in effect.  *Note
-     Narrowing::.
-
- * Function: point-max-marker
-     This function returns a new marker that points to the end of the
-     accessible portion of the buffer.  This will be the end of the
-     buffer unless narrowing is in effect.  *Note Narrowing::.
-
-     Here are examples of this function and `point-min-marker', shown
-     in a buffer containing a version of the source file for the text
-     of this chapter.
-
-          (point-min-marker)
-               => #<marker at 1 in markers.texi>
-          (point-max-marker)
-               => #<marker at 15573 in markers.texi>
-          
-          (narrow-to-region 100 200)
-               => nil
-          (point-min-marker)
-               => #<marker at 100 in markers.texi>
-
-             (point-max-marker)
-               => #<marker at 200 in markers.texi>
-
- * Function: copy-marker MARKER-OR-INTEGER
-     If passed a marker as its argument, `copy-marker' returns a new
-     marker that points to the same place and the same buffer as does
-     MARKER-OR-INTEGER.  If passed an integer as its argument,
-     `copy-marker' returns a new marker that points to position
-     MARKER-OR-INTEGER in the current buffer.
-
-     If passed an argument that is an integer whose value is less
-     than 1, `copy-marker' returns a new marker that points to the
-     beginning of the current buffer.  If passed an argument that is
-     an integer whose value is greater than the length of the buffer,
-     then `copy-marker' returns a new marker that points to the end
-     of the buffer.
-
-     An error is signaled if MARKER is neither a marker nor an integer.
-
-          (setq p (point-marker))
-               => #<marker at 2139 in markers.texi>
-          
-          (setq q (copy-marker p))
-               => #<marker at 2139 in markers.texi>
-          
-          (eq p q)
-               => nil
-          
-          (equal p q)
-               => t
-          
-          (copy-marker 0)
-               => #<marker at 1 in markers.texi>
-          
-          (copy-marker 20000)
-               => #<marker at 7572 in markers.texi>
-
-
-
-File: elisp,  Node: Information from Markers,  Next: Changing Markers,  Prev: Creating Markers,  Up: Markers
-
-Information from Markers
-========================
-
-   This section describes the functions for accessing the components
-of a marker object.
-
- * Function: marker-position MARKER
-     This function returns the position that MARKER points to, or
-     `nil' if it points nowhere.
-
- * Function: marker-buffer MARKER
-     This function returns the buffer that MARKER points into, or
-     `nil' if it points nowhere.
-
-          (setq m (make-marker))
-               => #<marker in no buffer>
-          (marker-position m)
-               => nil
-          (marker-buffer m)
-               => nil
-          
-          (set-marker m 3770 (current-buffer))
-               => #<marker at 3770 in markers.texi>
-          (marker-buffer m)
-               => #<buffer markers.texi>
-          (marker-position m)
-               => 3770
-
-   Two distinct markers will be found `equal' (even though not `eq')
-to each other if they have the same position and buffer, or if they
-both point nowhere.
-
-
-
-File: elisp,  Node: Changing Markers,  Next: The Mark,  Prev: Information from Markers,  Up: Markers
-
-Changing Markers
+Mode Line Format
 ================
 
-   This section describes how to change the position of an existing
-marker.  When you do this, be sure you know whether the marker is
-used outside of your program, and, if so, what effects will result
-from moving it--otherwise, confusing things may happen in other parts
-of Emacs.
+   Each Emacs window (aside from minibuffer windows) includes a mode
+line which displays status information about the buffer displayed in the
+window.  The mode line contains information about the buffer such as its
+name, associated file, depth of recursive editing, and the major and
+minor modes of the buffer.
 
- * Function: set-marker MARKER POSITION &optional BUFFER
-     This function moves MARKER to POSITION in BUFFER.  If BUFFER is
-     not provided, it defaults to the current buffer.
+   This section describes how the contents of the mode line are
+controlled.  It is in the chapter on modes because much of the
+information displayed in the mode line relates to the enabled major and
+minor modes.
 
-     If POSITION is less than 1, `set-marker' moves marker to the
-     beginning of the buffer.  If the value of POSITION is greater
-     than the size of the buffer, `set-marker' moves marker to the
-     end of the buffer.  If POSITION is `nil' or a marker that points
-     nowhere, then MARKER is set to point nowhere.
+   `mode-line-format' is a buffer-local variable that holds a template
+used to display the mode line of the current buffer.  All windows for
+the same buffer use the same `mode-line-format' and the mode lines will
+appear the same (except perhaps for the percentage of the file scrolled
+off the top).
 
-     The value returned is MARKER.
+   The mode line of a window is normally updated whenever a different
+buffer is shown in the window, or when the buffer's modified-status
+changes from `nil' to `t' or vice-versa.  If you modify any of the
+variables referenced by `mode-line-format', you may want to force an
+update of the mode line so as to display the new information.
 
-          (setq m (point-marker))
-               => #<marker at 4714 in markers.texi>
-          (set-marker m 55)
-               => #<marker at 55 in markers.texi>
-          (setq b (get-buffer "foo"))
-               => #<buffer foo>
-          (set-marker m 0 b)
-               => #<marker at 1 in foo>
+ - Function: force-mode-line-update &optional ALL
+     Force redisplay of the current buffer's mode line.  If ALL is
+     non-`nil', then force redisplay of all mode lines.  This function
+     is equivalent to `redraw-mode-line'.
 
- * Function: move-marker MARKER POSITION &optional BUFFER
-     This is another name for `set-marker'.
-
-
-
-File: elisp,  Node: The Mark,  Next: The Region,  Prev: Changing Markers,  Up: Markers
-
-The Mark
-========
-
-   A special marker in each buffer is designated "the mark".  It
-records a position for the user for the sake of commands such as
-`C-w' and `C-x TAB'.  Lisp programs should set the mark only to
-values that have a potential use to the user, and never for their own
-internal purposes.  For example, the `replace-regexp' command sets
-the mark to the value of point before doing any replacements, because
-this enables the user to move back there conveniently after the
-replace is finished.
-
-   Many commands are designed so that when called interactively they
-operate on the text between point and the mark.  If you are writing
-such a command, don't examine the mark directly; instead, use
-`interactive' with the `r' specification.  This will provide the
-values of point and the mark as arguments to the command in an
-interactive call, but will permit other Lisp programs to specify
-arguments explicitly.  *Note Interactive Codes::.
-
-   Each buffer has its own value of the mark that is independent of
-the value of the mark in other buffers.  When a buffer is created,
-the mark exists but does not point anywhere.  We consider this state
-as "the absence of a mark in that buffer".
-
-   In addition to the mark, each buffer has a "mark ring" which is a
-list of markers that are the previous values of the mark.  When
-editing commands change the mark, they should normally save the old
-value of the mark on the mark ring.  The mark ring may contain no
-more than the maximum number of entries specified by the variable
-`mark-ring-max'; excess entries are discarded on a first-in-first-out
-basis.
-
- * Function: mark
-     This function returns the position of the current buffer's mark
-     as an integer.  `nil' is returned if the mark is not yet set for
-     this buffer.
-
- * Function: mark-marker
-     This function returns the current buffer's mark.  This the very
-     marker which records the mark location inside Emacs, not a copy.
-     Therefore, changing this marker's position will directly affect
-     the position of the mark.  Don't do it unless that is the effect
-     you want.
-
-          (setq m (mark-marker))
-               => #<marker at 3420 in markers.texi>
-          (set-marker m 100)
-               => #<marker at 100 in markers.texi>
-          (mark-marker)
-               => #<marker at 100 in markers.texi>
-
-     Like any marker, this marker can be set to point at any buffer
-     you like.  We don't recommend that you make it point at any
-     buffer other than the one of which it is the mark.  If you do,
-     it will yield perfectly consistent, if rather odd, results.
-
- * Command: set-mark-command JUMP
-     If JUMP is `nil', this command sets the mark to the value of
-     point and pushes the previous value of the mark on the mark
-     ring.  The message `Mark set' is also displayed in the echo area.
-
-     If JUMP is not `nil', this command sets point to the value of
-     the mark, and sets the mark to the previous saved mark value,
-     which is popped off the mark ring.
-
-     This function is *only* intended for interactive use.
-
- * Function: set-mark POSITION
-     This function sets the mark to POSITION.  The old value of the
-     mark is *not* pushed onto the mark ring.
-
-     *Note:* use this function only if you want the user to see that
-     the mark has moved, and you want the previous mark position to
-     be lost.  Normally, when a new mark is set, the old one should
-     go on the `mark-ring', which is why most applications should use
-     `push-mark' and `pop-mark', not `set-mark'.
-
-     Novice Emacs Lisp programmers often try to use the mark for the
-     wrong purposes.  The mark saves a location for the user's
-     convenience.  An editing command should not alter the mark
-     unless altering the mark is part of the user-level functionality
-     of the command.  (And, in that case, this effect should be
-     documented.)  To remember a location for internal use in the
-     Lisp program, store it in a Lisp variable.  For example:
-
-             (let ((beg (point)))
-                (forward-line 1)
-                (delete-region beg (point))).
-
-  * Variable: mark-ring
-     The value of this buffer-local variable is the list of saved
-     former marks of the current buffer, most recent first.
-
-          mark-ring
-          => (#<marker at 11050 in markers.texi> 
-              #<marker at 10832 in markers.texi>
-              ...)
-
- * User Option: mark-ring-max
-     The value of this variable is the maximum size of `mark-ring'. 
-     If more marks than this are pushed onto the `mark-ring', it
-     discards marks on a first-in, first-out basis.
-
- * Function: push-mark &optional POSITION NOMSG
-     This function sets the current buffer's mark to POSITION, and
-     pushes a copy of the previous mark onto `mark-ring'.  If
-     POSITION is `nil', then the value of point is used.  `push-mark'
-     returns `nil'.
-
-     A `Mark set' message is displayed unless NOMSG is non-`nil'.
-
- * Function: pop-mark
-     This function pops off the top element of `mark-ring' and makes
-     that mark become the buffer's actual mark.  This does not change
-     the buffer's point and does nothing if `mark-ring' is empty.
-
-     The return value is not useful.
-
-
-
-File: elisp,  Node: The Region,  Prev: The Mark,  Up: Markers
-
-The Region
-==========
-
-   The text between point and the mark is known as "the region". 
-Various functions operate on text delimited by point and the mark,
-but only those functions specifically related to the region itself
-are described here.
-
- * Function: region-beginning
-     This function returns the position of the beginning of the
-     region (as an integer).  This is the position of either point or
-     the mark, whichever is smaller.
-
-     If the mark does not point anywhere, an error is signaled.
-
- * Function: region-end
-     This function returns the position of the end of the region (as
-     an integer).  This is the position of either point or the mark,
-     whichever is larger.
-
-     If the mark does not point anywhere, an error is signaled.
-
-   Few programs need to use the `region-beginning' and `region-end'
-functions.  A command designed to operate on a region should instead
-use `interactive' with the `r' specification, so that the same
-function can be called with explicit bounds arguments from programs. 
-(*Note Interactive Codes::.)
-
-
-
-File: elisp,  Node: Text,  Next: Searching and Matching,  Prev: Markers,  Up: Top
-
-Text
-****
-
-   This chapter describes the functions that deal with the text in a
-buffer.  Most examine, insert or delete text in the current buffer,
-often in the vicinity of point.  Many are interactive.  All the
-functions that change the text provide for undoing the changes (*note
-Undo::.).
-
-   Many text-related functions operate on a region of text defined by
-two buffer positions passed in arguments named START and END.  These
-arguments should be either markers (*note Markers::.) or or numeric
-character positions (*note Positions::.).  The order of these
-arguments does not matter; it is all right for START to be the end of
-the region and END the beginning.  For example, `(delete-region 1
-10)' and `(delete-region 10 1)' perform identically.  An
-`args-out-of-range' error is signaled if either START or END is
-outside the accessible portion of the buffer.  In an interactive
-call, point and the mark are used for these arguments.
-
-   Throughout this chapter, "text" refers to the characters in the
-buffer.
+   The mode line is usually displayed in inverse video; see
+`mode-line-inverse-video' in *Note Inverse Video::.
 
 * Menu:
 
-* Near Point::       Examining text in the vicinity of point.
-* Buffer Contents::  Examining text in a general fashion.
-* Insertion::        Adding new text to a buffer.
-* Commands for Insertion::  User-level commands to insert text.
-* Deletion::         Removing text from a buffer.
-* User-Level Deletion::     User-level commands to delete text.
-* The Kill Ring::    Where removed text sometimes is saved for later use.
-* Undo::             Undoing changes to the text of a buffer.
-* Auto Filling::     How auto-fill mode is implemented to break lines.
-* Filling::          Functions for explicit filling.
-* Sorting::          Functions for sorting parts of the buffer.
-* Indentation::      Functions to insert or adjust indentation.
-* Columns::          Computing horizontal positions, and using them.
-* Case Changes::     Case conversion of parts of the buffer.
-* Substitution::     Replacing a given character wherever it appears.
-* Underlining::      Inserting or deleting underlining-by-overstrike.
-* Registers::        How registers are implemented.  Accessing the text or
-                       position stored in a register.
-
- 
-
-File: elisp,  Node: Near Point,  Next: Buffer Contents,  Prev: Text,  Up: Text
-
-Examining Text Near Point
-=========================
-
-   Many functions are provided to look at the characters around point.
-Several simple functions are described here.  See also `looking-at'
-in *Note Searching and Matching::.
-
- * Function: char-after POSITION
-     This function returns the character in the current buffer at
-     (i.e., immediately after) position POSITION.  If POSITION is out
-     of range for this purpose, either before the beginning of the
-     buffer, or at or beyond the end, than the value is `nil'.
-
-     Remember that point is always between characters, and the
-     terminal cursor normally appears over the character following
-     point.  Therefore, the character returned by `char-after' is the
-     character the cursor is over.
-
-     In the following example, assume that the first character in the
-     buffer is `@':
-
-          (char-to-string (char-after 1))
-               => "@"
-
- * Function: following-char
-     This function returns the character following point in the
-     current buffer.  This is similar to `(char-after (point))'. 
-     However, point is at the end of the buffer, then the result of
-     `following-char' is 0.
-
-     In this example, point is between the `a' and the `c'.
-
-          ---------- Buffer: foo ----------
-          Gentlemen may cry ``Pea-!-ce! Peace!,'' but there is no peace.
-          ---------- Buffer: foo ----------
-          
-          (char-to-string (preceding-char))
-               => "a"
-          (char-to-string (following-char))
-               => "c"
-
- * Function: preceding-char
-     This function returns the character preceding point in the
-     current buffer.  See above, under `following-char', for an
-     example.  If point is at the beginning of the buffer, then the
-     result of `preceding-char' is 0.
-
- * Function: bobp
-     This function returns `t' if point is at the beginning of the
-     buffer.  If narrowing is in effect, this means the beginning of
-     the accessible portion of the text.  See also `point-min' in
-     *Note Point::.
-
- * Function: eobp
-     This function returns `t' if point is at the end of the buffer. 
-     If narrowing is in effect, this means the end of accessible
-     portion of the text.  See also `point-max' in *Note Point::.
-
- * Function: bolp
-     This function returns `t' if point is at the beginning of a line.
-     *Note Text Lines::.
-
- * Function: eolp
-     This function returns `t' if point is at the end of a line.  The
-     end of the buffer is always considered the end of a line.
-
+* Mode Line Data::        The data structure that controls the mode line.
+* Mode Line Variables::   Variables used in that data structure.
+* %-Constructs::          Putting information into a mode line.
 
 
-File: elisp,  Node: Buffer Contents,  Next: Insertion,  Prev: Near Point,  Up: Text
+File: lispref.info,  Node: Mode Line Data,  Next: Mode Line Variables,  Prev: Mode Line Format,  Up: Mode Line Format
 
-Examining Buffer Contents
-=========================
+The Data Structure of the Mode Line
+-----------------------------------
 
-   This section describes two functions that allow a Lisp program to
-convert any portion of the text in the buffer into a string.
+   The mode line contents are controlled by a data structure of lists,
+strings, symbols and numbers kept in the buffer-local variable
+`mode-line-format'.  The data structure is called a "mode line
+construct", and it is built in recursive fashion out of simpler mode
+line constructs.
 
- * Function: buffer-substring START END
-     This function returns a string containing a copy of the text of
-     the region defined by positions START and END in the current
-     buffer.  If the arguments are not positions in the accessible
-     portion of the buffer, Emacs signals an `args-out-of-range' error.
+ - Variable: mode-line-format
+     The value of this variable is a mode line construct with overall
+     responsibility for the mode line format.  The value of this
+     variable controls which other variables are used to form the mode
+     line text, and where they appear.
 
-     It is not necessary for START to be less than END; the arguments
-     can be given in either order.  But most often the smaller
-     argument is written first.
+   A mode line construct may be as simple as a fixed string of text, but
+it usually specifies how to use other variables to construct the text.
+Many of these variables are themselves defined to have mode line
+constructs as their values.
 
-          ---------- Buffer: foo ----------
-          This is the contents of buffer foo
-          
-          ---------- Buffer: foo ----------
-          
-          (buffer-substring 1 10)
-          => "This is t"
-          (buffer-substring (point-max) 10)
-          => "he contents of buffer foo
-          "
+   The default value of `mode-line-format' incorporates the values of
+variables such as `mode-name' and `minor-mode-alist'.  Because of this,
+very few modes need to alter `mode-line-format'.  For most purposes, it
+is sufficient to alter the variables referenced by `mode-line-format'.
 
- * Function: buffer-string
-     This function returns the contents of the accessible portion of
-     the current buffer as a string.  This is the portion between
-     `(point-min)' and `(point-max)' (*note Narrowing::.).
+   A mode line construct may be a list, cons cell, symbol, or string.
+If the value is a list, each element may be a list, a cons cell, a
+symbol, or a string.
 
-          ---------- Buffer: foo ----------
-          This is the contents of buffer foo
-          
-          ---------- Buffer: foo ----------
-          
-          (buffer-string)
-               => "This is the contents of buffer foo
-          "
+`STRING'
+     A string as a mode line construct is displayed verbatim in the
+     mode line except for "`%'-constructs".  Decimal digits after the
+     `%' specify the field width for space filling on the right (i.e.,
+     the data is left justified).  *Note %-Constructs::.
 
+`SYMBOL'
+     A symbol as a mode line construct stands for its value.  The value
+     of SYMBOL is used in place of SYMBOL unless SYMBOL is `t' or
+     `nil', or is void, in which case SYMBOL is ignored.
+
+     There is one exception: if the value of SYMBOL is a string, it is
+     processed verbatim in that the `%'-constructs are not recognized.
+
+`(STRING REST...) or (LIST REST...)'
+     A list whose first element is a string or list, means to
+     concatenate all the elements.  This is the most common form of
+     mode line construct.
+
+`(SYMBOL THEN ELSE)'
+     A list whose first element is a symbol is a conditional.  Its
+     meaning depends on the value of SYMBOL.  If the value is non-`nil',
+     the second element of the list (THEN) is processed recursively as
+     a mode line element.  But if the value of SYMBOL is `nil', the
+     third element of the list (if there is one) is processed
+     recursively.
+
+`(WIDTH REST...)'
+     A list whose first element is an integer specifies truncation or
+     padding of the results of REST.  The remaining elements REST are
+     processed recursively as mode line constructs and concatenated
+     together.  Then the result is space filled (if WIDTH is positive)
+     or truncated (to -WIDTH columns, if WIDTH is negative) on the
+     right.
+
+     For example, the usual way to show what percentage of a buffer is
+     above the top of the window is to use a list like this: `(-3 .
+     "%p")'.
+
+   If you do alter `mode-line-format' itself, the new value should use
+all the same variables that are used by the default value, rather than
+duplicating their contents or displaying the information in another
+fashion.  This permits customizations made by the user, by libraries
+(such as `display-time') or by major modes via changes to those
+variables remain effective.
+
+   Here is an example of a `mode-line-format' that might be useful for
+`shell-mode' since it contains the hostname and default directory.
+
+     (setq mode-line-format
+       (list ""
+        'mode-line-modified
+        "%b--"
+        (getenv "HOST")      ; One element is not constant.
+        ":"
+        'default-directory
+        "   "
+        'global-mode-string
+        "   %[(" 'mode-name
+        'minor-mode-alist
+        "%n"
+        'mode-line-process
+        ")%]----"
+        '(-3 . "%p")
+        "-%-"))
 
 
-File: elisp,  Node: Insertion,  Next: Commands for Insertion,  Prev: Buffer Contents,  Up: Text
+File: lispref.info,  Node: Mode Line Variables,  Next: %-Constructs,  Prev: Mode Line Data,  Up: Mode Line Format
 
-Insertion
-=========
+Variables Used in the Mode Line
+-------------------------------
 
-   Insertion takes place at point.  Markers pointing at positions
-after the insertion point are relocated with the surrounding text
-(*note Markers::.).  When a marker points at the place of insertion,
-it is normally not relocated, so that it points to the beginning of
-the inserted text; however, when `insert-before-markers' is used, all
-such markers are relocated to point after the inserted text.
+   This section describes variables incorporated by the standard value
+of `mode-line-format' into the text of the mode line.  There is nothing
+inherently special about these variables; any other variables could
+have the same effects on the mode line if `mode-line-format' were
+changed to use them.
 
-   Point may end up either before or after inserted text, depending
-on the function used.  If point is left after the inserted text, we
-speak of insertion "before point".
+ - Variable: mode-line-modified
+     This variable holds the value of the mode-line construct that
+     displays whether the current buffer is modified.
 
-   Each of these functions signals an error if the current buffer is
-read-only.
+     The default value of `mode-line-modified' is `("--%1*%1*-")'.
+     This means that the mode line displays `--**-' if the buffer is
+     modified, `-----' if the buffer is not modified, and `--%%-' if
+     the buffer is read only.
 
- * Function: insert &rest ARGS
-     This function inserts the strings and/or characters ARGS into
-     the current buffer, at point, moving point forward.  An error is
-     signaled unless all ARGS are either strings or characters.  The
-     value is `nil'.
+     Changing this variable does not force an update of the mode line.
 
- * Function: insert-before-markers &rest ARGS
-     This function inserts the strings and/or characters ARGS into
-     the current buffer, at point, moving point forward.  An error is
-     signaled unless all ARGS are either strings or characters.  The
-     value is `nil'.
+ - Variable: mode-line-buffer-identification
+     This variable identifies the buffer being displayed in the window.
+     Its default value is `Emacs: %17b', which means that it displays
+     `Emacs:' followed by the buffer name.  You may want to change this
+     in modes such as Rmail that do not behave like a "normal" Emacs.
 
-     This function is unlike the other insertion functions in that a
-     marker whose position initially equals point is relocated to
-     come after the newly inserted text.
+ - Variable: global-mode-string
+     This variable holds a string that is displayed in the mode line.
+     The command `display-time' puts the time and load in this variable.
+     The `%M' construct substitutes the value of `global-mode-string',
+     but this is obsolete, since the variable is included directly in
+     the mode line.
 
- * Function: insert-char CHARACTER COUNT
-     This function inserts COUNT instances of CHARACTER into the
-     current buffer before point.  COUNT must be a number, and
-     CHARACTER must be a character.  The value is `nil'.
+ - Variable: mode-name
+     This buffer-local variable holds the "pretty" name of the current
+     buffer's major mode.  Each major mode should set this variable so
+     that the mode name will appear in the mode line.
 
- * Function: insert-buffer-substring FROM-BUFFER-OR-NAME START END
-     This function inserts a substring of the contents of buffer
-     FROM-BUFFER-OR-NAME (which must already exist) into the current
-     buffer before point.  The text inserted consists of the
-     characters in the region defined by START and END.  The value is
+ - Variable: minor-mode-alist
+     This variable holds an association list whose elements specify how
+     the mode line should indicate that a minor mode is active.  Each
+     element of the `minor-mode-alist' should be a two-element list:
+
+          (MINOR-MODE-VARIABLE MODE-LINE-STRING)
+
+     The string MODE-LINE-STRING is included in the mode line when the
+     value of MINOR-MODE-VARIABLE is non-`nil' and not otherwise.
+     These strings should begin with spaces so that they don't run
+     together.  Conventionally, the MINOR-MODE-VARIABLE for a specific
+     mode is set to a non-`nil' value when that minor mode is activated.
+
+     The default value of `minor-mode-alist' is:
+
+          minor-mode-alist
+          => ((abbrev-mode " Abbrev")
+              (overwrite-mode " Ovwrt")
+              (auto-fill-function " Fill")
+              (defining-kbd-macro " Def"))
+
+     (In earlier Emacs versions, `auto-fill-function' was called
+     `auto-fill-hook'.)
+
+     `minor-mode-alist' is not buffer-local.  The variables mentioned
+     in the alist should be buffer-local if the minor mode can be
+     enabled separately in each buffer.
+
+ - Variable: mode-line-process
+     This buffer-local variable contains the mode line information on
+     process status in modes used for communicating with subprocesses.
+     It is displayed immediately following the major mode name, with no
+     intervening space.  For example, its value in the `*shell*' buffer
+     is `(": %s")', which allows the shell to display its status along
+     with the major mode as: `(Shell: run)'.  Normally this variable is
      `nil'.
 
-     In this example, the form is executed with buffer `bar' as the
-     current buffer.  We assume that buffer `bar' is initially empty.
+ - Variable: default-mode-line-format
+     This variable holds the default `mode-line-format' for buffers
+     that do not override it.  This is the same as `(default-value
+     'mode-line-format)'.
 
-          ---------- Buffer: foo ----------
-          We hold these truths to be self-evident, that all
-          ---------- Buffer: foo ----------
-          
-          (insert-buffer-substring "foo" 1 20)
-               => nil
-          
-          ---------- Buffer: bar ----------
-          We hold these truth
-          ---------- Buffer: bar ----------
+     The default value of `default-mode-line-format' is:
 
+          (""
+           mode-line-modified
+           mode-line-buffer-identification
+           "   "
+           global-mode-string
+           "   %[("
+           mode-name
+           minor-mode-alist
+           "%n"
+           mode-line-process
+           ")%]----"
+           (-3 . "%p")
+           "-%-")
+
+
+File: lispref.info,  Node: %-Constructs,  Prev: Mode Line Variables,  Up: Mode Line Format
+
+`%'-Constructs in the Mode Line
+-------------------------------
+
+   The following table lists the recognized `%'-constructs and what
+they mean.
+
+`%b'
+     the current buffer name, using the `buffer-name' function.
+
+`%f'
+     the visited file name, using the `buffer-file-name' function.
+
+`%*'
+     `%' if the buffer is read only (see `buffer-read-only');
+     `*' if the buffer is modified (see `buffer-modified-p');
+     `-' otherwise.
+
+`%s'
+     the status of the subprocess belonging to the current buffer, using
+     `process-status'.
+
+`%l'
+     the current line number.
+
+`%S'
+     the name of the selected screen; this is only meaningful under the
+     X Window System.  *Note Screen Name::.
+
+`%p'
+     the percent of the buffer above the top of window, or `Top',
+     `Bottom' or `All'.
+
+`%n'
+     `Narrow' when narrowing is in effect; nothing otherwise (see
+     `narrow-to-region' in *Note Narrowing::).
+
+`%['
+     an indication of the depth of recursive editing levels (not
+     counting minibuffer levels): one `[' for each editing level.
+
+`%]'
+     one `]' for each recursive editing level (not counting minibuffer
+     levels).
+
+`%%'
+     the character `%'--this is how to include a literal `%' in a
+     string in which `%'-constructs are allowed.
+
+`%-'
+     dashes sufficient to fill the remainder of the mode line.
+
+   The following two `%'-constructs are still supported but are
+obsolete since use of the `mode-name' and `global-mode-string'
+variables will produce the same results.
+
+`%m'
+     the value of `mode-name'.
+
+`%M'
+     the value of `global-mode-string'.  Currently, only `display-time'
+     modifies the value of `global-mode-string'.
+
+
+File: lispref.info,  Node: Hooks,  Prev: Mode Line Format,  Up: Modes
+
+Hooks
+=====
+
+   A "hook" is a variable where you can store a function or functions
+to be called on a particular occasion by an existing program.  Emacs
+provides lots of hooks for the sake of customization.  Most often, hooks
+are set up in the `.emacs' file, but Lisp programs can set them also.
+*Note Standard Hooks::, for a list of standard hook variables.
+
+   Most of the hooks in Emacs are "normal hooks".  These variables
+contain lists of functions to be called with no arguments.  The reason
+most hooks are normal hooks is so that you can use them in a uniform
+way.  You can usually tell when a hook is a normal hook, because its
+name ends in `-hook'.
+
+   The recommended way to add a hook function to a normal hook is by
+calling `add-hook' (see below).  The hook functions may be any of the
+valid kinds of functions that `funcall' accepts (*note What Is a
+Function::.).  Most normal hook variables are initially void;
+`add-hook' knows how to deal with this.
+
+   As for abnormal hooks, those whose names end in `-function' have a
+value which is a single function.  Those whose names end in `-hooks'
+have a value which is a list of functions.  Any hook which is abnormal
+is abnormal because a normal hook won't do the job; either the
+functions are called with arguments, or their values are meaningful.
+The name shows you that the hook is abnormal and you need to look up
+how to use it properly.
+
+   Most major modes run hooks as the last step of initialization.  This
+makes it easy for a user to customize the behavior of the mode, by
+overriding the local variable assignments already made by the mode.  But
+hooks may also be used in other contexts.  For example, the hook
+`suspend-hook' runs just before Emacs suspends itself (*note Suspending
+Emacs::.).
+
+   For example, you can put the following expression in your `.emacs'
+file if you want to turn on Auto Fill mode when in Lisp Interaction
+mode:
+
+     (add-hook 'lisp-interaction-mode-hook 'turn-on-auto-fill)
+
+   The next example shows how to use a hook to customize the way Emacs
+formats C code.  (People often have strong personal preferences for one
+format compared to another.)  Here the hook function is an anonymous
+lambda expression.
+
+     (add-hook 'c-mode-hook
+       (function (lambda ()
+                   (setq c-indent-level 4
+                         c-argdecl-indent 0
+                         c-label-offset -4
+                         c-continued-statement-indent 0
+                         c-brace-offset 0
+                         comment-column 40))))
+     
+     (setq c++-mode-hook c-mode-hook)
+
+   Finally, here is an example of how to use the Text mode hook to
+provide a customized mode line for buffers in Text mode, displaying the
+default directory in addition to the standard components of the mode
+line.  (This may cause the mode line to run out of space if you have
+very long file names or display the time and load.)
+
+     (add-hook 'text-mode-hook
+       (function (lambda ()
+                   (setq mode-line-format
+                         '(mode-line-modified
+                           "Emacs: %14b"
+                           "  "
+                           default-directory
+                           " "
+                           global-mode-string
+                           "%[("
+                           mode-name
+                           minor-mode-alist
+                           "%n"
+                           mode-line-process
+                           ") %]---"
+                           (-3 . "%p")
+                           "-%-")))))
+
+   At the appropriate time, Emacs uses the `run-hooks' function to run
+particular hooks.  This function calls the hook functions you have
+added with `add-hooks'.
+
+ - Function: run-hooks &rest HOOKVAR
+     This function takes one or more hook names as arguments and runs
+     each one in turn.  Each HOOKVAR argument should be a symbol that
+     is a hook variable.  These arguments are processed in the order
+     specified.
+
+     If a hook variable has a non-`nil' value, that value may be a
+     function or a list of functions.  If the value is a function
+     (either a lambda expression or a symbol with a function
+     definition), it is called.  If it is a list, the elements are
+     called, in order.  The hook functions are called with no arguments.
+
+     For example:
+
+          (run-hooks 'emacs-lisp-mode-hook)
+
+     Major mode functions use this function to call any hooks defined
+     by the user.
+
+ - Function: add-hook HOOK FUNCTION &optional APPEND
+     This function is the handy way to add function FUNCTION to hook
+     variable HOOK.  For example,
+
+          (add-hook 'text-mode-hook 'my-text-hook-function)
+
+     adds `my-text-hook-function' to the hook called `text-mode-hook'.
+
+     It is best to design your hook functions so that the order in
+     which they are executed does not matter.  Any dependence on the
+     order is "asking for trouble."  However, the order is predictable:
+     normally, FUNCTION goes at the front of the hook list, so it will
+     be executed first (barring another `add-hook' call).
+
+     If the optional argument APPEND is non-`nil', the new hook
+     function goes at the end of the hook list and will be executed
+     last.
+
+
+File: lispref.info,  Node: Documentation,  Next: Files,  Prev: Modes,  Up: Top
+
+Documentation
+*************
+
+   GNU Emacs Lisp has convenient on-line help facilities, most of which
+derive their information from the documentation strings associated with
+functions and variables.  This chapter describes how to write good
+documentation strings for your Lisp programs, as well as how to write
+programs to access documentation.
+
+   Note that the documentation strings for Emacs are not the same thing
+as the Emacs manual.  Manuals have their own source files, written in
+the Texinfo language; documentation strings are specified in the
+definitions of the functions and variables they apply to.  A collection
+of documentation strings is not sufficient as a manual because a good
+manual is not organized in that fashion; it is organized in terms of
+topics of discussion.
+
+* Menu:
+
+* Documentation Basics::      Good style for doc strings.
+                                Where to put them.  How Emacs stores them.
+* Accessing Documentation::   How Lisp programs can access doc strings.
+* Keys in Documentation::     Substituting current key bindings.
+* Describing Characters::     Making printable descriptions of
+                                non-printing characters and key sequences.
+* Help Functions::            Subroutines used by Emacs help facilities.
+
+
+File: lispref.info,  Node: Documentation Basics,  Next: Accessing Documentation,  Prev: Documentation,  Up: Documentation
+
+Documentation Basics
+====================
+
+   A documentation string is written using the Lisp syntax for strings,
+with double-quote characters surrounding the text of the string.  This
+is because it really is a Lisp string object.  The string serves as
+documentation when it is written in the proper place in the definition
+of a function or variable.  In a function definition, the documentation
+string follows the argument list.  In a variable definition, the
+documentation string follows the initial value of the variable.
+
+   When you write a documentation string, make the first line a complete
+sentence (or two complete sentences) since some commands, such as
+`apropos', print only the first line of a multi-line documentation
+string.  Also, you should not indent the second line of a documentation
+string, if you have one, because that looks odd when you use `C-h f'
+(`describe-function') or `C-h v' (`describe-variable').
+
+   Documentation strings may contain several special substrings, which
+stand for key bindings to be looked up in the current keymaps when the
+documentation is displayed.  This allows documentation strings to refer
+to the keys for related commands and be accurate even when a user
+rearranges the key bindings.  (*Note Accessing Documentation::.)
+
+   Within the Lisp world, a documentation string is kept with the
+function or variable that it describes:
+
+   * The documentation for a function is stored in the function
+     definition itself (*note Lambda Expressions::.).  The function
+     `documentation' knows how to extract it.
+
+   * The documentation for a variable is stored on the variable's
+     property list under the property name `variable-documentation'.
+     The function `documentation-property' knows how to extract it.
+
+   However, to save space, the documentation for preloaded functions and
+variables (including primitive functions and autoloaded functions) are
+stored in the `emacs/etc/DOC-VERSION' file.  The
+`emacs/etc/DOC-VERSION' file can be accessed by both the
+`documentation' and the `documentation-property' functions, and the
+process is transparent to the user.  In this case, the documentation
+string is replaced with an integer offset into the
+`emacs/etc/DOC-VERSION' file.  Keeping the documentation strings out of
+the Emacs core image saves a significant amount of space.  *Note
+Building Emacs::.
+
+   For information on the uses of documentation strings, see *Note
+Help: (emacs)Help.
+
+   The `emacs/etc' directory contains two utilities that you can use to
+print nice-looking hardcopy for the file `emacs/etc/DOC-VERSION'.
+These are `sorted-doc.c' and `digest-doc.c'.
+
+
+File: lispref.info,  Node: Accessing Documentation,  Next: Keys in Documentation,  Prev: Documentation Basics,  Up: Documentation
+
+Access to Documentation Strings
+===============================
+
+ - Function: documentation-property SYMBOL PROPERTY &optional VERBATIM
+     This function returns the documentation string that is recorded
+     SYMBOL's property list under property PROPERTY.  This uses the
+     function `get', but does more than that: it also retrieves the
+     string from the file `emacs/etc/DOC-VERSION' if necessary, and
+     runs `substitute-command-keys' to substitute the actual (current)
+     key bindings.
+
+     If VERBATIM is non-`nil', that inhibits running
+     `substitute-command-keys'.  (The VERBATIM argument exists only as
+     of Emacs 19.)
+
+          (documentation-property 'command-line-processed
+             'variable-documentation)
+               => "t once command line has been processed"
+
+          (symbol-plist 'command-line-processed)
+               => (variable-documentation 188902)
+
+ - Function: documentation FUNCTION &optional VERBATIM
+     This function returns the documentation string of FUNCTION.  This
+     function will access the documentation string if it is stored in
+     the `emacs/etc/DOC-VERSION' file.
+
+     In addition, `documentation' runs `substitute-command-keys' on the
+     resulting string, so the value contains the actual (current) key
+     bindings.  (This is not done if VERBATIM is non-`nil'; the
+     VERBATIM argument exists only as of Emacs 19.)
+
+     The function `documentation' signals a `void-function' error
+     unless FUNCTION has a function definition.  However, FUNCTION does
+     not need to have a documentation string.  If there is no
+     documentation string, `documentation' returns `nil'.
+
+   Here is an example of using the two functions, `documentation' and
+`documentation-property', to display the documentation strings for
+several symbols in a `*Help*' buffer.
+
+     (defun describe-symbols (pattern)
+       "Describe the Emacs Lisp symbols matching PATTERN.
+     All symbols that have PATTERN in their name are described
+     in the `*Help*' buffer."
+       (interactive "sDescribe symbols matching: ")
+       (let ((describe-func
+              (function
+               (lambda (s)
+
+     ;; Print description of symbol.
+                 (if (fboundp s)             ; It is a function.
+                     (princ
+                      (format "%s\t%s\n%s\n\n" s
+                        (if (commandp s)
+                            (let ((keys (where-is-internal s)))
+                              (if keys
+                                  (concat
+                                   "Keys: "
+                                   (mapconcat 'key-description
+                                              keys " "))
+                                "Keys: none"))
+                          "Function")
+
+     (or (documentation s)
+                            "not documented"))))
+     
+                 (if (boundp s)              ; It is a variable.
+
+     (princ
+                      (format "%s\t%s\n%s\n\n" s
+                        (if (user-variable-p s)
+                            "Option " "Variable")
+
+     (or (documentation-property
+                              s 'variable-documentation)
+                            "not documented")))))))
+             sym-list)
+
+     ;; Build a list of symbols that match pattern.
+         (mapatoms (function
+                    (lambda (sym)
+                      (if (string-match pattern (symbol-name sym))
+                          (setq sym-list (cons sym sym-list))))))
+
+     ;; Display the data.
+         (with-output-to-temp-buffer "*Help*"
+           (mapcar describe-func (sort sym-list 'string<))
+           (print-help-return-message))))
+
+   The `describe-symbols' function works like `apropos', but provides
+more information.
+
+     (describe-symbols "goal")
+     
+     ---------- Buffer: *Help* ----------
+     goal-column     Option
+     *Semipermanent goal column for vertical motion, as set by C-x C-n, or nil.
+
+     set-goal-column Command: C-x C-n
+     Set the current horizontal position as a goal for C-n and C-p.
+
+     Those commands will move to this position in the line moved to
+     rather than trying to keep the same horizontal position.
+     With a non-nil argument, clears out the goal column
+     so that C-n and C-p resume vertical motion.
+     The goal column is stored in the variable `goal-column'.
+
+     temporary-goal-column   Variable
+     Current goal column for vertical motion.
+     It is the column where point was
+     at the start of current run of vertical motion commands.
+     When the `track-eol' feature is doing its job, the value is 9999.
+     ---------- Buffer: *Help* ----------
+
+ - Function: Snarf-documentation FILENAME
+     This function is used only during Emacs initialization, just before
+     the runnable Emacs is dumped.  It finds the file offsets of the
+     documentation strings stored in the file FILENAME, and records
+     them in the in-core function definitions and variable property
+     lists in place of the actual strings.  *Note Building Emacs::.
+
+     Emacs finds the file FILENAME in the `emacs/etc' directory.  When
+     the dumped Emacs is later executed, the same file is found in the
+     directory `data-directory'.  Usually FILENAME is `"DOC-VERSION"'.
+
+ - Variable: data-directory
+     This variable holds the name of the directory in which Emacs finds
+     certain data files that come with Emacs or are built as part of
+     building Emacs.  (In older Emacs versions, this directory was the
+     same as `exec-directory'.)
+
+
+File: lispref.info,  Node: Keys in Documentation,  Next: Describing Characters,  Prev: Accessing Documentation,  Up: Documentation
+
+Substituting Key Bindings in Documentation
+==========================================
+
+   This function makes it possible for you to write a documentation
+string that enables a user to display information about the current,
+actual key bindings.  if you call `documentation' with non-`nil'
+VERBATIM, you might later call this function to do the substitution
+that you prevented `documentation' from doing.
+
+ - Function: substitute-command-keys STRING
+     This function returns STRING with certain special substrings
+     replaced by the actual (current) key bindings.  This permits the
+     documentation to be displayed with accurate information about key
+     bindings.  (The key bindings may be changed by the user between
+     the time Emacs is built and the time that the documentation is
+     asked for.)
+
+     This table lists the forms of the special substrings and what they
+     are replaced with:
+
+    `\[COMMAND]'
+          is replaced either by a keystroke sequence that will invoke
+          COMMAND, or by `M-x COMMAND' if COMMAND is not bound to any
+          key sequence.
+
+    `\{MAPVAR}'
+          is replaced by a summary of the value of MAPVAR, taken as a
+          keymap.  (The summary is made by `describe-bindings'.)
+
+    `\<MAPVAR>'
+          makes this call to `substitute-command-keys' use the value of
+          MAPVAR as the keymap for future `\[COMMAND]' substrings.
+          This special string does not produce any replacement text
+          itself; it only affects the replacements done later.
+
+     *Please note:* each `\' must be doubled when written in a string
+     in Emacs Lisp.
+
+     Here are examples of the special substrings:
+
+          (substitute-command-keys
+             "To abort recursive edit, type: \\[abort-recursive-edit]")
+          
+          => "To abort recursive edit, type: C-]"
+
+          (substitute-command-keys
+             "The keys that are defined for the minibuffer here are:
+            \\{minibuffer-local-must-match-map}")
+          
+          => "The keys that are defined for the minibuffer here are:
+          
+          ?               minibuffer-completion-help
+          SPC             minibuffer-complete-word
+          TAB             minibuffer-complete
+          LFD             minibuffer-complete-and-exit
+          RET             minibuffer-complete-and-exit
+          C-g             abort-recursive-edit
+          "
+          (substitute-command-keys
+             "To abort a recursive edit from the minibuffer, type\
+          \\<minibuffer-local-must-match-map>\\[abort-recursive-edit].")
+          => "To abort a recursive edit from the minibuffer, type C-g."
+
+
+File: lispref.info,  Node: Describing Characters,  Next: Help Functions,  Prev: Keys in Documentation,  Up: Documentation
+
+Describing Characters for Help Messages
+=======================================
+
+   These functions convert events, key sequences or characters to
+textual descriptions.  These descriptions are useful for including
+arbitrary text characters or key sequences in messages, because they
+convert non-printing characters to sequences of printing characters.
+The description of a printing character is the character itself.
+
+ - Function: key-description SEQUENCE
+     This function returns a string containing the Emacs standard
+     notation for the input events in SEQUENCE.  The argument SEQUENCE
+     may be a string, vector or list.  *Note Input Events::, for more
+     information about valid events.  See also the examples for
+     `single-key-description', below.
+
+ - Function: single-key-description EVENT
+     This function returns a string describing EVENT in the standard
+     Emacs notation for keyboard input.  A normal printing character is
+     represented by itself, but a control character turns into a string
+     starting with `C-', a meta character turns into a string starting
+     with `M-', and space, linefeed, etc. are transformed to `SPC',
+     `LFD', etc.  A function key is represented by its name.  An event
+     which is a list is represented by the name of the symbol in the CAR
+     of the list.
+
+          (single-key-description ?\C-x)
+               => "C-x"
+
+          (key-description "\C-x \M-y \n \t \r \f123")
+               => "C-x SPC M-y SPC LFD SPC TAB SPC RET SPC C-l 1 2 3"
+
+          (single-key-description 'C-mouse-1)
+               => "C-mouse-1"
+
+ - Function: text-char-description CHARACTER
+     This function returns a string describing CHARACTER in the
+     standard Emacs notation for characters that appear in text--like
+     `single-key-description', except that control characters are
+     represented with a leading caret (which is how control characters
+     in Emacs buffers are usually displayed).
+
+          (text-char-description ?\C-c)
+               => "^C"
+
+          (text-char-description ?\M-m)
+               => "M-m"
+
+          (text-char-description ?\C-\M-m)
+               => "M-^M"
+
+
+File: lispref.info,  Node: Help Functions,  Prev: Describing Characters,  Up: Documentation
+
+Help Functions
+==============
+
+   Emacs provides a variety of on-line help functions, all accessible to
+the user as subcommands of the prefix `C-h'.  For more information
+about them, see *Note Help: (emacs)Help.  Here we describe some
+program-level interfaces to the same information.
+
+ - Command: apropos REGEXP &optional DO-ALL PREDICATE
+     This function finds all symbols whose names contain a match for the
+     regular expression REGEXP, and returns a list of them.  It also
+     displays the symbols in a buffer named `*Help*', each with a
+     one-line description.
+
+     If DO-ALL is non-`nil', then `apropos' also shows key bindings for
+     the functions that are found.
+
+     If PREDICATE is non-`nil', it should be a function to be called on
+     each symbol that has matched REGEXP.  Only symbols for which
+     PREDICATE returns a non-`nil' value are listed or displayed.
+
+     In the first of the following examples, `apropos' finds all the
+     symbols with names containing `exec'.  In the second example, it
+     finds and returns only those symbols that are also commands.  (We
+     don't show the output that results in the `*Help*' buffer.)
+
+          (apropos "exec")
+               => (Buffer-menu-execute command-execute exec-directory
+              exec-path execute-extended-command execute-kbd-macro
+              executing-kbd-macro executing-macro)
+
+          (apropos "exec" nil 'commandp)
+               => (Buffer-menu-execute execute-extended-command)
+
+     The command `C-h a' (`command-apropos') calls `apropos', but
+     specifies a PREDICATE to restrict the output to symbols that are
+     commands.  The call to `apropos' looks like this:
+
+          (apropos string t 'commandp)
+
+ - Command: super-apropos REGEXP &optional DO-ALL
+     This function differs from `apropos' in that it searches
+     documentation strings as well as symbol names for matches for
+     REGEXP.  By default, it searches only the documentation strings,
+     and only those of functions and variables that are included in
+     Emacs when it is dumped.  If DO-ALL is non-`nil', it scans the
+     names and documentation strings of all functions and variables.
+
+ - Command: help-command
+     This command is not a function, but rather a symbol which is
+     equivalent to the keymap called `help-map'.  It is defined in
+     `help.el' as follows:
+
+          (define-key global-map "\C-h" 'help-command)
+          (fset 'help-command help-map)
+
+ - Variable: help-map
+     The value of this variable is a local keymap for characters
+     following the Help key, `C-h'.
+
+ - Function: print-help-return-message &optional FUNCTION
+     This function builds a string which is a message explaining how to
+     restore the previous state of the windows after a help command.
+     After building the message, it applies FUNCTION to it if FUNCTION
+     is non-`nil'.  Otherwise it calls `message' to display it in the
+     echo area.
+
+     This function expects to be called inside a
+     `with-output-to-temp-buffer' special form, and expects
+     `standard-output' to have the value bound by that special form.
+     For an example of its use, see the example in the section
+     describing the `documentation' function (*note Accessing
+     Documentation::.).
+
+     The constructed message will have one of the forms shown below.
+
+          ---------- Echo Area ----------
+          Type C-x 1 to remove help window.
+          ---------- Echo Area ----------
+
+          ---------- Echo Area ----------
+          Type C-x 4 b RET to restore old contents of help window.
+          ---------- Echo Area ----------
+
+ - Variable: help-char
+     The value of this variable is the character that Emacs recognizes
+     as meaning Help.  When Emacs reads this character (which is
+     usually 8, the value of `C-h'), Emacs evaluates `(eval
+     help-form)', and displays the result if it is a string.  If
+     `help-form''s value is `nil', this character is read normally.
+
+ - Variable: help-form
+     The value of this variable is a form to execute when the character
+     `help-char' is read.  If the form returns a string, that string is
+     displayed.  If `help-form' is `nil', then the help character is
+     not recognized.
+
+     Entry to the minibuffer binds this variable to the value of
+     `minibuffer-help-form'.
+
+ - Variable: prefix-help-command
+     This variable holds a command that prints help for a prefix
+     character.  The command is run when the user types the help
+     character after a prefix character.  The default value of
+     `prefix-help-command' is `describe-prefix-bindings'; that command
+     uses `this-command-keys' to find what prefix character was used,
+     then uses `describe-bindings' to describe it.
+
+   The following two functions are found in the library `helper'.  They
+are for modes that want to provide help without relinquishing control,
+such as the "electric" modes.  You must load that library with
+`(require 'helper)' in order to use them.  Their names begin with
+`Helper' to distinguish them from the ordinary help functions.
+
+ - Command: Helper-describe-bindings
+     This command pops up a window displaying a help buffer containing a
+     listing of all of the key bindings from both the local and global
+     keymaps.  It works by calling `describe-bindings'.
+
+ - Command: Helper-help
+     This command provides help for the current mode.  It prompts the
+     user in the minibuffer with the message `Help (Type ? for further
+     options)', and then provides assistance in finding out what the key
+     bindings are, and what the mode is intended for.  It returns `nil'.
+
+     This can be customized by changing the map `Helper-help-map'.
+
+
+File: lispref.info,  Node: Files,  Next: Backups and Auto-Saving,  Prev: Documentation,  Up: Top
+
+Files
+*****
+
+   In Emacs, you can find, create, view, save, and otherwise work with
+files and file directories.  This chapter describes most of the
+file-related functions of Emacs Lisp, but a few others are described in
+*Note Buffers::, and those related to backups and auto-saving are
+described in *Note Backups and Auto-Saving::.
+
+* Menu:
+
+* Visiting Files::           Reading files into Emacs buffers for editing.
+* Saving Buffers::           Writing changed buffers back into files.
+* Reading from Files::       Reading files into buffers without visiting.
+* Writing to Files::         Writing new files from parts of buffers.
+* File Locks::               Locking and unlocking files, to prevent
+                               simultaneous editing by two people.
+* Information about Files::  Testing existence, accessibility, size of files.
+* Contents of Directories::  Getting a list of the files in a directory.
+* Create/Delete Dirs::	     Creating and Deleting Directories.
+* Changing File Attributes:: Renaming files, changing protection, etc.
+* File Names::               Decomposing and expanding file names.
+* Magic File Names::	     Defining "magic" special handling
+			       for certain file names.
+* Partial Files::            Treating a section of a buffer as a file.
+
+
+File: lispref.info,  Node: Visiting Files,  Next: Saving Buffers,  Up: Files
+
+Visiting Files
+==============
+
+   Visiting a file means reading a file into a buffer.  Once this is
+done, we say that the buffer is "visiting" that file, and call the file
+"the visited file" of the buffer.
+
+   A file and a buffer are two different things.  A file is information
+recorded permanently in the computer (unless you delete it).  A buffer,
+on the other hand, is information inside of Emacs that will vanish at
+the end of the editing session (or when you kill the buffer).  Usually,
+a buffer contains information that you have copied from a file; then we
+say the buffer is visiting that file.  The copy in the buffer is what
+you modify with editing commands.  Such changes to the buffer do not
+change the file; therefore, to make the changes permanent, you must
+"save" the buffer, which means copying the altered buffer contents back
+into the file.
+
+   In spite of the distinction between files and buffers, people often
+refer to a file when they mean a buffer and vice-versa.  Indeed, we say,
+"I am editing a file," rather than, "I am editing a buffer which I will
+soon save as a file of the same name."  Humans do not usually need to
+make the distinction explicit.  When dealing with a computer program,
+however, it is good to keep the distinction in mind.
+
+* Menu:
+
+* Visiting Functions::         The usual interface functions for visiting.
+* Subroutines of Visiting::    Lower-level subroutines that they use.
+
+
+File: lispref.info,  Node: Visiting Functions,  Next: Subroutines of Visiting,  Up: Visiting Files
+
+Functions for Visiting Files
+----------------------------
+
+   This section describes the functions normally used to visit files.
+For historical reasons, these functions have names starting with
+`find-' rather than `visit-'.  *Note Buffer File Name::, for functions
+and variables that access the visited file name of a buffer or that
+find an existing buffer by its visited file name.
+
+ - Command: find-file FILENAME
+     This function reads the file FILENAME into a buffer and displays
+     that buffer in the selected window so that the user can edit it.
+
+     The body of the `find-file' function is very simple and looks like
+     this:
+
+          (switch-to-buffer (find-file-noselect filename))
+
+     (See `switch-to-buffer' in *Note Displaying Buffers::.)
+
+     When `find-file' is called interactively, it prompts for FILENAME
+     in the minibuffer.
+
+ - Function: find-file-noselect FILENAME &optional NOWARN
+     This function is the guts of all the file-visiting functions.  It
+     reads a file into a buffer and returns the buffer.  You may then
+     make the buffer current or display it in a window if you wish, but
+     this function does not do so.
+
+     If no buffer is currently visiting FILENAME, then one is created
+     and the file is visited.  If FILENAME does not exist, the buffer
+     is left empty, and `find-file-noselect' displays the message `New
+     file' in the echo area.
+
+     If a buffer is already visiting FILENAME, then the
+     `find-file-noselect' function uses that buffer rather than creating
+     a new one.  However, it does verify that the file has not changed
+     since it was last visited or saved in that buffer.  If the file
+     has changed, then this function asks the user whether to reread
+     the changed file.  If the user says `yes', any changes previously
+     made in the buffer are lost.
+
+     If NO-WARN is non-`nil', various warnings that Emacs normally
+     gives (e.g. if another buffer is already visiting FILENAME but
+     FILENAME has been removed from disk since that buffer was created)
+     are suppressed.
+
+     The `find-file-noselect' function calls `after-find-file' after
+     the file is read in (*note Subroutines of Visiting::.).  The
+     `after-find-file' function sets the buffer major mode, parses local
+     variables, warns the user if there exists an auto-save file more
+     recent than the file just visited (unless NO-WARN is given), and
+     finishes by running the functions in `find-file-hooks'.
+
+     The `find-file-noselect' function returns the buffer that is
+     visiting the file FILENAME.
+
+          (find-file-noselect "/etc/fstab")
+               => #<buffer fstab>
+
+ - Command: find-alternate-file FILENAME
+     This function reads the file FILENAME into a buffer and selects
+     it, killing the buffer current at the time the command is run.  It
+     is useful if you have visited the wrong file by mistake, so that
+     you can get rid of the buffer that you did not want to create, at
+     the same time as you visit the file you intended.
+
+     When this function is called interactively, it prompts for
+     FILENAME.
+
+ - Command: find-file-other-window FILENAME
+     This function visits the file FILENAME and displays its buffer in
+     a window other than the selected window.  It may use another
+     existing window or split a window; see *Note Displaying Buffers::.
+
+     When this function is called interactively, it prompts for
+     FILENAME.
+
+ - Command: find-file-read-only FILENAME
+     This function visits the file named FILENAME and selects its
+     buffer, just like `find-file', but it marks the buffer as
+     read-only.  *Note Read Only Buffers::, for related functions and
+     variables.
+
+     When this function is called interactively, it prompts for
+     FILENAME.
+
+ - Command: view-file FILENAME
+     This function views FILENAME in View mode, returning to the
+     previous buffer when done.  View mode is a mode that allows you to
+     skim rapidly through the file but does not let you modify it.
+
+     After loading the file, `view-file' runs the normal hook
+     `view-hook' using `run-hooks'.  *Note Hooks::.
+
+     When this function is called interactively, it prompts for
+     FILENAME.
+
+ - Variable: find-file-hooks
+     The value of this variable is a list of functions to be called
+     after a file is visited.  The file's local-variables specification
+     (if any) will have been processed before the hooks are run.  The
+     buffer visiting the file is current when the hook functions are
+     run.
+
+     This variable could be a normal hook, but we think that renaming it
+     would not be advisable.
+
+ - Variable: find-file-not-found-hooks
+     The value of this variable is a list of functions to be called when
+     `find-file' or `find-file-noselect' is passed a nonexistent
+     FILENAME.  These functions are called as soon as the error is
+     detected.  `buffer-file-name' is already set up.  The functions are
+     called in the order given, until one of them returns non-`nil'.
+
+     This is not a normal hook because the values of the functions are
+     used and they may not all be run.
+
+
+File: lispref.info,  Node: Subroutines of Visiting,  Prev: Visiting Functions,  Up: Visiting Files
+
+Subroutines of Visiting
+-----------------------
+
+   The `find-file-noselect' function uses the `create-file-buffer' and
+`after-find-file' functions as subroutines.  Sometimes it is useful to
+call them directly.
+
+ - Function: create-file-buffer FILENAME
+     This function creates a suitably named buffer for visiting
+     FILENAME, and returns it.  The string FILENAME (sans directory) is
+     used unchanged if that name is free; otherwise, a string such as
+     `<2>' is appended to get an unused name.  See also *Note Creating
+     Buffers::.
+
+     *Please note:* `create-file-buffer' does *not* associate the new
+     buffer with a file and does not make it the current buffer.
+
+          (create-file-buffer "foo")
+               => #<buffer foo>
+          (create-file-buffer "foo")
+               => #<buffer foo<2>>
+          (create-file-buffer "foo")
+               => #<buffer foo<3>>
+
+     This function is used by `find-file-noselect'.  It uses
+     `generate-new-buffer' (*note Creating Buffers::.).
+
+ - Function: after-find-file &optional ERROR WARN NOAUTO
+     This function is called by `find-file-noselect' and by the default
+     revert function (*note Reverting::.).  It sets the buffer major
+     mode, and parses local variables (*note Auto Major Mode::.).
+
+     If there was an error in opening the file, the calling function
+     should pass ERROR a non-`nil' value.  In that case,
+     `after-find-file' issues a warning: `(New File)'.  Note that, for
+     serious errors, you would not even call `after-find-file'.  Only
+     "file not found" errors get here with a non-`nil' ERROR.
+
+     If WARN is non-`nil', then this function issues a warning if an
+     auto-save file exists and is more recent than the visited file.
+
+     If NOAUTO is non-`nil', then this function does not turn on
+     auto-save mode; otherwise, it does.
+
+     The last thing `after-find-file' does is call all the functions in
+     `find-file-hooks'.
 

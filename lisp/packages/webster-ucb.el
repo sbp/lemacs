@@ -451,17 +451,17 @@ Use webster-mode-hook for customization."
   (if webster-iso8859/1 (setq ctl-arrow 'iso-8859/1))
   (run-hooks 'webster-mode-hook))
 
-;; Snatched from unix-apropos by Henry Kautz
-(defun current-word ()
-   "Word cursor is over, as a string."
-   (save-excursion
-      (let (beg end)
-	 (re-search-backward "\\w" nil 2)
-	 (re-search-backward "\\b" nil 2)
-	 (setq beg (point))
-	 (re-search-forward "\\w*\\b" nil 2)
-	 (setq end (point))
-	 (buffer-substring beg end))))
+;; now in simple.el
+;(defun current-word ()
+;   "Word cursor is over, as a string."
+;   (save-excursion
+;      (let (beg end)
+;	 (re-search-backward "\\w" nil 2)
+;	 (re-search-backward "\\b" nil 2)
+;	 (setq beg (point))
+;	 (re-search-forward "\\w*\\b" nil 2)
+;	 (setq end (point))
+;	 (buffer-substring beg end))))
 
 (defun webster-intern (string)
   (intern (webster-strip-crud (webster-unISO (downcase string)))

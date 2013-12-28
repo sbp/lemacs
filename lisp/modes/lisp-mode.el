@@ -1,6 +1,6 @@
 ;;; lisp-mode.el --- Lisp mode, and its idiosyncratic commands.
 
-;; Copyright (C) 1985, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1993, 1994 Free Software Foundation, Inc.
 
 ;; Maintainer: FSF
 ;; Keywords: lisp, languages
@@ -20,8 +20,6 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
-
-;;; Code:
 
 ;;; Commentary:
 
@@ -105,6 +103,8 @@
   (setq indent-region-function 'lisp-indent-region)
   (make-local-variable 'parse-sexp-ignore-comments)
   (setq parse-sexp-ignore-comments t)
+  (make-local-variable 'outline-regexp)
+  (setq outline-regexp ";;; \\|(....")
   (make-local-variable 'comment-start)
   (setq comment-start ";")
   (make-local-variable 'comment-start-skip)
@@ -165,7 +165,9 @@ All commands in `shared-lisp-mode-map' are inherited by this map.")
   (set-keymap-name lisp-mode-map 'lisp-mode-map)
   (set-keymap-parent lisp-mode-map shared-lisp-mode-map)
   (define-key lisp-mode-map "\e\C-x" 'lisp-send-defun)
-  (define-key lisp-mode-map "\C-c\C-l" 'run-lisp))
+  ;; gag, no.  use ilisp.  -jwz
+;;  (define-key lisp-mode-map "\C-c\C-z" 'run-lisp)
+  )
 
 (defun lisp-mode ()
   "Major mode for editing Lisp code for Lisps other than GNU Emacs Lisp.
@@ -188,20 +190,21 @@ if that value is non-nil."
   (run-hooks 'lisp-mode-hook))
 
 ;; This will do unless shell.el is loaded.
-(defun lisp-send-defun nil
+(defun lisp-send-defun ()
   "Send the current defun to the Lisp process made by \\[run-lisp]."
   (interactive)
   (error "Process lisp does not exist"))
 
-(defvar lisp-interaction-mode-map ()
+;; lemacs change: emacs-lisp-mode-map is a more appropriate parent.
+(defvar lisp-interaction-mode-map nil
   "Keymap for Lisp Interaction moe.
-All commands in `shared-lisp-mode-map' are inherited by this map.")
+All commands in `emacs-lisp-mode-map' are inherited by this map.")
 
 (if lisp-interaction-mode-map
     ()
   (setq lisp-interaction-mode-map (make-sparse-keymap))
   (set-keymap-name lisp-interaction-mode-map 'lisp-interaction-mode-map)
-  (set-keymap-parent lisp-interaction-mode-map shared-lisp-mode-map)
+  (set-keymap-parent lisp-interaction-mode-map emacs-lisp-mode-map)
   (define-key lisp-interaction-mode-map "\e\C-x" 'eval-defun)
   (define-key lisp-interaction-mode-map "\e\t" 'lisp-complete-symbol)
   (define-key lisp-interaction-mode-map "\n" 'eval-print-last-sexp))
@@ -324,7 +327,7 @@ of the start of the containing expression."
   (save-excursion
     (beginning-of-line)
     (let ((indent-point (point))
-          state paren-depth
+          state ;;paren-depth
           ;; setting this to a number inhibits calling hook
           (desired-indent nil)
           (retry t)
@@ -338,7 +341,9 @@ of the start of the containing expression."
       ;; Find innermost containing sexp
       (while (and retry
 		  state
-                  (> (setq paren-depth (elt state 0)) 0))
+                  (> ;;(setq paren-depth (elt state 0))
+		     (elt state 0)
+		     0))
         (setq retry nil)
         (setq last-sexp (elt state 2))
         (setq containing-sexp (elt state 1))
@@ -384,7 +389,7 @@ of the start of the containing expression."
 		 (parse-partial-sexp (point) last-sexp 0 t)
 		 (backward-prefix-chars)))))
       ;; Point is at the point to indent under unless we are inside a string.
-      ;; Call indentation hook except when overriden by lisp-indent-offset
+      ;; Call indentation hook except when overridden by lisp-indent-offset
       ;; or if the desired indentation has already been computed.
       (let ((normal-indent (current-column)))
         (cond ((elt state 3)
@@ -407,6 +412,7 @@ of the start of the containing expression."
                normal-indent))))))
 
 (defun lisp-indent-function (indent-point state)
+  ;; free reference to `last-sexp' in #'calculate-lisp-indent
   (let ((normal-indent (current-column)))
     (goto-char (1+ (elt state 1)))
     (parse-partial-sexp (point) last-sexp 0 t)
@@ -428,7 +434,8 @@ of the start of the containing expression."
       (let ((function (buffer-substring (point)
 					(progn (forward-sexp 1) (point))))
 	    method)
-	(setq method (get (intern-soft function) 'lisp-indent-function))
+	(setq method (or (get (intern-soft function) 'lisp-indent-function)
+                         (get (intern-soft function) 'lisp-indent-hook)))
 	(cond ((or (eq method 'defun)
 		   (and (null method)
 			(> (length function) 3)
@@ -570,7 +577,7 @@ ENDPOS is encountered."
 		(setcar (nthcdr 5 state) nil))
 	    (setq inner-loop-done t)))
 	(and endpos
-	     (while (<= next-depth 0)
+	     (while (<= next-depth 0)   ;lemacs change
 	       (setq indent-stack (append indent-stack (list nil)))
 	       (setq next-depth (1+ next-depth))
 	       (setq last-depth (1+ last-depth))))
@@ -589,7 +596,7 @@ ENDPOS is encountered."
 	(or outer-loop-done
             (setq outer-loop-done (<= next-depth 0)))
 	(if outer-loop-done
-	    nil
+	    (forward-line 1)
 	  (while (> last-depth next-depth)
 	    (setq indent-stack (cdr indent-stack)
 		  last-depth (1- last-depth)))

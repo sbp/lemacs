@@ -1,5 +1,5 @@
-This is Info file ../info/lemacs.info, produced by Makeinfo-1.55 from
-the input file lemacs.texinfo.
+This is Info file ../../info/lemacs.info, produced by Makeinfo-1.56
+from the input file lemacs.texinfo.
 
    This file documents the GNU Emacs editor.
 
@@ -24,1249 +24,1107 @@ versions, except that the sections entitled "The GNU Manifesto",
 translation approved by the author instead of in the original English.
 
 
-File: lemacs.info,  Node: Keystrokes,  Next: Representing Keystrokes,  Prev: Screen,  Up: Top
+File: lemacs.info,  Node: Special Diary Entries,  Prev: Format of Diary File,  Up: Diary
 
-Keystrokes as Building Blocks of Key Sequences
-==============================================
+Special Diary Entries
+---------------------
 
-   Earlier versions of GNU Emacs used only the ASCII character set,
-which defines 128 different character codes.  Some of these codes are
-assigned graphic symbols like `a' and `='; the rest are control
-characters, such as `Control-a' (also called `C-a').  `C-a' means you
-hold down the CTRL key and then press `a'.
+   In addition to entries based on calendar dates, your diary file can
+contain entries for regularly occurring events such as anniversaries.
+These entries are based on expressions (sexps) that Emacs evaluates as
+it scans the diary file.  Such an entry is indicated by `%%' at the
+beginning (preceded by `&' for a nonmarking entry), followed by a sexp
+in parentheses.  Calendar mode offers commands to make it easier to put
+some of these special entries in your diary.
 
-   Keybindings in Lucid Emacs are no longer restricted to the set of
-keystrokes that can be represented in ASCII.  Emacs can now tell the
-difference between, for example, `Control-h', `Control-Shift-h', and
-`Backspace'.
+`i a'
+     Add an anniversary diary entry for the selected date
+     (`insert-anniversary-diary-entry').
 
-   A keystroke is like a piano chord: you get it by simultaneously
-striking several keys.  To be more precise, a keystroke consists of a
-possibly empty set of modifiers followed by a single "keysym".  The set
-of modifiers is small; it consists of `Control', `Meta', `Super',
-`Hyper', and `Shift'.
+`i b'
+     Add a block diary entry for the current region
+     (`insert-block-diary-entry').
 
-   The rest of the keys on your keyboard, along with the mouse buttons,
-make up the set of keysyms.  A keysym is usually what is printed on the
-keys on your keyboard.  Here is a table of some of the symbolic names
-for keysyms:
-`a,b,c...'
-     alphabetic keys
+`i c'
+     Add a cyclic diary entry starting at the date
+     (`insert-cyclic-diary-entry').
 
-`f1,f2...'
-     function keys
+   If you want to make a diary entry that applies to the anniversary of
+a specific date, move point to that date and use the `i a' command.
+This displays the end of your diary file in another window and inserts
+the anniversary description; you can then type the rest of the diary
+entry.
 
-`button1'
-     left mouse button
+   The effect of `i a' is to add a `diary-anniversary' sexp to your
+diary file.  You can also add one manually, for instance:
 
-`button2'
-     middle mouse button
+     %%(diary-anniversary 10 31 1948) Arthur's birthday
 
-`button3'
-     right mouse button
+This entry applies to October 31 in any year after 1948; `10 31 1948'
+specifies the date.  (If you are using the European calendar style, the
+month and day are interchanged.)  The reason this sexp requires a
+beginning year is that advanced diary functions can use it to calculate
+the number of elapsed years (*note Sexp Diary Entries::.).
 
-`button1up'
-     upstroke on the left mouse button
+   You can make a diary entry entry for a block of dates by setting the
+mark at the date at one end of the block, moving point to the date at
+the other end of the block, and using the `i b' command.  This command
+causes the end of your diary file to be displayed in another window and
+the block description to be inserted; you can then type the diary entry.
 
-`button2up'
-     upstroke on the middle mouse button
+   Here is such a diary entry that applies to all dates from June 24,
+1990 through July 10, 1990:
 
-`button3up'
-     upstroke on the right mouse button
+     %%(diary-block 6 24 1990 7 10 1990) Vacation
 
-`return'
-     Return key
+The `6 24 1990' indicates the starting date and the `7 10 1990'
+indicates the stopping date.  (Again, if you are using the European
+calendar style, the month and day are interchanged.)
 
-   Use the variable `keyboard-translate-table' only if you are on a
-dumb tty, as it cannot handle input that cannot be represented as ASCII.
-The value of this variable is a string used as a translate table for
-keyboard input or `nil'.  Each character is looked up in this string
-and the contents used instead.  If the string is of length `n',
-character codes `N' and up are untranslated.  If you are running Emacs
-under X, you should do the translations with the `xmodmap' program
-instead.
+   You can specify cyclic diary entries that repeat after a fixed
+interval of days.  Move point to the starting date and use the `i c'
+command.  After you specify the length of interval, this command
+displays the end of your diary file in another window and inserts the
+cyclic event description; you can then type the rest of the diary entry.
+
+   The sexp corresponding to the `i c' command looks like:
+
+     %%(diary-cyclic 50 3 1 1990) Renew medication
+
+which applies to March 1, 1990 and every 50th day following; `3 1 1990'
+specifies the starting date.  (If you are using the European calendar
+style, the month and day are interchanged.)
+
+   All three of the these commands make marking diary entries.  If you
+want the diary entry to be nonmarking, give a numeric argument to the
+command.  For example, `C-u i a' makes a nonmarking anniversary diary
+entry.
+
+   Marking sexp diary entries in the calendar is *extremely*
+time-consuming, since every date visible in the calendar window must be
+individually checked.  So it's a good idea to make sexp diary entries
+nonmarking with `&'.
+
+   One sophisticated kind of sexp, a floating diary entry, has no
+corresponding command.  The floating diary entry specifies a
+regularly-occurring event by offsets specified in days, weeks, and
+months.  It is comparable to a crontab entry interpreted by the `cron'
+utility on Unix systems.
+
+   Here is a nonmarking, floating diary entry that applies to the last
+Thursday in November:
+
+     &%%(diary-float 11 4 -1) American Thanksgiving
+
+The 11 specifies November (the eleventh month), the 4 specifies Thursday
+(the fourth day of the week, where Sunday is numbered zero), and the -1
+specifies "last" (1 would mean "first", 2 would mean "second", -2 would
+mean "second-to-last", and so on).  The month can be a single month or
+a list of months.  Thus you could change the 11 above to `'(1 2 3)' and
+have the entry apply to the last Thursday of January, February, and
+March.  If the month is `t', the entry applies to all months of the
+year.
+
+   The sexp feature of the diary allows you to specify diary entries
+based on any Emacs Lisp expression.  You can use the library of built-in
+functions or you can write your own functions.  The built-in functions
+include the ones shown in this section, plus a few others (*note Sexp
+Diary Entries::.).
+
+   The generality of sexps lets you specify any diary entry that you can
+describe algorithmically.  Suppose you get paid on the 21st of the month
+if it is a weekday, and to the Friday before if the 21st is on a
+weekend.  The diary entry
+
+     &%%(let ((dayname (calendar-day-of-week date))
+              (day (car (cdr date))))
+           (or (and (= day 21) (memq dayname '(1 2 3 4 5)))
+               (and (memq day '(19 20)) (= dayname 5)))
+              ) Pay check deposited
+
+to just those dates.  This example illustrates how the sexp can depend
+on the variable `date'; this variable is a list (MONTH DAY YEAR) that
+gives the Gregorian date for which the diary entries are being found.
+If the value of the sexp is `t', the entry applies to that date.  If
+the sexp evaluates to `nil', the entry does *not* apply to that date.
+
+
+File: lemacs.info,  Node: Calendar Customization,  Prev: Diary,  Up: Calendar/Diary
+
+Customizing the Calendar and Diary
+----------------------------------
+
+   There are many customizations that you can use to make the calendar
+and diary suit your personal tastes.
 
 * Menu:
 
-* Representing Keystrokes::  Using lists of modifiers and keysyms to
-                             represent keystrokes.
-* Key Sequences::            Combine key strokes into key sequences you can
-                             bind to commands.
-* String Key Sequences::     Available for upward compatibility.
-* Meta Key::                 Using ESC to represent Meta
-* Super and Hyper Keys::     Adding modifier keys on certain keyboards.
-* Character Representation:: How characters appear in Emacs buffers.
-* Commands::                 How commands are bound to key sequences.
+* Calendar Customizing::   Defaults you can set.
+* Holiday Customizing::    Defining your own holidays.
+* Date Display Format::    Changing the format.
+* Time Display Format::    Changing the format.
+* Daylight Savings::       Changing the default.
+* Diary Customizing::      Defaults you can set.
+* Hebrew/Islamic Entries:: How to obtain them.
+* Fancy Diary Display::    Enhancing the diary display, sorting entries.
+* Included Diary Files::   Sharing a common diary file.
+* Sexp Diary Entries::     Fancy things you can do.
+* Appt Customizing::	   Customizing appointment reminders.
 
 
-File: lemacs.info,  Node: Representing Keystrokes,  Next: Key Sequences,  Prev: Keystrokes,  Up: Top
+File: lemacs.info,  Node: Calendar Customizing,  Next: Holiday Customizing,  Up: Calendar Customization
 
-Representing Keystrokes
------------------------
+Customizing the Calendar
+........................
 
-   Lucid Emacs represents keystrokes as lists. Each list consists of an
-arbitrary combination of modifiers followed by a single keysym at the
-end of the list.  If the keysym corresponds to an ASCII character, you
-can use its character code.  (A keystroke may also be represented by an
-event object, as returned by the `read-key-sequence' function;
-non-programmers need not worry about this.)
+   If you set the variable `view-diary-entries-initially' to `t',
+calling up the calendar automatically displays the diary entries for
+the current date as well.  The diary dates appear only if the current
+date is visible.  If you add both of the following lines to your
+`.emacs' file:
 
-   The following table gives some examples of how to list
-representations for keystrokes.  Each list consists of sets of
-modifiers followed by keysyms:
+     (setq view-diary-entries-initially t)
+     (calendar)
 
-`(control a)'
-     Pressing CTRL and `a' simultaneously.
+they display both the calendar and diary windows whenever you start
+Emacs.
 
-`(control ?a)'
-     Another way of writing the keystroke `C-a'.
+   Similarly, if you set the variable
+`view-calendar-holidays-initially' to `t', entering the calendar
+automatically displays a list of holidays for the current three month
+period.  The holiday list appears in a separate window.
 
-`(control 65)'
-     Yet another way of writing the keystroke `C-a'.
+   You can set the variable `mark-diary-entries-in-calendar' to `t' in
+order to place a plus sign (`+') beside any dates with diary entries.
+Whenever the calendar window is displayed or redisplayed, the diary
+entries are automatically marked for holidays.
 
-`(break)'
-     Pressing the BREAK key.
+   Similarly, setting the variable `mark-holidays-in-calendar' to `t'
+places an asterisk (`*') after all holiday dates visible in the
+calendar window.
 
-`(control meta button2up)'
-     Release the middle mouse button, while pressing CTRL and META.
-Note: As you define keystrokes, you can use the `shift' key only as a
-modifier with characters that do not have a second keysym on the same
-key, such as `backspace' and `tab'.  It is an error to define a
-keystroke using the shift modifier with keysyms such as `a' and `='.
-The correct forms are `A' and `+'.
+   There are many customizations that you can make with the hooks
+provided.  For example, the variable `calendar-load-hook', whose
+default value is `nil', is a normal hook run when the calendar package
+is first loaded (before actually starting to display the calendar).
+
+   The variable `initial-calendar-window-hook', whose default value is
+`nil', is a normal hook run the first time the calendar window is
+displayed.  The function is invoked only when you first enter Calendar
+mode, not when you redisplay an existing Calendar window.  But if you
+leave the calendar with the `q' command and reenter it, the hook runs
+again.
+
+   The variable `today-visible-calendar-hook', whose default value is
+`nil', is a normal hook run after the calendar buffer has been prepared
+with the calendar when the current date is visible in the window.  One
+use of this hook is to replace today's date with asterisks; a function
+`calendar-star-date' is included for this purpose.  In your `.emacs'
+file, put:
+
+     (setq today-visible-calendar-hook 'calendar-star-date)
+
+Another standard hook function adds asterisks around the current date.
+Here's how to use it:
+
+     (setq today-visible-calendar-hook 'calendar-mark-today)
+
+A corresponding variable, `today-invisible-calendar-hook', whose
+default value is `nil', is a normal hook run after the calendar buffer
+text has been prepared, if the current date is *not* visible in the
+window.
 
 
-File: lemacs.info,  Node: Key Sequences,  Next: String Key Sequences,  Prev: Representing Keystrokes,  Up: Keystrokes
+File: lemacs.info,  Node: Holiday Customizing,  Next: Date Display Format,  Prev: Calendar Customizing,  Up: Calendar Customization
 
-Representing Key Sequences
+Customizing the Holidays
+........................
+
+   Emacs knows about holidays defined by entries on one of several
+lists.  You can customize theses lists of holidays to your own needs,
+adding holidays or deleting lists of holidays.  The lists of holidays
+that Emacs uses are for general holidays (`general-holidays'), local
+holidays (`local-holidays'), Christian holidays (`christian-holidays'),
+Hebrew (Jewish) holidays (`hebrew-holidays'), Islamic (Moslem) holidays
+(`islamic-holidays'), and other holidays (`other-holidays').
+
+   The general holidays are, by default, holidays common throughout the
+United States.  To eliminate these holidays, set `general-holidays' to
+`nil'.
+
+   There are no default local holidays (but sites may supply some).  You
+can set the variable `local-holidays' to any list of holidays, as
+described below.
+
+   By default, Emacs does not consider all the holidays of these
+religions, only those commonly found in secular calendars.  For a more
+extensive collection of religious holidays, you can set any (or all) of
+the variables `all-christian-calendar-holidays',
+`all-hebrew-calendar-holidays', or `all-islamic-calendar-holidays' to
+`t'.  If you want to eliminate the religious holidays, set any or all
+of the corresponding variables `christian-holidays', `hebrew-holidays',
+and `islamic-holidays' to `nil'.
+
+   You can set the variable `other-holidays' to any list of holidays.
+This list, normally empty, is intended for your use.
+
+   Each of the lists (`general-holidays', `local-holidays',
+`christian-holidays', `hebrew-holidays', `islamic-holidays', and
+`other-holidays') is a list of "holiday forms", each holiday form
+describing a holiday (or sometimes a list of holidays).  Holiday forms
+may have the following formats:
+
+`(holiday-fixed MONTH DAY STRING)'
+     A fixed date on the Gregorian calendar.  MONTH and DAY are
+     numbers, STRING is the name of the holiday.
+
+`(holiday-float MONTH DAYNAME K STRING)'
+     The Kth DAYNAME in MONTH on the Gregorian calendar (DAYNAME=0 for
+     Sunday, and so on); negative K means count back from the end of
+     the month.  STRING is the name of the holiday.
+
+`(holiday-hebrew MONTH DAY STRING)'
+     A fixed date on the Hebrew calendar.  MONTH and DAY are numbers,
+     STRING is the name of the holiday.
+
+`(holiday-islamic MONTH DAY STRING)'
+     A fixed date on the Islamic calendar.  MONTH and DAY are numbers,
+     STRING is the name of the holiday.
+
+`(holiday-julian MONTH DAY STRING)'
+     A fixed date on the Julian calendar.  MONTH and DAY are numbers,
+     STRING is the name of the holiday.
+
+`(holiday-sexp SEXP STRING)'
+     SEXP is a Lisp expression that should use the variable `year' to
+     compute the date of a holiday, or `nil' if the holiday doesn't
+     happen this year.  The value represents the date as a list of the
+     form `(MONTH DAY YEAR)'.  STRING is the name of the holiday.
+
+`(if BOOLEAN HOLIDAY-FORM &optional HOLIDAY-FORM)'
+     A choice between two holidays based on the value of BOOLEAN.
+
+`(FUNCTION &optional ARGS)'
+     Dates requiring special computation; ARGS, if any, are passed in a
+     list to the function `calendar-holiday-function-FUNCTION'.
+
+   For example, suppose you want to add Bastille Day, celebrated in
+France on July 14.  You can do this by adding the following line to
+your `.emacs' file:
+
+     (setq other-holidays '((holiday-fixed 7 14 "Bastille Day")))
+
+The holiday form `(holiday-fixed 7 14 "Bastille Day")' specifies the
+fourteenth day of the seventh month (July).
+
+   Many holidays occur on a specific day of the week, at a specific time
+of month.  Here is a holiday form describing Hurricane Supplication Day,
+celebrated in the Virgin Islands on the fourth Monday in August:
+
+     (holiday-float 8 1 4 "Hurricane Supplication Day")
+
+Here the 8 specifies August, the 1 specifies Monday (Sunday is 0,
+Tuesday is 2, and so on), and the 4 specifies the fourth occurrence in
+the month (1 specifies the first occurrence, 2 the second occurrence,
+-1 the last occurrence, -2 the second-to-last occurrence, and so on).
+
+   You can specify holidays that occur on fixed days of the Hebrew,
+Islamic, and Julian calendars too.  For example,
+
+     (setq other-holidays
+           '((holiday-hebrew 10 2 "Last day of Hanukkah")
+             (holiday-islamic 3 12 "Mohammed's Birthday")
+             (holiday-julian 4 2 "Jefferson's Birthday")))
+
+adds the last day of Hanukkah (since the Hebrew months are numbered with
+1 starting from Nisan), the Islamic feast celebrating Mohammed's
+birthday (since the Islamic months are numbered from 1 starting with
+Muharram), and Thomas Jefferson's birthday, which is 2 April 1743 on the
+Julian calendar.
+
+   To include a holiday conditionally, use either the `if' or the
+`sexp' form.  For example, American presidential elections occur on the
+first Tuesday after the first Monday in November of years divisible by
+4:
+
+     (holiday-sexp (if (= 0 (% year 4))
+                        (calendar-gregorian-from-absolute
+                      (1+ (calendar-dayname-on-or-before
+                            1 (+ 6 (calendar-absolute-from-gregorian
+                                     (list 11 1 year))))))
+                   "US Presidential Election"))
+
+or
+
+     (if (= 0 (% displayed-year 4))
+         (fixed 11
+                (extract-calendar-day
+                  (calendar-gregorian-from-absolute
+                    (1+ (calendar-dayname-on-or-before
+                          1 (+ 6 (calendar-absolute-from-gregorian
+                                   (list 11 1 displayed-year)))))))
+                "US Presidential Election"))
+
+   Some holidays just don't fit into any of these forms because special
+calculations are involved in their determination.  In such cases you
+must write a Lisp function to do the calculation.  To include eclipses
+of the sun, for example, add `(eclipses)' to `other-holidays' and write
+an Emacs Lisp function `eclipses' that returns a (possibly empty) list
+of the relevant Gregorian dates among the range visible in the calendar
+window, with descriptive strings, like this:
+
+     (((6 27 1991) "Lunar Eclipse") ((7 11 1991) "Solar Eclipse") ... )
+
+
+File: lemacs.info,  Node: Date Display Format,  Next: Time Display Format,  Prev: Holiday Customizing,  Up: Calendar Customization
+
+Date Display Format
+...................
+
+   You can customize the manner of displaying dates in the diary, in
+mode lines, and in messages by setting `calendar-date-display-form'.
+This variable is a list of expressions that can involve the variables
+`month', `day', and `year', all numbers in string form, and `monthname'
+and `dayname', both alphabetic strings.  In the American style, the
+default value of this list is as follows:
+
+     ((if dayname (concat dayname ", ")) monthname " " day ", " year)
+
+while in the European style this value is the default:
+
+     ((if dayname (concat dayname ", ")) day " " monthname " " year)
+
+   The ISO standard date representation is this:
+
+     (year "-" month "-" day)
+
+This specifies a typical American format:
+
+     (month "/" day "/" (substring year -2))
+
+
+File: lemacs.info,  Node: Time Display Format,  Next: Daylight Savings,  Prev: Date Display Format,  Up: Calendar Customization
+
+Time Display Format
+...................
+
+   In the calendar, diary, and related buffers, Emacs displays times of
+day in the conventional American style with the hours from 1 through 12,
+minutes, and either `am' or `pm'.  If you prefer the "military"
+(European) style of writing times--in which the hours go from 00 to
+23--you can alter the variable `calendar-time-display-form'.  This
+variable is a list of expressions that can involve the variables
+`12-hours', `24-hours', and `minutes', all numbers in string form, and
+`am-pm' and `time-zone', both alphabetic strings.  The default
+definition of `calendar-time-display-form' is as follows:
+
+     (12-hours ":" minutes am-pm
+               (if time-zone " (") time-zone (if time-zone ")"))
+
+   Setting `calendar-time-display-form' to
+
+     (24-hours ":" minutes
+               (if time-zone " (") time-zone (if time-zone ")"))
+
+gives military-style times like `21:07 (UT)' if time zone names are
+defined, and times like `21:07' if they are not.
+
+
+File: lemacs.info,  Node: Daylight Savings,  Next: Diary Customizing,  Prev: Time Display Format,  Up: Calendar Customization
+
+Daylight Savings Time
+.....................
+
+   Emacs understands the difference between standard time and daylight
+savings time--the times given for sunrise, sunset, solstices,
+equinoxes, and the phases of the moon take that into account.  The rules
+for daylight savings time vary from place to place and have also varied
+historically from year to year.  To do the job properly, Emacs needs to
+know which rules to use.
+
+   Some operating systems keep track of the rules that apply to the
+place where you are; on these systems, Emacs gets the information it
+needs from the system automatically.  If some or all of this
+information is missing, Emacs fills in the gaps with the rules
+currently used in Cambridge, Massachusetts.  If the default choice of
+rules is not appropriate for your location, you can tell Emacs the
+rules to use by setting certain variables.
+
+   These variables are `calendar-daylight-savings-starts' and
+`calendar-daylight-savings-ends'.  Their values should be Lisp
+expressions that refer to the variable `year', and evaluate to the
+Gregorian date on which daylight savings time starts or (respectively)
+ends, in the form of a list `(MONTH DAY YEAR)'.  The values should be
+`nil' if your area does not use daylight savings time.
+
+   Emacs uses these expressions to determine the starting date of
+daylight savings time for the holiday list and for correcting times of
+day in the solar and lunar calculations.
+
+   The values for Cambridge, Massachusetts are as follows:
+
+     (calendar-nth-named-day 1 0 4 year)
+     (calendar-nth-named-day -1 0 10 year)
+
+i.e. the first 0th day (Sunday) of the fourth month (April) in the year
+specified by `year', and the last Sunday of the tenth month (October)
+of that year.  If daylight savings time were changed to start on
+October 1, you would set `calendar-daylight-savings-starts' to this:
+
+     (list 10 1 year)
+
+   For a more complex example, suppose daylight savings time begins on
+the first of Nisan on the Hebrew calendar.  You would set
+`calendar-daylight-savings-starts' as follows:
+
+     (calendar-gregorian-from-absolute
+       (calendar-absolute-from-hebrew
+         (list 1 1 (+ year 3760))))
+
+because Nisan is the first month in the Hebrew calendar and the Hebrew
+year differs from the Gregorian year by 3760 at Nisan.
+
+   If there is no daylight savings time at your location, or if you want
+all times in standard time, set `calendar-daylight-savings-starts' and
+`calendar-daylight-savings-ends' to `nil'.
+
+   This variable specifies the difference between daylight savings time
+and standard time, measured in minutes.  The value for Cambridge is 60.
+
+   These variables specify is the number of minutes after midnight
+local time when the transition to and from daylight savings time should
+occur.  For Cambridge, both variables' values are 120.
+
+
+File: lemacs.info,  Node: Diary Customizing,  Next: Hebrew/Islamic Entries,  Prev: Daylight Savings,  Up: Calendar Customization
+
+Customizing the Diary
+.....................
+
+   Ordinarily, the mode line of the diary buffer window indicates any
+holidays that fall on the date of the diary entries.  The process of
+checking for holidays can take several seconds, so including holiday
+information delays the display of the diary buffer noticeably.  If you'd
+prefer to have a faster display of the diary buffer but without the
+holiday information, set the variable `holidays-in-diary-buffer' to
+`nil'.
+
+   The variable `number-of-diary-entries' controls the number of days
+of diary entries to be displayed at one time.  It affects the initial
+display when `view-diary-entries-initially' is `t', as well as the
+command `M-x diary'.  For example, the default value is 1, which says
+to display only the current day's diary entries.  If the value is 2,
+both the current day's and the next day's entries are displayed.  The
+value can also be a vector of seven elements: if the value is `[0 2 2 2
+2 4 1]' then no diary entries appear on Sunday, the current date's and
+the next day's diary entries appear Monday through Thursday, Friday
+through Monday's entries appear on Friday, while on Saturday only that
+day's entries appear.
+
+   The variable `print-diary-entries-hook' is a normal hook run after
+preparation of a temporary buffer containing just the diary entries
+currently visible in the diary buffer.  (The other, irrelevant diary
+entries are really absent from the temporary buffer; in the diary
+buffer, they are merely hidden.)  The default value of this hook does
+the printing with the command `lpr-buffer'.  If you want to use a
+different command to do the printing, just change the value of this
+hook.  Other uses might include, for example, rearranging the lines into
+order by day and time.
+
+   You can customize the form of dates in your diary file, if neither
+the standard American nor European styles suits your needs, by setting
+the variable `diary-date-forms'.  This variable is a list of forms of
+dates recognized in the diary file.  Each form is a list of regular
+expressions (*note Regexps::.) and the variables `month', `day',
+`year', `monthname', and `dayname'.  The variable `monthname' matches
+the name of the month, capitalized or not, or its three-letter
+abbreviation, followed by a period or not; it matches `*'.  Similarly,
+`dayname' matches the name of the day, capitalized or not, or its
+three-letter abbreviation, followed by a period or not.  The variables
+`month', `day', and `year' match those numerical values, preceded by
+arbitrarily many zeros; they also match `*'.  The default value of
+`diary-date-forms' in the American style is
+
+     ((month "/" day "[^/0-9]")
+      (month "/" day "/" year "[^0-9]")
+      (monthname " *" day "[^,0-9]")
+      (monthname " *" day ", *" year "[^0-9]")
+      (dayname "\\W"))
+
+Emacs matches of the diary entries with the date forms is done with the
+standard syntax table from Fundamental mode (*note Syntax Tables:
+(lispref)Syntax Tables.), but with the `*' changed so that it is a word
+constituent.
+
+   The forms on the list must be *mutually exclusive* and must not
+match any portion of the diary entry itself, just the date.  If, to be
+mutually exclusive, the pattern must match a portion of the diary entry
+itself, the first element of the form *must* be `backup'.  This causes
+the date recognizer to back up to the beginning of the current word of
+the diary entry.  Even if you use `backup', the form must absolutely
+not match more than a portion of the first word of the diary entry.
+The default value of `diary-date-forms' in the European style is this
+list:
+
+     ((day "/" month "[^/0-9]")
+      (day "/" month "/" year "[^0-9]")
+      (backup day " *" monthname "\\W+\\<[^*0-9]")
+      (day " *" monthname " *" year "[^0-9]")
+      (dayname "\\W"))
+
+Notice the use of `backup' in the middle form because part of the diary
+entry must be matched to distinguish this form from the following one.
+
+
+File: lemacs.info,  Node: Hebrew/Islamic Entries,  Next: Fancy Diary Display,  Prev: Diary Customizing,  Up: Calendar Customization
+
+Hebrew- and Islamic-Date Diary Entries
+......................................
+
+   Your diary file can have entries based on Hebrew or Islamic dates, as
+well as entries based on our usual Gregorian calendar.  However, because
+the processing of such entries is time-consuming and most people don't
+need them, you must customize the processing of your diary file to
+specify that you want such entries recognized.  If you want Hebrew-date
+diary entries, for example, you must include these lines in your
+`.emacs' file:
+
+     (setq nongregorian-diary-listing-hook 'list-hebrew-diary-entries)
+     (setq nongregorian-diary-marking-hook 'mark-hebrew-diary-entries)
+
+If you want Islamic-date entries, include these lines in your `.emacs'
+file:
+
+     (setq nongregorian-diary-listing-hook 'list-islamic-diary-entries)
+     (setq nongregorian-diary-marking-hook 'mark-islamic-diary-entries)
+
+If you want both Hebrew- and Islamic-date entries, include these lines:
+
+     (setq nongregorian-diary-listing-hook
+           '(list-hebrew-diary-entries list-islamic-diary-entries))
+     (setq nongregorian-diary-marking-hook
+           '(mark-hebrew-diary-entries mark-islamic-diary-entries))
+
+   Hebrew- and Islamic-date diary entries have the same formats as
+Gregorian-date diary entries, except that the date must be preceded with
+an `H' for Hebrew dates and an `I' for Islamic dates.  Moreover,
+because the Hebrew and Islamic month names are not uniquely specified
+by the first three letters, you may not abbreviate them.  For example,
+a diary entry for the Hebrew date Heshvan 25 could look like
+
+     HHeshvan 25 Happy Hebrew birthday!
+
+and would appear in the diary for any date that corresponds to Heshvan
+25 on the Hebrew calendar.  Similarly, an Islamic-date diary entry
+might be
+
+     IDhu al-Qada 25 Happy Islamic birthday!
+
+and would appear in the diary for any date that corresponds to Dhu
+al-Qada 25 on the Islamic calendar.
+
+   As with Gregorian-date diary entries, Hebrew- and Islamic-date
+entries are nonmarking if they are preceded with an ampersand (`&').
+
+   There are commands to help you in making Hebrew- and Islamic-date
+entries to your diary:
+
+`i h d'
+     Add a diary entry for the Hebrew date corresponding to the
+     selected date (`insert-hebrew-diary-entry').
+
+`i h m'
+     Add a diary entry for the day of the Hebrew month corresponding to
+     the selected date (`insert-monthly-hebrew-diary-entry').
+
+`i h y'
+     Add a diary entry for the day of the Hebrew year corresponding to
+     the selected date (`insert-yearly-hebrew-diary-entry').
+
+`i i d'
+     Add a diary entry for the Islamic date corresponding to the
+     selected date (`insert-islamic-diary-entry').
+
+`i i m'
+     Add a diary entry for the day of the Islamic month corresponding
+     to the selected date (`insert-monthly-islamic-diary-entry').
+
+`i i y'
+     Add a diary entry for the day of the Islamic year corresponding to
+     the selected date (`insert-yearly-islamic-diary-entry').
+
+   These commands work exactly like the corresponding commands for
+ordinary diary entries: Move point to a date in the calendar window and
+the above commands insert the Hebrew or Islamic date (corresponding to
+the date indicated by point) at the end of your diary file and you can
+then type the diary entry.  If you want the diary entry to be
+nonmarking, give a numeric argument to the command.
+
+
+File: lemacs.info,  Node: Fancy Diary Display,  Next: Included Diary Files,  Prev: Hebrew/Islamic Entries,  Up: Calendar Customization
+
+Fancy Diary Display
+...................
+
+   Diary display works by preparing the diary buffer and then running
+the hook `diary-display-hook'.  The default value of this hook hides
+the irrelevant diary entries and then displays the buffer
+(`simple-diary-display').  However, if you specify the hook as follows,
+
+     (add-hook 'diary-display-hook 'fancy-diary-display)
+
+then fancy mode displays diary entries and holidays by copying them into
+a special buffer that exists only for display.  Copying provides an
+opportunity to change the displayed text to make it prettier--for
+example, to sort the entries by the dates they apply to.
+
+   As with simple diary display, you can print a hard copy of the buffer
+with `print-diary-entries'.  To print a hard copy of a day-by-day diary
+for a week by positioning point on Sunday of that week, type `7 d' and
+then do `M-x print-diary-entries'.  As usual, the inclusion of the
+holidays slows down the display slightly; you can speed things up by
+setting the variable `holidays-in-diary-buffer' to `nil'.
+
+   Ordinarily, the fancy diary buffer does not show days for which
+there are no diary entries, even if that day is a holiday.  If you want
+such days to be shown in the fancy diary buffer, set the variable
+`diary-list-include-blanks' to `t'.
+
+   If you use the fancy diary display, you can use the normal hook
+`list-diary-entries-hook' to sort each day's diary entries by their
+time of day.  Add this line to your `.emacs' file:
+
+     (add-hook 'list-diary-entries-hook 'sort-diary-entries)
+
+For each day, this sorts diary entries that begin with a recognizable
+time of day according to their times.  Diary entries without times come
+first within each day.
+
+
+File: lemacs.info,  Node: Included Diary Files,  Next: Sexp Diary Entries,  Prev: Fancy Diary Display,  Up: Calendar Customization
+
+Included Diary Files
+....................
+
+   If you use the fancy diary display, you can have diary entries from
+other files included with your own by an "include" mechanism.  This
+facility makes possible the sharing of common diary files among groups
+of users.  Lines in the diary file of this form:
+
+     #include "FILENAME"
+
+includes the diary entries from the file FILENAME in the fancy diary
+buffer (because the ordinary diary buffer is just the buffer associated
+with your diary file, you cannot use the include mechanism unless you
+use the fancy diary buffer).  The include mechanism is recursive, by
+the way, so that included files can include other files, and so on; you
+must be careful not to have a cycle of inclusions, of course.  To
+enable the include facility, add lines as follows to your `.emacs' file:
+
+     (add-hook 'list-diary-entries-hook 'include-other-diary-files)
+     (add-hook 'mark-diary-entries-hook 'mark-included-diary-files)
+
+
+File: lemacs.info,  Node: Sexp Diary Entries,  Next: Appt Customizing,  Prev: Included Diary Files,  Up: Calendar Customization
+
+Sexp Entries and the Fancy Diary Display
+........................................
+
+   Sexp diary entries allow you to do more than just have complicated
+conditions under which a diary entry applies.  If you use the fancy
+diary display, sexp entries can generate the text of the entry depending
+on the date itself.  For example, an anniversary diary entry can insert
+the number of years since the anniversary date into the text of the
+diary entry.  Thus the `%d' in this dairy entry:
+
+     %%(diary-anniversary 10 31 1948) Arthur's birthday (%d years old)
+
+gets replaced by the age, so on October 31, 1990 the entry appears in
+the fancy diary buffer like this:
+
+     Arthur's birthday (42 years old)
+
+If the diary file instead contains this entry:
+
+     %%(diary-anniversary 10 31 1948) Arthur's %d%s birthday
+
+the entry in the fancy diary buffer for October 31, 1990 appears like
+this:
+
+     Arthur's 42nd birthday
+
+   Similarly, cyclic diary entries can interpolate the number of
+repetitions that have occurred:
+
+     %%(diary-cyclic 50 1 1 1990) Renew medication (%d%s time)
+
+looks like this:
+
+     Renew medication (5th time)
+
+in the fancy diary display on September 8, 1990.
+
+   The generality of sexp diary entries lets you specify any diary entry
+that you can describe algorithmically.  Suppose you get paid on the 21st
+of the month if it is a weekday, and to the Friday before if the 21st is
+on a weekend.  The diary entry
+
+     &%%(let ((dayname (calendar-day-of-week date))
+              (day (car (cdr date))))
+           (or (and (= day 21) (memq dayname '(1 2 3 4 5)))
+               (and (memq day '(19 20)) (= dayname 5)))
+              ) Pay check deposited
+
+applies to just those dates.  This example illustrates how the sexp can
+depend on the variable `date'; this variable is a list (MONTH DAY YEAR)
+that gives the Gregorian date for which the diary entries are being
+found.  If the value of the expression is `t', the entry applies to
+that date.  If the expression evaluates to `nil', the entry does *not*
+apply to that date.
+
+   The following sexp diary entries take advantage of the ability (in
+the fancy diary display) to concoct diary entries based on the date:
+
+`%%(diary-sunrise-sunset)'
+     Make a diary entry for the local times of today's sunrise and
+     sunset.
+
+`%%(diary-phases-of-moon)'
+     Make a diary entry for the phases (quarters) of the moon.
+
+`%%(diary-day-of-year)'
+     Make a diary entry with today's day number in the current year and
+     the number of days remaining in the current year.
+
+`%%(diary-iso-date)'
+     Make a diary entry with today's equivalent ISO commercial date.
+
+`%%(diary-julian-date)'
+     Make a diary entry with today's equivalent date on the Julian
+     calendar.
+
+`%%(diary-astro-day-number)'
+     Make a diary entry with today's equivalent astronomical (Julian)
+     day number.
+
+`%%(diary-hebrew-date)'
+     Make a diary entry with today's equivalent date on the Hebrew
+     calendar.
+
+`%%(diary-islamic-date)'
+     Make a diary entry with today's equivalent date on the Islamic
+     calendar.
+
+`%%(diary-french-date)'
+     Make a diary entry with today's equivalent date on the French
+     Revolutionary calendar.
+
+`%%(diary-mayan-date)'
+     Make a diary entry with today's equivalent date on the Mayan
+     calendar.
+
+Thus including the diary entry
+
+     &%%(diary-hebrew-date)
+
+causes every day's diary display to contain the equivalent date on the
+Hebrew calendar, if you are using the fancy diary display.  (With simple
+diary display, the line `&%%(diary-hebrew-date)' appears in the diary
+for any date, but does nothing particularly useful.)
+
+   There are a number of other available sexp diary entries that are
+important to those who follow the Hebrew calendar:
+
+`%%(diary-rosh-hodesh)'
+     Make a diary entry that tells the occurrence and ritual
+     announcement of each new Hebrew month.
+
+`%%(diary-parasha)'
+     Make a Saturday diary entry that tells the weekly synagogue
+     scripture reading.
+
+`%%(diary-sabbath-candles)'
+     Make a Friday diary entry that tells the *local time* of Sabbath
+     candle lighting.
+
+`%%(diary-omer)'
+     Make a diary entry that gives the omer count, when appropriate.
+
+`%%(diary-yahrzeit MONTH DAY YEAR) NAME'
+     Make a diary entry marking the anniversary of a date of death.
+     The date is the *Gregorian* (civil) date of death.  The diary
+     entry appears on the proper Hebrew calendar anniversary and on the
+     day before.  (In the European style, the order of the parameters
+     is changed to DAY, MONTH, YEAR.)
+
+
+File: lemacs.info,  Node: Appt Customizing,  Prev: Sexp Diary Entries,  Up: Calendar Customization
+
+Customizing Appointment Reminders
+.................................
+
+   You can specify exactly how Emacs reminds you of an appointment and
+how far in advance it begins doing so.  Here are the variables that you
+can set:
+
+`appt-message-warning-time'
+     The time in minutes before an appointment that the reminder
+     begins.  The default is 10 minutes.
+
+`appt-audible'
+     If this is `t' (the default), Emacs rings the terminal bell for
+     appointment reminders.
+
+`appt-visible'
+     If this is `t' (the default), Emacs displays the appointment
+     message in echo area.
+
+`appt-display-mode-line'
+     If this is `t' (the default), Emacs displays the number of minutes
+     to the appointment on the mode line.
+
+`appt-msg-window'
+     If this is `t' (the default), Emacs displays the appointment
+     message in another window.
+
+`appt-display-duration'
+     The number of seconds an appointment message is displayed.  The
+     default is 5 seconds.
+
+
+File: lemacs.info,  Node: Sorting,  Next: Shell,  Prev: Calendar/Diary,  Up: Top
+
+Sorting Text
+============
+
+   Emacs provides several commands for sorting text in a buffer.  All
+operate on the contents of the region (the text between point and the
+mark).  They divide the text of the region into many "sort records",
+identify a "sort key" for each record, and then reorder the records
+using the order determined by the sort keys.  The records are ordered so
+that their keys are in alphabetical order, or, for numerical sorting, in
+numerical order.  In alphabetical sorting, all upper-case letters `A'
+through `Z' come before lower-case `a', in accordance with the ASCII
+character sequence.
+
+   The sort commands differ in how they divide the text into sort
+records and in which part of each record they use as the sort key.
+Most of the commands make each line a separate sort record, but some
+commands use paragraphs or pages as sort records.  Most of the sort
+commands use each entire sort record as its own sort key, but some use
+only a portion of the record as the sort key.
+
+`M-x sort-lines'
+     Divide the region into lines and sort by comparing the entire text
+     of a line.  A prefix argument means sort in descending order.
+
+`M-x sort-paragraphs'
+     Divide the region into paragraphs and sort by comparing the entire
+     text of a paragraph (except for leading blank lines).  A prefix
+     argument means sort in descending order.
+
+`M-x sort-pages'
+     Divide the region into pages and sort by comparing the entire text
+     of a page (except for leading blank lines).  A prefix argument
+     means sort in descending order.
+
+`M-x sort-fields'
+     Divide the region into lines and sort by comparing the contents of
+     one field in each line.  Fields are defined as separated by
+     whitespace, so the first run of consecutive non-whitespace
+     characters in a line constitutes field 1, the second such run
+     constitutes field 2, etc.
+
+     You specify which field to sort by with a numeric argument: 1 to
+     sort by field 1, etc.  A negative argument means sort in descending
+     order.  Thus, minus 2 means sort by field 2 in reverse-alphabetical
+     order.
+
+`M-x sort-numeric-fields'
+     Like `M-x sort-fields', except the specified field is converted to
+     a number for each line and the numbers are compared.  `10' comes
+     before `2' when considered as text, but after it when considered
+     as a number.
+
+`M-x sort-columns'
+     Like `M-x sort-fields', except that the text within each line used
+     for comparison comes from a fixed range of columns.  An explanation
+     is given below.
+
+   For example, if the buffer contains:
+
+     On systems where clash detection (locking of files being edited) is
+     implemented, Emacs also checks the first time you modify a buffer
+     whether the file has changed on disk since it was last visited or
+     saved.  If it has, you are asked to confirm that you want to change
+     the buffer.
+
+then if you apply `M-x sort-lines' to the entire buffer you get:
+
+     On systems where clash detection (locking of files being edited) is
+     implemented, Emacs also checks the first time you modify a buffer
+     saved.  If it has, you are asked to confirm that you want to change
+     the buffer.
+     whether the file has changed on disk since it was last visited or
+
+where the upper case `O' comes before all lower case letters.  If you
+apply instead `C-u 2 M-x sort-fields' you get:
+
+     implemented, Emacs also checks the first time you modify a buffer
+     saved.  If it has, you are asked to confirm that you want to change
+     the buffer.
+     On systems where clash detection (locking of files being edited) is
+     whether the file has changed on disk since it was last visited or
+
+where the sort keys were `Emacs', `If', `buffer', `systems', and `the'.
+
+   `M-x sort-columns' requires more explanation.  You specify the
+columns by putting point at one of the columns and the mark at the other
+column.  Because this means you cannot put point or the mark at the
+beginning of the first line to sort, this command uses an unusual
+definition of `region': all of the line point is in is considered part
+of the region, and so is all of the line the mark is in.
+
+   For example, to sort a table by information found in columns 10 to
+15, you could put the mark on column 10 in the first line of the table,
+and point on column 15 in the last line of the table, and then use this
+command.  Or you could put the mark on column 15 in the first line and
+point on column 10 in the last line.
+
+   This can be thought of as sorting the rectangle specified by point
+and the mark, except that the text on each line to the left or right of
+the rectangle moves along with the text inside the rectangle.  *Note
+Rectangles::.
+
+
+File: lemacs.info,  Node: Shell,  Next: Narrowing,  Prev: Sorting,  Up: Top
+
+Running Shell Commands from Emacs
+=================================
+
+   Emacs has commands for passing single command lines to inferior shell
+processes; it can also run a shell interactively with input and output
+to an Emacs buffer `*shell*'.
+
+`M-!'
+     Run a specified shell command line and display the output
+     (`shell-command').
+
+`M-|'
+     Run a specified shell command line with region contents as input;
+     optionally replace the region with the output
+     (`shell-command-on-region').
+
+`M-x shell'
+     Run a subshell with input and output through an Emacs buffer.  You
+     can then give commands interactively.
+
+* Menu:
+
+* Single Shell::         How to run one shell command and return.
+* Interactive Shell::    Permanent shell taking input via Emacs.
+* Shell Mode::           Special Emacs commands used with permanent shell.
+
+
+File: lemacs.info,  Node: Single Shell,  Next: Interactive Shell,  Prev: Shell,  Up: Shell
+
+Single Shell Commands
+---------------------
+
+   `M-!' (`shell-command') reads a line of text using the minibuffer
+and creates an inferior shell to execute the line as a command.
+Standard input from the command comes from the null device.  If the
+shell command produces any output, the output goes to an Emacs buffer
+named `*Shell Command Output*', which is displayed in another window
+but not selected.  A numeric argument, as in `M-1 M-!', directs this
+command to insert any output into the current buffer.  In that case,
+point is left before the output and the mark is set after the output.
+
+   `M-|' (`shell-command-on-region') is like `M-!' but passes the
+contents of the region as input to the shell command, instead of no
+input.  If a numeric argument is used to direct  output to the current
+buffer, then the old region is deleted first and the output replaces it
+as the contents of the region.
+
+   Both `M-!' and `M-|' use `shell-file-name' to specify the shell to
+use.  This variable is initialized based on your `SHELL' environment
+variable when you start Emacs.  If the file name does not specify a
+directory, the directories in the list `exec-path' are searched; this
+list is initialized based on the `PATH' environment variable when you
+start Emacs.  You can override either or both of these default
+initializations in your `.emacs' file.
+
+   When you use `M-!' and `M-|', Emacs has to wait until the shell
+command completes.  You can quit with `C-g'; that terminates the shell
+command.
+
+
+File: lemacs.info,  Node: Interactive Shell,  Next: Shell Mode,  Prev: Single Shell,  Up: Shell
+
+Interactive Inferior Shell
 --------------------------
 
-   A "complete key sequence" is a sequence of keystrokes that Emacs
-understands as a unit.  Key sequences are significant because you can
-bind them to commands.  Note that not all sequences of keystrokes are
-possible key sequences.  In particular, the initial keystrokes in a key
-sequence must make up a "prefix key sequence".
-
-   Emacs represents a key sequence as a vector of keystrokes.  Thus, the
-schematic representation of a complete key sequence is as follows:
-
-       [(modifier .. modifer keysym) ... (modifier .. modifier keysym)]
-
-   Here are some examples of complete key sequences:
-
-`[(control c) (control a)]'
-     Typing `C-c' followed by `C-a'
-
-`[(control c) (control 65)]'
-     Typing `C-c' followed by `C-a'. (Using the ASCII code for the
-     character `a')
-
-`[(control c) (break)]'
-     Typing `C-c' followed by the `break' character.
-
-   A "prefix key sequence" is the beginning of a series of longer
-sequences that are valid key sequences; adding any single keystroke to
-the end of a prefix results in a valid key sequence.  For example,
-`control-x' is standardly defined as a prefix.  Thus, there is a
-two-character key sequence starting with `C-x' for each valid
-keystroke, giving numerous possibilities.  Here are some samples:
-
-   * `[(control x) (c)]'
-
-   * `[(control x) (control c)]'
-
-   Adding one character to a prefix key does not have to form a complete
-key.  It could make another, longer prefix.  For example, `[(control x)
-(\4)]' is itself a prefix that leads to any number of different
-three-character keys, including `[(control x) (\4) (f)]', `[(control x)
-(\4) (b)]' and so on.  It would be possible to define one of those
-three-character sequences as a prefix, creating a series of
-four-character keys, but we did not define any of them this way.
-
-   By contrast, the two-character sequence `[(control f) (control k)]'
-is not a key, because the `(control f)' is a complete key sequence in
-itself.  It's impossible to give `[(control f (control k)]' an
-independent meaning as a command as long as `(control f)' retains its
-meaning, because what we have is really two commands.
-
-   The predefined prefix key sequences in Emacs are `(control c)',
-`(control x)', `(control h)', `[(control x) (\4)]', and `escape'.  You
-can customize Emacs, and could make new prefix keys, or eliminate the
-default key sequences.  *Note Key Bindings::.
-
-   Whether a particular key sequence is valid can be changed by
-customization.  For example, if you redefine `(control f)' as a prefix,
-`[(control f) (control k)]' automatically becomes a valid key sequence
-(complete, unless you define it as a prefix as well).  Conversely, if
-you remove the prefix definition of `[(control x) (\4)]', `[(control x)
-(\4) (f)]' (or `[(control x) (\4) ANYTHING]') is no longer a valid key
-sequence.
-
-   Note that the above paragraphs uses \4 instead of simply 4, because
-\4 is the symbol whose name is "4", and plain 4 is the integer 4, which
-would have been interpreted as the ASCII value.  Another way of
-representing the symbol whose name is "4" is to write ?4, which would be
-interpreted as the number 52, which is the ASCII code for the character
-"4".  We could therefore actually have written 52 directly but that is
-far less clear.
-
-
-File: lemacs.info,  Node: String Key Sequences,  Next: Meta Key,  Prev: Key Sequences,  Up: Keystrokes
-
-String Key Sequences
---------------------
-
-   For backward compatibility, you may also represent a key sequence
-using strings.  For example, we have the following equivalent
-representations:
-
-`"\C-c\C-c"'
-     `[(control c) (control c)]'
-
-`"\e\C-c"'
-     `[(meta control c)]'
-
-* Menu:
-
-* Meta Key:: Assignment of the META Key
-* Super and Hyper Keys:: Assignment of the SUPER and HYPER Keys
-
-
-File: lemacs.info,  Node: Meta Key,  Next: Super and Hyper Keys,  Prev: String Key Sequences,  Up: Keystrokes
-
-Assignment of the META Key
---------------------------
-
-   Not all terminals have the complete set of modifiers.  Terminals
-that have a Meta key allow you to type Meta characters by just holding
-that key down.  To type `Meta-a', hold down META and press `a'.  On
-those terminals, the META key works like the SHIFT key.  Such a key is
-not always labeled META, however, as this function is often a special
-option for a key with some other primary purpose.
-
-   If there is no META key, you can still type Meta characters using
-two-character sequences starting with ESC.  To enter `M-a', you could
-type `ESC a'.  To enter `C-M-a', you would type `ESC C-a'.  ESC is
-allowed on terminals with Meta keys, too, in case you have formed a
-habit of using it.
-
-   If you are running under X and do not have a Meta key, it is
-possible to reconfigure some other key to be a Meta key.  *Note Super
-and Hyper Keys::.
-
-   Emacs believes the terminal has a META key if the variable
-`meta-flag' is non-`nil'.  Normally this is set automatically according
-to the termcap entry for your terminal type.  However, sometimes the
-termcap entry is wrong, and then it is useful to set this variable
-yourself.  *Note Variables::, for how to do this.
-
-   Note: If you are running under the X window system, the setting of
-the `meta-flag' variable is irrelevant.
-
-
-File: lemacs.info,  Node: Super and Hyper Keys,  Next: Character Representation,  Prev: Meta Key,  Up: Keystrokes
-
-Assignment of the SUPER and HYPER Keys
---------------------------------------
-
-   Most keyboards do not, by default, have SUPER or HYPER modifier
-keys.  Under X, you can simulate the SUPER or HYPER key if you want to
-bind keys to sequences using `super' and `hyper'.  You can use the
-`xmodmap' program to do this.
-
-   For example, to turn your CAPS-LOCK key into a SUPER key, do the
-following:
-
-   Create a file called `~/.xmodmap'.  In this file, place the lines
-
-     	remove Lock = Caps_Lock
-     	keysym Caps_Lock = Super_L
-     	add Mod2 = Super_L
-
-   The first line says that the key that is currently called `Caps_Lock'
-should no longer behave as a "lock" key.  The second line says that
-this should now be called `Super_L' instead.  The third line says that
-the key called `Super_L' should be a modifier key, which produces the
-`Mod2' modifier.
-
-   To create a Meta or Hyper key instead of a Super key, replace the
-word "Super" above with Meta or Hyper.
-
-   Just after you start up X, execute the command `xmodmap /.xmodmap'.
-You can add this command to the appropriate initialization file to have
-the command executed automatically.
-
-   If you have problems, see the documentation for the `xmodmap'
-program.  The X keyboard model is quite complicated, and explaining it
-is beyond the scope of this manual.
-
-
-File: lemacs.info,  Node: Key Bindings,  Next: Syntax,  Prev: Keyboard Macros,  Up: Customization
-
-Customizing Key Bindings
-========================
-
-   This section deals with the "keymaps" which define the bindings
-between keys and functions, and shows how you can customize these
-bindings.
-
-   A command is a Lisp function whose definition provides for
-interactive use.  Like every Lisp function, a command has a function
-name, a Lisp symbol whose name usually consists of lower case letters
-and hyphens.
-
-* Menu:
-
-* Keymaps::    Definition of the keymap data structure.
-               Names of Emacs's standard keymaps.
-* Rebinding::  How to redefine one key's meaning conveniently.
-* Disabling::  Disabling a command means confirmation is required
-                before it can be executed.  This is done to protect
-                beginners from surprises.
-
-
-File: lemacs.info,  Node: Keymaps,  Next: Disabling,  Up: Key Bindings
-
-Keymaps
--------
-
-   The bindings between characters and command functions are recorded in
-data structures called "keymaps".  Emacs has many of these.  One, the
-"global" keymap, defines the meanings of the single-character keys that
-are defined regardless of major mode.  It is the value of the variable
-`global-map'.
-
-   Each major mode has another keymap, its "local keymap", which
-contains overriding definitions for the single-character keys that are
-redefined in that mode.  Each buffer records which local keymap is
-installed for it at any time, and the current buffer's local keymap is
-the only one that directly affects command execution.  The local keymaps
-for Lisp mode, C mode, and many other major modes always exist even when
-not in use.  They are the values of the variables `lisp-mode-map',
-`c-mode-map', and so on.  For less frequently used major modes, the
-local keymap is sometimes constructed only when the mode is used for the
-first time in a session, to save space.
-
-   There are local keymaps for the minibuffer too; they contain various
-completion and exit commands.
-
-   * `minibuffer-local-map' is used for ordinary input (no completion).
-
-   * `minibuffer-local-ns-map' is similar, except that SPC exits just
-     like RET.  This is used mainly for Mocklisp compatibility.
-
-   * `minibuffer-local-completion-map' is for permissive completion.
-
-   * `minibuffer-local-must-match-map' is for strict completion and for
-     cautious completion.
-
-   * `repeat-complex-command-map' is for use in `C-x ESC'.
-
-   * `isearch-mode-map' contains the bindings of the special keys which
-     are bound in the pseudo-mode entered with `C-s' and `C-r'.
-
-   Finally, each prefix key has a keymap which defines the key sequences
-that start with it.  For example, `ctl-x-map' is the keymap used for
-characters following a `C-x'.
-
-   * `ctl-x-map' is the variable name for the map used for characters
-     that follow `C-x'.
-
-   * `help-map' is used for characters that follow `C-h'.
-
-   * `esc-map' is for characters that follow ESC. All Meta characters
-     are actually defined by this map.
-
-   * `ctl-x-4-map' is for characters that follow `C-x 4'.
-
-   * `mode-specific-map' is for characters that follow `C-c'.
-
-   The definition of a prefix key is the keymap to use for looking up
-the following character.  Sometimes, the definition is actually a Lisp
-symbol whose function definition is the following character keymap.  The
-effect is the same, but it provides a command name for the prefix key
-that you can use as a description of what the prefix key is for.  Thus,
-the binding of `C-x' is the symbol `Ctl-X-Prefix', whose function
-definition is the keymap for `C-x' commands, the value of `ctl-x-map'.
-
-   Prefix key definitions can appear in either the global map or a
-local map.  The definitions of `C-c', `C-x', `C-h' and ESC as prefix
-keys appear in the global map, so these prefix keys are always
-available.  Major modes can locally redefine a key as a prefix by
-putting a prefix key definition for it in the local map.
-
-   A mode can also put a prefix definition of a global prefix character
-such as `C-x' into its local map.  This is how major modes override the
-definitions of certain keys that start with `C-x'.  This case is
-special, because the local definition does not entirely replace the
-global one.  When both the global and local definitions of a key are
-other keymaps, the next character is looked up in both keymaps, with
-the local definition overriding the global one.  So, the character
-after the `C-x' is looked up in both the major mode's own keymap for
-redefined `C-x' commands and in `ctl-x-map'.  If the major mode's own
-keymap for `C-x' commands contains `nil', the definition from the global
-keymap for `C-x' commands is used.
-
-* Menu:
-
-* Rebinding::                 Changing Key Bindings Interactively
-* Programmatic Rebinding::    Changing Key Bindings Programmatically
-* Key Bindings Using Strings::Using Strings for Changings Key Bindings
-
-
-File: lemacs.info,  Node: Rebinding,  Next: Programmatic Rebinding,  Prev: Keymaps,  Up: Keymaps
-
-Changing Key Bindings Interactively
------------------------------------
-
-   You can redefine an Emacs key by changing its entry in a keymap.
-You can change the global keymap, in which case the change is effective
-in all major modes except those that have their own overriding local
-definitions for the same key.  Or you can change the current buffer's
-local map, which affects all buffers using the same major mode.
-
-`M-x global-set-key RET KEY CMD RET'
-     Defines KEY globally to run CMD.
-
-`M-x local-set-key RET KEYS CMD RET'
-     Defines KEY locally (in the major mode now in effect) to run CMD.
-
-`M-x local-unset-key RET KEYS RET'
-     Removes the local binding of KEY.
-
-   CMD is a symbol naming an interactively-callable function.
-
-   When called interactively, KEY is the next complete key sequence
-that you type.  When called as a function, KEY is a string, a vector of
-events or a vector of key-description lists as described in the the
-`define-key' function description.  The binding goes in the current
-buffer's local map, which is shared with other buffers in the same
-major mode.
-
-   The following example,
-
-     M-x global-set-key RET C-f next-line RET
-
-redefines `C-f' to move down a line.  The fact that CMD is read second
-makes it serve as a kind of confirmation for KEY.
-
-   These functions offer no way to specify a particular prefix keymap as
-the one to redefine in, but that is not necessary, as you can include
-prefixes in KEY.  KEY is read by reading characters one by one until
-they amount to a complete key (that is, not a prefix key).  Thus, if
-you type `C-f' for KEY, Emacs enters the minibuffer immediately to read
-CMD.  But if you type `C-x', another character is read; if that
-character is `4', another character is read, and so on.  For example,
-
-     M-x global-set-key RET C-x 4 $ spell-other-window RET
-
-redefines `C-x 4 $' to run the (fictitious) command
-`spell-other-window'.
-
-   The most general way to modify a keymap is the function
-`define-key', used in Lisp code (such as your `.emacs' file).
-`define-key' takes three arguments: the keymap, the key to modify in
-it, and the new definition.  *Note Init File::, for an example.
-`substitute-key-definition' is used similarly; it takes three
-arguments, an old definition, a new definition and a keymap, and
-redefines in that keymap all keys that were previously defined with the
-old definition to have the new definition instead.
-
-
-File: lemacs.info,  Node: Programmatic Rebinding,  Next: Key Bindings Using Strings,  Prev: Rebinding,  Up: Keymaps
-
-Changing Key Bindings Programmatically
---------------------------------------
-
-   You can use the functions `global-set-key' and `define-key' to
-rebind keys under program control.
-
-``(global-set-key KEYS CMD)''
-     Defines KEYS globally to run CMD.
-
-``(define-key KEYMAP KEYS DEF)''
-     Defines KEYS to run DEF in the keymap KEYMAP.
-
-   KEYMAP is a keymap object.
-
-   KEYS is the sequence of keystrokes to bind.
-
-   DEF is anything that can be a key's definition:
-
-   * `nil' meaning key is undefined in this keymap.
-
-   * A command, that is, a Lisp function suitable for interactive
-     calling.
-
-   * A string or key sequence vector, which is treated as a keyboard
-     macro.
-
-   * A keymap to define a prefix key.
-
-   * A symbol so that when the key is looked up, the symbol stands for
-     its function definition, which should at that time be one of the
-     above, or another symbol whose function definition is used, and so
-     on.
-
-   * A cons, `(string . defn)', meaning that DEFN is the definition
-     (DEFN should be a valid definition in its own right).
-
-   * A cons, `(keymap . char)', meaning use the definition of CHAR in
-     map KEYMAP.
-
-   For backward compatibility, Lucid Emacs allows you to specify key
-sequences as strings.  However, the preferred method is to use the
-representations of key sequences as vectors of keystrokes.  *Note
-Keystrokes::, for more information about the rules for constructing key
-sequences.
-
-   Emacs allows you to abbreviate representations for key sequences in
-most places where there is no ambiguity.  Here are some rules for
-abbreviation:
-
-   * The keysym by itself is equivalent to a list of just that keysym,
-     i.e.  `f1' is equivalent to `(f1)'.
-
-   * A keystroke by itself is equivalent to a vector containing just
-     that keystroke, i.e.  `(control a)' is equivalent to `[(control
-     a)]'
-
-   * You can use ASCII codes for keysyms that have them. i.e.  `65' is
-     equivalent to `A'. (This is not so much an abbreviation as an
-     alternate representation.)
-
-   Here are some examples of programmatically binding keys:
-
-
-     ;;;  Bind `my-command' to f1
-     
-     (global-set-key 'f1 'my-command)
-     
-     ;;;  Bind `my-command' to `Shift-f1'
-     (global-set-key '(shift f1) 'my-command)
-     
-     ;;; Bind `my-command' to `C-c Shift-f1'
-     (global-set-key '[(control c) (shift f1)] 'my-command)
-     
-     ;;; Bind `my-command' to the middle mouse button.
-     (global-set-key 'button2 'my-command)
-     
-     ;;; Bind `my-command' to `META CTL Right Mouse Button'
-     ;;; in the keymap that is in force when you are running `dired'.
-     (define-key dired-mode-map '(meta control button3) 'my-command)
-
-
-File: lemacs.info,  Node: Key Bindings Using Strings,  Prev: Programmatic Rebinding,  Up: Keymaps
-
-   For backward compatibility, you can still use strings to represent
-key sequences.  Thus you can use comands like the following:
-
-     ;;; Bind `end-of-line' to `C-f'
-     (global-set-key "\C-f" 'end-of-line)
-
-   Note, however, that in some cases you may be binding more than one
-key sequence by using a single command.  This situation can arise
-because in ASCII, `C-i' and TAB have the same representation.
-Therefore, when Emacs sees:
-
-     (global-set-key "\C-i" 'end-of-line)
-
-   it is unclear whether the user intended to bind `C-i' or TAB.  The
-solution Lucid Emacs adopts is to bind both of these key sequences.
-
-   After binding a command to two key sequences with a form like
-
-     	(define-key global-map "\^X\^I" 'command-1)
-
-   it is possible to redefine only one of those sequences like so:
-
-     	(define-key global-map [(control x) (control i)] 'command-2)
-     	(define-key global-map [(control x) tab] 'command-3)
-
-   This applies only when running under a window system.  If you are
-talking to Emacs through an ASCII-only channel, you do not get any of
-these features.
-
-   Here is a table of pairs of key sequences that behave in a similar
-fashion:
-
-             control h      backspace
-             control l      clear
-             control i      tab
-             control m      return
-             control j      linefeed
-             control [      escape
-             control @      control space
-
-
-File: lemacs.info,  Node: Disabling,  Prev: Keymaps,  Up: Key Bindings
-
-Disabling Commands
-------------------
-
-   Disabling a command marks it as requiring confirmation before it can
-be executed.  The purpose of disabling a command is to prevent
-beginning users from executing it by accident and being confused.
-
-   The direct mechanism for disabling a command is to have a non-`nil'
-`disabled' property on the Lisp symbol for the command.  These
-properties are normally set by the user's `.emacs' file with Lisp
-expressions such as
-
-     (put 'delete-region 'disabled t)
-
-   If the value of the `disabled' property is a string, that string is
-included in the message printed when the command is used:
-
-     (put 'delete-region 'disabled
-          "Text deleted this way cannot be yanked back!\n")
-
-   You can disable a command either by editing the `.emacs' file
-directly or with the command `M-x disable-command', which edits the
-`.emacs' file for you.  *Note Init File::.
-
-   When you attempt to invoke a disabled command interactively in Emacs,
-a window is displayed containing the command's name, its documentation,
-and some instructions on what to do next; then Emacs asks for input
-saying whether to execute the command as requested, enable it and
-execute, or cancel it.  If you decide to enable the command, you are
-asked whether to do this permanently or just for the current session.
-Enabling permanently works by automatically editing your `.emacs' file.
-You can use `M-x enable-command' at any time to enable any command
-permanently.
-
-   Whether a command is disabled is independent of what key is used to
-invoke it; it also applies if the command is invoked using `M-x'.
-Disabling a command has no effect on calling it as a function from Lisp
-programs.
-
-
-File: lemacs.info,  Node: Syntax,  Next: Init File,  Prev: Key Bindings,  Up: Customization
-
-The Syntax Table
-================
-
-   All the Emacs commands which parse words or balance parentheses are
-controlled by the "syntax table".  The syntax table specifies which
-characters are opening delimiters, which are parts of words, which are
-string quotes, and so on.  Actually, each major mode has its own syntax
-table (though sometimes related major modes use the same one) which it
-installs in each buffer that uses that major mode.  The syntax table
-installed in the current buffer is the one that all commands use, so we
-call it "the" syntax table.  A syntax table is a Lisp object, a vector
-of length 256 whose elements are numbers.
-
-* Menu:
-
-* Entry: Syntax Entry.    What the syntax table records for each character.
-* Change: Syntax Change.  How to change the information.
-
-
-File: lemacs.info,  Node: Syntax Entry,  Next: Syntax Change,  Prev: Syntax,  Up: Syntax
-
-Information about Each Character
---------------------------------
-
-   The syntax table entry for a character is a number that encodes six
-pieces of information:
-
-   * The syntactic class of the character, represented as a small
-     integer.
-
-   * The matching delimiter, for delimiter characters only.  The
-     matching delimiter of `(' is `)', and vice versa.
-
-   * A flag saying whether the character is the first character of a
-     two-character comment starting sequence.
-
-   * A flag saying whether the character is the second character of a
-     two-character comment starting sequence.
-
-   * A flag saying whether the character is the first character of a
-     two-character comment ending sequence.
-
-   * A flag saying whether the character is the second character of a
-     two-character comment ending sequence.
-
-   The syntactic classes are stored internally as small integers, but
-are usually described to or by the user with characters.  For example,
-`(' is used to specify the syntactic class of opening delimiters.  Here
-is a table of syntactic classes, with the characters that specify them.
-
-` '
-     The class of whitespace characters.
-
-`w'
-     The class of word-constituent characters.
-
-`_'
-     The class of characters that are part of symbol names but not
-     words.  This class is represented by `_' because the character `_'
-     has this class in both C and Lisp.
-
-`.'
-     The class of punctuation characters that do not fit into any other
-     special class.
-
-`('
-     The class of opening delimiters.
-
-`)'
-     The class of closing delimiters.
-
-`''
-     The class of expression-adhering characters.  These characters are
-     part of a symbol if found within or adjacent to one, and are part
-     of a following expression if immediately preceding one, but are
-     like whitespace if surrounded by whitespace.
-
-`"'
-     The class of string-quote characters.  They match each other in
-     pairs, and the characters within the pair all lose their syntactic
-     significance except for the `\' and `/' classes of escape
-     characters, which can be used to include a string-quote inside the
-     string.
-
-`$'
-     The class of self-matching delimiters.  This is intended for TeX's
-     `$', which is used both to enter and leave math mode.  Thus, a
-     pair of matching `$' characters surround each piece of math mode
-     TeX input.  A pair of adjacent `$' characters act like a single
-     one for purposes of matching
-
-`/'
-     The class of escape characters that always just deny the following
-     character its special syntactic significance.  The character after
-     one of these escapes is always treated as alphabetic.
-
-`\'
-     The class of C-style escape characters.  In practice, these are
-     treated just like `/'-class characters, because the extra
-     possibilities for C escapes (such as being followed by digits)
-     have no effect on where the containing expression ends.
-
-`<'
-     The class of comment-starting characters.  Only single-character
-     comment starters (such as `;' in Lisp mode) are represented this
-     way.
-
-`>'
-     The class of comment-ending characters.  Newline has this syntax in
-     Lisp mode.
-
-   The characters flagged as part of two-character comment delimiters
-can have other syntactic functions most of the time.  For example, `/'
-and `*' in C code, when found separately, have nothing to do with
-comments.  The comment-delimiter significance overrides when the pair of
-characters occur together in the proper order.  Only the list and sexp
-commands use the syntax table to find comments; the commands
-specifically for comments have other variables that tell them where to
-find comments.  And the list and sexp commands notice comments only if
-`parse-sexp-ignore-comments' is non-`nil'.  This variable is set to
-`nil' in modes where comment-terminator sequences are liable to appear
-where there is no comment; for example, in Lisp mode where the comment
-terminator is a newline but not every newline ends a comment.
-
-
-File: lemacs.info,  Node: Syntax Change,  Prev: Syntax Entry,  Up: Syntax
-
-Altering Syntax Information
----------------------------
-
-   It is possible to alter a character's syntax table entry by storing
-a new number in the appropriate element of the syntax table, but it
-would be hard to determine what number to use.  Emacs therefore
-provides a command that allows you to specify the syntactic properties
-of a character in a convenient way.
-
-   `M-x modify-syntax-entry' is the command to change a character's
-syntax.  It can be used interactively, and is also used by major modes
-to initialize their own syntax tables.  Its first argument is the
-character to change.  The second argument is a string that specifies the
-new syntax.  When called from Lisp code, there is a third, optional
-argument, which specifies the syntax table in which to make the change.
-If not supplied, or if this command is called interactively, the third
-argument defaults to the current buffer's syntax table.
-
-  1. The first character in the string specifies the syntactic class.
-     It is one of the characters in the previous table (*note Syntax
-     Entry::.).
-
-  2. The second character is the matching delimiter.  For a character
-     that is not an opening or closing delimiter, this should be a
-     space, and may be omitted if no following characters are needed.
-
-  3. The remaining characters are flags.  The flag characters allowed
-     are
-
-    `1'
-          Flag this character as the first of a two-character comment
-          starting sequence.
-
-    `2'
-          Flag this character as the second of a two-character comment
-          starting sequence.
-
-    `3'
-          Flag this character as the first of a two-character comment
-          ending sequence.
-
-    `4'
-          Flag this character as the second of a two-character comment
-          ending sequence.
-
-   Use `C-h s' (`describe-syntax') to display a description of the
-contents of the current syntax table.  The description of each
-character includes both the string you have to pass to
-`modify-syntax-entry' to set up that character's current syntax, and
-some English to explain that string if necessary.
-
-
-File: lemacs.info,  Node: Init File,  Next: Audible Bell,  Prev: Syntax,  Up: Customization
-
-The Init File, .emacs
-=====================
-
-   When you start Emacs, it normally loads the file `.emacs' in your
-home directory.  This file, if it exists, should contain Lisp code.  It
-is called your initialization file or "init file".  Use the command
-line switches `-q' and `-u' to tell Emacs whether to load an init file
-(*note Entering Emacs::.).
-
-   When the `.emacs' file is read, the variable `init-file-user' says
-which users init file it is.  The value may be the null string or a
-string containing a user's name.  If the value is a null string, it
-means that the init file was taken from the user that originally logged
-in.
-
-   In all cases, `(concat "~" init-file-user "/")' evaluates to the
-directory name of the directory where the `.emacs' file was looked for.
-
-   At some sites, there is a "default init file", which is the library
-named `default.el', found via the standard search path for libraries.
-The Emacs distribution contains no such library; your site may create
-one for local customizations.  If this library exists, it is loaded
-whenever you start Emacs.  But your init file, if any, is loaded first;
-if it sets `inhibit-default-init' non-`nil', then `default' is not
-loaded.
-
-   If you have a large amount of code in your `.emacs' file, you should
-move it into another file named `SOMETHING.el', byte-compile it (*note
-Lisp Libraries::.), and load that file from your `.emacs' file using
-`load'.
-
-* Menu:
-
-* Init Syntax::     Syntax of constants in Emacs Lisp.
-* Init Examples::   How to do some things with an init file.
-* Terminal Init::   Each terminal type can have an init file.
-
-
-File: lemacs.info,  Node: Init Syntax,  Next: Init Examples,  Prev: Init File,  Up: Init File
-
-Init File Syntax
-----------------
-
-   The `.emacs' file contains one or more Lisp function call
-expressions.  Each consists of a function name followed by arguments,
-all surrounded by parentheses.  For example, `(setq fill-column 60)'
-represents a call to the function `setq' which is used to set the
-variable `fill-column' (*note Filling::.) to 60.
-
-   The second argument to `setq' is an expression for the new value of
-the variable.  This can be a constant, a variable, or a function call
-expression.  In `.emacs', constants are used most of the time.  They
-can be:
-
-Numbers:
-     Integers are written in decimal, with an optional initial minus
-     sign.
-
-     If a sequence of digits is followed by a period and another
-     sequence of digits, it is interpreted as a floating point number.
-
-Strings:
-     Lisp string syntax is the same as C string syntax with a few extra
-     features.  Use a double-quote character to begin and end a string
-     constant.
-
-     Newlines and special characters may be present literally in
-     strings.  They can also be represented as backslash sequences:
-     `\n' for newline, `\b' for backspace, `\r' for return, `\t' for
-     tab, `\f' for formfeed (control-l), `\e' for escape, `\\' for a
-     backslash, `\"' for a double-quote, or `\OOO' for the character
-     whose octal code is OOO.  Backslash and double-quote are the only
-     characters for which backslash sequences are mandatory.
-
-     You can use `\C-' as a prefix for a control character, as in
-     `\C-s' for ASCII Control-S, and `\M-' as a prefix for a meta
-     character, as in `\M-a' for Meta-A or `\M-\C-a' for Control-Meta-A.
-
-Characters:
-     Lisp character constant syntax consists of a `?' followed by
-     either a character or an escape sequence starting with `\'.
-     Examples: `?x', `?\n', `?\"', `?\)'.  Note that strings and
-     characters are not interchangeable in Lisp; some contexts require
-     one and some contexts require the other.
-
-True:
-     `t' stands for `true'.
-
-False:
-     `nil' stands for `false'.
-
-Other Lisp objects:
-     Write a single-quote (') followed by the Lisp object you want.
-
-
-File: lemacs.info,  Node: Init Examples,  Next: Terminal Init,  Prev: Init Syntax,  Up: Init File
-
-Init File Examples
-------------------
-
-   Here are some examples of doing certain commonly desired things with
-Lisp expressions:
-
-   * Make TAB in C mode just insert a tab if point is in the middle of a
-     line.
-
-          (setq c-tab-always-indent nil)
-
-     Here we have a variable whose value is normally `t' for `true' and
-     the alternative is `nil' for `false'.
-
-   * Make searches case sensitive by default (in all buffers that do not
-     override this).
-
-          (setq-default case-fold-search nil)
-
-     This sets the default value, which is effective in all buffers
-     that do not have local values for the variable.  Setting
-     `case-fold-search' with `setq' affects only the current buffer's
-     local value, which is probably not what you want to do in an init
-     file.
-
-   * Make Text mode the default mode for new buffers.
-
-          (setq default-major-mode 'text-mode)
-
-     Note that `text-mode' is used because it is the command for
-     entering the mode we want.  A single-quote is written before it to
-     make a symbol constant; otherwise, `text-mode' would be treated as
-     a variable name.
-
-   * Turn on Auto Fill mode automatically in Text mode and related
-     modes.
-
-          (setq text-mode-hook
-            '(lambda () (auto-fill-mode 1)))
-
-     Here we have a variable whose value should be a Lisp function.  The
-     function we supply is a list starting with `lambda', and a single
-     quote is written in front of it to make it (for the purpose of this
-     `setq') a list constant rather than an expression.  Lisp functions
-     are not explained here; for mode hooks it is enough to know that
-     `(auto-fill-mode 1)' is an expression that will be executed when
-     Text mode is entered.  You could replace it with any other
-     expression that you like, or with several expressions in a row.
-
-          (setq text-mode-hook 'turn-on-auto-fill)
-
-     This is another way to accomplish the same result.
-     `turn-on-auto-fill' is a symbol whose function definition is
-     `(lambda () (auto-fill-mode 1))'.
-
-   * Load the installed Lisp library named `foo' (actually a file
-     `foo.elc' or `foo.el' in a standard Emacs directory).
-
-          (load "foo")
-
-     When the argument to `load' is a relative pathname, not starting
-     with `/' or `~', `load' searches the directories in `load-path'
-     (*note Loading::.).
-
-   * Load the compiled Lisp file `foo.elc' from your home directory.
-
-          (load "~/foo.elc")
-
-     Here an absolute file name is used, so no searching is done.
-
-   * Rebind the key `C-x l' to run the function `make-symbolic-link'.
-
-          (global-set-key "\C-xl" 'make-symbolic-link)
-
-     or
-
-          (define-key global-map "\C-xl" 'make-symbolic-link)
-
-     Note once again the single-quote used to refer to the symbol
-     `make-symbolic-link' instead of its value as a variable.
-
-   * Do the same thing for C mode only.
-
-          (define-key c-mode-map "\C-xl" 'make-symbolic-link)
-
-   * Bind the function key F1 to a command in C mode.  Note that the
-     names of function keys must be lower case.
-
-          (define-key c-mode-map 'f1 'make-symbolic-link)
-
-   * Bind the shifted version of F1 to a command.
-
-          (define-key c-mode-map '(shift f1) 'make-symbolic-link)
-
-   * Redefine all keys which now run `next-line' in Fundamental mode to
-     run `forward-line' instead.
-
-          (substitute-key-definition 'next-line 'forward-line
-                                     global-map)
-
-   * Make `C-x C-v' undefined.
-
-          (global-unset-key "\C-x\C-v")
-
-     One reason to undefine a key is so that you can make it a prefix.
-     Simply defining `C-x C-v ANYTHING' would make `C-x C-v' a prefix,
-     but `C-x C-v' must be freed of any non-prefix definition first.
-
-   * Make `$' have the syntax of punctuation in Text mode.  Note the
-     use of a character constant for `$'.
-
-          (modify-syntax-entry ?\$ "." text-mode-syntax-table)
-
-   * Enable the use of the command `eval-expression' without
-     confirmation.
-
-          (put 'eval-expression 'disabled nil)
-
-
-File: lemacs.info,  Node: Terminal Init,  Prev: Init Examples,  Up: Init File
-
-Terminal-specific Initialization
---------------------------------
-
-   Each terminal type can have a Lisp library to be loaded into Emacs
-when it is run on that type of terminal.  For a terminal type named
-TERMTYPE, the library is called `term/TERMTYPE' and it is found by
-searching the directories `load-path' as usual and trying the suffixes
-`.elc' and `.el'.  Normally it appears in the subdirectory `term' of
-the directory where most Emacs libraries are kept.
-
-   The usual purpose of the terminal-specific library is to define the
-escape sequences used by the terminal's function keys using the library
-`keypad.el'.  See the file `term/vt100.el' for an example of how this
-is done.
-
-   When the terminal type contains a hyphen, only the part of the name
-before the first hyphen is significant in choosing the library name.
-Thus, terminal types `aaa-48' and `aaa-30-rv' both use the library
-`term/aaa'.  The code in the library can use `(getenv "TERM")' to find
-the full terminal type name.
-
-   The library's name is constructed by concatenating the value of the
-variable `term-file-prefix' and the terminal type.  Your `.emacs' file
-can prevent the loading of the terminal-specific library by setting
-`term-file-prefix' to `nil'.
-
-   The value of the variable `term-setup-hook', if not `nil', is called
-as a function of no arguments at the end of Emacs initialization, after
-both your `.emacs' file and any terminal-specific library have been
-read.  You can set the value in the `.emacs' file to override part of
-any of the terminal-specific libraries and to define initializations
-for terminals that do not have a library.
-
-
-File: lemacs.info,  Node: Audible Bell,  Next: Faces,  Prev: Init File,  Up: Customization
-
-Changing the Bell Sound
-=======================
-
-   You can now change how the audible bell sounds using the variable
-`sound-alist'.
-
-   `sound-alist''s value is an alist associating symbols with strings
-of audio-data.  When `ding' is called with one of the symbols, the
-associated sound data is played instead of the standard beep.  This
-only works if you are logged in on the console of a machine with audio
-hardware. To listen to a sound of the provided type, call the function
-`play-sound' with the argument SOUND. You can also set the volume of
-the sound with the optional arugment VOLUME.
-
-   Elements of the list should be of one of the following forms:
-
-        ( symbol . string-or-symbol )
-        ( symbol integer string-or-symbol )
-
-   If `string-or-symbol' is a string, it should contain raw sound data,
-the contents of a `.au' file.  If it is a symbol, the symbol is
-considered an alias for some other element, and the sound-player looks
-for that next.  If the integer is provided, it is the volume at which
-the sound should be played, from 0 to 100.
-
-   If an element of this alist begins with the symbol `default', that
-sound is used when no other sound is appropriate.
-
-   The variable `bell-volume' should be an integer from 0 to 100, with
-100 being loudest, which controls how loud the sounds emacs makes
-should be.  Elements of the `sound-alist' may override this value.
-This variable applies to the standard X bell sound as well as sound
-files.
-
-   If the symbol `t' is in place of a sound-string, Emacs uses the
-default X beep.  This allows you to define beep-types of different
-volumes even when not running on the console.
-
-   You can add things to this list by calling the function
-`load-sound-file', which reads in an audio-file and adds its data to
-the sound-alist. You can specify the sound with the SOUND-NAME argument
-and the file into which the sounds are loaded with the FILENAME
-argument. The optional VOLUME argument sets the volume.
-
-   `load-sound-file (filename sound-name &optional volume)'
-
-   To load and install some sound files as beep-types, use the function
-`load-default-sounds' (note that this only works if you are on display
-0 of a machine with audio hardware).
-
-   The following beep-types are used by Emacs itself. Other Lisp
-packages may use other beep types, but these are the ones that the C
-kernel of Emacs uses.
-
-`auto-save-error'
-     An auto-save does not succeed
-
-`command-error'
-     The Emacs command loop catches an error
-
-`undefined-key'
-     You type a key that is undefined
-
-`undefined-click'
-     You use an undefined mouse-click combination
-
-`no-completion'
-     Completion was not possible
-
-`y-or-n-p'
-     You type something other than the required `y' or `n'
-
-`yes-or-no-p'
-     When you type something other than `yes' or `no'
-
-
-File: lemacs.info,  Node: Faces,  Prev: Audible Bell,  Up: Customization
-
-Faces
-=====
-
-   Lucid Emacs has objects called extents and faces.  An "extent" is a
-region of text and a "face" is a collection of textual attributes, such
-as fonts and colors.  Every extent is displayed in some face,
-therefore, changing the properties of a face immediately updates the
-display of all associated extents.  Faces can be screen-local: you can
-have a region of text that displays with completely different
-attributes when its buffer is viewed from a different X window.
-
-   The display attributes of faces may be specified either in Lisp or
-through the X resource manager.
-
-Customizing Faces
------------------
-
-   You can change the face of an extent with the functions in this
-section.  All the functions prompt for a FACE as an argument; use
-completion for a list of possible values.
-
-`M-x invert-face'
-     Swap the foreground and background colors of the given FACE.
-
-`M-x make-face-bold'
-     Make the font of the given FACE bold.  When called from a program,
-     returns `nil' if this is not possible.
-
-`M-x make-face-bold-italic'
-     Make the font of the given FACE bold italic.  When called from a
-     program, returns `nil' if not possible.
-
-`M-x make-face-italic'
-     Make the font of the given FACE italic.  When called from a
-     program, returns `nil' if not possible.
-
-`M-x make-face-unbold'
-     Make the font of the given FACE non-bold.  When called from a
-     program, returns `nil' if not possible.
-
-`M-x make-face-unitalic'
-     Make the font of the given FACE non-italic.  When called from a
-     program, returns `nil' if not possible.
-
-`make-face-larger'
-     Make the font of the given face be a little larger.  When called
-     from a program, returns `nil' if not possible.
-
-`make-face-smaller'
-     Make the font of the given face be a little smaller.  When called
-     from a program, returns `nil' if not possible.
-
-`M-x set-face-background'
-     Change the background color of the given FACE.
-
-`M-x set-face-background-pixmap'
-     Change the background pixmap of the given FACE.
-
-`M-x set-face-font'
-     Change the font of the given FACE.
-
-`M-x set-face-foreground'
-     Change the foreground color of the given FACE.
-
-`M-x set-face-underline-p'
-     Change whether the given FACE is underlined.
-
-   You can exchange the foreground and background color of the selected
-FACE with the function `invert-face'. If the face does not specify both
-foreground and background, then its foreground and background are set
-to the background and foreground of the default face.  When calling
-this from a program, you can supply the optional argument SCREEN to
-specify which screen is affected; otherwise, all screens are affected.
-
-   You can set the background color of the specified FACE with the
-function `set-face-background'.  The argument `color' should be a
-string, the name of a color.  When called from a program, if the
-optional SCREEN argument is provided, the face is changed only in that
-screen; otherwise, it is changed in all screens.
-
-   You can set the background pixmap of the specified FACE with the
-function `set-face-background-pixmap'.  The pixmap argument NAME should
-be a string, the name of a file of pixmap data.  The directories listed
-in the `x-bitmap-file-path' variable are searched.  The bitmap may also
-be a list of the form `(width height data)' where width and height are
-the size in pixels, and data is a string containing the raw bits of the
-bitmap.  If the optional SCREEN argument is provided, the face is
-changed only in that screen; otherwise, it is changed in all screens.
-
-   The variable `x-bitmap-file-path' takes as a value a list of the
-directories in which X bitmap files may be found.  If the value is
-`nil', the list is initialized from the `*bitmapFilePath' resource.
-
-   If the environment variable XBMLANGPATH is set, then it is consulted
-before the `x-bitmap-file-path' variable.
-
-   You can set the font of the specified FACE with the function
-`set-face-font'.  The FONT argument should be a string, the name of a
-font.  When called from a program, if the optional SCREEN argument is
-provided, the face is changed only in that screen; otherwise, it is
-changed in all screens.
-
-   You can set the foreground color of the specified FACE with the
-function `set-face-foreground'.  The argument COLOR should be a string,
-the name of a color.  If the optional SCREEN argument is provided, the
-face is changed only in that screen; otherwise, it is changed in all
-screens.
-
-   You can set underline the specified FACE with the function
-`set-face-underline-p'. The argument UNDERLINE-P can be used to make
-underlining an attribute of the face or not. If the optional SCREEN
-argument is provided, the face is changed only in that screen;
-otherwise, it is changed in all screens.
+   To run a subshell interactively with its typescript in an Emacs
+buffer, use `M-x shell'.  This creates (or reuses) a buffer named
+`*shell*' and runs a subshell with input coming from and output going
+to that buffer.  That is to say, any "terminal output" from the subshell
+will go into the buffer, advancing point, and any "terminal input" for
+the subshell comes from text in the buffer.  To give input to the
+subshell, go to the end of the buffer and type the input, terminated by
+RET.
+
+   Emacs does not wait for the subshell to do anything.  You can switch
+windows or buffers and edit them while the shell is waiting, or while
+it is running a command.  Output from the subshell waits until Emacs
+has time to process it; this happens whenever Emacs is waiting for
+keyboard input or for time to elapse.
+
+   To get multiple subshells, change the name of buffer `*shell*' to
+something different by using `M-x rename-buffer'.  The next use of `M-x
+shell' creates a new buffer `*shell*' with its own subshell.  By
+renaming this buffer as well you can create a third one, and so on.
+All the subshells run independently and in parallel.
+
+   The file name used to load the subshell is the value of the variable
+`explicit-shell-file-name', if that is non-`nil'.  Otherwise, the
+environment variable `ESHELL' is used, or the environment variable
+`SHELL' if there is no `ESHELL'.  If the file name specified is
+relative, the directories in the list `exec-path' are searched (*note
+Single Shell Commands: Single Shell.).
+
+   As soon as the subshell is started, it is sent as input the contents
+of the file `~/.emacs_SHELLNAME', if that file exists, where SHELLNAME
+is the name of the file that the shell was loaded from.  For example,
+if you use `csh', the file sent to it is `~/.emacs_csh'.
+
+   `cd', `pushd', and `popd' commands given to the inferior shell are
+watched by Emacs so it can keep the `*shell*' buffer's default
+directory the same as the shell's working directory.  These commands
+are recognized syntactically by examining lines of input that are sent.
+If you use aliases for these commands, you can tell Emacs to recognize
+them also.  For example, if the value of the variable
+`shell-pushd-regexp' matches the beginning of a shell command line,
+that line is regarded as a `pushd' command.  Change this variable when
+you add aliases for `pushd'.  Likewise, `shell-popd-regexp' and
+`shell-cd-regexp' are used to recognize commands with the meaning of
+`popd' and `cd'.
+
+   `M-x shell-resync-dirs' queries the shell and resynchronizes Emacs'
+idea of what the current directory stack is.  `M-x
+shell-dirtrack-toggle' turns directory tracking on and off.
+
+   Emacs keeps a history of the most recent commands you have typed in
+the `*shell*' buffer.  If you are at the beginning of a shell command
+line and type M-p, the previous shell input is inserted into the buffer
+before point.  Immediately typing M-p again deletes that input and
+inserts the one before it.  By repeating M-p you can move backward
+through your commands until you find one you want to repeat.  You may
+then edit the command before typing RET if you wish. M-n moves forward
+through the command history, in case you moved backward past the one
+you wanted while using M-p.  If you type the first few characters of a
+previous command and then type M-p, the most recent shell input
+starting with those characters is inserted.  This can be very
+convenient when you are repeating a sequence of shell commands.  The
+variable `input-ring-size' controls how many commands are saved in your
+input history.  The default is 30.
 

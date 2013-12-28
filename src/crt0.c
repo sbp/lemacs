@@ -55,7 +55,9 @@ And always:
 #endif
 
 /* Workaround for Sun cc 3.0, which doesn't handle asm's outside a fn. */
+#if __SUNPRO_C >= 0x300
 #define no_toplevel_asm
+#endif
 
 /*		********  WARNING ********
     Do not insert any data definitions before data_start!
@@ -573,7 +575,9 @@ _start()
 #ifdef sparc
 #ifdef no_toplevel_asm
 static no_toplevel_asm_wrapper() {
+#ifdef USG5_4
 asm (".pushsection \".text\"");
+#endif /* USG5_4 */
 #endif /* no_toplevel_asm */
 #ifdef USG5_4
 asm (".global _start");
@@ -611,7 +615,9 @@ asm ("	call	__exit");
 asm ("	nop");
 #endif /* USG5_4 */
 #ifdef no_toplevel_asm
+#ifdef USG5_4
 asm (".popsection");
+#endif /* USG5_4 */
 } /* no_toplevel_asm_wrapper() */
 #endif /* no_toplevel_asm */
 #endif /* sparc */

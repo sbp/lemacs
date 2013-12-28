@@ -1,0 +1,39 @@
+#
+# Default mailcap file for Emacs-W3 mode
+# By William M. Perry (wmperry@indiana.edu)
+#
+# Emacs lisp function viewers
+#
+
+application/emacs-lisp;		'w3-maybe-eval
+application/x-tar;		'tar-mode
+application/latex;		'tex-mode
+application/tex;		'tex-mode
+application/texinfo;		'texinfo-mode
+text/plain;			'w3-mode
+
+#
+# Display independent stuff (sound, etc)
+#
+
+audio/basic;			play %s
+audio/ulaw;			play %s
+archive/tar;			'tar-mode
+
+#
+# Xwindows viewers
+#
+
+application/postscript;		ghostview %s	; test=test -n "$DISPLAY"
+application/dvi;		xdvi %s		; test=test -n "$DISPLAY"
+image/x11-dump;			xwud -in %s	; test=test -n "$DISPLAY"
+image/windowdump;		xwud -in %s	; test=test -n "$DISPLAY"
+video/mpeg;			mpeg_play %s	; test=test -n "$DISPLAY"
+
+#
+# TTY driven viewers
+#
+
+application/postscript;		ps2ascii %s	; test=test -z "$DISPLAY"
+application/dvi;		dvitty %s	; test=test -z "$DISPLAY"
+image/*;			'w3-save-binary-file ; test=test -z "$DISPLAY"

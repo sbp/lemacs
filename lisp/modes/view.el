@@ -116,7 +116,7 @@ Calls the value of  view-hook  if that is non-nil."
 
 (defun view-buffer-other-window (buffer)
   "Switch to BUFFER in another window, and enter view mode."
-  (view-buffer file t))
+  (view-buffer buffer t))
 
 (defun view-mode (&optional prev-buffer action)
   "Major mode for viewing text but not editing it.

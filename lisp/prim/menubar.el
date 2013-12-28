@@ -1,5 +1,5 @@
-;; Menubar support.
-;; Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
+;; Menubar and popup-menu support.
+;; Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -17,34 +17,185 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+
+;; menubar-religion is 'winning or 'losing.  It is symbolic of ongoing
+;; internal strife.  Pay no attention to the man behind the curtain.
+(defconst menubar-religion 'losing)
+(setq menubar-religion 'winning)
+
+(defun purecopy-menubar (x)
+  ;; this calls purecopy on the strings, and the contents of the vectors,
+  ;; but not on the vectors themselves, or the conses - those must be
+  ;; writable.
+  (cond ((vectorp x)
+	 (let ((i (length x)))
+	   (while (> i 0)
+	     (aset x (1- i) (purecopy (aref x (1- i))))
+	     (setq i (1- i))))
+	 x)
+	((consp x)
+	 (let ((rest x))
+	   (while rest
+	     (setcar rest (purecopy-menubar (car rest)))
+	     (setq rest (cdr rest))))
+	 x)
+	(t
+	 (purecopy x))))
+
 (defconst default-menubar
-    ;;>>> purecopy??
-  '(("File"	["New Screen"		x-new-screen		t]
-		["Open File..."		find-file		t]
-		["Save Buffer"		save-buffer		t  nil]
-		["Save Buffer As..."	write-file		t]
-		["Revert Buffer"	revert-buffer		t  nil]
+  (purecopy-menubar
+  (cons
+   (if (eq menubar-religion 'winning)
+       '("File"
+		["Open..."		find-file		 t]
+		["Open in New Screen..." find-file-other-screen  t]
+		["Insert File..." 	insert-file		 t]
+		"------"
+		["Save"			save-buffer		 t  nil]
+		["Save As..."		write-file		 t]
+		"-----"
+		["Print Buffer"		lpr-buffer		 t  nil]
+		"-----"
+		["New Screen"		make-screen		t]
+		["Delete Screen"	delete-screen		t]
+		["Split Screen"		split-window-vertically t]
+		["Un-Split (Keep This)"	delete-other-windows
+							(not (one-window-p t))]
+		["Un-Split (Keep Others)"	delete-window
+							(not (one-window-p t))]
+		"-----"
+		["Revert Buffer"	revert-buffer		 t  nil]
+;;		["Kill Buffer..."	kill-buffer		 t]
+		["Kill Buffer"		kill-this-buffer	 t  nil]
+		"-----"
+		["Exit Emacs"		save-buffers-kill-emacs	t]
+		)
+     '("File"
+		["New Screen"		make-screen		t]
+		["Open..."		find-file		t]
+		["Save"			save-buffer		t  nil]
+		["Save As..."		write-file		t]
+		"------"
+		["Insert File..." 	insert-file		t]
 		"-----"
 		["Print Buffer"		lpr-buffer		t  nil]
 		"-----"
 		["Delete Screen"	delete-screen		t]
 ;;		["Kill Buffer..."	kill-buffer		t]
-		["Kill Buffer"		kill-this-buffer	t  nil]
+		["Delete Buffer"	kill-this-buffer	t  nil]
+		["Revert Buffer"	revert-buffer		t  nil]
+		"-----"
 		["Exit Emacs"		save-buffers-kill-emacs	t]
 		)
+     )
+  '(
     ("Edit"	["Undo"			advertised-undo		   t]
 		["Cut"			x-kill-primary-selection   t]
 		["Copy"			x-copy-primary-selection   t]
 		["Paste"		x-yank-clipboard-selection t]
 		["Clear"		x-delete-primary-selection t]
+		"----"
+		["Start Macro Recording" start-kbd-macro
+		 (not defining-kbd-macro)]
+		["End Macro Recording"	end-kbd-macro
+		 defining-kbd-macro]
+		["Execute Last Macro"	call-last-kbd-macro
+		 last-kbd-macro]
 		)
+    
+    ("Options"
+     ["Read Only" toggle-read-only :style toggle :selected buffer-read-only]
+     ["Case Sensitive Search" (setq case-fold-search (not case-fold-search))
+      :style toggle :selected (not case-fold-search)]
+     ["Overstrike" overwrite-mode :style toggle :selected overwrite-mode]
+     ["Auto Delete Selection" (if (memq 'pending-delete-pre-hook
+					pre-command-hook)
+				  (pending-delete-off nil)
+				(pending-delete-on nil))
+      :style toggle :selected (memq 'pending-delete-pre-hook pre-command-hook)]
+     ["Teach Extended Commands" (setq teach-extended-commands-p
+				      (not teach-extended-commands-p))
+      :style toggle :selected teach-extended-commands-p]
+;     ["Line Numbers" (line-number-mode nil)
+;      :style toggle :selected line-number-mode]
+     ("Syntax Highlighting" 
+      ["None" (font-lock-mode 0) :style radio :selected (null font-lock-mode)]
+      ["Fonts" (progn (require 'font-lock)
+		      (font-lock-use-default-fonts)
+		      (font-lock-mode 1))
+       :style radio
+       :selected (and font-lock-mode
+		      (equal (find-face 'italic)  ; kind of a kludge...
+			     (find-face 'font-lock-comment-face)))]
+      ["Colors" (progn (require 'font-lock)
+		       (font-lock-use-default-colors)
+		       (font-lock-mode 1))
+       :style radio
+       :selected (and font-lock-mode
+		      (not (equal (find-face 'italic)
+				  (find-face 'font-lock-comment-face))))]
+      "-----"
+      ["Less" (progn (require 'font-lock)
+		     (font-lock-use-default-minimal-decoration)
+		     (font-lock-mode 0)
+		     (font-lock-mode 1))
+       :style radio
+       :selected (and font-lock-mode
+		      (eq c++-font-lock-keywords c-font-lock-keywords-1))]
+      ["More" (progn (require 'font-lock)
+		     (font-lock-use-default-maximal-decoration)
+		     (font-lock-mode 0)
+		     (font-lock-mode 1))
+       :style radio
+       :selected (and font-lock-mode
+		      (eq c++-font-lock-keywords c-font-lock-keywords-2))]
+      )
+     ("Paren Highlighting"
+      ["None" (blink-paren 0)
+       :style radio
+       :selected (not (memq 'blink-paren-pre-command pre-command-hook))]
+      ["Blink" (progn
+		 (setq highlight-paren-expression nil)
+		 (blink-paren 1))
+       :style radio
+       :selected (and (not highlight-paren-expression)
+		      (memq 'blink-paren-pre-command pre-command-hook))]
+      ["Highlight" (progn
+		     (setq highlight-paren-expression t)
+		     (blink-paren 1))
+       :style radio
+       :selected (and highlight-paren-expression
+		      (memq 'blink-paren-pre-command pre-command-hook))]
+      )
+     "------"
+     ("Font"	"initialized later")
+     ("Size"	"initialized later")
+     ("Weight"	"initialized later")
+     "-----"
+     ["Buffers Menu Length..."
+      (progn
+	(setq buffers-menu-max-size
+	      (read-number
+	       "Enter number of buffers to display (or 0 for unlimited): "))
+	(if (eq buffers-menu-max-size 0) (setq buffers-menu-max-size nil)))
+      t]
+     ["Buffers Sub-Menus" (setq complex-buffers-menu-p
+				(not complex-buffers-menu-p))
+      :style toggle :selected complex-buffers-menu-p]
+     "-----"
+     ["Save Options" save-options-menu-settings t]
+     )
+
     ("Buffers"	"")
 
     nil		; the partition: menus after this are flushright
 
-    ("Help"	["Info"			info			t]
+    ("Help"	["About Lucid Emacs..."	about-lucid-emacs	t]
+		"-----"
+		["Info"			info			t]
 		["Describe Mode"	describe-mode		t]
 		["Command Apropos..."	command-apropos		t]
+		["Full Apropos..."	apropos			t]
 		["List Keybindings"	describe-bindings	t]
 		["Describe Key..."	describe-key		t]
 		["Describe Function..."	describe-function	t]
@@ -55,62 +206,115 @@
 		["Emacs News"		view-emacs-news		t]
 		)
     ))
+  ))
 
 
 (defun kill-this-buffer ()	; for the menubar
-  "Kills the current buffer."
+  "Kill the current buffer."
   (interactive)
   (kill-buffer (current-buffer)))
 
-(defun x-new-screen (&optional screen-name)
-  "Creates a new emacs screen (that is, a new X window.)"
-  (interactive)
-  (prog1
-      (select-screen (x-create-screen
-		      (append (if screen-name
-				  (list (cons 'name screen-name))
-				nil)
-			      screen-default-alist)))
-    (switch-to-buffer (get-buffer-create (gettext "*scratch*")))
-    ;; hack: if evi mode is loaded and in use, put the new screen in evi mode.
-    (if (and (boundp 'evi-install-undo-list) evi-install-undo-list)
-	(evi-mode)))
-  )
-
-(defun x-new-screen-other (window-id &optional screen-params)
-  "Creates a new emacs screen using an existing X window.
-WINDOW-ID is a string specifying the ID of the X window.  Optional
-parameter SCREEN-PARAMS is an alist of parameters to set for this
-screen."
-  (interactive)
-  (prog1
-      (select-screen (x-create-screen
-		      (append screen-params screen-default-alist) window-id))
-    (switch-to-buffer (get-buffer-create (gettext "*scratch*")))
-    ;; hack: if evi mode is loaded and in use, put the new screen in evi mode.
-    (if (and (boundp 'evi-install-undo-list) evi-install-undo-list)
-	(evi-mode)))
-    )
-
+;; #### shouldn't this perhaps be `copy-tree'?
 (defun set-menubar (menubar)
-  "Set the default menubar to be menubar."
+  "Set the default menubar to be MENUBAR.
+See `current-menubar' for a description of the syntax of a menubar."
+  (check-menu-syntax menubar t)
   (setq-default current-menubar (copy-sequence menubar))
   (set-menubar-dirty-flag))
 
 (defun set-buffer-menubar (menubar)
-  "Set the buffer-local menubar to be menubar."
+  "Set the buffer-local menubar to be MENUBAR.
+See `current-menubar' for a description of the syntax of a menubar."
+  (check-menu-syntax menubar t)
   (make-local-variable 'current-menubar)
   (setq current-menubar (copy-sequence menubar))
   (set-menubar-dirty-flag))
+
+(defun check-menu-syntax (menu &optional menubar-p)
+  ;; The C code does syntax checking on the value of `current-menubar',
+  ;; but it's better to do it early, before things have gotten messed up.
+  (if menubar-p
+      nil
+    (or (stringp (car menu))
+	(signal 'error
+		(list "menu name (first element) must be a string" menu)))
+    ;;(or (cdr menu) (signal 'error (list "menu is empty" menu)))
+    (setq menu (cdr menu)))
+  (while menu
+    (cond
+     ((stringp (car menu)))
+     ((null (car menu)))
+     ((consp (car menu))
+      (check-menu-syntax (car menu)))
+     ((vectorp (car menu))
+      (let ((L (length (car menu)))
+	    plistp)
+      (cond ((< L 3)
+	     (signal 'error
+		     (list "button descriptors must be at least 3 long"
+			   (car menu))))
+	    ((= L 3)
+	     (setq plistp nil))
+	    ((= L 4)
+	     (setq plistp
+		   (and (symbolp (aref (car menu) 2))
+			(= ?: (aref (symbol-name (aref (car menu) 2)) 0)))))
+	    (t (setq plistp t)))
+      (or (stringp (aref (car menu) 0))
+	  (signal 'error
+		  (list
+		   "first element of a button must be a string (the label)"
+		   (car menu))))
+      (or plistp
+	  (< L 4)
+	  (null (aref (car menu) 3))
+	  (stringp (aref (car menu) 3))
+	  (signal 'error
+		  (list
+	      "fourth element of a button must be a string (the label suffix)"
+		   (car menu))))
+      (if plistp
+	  (let ((i 2)
+		selp
+		style
+		item)
+	    (while (< i L)
+	      (cond ((not (memq (setq item (aref (car menu) i))
+				'(:active :suffix :keys :style :selected)))
+		     (signal 'error
+			     (list (if (symbolp item)
+				       "unknown menu item keyword"
+				     "not a keyword")
+				   item (car menu))))
+		    ((eq item ':style)
+		     (setq style (aref (car menu) (1+ i)))
+		     (or (memq style '(nil toggle radio text))
+			 (signal 'error (list "unknown style" style
+					      (car menu)))))
+		    ((eq item ':selected) (setq selp t))
+		    )
+	      (setq i (+ i 2)))
+	    (if (and selp (not (memq style '(toggle radio))))
+		(signal 'error
+			(list
+		      ":selected only makes sense with :style toggle or radio"
+		      (car menu))))
+	    )))
+      )
+     (t (signal 'error (list "unrecognised menu descriptor" (car menu)))))
+    (setq menu (cdr menu))))
 
 
 ;;; menu manipulation functions
 
 (defun find-menu-item (menubar item-path-list &optional parent)
-  "Searches MENUBAR for item given by ITEM-PATH-LIST starting from PARENT.
+  "Search MENUBAR for item given by ITEM-PATH-LIST starting from PARENT.
 Returns (ITEM . PARENT), where PARENT is the immediate parent of
  the item found.
-Signals an error if the item is not found."
+If the item does not exist, the car of the returned value is nil.
+If some menu in the ITEM-PATH-LIST does not exist, an error is signalled."
+  (or (listp item-path-list)
+      (signal 'wrong-type-argument (list 'listp item-path-list)))
   (or parent (setq item-path-list (mapcar 'downcase item-path-list)))
   (if (not (consp menubar))
       nil
@@ -135,25 +339,51 @@ Signals an error if the item is not found."
 	(cons result parent)))))
 
 
-(defun disable-menu-item (path)
-  "Make the named menu item be unselectable.
-PATH is a list of strings which identify the position of the menu item in 
-the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
-under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
-menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
-  (let* ((menubar current-menubar)
-	 (pair (find-menu-item menubar path))
-	 (item (car pair))
-	 (menu (cdr pair)))
-    (or item
-	(signal 'error (list (if menu (gettext "No such menu item")
-			       (gettext "No such menu"))
-			     path)))
-    (if (consp item) (error (gettext "can't disable menus, only menu items")))
-    (aset item 2 nil)
+(defun enable-menu-item-1 (path toggle-p on-p)
+  (let (menu item)
+    (if (and (vectorp path) (> (length path) 2)) ; limited syntax checking...
+	(setq item path)
+      (let* ((menubar current-menubar)
+	     (pair (find-menu-item menubar path)))
+	(setq item (car pair)
+	      menu (cdr pair))
+	(or item
+	    (signal 'error (list (if menu
+				     "No such menu item"
+				   "No such menu")
+				 path)))
+	(if (consp item)
+	    (error "%S is a menu, not a menu item" path))))
+    (if (or (> (length item) 4)
+	    (and (symbolp (aref item 2))
+		 (= ?: (aref (symbol-name (aref item 2)) 0))))
+	;; plist-like syntax
+	(let ((i 2)
+	      (keyword (if toggle-p ':selected ':active))
+	      (ok nil))
+	  (while (< i (length item))
+	    (cond ((eq (aref item i) keyword)
+		   (aset item (1+ i) on-p)
+		   (setq ok t)))
+	    (setq i (+ i 2)))
+	  (cond (ok nil)
+		(toggle-p
+		 (signal 'error (list "not a toggle menu item" item)))
+		(t
+		 ;; Need to copy the item to extend it, sigh...
+		 (let ((cons (memq item menu))
+		       (new-item (vconcat item (list keyword on-p))))
+		   (if cons
+		       (setcar cons (setq item new-item))
+		     (if menu
+			 (error "couldn't find %S on its parent?" item)
+		       (error "no %S slot to set: %S" keyword item)))))))
+      ;; positional syntax
+      (if toggle-p
+	  (signal 'error (list "not a toggle menu item" item))
+	(aset item 2 on-p)))
     (set-menubar-dirty-flag)
     item))
-
 
 (defun enable-menu-item (path)
   "Make the named menu item be selectable.
@@ -161,18 +391,31 @@ PATH is a list of strings which identify the position of the menu item in
 the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
 under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
 menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
-  (let* ((menubar current-menubar)
-	 (pair (find-menu-item menubar path))
-	 (item (car pair))
-	 (menu (cdr pair)))
-    (or item
-	(signal 'error (list (if menu (gettext "No such menu item")
-			       (gettext "No such menu"))
-			     path)))
-    (if (consp item) (error (gettext "%S is a menu, not a menu item") path))
-    (aset item 2 t)
-    (set-menubar-dirty-flag)
-    item))
+  (enable-menu-item-1 path nil t))
+
+(defun disable-menu-item (path)
+  "Make the named menu item be unselectable.
+PATH is a list of strings which identify the position of the menu item in 
+the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
+under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
+menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
+  (enable-menu-item-1 path nil nil))
+
+(defun select-toggle-menu-item (path)
+  "Make the named toggle- or radio-style menu item be in the `selected' state.
+PATH is a list of strings which identify the position of the menu item in 
+the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
+under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
+menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
+  (enable-menu-item-1 path t t))
+
+(defun deselect-toggle-menu-item (path)
+ "Make the named toggle- or radio-style menu item be in the `unselected' state.
+PATH is a list of strings which identify the position of the menu item in 
+the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
+under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
+menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
+  (enable-menu-item-1 path t nil))
 
 
 (defun add-menu-item-1 (item-p menu-path item-name item-data enabled-p before)
@@ -192,6 +435,8 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
 		     (t
 		      (car (find-menu-item menubar (list item-name))))
 		     )))
+    (or menubar
+	(error "current-menubar is nil: can't add menus to it."))
     (or menu
 	(let ((rest menu-path)
 	      (so-far menubar))
@@ -240,7 +485,7 @@ menu item called \"Item\" under the \"Foo\" submenu of \"Menu\"."
 	(progn
 	  (aset item 0 item-name)
 	  (aset item 1 item-data)
-	  (aset item 2 (not (null enabled-p))))
+	  (aset item 2 enabled-p))
       (setcar item item-name)
       (setcdr item item-data))
     (set-menubar-dirty-flag)
@@ -322,18 +567,17 @@ MENU-PATH identifies the menu under which the new menu should be inserted.
  If MENU-PATH is nil, then the menu will be added to the menubar itself.
 MENU-NAME is the string naming the menu to be added.
 MENU-ITEMS is a list of menu item descriptions.
- Each menu item should be a vector of three elements:
-   - a string, the name of the menu item;
-   - a symbol naming a command, or a form to evaluate;
-   - and t, nil, or a form to evaluate: whether this item is selectable.
+ See documentation of variable `current-menubar' for the syntax.
 BEFORE, if provided, is the name of a menu before which this menu should
  be added, if this menu is not on its parent already.  If the menu is already
  present, it will not be moved."
   (or menu-name (error (gettext "must specify a menu name")))
   (or menu-items (error (gettext "must specify some menu items")))
+  (check-menu-syntax menu-items t)
   (add-menu-item-1 nil menu-path menu-name menu-items t before))
 
 
+;;; The File and Edit menus
 
 (defvar put-buffer-names-in-file-menu t)
 
@@ -356,22 +600,26 @@ This function changes the sensitivity of these File and Edit menu items:
 
   Kill Buffer    has the name of the current buffer appended to it.
   Print Buffer   has the name of the current buffer appended to it.
-  Save Buffer    has the name of the current buffer appended to it, and is
+  Save           has the name of the current buffer appended to it, and is
                  sensitive only when the current buffer is modified.
   Revert Buffer  has the name of the current buffer appended to it, and is
                  sensitive only when the current buffer has a file.
-  Delete Screen  sensitive only when there is more than one visible screen."
+  Delete Screen  sensitive only when there is more than one screen."
   ;;
   ;; the hair in here to not update the menubar unless something has changed
   ;; isn't really necessary (the menubar code is fast enough) but it makes
   ;; me feel better (and creates marginally less list garbage.)
   (let* ((file-menu (cdr (car (find-menu-item current-menubar '("File")))))
 	 (edit-menu (cdr (car (find-menu-item current-menubar '("Edit")))))
-	 (save	(car (find-menu-item file-menu '("Save Buffer"))))
+	 (save	(or (car (find-menu-item file-menu '("Save")))
+		    ;; menubar-religion=losing
+		    (car (find-menu-item file-menu '("Save Buffer")))))
 	 (rvt   (car (find-menu-item file-menu '("Revert Buffer"))))
 	 (del   (car (find-menu-item file-menu '("Delete Screen"))))
 	 (print (car (find-menu-item file-menu '("Print Buffer"))))
-	 (kill  (car (find-menu-item file-menu '("Kill Buffer"))))
+	 (kill  (or (car (find-menu-item file-menu '("Kill Buffer")))
+		    ;; menubar-religion=losing
+		    (car (find-menu-item file-menu '("Delete Buffer")))))
 	 (cut   (car (find-menu-item edit-menu '("Cut"))))
 	 (copy  (car (find-menu-item edit-menu '("Copy"))))
 	 (paste (car (find-menu-item edit-menu '("Paste"))))
@@ -381,13 +629,13 @@ This function changes the sensitivity of these File and Edit menu items:
 	 (name (buffer-name))
 	 (emacs-owns-selection-p (x-selection-owner-p))
 	 (clipboard-exists-p (x-selection-exists-p 'CLIPBOARD))
-	 undo-available undoing-more
-	 (undo-info-available (not (null (and (not (eq t buffer-undo-list))
-				   (if (eq last-command 'undo)
-				       (setq undoing-more
-					     (and (boundp 'pending-undo-list)
-					    pending-undo-list)
-				     buffer-undo-list))))))
+;;	 undo-available undoing-more
+;;	 (undo-info-available (not (null (and (not (eq t buffer-undo-list))
+;;				   (if (eq last-command 'undo)
+;;				       (setq undoing-more
+;;					     (and (boundp 'pending-undo-list)
+;;					    pending-undo-list)
+;;				     buffer-undo-list))))))
 	 undo-name undo-state
 	 (change-p
 	  (or (and cut   (not (eq emacs-owns-selection-p (aref cut 2))))
@@ -396,7 +644,7 @@ This function changes the sensitivity of these File and Edit menu items:
 	      (and paste (not (eq clipboard-exists-p (aref paste 2))))
 	      (and save  (not (eq (buffer-modified-p) (aref save 2))))
 	      (and rvt   (not (eq (not (not buffer-file-name)) (aref rvt 2))))
-	      (and del   (eq (eq (next-screen nil nil t) (selected-screen))
+	      (and del   (eq (eq (next-screen) (selected-screen))
 			     (aref del 2)))
 	      )))
     (if (not put-buffer-names-in-file-menu)
@@ -406,8 +654,11 @@ This function changes the sensitivity of these File and Edit menu items:
       (if (= (length print) 4) (progn (aset print 3 name) (setq change-p t)))
       (if (= (length kill)  4) (progn (aset kill  3 name) (setq change-p t))))
     (if save  (aset save  2 (buffer-modified-p)))
-    (if rvt   (aset rvt   2 (not (not buffer-file-name))))
-    (if del   (aset del   2 (not (eq (next-screen () () t) (selected-screen)))))
+    ;; revert is sensitive if there is a file name, or a revert method (since
+    ;; who knows what that might do.)
+    (if rvt   (aset rvt   2 (not (not (or buffer-file-name
+					  revert-buffer-function)))))
+    (if del   (aset del   2 (not (eq (next-screen) (selected-screen)))))
     (if cut   (aset cut   2 emacs-owns-selection-p))
     (if copy  (aset copy  2 emacs-owns-selection-p))
     (if clear (aset clear 2 emacs-owns-selection-p))
@@ -435,6 +686,11 @@ This function changes the sensitivity of these File and Edit menu items:
     ;; otherwise return t to indicate that we haven't done anything.
     (not change-p)))
 
+(add-hook 'activate-menubar-hook 'sensitize-file-and-edit-menus-hook)
+
+
+;;; The Buffers menu
+
 ;; this version is too slow
 (defun slow-format-buffers-menu-line (buffer)
   "Returns a string to represent the given buffer in the Buffer menu.
@@ -459,7 +715,7 @@ nil means the buffer shouldn't be listed.  You can redefine this."
       nil
     buffer))
 
-(defvar buffers-menu-max-size 10
+(defvar buffers-menu-max-size 20
   "*Maximum number of entries which may appear on the \"Buffers\" menu.
 If this is 10, then only the ten most-recently-selected buffers will be
 shown.  If this is nil, then all buffers will be shown.  Setting this to
@@ -484,7 +740,7 @@ select that buffer.")
   (save-excursion
     (set-buffer buffer)
     (write-file (read-file-name
-		 (foramt (gettext "Write %s to file: ")
+		 (format (gettext "Write %s to file: ")
 			 (buffer-name (current-buffer)))))))
 
 (defsubst build-buffers-menu-internal (buffers)
@@ -493,19 +749,34 @@ select that buffer.")
      (if complex-buffers-menu-p
 	 #'(lambda (buffer)
 	     (if (setq line (format-buffers-menu-line buffer))
-		 (list line
+		 (delq nil
+		   (list line
 		       (vector "Switch to Buffer"
 			       (list buffers-menu-switch-to-buffer-function
 				     (setq name (buffer-name buffer)))
 			       t)
+		       (if (eq buffers-menu-switch-to-buffer-function
+			       'switch-to-buffer)
+			   (vector "Switch to Buffer, Other Screen"
+				   (list 'switch-to-buffer-other-screen
+					 (setq name (buffer-name buffer)))
+				   t)
+			 nil)
 		       (if (and (buffer-modified-p buffer)
 				(buffer-file-name buffer))
-			   (vector "Save Buffer"
+			   (vector (if (eq menubar-religion 'winning)
+				       "Save"
+				     "Save Buffer")
 				   (list 'buffer-menu-save-buffer name) t)
-			 ["Save Buffer" nil nil])
-		       (vector "Save Buffer As..."
+			 (if (eq menubar-religion 'winning)
+			     ["Save" nil nil]
+			   ["Save Buffer" nil nil]
+			   ))
+		       (vector (if (eq menubar-religion 'winning)
+				   "Save As..."
+				 "Save Buffer As...")
 			       (list 'buffer-menu-write-file name) t)
-		       (vector "Kill Buffer" (list 'kill-buffer name) t))))
+		       (vector "Kill Buffer" (list 'kill-buffer name) t)))))
        #'(lambda (buffer)
 	   (if (setq line (format-buffers-menu-line buffer))
 	       (vector line
@@ -523,7 +794,6 @@ many buffers will be shown by setting `buffers-menu-max-size'.
 You can control the text of the menu items by redefining the function
 `format-buffers-menu-line'."
   (let ((buffer-menu (car (find-menu-item current-menubar '("Buffers"))))
-	name
 	buffers)
     (if (not buffer-menu)
 	nil
@@ -535,7 +805,7 @@ You can control the text of the menu items by redefining the function
 	      (setcdr (nthcdr buffers-menu-max-size buffers) nil)))
 
       (setq buffers (build-buffers-menu-internal buffers))
-      (setq buffers (nconc (delq nil buffers)
+      (setq buffers (append (delq nil buffers)
 			   '("----" ["List All Buffers" list-buffers t])))
       ;; slightly (only slightly) more efficient to not install the menubar
       ;; if it hasn't visibly changed.
@@ -545,67 +815,213 @@ You can control the text of the menu items by redefining the function
 	nil))))
 
 (add-hook 'activate-menubar-hook 'build-buffers-menu-hook)
-(add-hook 'activate-menubar-hook 'sensitize-file-and-edit-menus-hook)
 
+
+;;; The Options menu
+
+;; make sure these have a value, even if not loaded
+(defvar c++-mode-hook nil)
+(defvar lisp-mode-hook nil)
+(defvar emacs-lisp-mode-hook nil)
+
+(defconst options-menu-saved-forms
+  ;; This is really quite a kludge, but it gets the job done.
+  (purecopy
+   '(highlight-paren-expression
+     overwrite-mode
+     teach-extended-commands-p
+     complex-buffers-menu-p
+     buffers-menu-max-size
+     case-fold-search
+     (if (memq 'blink-paren-pre-command pre-command-hook)
+	 '(blink-paren 1)
+       '(if (featurep 'blink-paren) (blink-paren 0)))
+     (if (memq 'pending-delete-pre-hook pre-command-hook)
+	 '(pending-delete 1)
+       '(if (featurep 'pending-del)
+	    (pending-delete 0)))
+     (list 'set-face-font ''default (face-font-name 'default))
+     (list 'set-face-font ''modeline (face-font-name 'modeline))
+     (if (memq 'turn-on-font-lock c-mode-hook)
+	 '(add-hook 'c-mode-hook 'turn-on-font-lock)
+       '(remove-hook 'c-mode-hook 'turn-on-font-lock))
+     (if (memq 'turn-on-font-lock c++-mode-hook)
+	 '(add-hook 'c++-mode-hook 'turn-on-font-lock)
+       '(remove-hook 'c++-mode-hook 'turn-on-font-lock))
+     (if (memq 'turn-on-font-lock lisp-mode-hook)
+	 '(add-hook 'lisp-mode-hook 'turn-on-font-lock)
+       '(remove-hook 'lisp-mode-hook 'turn-on-font-lock))
+     (if (memq 'turn-on-font-lock emacs-lisp-mode-hook)
+	 '(add-hook 'emacs-lisp-mode-hook 'turn-on-font-lock)
+       '(remove-hook 'emacs-lisp-mode-hook 'turn-on-font-lock))
+     (if (featurep 'font-lock)
+	 '(require 'font-lock))
+     (cond ((eq c-font-lock-keywords c-font-lock-keywords-1)
+	    '(setq c-font-lock-keywords c-font-lock-keywords-1))
+	   ((eq c-font-lock-keywords c-font-lock-keywords-2)
+	    '(setq c-font-lock-keywords c-font-lock-keywords-2)))
+     (cond ((eq c++-font-lock-keywords c-font-lock-keywords-1)
+	    '(setq c++-font-lock-keywords c-font-lock-keywords-1))
+	   ((eq c++-font-lock-keywords c-font-lock-keywords-2)
+	    '(setq c++-font-lock-keywords c-font-lock-keywords-2)))
+     (cond ((eq lisp-font-lock-keywords lisp-font-lock-keywords-1)
+	    '(setq lisp-font-lock-keywords lisp-font-lock-keywords-1))
+	   ((eq lisp-font-lock-keywords lisp-font-lock-keywords-2)
+	    '(setq lisp-font-lock-keywords lisp-font-lock-keywords-2)))
+     (cons 'progn
+	   (apply 'nconc
+		  (mapcar
+		   #'(lambda (face)
+		       (delq nil
+			     (list
+			      (if (face-foreground face)
+				  (list 'set-face-foreground (list 'quote face)
+					(pixel-name (face-foreground face))))
+			      (if (face-background face)
+				  (list 'set-face-background (list 'quote face)
+					(pixel-name (face-background face))))
+			      (if (face-font face)
+				  (list 'set-face-font (list 'quote face)
+					(face-font-name face)))
+			      )))
+		   '(font-lock-comment-face font-lock-string-face
+		     font-lock-doc-string-face font-lock-function-name-face
+		     font-lock-keyword-face font-lock-type-face))))
+     ))
+  "The variables to save; or forms to evaluate to get forms to write out.")
+
+
+(defun save-options-menu-settings ()
+  "Saves the current settings of the `Options' menu to your `.emacs' file."
+  (interactive)
+  (let ((output-buffer (find-file-noselect
+			(concat "~" init-file-user "/.emacs")))
+	output-marker)
+    (save-excursion
+      (set-buffer output-buffer)
+      ;;
+      ;; Delete the old format saved data, if any.
+      ;; (This is for the old, Energize-specific, Options menu and should
+      ;; go away once Energize 3.0 is released.)
+      ;;
+      (goto-char (point-min))
+      (if (re-search-forward "^(and (fboundp 'energize-menu-restore-saved-options)\n     (energize-menu-restore-saved-options '.*))[ \t]*\n?" nil t)
+	  (delete-region (match-beginning 0) (match-end 0)))
+      ;;
+      ;; Find and delete the previously saved data, and position to write.
+      ;;
+      (goto-char (point-min))
+      (if (re-search-forward "^;; Options Menu Settings *\n" nil 'move)
+	  (let ((p (match-beginning 0)))
+	    (goto-char p)
+	    (or (re-search-forward
+		 "^;; End of Options Menu Settings *\\(\n\\|\\'\\)"
+		 nil t)
+		(error "can't find END of saved state in .emacs"))
+	    (delete-region p (match-end 0)))
+	(goto-char (point-max))
+	(insert "\n"))
+      (setq output-marker (point-marker))
+      )
+
+    ;; run with current-buffer unchanged so that variables are evaluated in
+    ;; the current context, instead of in the context of the ".emacs" buffer.
+    (let ((print-readably t)
+	  (print-escape-newlines t)
+	  (standard-output output-marker))
+      (princ ";; Options Menu Settings\n")
+      (princ ";; =====================\n")
+      (princ "(cond\n")
+      (princ " ((and (string-match \"Lucid\" emacs-version)\n")
+      (princ "       (boundp 'emacs-major-version)\n")
+      (princ "       (= emacs-major-version 19)\n")
+      (princ "       (>= emacs-minor-version 10))\n")
+      (mapcar #'(lambda (var)
+		  (princ "  ")
+		  (if (symbolp var)
+		      (prin1 (list 'setq-default var
+				   (let ((val (symbol-value var)))
+				     (if (or (memq val '(t nil))
+					     (not (symbolp val)))
+					 val
+				       (list 'quote val)))))
+		    (setq var (eval var))
+		    (cond ((eq (car-safe var) 'progn)
+			   (while (setq var (cdr var))
+			     (prin1 (car var))
+			     (princ "\n")
+			     (if (cdr var) (princ "  "))
+			     ))
+			  (var
+			   (prin1 var))))
+		  (if var (princ "\n")))
+	      options-menu-saved-forms)
+      (princ "  ))\n")
+      (princ ";; ============================\n")
+      (princ ";; End of Options Menu Settings\n")
+      )
+    (set-marker output-marker nil)
+    (save-excursion
+      (set-buffer output-buffer)
+      (save-buffer))
+    ))
+
+
 (set-menubar default-menubar)
 
 
+;;; Popup menus.
 
-(defun yes-or-no-p-dialog-box (prompt)
-  "Ask user a \"y or n\" question with a popup dialog box.
-Returns t if answer is \"yes\".
-Takes one argument, which is the string to display to ask the question."
-  (let ((echo-keystrokes 0)
-	event)	 
-    (popup-dialog-box
-     (cons prompt '(["Yes" yes t] ["No" no t] nil ["Abort" abort t])))
-    (catch 'ynp-done
-      (while t
-	(setq event (next-command-event event))
-	(cond ((and (menu-event-p event) (eq (event-object event) 'yes))
-	       (throw 'ynp-done t))
-	      ((and (menu-event-p event) (eq (event-object event) 'no))
-	       (throw 'ynp-done nil))
-	      ((and (menu-event-p event)
-		    (or (eq (event-object event) 'abort)
-			(eq (event-object event) 'menu-no-selection-hook)))
-	       (signal 'quit nil))
-	      ((button-release-event-p event) ;; don't beep twice
-	       nil)
-	      (t
-	       (beep)
-	       (message "please answer the dialog box")))))))
+(defconst default-popup-menu
+  '("Emacs Commands"
+    ["Undo"		advertised-undo		t]
+    ["Cut"		x-kill-primary-selection   t]
+    ["Copy"		x-copy-primary-selection   t]
+    ["Paste"		x-yank-clipboard-selection t]
+    "-----"
+    ["Select Block"	mark-paragraph 		t]
+    ["Split Window"	(split-window)		t]
+    ["Unsplit Window" 	delete-other-windows	t]
+    ))
 
-(defun yes-or-no-p-maybe-dialog-box (prompt)
-  "Ask user a yes-or-no question.  Return t if answer is yes.
-The question is asked with a dialog box or the minibuffer, as appropriate.
-Takes one argument, which is the string to display to ask the question.
-It should end in a space; `yes-or-no-p' adds `(yes or no) ' to it.
-The user must confirm the answer with RET,
-and can edit it until it as been confirmed."
-  (if (or (button-press-event-p last-command-event)
-	  (button-release-event-p last-command-event)
-	  (menu-event-p last-command-event))
-      (yes-or-no-p-dialog-box prompt)
-    (yes-or-no-p-minibuf prompt)))
+(defvar global-popup-menu default-popup-menu
+  "The global popup menu.  This is present in all modes.
+See the function `popup-menu' for a description of menu syntax.")
 
-(defun y-or-n-p-maybe-dialog-box (prompt)
-  "Ask user a \"y or n\" question.  Return t if answer is \"y\".
-Takes one argument, which is the string to display to ask the question.
-The question is asked with a dialog box or the minibuffer, as appropriate.
-It should end in a space; `y-or-n-p' adds `(y or n) ' to it.
-No confirmation of the answer is requested; a single character is enough.
-Also accepts Space to mean yes, or Delete to mean no."
-  (if (or (button-press-event-p last-command-event)
-	  (button-release-event-p last-command-event)
-	  (menu-event-p last-command-event))
-      (yes-or-no-p-dialog-box prompt)
-    (y-or-n-p-minibuf prompt)))
+(defvar mode-popup-menu nil
+  "The mode-specific popup menu.  Automatically buffer local.
+This is appended to the default items in `global-popup-menu'.
+See the function `popup-menu' for a description of menu syntax.")
+(make-variable-buffer-local 'mode-popup-menu)
 
-(if (fboundp 'popup-dialog-box)
-    (progn
-      (fset 'yes-or-no-p 'yes-or-no-p-maybe-dialog-box)
-      (fset 'y-or-n-p 'y-or-n-p-maybe-dialog-box)))
+(defvar activate-popup-menu-hook nil
+  "Function or functions run before a mode-specific popup menu is made visible.
+These functions are called with no arguments, and should interrogate and
+modify the value of `global-popup-menu' or `mode-popup-menu' as desired.
+Note: this hook is only run if you use `popup-mode-menu' for activating the
+global and mode-specific commands; if you have your own binding for button3,
+this hook won't be run.")
 
+(defun popup-mode-menu ()
+  "Pop up a menu of global and mode-specific commands.
+The menu is computed by combining `global-popup-menu' and `mode-popup-menu'."
+  (interactive "@")
+  (run-hooks 'activate-popup-menu-hook)
+  (popup-menu
+   (cond ((and global-popup-menu mode-popup-menu)
+	  (check-menu-syntax mode-popup-menu)
+	  (let ((title (car mode-popup-menu))
+		(items (cdr mode-popup-menu)))
+	    (append global-popup-menu
+		    '("---" "---")
+		    (if popup-menu-titles (list title))
+		    (if popup-menu-titles '("---" "---"))
+		    items)))
+	 (t
+	  (or mode-popup-menu
+	      global-popup-menu
+	      (error "No menu here."))))))
+
+(global-set-key 'button3 'popup-mode-menu)
 
 (provide 'menubar)

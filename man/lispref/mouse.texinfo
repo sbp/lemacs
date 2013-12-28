@@ -1,0 +1,106 @@
+@c -*-texinfo-*-
+@c This is part of the GNU Emacs Lisp Reference Manual.
+@c Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc. 
+@c See the file lispref.texinfo for copying conditions.
+@setfilename ../../info/mouse.texinfo
+@node Mouse
+@chapter The Mouse
+@cindex mouse
+
+* Mouse Position::		Asking where the mouse is, or moving it.
+
+@ignore  @c Not in Lucid Emacs.
+@node Mouse Tracking
+@section Mouse Tracking
+@cindex mouse tracking
+@cindex tracking the mouse
+
+Sometimes it is useful to @dfn{track} the mouse, which means, to display
+something to indicate where the mouse is and move the indicator as the
+mouse moves.  For efficient mouse tracking, you need a way to wait until
+the mouse actually moves.
+
+The convenient way to track the mouse is to ask for events to represent
+mouse motion.  Then you can wait for motion by waiting for an event.  In
+addition, you can easily handle any other sorts of events that may
+occur.  That is useful, because normally you don't want to track the
+mouse forever---only until some other event, such as the release of a
+button.
+
+@defspec track-mouse body@dots{}
+Execute @var{body}, meanwhile generating input events for mouse motion.
+The code in @var{body} can read these events with @code{read-event} or
+@code{read-key-sequence}.  @xref{Motion Events}, for the format of mouse
+motion events.
+
+The value of @code{track-mouse} is that of the last form in @var{body}.
+@end defspec
+
+The usual purpose of tracking mouse motion is to indicate on the screen
+the consequences of pushing or releasing a button at the current
+position.
+@end ignore
+
+@ignore
+@c These are not implemented yet.
+
+These functions change the screen appearance instantaneously.  The
+effect is transient, only until the next ordinary Emacs redisplay.  That
+is ok for mouse tracking, since it doesn't make sense for mouse tracking
+to change the text, and the body of @code{track-mouse} normally reads
+the events itself and does not do redisplay.
+
+@defun x-contour-region window beg end
+This function draws lines to make a box around the text from @var{beg}
+to @var{end}, in window @var{window}.
+@end defun
+
+@defun x-uncontour-region window beg end
+This function erases the lines that would make a box around the text
+from @var{beg} to @var{end}, in window @var{window}.  Use it to remove
+a contour that you previously made by calling @code{x-contour-region}.
+@end defun
+
+@defun x-draw-rectangle screen left top right bottom
+This function draws a hollow rectangle on screen @var{screen} with the
+specified edge coordinates, all measured in pixels from the inside top
+left corner.  It uses the cursor color, the one used for indicating the
+location of point.
+@end defun
+
+@defun x-erase-rectangle screen left top right bottom
+This function erases a hollow rectangle on screen @var{screen} with the
+specified edge coordinates, all measured in pixels from the inside top
+left corner.  Erasure means redrawing the text and background that
+normally belong in the specified rectangle.
+@end defun
+@end ignore
+
+@node Mouse Position
+@section Mouse Position
+@cindex mouse position
+@cindex position of mouse
+
+The functions @code{mouse-position} and @code{set-mouse-position}
+give access to the current position of the mouse.
+
+@defun read-mouse-position screen
+This function returns a description of the position of the mouse.  The
+mouse must be in screen @var{screen} for this function to work.  The
+value looks like @code{(@var{screen} @var{x} . @var{y})}, where @var{x}
+and @var{y} are integers giving the position in pixels relative to the
+top left corner of the inside of @var{screen}.
+@end defun
+
+@defun set-mouse-position screen x y
+This function @dfn{warps the mouse} to position @var{x}, @var{y} in
+screen @var{screen}.  The arguments @var{x} and @var{y} are integers,
+giving the position in pixels relative to the top left corner of the
+inside of @var{screen}.
+
+@cindex warping the mouse
+@cindex mouse warping
+Warping the mouse means changing the screen position of the mouse as if
+the user had moved the physical mouse---thus simulating the effect of
+actual mouse motion.
+@end defun

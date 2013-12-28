@@ -29,9 +29,17 @@ extern int screen_garbaged;
    cursX, cursY.  Zero means it was preempted. */
 extern int display_completed;
 
-/* Nonzero if window sizes or contents have changed
-   since last redisplay that finished */
-extern int windows_or_buffers_changed;
+/* non-nil if a buffer has changed since the last time redisplay completed */
+extern int buffers_changed;
+
+/* non-nil if any extent has changed since the last time redisplay completed */
+extern int extents_changed;
+
+/* non-nil if any face has changed since the last time redisplay completed */
+extern int faces_changed;
+
+/* non-nil if any window has changed since the last time redisplay completed */
+extern int windows_changed;
 
 #ifdef HAVE_X_WINDOWS
 #include <X11/Xlib.h>
@@ -137,6 +145,7 @@ struct line_header
   unsigned int shifted	:1;
   unsigned int new	:1;
   unsigned int tabs	:1;
+  unsigned int subwindow :1;	/* subwindows need special handling */
 };
 
 struct redisplay_block
@@ -185,9 +194,43 @@ struct redisplay_block
 #define BLOCK_BLIT_END(x)	(display_list[x].block.blit.l2)
 #define BLOCK_BLIT_OLD_TOP(x)	(display_list[x].block.blit.old_top)
 
+struct layout_data
+{
+  Lisp_Object lfont;
+  struct face *face;
+  struct char_block *cb;
+  struct char_block *prev;
+  struct char_block *beginc;
+  struct char_block *endc;
+  struct char_block *new_cpos;
+  int border;
+  int pixright;
+  int lwidth;
+  struct glyphs_from_chars *display_info;
+  unsigned short asc, old_asc;
+  unsigned short desc, old_desc;
+  int text_glyphs_added;
+  int text_glyph_width;
+  int pos;
+};
+
+struct pixel_translation_cache
+{
+  int valid;
+  struct screen *screen;
+  unsigned int lowx, highx, x;
+  unsigned int lowy, highy, y;
+  struct window *w;
+  int bufp;
+  Lisp_Object class;
+  int retval;
+};
+
+extern struct pixel_translation_cache t_g_cache;
+
 /* >>> This decl should really live somewhere else. */
 extern struct glyphs_from_chars *glyphs_from_bufpos
-     (struct screen *screen, struct buffer *buffer,
+     (struct screen *screen, struct buffer *buffer, struct window *window,
       int pos, struct Lisp_Vector *dp,
       int hscroll, register int columns,
       int tab_offset, int direction, int only_nonchars);

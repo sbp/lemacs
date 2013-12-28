@@ -1,5 +1,5 @@
-;;; Mouse and font support for VM running in Lucid GNU Emacs
-;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
+;;; Mouse, menu, and font support for VM running in Lucid Emacs
+;; Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -17,23 +17,25 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-;; This requires a vm-summary-mode-hook, and vm-select-message-hook.
-;; The version of VM distributed by Lucid has these, and future versions
-;; of VM distributed by Kyle probably will have them.
-
 
 ;;; Right button pops up a menu of commands in all VM buffers.
 ;;; Middle button selects indicated article in VM Summary buffers.
+;;; Right button in a vm-mail buffer pops up a variant of the usual
+;;;  send-mail menu.
 
-(defvar vm-menu
+(define-key vm-mode-map 'button3 'vm-menu)
+(define-key vm-summary-mode-map 'button2 'vm-mouse-select)
+(define-key vm-mail-mode-map 'button3 'vm-mail-mode-menu)
+
+(defconst vm-menu
   '("VM Commands"
     ["Next Nondeleted Message"		vm-next-message t]
     ["Previous Nondeleted Message"	vm-previous-message t]
-    ["Scroll Message Forward"		vm-scroll-forward t]
-    ["Scroll Message Backward"		vm-scroll-backward t]
-    ["Beginning Of Message"		vm-beginning-of-message t]
-    ["End Of Message"			vm-end-of-message t]
-    "----"
+;    ["Scroll Message Forward"		vm-scroll-forward t]
+;    ["Scroll Message Backward"		vm-scroll-backward t]
+;    ["Beginning Of Message"		vm-beginning-of-message t]
+;    ["End Of Message"			vm-end-of-message t]
+;    "----"
     ["Display Summary"			vm-summarize t]
     ["Get New Mail"			vm-get-new-mail t]
     "----"
@@ -42,8 +44,11 @@
      ["Goto Message"			vm-goto-message	t]
      ["Next Message"			vm-Next-message t]
      ["Next Unread Message"		vm-next-unread-message t]
+     ["Next Message, Same Subject"	vm-next-message-same-subject t]
+     ["Parent Message"			vm-goto-parent-message t]
      ["Previous Message"		vm-Previous-message t]
      ["Previous Unread Message"		vm-previous-unread-message t]
+     ["Previous Message, Same Subject"	vm-previous-message-same-subject t]
      )
     ("Folders..."
      ["Save Message"			vm-save-message t]
@@ -59,6 +64,7 @@
      ["Save Buffer"			vm-save-buffer t]
      ["Save Folder"			vm-save-folder t]
      ["Save Folder As..."		vm-write-file t]
+     ["Change Folder Type..."		vm-change-folder-type t]
      )
     ("Sending Messages..."
      ["Send Mail"			vm-mail t]
@@ -76,11 +82,23 @@
      ["Unmark Message"			vm-unmark-message t]
      ["Mark All Messages"		vm-mark-all-messages t]
      ["Unmark All Messages"		vm-clear-all-marks t]
-     ;; this doesn't work from menu items for some reason...
-;     ["Next Command Uses Marks..."	vm-next-command-uses-marks t]
-     ["Next Command Uses Marks..."	vm-next-command-uses-marks nil]
+     ["Next Command Uses Marks..."	vm-next-command-uses-marks t]
+     "----"
+     ["Mark Same Subject"		vm-mark-messages-same-subject t]
+     ["Unmark Same Subject"		vm-unmark-messages-same-subject t]
+     ["Mark Same Author"		vm-mark-messages-same-author t]
+     ["Unmark Same Author"		vm-unmark-messages-same-author t]
+     ["Mark Messages Matching..."	vm-mark-matching-messages t]
+     ["Unmark Messages Matching..."	vm-unmark-matching-messages t]
+     ["Mark Thread Subtree"		vm-mark-thread-subtree t]
+     ["Unmark Thread Subtree"		vm-unmark-thread-subtree t]
+     "----"
+     ["Add Label to Message..."		vm-add-message-labels t]
+     ["Remove Label from Message..."	vm-delete-message-labels t]
+     ["Set Message Attributes..."	vm-set-message-attributes t]
      )
     ("Sorting..."
+     ["Toggle Threading"	    vm-toggle-threads-display		    t]
      ["Sort by Date"		    (vm-sort-messages "date"             t) t]
      ["Sort by Subject"		    (vm-sort-messages "subject"          t) t]
      ["Sort by Author"		    (vm-sort-messages "author"           t) t]
@@ -123,7 +141,7 @@
      ["Isearch Folder..."		vm-isearch-forward t]
 ;     ["Discard Cached Data"		vm-discard-cached-data t]
      ["Kill Subject..."			vm-kill-subject t]
-     ["Reload ~/.vm"			vm-load-rc t]
+     ["Reload ~/.vm"			vm-load-init-file t]
      ["Pipe Message To Command..."	vm-pipe-message-to-command t]
      ["Shell Command..."		shell-command t]
      ["Show Copying Restrictions"	vm-show-copying-restrictions t]
@@ -133,7 +151,8 @@
       ["Edit Notes"			bbdb/vm-edit-notes t])
      )
     "----"
-    ["Help"				vm-help t]
+;    ["Help"				vm-help t]
+    ["Help"				describe-mode t]
     ["Undo"				vm-undo t]
     ["Quit"				vm-quit t]
     ["Quit Without Saving"		vm-quit-no-change t]
@@ -156,27 +175,7 @@
   (let ((vm-follow-summary-cursor t))
     (vm-scroll-forward)))
 
-(define-key vm-mode-map 'button3 'vm-menu)
-(define-key vm-summary-mode-map 'button2 'vm-mouse-select)
-
-
-;;; originally defined in vm-folder.el
-
-(require 'highlight-headers)
-
-(or vm-highlighted-header-regexp
-    (setq vm-highlighted-header-regexp "^Subject: "))
-
-(defun vm-highlight-headers ()
-  (let ((highlight-headers-regexp (or vm-highlighted-header-regexp
-				      highlight-headers-regexp)))
-    (highlight-headers (marker-position (vm-start-of (car vm-message-pointer)))
-		       (vm-text-end-of (car vm-message-pointer))
-		       t)))
-
-(add-hook 'vm-select-message-hook 'vm-highlight-headers)
-
-
+
 ;;; Highlight the line under the mouse in the folder and summary buffers.
 
 (defun vm-install-mouse-tracker ()
@@ -223,20 +222,12 @@
       (setq rest (cdr rest)))
     menu))
 
-(or (fboundp 'orig-mail-mode-menu)
-    (fset 'orig-mail-mode-menu (symbol-function 'mail-mode-menu)))
-
-(defun mail-mode-menu (event)
-  "Pop up the mail mode menu, defined by the variable `mail-mode-menu'
-or `vm-mail-mode-menu', as appropriate."
+(defun vm-mail-mode-menu (event)
+  "Pop up the VM mail mode menu, defined by the variable `vm-mail-mode-menu'."
   (interactive "e")
-  (let ((mail-mode-menu
-	 ;; complete kludge!! VM should use its own version of mail-mode-map!!
-	 (if (where-is-internal 'vm-yank-message-other-folder
-				(current-local-map) t)
-	     vm-mail-mode-menu
-	   mail-mode-menu)))
-    (orig-mail-mode-menu event)))
+  (let ((mail-mode-menu vm-mail-mode-menu))
+    ;; This does some tricky stuff to sensitize items appropriately.
+    (mail-mode-menu event)))
       
 
 (provide 'vm-lucid)

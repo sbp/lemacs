@@ -1,6 +1,6 @@
 /* Definitions file for GNU Emacs running on HPUX release 7.0.
    Based on AT&T System V.2.
-   Copyright (C) 1985, 1986, 1993, 1994 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -30,9 +30,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define HPUX
 
-/* HPUX_PRE_8_0 needs to be defined for HP-UX 7.X and earlier.  DO NOT
-   UNCOMMENT THE FOLLOWING IF HP-UX 8.0 OR LATER IS BEING USED; HPUX_PRE_8_0
-   will be automatically #undef'd later, if necessary. */
+/* lemacs change: HPUX_PRE_8_0 needs to be defined for HP-UX 7.X and
+   earlier.  DO NOT UNCOMMENT THE FOLLOWING IF HP-UX 8.0 OR LATER IS
+   BEING USED; HPUX_PRE_8_0 will be automatically #undef'd later, if
+   necessary. */
 #define HPUX_PRE_8_0
 
 /* SYSTEM_TYPE should indicate the kind of system you are using.
@@ -49,6 +50,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Default is to set interrupt_input to 0: don't do input buffering within Emacs */
 
+/* lemacs change */
 #define INTERRUPT_INPUT
 
 /* Letter to use in finding device name of first pty,
@@ -103,7 +105,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* #define NONSYSTEM_DIR_LIBRARY */
 
 /* Define this symbol if your system has the functions bcopy, etc.
- * s800 and later versions of s300 (s200) kernels have equivilents
+ * s800 and later versions of s300 (s200) kernels have equivalents
  * of the BSTRING functions of BSD.  If your s200 kernel doesn't have
  * em comment out this section.
  */
@@ -181,22 +183,22 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define _longjmp longjmp
 */
 
-/* On USG systems the system calls are interruptable by signals
+/* On USG systems the system calls are interruptible by signals
  that the user program has elected to catch.  Thus the system call
- must be retried in these cases.  All calls to read, write, and open
- in emacs are really calls to emacs_read, etc.  We define emacs_read
- to be sys_read (which is defined in sysdep.c for this system.)  If
- these were not defined, they would be defined to be open, etc.
- We can't just "#define open sys_open" because of prototype problems.
- */
+ must be retried in these cases.  To handle this without massive
+ changes in the source code, we remap the standard system call names
+ to names for our own functions in sysdep.c that do the system call
+ with retries. */
 
 #define emacs_read sys_read
 #define emacs_open sys_open
 #define emacs_write sys_write
+/* lemacs change */
 #define emacs_close sys_close
 
 #define INTERRUPTIBLE_OPEN
 #define INTERRUPTIBLE_IO
+/* lemacs change */
 #define INTERRUPTIBLE_CLOSE
 
 /* Use the system provided termcap(3) library */
@@ -208,6 +210,17 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define rand lrand48
 #define srand srand48
 #endif
+
+/* In hpux, the symbol SIGIO is defined, but the feature
+   doesn't work in the way Emacs needs it to.
+
+   Here we assume that signal.h is included before config.h
+   so that we can override it here.
+
+   lemacs change: lemacs has patches Darryl Okhahata (?) submitted to
+   the FSF which allow interrupt input in emacs. */
+
+/* #define BROKEN_SIGIO */
 
 /* USG systems tend to put everything declared static
    into the initialized data area, which becomes pure after dumping Emacs.
@@ -227,28 +240,22 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Some additional system facilities exist.  */
 
-#define HAVE_DUP2
-#define HAVE_GETTIMEOFDAY
-
-/* Implementation of uname is broken on hpux.  Use gethostname.  */
-#define HAVE_GETHOSTNAME
-
-#define HAVE_SETSID
 #define HAVE_VFORK
-#define HAVE_PERROR  /* Delete this line for version 6.  */
-#define HAVE_RENAME
-#define HAVE_RANDOM
+/* lemacs change */
+/* #define HAVE_PERROR  /* Delete this line for version 6.  */
+ 
+/* The following maps shared exec file to demand loaded exec.
+   Don't do this as demand loaded exec is broken in hpux.  */
 
-#define HAVE_UNISTD_H
+#if 0
 
-#define NEED_REALPATH
+/* Adjust a header field for the executable file about to be dumped.  */
 
-#ifdef __GNUC__
-# ifdef __HPUX_ASM__
-#  define C_DEBUG_SWITCH
-# endif /* HPUX asm */
-# define LIBS_DEBUG
-#endif /* GNUC */
+#define ADJUST_EXEC_HEADER   \
+  hdr.a_magic = ((ohdr.a_magic.file_type == OLDMAGIC.file_type) ?  \
+		 NEWMAGIC : ohdr.a_magic);
+
+#endif
 
 /* Baud-rate values in tty status have nonstandard meanings.  */
 
@@ -267,11 +274,5 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define PTY_NAME_SPRINTF \
 	sprintf (pty_name, "/dev/ptym/pty%c%x", c, i);
 
-/* HP unbundled compiler bugs prevent this from working unless you have
-   version A.09.28 or better.
-*/
-#ifndef USE_GCC
-# define SYSTEM_MALLOC
-#endif
-
-#define I18N2
+/* This triggers a conditional in xfaces.c.  */
+#define XOS_NEEDS_TIME_H

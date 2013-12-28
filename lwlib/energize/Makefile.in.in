@@ -1,0 +1,116 @@
+/* Makefile for Energize dialog boxes
+   Copyright (C) 1994 Lucid, Inc.
+
+This file is part of the Lucid Widget Library.
+
+The Lucid Widget Library is free software; you can redistribute it and/or 
+modify it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+The Lucid Widget Library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of 
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GNU Emacs; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+srcdir=@srcdir@
+VPATH=@srcdir@
+C_SWITCH_X_SITE=@C_SWITCH_X_SITE@
+C_SWITCH_SITE=@C_SWITCH_SITE@
+
+SHELL=/bin/sh
+
+CC=@CC@
+CFLAGS=@CFLAGS@
+CPP=@CPP@
+RANLIB=@RANLIB@
+@SET_MAKE@
+
+RM = rm -f
+AR = ar cq
+
+#define THIS_IS_YMAKEFILE
+#define NOT_C_CODE
+#include "../../src/config.h"
+
+#ifndef C_SWITCH_MACHINE
+#define C_SWITCH_MACHINE
+#endif
+
+#ifndef C_SWITCH_SYSTEM
+#define C_SWITCH_SYSTEM
+#endif
+
+#ifndef C_SWITCH_X_SYSTEM
+#define C_SWITCH_X_SYSTEM
+#endif
+
+#ifndef C_SWITCH_X_MACHINE
+#define C_SWITCH_X_MACHINE
+#endif
+
+#if defined (CONST_IS_LOSING)
+# define CONST_FLAG -DCONST_IS_LOSING
+#else
+# define CONST_FLAG
+#endif
+
+GENERATED_SRC = blpsheet.c build.c classbr_ps.c ctreebr_ps.c debuggerps.c \
+                editmode.c leb_psheet.c projectdisp.c projectps.c search.c \
+                target.c
+SRCS = $(GENERATED_SRC)
+OBJS = blpsheet.o build.o classbr_ps.o ctreebr_ps.o debuggerps.o \
+       editmode.o leb_psheet.o projectdisp.o projectps.o search.o \
+       target.o
+
+#ifdef ENERGIZE
+all:: $(OBJS)
+#else
+all::
+#endif
+
+ALL_CFLAGS = -I. C_SWITCH_MACHINE C_SWITCH_SITE C_SWITCH_X_SITE \
+	     C_SWITCH_X_MACHINE C_SWITCH_X_SYSTEM \
+	     C_SWITCH_SYSTEM ${CFLAGS} CONST_FLAG
+
+.SUFFIXES: .xd .xdc
+
+.c.o:
+	$(CC) -c $(CPPFLAGS) $(ALL_CFLAGS) $<
+
+blpsheet.c: blpsheet.xdc
+	${srcdir}/fidget-widget ${srcdir}/$(@:.c=.xdc) create_breaklist_p_sheet > $@
+build.c:
+	${srcdir}/fidget-widget ${srcdir}/$(@:.c=.xdc) create_build_dialog > $@
+classbr_ps.c: classbr_ps.xdc
+	${srcdir}/fidget-widget ${srcdir}/$(@:.c=.xdc) create_class_browser_p_sheet > $@
+ctreebr_ps.c: ctreebr_ps.xdc
+	${srcdir}/fidget-widget ${srcdir}/$(@:.c=.xdc) create_call_browser_p_sheet > $@
+debuggerps.c: debuggerps.xdc
+	${srcdir}/fidget-widget ${srcdir}/$(@:.c=.xdc) create_debugger_p_sheet > $@
+editmode.c: editmode.xdc
+	${srcdir}/fidget-widget ${srcdir}/$(@:.c=.xdc) create_editmode_dialog > $@
+leb_psheet.c: leb_psheet.xdc
+	${srcdir}/fidget-widget ${srcdir}/$(@:.c=.xdc) create_le_browser_p_sheet > $@
+projectdisp.c:
+	${srcdir}/fidget-widget ${srcdir}/$(@:.c=.xdc) create_project_display_dialog > $@
+projectps.c: projectps.xdc
+	${srcdir}/fidget-widget ${srcdir}/$(@:.c=.xdc) create_project_p_sheet > $@
+search.c: search.xdc
+	${srcdir}/fidget-widget ${srcdir}/$(@:.c=.xdc) create_search_dialog > $@
+target.c: target.xdc
+	${srcdir}/fidget-widget ${srcdir}/$(@:.c=.xdc) create_target_dialog > $@
+
+FRC.mostlyclean:
+mostlyclean: FRC.mostlyclean
+	rm -f $(GENERATED_SRC) *.o
+clean: mostlyclean
+distclean: clean
+	rm -f Makefile Makefile.in
+realclean: distclean
+extraclean: distclean
+	-rm -f *~ \#* m/?*~ s/?*~

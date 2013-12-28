@@ -517,24 +517,34 @@ value of texinfo-mode-hook."
 
 ;;; Insert string commands
 
+;; The following string matches either @end or any @ command that starts an
+;; environment (i.e. requires a corresponding @end).
+
 (defconst texinfo-environment-regexp
-  "^@\\(f?table\\|enumerate\\|itemize\\|ifinfo\\|iftex\\|example\\|quotation\\|lisp\\|smallexample\\|smalllisp\\|display\\|format\\|flushleft\\|flushright\\|ignore\\|group\\|tex\\)"
+  "^@\\(end\\|[fv]?table\\|enumerate\\|itemize\\|ifinfo\\|iftex\\|example\\|quotation\\|lisp\\|smallexample\\|smalllisp\\|display\\|format\\|flushleft\\|flushright\\|ignore\\|group\\|tex\\|deffn\\|defun\\|defmac\\|defspec\\|defvr\\|defvar\\|defopt\\|deftypefn\\|deftypefun\\|deftypevr\\|deftypevar\\|defcv\\|defivar\\|defop\\|defmethod\\|deftypemethod\\|deftp\\|menu\\|cartouche\\|ifset\\|ifclear\\)"
   "Regexp for environment-like TexInfo list commands.
 Subexpression 1 is what goes into the corresponding `@end' statement.")
 
 ;; The following texinfo-insert-@end command not only inserts a SPC
-;; after the @end, but tries to find out what belongs there.  It is
-;; not very smart: it does not understand nested lists.
+;; after the @end, but tries to find out what belongs there.
 
 (defun texinfo-insert-@end ()
-  "Insert the matching `@end' for a @table etc. in a texinfo buffer.
-BUG: Does not understand nested lists."
+  "Insert the matching `@end' for a @table etc. in a texinfo buffer."
   (interactive)
-  (let ((string (save-excursion
-                (if (re-search-backward
-                     texinfo-environment-regexp nil t) 
-                    (buffer-substring (match-beginning 1)
-                                      (match-end 1))))))
+  (let ((count 1)
+	(string))
+    (save-excursion
+      (while
+	  (and (> count 0)
+	       (or (re-search-backward
+		    texinfo-environment-regexp nil t)
+		   (setq string nil)))
+	(setq string
+	      (buffer-substring (match-beginning 1)
+				(match-end 1)))
+	(if (equal string "end")
+	    (setq count (1+ count))
+	  (setq count (1- count)))))
     (insert "@end ")
     (if string (insert string))))
 

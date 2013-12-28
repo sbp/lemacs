@@ -1,4 +1,4 @@
-# @(#)Makefile 1.3 92/12/16
+# @(#)Makefile 1.4 94/04/19
 
 EMACS=../../src/xemacs
 
@@ -7,7 +7,7 @@ TOOLTALK.elc = $(TOOLTALK.el:.el=.elc)
 
 all: $(TOOLTALK.elc)
 
-.INIT: load-tooltalk.el $(TOOLTALK.el) 
+.INIT: tooltalk-load.el $(TOOLTALK.el) 
 
 .SUFFIXES: .elc .el
 

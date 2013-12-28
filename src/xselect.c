@@ -1,5 +1,5 @@
 /* X Selection processing for emacs
-   Copyright (C) 1990-1993 Free Software Foundation.
+   Copyright (C) 1990, 1991, 1992, 1993, 1994 Free Software Foundation.
 
 This file is part of GNU Emacs.
 
@@ -24,6 +24,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "xterm.h"	/* for all of the X includes */
 #include "dispextern.h"	/* screen.h seems to want this */
 #include "screen.h"	/* Need this to get the X window of selected_screen */
+#include "xobjs.h"
 
 #ifdef LWLIB_USES_MOTIF
 # define MOTIF_CLIPBOARDS
@@ -43,6 +44,11 @@ static Atom Xatom_CLIPBOARD, Xatom_TIMESTAMP, Xatom_TEXT, Xatom_DELETE,
 Lisp_Object QPRIMARY, QSECONDARY, QSTRING, QINTEGER, QCLIPBOARD, QTIMESTAMP,
   QTEXT, QDELETE, QMULTIPLE, QINCR, QEMACS_TMP, QTARGETS, QATOM, QNULL,
   QATOM_PAIR;
+
+#ifdef EPOCH
+Lisp_Object QARC, QBITMAP, QCARDINAL, QCURSOR, QDRAWABLE, QFONT, QINTEGER,
+  QPIXMAP, QPOINT, QRECTANGLE, QWINDOW, QWM_HINTS, QWM_SIZE_HINTS;
+#endif /* EPOCH */
 
 #ifdef CUT_BUFFER_SUPPORT
 Lisp_Object QCUT_BUFFER0, QCUT_BUFFER1, QCUT_BUFFER2, QCUT_BUFFER3,
@@ -149,6 +155,22 @@ symbol_to_x_atom (display, sym)
   if (EQ (sym, QEMACS_TMP)) return Xatom_EMACS_TMP;
   if (EQ (sym, QTARGETS))   return Xatom_TARGETS;
   if (EQ (sym, QNULL))	    return Xatom_NULL;
+#ifdef EPOCH
+  if (EQ (sym, QARC))       return XA_ARC;
+  if (EQ (sym, QBITMAP))    return XA_BITMAP;
+  if (EQ (sym, QCARDINAL))  return XA_CARDINAL;
+  if (EQ (sym, QCURSOR))    return XA_CURSOR;
+  if (EQ (sym, QDRAWABLE))  return XA_DRAWABLE;
+  if (EQ (sym, QFONT))      return XA_FONT;
+  if (EQ (sym, QINTEGER))   return XA_INTEGER;
+  if (EQ (sym, QPIXMAP))    return XA_PIXMAP;
+  if (EQ (sym, QPOINT))     return XA_POINT;
+  if (EQ (sym, QRECTANGLE)) return XA_RECTANGLE;
+  if (EQ (sym, QWINDOW))    return XA_WINDOW;
+  if (EQ (sym, QWM_HINTS))  return XA_WM_HINTS;
+  if (EQ (sym, QWM_SIZE_HINTS)) return XA_WM_SIZE_HINTS;
+#endif /* EPOCH */
+
 #ifdef CUT_BUFFER_SUPPORT
   if (EQ (sym, QCUT_BUFFER0)) return XA_CUT_BUFFER0;
   if (EQ (sym, QCUT_BUFFER1)) return XA_CUT_BUFFER1;
@@ -171,7 +193,7 @@ symbol_to_x_atom (display, sym)
 /* This converts a server Atom to a Lisp symbol, avoiding server roundtrips
    and calls to intern whenever possible.
  */
-static Lisp_Object
+Lisp_Object
 x_atom_to_symbol (display, atom)
      Display *display;
      Atom atom;
@@ -193,6 +215,21 @@ x_atom_to_symbol (display, atom)
   if (atom == Xatom_EMACS_TMP) return QEMACS_TMP;
   if (atom == Xatom_TARGETS)   return QTARGETS;
   if (atom == Xatom_NULL)      return QNULL;
+#ifdef EPOCH
+  if (atom == XA_ARC)          return QARC;
+  if (atom == XA_BITMAP)       return QBITMAP;
+  if (atom == XA_CARDINAL)     return QCARDINAL;
+  if (atom == XA_CURSOR)       return QCURSOR;
+  if (atom == XA_DRAWABLE)     return QDRAWABLE;
+  if (atom == XA_FONT)         return QFONT;
+  if (atom == XA_INTEGER)      return QINTEGER;
+  if (atom == XA_PIXMAP)       return QPIXMAP;
+  if (atom == XA_POINT)        return QPOINT;
+  if (atom == XA_RECTANGLE)    return QRECTANGLE;
+  if (atom == XA_WINDOW)       return QWINDOW;
+  if (atom == XA_WM_HINTS)     return QWM_HINTS;
+  if (atom == XA_WM_SIZE_HINTS) return QWM_SIZE_HINTS;
+#endif /* EPOCH */
 #ifdef CUT_BUFFER_SUPPORT
   if (atom == XA_CUT_BUFFER0) return QCUT_BUFFER0;
   if (atom == XA_CUT_BUFFER1) return QCUT_BUFFER1;
@@ -496,6 +533,7 @@ x_decline_selection_request (event)
   BLOCK_INPUT;
   (void) XSendEvent (reply.display, reply.requestor, False, 0L,
 		     (XEvent *) &reply);
+  XFlush (reply.display);
   UNBLOCK_INPUT;
 }
 
@@ -561,6 +599,7 @@ x_reply_selection_request (event, format, data, size, type)
 		       PropModeReplace, data, size);
       /* At this point, the selection was successfully stored; ack it. */
       (void) XSendEvent (display, window, False, 0L, (XEvent *) &reply);
+      XFlush (display);
     }
   else
     {
@@ -581,6 +620,7 @@ x_reply_selection_request (event, format, data, size, type)
       XSelectInput (display, window, PropertyChangeMask);
       /* Tell 'em the INCR data is there... */
       (void) XSendEvent (display, window, False, 0L, (XEvent *) &reply);
+      XFlush (display);
 
       /* First, wait for the requestor to ack by deleting the property.
 	 This can run random lisp code (process handlers) or signal.
@@ -1111,6 +1151,8 @@ x_get_window_property (display, window, property, data_ret, bytes_ret,
   if (*actual_type_ret == None || *actual_format_ret == 0)
     {
       if (delete_p) XDeleteProperty (display, window, property);
+      *data_ret = 0;
+      *bytes_ret = 0;
       return;
     }
 
@@ -1818,11 +1860,9 @@ DEFUN ("x-get-cutbuffer-internal", Fx_get_cutbuffer_internal,
   if (!data) return Qnil;
   
   if (format != 8 || type != XA_STRING)
-    signal_error (Qerror,
-                  list3 (build_string
-			 ("cut buffer doesn't contain 8-bit data"),
-                         x_atom_to_symbol (display, type),
-                         make_number (format)));
+    signal_simple_error_2 ("cut buffer doesn't contain 8-bit data",
+			   x_atom_to_symbol (display, type),
+			   make_number (format));
 
   ret = (bytes ? make_string ((char *) data, bytes) : Qnil);
   xfree (data);
@@ -1902,6 +1942,7 @@ positive means move values forward, negative means backward.")
 
 #endif
 
+
 
 void
 syms_of_xselect ()
@@ -1963,7 +2004,7 @@ it merely informs you that they have happened.");
   Vx_sent_selection_hooks = Qunbound;
 
   DEFVAR_INT ("x-selection-timeout", &x_selection_timeout,
-   "If the selection owner doens't reply in this many seconds, we give up.\n\
+   "If the selection owner doesn't reply in this many seconds, we give up.\n\
 A value of 0 means wait as long as necessary.  This is initialized from the\n\
 \"*selectionTimeout\" resource (which is expressed in milliseconds).");
   x_selection_timeout = 0;
@@ -1989,6 +2030,22 @@ A value of 0 means wait as long as necessary.  This is initialized from the\n\
   defsymbol (&QATOM, "ATOM");
   defsymbol (&QATOM_PAIR, "ATOM_PAIR");
   defsymbol (&QNULL, "NULL");
+
+#ifdef EPOCH
+  defsymbol (&QARC, "ARC");
+  defsymbol (&QBITMAP, "BITMAP");
+  defsymbol (&QCARDINAL, "CARDINAL");
+  defsymbol (&QCURSOR, "CURSOR");
+  defsymbol (&QDRAWABLE, "DRAWABLE");
+  defsymbol (&QFONT, "FONT");
+  defsymbol (&QINTEGER, "INTEGER");
+  defsymbol (&QPIXMAP, "PIXMAP");
+  defsymbol (&QPOINT, "POINT");
+  defsymbol (&QRECTANGLE, "RECTANGLE");
+  defsymbol (&QWINDOW, "WINDOW");
+  defsymbol (&QWM_HINTS, "WM_HINTS");
+  defsymbol (&QWM_SIZE_HINTS, "WM_SIZE_HINTS");
+#endif /* EPOCH */
   
 #ifdef CUT_BUFFER_SUPPORT
   defsymbol (&QCUT_BUFFER0, "CUT_BUFFER0");

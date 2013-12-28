@@ -1886,7 +1886,7 @@ Optional ALIAS-FILE is alternate aliases file to be used by sendmail,
 typically for purposes of moderating a list."
   (interactive "sResend to: ")
   (require 'sendmail)
-  (require 'mailalias)
+  ;;(require 'mailalias)
   (if (not from) (setq from (user-login-name)))
   (let ((tembuf (generate-new-buffer " sendmail temp"))
 	(mail-header-separator "")

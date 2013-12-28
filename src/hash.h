@@ -70,6 +70,10 @@ map_remhash (remhash_predicate predicate, c_hashtable hash, void *arg);
    so it is as big as src. */ 
 extern void copy_hash (c_hashtable dest, c_hashtable src);
 
+/* makes sure that hashtable can hold at least needed_size entries */
+void
+expand_hashtable (c_hashtable hash, unsigned int needed_size);
+
 #ifdef emacs	/* for elhash.c */
 extern unsigned int compute_harray_size (unsigned int);
 #endif

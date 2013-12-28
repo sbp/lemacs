@@ -49,7 +49,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <stdio.h>
 #include <audio/Alib.h>
 #include <audio/CUlib.h>
-#include "autils.h"
 
 /* New Symbols */
 #include "config.h"

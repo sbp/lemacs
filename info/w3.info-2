@@ -1,0 +1,1133 @@
+This is Info file ./w3.info, produced by Makeinfo-1.55 from the input
+file w3.texi.
+
+   This file documents the W3 World Wide Web browser.
+
+   Copyright (C) 1993, 1994 William M. Perry
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+
+File: w3.info,  Node: Personal Annotations,  Prev: Group Annotations,  Up: Annotations
+
+Personal Annotations
+--------------------
+
+   If you do not want to share your musings about a particular document
+with the entire network, you can add a personal annotation that only you
+can see.  Personal annotations are stored in a subdirectory in the users
+account on the local disk, with a log file that contains information
+about what URLs have been annotated and which files contain the
+annotations.
+
+   W3 will look in the directory specified by
+`w3-personal-annotation-directory' (defaults to
+`~/.mosaic-personal-annotations').  Any personal annotations for a
+document will be automatically appended when it is retrieved.
+
+   To add a new personal annotation, type `M-x
+w3-add-personal-annotation'.  This will put you in a new buffer, in
+HTML-mode.  If you are not familiar with HTML-mode, hit C-h m for
+instructions, and see the file html-mode.el that came with W3.  At the
+top of this buffer is an HTML tag </PRE>.  If you don't want to use any
+HTML commands, you can delete this and just type in your message and it
+should be formatted just as you type it.  If you leave this in, you can
+use any HTML formatting command (italics, headings, bold, etc) except
+adding a title.  When you are finished editing your annotation, hit C-c
+C-c.  It will then prompt you for a title for your annotation,
+defaulting to Annotation by <user information> on <date>.
+
+   To delete a personal annotation, you must be reading it.  Once
+reading the annotation, type `M-x w3-delete-personal-annotation'.  It
+will delete the file containing the annotation, and any references to
+it in your log file.
+
+   I do not currently support editing personal annotations.
+
+
+File: w3.info,  Node: Controlling Formatting,  Next: General Formatting,  Prev: Top,  Up: Top
+
+Controlling Formatting
+**********************
+
+   How W3 formats a document is very customizable.  How a document is
+displayed depends on several things - whether the user is on a terminal
+capable of graphics, and a few variables.
+
+   The following sections describe in more detail how to change the
+formatting of a document.
+
+* Menu:
+
+* General Formatting::                 Changing general things about a
+                                       document.
+* Character based terminals::          Changing how a document is
+                                       displayed on a non-graphics
+                                       terminal (vt100, etc) or if
+                                       `w3-delimit-emphasis' is `t'.
+* Smart terminals::                    Getting highlighting of links, etc
+                                       on not-quite-so-dumb terminals (vt100s
+                                       and comparable machines)
+* Graphics workstations::              Changing how a document is
+                                       displayed on a graphics terminal
+                                       (Xwindows, Windows, NeXTstep,
+                                       OS/2, etc)
+
+
+File: w3.info,  Node: General Formatting,  Next: Character based terminals,  Prev: Controlling Formatting,  Up: Controlling Formatting
+
+General formatting conventions
+==============================
+
+                          -------------------
+
+                        Setting the fill column
+
+                          -------------------
+
+   Each time a document is parsed, the `fill-column' is recalculated
+using `window-width' and `w3-right-border'.  `w3-right-border' is an
+integer specifying how much room at the right edge of the screen to
+leave blank.  The `fill-column' is set to `(- (window-width)
+`w3-right-border')'.
+
+                          -------------------
+
+                     Formatting of hypertext links
+
+                          -------------------
+
+   If the variable `w3-delimit-links' is non-`nil' (the default for
+text-terminals), then hypertext links will be surrounded by text
+specified by the user.  The variables `w3-link-start-delimiter' and
+`w3-link-end-delimiter' control what text is at the start and end of a
+hypertext link.  These variables are cons-pairs of two strings.
+
+   If a link has never been visited before (it is not in the global
+history), then the `car' of these variables will be inserted at the
+start and end of the link.  If the link has been visited before, then
+the `cdr' will be inserted.  So, links will look like:
+
+     [[This is a hypertext link]] that has never been visited.
+     {{This one, however}} has been seen before at some point in time.
+
+   All reserved characters should be replaced with their HTML[+] entity
+definitions.
+
+                          -------------------
+
+                          Formatting of lists
+
+                          -------------------
+
+   There are several different ways to control the formatting of lists.
+The most obvious is how deeply they are indented relative to the rest of
+the paragraphs in the document.  To control this, you should set the
+variables `tab-stop-list' and `tab-width'.  A tab every eight spaces is
+considered normal, but I prefer to have a tab every four spaces.  So
+`tab-stop-list' would be `'(4 8 12 16 20 24 28 32 36 ...)', and
+`tab-width' would be `4'.  I use `setq-default' in my .emacs for these,
+but you can also use them from `w3-mode-hooks'.  Something like:
+     (add-hook 'w3-file-prepare-hooks
+               (function
+                 (lambda ()
+                   (setq tab-stop-width (list 4 8 16 20 24 28 32 36 40 44)
+                         tab-width 4))))
+   Another thing that is easy to change about lists is the bullet
+character put at the front of each list item.  This is controlled by
+the variable `w3-list-chars-assoc', which is an assoc list.  This is a
+list of lists, each sublist describing what to put at the start of each
+particular list type.  The `car' of this list should be the type of
+list, in all caps (ie: `UL').  The rest of the list should consist of
+strings to insert at certain levels of lists.  The `n'th element of
+this list will be used when the list is nested `n + 1' levels.  If the
+list is not long enough to define a string for a certain nesting level,
+then it defaults to either a '*' or a '.'.
+
+                          -------------------
+
+                   Formatting of directory listings
+
+                          -------------------
+
+   When W3 encounters a link to a directory (whether by local file
+access or via ftp), it can either create an HTML document on the fly,
+or use `dired-mode' to peruse the listing.  The variable
+`w3-directory-format' controls this behavior.
+
+   If the value is `'hypertext', use `directory-files' to list them out
+and transform them into a hypertext document, then pass it through the
+parser like any other document.
+
+   If the value is `'dired', just pass the directory off to dired using
+find-file.  Using this option loses all the hypertext abilities of W3,
+and you will be unable to load documents in the directory directly into
+W3 by clicking with the mouse, etc.
+
+                          -------------------
+
+                   Formatting of gopher directories
+
+                          -------------------
+
+   There are two different ways of viewing gopher links.  You can use
+the built-in support that converts gopher directories into HTML, or you
+can use the `gopher.el' package by Scott Snyder
+<snyder@fnald0.fnal.gov>.  The variable that controls this is
+`w3-use-hypertext-gopher'.  If set to `nil', then `gopher.el' is used.
+Any other value causes W3 to use its internal gopher support.  If you
+use `gopher.el', you lose all the hypertext capabilities of W3.  All
+the functionality of `gopher.el' is now available in the hypertext
+version, and the hypertext version supports Gopher+ and ASK blocks.
+
+   The main way to control the display of gopher directories is by the
+variable `w3-gopher-labels'.  This variable controls the text that is
+inserted at the front of each item.  This is an assoc list of gopher
+types (as one character strings), and a string to insert just after the
+list item.  All the normal gopher types are defined.  Entries should be
+similar to: `("0" . "(TXT)")'.  I have tried to keep all the tags to
+three characters plus two parentheses.
+
+                          -------------------
+
+                      Creating a horizontal rule
+
+                          -------------------
+
+   Horizontal rules (<HR> tags in HTML[+]) are used to separate chunks
+of a document, and is meant to be rendered as a solid line across the
+page.  Some terminals display characters differently, so the variable
+`w3-horizontal-rule-char' controls which character is used to draw a
+horizontal bar.  This variable must be the ASCII value of the character,
+not a string.  The variable is passed through make-string whenever a
+horizontal rule of a certain width is necessary.
+
+
+File: w3.info,  Node: Character based terminals,  Next: Smart terminals,  Prev: General Formatting,  Up: Controlling Formatting
+
+On character based terminals
+============================
+
+   On character based terminals, there is no easy way to show that a
+certain range of text is in bold or italics.  If the variable
+`w3-delimit-emphasis' is non-`nil', then W3 can insert characters
+before and after character formatting commands in HTML documents.  The
+defaul value of `w3-delimit-emphasis' is automatically set based on the
+type of window system and version of Emacs being used.
+
+   Two variables control what text is inserted around different markup
+tags.  `w3-header-chars-assoc' controls what characters are inserted
+around header items, and `w3-style-chars-assoc' controls what
+characters are inserted around most other markup (italics, addresses,
+etc).
+
+   `w3-header-chars-assoc' is an assoc list of header tags and a list
+of formatting instructions.  The `car' of the list is the level of the
+header (1 - 6).  The rest of the list should contain three items.  The
+first item is text to insert before the header.  The second item is
+text to insert after the header.  Both should have reserved characters
+converted to their HTML[+] entity definitions.  The third item is a
+function to call on the area the header is in.  This function is called
+with arguments specifying the start and ending character positions of
+the header.  The starting point will always be first.  To convert a
+region to upper case, please use `w3-upcase-region' instead of
+`upcase-region', so that URLs within the region will not be corrupted.
+
+   `w3-style-chars-assoc' is an assoc list of style tags and a list of
+strings.  The `car' of the list is the type of style tag it specifies
+(DFN, B, I, etc).  The rest of the list should contain two items.  The
+`car' is text to insert before the stylized text.  The `cdr' is text to
+insert after the stylized text.  Both should have reserved characters
+converted to their HTML[+] entity definitions.
+
+
+File: w3.info,  Node: Smart terminals,  Next: Graphics workstations,  Prev: Character based terminals,  Up: Controlling Formatting
+
+   If you are using Emacs 19.2x on a VT100 compatible terminal, you
+will be able to show links, headers, and various other types of
+emphasis in bold or underlined text.
+
+   To do this, you should set the variable `w3-emacs19-hack-faces-p' to
+non-`nil' in your `~/.emacs' file.  You should also make sure that the
+environment variable `TERM' is set to the correct terminal type that
+you are using.
+
+   If there is a function called `w3-emacs19-hack-TERMINAL', then this
+will be used to setup the special characters that turn on bold and
+underlined text.  If this function does not exist, you can write one
+from scratch, using your terminals entry in the `/etc/termcap' file.
+
+   Each function should use the `standard-display-table' to replace ^A,
+^B, ^C, and ^D with escape sequences that turn on highlighting.  When
+reading your `/etc/termcap' file, be on the lookout for these codes:
+
+`us'
+     Code to turn on underlining
+
+`ue'
+     Code to turn off underlining
+
+`mb'
+     Code to turn on boldface type
+
+`se'
+     Code to turn off all attributes
+
+   Here is an example for creating the VT100 control sequences:
+
+     (defun w3-emacs19-hack-vt100 ()
+       "Hack 'faces' for ttys (vt100)"
+       (or standard-display-table
+           (setq standard-display-table (make-vector 261 nil)))
+       (aset standard-display-table 1 (vector (create-glyph "\e[4m")))
+       (aset standard-display-table 2 (vector (create-glyph "\e[m")))
+       (aset standard-display-table 3 (vector (create-glyph "\e[5m")))
+       (aset standard-display-table 4 (vector (create-glyph "\e[m")))
+       )
+
+   To turn off the highlighting features, set the variable
+`w3-emacs19-hack-faces-p' to `nil' and execute the function
+`w3-emacs19-unhack-faces'
+
+   NOTE: This highlighting is not perfect and could cause some odd
+display glitches, especially when emacs does a smart redisplay and
+doesn't redraw the whole screen.  `C-l' will usually fix this.
+
+
+File: w3.info,  Node: Graphics workstations,  Prev: Smart terminals,  Up: Controlling Formatting
+
+With graphics workstations
+==========================
+
+   When you are running in a graphic environemnt (Xwindows or NeXTstep
+for example), the fonts and colors used by W3 to display text can be
+controlled by setting a few resources.  To specify these resources:
+   * Xwindows: Place them into your `~/.Xresources' file or the
+     `/usr/lib/X11/app-defaults/Emacs' file.
+
+   * NeXTstep: If you are using the NeXTstep port of Emacs 19, you
+     should use the `dwrite' command to install these resources.  The
+     command should look something like: (`dwrite Emacs
+     <Style>.Attribute<item> value', where style and attribute are one
+     of the choices below.
+
+   * OS/2 or Windows: If you are using the Lucid Emacs or FSF Emacs
+     that has been ported to the Presentation Manager or Windows 3.x,
+     it will tell you where to store a file that Emacs will look at for
+     Xresources.  The resources for each version of Emacs are the same.
+For each style of text that W3 uses, you can specify any of the
+following resources by replacing <style> with the actual style name.
+   * Emacs*<Style>.AttributeFont: Font name
+
+   * Emacs*<Style>.AttributeForeground: Foreground color
+
+   * Emacs*<Style>.AttributeBackground: Background color
+
+   * Emacs*<Style>.AttributeUnderline: Underline text?
+
+   W3 uses these style names:
+`w3-address-style'
+     For anything in <ADDRESS> tags.
+
+`w3-bold-style'
+     For anything in bold, strong, or a definition
+
+`w3-default-style'
+     For normal text
+
+`w3-header-style'
+     For any headers
+
+`w3-italic-style'
+     For italic text, emphasized, or addresses
+
+`w3-node-style'
+     For links to other documents
+
+`w3-strikethru-style'
+     For items that should be shown as struck-out.
+
+`w3-subscript-style'
+     For subscripted items
+
+`w3-superscript-style'
+     For superscripted items
+
+`w3-tt-style'
+     For fixed width fonts, code segments, samples, or variables
+
+`w3-underline-style'
+     For underlining, and citations
+
+`w3-visited-node-style'
+     For displaying hypertext links that have been viewed before
+
+   To determine what styles are displayed in what face, W3 uses an assoc
+list called `w3-style-assoc'.  It is of the form `(TAGNAME .
+FACENAME)', where tagname is the HTML[+] tag that surrounds the text
+(without the <, >, or /), and FACENAME is either a symbol representing a
+face (in Emacs 19 and Lucid Emacs) or a symbol representing a variable
+that holds the face information (Epoch 4.x).
+
+
+File: w3.info,  Node: HTTP/1.0 Support,  Next: Redirection,  Prev: Top,  Up: Top
+
+HTTP/1.0 Support
+****************
+
+   The new revision of the HTTP specification adds much more
+functionality to the server side of a transaction.  Access
+authorization (via username and password combinations) has been added,
+and several types of redirection can occur.  All of this negotiation
+and redirection should take place before the user ever sees the first
+requested page - this will avoid the overhead of parsing any error
+messages or old documents the server may have returned with the
+redirection or authorization message.  The new protocol is also MIME
+(Multimedia Internet Mail Extensions, see RFC 1341) compliant.
+
+* Menu:
+
+* Redirection::
+* Authentication::                      Accessing restricted servers and
+                                        documents
+* Payment::                             How to pay for services over the
+                                        World Wide Web
+* MIME Support::                        How W3 uses MIME types, and how to
+                                        modify its behavior.
+
+
+File: w3.info,  Node: Redirection,  Next: Authentication,  Prev: HTTP/1.0 Support,  Up: HTTP/1.0 Support
+
+Redirection
+===========
+
+   One of the most useful aspects of HTTP/1.0 is the ability to
+transparently move files between different servers (perhaps even
+different protocols).  Most of the WWW browsers support redirection in
+some form or another.  The Emacs browser supports all three types of
+redirection in the HTTP/1.0 specification (error codes 301, 302, and
+303).
+
+   Whenever a redirection response is detected, the URL specified by the
+Location: header is retrieved.  All relative references are resolved
+before requesting the new URL.
+
+   Eventually, an HTML editor that is tightly integrated with the
+browser is planned, and it will be able to edit documents to change
+their links if a permanent relocation is seen.
+
+
+File: w3.info,  Node: Authentication,  Next: Payment,  Prev: Redirection,  Up: HTTP/1.0 Support
+
+Authentication
+==============
+
+   Lots of information will be useful to a group of people within an
+organization, or a group working on a project, but it is not always wise
+to distribute this information to the world at large.
+
+   The HTTP/1.0 protocol adds the capability to have authentication
+based on usernames and passwords.  If the improper username/password
+pair is sent to the server, an error code of 401, Unauthorized will be
+returned by the server.
+
+   The browser has a very extensible interface to its authentication
+handling.  When a 401 error code is received, the Auth-type header is
+checked - this header field should be a space-separated list of
+suitable authorization schemes for the requested URL.  The value of this
+header is read into a lisp symbol by way of Emacs' read-string function.
+This lisp symbol will be similar to `w3-authtype-auth', where authtype
+is replaced by the correct authorization type.  The authorization types
+defined in the latest HTTP/1.0 specification include user, basic,
+public key, and kerberos (versions 4 and 5).  If a function of this
+name is currently defined, then the function is called via `funcall'
+with several parameters:
+  1. The URL being authenticated.
+
+  2. whether to prompt for a username/password if no cached data is
+     found.
+
+  3. whether to overwrite an old username/password if the information is
+     found in the cache.
+        This interface was chosen for its flexibility and
+extensibility.  The main routine that does the MIME parsing and the
+buil,ding of the Authorization header does not need to know how to
+handle each type of authentication, and the addition of a new method
+for authentication is simply a matter of defining one function that
+conforms to a simple interface.
+
+   The only authorization supported by the browser at this time is
+'basic.' This is simply a string that looks like `user:password' that
+has been encoded using Base64 encoding as defined in RFC 1421.  It is
+given as an example of how to write an authorization module.  All of the
+functions for storing, retrieving, and over-writing the cached
+authorization information should all be handled by one function
+(although it would be perfectly acceptable to have a stub function that
+passed off to three larger functions based on its parameters).  The most
+efficient way to store the cached information is by an assoc-list of
+assoc-lists.  The top level assoc list is keyed on the name of the
+server.  The secondary assoc-list is keyed on the full path of the file
+that is protected.  Thus, a sample authorization cache would look like
+this:
+
+     ((``info.cern.ch''    . ((``/foo''        . ``d21wZXJyeTp0ZXN0aW5n'')
+                              (``/bar''        . ``amtvbnJhdGg6ZGlzbWVtYmVy'')
+                              (``/foo/x.html'' . ``dmlvbGV0dDpvcGVuZ2w='')))
+      (``cs.indiana.edu''  . ((``/elisp/w3/''  . ``dGxvb3M6Y29ucXVlcg=='')
+                              (``/''           . ``bXZhbmhleW46a2lsbGh1bGljaw=='')))
+     )
+
+   The structure consists of two assoc-lists for the sake of speed.  The
+list of cached information could conceivably hold several thousand links
+(if the user does not exit Emacs for long periods of time.)  If the list
+were keyed on a full URL, the assoc function would have to search
+through every link before failing to find a new URL.  With the current
+scheme, assoc only has to search though a few items (maximum is the
+number of HTTP servers, which will always be much, much smaller than the
+number of distinct URLs.)  Even with a 3:1 ratio of URLs to each server,
+this will be a big win.
+
+
+File: w3.info,  Node: Payment,  Next: MIME Support,  Prev: Authentication,  Up: HTTP/1.0 Support
+
+Payment
+=======
+
+   The Chargeto: header will be used to pay for services offered over
+the World Wide Web.  Such things as electronic magazines and commercial
+databases will all need a way to restrict access to only authorized
+subscribers.  The format of the header has yet to be specified, but the
+interface and storage techniques will be similar to the Authorization
+section.
+
+
+File: w3.info,  Node: MIME Support,  Next: Adding MIME types based on file extensions,  Prev: Payment,  Up: HTTP/1.0 Support
+
+MIME Support
+============
+
+   MIME is an emerging standard for multimedia mail.  It offers a very
+flexible typing mechanism.  The type of a file/message is specified in
+two parts, separated by a '/'.  The first part is a general category of
+data (text, application, image, etc).  The second part is the specific
+type of data (postscript, gif, jpeg, etc).  So `text/html' specifies an
+HTML document, whereas `image/x-xwindowdump' specifies an image of an
+Xwindow taken with the xwd program.
+
+   This typing allows much more flexibility in naming files.  HTTP/1.0
+servers can now send back content-type headers in response to a request,
+and not have the client second-guess it based on file extensions.  Now
+you can name HTML files `something.gif' if you really felt like it (not
+a great idea, but doable).
+
+* Menu:
+
+* Adding MIME types based on file extensions::  How to map file
+                                                extensions onto MIME
+                                                types (ie: `.gif ->
+                                                image/gif)'.
+* Mapping gopher types to MIME types::          Going from gopher typing
+                                                to MIME types.
+* Specifying Viewers::  How to specify external and internal viewers
+                        for files that W3 cannot handle natively.
+* Mailcap File::        How to set up and use a Mailcap file.  Standard
+                        way to specify MIME viewers - compatible with
+                        Mosaic and most MIME compliant mailers.
+
+
+File: w3.info,  Node: Adding MIME types based on file extensions,  Next: Mapping gopher types to MIME types,  Prev: MIME Support,  Up: MIME Support
+
+Adding MIME types based on file extensions
+------------------------------------------
+
+   For some protocols however, it is still necessary to guess the
+content of a file based on the file extension.  This type of guess-work
+should only be needed when accessing files via FTP, local file access,
+or old HTTP/0.9 servers.
+
+   Instead of specifying how to view things twice, once based on
+content-type and once based on the file extension, it is easier to map
+file extensions to MIME content-types.  The variable that controls this
+is `w3-mime-extensions'.
+
+   This variable is an assoc list of file extensions and the
+corresponding MIME content-type.  A sample entry looks like: `(".movie"
+. "video/x-sgi-movie")' This makes all files that end in `.movie'
+(`foo.movie' and `bar.movie') be interpreted as SGI animation files.
+If a content-type is defined for the document, then this is
+over-ridden.  Regular expressions can NOT be used.
+
+   Both Mosaic and the NCSA HTTP daemon rely on a separate file for
+mapping file extensions to MIME types.  Instead of having the users of
+W3 duplicate this in lisp, this file can be parsed using the
+`w3-parse-mime-types' function.  This function is called each time w3
+is loaded, and tries to parse the file `~/.mime-types' if it exists.
+This format of this file is as follows.
+
+   Each line contains information for one http type.  These types
+resemble MIME types.  If you plan to add new ones, you should use
+subtypes beginning with x-, such as application/x-myprogram.  Lines
+beginning with # are comment lines, and suitably ignored.  Each line
+consists of:
+
+   type/subtype ext1 ext2 ...  extN
+
+   type/subtype is the MIME-like type of the document. ext* is any
+number of space-separated filename extensions which correspond to the
+MIME type.
+
+
+File: w3.info,  Node: Mapping gopher types to MIME types,  Next: Specifying Viewers,  Prev: Adding MIME types based on file extensions,  Up: MIME Support
+
+Mapping gopher types to MIME types
+----------------------------------
+
+   Need to fill this in :: WORK ::
+
+
+File: w3.info,  Node: Specifying Viewers,  Next: Mailcap File,  Prev: Mapping gopher types to MIME types,  Up: MIME Support
+
+Specifying Viewers
+------------------
+
+   Not all files look as they should when parsed as an HTML document
+(whitespace is stripped, paragraphs are reformatted, and lots of little
+changes that make the document look unrecognizable).  Files may be
+passed to external programs or Emacs lisp functions to be viewed.
+
+   Not all files can be viewed accurately from within an Emacs session
+(GIF files for example, or audio files).  For this reason, the user can
+specify file "viewers" based on MIME content-types.  The variable
+`w3-mime-viewers' is an assoc-list contains MIME content-types and a
+lisp object specifying how to view a document.
+
+   If the lisp object is a string (ie: `"xv -perfect %s"'), it
+specifies an external program that should be used to view the document.
+This is passed through the `format' function.  The first %s will be
+replaced with the temporary file name the retrieved document is saved
+in, and then that resulting string is used as a command in a subprocess
+via `start-process'.
+
+   If the lisp object is a lisp symbol (ie: `tar-mode'), it species a
+lisp function to call after visiting the buffer.  This is appropriate
+for using major modes to view documents.  The function is called with no
+arguments.
+
+   If the lisp object is a list (ie: `(message "wow")'), it specifies
+something to be passed through `eval'.
+
+
+File: w3.info,  Node: Mailcap File,  Prev: Specifying Viewers,  Up: MIME Support
+
+Mailcap File
+============
+
+   Both Mosaic and the NCSA HTTP daemon rely on a separate file for
+mapping file extensions to MIME types.  Instead of having the users of
+W3 duplicate this in lisp, this file can be parsed using the
+`w3-parse-mime-types' function.  This function is called each time w3
+is loaded, and tries to parse the file `~/.mime-types' if it exists.
+This format of this file is specified in RFC 1343, but a brief synopsis
+follows (this is taken verbatim from sections of RFC 1343).
+
+   Each mailcap file consists of a set of entries that describe the
+proper handling of one media type at the local site.  For example, one
+line might tell how to display a message in Group III fax format.  A
+mailcap file consists of a sequence of such individual entries,
+separated by newlines (according to the operating system's newline
+conventions). Blank lines and lines that start with the "#" character
+(ASCII 35) are considered comments, and are ignored.  Long entries may
+be continued on multiple lines if each non-terminal line ends with a
+backslash character ('\', ASCII 92), in which case the multiple lines
+are to be treated as a single mailcap entry.  Note that for such
+"continued" lines, the backslash must be the last character on the line
+to be continued.
+
+   Each mailcap entry consists of a number of fields, separated by
+semi-colons.  The first two fields are required, and must occur in the
+specified order.  The remaining fields are optional, and may appear in
+any order.
+
+   The first field is the content-type, which indicates the type of data
+this mailcap entry describes how to handle.  It is to be matched against
+the type/subtype specification in the "Content-Type" header field of an
+Internet mail message.  If the subtype is specified as "*", it is
+intended to match all subtypes of the named content-type.
+
+   The second field, view-command, is a specification of how the
+message or body part can be viewed at the local site.  Although the
+syntax of this field is fully specified, the semantics of program
+execution are necessarily somewhat operating system dependent.
+
+   The optional fields, which may be given in any order, are as follows:
+   * The "compose" field may be used to specify a program that can be
+     used to compose a new body or body part in the given format.  Its
+     intended use is to support mail composing agents that support the
+     composition of multiple types of mail using external composing
+     agents.  As with the view- command, the semantics of program
+     execution are operating system dependent.  The result of the
+     composing program may be data that is not yet suitable for mail
+     transport - that is, a Content- Transfer-Encoding may need to be
+     applied to the data.
+
+   * The "composetyped" field is similar to the "compose" field, but is
+     to be used when the composing program needs to specify the
+     Content-type header field to be applied to the composed data.  The
+     "compose" field is simpler, and is preferred for use with existing
+     (non-mail-oriented) programs for composing data in a given format.
+     The "composetyped" field is necessary when the Content-type
+     information must include auxilliary parameters, and the
+     composition program must then know enough about mail formats to
+     produce output that includes the mail type information.
+
+   * The "edit" field may be used to specify a program that can be used
+     to edit a body or body part in the given format.  In many cases,
+     it may be identical in content to the "compose" field, and shares
+     the operating-system dependent semantics for program execution.
+
+   * The "print" field may be used to specify a program that can be
+     used to print a message or body part in the given format.  As with
+     the view-command, the semantics of program execution are operating
+     system dependent.
+
+   * The "test" field may be used to test some external condition (e.g.
+     the machine architecture, or the window system in use) to
+     determine whether or not the mailcap line applies.  It specifies a
+     program to be run to test some condition.  The semantics of
+     execution and of the value returned by the test program are
+     operating system dependent.  If the test fails, a subsequent
+     mailcap entry should be sought.  Multiple test fields are not
+     permitted - since a test can call a program, it can already be
+     arbitrarily complex.
+
+   * The "needsterminal" field indicates that the view-command must be
+     run on an interactive terminal.  This is needed to inform
+     window-oriented user agents that an interactive terminal is
+     needed.  (The decision is not left exclusively to the view-command
+     because in some circumstances it may not be possible for such
+     programs to tell whether or not they are on interactive
+     terminals.)  The needsterminal command should be assumed to apply
+     to the compose and edit commands, too, if they exist.  Note that
+     this is NOT a test - it is a requirement for the environment in
+     which the program will be executed, and should typically cause the
+     creation of a terminal window when not executed on either a real
+     terminal or a terminal window.
+
+   * The "copiousoutput" field indicates that the output from the
+     view-command will be an extended stream of output, and is to be
+     interpreted as advice to the UA (User Agent mail- reading program)
+     that the output should be either paged or made scrollable. Note
+     that it is probably a mistake if needsterminal and copiousoutput
+     are both specified.
+
+   * The "description" field simply provides a textual description,
+     optionally quoted, that describes the type of data, to be used
+     optionally by mail readers that wish to describe the data before
+     offering to display it.
+
+   * The "x11-bitmap" field names a file, in X11 bitmap (xbm) format,
+     which points to an appropriate icon to be used to visually denote
+     the presence of this kind of data.
+
+   * Any other fields beginning with "x-" may be included for local or
+     mailer-specific extensions of this format.  Implementations should
+     simply ignore all such unrecognized fields to permit such
+     extensions, some of which might be standardized in a future
+     version of this document.
+
+
+File: w3.info,  Node: Advanced Features,  Next: Searching,  Up: Top
+
+Advanced Features
+*****************
+
+* Menu:
+
+* Searching::		How to search entire sections of the web
+			for what you want, automatically.
+* Interfacing to VM::	How to make VM understand hypertext links
+* Interfacing to RMAIL::How to make RMAIL understand hypertext links
+* Interfacing to GNUS::	How to make GNUS understand hypertext links
+* Using PGP/PEM::	How to use various public-key crypto-systems
+			to ensure the security of your HTTP
+                        transactions.
+* Native WAIS Support:: How to make W3 understand WAIS links without
+                        using a gateway.
+* Rating Links::        How to make W3 put an 'interestingness' value
+                        next to each link.
+* Gopher+ Support::     How W3 makes use of the Gopher+ protocol.
+* Hooks::               Various hooks to use throughout W3
+* Other Variables::     Miscellaneous variables that control the real
+                        guts of W3.
+
+
+File: w3.info,  Node: Searching,  Next: Interfacing to VM,  Prev: Advanced Features,  Up: Advanced Features
+
+Searching
+=========
+
+   In the file `w3-search.el' is a function that some of you may find
+handy.  It is not 100% completed yet, so if you run into any problems
+with it, please try to fix it, not just say its broken.
+
+   The function is `w3-do-search'.  It must be called with at least one
+argument.  All others are optional.  Arguments are TERM, BASE,
+HOPE-LIMIT, and RESTRICTION.  This will recursively descend all the
+child links of the current document for TERM.  TERM may be a string, in
+which case it is treated as a regular expression, and
+`re-search-forward' is used, or a symbol, in which case it is funcalled
+with 1 argument, the current URL being searched.
+
+   BASE is the URL to start searching from.
+
+   HOPS-LIMIT is the maximum number of nodes to descend before the
+search dies out.
+
+   RESTRICTION is a regular expression or function to call with one
+argument, a URL that could be searched.  If RESTRICTION returns
+non-`nil', then the URL is added to the queue, otherwise it is
+discarded.  This is useful for restricting searching to either certain
+types of URLs (only search ftp links), or restricting searching to one
+domain (only search stuff in the indiana.edu domain).
+
+   You may check several variables from the main `w3-do-search' routine
+in any functions passed to it (as RESTRICTION or TERM). QUEUE is the
+queue of links to be searched, HOPS is the current number of hops from
+the root document, RESULTS is an assoc list of (URL . RETVAL), where
+RETVAL is the value returned from previous calls to the TERM function
+(or point if searching for a regular expression).
+
+   The function returns a list of the form: ((URL . RETVAL)...)
+
+   Please note that there is no interactive use for this function yet -
+it was designed for non-interactive, batch-mode processing.  However, if
+anyone wants to write a wrapper function for it, please feel free.
+
+
+File: w3.info,  Node: Interfacing to VM,  Next: Interfacing to RMAIL,  Prev: Searching,  Up: Advanced Features
+
+Interfacing to VM
+=================
+
+   More and more people are including URLs in their signatures, and
+within the body of mail messages.  It can get quite tedious to type
+these into the minibuffer when you wish to follow one.  The following
+functions in your `~/.emacs' or `~/.vm' files should do the trick.  It
+adds two keybindings to the main VM message window.  The middle mouse
+button will now try to follow a hypertext link.  This will first try to
+find any links that were fully-qualified with the HTML <A> and </A> (1)
+tags, otherwise it will check and see if the text around point is a
+naked URL (2).
+
+     (defun w3-maybe-follow-link-mouse (e)
+       "Maybe follow a hypertext link under point.
+     If there is no link under point, this will try using
+     w3-get-url-at-point"
+       (interactive "e")
+       (save-excursion
+         (mouse-set-point e)
+         (w3-maybe-follow-link)))
+     
+     (defun w3-maybe-follow-link ()
+       "Maybe follow a hypertext link under point.
+     If there is no link under point, this will try using
+     w3-get-url-at-point"
+       (interactive)
+       (require 'w3)
+       (if (not w3-setup-done) (w3-do-setup))
+       (let* ((zn  (w3-zone-at (point)))
+              (url1 (and zn (w3-zone-data zn)))
+              (url2 (w3-get-url-at-point)))
+         (cond
+           (url1 (w3-follow-link))
+           ((and url2 (string-match w3-nonrelative-link url2)) (w3-fetch url2))
+           (t (message "w3-maybe-follow-link got confused.")))))
+     
+     (add-hook 'vm-mode-hook
+               (function
+                 (lambda ()
+                   (define-key vm-mode-map [mouse-2] 'w3-maybe-follow-link-mouse)
+                   (define-key vm-mode-map "\r"      'w3-maybe-follow-link))))
+     
+     (add-hook 'vm-select-message-hook
+               (function
+                 (lambda ()
+                   (let ((w3-working-buffer (current-buffer)))
+                     (w3-build-links-list)))))
+
+   ---------- Footnotes ----------
+
+   (1)  Something akin to <a href="http://cs.indiana.edu/">
+
+   (2)  Similar to http://cs.indiana.edu/
+
+
+File: w3.info,  Node: Interfacing to RMAIL,  Next: Interfacing to GNUS,  Prev: Interfacing to VM,  Up: Advanced Features
+
+Interfacing to RMAIL
+====================
+
+   More and more people are including URLs in their signatures, and
+within the body of mail messages.  It can get quite tedious to type
+these into the minibuffer when you wish to follow one.  The following
+functions in your `~/.emacs' files should do the trick.  It adds two
+keybindings to the main RMAIL window.  The middle mouse button will now
+try to follow a hypertext link.  This will first try to find any links
+that were fully-qualified with the HTML <A> and </A> (1) tags,
+otherwise it will check and see if the text around point is a naked URL
+(2).
+
+     (defun w3-maybe-follow-link-mouse (e)
+       "Maybe follow a hypertext link under point.
+     If there is no link under point, this will try using
+     w3-get-url-at-point"
+       (interactive "e")
+       (save-excursion
+         (mouse-set-point e)
+         (w3-maybe-follow-link)))
+     
+     (defun w3-maybe-follow-link ()
+       "Maybe follow a hypertext link under point.
+     If there is no link under point, this will try using
+     w3-get-url-at-point"
+       (interactive)
+       (require 'w3)
+       (if (not w3-setup-done) (w3-do-setup))
+       (let* ((zn  (w3-zone-at (point)))
+              (url1 (and zn (w3-zone-data zn)))
+              (url2 (w3-get-url-at-point)))
+         (cond
+           (url1 (w3-follow-link))
+           ((and url2 (string-match w3-nonrelative-link url2)) (w3-fetch url2))
+           (t (message "w3-maybe-follow-link got confused.")))))
+     
+     
+     (add-hook 'rmail-mode-hook
+     	  (function
+     	   (lambda ()
+     	     (define-key rmail-mode-map [mouse-2] 'w3-maybe-follow-link-mouse)
+     	     (define-key rmail-mode-map "\r"      'w3-maybe-follow-link))))
+     
+     (add-hook 'rmail-show-message-hook
+     	  (function
+     	   (lambda ()
+     	     (let ((w3-working-buffer (current-buffer)))
+     	       (w3-build-links-list)))))
+
+   ---------- Footnotes ----------
+
+   (1)  Something akin to <a href="http://cs.indiana.edu/">
+
+   (2)  Similar to http://cs.indiana.edu/
+
+
+File: w3.info,  Node: Interfacing to GNUS,  Next: Using PGP/PEM,  Prev: Interfacing to RMAIL,  Up: Advanced Features
+
+Interfacing to GNUS
+===================
+
+   More and more people are including URLs in their signatures and
+within the body of usenet posts.  It can get quite tedious to type
+these into the minibuffer when you wish to follow one.  The following
+functions in your `~/.emacs' file should do the trick.  It adds two
+keybindings to the GNUS article buffer.  The middle mouse button will
+now try to follow a hypertext link.  This will first try to find any
+links that were fully-qualified with the HTML <A> and </A> (1) tags,
+otherwise it will check and see if the text around point is a naked URL
+(2).
+
+     (defun w3-maybe-follow-link-mouse (e)
+       "Maybe follow a hypertext link under point.
+     If there is no link under point, this will try using
+     w3-get-url-at-point"
+       (interactive "e")
+       (save-excursion
+         (mouse-set-point e)
+         (w3-maybe-follow-link)))
+     
+     (defun w3-maybe-follow-link ()
+       "Maybe follow a hypertext link under point.
+     If there is no link under point, this will try using
+     w3-get-url-at-point"
+       (interactive)
+       (require 'w3)
+       (if (not w3-setup-done) (w3-do-setup))
+       (let* ((zn  (w3-zone-at (point)))
+              (url1 (and zn (w3-zone-data zn)))
+              (url2 (w3-get-url-at-point)))
+         (cond
+           (url1 (w3-follow-link))
+           ((and url2 (string-match w3-nonrelative-link url2)) (w3-fetch url2))
+           (t (message "w3-maybe-follow-link got confused.")))))
+     
+     (add-hook 'gnus-article-mode-hook
+               (function
+                 (lambda ()
+                   (define-key gnus-article-mode-map [mouse-2]
+                               'w3-maybe-follow-link-mouse)
+                   (define-key gnus-article-mode-map "\r"
+                               'w3-maybe-follow-link))))
+     
+     (add-hook 'gnus-article-prepare-hook
+               (function
+                 (lambda ()
+                   (let ((w3-working-buffer gnus-article-buffer))
+                     (w3-build-links-list)))))
+
+   ---------- Footnotes ----------
+
+   (1)  Something akin to <a href="http://cs.indiana.edu/">
+
+   (2)  Similar to http://cs.indiana.edu/
+
+
+File: w3.info,  Node: Using PGP/PEM,  Next: Native WAIS Support,  Prev: Interfacing to GNUS,  Up: Advanced Features
+
+Using PGP/PEM
+=============
+
+   Most of this section was taken from the documentation written by Rob
+McCool <robm@ncsa.uiuc.edu>.  Gratefully reproduced here with
+permission from him.(1).
+
+   RIPEM is 'Riordan's Internet Privacy Enhanced Mail', and is
+currently on version 1.2b3.  If you are a US citizen, you can ftp it
+from ripem.msu.edu:/pub/crypt/ripem.
+
+   PGP is 'Pretty Good Privacy', and is currently on version 2.3a.  From
+what I understand there is some legal controversy over this right now,
+so I am not sure where/if it is available for anonymous ftp.  Try using
+archie to find it, or check the major archive sites.
+
+   PGP and PEM are programs to allow you and a second party to
+communicate in a way which does not allow third parties to read them,
+and which certify that the person who sent the message is really who
+they claim they are.
+
+   PGP and PEM both use RSA encryption.  The U.S.  government has strict
+export controls over foreign use of this technology, so people outside
+the U.S.  may have a difficult time finding programs which perform the
+encryption.
+
+   You will need a working copy of either Pretty Good Privacy or RIPEM
+to begin with.  You should be familiar with the program and have
+generated your own public/private key pair.  You should be able to use
+the TIS/PEM program with the PEM authorization type.  I haven't tried
+it.  This tutorial is written assuming that you are using RIPEM.
+
+   Currently, the protocol has been implemented with PEM and PGP using
+local key files on the server side, and on the client side with PEM
+using finger to retrieve the server's public key.
+
+   As you can tell, parties who wish to use W3 and httpd with PEM or PGP
+encryption will need to communicate beforehand and find a tamper-proof
+way to exchange their public keys.
+
+   Pioneers get shot full of arrows.  This work is currently in the
+experimental stages and thus may have some problems that I have
+overlooked.  The only known problem that I know about is that the
+messages are currently not timestamped.  This means that a malicious
+user could record your encrypted message with a packet sniffer and
+repeat it back to the server ad nauseum.  Although they would not be
+able to read the reply, if the request was something you were being
+charged for, you may have a large bill to pay by the time they're
+through.
+
+   This protocol is almost word-for-word a copy of Tony Sander's RIPEM
+based scheme, generalized a little.  Below, wherever you see PEM you can
+replace it with PGP and get the same thing.
+
+     *Client:*
+     
+     GET /docs/protected.html HTTP/1.0
+     UserAgent: Emacs-W3/2.1.x
+     
+     *Server:*
+     
+     HTTP/1.0 401 Unauthorized
+     WWW-Authenticate: PEM entity="webmaster@hoohoo.ncsa.uiuc.edu"
+     Server: NCSA/1.1
+     
+     *Client:*
+     
+     GET / HTTP/1.0
+     Authorization: PEM entity="robm@ncsa.uiuc.edu"
+     Content-type: application/x-www-pem-request
+     
+     --- BEGIN PRIVACY-ENHANCED MESSAGE ---
+     this is the real request, encrypted
+     --- END PRIVACY-ENHANCED MESSAGE ---
+     
+     *Server:*
+     
+     HTTP/1.0 200 OK
+     Content-type: application/x-www-pem-reply
+     
+     --- BEGIN PRIVACY-ENHANCED MESSAGE ---
+     this is the real reply, encrypted
+     --- END PRIVACY-ENHANCED MESSAGE ---
+     That's it.
+
+   Emacs-w3 uses the excellent mailcrypt package written by Jin S Choi
+<jsc@mit.edu>.(2).  This package takes care of calling ripem and/or pgp
+with the correct arguments.  Please see the documentation at the top of
+mailcrypt.el for instructions on using mailcrypt.  All bug reports
+about mailcrypt should go to Jin S Choi, but bugs about how I use it in
+W3 should of course be directed to me.
+
+   ---------- Footnotes ----------
+
+   (1)  See http://hoohoo.ncsa.uiuc.edu/docs/PEMPGP.html
+
+   (2)  Available via anonymous ftp to
+archive.cis.ohio-state.edu:/pub/gnu/emacs/elisp-archive/interfaces/mailcrypt.el.Z
+
+
+File: w3.info,  Node: Native WAIS Support,  Next: Rating Links,  Prev: Using PGP/PEM,  Up: Advanced Features
+
+Native WAIS Support
+===================
+
+   :: WORK ::
+
+
+File: w3.info,  Node: Rating Links,  Next: Gopher+ Support,  Prev: Native WAIS Support,  Up: Advanced Features
+
+Rating Links
+============
+
+   :: WORK ::
+
+
+File: w3.info,  Node: Gopher+ Support,  Next: Hooks,  Prev: Rating Links,  Up: Advanced Features
+
+Gopher+ Support
+===============
+
+   :: WORK ::
+
+
+File: w3.info,  Node: Hooks,  Next: Other Variables,  Prev: Gopher+ Support,  Up: Advanced Features
+
+Hooks
+=====
+
+   These are the various hooks you can use to customize some of W3s
+behavior.  They are arranged in the order in which they would happen
+when retrieving a document.  All of these are functions (or lists of
+functions) that are called consecutively.
+
+`w3-load-hooks'
+     :: WORK ::
+
+`w3-file-done-hooks'
+     :: WORK ::
+
+`w3-file-prepare-hooks'
+     :: WORK ::
+
+`w3-mode-hooks'
+     :: WORK ::
+

@@ -28,6 +28,12 @@
 ** radio:    ("name" NULL NULL T/F data (selectable thing...))
 ** strings:  ("name" NULL NULL T/F data (selectable thing...))
 ** text:     ("name" "string" <ign> T/F data)
+**
+** Note that the above is EXTREMELY bogus.  The "type" of the various entities
+** that a widget_value structure can represent is implicit in the contents of
+** half a dozen slots, instead of there simply being a type field.  This 
+** should all be rethunk.  I've added a type field, but for now it's only used
+** by the new xlwmenu radiobutton/togglebutton code.
 */
 
 typedef unsigned long LWLIB_ID;
@@ -39,6 +45,19 @@ typedef enum _change_type
   VISIBLE_CHANGE = 2,
   STRUCTURAL_CHANGE = 3
 } change_type;
+
+typedef enum _widget_value_type
+{
+  UNSPECIFIED_TYPE = 0,
+  BUTTON_TYPE = 1,
+  TOGGLE_TYPE = 2,
+  RADIO_TYPE = 3,
+  TEXT_TYPE = 4,
+  SEPARATOR_TYPE = 5,
+  CASCADE_TYPE = 6,
+  PUSHRIGHT_TYPE = 7
+    /* ... add (and use!) the rest ... */
+} widget_value_type;
 
 typedef enum _scroll_action
 {
@@ -76,9 +95,12 @@ typedef struct _scrollbar_values
 
 typedef struct _widget_value
 {
+  /* This slot is only partially utilized right now. */
+  widget_value_type type;
+
   /* name of widget */
   char*		name;
-  /* value (meaning depend on widget type) */
+  /* value (meaning BOGUSLY depend on widget type) */
   char*		value;
   /* keyboard equivalent. no implications for XtTranslations */ 
   char*		key;
@@ -104,6 +126,7 @@ typedef struct _widget_value
 
   /* data defining a scrollbar; only valid if type == "scrollbar" */
   scrollbar_values *scrollbar_data;
+
   /* we resource the widget_value structures; this points to the next
      one on the free list if this one has been deallocated.
    */

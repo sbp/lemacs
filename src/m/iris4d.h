@@ -1,5 +1,5 @@
-/* machine description file for Iris-4D machines.  Use with s-iris3-6.h
-   Copyright (C) 1987, 1994 Free Software Foundation, Inc.
+/* machine description file for Iris-4D machines.  Use with s/irix[45]-*.h.
+   Copyright (C) 1987 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -18,10 +18,6 @@ along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
-/* The following line tells the configuration script what sort of 
-   operating system this machine is likely to run.
-   USUAL-OPSYS="irix3-3"  */
-
 /* The following three symbols give information on
  the size of various data types.  */
 
@@ -30,11 +26,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define INTBITS 32		/* Number of bits in an int */
 
 #define LONGBITS 32		/* Number of bits in a long */
-
-/* Define BIG_ENDIAN iff lowest-numbered byte in a word
-   is the most significant byte.  */
-
-#define BIG_ENDIAN
 
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
@@ -72,6 +63,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define EXPLICIT_SIGN_EXTEND
 
+/* jg@genmagic.genmagic.com (John Giannandrea) says this is unnecessary.  */
+#if 0
 /* Data type of load average, as read out of kmem.  */
 
 #define LOAD_AVE_TYPE long	/* This doesn't quite work on the 4D */
@@ -84,6 +77,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #undef KERNEL_FILE
 #define KERNEL_FILE "/unix"
+#endif
 
 /* Define CANNOT_DUMP on machines where unexec does not work.
    Then the function dump-emacs will not be defined
@@ -107,7 +101,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    Define neither one if an assembler-language alloca
    in the file alloca.s should be used.  */
 
-#define C_ALLOCA
+/* #define C_ALLOCA */  /* Sjoerd.Mullender@cwi.nl says no need.  */
 /* #define HAVE_ALLOCA */
 
 /* Define NO_REMAP if memory segmentation makes it not work well
@@ -120,7 +114,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* This machine requires completely different unexec code
    which lives in a separate file.  Specify the file name.  */
 
-#ifndef IRIX5 /* by Daniel Rich <drich@lerc.nasa.gov> for lemacs */
+#ifdef USG5_4
+#undef UNEXEC
+#define UNEXEC unexelfsgi.o
+#else
 #define UNEXEC unexmips.o
 #endif
 
@@ -144,24 +141,22 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    in which crt1.o and crt1.n should be used.  */
 #define HAVE_CRTN
 
+#ifndef USG5_4
 #ifdef HAVE_CRTN
 /* Must define START-FILES so that the linker can find /usr/lib/crt0.o.  */
 #define START_FILES pre-crt0.o /usr/lib/crt1.o
-#define LIB_STANDARD -lbsd -lc /usr/lib/crtn.o
+#define LIB_STANDARD -lc /usr/lib/crtn.o
 #else
 #define START_FILES pre-crt0.o /usr/lib/crt0.o
 /* The entry-point label (start of text segment) is `start', not `__start'.  */
 #define DEFAULT_ENTRY_ADDRESS start
-#define LIB_STANDARD -lbsd -lc
+#define LIB_STANDARD -lc
+#endif
 #endif
 
 /* Use terminfo instead of termcap.  */
 
 #define TERMINFO
-
-/* sioctl.h should be included where appropriate.  */
-
-/* #define NEED_SIOCTL */
 
 /* Letter to use in finding device name of first pty,
   if system supports pty's.  'a' means it is /dev/ptya0  */
@@ -172,3 +167,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Define STACK_DIRECTION for alloca.c */
 
 #define STACK_DIRECTION -1
+
+#ifndef __GNUC__
+/* Turn off some "helpful" error checks for type mismatches
+   that we can't fix without breaking other machines.  */
+/* lemacs change -- cognot@elfgrc.co.uk
+   	Otherwise cpp defaults to no-ansi and does not understand
+   anything about concatenation (##) directives. */
+/* #define C_SWITCH_MACHINE -cckr */
+#endif

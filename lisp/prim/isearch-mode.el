@@ -93,7 +93,7 @@
 (defun isearch-char-to-string (c)
   (if (integerp c)
       (make-string 1 c)
-   (make-string 1 (event-to-character c nil nil t))))
+    (make-string 1 (event-to-character c nil nil t))))
 
 ;(defun isearch-text-char-description (c)
 ;  (isearch-char-to-string c))
@@ -437,6 +437,11 @@ is treated as a regexp.  See \\[isearch-forward] for more info."
 
 	  isearch-mode (gettext " Isearch")
 	  )
+
+    ;; lemacs change: without clearing the match data, sometimes old values
+    ;; of isearch-other-end get used.  Don't ask me why...
+    (store-match-data nil)
+
     (add-hook 'pre-command-hook 'isearch-pre-command-hook)
     (set-buffer-modified-p (buffer-modified-p)) ; update modeline
     (isearch-push-state)
@@ -514,7 +519,11 @@ is treated as a regexp.  See \\[isearch-forward] for more info."
 	  ;; them in.
 	  (set-buffer isearch-buffer)
 	  (use-local-map isearch-old-local-map)
-	  (setq pre-command-hook isearch-old-pre-command-hook)
+	  ;; Use remove-hook instead of just setting it to our saved value
+	  ;; in case some process filter has created a buffer and modified
+	  ;; the pre-command-hook in that buffer...  yeah, this is obscure,
+	  ;; and yeah, I was getting screwed by it. -jwz
+	  (remove-hook 'pre-command-hook 'isearch-pre-command-hook)
 	  (set-keymap-parent isearch-mode-map nil)
 	  (setq isearch-mode nil)
 	  (setq isearch-buffer nil)
@@ -596,7 +605,7 @@ The following additional command keys are active while editing.
   ;; Editing doesnt back up the search point.  Should it?
   (interactive)
 
-  (condition-case err
+  (condition-case nil
       (let ((minibuffer-local-map minibuffer-local-isearch-map)
 	    isearch-nonincremental	; should search nonincrementally?
 	    isearch-new-string
@@ -630,10 +639,10 @@ The following additional command keys are active while editing.
 	;; Actually terminate isearching until editing is done.
 	;; This is so that the user can do anything without failure, 
 	;; like switch buffers and start another isearch, and return.
-	(condition-case err
+;;	(condition-case nil
 	    (isearch-done)
           ;;#### What does this mean?  There is no such condition!
-	  (exit nil))			; was recursive editing
+;;	  (exit nil))			; was recursive editing
 
 	(unwind-protect
 	    (let ((prompt (isearch-message-prefix nil t))
@@ -650,9 +659,9 @@ The following additional command keys are active while editing.
 		    (setq isearch-word t)
 		  (setq unread-command-event event)))
 	      (setq isearch-new-string
-                    (if (fboundp 'gmhist-old-read-from-minibuffer)
-                        ;; Eschew gmhist crockery
-			(gmhist-old-read-from-minibuffer prompt isearch-string)
+;;                    (if (fboundp 'gmhist-old-read-from-minibuffer)
+;;                        ;; Eschew gmhist crockery
+;;			(gmhist-old-read-from-minibuffer prompt isearch-string)
 		      (read-string
 		       prompt isearch-string
 		       't            ;does its own history (but shouldn't)
@@ -665,7 +674,8 @@ The following additional command keys are active while editing.
 ;;                         (cons 'search-ring
 ;;                               (- (length search-ring-yank-pointer)
 ;;                                  (length search-ring))))
-		       ))
+		       )
+;;		      )
 		    isearch-new-message (mapconcat
 					 'isearch-text-char-description
 					 isearch-new-string ""))
@@ -850,6 +860,11 @@ If no previous match was done, just beep."
   "Pull the current X selection into the search string."
   (interactive)
   (isearch-yank (x-get-selection)))
+
+(defun isearch-yank-x-clipboard ()
+  "Pull the current X clipboard selection into the search string."
+  (interactive)
+  (isearch-yank (x-get-clipboard)))
 
 (defun isearch-search-and-update ()
   ;; Do the search and update the display.
@@ -1265,6 +1280,7 @@ If there is no completion possible, say so and continue searching."
 (put 'isearch-reverse-exit-minibuffer		'isearch-command t)
 (put 'isearch-nonincremental-exit-minibuffer	'isearch-command t)
 (put 'isearch-yank-x-selection			'isearch-command t)
+(put 'isearch-yank-x-clipboard			'isearch-command t)
 
 (defun isearch-pre-command-hook ()
   ;;
@@ -1278,11 +1294,20 @@ If there is no completion possible, say so and continue searching."
   ;; them in the buffer.  In this way, the set of self-searching characters
   ;; need not be exhaustively enumerated, but is derived from other maps.
   ;;
-  (isearch-maybe-frob-keyboard-macros)
-  (if (and (symbolp this-command)
-	   (get (or this-command 'undefined) 'isearch-command))
-      nil
-    (isearch-done)))
+  (cond ((not (eq (current-buffer) isearch-buffer))
+	 ;; If the buffer (likely meaning "screen") has changed, bail.
+	 ;; This can also happen if a proc filter has popped up another
+	 ;; buffer, which is arguably a bad thing for it to have done,
+	 ;; but the way in which isearch would have hosed you in that
+	 ;; case is unarguably even worse. -jwz
+	 (isearch-done))
+	(t
+	 (isearch-maybe-frob-keyboard-macros)
+	 (if (and this-command
+		  (symbolp this-command)
+		  (get this-command 'isearch-command))
+	     nil ; then continue.
+	   (isearch-done)))))
 
 (defun isearch-maybe-frob-keyboard-macros ()
   ;;
@@ -1297,26 +1322,19 @@ If there is no completion possible, say so and continue searching."
   ;; typing a compose sequence (a la x-compose.el) would terminate the search
   ;; and insert the character, instead of searching for that character.
   ;;
+  ;; We should continue doing this, since it's pretty much the behavior one
+  ;; would expect, but it will stop being so necessary once key-translation-
+  ;; map exists and is used by x-compose.el and things like it, since the
+  ;; translation will have been done before we see the keys.
+  ;;
   (cond ((eq this-command 'self-insert-command)
 	 (setq this-command 'isearch-printing-char))
-	((and (stringp this-command)
+	((and (or (stringp this-command) (vectorp this-command))
 	      (eq (key-binding this-command) 'self-insert-command))
-	 (setq last-command-char (aref this-command 0)
-	       last-command-event (character-to-event last-command-char)
+	 (setq last-command-event (character-to-event (aref this-command 0))
+	       last-command-char (and (stringp this-command)
+				      (aref this-command 0))
 	       this-command 'isearch-printing-char))
-	((and (vectorp this-command)
-	      (eq (key-binding this-command) 'self-insert-command))
-	 (let* ((desc (aref this-command 0))
-		(code (cond ((integerp desc) desc)
-			    ((symbolp desc) (get desc character-set-property))
-			    ((consp desc)
-			     (and (null (cdr desc))
-				  (get (car desc) character-set-property)))
-			    (t nil))))
-	   (if code
-	       (setq last-command-char code
-		     last-command-event (character-to-event last-command-char)
-		     this-command 'isearch-printing-char))))
 	))
 
 

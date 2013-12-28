@@ -1,5 +1,5 @@
-This is Info file ../info/lemacs.info, produced by Makeinfo-1.55 from
-the input file lemacs.texinfo.
+This is Info file ../../info/lemacs.info, produced by Makeinfo-1.56
+from the input file lemacs.texinfo.
 
    This file documents the GNU Emacs editor.
 
@@ -24,904 +24,1178 @@ versions, except that the sections entitled "The GNU Manifesto",
 translation approved by the author instead of in the original English.
 
 
-File: lemacs.info,  Node: Quitting,  Next: Lossage,  Prev: Customization,  Up: Top
+File: lemacs.info,  Node: Shell Mode,  Prev: Interactive Shell,  Up: Shell
 
-Quitting and Aborting
-=====================
+Shell Mode
+----------
 
-`C-g'
-     Quit.  Cancel running or partially typed command.
+   The shell buffer uses Shell mode, which defines several special keys
+attached to the `C-c' prefix.  They are chosen to resemble the usual
+editing and job control characters present in shells that are not under
+Emacs, except that you must type `C-c' first.  Here is a list of the
+special key bindings of Shell mode:
 
-`C-]'
-     Abort innermost recursive editing level and cancel the command
-     which invoked it (`abort-recursive-edit').
+`RET'
+     At end of buffer send line as input; otherwise, copy current line
+     to end of buffer and send it (`send-shell-input').  When a line is
+     copied, any text at the beginning of the line that matches the
+     variable `shell-prompt-pattern' is left out; this variable's value
+     should be a regexp string that matches the prompts that you use in
+     your subshell.
 
-`M-x top-level'
-     Abort all recursive editing levels that are currently executing.
+`C-c C-d'
+     Send end-of-file as input, probably causing the shell or its
+     current subjob to finish (`shell-send-eof').
 
-`C-x u'
-     Cancel an already-executed command, usually (`undo').
+`C-d'
+     If point is not at the end of the buffer, delete the next
+     character just like most other modes.  If point is at the end of
+     the buffer, send end-of-file as input, instead of generating an
+     error as in other modes (`comint-delchar-or-maybe-eof').
 
-   There are two ways of cancelling commands which are not finished
-executing: "quitting" with `C-g', and "aborting" with `C-]' or `M-x
-top-level'.  Quitting is cancelling a partially typed command or one
-which is already running.  Aborting is getting out of a recursive
-editing level and cancelling the command that invoked the recursive
-edit.
+`C-c C-u'
+     Kill all text that has yet to be sent as input
+     (`kill-shell-input').
 
-   Quitting with `C-g' is used for getting rid of a partially typed
-command, or a numeric argument that you don't want.  It also stops a
-running command in the middle in a relatively safe way, so you can use
-it if you accidentally start executing a command that takes a long
-time.  In particular, it is safe to quit out of killing; either your
-text will ALL still be there, or it will ALL be in the kill ring (or
-maybe both).  Quitting an incremental search does special things
-documented under searching; in general, it may take two successive
-`C-g' characters to get out of a search.  `C-g' works by setting the
-variable `quit-flag' to `t' the instant `C-g' is typed; Emacs Lisp
-checks this variable frequently and quits if it is non-`nil'.  `C-g' is
-only actually executed as a command if it is typed while Emacs is
-waiting for input.
+`C-c C-w'
+     Kill a word before point (`backward-kill-word').
 
-   If you quit twice in a row before the first `C-g' is recognized, you
-activate the "emergency escape" feature and return to the shell.  *Note
-Emergency Escape::.
+`C-c C-c'
+     Interrupt the shell or its current subjob if any
+     (`interrupt-shell-subjob').
 
-   You can use `C-]' (`abort-recursive-edit') to get out of a recursive
-editing level and cancel the command which invoked it.  Quitting with
-`C-g' does not do this, and could not do this, because it is used to
-cancel a partially typed command within the recursive editing level.
-Both operations are useful.  For example, if you are in the Emacs
-debugger (*note Lisp Debug::.) and have typed `C-u 8' to enter a
-numeric argument, you can cancel that argument with `C-g' and remain in
-the debugger.
+`C-c C-z'
+     Stop the shell or its current subjob if any (`stop-shell-subjob').
 
-   The command `M-x top-level' is equivalent to "enough" `C-]' commands
-to get you out of all the levels of recursive edits that you are in.
-`C-]' only gets you out one level at a time, but `M-x top-level' goes
-out all levels at once.  Both `C-]' and `M-x top-level' are like all
-other commands, and unlike `C-g', in that they are effective only when
-Emacs is ready for a command.  `C-]' is an ordinary key and has its
-meaning only because of its binding in the keymap.  *Note Recursive
-Edit::.
+`C-c C-\'
+     Send quit signal to the shell or its current subjob if any
+     (`quit-shell-subjob').
 
-   `C-x u' (`undo') is not strictly speaking a way of cancelling a
-command, but you can think of it as cancelling a command already
-finished executing.  *Note Undo::.
+`C-c C-o'
+     Delete last batch of output from shell (`kill-output-from-shell').
+
+`C-c C-r'
+     Scroll top of last batch of output to top of window
+     (`show-output-from-shell').
+
+`C-c C-y'
+     Copy the previous bunch of shell input and insert it into the
+     buffer before point (`copy-last-shell-input').  No final newline
+     is inserted, and the input copied is not resubmitted until you type
+     RET.
+
+`M-p'
+     Move backward through the input history.  Search for a matching
+     command if you have typed the beginning of a command
+     (`comint-previous-input').
+
+`M-n'
+     Move forward through the input history.  Useful when you are using
+     M-p quickly and go past the desired command (`comint-next-input').
+
+`TAB'
+     Complete the file name preceding point (`comint-dynamic-complete').
 
 
-File: lemacs.info,  Node: Lossage,  Next: Bugs,  Prev: Quitting,  Up: Top
+File: lemacs.info,  Node: Narrowing,  Next: Hardcopy,  Prev: Shell,  Up: Top
 
-Dealing with Emacs Trouble
-==========================
+Narrowing
+=========
 
-   This section describes various conditions in which Emacs fails to
-work, and how to recognize them and correct them.
+   "Narrowing" means focusing in on some portion of the buffer, making
+the rest temporarily invisible and inaccessible.  Cancelling the
+narrowing and making the entire buffer once again visible is called
+"widening".  The amount of narrowing in effect in a buffer at any time
+is called the buffer's "restriction".
+
+`C-x n n'
+     Narrow down to between point and mark (`narrow-to-region').
+
+`C-x n w'
+     Widen to make the entire buffer visible again (`widen').
+
+   Narrowing sometimes makes it easier to concentrate on a single
+subroutine or paragraph by eliminating clutter.  It can also be used to
+restrict the range of operation of a replace command or repeating
+keyboard macro.  The word `Narrow' appears in the mode line whenever
+narrowing is in effect.  When you have narrowed to a part of the
+buffer, that part appears to be all there is.  You can't see the rest,
+can't move into it (motion commands won't go outside the visible part),
+and can't change it in any way.  However, the invisible text is not
+gone; if you save the file, it will be saved.
+
+   The primary narrowing command is `C-x n n' (`narrow-to-region').  It
+sets the current buffer's restrictions so that the text in the current
+region remains visible but all text before the region or after the
+region is invisible.  Point and mark do not change.
+
+   Because narrowing can easily confuse users who do not understand it,
+`narrow-to-region' is normally a disabled command.  Attempting to use
+this command asks for confirmation and gives you the option of enabling
+it; once you enable the command, confirmation will no longer be
+required.  *Note Disabling::.
+
+   To undo narrowing, use `C-x n w' (`widen').  This makes all text in
+the buffer accessible again.
+
+   Use the `C-x =' command to get information on what part of the
+buffer you narrowed down.  *Note Position Info::.
+
+
+File: lemacs.info,  Node: Hardcopy,  Next: Recursive Edit,  Prev: Narrowing,  Up: Top
+
+Hardcopy Output
+===============
+
+   The Emacs commands for making hardcopy derive their names from the
+Unix commands `print' and `lpr'.
+
+`M-x print-buffer'
+     Print hardcopy of current buffer using Unix command `print'
+     (`lpr -p').  This command adds page headings containing the file
+     name and page number.
+
+`M-x lpr-buffer'
+     Print hardcopy of current buffer using Unix command `lpr'.  This
+     command does not add page headings.
+
+`M-x print-region'
+     Like `print-buffer', but prints only the current region.
+
+`M-x lpr-region'
+     Like `lpr-buffer', but prints only the current region.
+
+   All the hardcopy commands pass extra switches to the `lpr' program
+based on the value of the variable `lpr-switches'.  Its value should be
+a list of strings, each string a switch starting with `-'.  For
+example, the value could be `("-Pfoo")' to print on printer `foo'.
+
+
+File: lemacs.info,  Node: Recursive Edit,  Next: Dissociated Press,  Prev: Hardcopy,  Up: Top
+
+Recursive Editing Levels
+========================
+
+   A "recursive edit" is a situation in which you are using Emacs
+commands to perform arbitrary editing while in the middle of another
+Emacs command.  For example, when you type `C-r' inside a
+`query-replace', you enter a recursive edit in which you can change the
+current buffer.  When you exit from the recursive edit, you go back to
+the `query-replace'.
+
+   "Exiting" a recursive edit means returning to the unfinished
+command, which continues execution.  For example, exiting the recursive
+edit requested by `C-r' in `query-replace' causes query replacing to
+resume.  Exiting is done with `C-M-c' (`exit-recursive-edit').
+
+   You can also "abort" a recursive edit.  This is like exiting, but
+also quits the unfinished command immediately.  Use the command `C-]'
+(`abort-recursive-edit') for this.  *Note Quitting::.
+
+   The mode line shows you when you are in a recursive edit by
+displaying square brackets around the parentheses that always surround
+the major and minor mode names.  Every window's mode line shows the
+square brackets, since Emacs as a whole, rather than any particular
+buffer, is in a recursive edit.
+
+   It is possible to be in recursive edits within recursive edits.  For
+example, after typing `C-r' in a `query-replace', you might type a
+command that entered the debugger.  In such a case, two or more sets of
+square brackets appear in the mode line(s).  Exiting the inner
+recursive edit (here with the debugger `c' command) resumes the
+query-replace command where it called the debugger.  After the end of
+the query-replace command, you would be able to exit the first
+recursive edit.  Aborting exits only one level of recursive edit; it
+returns to the command level of the previous recursive edit.  You can
+then abort that one as well.
+
+   The command `M-x top-level' aborts all levels of recursive edits,
+returning immediately to the top level command reader.
+
+   The text you edit inside the recursive edit need not be the same text
+that you were editing at top level.  If the command that invokes the
+recursive edit selects a different buffer first, that is the buffer you
+will edit recursively.  You can switch buffers within the recursive edit
+in the normal manner (as long as the buffer-switching keys have not been
+rebound).  While you could theoretically do the rest of your editing
+inside the recursive edit, including visiting files, this could have
+surprising effects (such as stack overflow) from time to time.  It is
+best if you always exit or abort a recursive edit when you no longer
+need it.
+
+   In general, GNU Emacs tries to avoid using recursive edits.  It is
+usually preferable to allow users to switch among the possible editing
+modes in any order they like.  With recursive edits, the only way to get
+to another state is to go "back" to the state that the recursive edit
+was invoked from.
+
+
+File: lemacs.info,  Node: Dissociated Press,  Next: CONX,  Prev: Recursive Edit,  Up: Top
+
+Dissociated Press
+=================
+
+   `M-x dissociated-press' is a command for scrambling a file of text
+either word by word or character by character.  Starting from a buffer
+of straight English, it produces extremely amusing output.  The input
+comes from the current Emacs buffer.  Dissociated Press writes its
+output in a buffer named `*Dissociation*', and redisplays that buffer
+after every couple of lines (approximately) to facilitate reading it.
+
+   `dissociated-press' asks every so often whether to continue
+operating.  Answer `n' to stop it.  You can also stop at any time by
+typing `C-g'.  The dissociation output remains in the `*Dissociation*'
+buffer for you to copy elsewhere if you wish.
+
+   Dissociated Press operates by jumping at random from one point in the
+buffer to another.  In order to produce plausible output rather than
+gibberish, it insists on a certain amount of overlap between the end of
+one run of consecutive words or characters and the start of the next.
+That is, if it has just printed out `president' and then decides to
+jump to a different point in the file, it might spot the `ent' in
+`pentagon' and continue from there, producing `presidentagon'.  Long
+sample texts produce the best results.
+
+   A positive argument to `M-x dissociated-press' tells it to operate
+character by character, and specifies the number of overlap characters.
+A negative argument tells it to operate word by word and specifies the
+number of overlap words.  In this mode, whole words are treated as the
+elements to be permuted, rather than characters.  No argument is
+equivalent to an argument of two.  For your againformation, the output
+goes only into the buffer `*Dissociation*'.  The buffer you start with
+is not changed.
+
+   Dissociated Press produces nearly the same results as a Markov chain
+based on a frequency table constructed from the sample text.  It is,
+however, an independent, ignoriginal invention.  Dissociated Press
+techniquitously copies several consecutive characters from the sample
+between random choices, whereas a Markov chain would choose randomly for
+each word or character.  This makes for more plausible sounding results
+and runs faster.
+
+   It is a mustatement that too much use of Dissociated Press can be a
+developediment to your real work.  Sometimes to the point of outragedy.
+And keep dissociwords out of your documentation, if you want it to be
+well userenced and properbose.  Have fun.  Your buggestions are welcome.
+
+
+File: lemacs.info,  Node: CONX,  Next: Amusements,  Prev: Dissociated Press,  Up: Top
+
+CONX
+====
+
+   Besides producing a file of scrambled text with Dissociated Press,
+you can generate random sentences by using CONX.
+
+`M-x conx'
+     Generate random sentences in the `*conx*' buffer.
+
+`M-x conx-buffer'
+     Absorb the text in the current buffer into the `conx' database.
+
+`M-x conx-init'
+     Forget the current word-frequency tree.
+
+`M-x conx-load'
+     Load a `conx' database that has been previously saved with `M-x
+     conx-save'.
+
+`M-x conx-region'
+     Absorb the text in the current buffer into the `conx' database.
+
+`M-x conx-save'
+     Save the current `conx' database to a file for future retrieval.
+
+   Copy text from a buffer using `M-x conx-buffer' or `M-x conx-region'
+and then type `M-x conx'.  Output is continuously generated until you
+type ^G. You can save the `conx' database to a file with `M-x
+conx-save', which you can retrieve with `M-x conx-load'.  To clear the
+database, use `M-x conx-init'.
+
+
+File: lemacs.info,  Node: Amusements,  Next: Emulation,  Prev: CONX,  Up: Top
+
+Other Amusements
+================
+
+   If you are a little bit bored, you can try `M-x hanoi'.  If you are
+considerably bored, give it a numeric argument.  If you are very, very
+bored, try an argument of 9.  Sit back and watch.
+
+   When you are frustrated, try the famous Eliza program.  Just do `M-x
+doctor'.  End each input by typing `RET' twice.
+
+   When you are feeling strange, type `M-x yow'.
+
+
+File: lemacs.info,  Node: Emulation,  Next: Customization,  Prev: Amusements,  Up: Top
+
+Emulation
+=========
+
+   GNU Emacs can be programmed to emulate (more or less) most other
+editors.  Standard facilities can emulate these:
+
+EDT (DEC VMS editor)
+     Turn on EDT emulation with `M-x edt-emulation-on'.  `M-x
+     edt-emulation-off' restores normal Emacs command bindings.
+
+     Most of the EDT emulation commands are keypad keys, and most
+     standard Emacs key bindings are still available.  The EDT
+     emulation rebindings are done in the global keymap, so there is no
+     problem switching buffers or major modes while in EDT emulation.
+
+Gosling Emacs
+     Turn on emulation of Gosling Emacs (aka Unipress Emacs) with `M-x
+     set-gosmacs-bindings'.  This redefines many keys, mostly on the
+     `C-x' and `ESC' prefixes, to work as they do in Gosmacs.  `M-x
+     set-gnu-bindings' returns to normal GNU Emacs by rebinding the
+     same keys to the definitions they had at the time `M-x
+     set-gosmacs-bindings' was done.
+
+     It is also possible to run Mocklisp code written for Gosling Emacs.
+     *Note Mocklisp::.
+
+evi (vi emulation in Lucid Emacs)
+     In Lucid Emacs, evi is the preferred emulation of vi within Emacs.
+     By default, evi-mode is as close as possible to regular vi.  To
+     start evi mode from Emacs, type `M-x evi'.
+
+     If you want be in evi mode whenever you bring up Emacs, include
+     this line in your `.emacs' file:
+          (setq term-setup-hook 'evi)
+     *Note evi Mode:: for more information on evi Mode.
+
+vi (Berkeley Unix editor)
+     Turn on vi emulation with `M-x vi-mode'.  This is a major mode
+     that replaces the previously established major mode.  All of the
+     vi commands that in real vi enter "input" mode are programmed in
+     the Emacs emulator to return to the previous major mode.  Thus,
+     ordinary Emacs serves as vi's "input" mode.
+
+     Because vi emulation works through major modes, it does not work
+     to switch buffers during emulation.  Return to normal Emacs first.
+
+     If you plan to use vi emulation much, you probably want to bind a
+     key to the `vi-mode' command.
+
+vi (alternate emulator)
+     Another vi emulator said to resemble real vi more thoroughly is
+     invoked by `M-x vip-mode'.  "Input" mode in this emulator is
+     changed from ordinary Emacs so you can use ESC to go back to
+     emulated vi command mode.  To get from emulated vi command mode
+     back to ordinary Emacs, type `C-z'.
+
+     This emulation does not work through major modes, and it is
+     possible to switch buffers in various ways within the emulator.
+     It is not so necessary to assign a key to the command `vip-mode' as
+     it is with `vi-mode' because terminating insert mode does not use
+     it.
+
+     For full information, see the long comment at the beginning of the
+     source file, which is `lisp/vip.el' in the Emacs distribution.
+
+   Warning: loading more than one vi emulator at once may cause name
+conflicts; no one has checked.
 
 * Menu:
 
-* Stuck Recursive::    `[...]' in mode line around the parentheses
-* Screen Garbled::     Garbage on the screen
-* Text Garbled::       Garbage in the text
-* Unasked-for Search:: Spontaneous entry to incremental search
-* Emergency Escape::   Emergency escape--
-                        What to do if Emacs stops responding
-* Total Frustration::  When you are at your wits' end.
+* evi Mode:: Brief discussion of evi, the vi emulation mode within Lucid Emacs
 
 
-File: lemacs.info,  Node: Stuck Recursive,  Next: Screen Garbled,  Prev: Lossage,  Up: Lossage
+File: lemacs.info,  Node: evi Mode,  Prev: Emulation,  Up: Emulation
 
-Recursive Editing Levels
+Using evi Mode
+--------------
+
+   In Lucid Emacs, evi provides vi emulation within Emacs.  By default,
+evi-mode is as close as possible to regular vi.  To start evi mode from
+Emacs, type `M-x evi'.  If you want be in evi mode whenever you bring
+up Emacs, include this line in your `.emacs' file:
+     (setq term-setup-hook 'evi)
+
+   You can find a customization file for evi-mode in `~/.evirc'.  This
+file has to contain Lisp code, just like the `.emacs' file, and is
+loaded whenever you invoke evi mode.  The file allows you to rebind
+keys in evi mode, just as you can in other Emacs modes.
+
+   Note that evi also loads a file of vi commands from `.exrc', just
+like vi.
+
+   By default, all Emacs commands are disabled in evi mode.  This
+leaves you with only vi commands.  You may customize evi mode to make
+certain keybindings accessible.  For example, to enable all Emacs
+command sequences that begin with `Control-x' or with `Meta', include
+the following lines in your `.evirc' file:
+     (evi-define-key evi-all-keymaps "\C-x" ctl-x-map)
+     (setq evi-meta-prefix-char ?\C-a)
+     (evi-define-key evi-all-keymaps "\C-a" esc-map)
+
+   When you are in evi mode, typing `Control-z' stops vi emulation,
+leaving you in Emacs.  To get back into evi mode, use `Meta-x evi'
+again.  To exit Emacs, use `Control-x Control-c'.
+
+   The file management commands used by vi have been adapted to Emacs.
+They have slightly different meanings than the vi commands themselves:
+
+`:e'
+     Edit a file in the current window.  With no argument, brings in a
+     new copy of the file, if it has been subsequently modified on disk.
+     `:e' overrides any complaints about the current buffer being
+     modified and discards all modifications.  With a filename
+     argument, it edits that file in the current window, using the copy
+     already in the editor if it was previously read in.  There is no
+     difference between `:e!  filename' and `:e filename'.  As a
+     shorthand for editing the most recently accessed buffer not in the
+     window, use `:e#'.
+
+`:E'
+     Same as `:e', but edits the file in another window, creating that
+     window if necessary.  If used with no filename, this command
+     splits the current buffer into two windows.
+
+`:n'
+     Switch to the next file in the buffer list that is not currently
+     displayed.  Rotates the current file to the end of the buffer
+     list, so the command effectively cycles through all buffers.
+
+`:N'
+     Same as `:n', but switches to another window or creates another
+     window and puts the next file into it.
+
+   All `ex' commands that accept filenames as arguments perform file
+completion using `SPC' or `TAB'.  Completion begins after the space
+that separates the command from the filename.
+
+   Many of the `ex' commands are not implemented.  The following
+commands are implemented:
+     cd, chdir, copy, delete, edit, file, global, map, move, next print,
+     put, quit, read, set, source, substitute, tag, write, wq, yank, !, <, >
+
+   The following `ex' options are implemented:
+     autoindent, ignorecase, magic, notimeout, shiftwidth, showmatch,
+     tabstop, wrapscan
+
+
+File: lemacs.info,  Node: Customization,  Next: Quitting,  Prev: Emulation,  Up: Top
+
+Customization
+*************
+
+   This chapter talks about various topics relevant to adapting the
+behavior of Emacs in minor ways.
+
+   All kinds of customization affect only the particular Emacs job that
+you do them in.  They are completely lost when you kill the Emacs job,
+and have no effect on other Emacs jobs you may run at the same time or
+later.  The only way an Emacs job can affect anything outside of it is
+by writing a file; in particular, the only way to make a customization
+`permanent' is to put something in your `.emacs' file or other
+appropriate file to do the customization in each session.  *Note Init
+File::.
+
+* Menu:
+
+* Minor Modes::     Each minor mode is one feature you can turn on
+                     independently of any others.
+* Variables::       Many Emacs commands examine Emacs variables
+                     to decide what to do; by setting variables,
+                     you can control their functioning.
+* Keyboard Macros:: A keyboard macro records a sequence of keystrokes
+                     to be replayed with a single command.
+* Key Bindings::    The keymaps say what command each key runs.
+                     By changing them, you can "redefine keys".
+* Syntax::          The syntax table controls how words and expressions
+                     are parsed.
+* Init File::       How to write common customizations in the `.emacs'
+                     file.
+* Audible Bell::    Changing how Emacs sounds the bell.
+* Faces::
+                    Changing the fonts and colors of a region of text.
+
+
+File: lemacs.info,  Node: Minor Modes,  Next: Variables,  Up: Customization
+
+Minor Modes
+===========
+
+   Minor modes are options which you can use or not.  For example, Auto
+Fill mode is a minor mode in which SPC breaks lines between words as
+you type.  All the minor modes are independent of each other and of the
+selected major mode.  Most minor modes inform you in the mode line when
+they are on; for example, `Fill' in the mode line means that Auto Fill
+mode is on.
+
+   Append `-mode' to the name of a minor mode to get the name of a
+command function that turns the mode on or off.  Thus, the command to
+enable or disable Auto Fill mode is called `M-x auto-fill-mode'.  These
+commands are usually invoked with `M-x', but you can bind keys to them
+if you wish.  With no argument, the function turns the mode on if it was
+off and off if it was on.  This is known as "toggling".  A positive
+argument always turns the mode on, and an explicit zero argument or a
+negative argument always turns it off.
+
+   Auto Fill mode allows you to enter filled text without breaking lines
+explicitly.  Emacs inserts newlines as necessary to prevent lines from
+becoming too long.  *Note Filling::.
+
+   Overwrite mode causes ordinary printing characters to replace
+existing text instead of moving it to the right.  For example, if point
+is in front of the `B' in `FOOBAR', and you type a `G' in Overwrite
+mode, it changes to `FOOGAR', instead of `FOOGBAR'.
+
+   Abbrev mode allows you to define abbreviations that automatically
+expand as you type them.  For example, `amd' might expand to `abbrev
+mode'.  *Note Abbrevs::, for full information.
+
+
+File: lemacs.info,  Node: Variables,  Next: Keyboard Macros,  Prev: Minor Modes,  Up: Customization
+
+Variables
+=========
+
+   A "variable" is a Lisp symbol which has a value.  Variable names can
+contain any characters, but by convention they are words separated by
+hyphens.  A variable can also have a documentation string, which
+describes what kind of value it should have and how the value will be
+used.
+
+   Lisp allows any variable to have any kind of value, but most
+variables that Emacs uses require a value of a certain type.  Often the
+value has to be a string or a number.  Sometimes we say that a certain
+feature is turned on if a variable is "non-`nil'," meaning that if the
+variable's value is `nil', the feature is off, but the feature is on
+for any other value.  The conventional value to turn on the
+feature--since you have to pick one particular value when you set the
+variable--is `t'.
+
+   Emacs uses many Lisp variables for internal recordkeeping, as any
+Lisp program must, but the most interesting variables for you are the
+ones that exist for the sake of customization.  Emacs does not
+(usually) change the values of these variables; instead, you set the
+values, and thereby alter and control the behavior of certain Emacs
+commands.  These variables are called "options".  Most options are
+documented in this manual and appear in the Variable Index (*note
+Variable Index::.).
+
+   One example of a variable which is an option is `fill-column', which
+specifies the position of the right margin (as a number of characters
+from the left margin) to be used by the fill commands (*note
+Filling::.).
+
+* Menu:
+
+* Examining::           Examining or setting one variable's value.
+* Edit Options::        Examining or editing list of all variables' values.
+* Locals::              Per-buffer values of variables.
+* File Variables::      How files can specify variable values.
+
+
+File: lemacs.info,  Node: Examining,  Next: Edit Options,  Prev: Variables,  Up: Variables
+
+Examining and Setting Variables
+-------------------------------
+
+`C-h v'
+`M-x describe-variable'
+     Print the value and documentation of a variable.
+
+`M-x set-variable'
+     Change the value of a variable.
+
+   To examine the value of a single variable, use `C-h v'
+(`describe-variable'), which reads a variable name using the
+minibuffer, with completion.  It prints both the value and the
+documentation of the variable.
+
+     C-h v fill-column RET
+
+prints something like:
+
+     fill-column's value is 75
+     
+     Documentation:
+     *Column beyond which automatic line-wrapping should happen.
+     Automatically becomes local when set in any fashion.
+
+The star at the beginning of the documentation indicates that this
+variable is an option.  `C-h v' is not restricted to options; it allows
+any variable name.
+
+   If you know which option you want to set, you can use `M-x
+set-variable' to set it.  This prompts for the variable name in the
+minibuffer (with completion), and then prompts for a Lisp expression
+for the new value using the minibuffer a second time.  For example,
+
+     M-x set-variable RET fill-column RET 75 RET
+
+sets `fill-column' to 75, as if you had executed the Lisp expression
+`(setq fill-column 75)'.
+
+   Setting variables in this way, like all means of customizing Emacs
+except where explicitly stated, affects only the current Emacs session.
+
+
+File: lemacs.info,  Node: Edit Options,  Next: Locals,  Prev: Examining,  Up: Variables
+
+Editing Variable Values
+-----------------------
+
+`M-x list-options'
+     Display a buffer listing names, values, and documentation of all
+     options.
+
+`M-x edit-options'
+     Change option values by editing a list of options.
+
+   `M-x list-options' displays a list of all Emacs option variables in
+an Emacs buffer named `*List Options*'.  Each option is shown with its
+documentation and its current value.  Here is what a portion of it might
+look like:
+
+     ;; exec-path:
+     ("." "/usr/local/bin" "/usr/ucb" "/bin" "/usr/bin" "/u2/emacs/etc")
+     *List of directories to search programs to run in subprocesses.
+     Each element is a string (directory name)
+     or nil (try the default directory).
+     ;;
+     ;; fill-column:
+     75
+     *Column beyond which automatic line-wrapping should happen.
+     Automatically becomes local when set in any fashion.
+     ;;
+
+   `M-x edit-options' goes one step further and immediately selects the
+`*List Options*' buffer; this buffer uses the major mode Options mode,
+which provides commands that allow you to point at an option and change
+its value:
+
+`s'
+     Set the variable point is in or near to a new value read using the
+     minibuffer.
+
+`x'
+     Toggle the variable point is in or near: if the value was `nil',
+     it becomes `t'; otherwise it becomes `nil'.
+
+`1'
+     Set the variable point is in or near to `t'.
+
+`0'
+     Set the variable point is in or near to `nil'.
+
+`n'
+`p'
+     Move to the next or previous variable.
+
+
+File: lemacs.info,  Node: Locals,  Next: File Variables,  Prev: Edit Options,  Up: Variables
+
+Local Variables
+---------------
+
+`M-x make-local-variable'
+     Make a variable have a local value in the current buffer.
+
+`M-x kill-local-variable'
+     Make a variable use its global value in the current buffer.
+
+`M-x make-variable-buffer-local'
+     Mark a variable so that setting it will make it local to the
+     buffer that is current at that time.
+
+   You can make any variable "local" to a specific Emacs buffer.  This
+means that the variable's value in that buffer is independent of its
+value in other buffers.  A few variables are always local in every
+buffer.  All other Emacs variables have a "global" value which is in
+effect in all buffers that have not made the variable local.
+
+   Major modes always make the variables they set local to the buffer.
+This is why changing major modes in one buffer has no effect on other
+buffers.
+
+   `M-x make-local-variable' reads the name of a variable and makes it
+local to the current buffer.  Further changes in this buffer will not
+affect others, and changes in the global value will not affect this
+buffer.
+
+   `M-x make-variable-buffer-local' reads the name of a variable and
+changes the future behavior of the variable so that it automatically
+becomes local when it is set.  More precisely, once you have marked a
+variable in this way, the usual ways of setting the variable will
+automatically invoke `make-local-variable' first.  We call such
+variables "per-buffer" variables.
+
+   Some important variables have been marked per-buffer already.  They
+include `abbrev-mode', `auto-fill-function', `case-fold-search',
+`comment-column', `ctl-arrow', `fill-column', `fill-prefix',
+`indent-tabs-mode', `left-margin',
+`mode-line-format', `overwrite-mode', `selective-display-ellipses',
+`selective-display', `tab-width', and `truncate-lines'.  Some other
+variables are always local in every buffer, but they are used for
+internal purposes.
+
+   Note: the variable `auto-fill-function' was formerly named
+`auto-fill-hook'.
+
+   If you want a variable to cease to be local to the current buffer,
+call `M-x kill-local-variable' and provide the name of a variable to
+the prompt.  The global value of the variable is again in effect in
+this buffer.  Setting the major mode kills all the local variables of
+the buffer.
+
+   To set the global value of a variable, regardless of whether the
+variable has a local value in the current buffer, you can use the Lisp
+function `setq-default'.  It works like `setq'.  If there is a local
+value in the current buffer, the local value is not affected by
+`setq-default'; thus, the new global value may not be visible until you
+switch to another buffer, as in the case of:
+
+     (setq-default fill-column 75)
+
+`setq-default' is the only way to set the global value of a variable
+that has been marked with `make-variable-buffer-local'.
+
+   Programs can look at a variable's default value with `default-value'.
+This function takes a symbol as an argument and returns its default
+value.  The argument is evaluated; usually you must quote it
+explicitly, as in the case of:
+
+     (default-value 'fill-column)
+
+
+File: lemacs.info,  Node: File Variables,  Prev: Locals,  Up: Variables
+
+Local Variables in Files
 ------------------------
 
-   Recursive editing levels are important and useful features of Emacs,
-but they can seem like malfunctions to the user who does not understand
-them.
+   A file can contain a "local variables list", which specifies the
+values to use for certain Emacs variables when that file is edited.
+Visiting the file checks for a local variables list and makes each
+variable in the list local to the buffer in which the file is visited,
+with the value specified in the file.
 
-   If the mode line has square brackets `[...]' around the parentheses
-that contain the names of the major and minor modes, you have entered a
-recursive editing level.  If you did not do this on purpose, or if you
-don't understand what that means, you should just get out of the
-recursive editing level.  To do so, type `M-x top-level'.  This is
-called getting back to top level.  *Note Recursive Edit::.
+   A local variables list goes near the end of the file, in the last
+page.  (It is often best to put it on a page by itself.)  The local
+variables list starts with a line containing the string `Local
+Variables:', and ends with a line containing the string `End:'.  In
+between come the variable names and values, one set per line, as
+`VARIABLE: VALUE'.  The VALUEs are not evaluated; they are used
+literally.
 
-
-File: lemacs.info,  Node: Screen Garbled,  Next: Text Garbled,  Prev: Stuck Recursive,  Up: Lossage
+   The line which starts the local variables list does not have to say
+just `Local Variables:'.  If there is other text before `Local
+Variables:', that text is called the "prefix", and if there is other
+text after, that is called the "suffix".  If a prefix or suffix are
+present, each entry in the local variables list should have the prefix
+before it and the suffix after it.  This includes the `End:' line.  The
+prefix and suffix are included to disguise the local variables list as
+a comment so the compiler or text formatter  will ignore it.  If you do
+not need to disguise the local variables list as a comment in this way,
+there is no need to include a prefix or a suffix.
 
-Garbage on the Screen
----------------------
+   Two "variable" names are special in a local variables list: a value
+for the variable `mode' sets the major mode, and a value for the
+variable `eval' is simply evaluated as an expression and the value is
+ignored.  These are not real variables; setting them in any other
+context does not have the same effect.  If `mode' is used in a local
+variables list, it should be the first entry in the list.
 
-   If the data on the screen looks wrong, the first thing to do is see
-whether the text is actually wrong.  Type `C-l', to redisplay the
-entire screen.  If the text appears correct after this, the problem was
-entirely in the previous screen update.
+   Here is an example of a local variables list:
+     ;;; Local Variables: ***
+     ;;; mode:lisp ***
+     ;;; comment-column:0 ***
+     ;;; comment-start: ";;; "  ***
+     ;;; comment-end:"***" ***
+     ;;; End: ***
 
-   Display updating problems often result from an incorrect termcap
-entry for the terminal you are using.  The file `etc/TERMS' in the Emacs
-distribution gives the fixes for known problems of this sort.
-`INSTALL' contains general advice for these problems in one of its
-sections.  Very likely there is simply insufficient padding for certain
-display operations.  To investigate the possibility that you have this
-sort of problem, try Emacs on another terminal made by a different
-manufacturer.  If problems happen frequently on one kind of terminal but
-not another kind, the real problem is likely to be a bad termcap entry,
-though it could also be due to a bug in Emacs that appears for terminals
-that have or that lack specific features.
+   Note that the prefix is `;;; ' and the suffix is ` ***'.  Note also
+that comments in the file begin with and end with the same strings.
+Presumably the file contains code in a language which is enough like
+Lisp for Lisp mode to be useful but in which comments start and end
+differently.  The prefix and suffix are used in the local variables
+list to make the list look like several lines of comments when the
+compiler or interpreter for that language reads the file.
 
-
-File: lemacs.info,  Node: Text Garbled,  Next: Unasked-for Search,  Prev: Screen Garbled,  Up: Lossage
+   The start of the local variables list must be no more than 3000
+characters from the end of the file, and must be in the last page if the
+file is divided into pages.  Otherwise, Emacs will not notice it is
+there.  The purpose is twofold: a stray `Local Variables:' not in the
+last page does not confuse Emacs, and Emacs never needs to search a
+long file that contains no page markers and has no local variables list.
 
-Garbage in the Text
--------------------
+   You may be tempted to turn on Auto Fill mode with a local variable
+list.  That is inappropriate.  Whether you use Auto Fill mode or not is
+a matter of personal taste, not a matter of the contents of particular
+files.  If you want to use Auto Fill, set up major mode hooks with your
+`.emacs' file to turn it on (when appropriate) for you alone (*note
+Init File::.).  Don't try to use a local variable list that would
+impose your taste on everyone working with the file.
 
-   If `C-l' shows that the text is wrong, try undoing the changes to it
-using `C-x u' until it gets back to a state you consider correct.  Also
-try `C-h l' to find out what command you typed to produce the observed
-results.
+   Lucid Emacs allows you to specify local variables in the first line
+of a file, in addition to specifying them in the `Local Variables'
+section at the end of a file.
 
-   If a large portion of text appears to be missing at the beginning or
-end of the buffer, check for the word `Narrow' in the mode line.  If it
-appears, the text is still present, but marked off-limits.  To make it
-visible again, type `C-x w'.  *Note Narrowing::.
+   If the first line of a file contains two occurences of ``-*-'', Emacs
+uses the information between them to determine what the major mode and
+variable settings should be.  For example, these are all legal:
 
-
-File: lemacs.info,  Node: Unasked-for Search,  Next: Emergency Escape,  Prev: Text Garbled,  Up: Lossage
+     	;;; -*- mode: emacs-lisp -*-
+     	;;; -*- mode: postscript; version-control: never -*-
+     	;;; -*- tags-file-name: "/foo/bar/TAGS" -*-
 
-Spontaneous Entry to Incremental Search
----------------------------------------
+   For historical reasons, the syntax ``-*- modename -*-'' is allowed
+as well; for example, you can use:
 
-   If Emacs spontaneously displays `I-search:' at the bottom of the
-screen, it means that the terminal is sending `C-s' and `C-q' according
-to the poorly designed xon/xoff "flow control" protocol.  You should
-try to prevent this by putting the terminal in a mode where it will not
-use flow control or by giving it enough padding that it will never send
-a `C-s'.  If that cannot be done, you must tell Emacs to expect flow
-control to be used, until you can get a properly designed terminal.
+     	;;; -*- emacs-lisp -*-
 
-   Information on how to do these things can be found in the file
-`INSTALL' in the Emacs distribution.
+   The variable `enable-local-variables' controls the use of local
+variables lists in files you visit.  The value can be `t', `nil', or
+something else.  A value of `t' means local variables lists are obeyed;
+`nil' means they are ignored; anything else means query.
 
-
-File: lemacs.info,  Node: Emergency Escape,  Next: Total Frustration,  Prev: Unasked-for Search,  Up: Lossage
-
-Emergency Escape
-----------------
-
-   Because at times there have been bugs causing Emacs to loop without
-checking `quit-flag', a special feature causes Emacs to be suspended
-immediately if you type a second `C-g' while the flag is already set,
-so you can always get out of GNU Emacs.  Normally Emacs recognizes and
-clears `quit-flag' (and quits!) quickly enough to prevent this from
-happening.
-
-   When you resume Emacs after a suspension caused by multiple `C-g', it
-asks two questions before going back to what it had been doing:
-
-     Auto-save? (y or n)
-     Abort (and dump core)? (y or n)
-
-Answer each one with `y' or `n' followed by RET.
-
-   Saying `y' to `Auto-save?' causes immediate auto-saving of all
-modified buffers in which auto-saving is enabled.
-
-   Saying `y' to `Abort (and dump core)?' causes an illegal instruction
-to be executed, dumping core.  This is to enable a wizard to figure out
-why Emacs was failing to quit in the first place.  Execution does not
-continue after a core dump.  If you answer `n', execution does
-continue.  With luck, Emacs will ultimately check `quit-flag' and quit
-normally.  If not, and you type another `C-g', it is suspended again.
-
-   If Emacs is not really hung, just slow, you may invoke the double
-`C-g' feature without really meaning to.  Then just resume and answer
-`n' to both questions, and you will arrive at your former state.
-Presumably the quit you requested will happen soon.
-
-   The double-`C-g' feature may be turned off when Emacs is running
-under a window system, since the window system always enables you to
-kill Emacs or to create another window and run another program.
+   The command `M-x normal-mode' always obeys local variables lists and
+ignores this variable.
 
 
-File: lemacs.info,  Node: Total Frustration,  Prev: Emergency Escape,  Up: Lossage
+File: lemacs.info,  Node: Keyboard Macros,  Next: Key Bindings,  Prev: Variables,  Up: Customization
 
-Help for Total Frustration
---------------------------
+Keyboard Macros
+===============
 
-   If using Emacs (or something else) becomes terribly frustrating and
-none of the techniques described above solve the problem, Emacs can
-still help you.
+   A "keyboard macro" is a command defined by the user to abbreviate a
+sequence of keys.  For example, if you discover that you are about to
+type `C-n C-d' forty times, you can speed your work by defining a
+keyboard macro to invoke `C-n C-d' and calling it with a repeat count
+of forty.
 
-   First, if the Emacs you are using is not responding to commands, type
-`C-g C-g' to get out of it and then start a new one.
+`C-x ('
+     Start defining a keyboard macro (`start-kbd-macro').
 
-   Second, type `M-x doctor RET'.
+`C-x )'
+     End the definition of a keyboard macro (`end-kbd-macro').
 
-   The doctor will make you feel better.  Each time you say something to
-the doctor, you must end it by typing RET RET.  This lets the doctor
-know you are finished.
+`C-x e'
+     Execute the most recent keyboard macro (`call-last-kbd-macro').
 
-
-File: lemacs.info,  Node: Bugs,  Next: Manifesto,  Prev: Lossage,  Up: Top
+`C-u C-x ('
+     Re-execute last keyboard macro, then add more keys to its
+     definition.
 
-Reporting Bugs
-==============
+`C-x q'
+     When this point is reached during macro execution, ask for
+     confirmation (`kbd-macro-query').
 
-   Sometimes you will encounter a bug in Emacs.  Although we cannot
-promise we can or will fix the bug, and we might not even agree that it
-is a bug, we want to hear about bugs you encounter in case we do want
-to fix them.
+`M-x name-last-kbd-macro'
+     Give a command name (for the duration of the session) to the most
+     recently defined keyboard macro.
 
-   To make it possible for us to fix a bug, you must report it.  In
-order to do so effectively, you must know when and how to do it.
+`M-x insert-kbd-macro'
+     Insert in the buffer a keyboard macro's definition, as Lisp code.
 
-When Is There a Bug
--------------------
+   Keyboard macros differ from other Emacs commands in that they are
+written in the Emacs command language rather than in Lisp.  This makes
+it easier for the novice to write them and makes them more convenient as
+temporary hacks.  However, the Emacs command language is not powerful
+enough as a programming language to be useful for writing anything
+general or complex.  For such things, Lisp must be used.
 
-   If Emacs executes an illegal instruction, or dies with an operating
-system error message that indicates a problem in the program (as
-opposed to something like "disk full"), then it is certainly a bug.
+   You define a keyboard macro by executing the commands which are its
+definition.  Put differently, as you are defining a keyboard macro, the
+definition is being executed for the first time.  This way, you see
+what the effects of your commands are, and don't have to figure them
+out in your head.  When you are finished, the keyboard macro is defined
+and also has been executed once.  You can then execute the same set of
+commands again by invoking the macro.
 
-   If Emacs updates the display in a way that does not correspond to
-what is in the buffer, then it is certainly a bug.  If a command seems
-to do the wrong thing but the problem corrects itself if you type
-`C-l', it is a case of incorrect display updating.
+* Menu:
 
-   Taking forever to complete a command can be a bug, but you must make
-certain that it was really Emacs's fault.  Some commands simply take a
-long time.  Type `C-g' and then `C-h l' to see whether the input Emacs
-received was what you intended to type; if the input was such that you
-KNOW it should have been processed quickly, report a bug.  If you don't
-know whether the command should take a long time, find out by looking
-in the manual or by asking for assistance.
-
-   If a command you are familiar with causes an Emacs error message in a
-case where its usual definition ought to be reasonable, it is probably a
-bug.
-
-   If a command does the wrong thing, that is a bug.  But be sure you
-know for certain what it ought to have done.  If you aren't familiar
-with the command, or don't know for certain how the command is supposed
-to work, then it might actually be working right.  Rather than jumping
-to conclusions, show the problem to someone who knows for certain.
-
-   Finally, a command's intended definition may not be best for editing
-with.  This is a very important sort of problem, but it is also a
-matter of judgment.  Also, it is easy to come to such a conclusion out
-of ignorance of some of the existing features.  It is probably best not
-to complain about such a problem until you have checked the
-documentation in the usual ways, feel confident that you understand it,
-and know for certain that what you want is not available.  If you are
-not sure what the command is supposed to do after a careful reading of
-the manual, check the index and glossary for any terms that may be
-unclear.  If you still do not understand, this indicates a bug in the
-manual.  The manual's job is to make everything clear.  It is just as
-important to report documentation bugs as program bugs.
-
-   If the on-line documentation string of a function or variable
-disagrees with the manual, one of them must be wrong, so report the bug.
-
-How to Report a Bug
--------------------
-
-   When you decide that there is a bug, it is important to report it
-and to report it in a way which is useful.  What is most useful is an
-exact description of what commands you type, starting with the shell
-command to run Emacs, until the problem happens.  Always include the
-version number of Emacs that you are using; type `M-x emacs-version' to
-print this.
-
-   The most important principle in reporting a bug is to report FACTS,
-not hypotheses or categorizations.  It is always easier to report the
-facts, but people seem to prefer to strain to posit explanations and
-report them instead.  If the explanations are based on guesses about
-how Emacs is implemented, they will be useless; we will have to try to
-figure out what the facts must have been to lead to such speculations.
-Sometimes this is impossible.  But in any case, it is unnecessary work
-for us.
-
-   For example, suppose that you type `C-x C-f /glorp/baz.ugh RET',
-visiting a file which (you know) happens to be rather large, and Emacs
-prints out `I feel pretty today'.  The best way to report the bug is
-with a sentence like the preceding one, because it gives all the facts
-and nothing but the facts.
-
-   Do not assume that the problem is due to the size of the file and
-say, "When I visit a large file, Emacs prints out `I feel pretty
-today'." This is what we mean by "guessing explanations".  The problem
-is just as likely to be due to the fact that there is a `z' in the file
-name.  If this is so, then when we got your report, we would try out
-the problem with some "large file", probably with no `z' in its name,
-and not find anything wrong.  There is no way in the world that we
-could guess that we should try visiting a file with a `z' in its name.
-
-   Alternatively, the problem might be due to the fact that the file
-starts with exactly 25 spaces.  For this reason, you should make sure
-that you inform us of the exact contents of any file that is needed to
-reproduce the bug.  What if the problem only occurs when you have typed
-the `C-x C-a' command previously?  This is why we ask you to give the
-exact sequence of characters you typed since starting to use Emacs.
-
-   You should not even say "visit a file" instead of `C-x C-f' unless
-you know that it makes no difference which visiting command is used.
-Similarly, rather than saying "if I have three characters on the line,"
-say "after I type `RET A B C RET C-p'," if that is the way you entered
-the text.
-
-   If you are not in Fundamental mode when the problem occurs, you
-should say what mode you are in.
-
-   If the manifestation of the bug is an Emacs error message, it is
-important to report not just the text of the error message but a
-backtrace showing how the Lisp program in Emacs arrived at the error.
-To make the backtrace, you must execute the Lisp expression `(setq
-debug-on-error t)' before the error happens (that is to say, you must
-execute that expression and then make the bug happen).  This causes the
-Lisp debugger to run (*note Lisp Debug::.).  The debugger's backtrace
-can be copied as text into the bug report.  This use of the debugger is
-possible only if you know how to make the bug happen again.  Do note
-the error message the first time the bug happens, so if you can't make
-it happen again, you can report at least that.
-
-   Check whether any programs you have loaded into the Lisp world,
-including your `.emacs' file, set any variables that may affect the
-functioning of Emacs.  Also, see whether the problem happens in a
-freshly started Emacs without loading your `.emacs' file (start Emacs
-with the `-q' switch to prevent loading the init file.)  If the problem
-does NOT occur then, it is essential that we know the contents of any
-programs that you must load into the Lisp world in order to cause the
-problem to occur.
-
-   If the problem does depend on an init file or other Lisp programs
-that are not part of the standard Emacs system, then you should make
-sure it is not a bug in those programs by complaining to their
-maintainers first.  After they verify that they are using Emacs in a
-way that is supposed to work, they should report the bug.
-
-   If you can tell us a way to cause the problem without visiting any
-files, please do so.  This makes it much easier to debug.  If you do
-need files, make sure you arrange for us to see their exact contents.
-For example, it can often matter whether there are spaces at the ends
-of lines, or a newline after the last line in the buffer (nothing ought
-to care whether the last line is terminated, but tell that to the bugs).
-
-   The easy way to record the input to Emacs precisely is to to write a
-dribble file; execute the Lisp expression
-
-     (open-dribble-file "~/dribble")
-
-using `Meta-ESC' or from the `*scratch*' buffer just after starting
-Emacs.  From then on, all Emacs input will be written in the specified
-dribble file until the Emacs process is killed.
-
-   For possible display bugs, it is important to report the terminal
-type (the value of environment variable `TERM'), the complete termcap
-entry for the terminal from `/etc/termcap' (since that file is not
-identical on all machines), and the output that Emacs actually sent to
-the terminal.  The way to collect this output is to execute the Lisp
-expression
-
-     (open-termscript "~/termscript")
-
-using `Meta-ESC' or from the `*scratch*' buffer just after starting
-Emacs.  From then on, all output from Emacs to the terminal will be
-written in the specified termscript file as well, until the Emacs
-process is killed.  If the problem happens when Emacs starts up, put
-this expression into your `.emacs' file so that the termscript file will
-be open when Emacs displays the screen for the first time.  Be warned:
-it is often difficult, and sometimes impossible, to fix a
-terminal-dependent bug without access to a terminal of the type that
-stimulates the bug.
-
-   If you have purchased a support contract from Lucid, you can contact
-us directly about bugs.  The address for reporting bugs is
-
-GNU Emacs Bugs
-Lucid, Inc.
-707 Laurel Street
-Menlo Park, CA 94025
-
-The email address is `hotline@lucid.com'.
-
-   You can also call the Lucid hotline at the following numbers:
-
-Phone:  (415) 329-8400
-FAX:    (415) 329-8480
-
-   If you do not have a support contract, there exist several public
-forums in which you might be able to get help for your problem:
-
-   The newsgroup `alt.lucid-emacs.bug' may be used for bug reports, and
-the newsgroup `alt.lucid-emacs.help' may be used for other discussions
-and requests for assistance.
-
-   If you don't have access to these newgroups, you can subscribe to the
-mailing list versions: the newsgroups are bidirectionally gatewayed into
-the mailing lists `bug-lucid-emacs@lucid.com' and
-`help-lucid-emacs@lucid.com' respectively.
-
-   To be added or removed from these mailing lists, send mail to
-`bug-lucid-emacs-request@lucid.com' or
-`help-lucid-emacs-request@lucid.com'.  Do not send requests for
-addition to the mailing lists themselves.
-
-   The mailing lists and newsgroups are archived on our anonymous FTP
-server, `lucid.com', and at various other archive sites around the net.
+* Basic Kbd Macro::     Defining and running keyboard macros.
+* Save Kbd Macro::      Giving keyboard macros names; saving them in files.
+* Kbd Macro Query::     Keyboard macros that do different things each use.
 
 
-File: lemacs.info,  Node: Manifesto,  Prev: Bugs,  Up: Top
-
-The GNU Manifesto
-*****************
-
-What's GNU?  Gnu's Not Unix!
-============================
-
-   GNU, which stands for Gnu's Not Unix, is the name for the complete
-Unix-compatible software system which I am writing so that I can give it
-away free to everyone who can use it.  Several other volunteers are
-helping me.  Contributions of time, money, programs and equipment are
-greatly needed.
-
-   So far we have an Emacs text editor with Lisp for writing editor
-commands, a source level debugger, a yacc-compatible parser generator,
-a linker, and around 35 utilities.  A shell (command interpreter) is
-nearly completed.  A new portable optimizing C compiler has compiled
-itself and may be released this year.  An initial kernel exists but
-many more features are needed to emulate Unix.  When the kernel and
-compiler are finished, it will be possible to distribute a GNU system
-suitable for program development.  We will use TeX as our text
-formatter, but an nroff is being worked on.  We will use the free,
-portable X window system as well.  After this we will add a portable
-Common Lisp, an Empire game, a spreadsheet, and hundreds of other
-things, plus on-line documentation.  We hope to supply, eventually,
-everything useful that normally comes with a Unix system, and more.
-
-   GNU will be able to run Unix programs, but will not be identical to
-Unix.  We will make all improvements that are convenient, based on our
-experience with other operating systems.  In particular, we plan to
-have longer filenames, file version numbers, a crashproof file system,
-filename completion perhaps, terminal-independent display support, and
-perhaps eventually a Lisp-based window system through which several
-Lisp programs and ordinary Unix programs can share a screen.  Both C
-and Lisp will be available as system programming languages.  We will
-try to support UUCP, MIT Chaosnet, and Internet protocols for
-communication.
-
-   GNU is aimed initially at machines in the 68000/16000 class with
-virtual memory, because they are the easiest machines to make it run
-on.  The extra effort to make it run on smaller machines will be left
-to someone who wants to use it on them.
-
-   To avoid horrible confusion, please pronounce the `G' in the word
-`GNU' when it is the name of this project.
-
-Why I Must Write GNU
-====================
-
-   I consider that the golden rule requires that if I like a program I
-must share it with other people who like it.  Software sellers want to
-divide the users and conquer them, making each user agree not to share
-with others.  I refuse to break solidarity with other users in this
-way.  I cannot in good conscience sign a nondisclosure agreement or a
-software license agreement.  For years I worked within the Artificial
-Intelligence Lab to resist such tendencies and other inhospitalities,
-but eventually they had gone too far: I could not remain in an
-institution where such things are done for me against my will.
-
-   So that I can continue to use computers without dishonor, I have
-decided to put together a sufficient body of free software so that I
-will be able to get along without any software that is not free.  I
-have resigned from the AI lab to deny MIT any legal excuse to prevent
-me from giving GNU away.
-
-Why GNU Will Be Compatible with Unix
-====================================
-
-   Unix is not my ideal system, but it is not too bad.  The essential
-features of Unix seem to be good ones, and I think I can fill in what
-Unix lacks without spoiling them.  And a system compatible with Unix
-would be convenient for many other people to adopt.
-
-How GNU Will Be Available
-=========================
-
-   GNU is not in the public domain.  Everyone will be permitted to
-modify and redistribute GNU, but no distributor will be allowed to
-restrict its further redistribution.  That is to say, proprietary
-modifications will not be allowed.  I want to make sure that all
-versions of GNU remain free.
-
-Why Many Other Programmers Want to Help
-=======================================
-
-   I have found many other programmers who are excited about GNU and
-want to help.
-
-   Many programmers are unhappy about the commercialization of system
-software.  It may enable them to make more money, but it requires them
-to feel in conflict with other programmers in general rather than feel
-as comrades.  The fundamental act of friendship among programmers is the
-sharing of programs; marketing arrangements now typically used
-essentially forbid programmers to treat others as friends.  The
-purchaser of software must choose between friendship and obeying the
-law.  Naturally, many decide that friendship is more important.  But
-those who believe in law often do not feel at ease with either choice.
-They become cynical and think that programming is just a way of making
-money.
-
-   By working on and using GNU rather than proprietary programs, we can
-be hospitable to everyone and obey the law.  In addition, GNU serves as
-an example to inspire and a banner to rally others to join us in
-sharing.  This can give us a feeling of harmony which is impossible if
-we use software that is not free.  For about half the programmers I
-talk to, this is an important happiness that money cannot replace.
-
-How You Can Contribute
-======================
-
-   I am asking computer manufacturers for donations of machines and
-money.  I'm asking individuals for donations of programs and work.
-
-   One consequence you can expect if you donate machines is that GNU
-will run on them at an early date.  The machines should be complete,
-ready to use systems, approved for use in a residential area, and not
-in need of sophisticated cooling or power.
-
-   I have found very many programmers eager to contribute part-time
-work for GNU.  For most projects, such part-time distributed work would
-be very hard to coordinate; the independently-written parts would not
-work together.  But for the particular task of replacing Unix, this
-problem is absent.  A complete Unix system contains hundreds of utility
-programs, each of which is documented separately.  Most interface
-specifications are fixed by Unix compatibility.  If each contributor
-can write a compatible replacement for a single Unix utility, and make
-it work properly in place of the original on a Unix system, then these
-utilities will work right when put together.  Even allowing for Murphy
-to create a few unexpected problems, assembling these components will
-be a feasible task.  (The kernel will require closer communication and
-will be worked on by a small, tight group.)
-
-   If I get donations of money, I may be able to hire a few people full
-or part time.  The salary won't be high by programmers' standards, but
-I'm looking for people for whom building community spirit is as
-important as making money.  I view this as a way of enabling dedicated
-people to devote their full energies to working on GNU by sparing them
-the need to make a living in another way.
-
-Why All Computer Users Will Benefit
-===================================
-
-   Once GNU is written, everyone will be able to obtain good system
-software free, just like air.
-
-   This means much more than just saving everyone the price of a Unix
-license.  It means that much wasteful duplication of system programming
-effort will be avoided.  This effort can go instead into advancing the
-state of the art.
-
-   Complete system sources will be available to everyone.  As a result,
-a user who needs changes in the system will always be free to make them
-himself, or hire any available programmer or company to make them for
-him.  Users will no longer be at the mercy of one programmer or company
-which owns the sources and is in sole position to make changes.
-
-   Schools will be able to provide a much more educational environment
-by encouraging all students to study and improve the system code.
-Harvard's computer lab used to have the policy that no program could be
-installed on the system if its sources were not on public display, and
-upheld it by actually refusing to install certain programs.  I was very
-much inspired by this.
-
-   Finally, the overhead of considering who owns the system software
-and what one is or is not entitled to do with it will be lifted.
-
-   Arrangements to make people pay for using a program, including
-licensing of copies, always incur a tremendous cost to society through
-the cumbersome mechanisms necessary to figure out how much (that is,
-which programs) a person must pay for.  And only a police state can
-force everyone to obey them.  Consider a space station where air must
-be manufactured at great cost: charging each breather per liter of air
-may be fair, but wearing the metered gas mask all day and all night is
-intolerable even if everyone can afford to pay the air bill.  And the
-TV cameras everywhere to see if you ever take the mask off are
-outrageous.  It's better to support the air plant with a head tax and
-chuck the masks.
-
-   Copying all or parts of a program is as natural to a programmer as
-breathing, and as productive.  It ought to be as free.
-
-Some Easily Rebutted Objections to GNU's Goals
-==============================================
-
-     "Nobody will use it if it is free, because that means they can't
-     rely on any support."
-
-     "You have to charge for the program to pay for providing the
-     support."
-
-   If people would rather pay for GNU plus service than get GNU free
-without service, a company to provide just service to people who have
-obtained GNU free ought to be profitable.
-
-   We must distinguish between support in the form of real programming
-work and mere handholding.  The former is something one cannot rely on
-from a software vendor.  If your problem is not shared by enough
-people, the vendor will tell you to get lost.
-
-   If your business needs to be able to rely on support, the only way
-is to have all the necessary sources and tools.  Then you can hire any
-available person to fix your problem; you are not at the mercy of any
-individual.  With Unix, the price of sources puts this out of
-consideration for most businesses.  With GNU this will be easy.  It is
-still possible for there to be no available competent person, but this
-problem cannot be blamed on distibution arrangements.  GNU does not
-eliminate all the world's problems, only some of them.
-
-   Meanwhile, the users who know nothing about computers need
-handholding: doing things for them which they could easily do
-themselves but don't know how.
-
-   Such services could be provided by companies that sell just
-hand-holding and repair service.  If it is true that users would rather
-spend money and get a product with service, they will also be willing
-to buy the service having got the product free.  The service companies
-will compete in quality and price; users will not be tied to any
-particular one.  Meanwhile, those of us who don't need the service
-should be able to use the program without paying for the service.
-
-     "You cannot reach many people without advertising, and you must
-     charge for the program to support that."
-
-     "It's no use advertising a program people can get free."
-
-   There are various forms of free or very cheap publicity that can be
-used to inform numbers of computer users about something like GNU.  But
-it may be true that one can reach more microcomputer users with
-advertising.  If this is really so, a business which advertises the
-service of copying and mailing GNU for a fee ought to be successful
-enough to pay for its advertising and more.  This way, only the users
-who benefit from the advertising pay for it.
-
-   On the other hand, if many people get GNU from their friends, and
-such companies don't succeed, this will show that advertising was not
-really necessary to spread GNU.  Why is it that free market advocates
-don't want to let the free market decide this?
-
-     "My company needs a proprietary operating system to get a
-     competitive edge."
-
-   GNU will remove operating system software from the realm of
-competition.  You will not be able to get an edge in this area, but
-neither will your competitors be able to get an edge over you.  You and
-they will compete in other areas, while benefitting mutually in this
-one.  If your business is selling an operating system, you will not
-like GNU, but that's tough on you.  If your business is something else,
-GNU can save you from being pushed into the expensive business of
-selling operating systems.
-
-   I would like to see GNU development supported by gifts from many
-manufacturers and users, reducing the cost to each.
-
-     "Don't programmers deserve a reward for their creativity?"
-
-   If anything deserves a reward, it is social contribution.
-Creativity can be a social contribution, but only in so far as society
-is free to use the results.  If programmers deserve to be rewarded for
-creating innovative programs, by the same token they deserve to be
-punished if they restrict the use of these programs.
-
-     "Shouldn't a programmer be able to ask for a reward for his
-     creativity?"
-
-   There is nothing wrong with wanting pay for work, or seeking to
-maximize one's income, as long as one does not use means that are
-destructive.  But the means customary in the field of software today
-are based on destruction.
-
-   Extracting money from users of a program by restricting their use of
-it is destructive because the restrictions reduce the amount and the
-ways that the program can be used.  This reduces the amount of wealth
-that humanity derives from the program.  When there is a deliberate
-choice to restrict, the harmful consequences are deliberate destruction.
-
-   The reason a good citizen does not use such destructive means to
-become wealthier is that, if everyone did so, we would all become
-poorer from the mutual destructiveness.  This is Kantian ethics; or,
-the Golden Rule.  Since I do not like the consequences that result if
-everyone hoards information, I am required to consider it wrong for one
-to do so.  Specifically, the desire to be rewarded for one's creativity
-does not justify depriving the world in general of all or part of that
-creativity.
-
-     "Won't programmers starve?"
-
-   I could answer that nobody is forced to be a programmer.  Most of us
-cannot manage to get any money for standing on the street and making
-faces.  But we are not, as a result, condemned to spend our lives
-standing on the street making faces, and starving.  We do something
-else.
-
-   But that is the wrong answer because it accepts the questioner's
-implicit assumption: that without ownership of software, programmers
-cannot possibly be paid a cent.  Supposedly it is all or nothing.
-
-   The real reason programmers will not starve is that it will still be
-possible for them to get paid for programming; just not paid as much as
-now.
-
-   Restricting copying is not the only basis for business in software.
-It is the most common basis because it brings in the most money.  If it
-were prohibited, or rejected by the customer, software business would
-move to other bases of organization which are now used less often.
-There are always numerous ways to organize any kind of business.
-
-   Probably programming will not be as lucrative on the new basis as it
-is now.  But that is not an argument against the change.  It is not
-considered an injustice that sales clerks make the salaries that they
-now do.  If programmers made the same, that would not be an injustice
-either.  (In practice they would still make considerably more than
-that.)
-
-     "Don't people have a right to control how their creativity is
-     used?"
-
-   "Control over the use of one's ideas" really constitutes control over
-other people's lives; and it is usually used to make their lives more
-difficult.
-
-   People who have studied the issue of intellectual property rights
-carefully (such as lawyers) say that there is no intrinsic right to
-intellectual property.  The kinds of supposed intellectual property
-rights that the government recognizes were created by specific acts of
-legislation for specific purposes.
-
-   For example, the patent system was established to encourage
-inventors to disclose the details of their inventions.  Its purpose was
-to help society rather than to help inventors.  At the time, the life
-span of 17 years for a patent was short compared with the rate of
-advance of the state of the art.  Since patents are an issue only among
-manufacturers, for whom the cost and effort of a license agreement are
-small compared with setting up production, the patents often do not do
-much harm.  They do not obstruct most individuals who use patented
-products.
-
-   The idea of copyright did not exist in ancient times, when authors
-frequently copied other authors at length in works of non-fiction.  This
-practice was useful, and is the only way many authors' works have
-survived even in part.  The copyright system was created expressly for
-the purpose of encouraging authorship.  In the domain for which it was
-invented--books, which could be copied economically only on a printing
-press--it did little harm, and did not obstruct most of the individuals
-who read the books.
-
-   All intellectual property rights are just licenses granted by society
-because it was thought, rightly or wrongly, that society as a whole
-would benefit by granting them.  But in any particular situation, we
-have to ask: are we really better off granting such license?  What kind
-of act are we licensing a person to do?
-
-   The case of programs today is very different from that of books a
-hundred years ago.  The fact that the easiest way to copy a program is
-from one neighbor to another, the fact that a program has both source
-code and object code which are distinct, and the fact that a program is
-used rather than read and enjoyed, combine to create a situation in
-which a person who enforces a copyright is harming society as a whole
-both materially and spiritually; in which a person should not do so
-regardless of whether the law enables him to.
-
-     "Competition makes things get done better."
-
-   The paradigm of competition is a race: by rewarding the winner, we
-encourage everyone to run faster.  When capitalism really works this
-way, it does a good job; but its defenders are wrong in assuming it
-always works this way.  If the runners forget why the reward is offered
-and become intent on winning, no matter how, they may find other
-strategies--such as, attacking other runners.  If the runners get into
-a fist fight, they will all finish late.
-
-   Proprietary and secret software is the moral equivalent of runners
-in a fist fight.  Sad to say, the only referee we've got does not seem
-to object to fights; he just regulates them ("For every ten yards you
-run, you can fire one shot").  He really ought to break them up, and
-penalize runners for even trying to fight.
-
-     "Won't everyone stop programming without a monetary incentive?"
-
-   Actually, many people will program with absolutely no monetary
-incentive.  Programming has an irresistible fascination for some
-people, usually the people who are best at it.  There is no shortage of
-professional musicians who keep at it even though they have no hope of
-making a living that way.
-
-   But really this question, though commonly asked, is not appropriate
-to the situation.  Pay for programmers will not disappear, only become
-less.  So the right question is, will anyone program with a reduced
-monetary incentive?  My experience shows that they will.
-
-   For more than ten years, many of the world's best programmers worked
-at the Artificial Intelligence Lab for far less money than they could
-have had anywhere else.  They got many kinds of non-monetary rewards:
-fame and appreciation, for example.  And creativity is also fun, a
-reward in itself.
-
-   Then most of them left when offered a chance to do the same
-interesting work for a lot of money.
-
-   What the facts show is that people will program for reasons other
-than riches; but if given a chance to make a lot of money as well, they
-will come to expect and demand it.  Low-paying organizations do poorly
-in competition with high-paying ones, but they do not have to do badly
-if the high-paying ones are banned.
-
-     "We need the programmers desperately.  If they demand that we stop
-     helping our neighbors, we have to obey."
-
-   You're never so desperate that you have to obey this sort of demand.
-Remember: millions for defense, but not a cent for tribute!
-
-     "Programmers need to make a living somehow."
-
-   In the short run, this is true.  However, there are plenty of ways
-that programmers could make a living without selling the right to use a
-program.  This way is customary now because it brings programmers and
-businessmen the most money, not because it is the only way to make a
-living.  It is easy to find other ways if you want to find them.  Here
-are a number of examples.
-
-   A manufacturer introducing a new computer will pay for the porting of
-operating systems onto the new hardware.
-
-   The sale of teaching, hand-holding and maintenance services could
-also employ programmers.
-
-   People with new ideas could distribute programs as freeware, asking
-for donations from satisfied users, or selling hand-holding services.
-I have met people who are already working this way successfully.
-
-   Users with related needs can form users' groups, and pay dues.  A
-group would contract with programming companies to write programs that
-the group's members would like to use.
-
-   All sorts of development can be funded with a Software Tax:
-
-     Suppose everyone who buys a computer has to pay x percent of the
-     price as a software tax.  The government gives this to an agency
-     like the NSF to spend on software development.
-
-     But if the computer buyer makes a donation to software development
-     himself, he can take a credit against the tax.  He can donate to
-     the project of his own choosing--often, chosen because he hopes to
-     use the results when
-
-     it is done.  He can take a credit for any amount of donation up to
-     the total tax he had to pay.
-
-     The total tax rate could be decided by a vote of the payers of the
-     tax, weighted according to the amount they will be taxed on.
-
-     The consequences:
-
-        * The computer-using community supports software development.
-
-        * This community decides what level of support is needed.
-
-        * Users who care which projects their share is spent on can
-          choose this for themselves.
-
-   In the long run, making programs free is a step toward the
-post-scarcity world, where nobody will have to work very hard just to
-make a living.  People will be free to devote themselves to activities
-that are fun, such as programming, after spending the necessary ten
-hours a week on required tasks such as legislation, family counseling,
-robot repair and asteroid prospecting.  There will be no need to be
-able to make a living from programming.
-
-   We have already greatly reduced the amount of work that the whole
-society must do for its actual productivity, but only a little of this
-has translated itself into leisure for workers because much
-nonproductive activity is required to accompany productive activity.
-The main causes of this are bureaucracy and isometric struggles against
-competition.  Free software will greatly reduce these drains in the
-area of software production.  We must do this, in order for technical
-gains in productivity to translate into less work for us.
+File: lemacs.info,  Node: Basic Kbd Macro,  Next: Save Kbd Macro,  Prev: Keyboard Macros,  Up: Keyboard Macros
+
+Basic Use
+---------
+
+   To start defining a keyboard macro, type `C-x ('
+(`start-kbd-macro').  From then on, anything you type continues to be
+executed, but also becomes part of the definition of the macro.  `Def'
+appears in the mode line to remind you of what is going on.  When you
+are finished, the `C-x )' command (`end-kbd-macro') terminates the
+definition, without becoming part of it.
+
+   For example,
+
+     C-x ( M-f foo C-x )
+
+defines a macro to move forward a word and then insert `foo'.
+
+   You can give `C-x )' a repeat count as an argument, in which case it
+repeats the macro that many times right after defining it, but defining
+the macro counts as the first repetition (since it is executed as you
+define it).  If you give `C-x )' an argument of 4, it executes the
+macro immediately 3 additional times.  An argument of zero to `C-x e'
+or `C-x )' means repeat the macro indefinitely (until it gets an error
+or you type `C-g').
+
+   Once you have defined a macro, you can invoke it again with the `C-x
+e' command (`call-last-kbd-macro').  You can give the command a repeat
+count numeric argument to execute the macro many times.
+
+   To repeat an operation at regularly spaced places in the text,
+define a macro and include as part of the macro the commands to move to
+the next place you want to use it.  For example, if you want to change
+each line, you should position point at the start of a line, and define
+a macro to change that line and leave point at the start of the next
+line.  Repeating the macro will then operate on successive lines.
+
+   After you have terminated the definition of a keyboard macro, you
+can add to the end of its definition by typing `C-u C-x ('.  This is
+equivalent to plain `C-x (' followed by retyping the whole definition
+so far.  As a consequence it re-executes the macro as previously
+defined.
+
+
+File: lemacs.info,  Node: Save Kbd Macro,  Next: Kbd Macro Query,  Prev: Basic Kbd Macro,  Up: Keyboard Macros
+
+Naming and Saving Keyboard Macros
+---------------------------------
+
+   To save a keyboard macro for longer than until you define the next
+one, you must give it a name using `M-x name-last-kbd-macro'.  This
+reads a name as an argument using the minibuffer and defines that name
+to execute the macro.  The macro name is a Lisp symbol, and defining it
+in this way makes it a valid command name for calling with `M-x' or for
+binding a key to with `global-set-key' (*note Keymaps::.).  If you
+specify a name that has a prior definition other than another keyboard
+macro, Emacs prints an error message and nothing is changed.
+
+   Once a macro has a command name, you can save its definition in a
+file.  You can then use it in another editing session.  First visit the
+file you want to save the definition in.  Then use the command:
+
+     M-x insert-kbd-macro RET MACRONAME RET
+
+This inserts some Lisp code that, when executed later, will define the
+same macro with the same definition it has now.  You need not
+understand Lisp code to do this, because `insert-kbd-macro' writes the
+Lisp code for you.  Then save the file.  You can load the file with
+`load-file' (*note Lisp Libraries::.).  If the file you save in is your
+initialization file `~/.emacs' (*note Init File::.), then the macro
+will be defined each time you run Emacs.
+
+   If you give `insert-kbd-macro' a prefix argument, it creates
+additional Lisp code to record the keys (if any) that you have bound to
+the keyboard macro, so that the macro is reassigned the same keys when
+you load the file.
+
+
+File: lemacs.info,  Node: Kbd Macro Query,  Prev: Save Kbd Macro,  Up: Keyboard Macros
+
+Executing Macros With Variations
+--------------------------------
+
+   You can use `C-x q' (`kbd-macro-query'), to get an effect similar to
+that of `query-replace'.  The macro asks you  each time whether to make
+a change.  When you are defining the macro, type `C-x q' at the point
+where you want the query to occur.  During macro definition, the `C-x
+q' does nothing, but when you invoke the macro, `C-x q' reads a
+character from the terminal to decide whether to continue.
+
+   The special answers to a `C-x q' query are SPC, DEL, `C-d', `C-l',
+and `C-r'.  Any other character terminates execution of the keyboard
+macro and is then read as a command.  SPC means to continue.  DEL means
+to skip the remainder of this repetition of the macro, starting again
+from the beginning in the next repetition.  `C-d' means to skip the
+remainder of this repetition and cancel further repetition.  `C-l'
+redraws the screen and asks you again for a character to specify what
+to do.  `C-r' enters a recursive editing level, in which you can
+perform editing that is not part of the macro.  When you exit the
+recursive edit using `C-M-c', you are asked again how to continue with
+the keyboard macro.  If you type a SPC at this time, the rest of the
+macro definition is executed.  It is up to you to leave point and the
+text in a state such that the rest of the macro will do what you want.
+
+   `C-u C-x q', which is `C-x q' with a numeric argument, performs a
+different function.  It enters a recursive edit reading input from the
+keyboard, both when you type it during the definition of the macro and
+when it is executed from the macro.  During definition, the editing you
+do inside the recursive edit does not become part of the macro.  During
+macro execution, the recursive edit gives you a chance to do some
+particularized editing.  *Note Recursive Edit::.
+
+
+File: lemacs.info,  Node: Key Bindings,  Next: Syntax,  Prev: Keyboard Macros,  Up: Customization
+
+Customizing Key Bindings
+========================
+
+   This section deals with the "keymaps" that define the bindings
+between keys and functions, and shows how you can customize these
+bindings.
+
+   A command is a Lisp function whose definition provides for
+interactive use.  Like every Lisp function, a command has a function
+name, which is a Lisp symbol whose name usually consists of lower case
+letters and hyphens.
+
+* Menu:
+
+* Keymaps::    Definition of the keymap data structure.
+               Names of Emacs's standard keymaps.
+* Rebinding::  How to redefine one key's meaning conveniently.
+* Disabling::  Disabling a command means confirmation is required
+                before it can be executed.  This is done to protect
+                beginners from surprises.
+
+
+File: lemacs.info,  Node: Keymaps,  Next: Disabling,  Up: Key Bindings
+
+Keymaps
+-------
+
+   The bindings between characters and command functions are recorded in
+data structures called "keymaps".  Emacs has many of these.  One, the
+"global" keymap, defines the meanings of the single-character keys that
+are defined regardless of major mode.  It is the value of the variable
+`global-map'.
+
+   Each major mode has another keymap, its "local keymap", which
+contains overriding definitions for the single-character keys that are
+redefined in that mode.  Each buffer records which local keymap is
+installed for it at any time, and the current buffer's local keymap is
+the only one that directly affects command execution.  The local keymaps
+for Lisp mode, C mode, and many other major modes always exist even when
+not in use.  They are the values of the variables `lisp-mode-map',
+`c-mode-map', and so on.  For less frequently used major modes, the
+local keymap is sometimes constructed only when the mode is used for the
+first time in a session, to save space.
+
+   There are local keymaps for the minibuffer, too; they contain various
+completion and exit commands.
+
+   * `minibuffer-local-map' is used for ordinary input (no completion).
+
+   * `minibuffer-local-ns-map' is similar, except that SPC exits just
+     like RET.  This is used mainly for Mocklisp compatibility.
+
+   * `minibuffer-local-completion-map' is for permissive completion.
+
+   * `minibuffer-local-must-match-map' is for strict completion and for
+     cautious completion.
+
+   * `repeat-complex-command-map' is for use in `C-x ESC'.
+
+   * `isearch-mode-map' contains the bindings of the special keys which
+     are bound in the pseudo-mode entered with `C-s' and `C-r'.
+
+   Finally, each prefix key has a keymap which defines the key sequences
+that start with it.  For example, `ctl-x-map' is the keymap used for
+characters following a `C-x'.
+
+   * `ctl-x-map' is the variable name for the map used for characters
+     that follow `C-x'.
+
+   * `help-map' is used for characters that follow `C-h'.
+
+   * `esc-map' is for characters that follow ESC. All Meta characters
+     are actually defined by this map.
+
+   * `ctl-x-4-map' is for characters that follow `C-x 4'.
+
+   * `mode-specific-map' is for characters that follow `C-c'.
+
+   The definition of a prefix key is the keymap to use for looking up
+the following character.  Sometimes the definition is actually a Lisp
+symbol whose function definition is the following character keymap.  The
+effect is the same, but it provides a command name for the prefix key
+that you can use as a description of what the prefix key is for.  Thus
+the binding of `C-x' is the symbol `Ctl-X-Prefix', whose function
+definition is the keymap for `C-x' commands, the value of `ctl-x-map'.
+
+   Prefix key definitions can appear in either the global map or a
+local map.  The definitions of `C-c', `C-x', `C-h', and ESC as prefix
+keys appear in the global map, so these prefix keys are always
+available.  Major modes can locally redefine a key as a prefix by
+putting a prefix key definition for it in the local map.
+
+   A mode can also put a prefix definition of a global prefix character
+such as `C-x' into its local map.  This is how major modes override the
+definitions of certain keys that start with `C-x'.  This case is
+special, because the local definition does not entirely replace the
+global one.  When both the global and local definitions of a key are
+other keymaps, the next character is looked up in both keymaps, with
+the local definition overriding the global one.  The character after the
+`C-x' is looked up in both the major mode's own keymap for redefined
+`C-x' commands and in `ctl-x-map'.  If the major mode's own keymap for
+`C-x' commands contains `nil', the definition from the global keymap
+for `C-x' commands is used.
+
+* Menu:
+
+* Rebinding::                 Changing Key Bindings Interactively
+* Programmatic Rebinding::    Changing Key Bindings Programmatically
+* Key Bindings Using Strings::Using Strings for Changings Key Bindings
+
+
+File: lemacs.info,  Node: Rebinding,  Next: Programmatic Rebinding,  Prev: Keymaps,  Up: Keymaps
+
+Changing Key Bindings Interactively
+-----------------------------------
+
+   You can redefine an Emacs key by changing its entry in a keymap.
+You can change the global keymap, in which case the change is effective
+in all major modes except those that have their own overriding local
+definitions for the same key.  Or you can change the current buffer's
+local map, which affects all buffers using the same major mode.
+
+`M-x global-set-key RET KEY CMD RET'
+     Defines KEY globally to run CMD.
+
+`M-x local-set-key RET KEYS CMD RET'
+     Defines KEY locally (in the major mode now in effect) to run CMD.
+
+`M-x local-unset-key RET KEYS RET'
+     Removes the local binding of KEY.
+
+   CMD is a symbol naming an interactively-callable function.
+
+   When called interactively, KEY is the next complete key sequence
+that you type.  When called as a function, KEY is a string, a vector of
+events, or a vector of key-description lists as described in the
+`define-key' function description.  The binding goes in the current
+buffer's local map, which is shared with other buffers in the same
+major mode.
+
+   The following example:
+
+     M-x global-set-key RET C-f next-line RET
+
+redefines `C-f' to move down a line.  The fact that CMD is read second
+makes it serve as a kind of confirmation for KEY.
+
+   These functions offer no way to specify a particular prefix keymap as
+the one to redefine in, but that is not necessary, as you can include
+prefixes in KEY.  KEY is read by reading characters one by one until
+they amount to a complete key (that is, not a prefix key).  Thus, if
+you type `C-f' for KEY, Emacs enters the minibuffer immediately to read
+CMD.  But if you type `C-x', another character is read; if that
+character is `4', another character is read, and so on.  For example,
+
+     M-x global-set-key RET C-x 4 $ spell-other-window RET
+
+redefines `C-x 4 $' to run the (fictitious) command
+`spell-other-window'.
+
+   The most general way to modify a keymap is the function
+`define-key', used in Lisp code (such as your `.emacs' file).
+`define-key' takes three arguments: the keymap, the key to modify in
+it, and the new definition.  *Note Init File::, for an example.
+`substitute-key-definition' is used similarly; it takes three
+arguments, an old definition, a new definition, and a keymap, and
+redefines in that keymap all keys that were previously defined with the
+old definition to have the new definition instead.
 

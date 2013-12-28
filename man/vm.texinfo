@@ -925,7 +925,7 @@ VM has two commands to forward messages: @kbd{z}
 Typing @kbd{z} puts you into a @samp{*mail*} buffer just like @kbd{m},
 except the current message appears as the body of the message in the
 @samp{*mail*} buffer. The forwarded message is surrounded by RFC 934
-complaint message delimiters.  If the variable
+compliant message delimiters.  If the variable
 @code{vm-rfc934-forwarding} is non-@code{nil} "^-" to "- -" character
 stuffing is done to the forwarded message (this is the default).  This
 behavior is required if the recipient of the forwarded message wants to

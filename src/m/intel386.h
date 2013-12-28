@@ -5,7 +5,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -26,12 +26,14 @@ NOTE-START
 Intel 386 (-machine=intel386 or -machine=is386.h)
 
   The possibilities for -opsystem are: bsd4-2, usg5-2-2, usg5-3,
-  isc2-2, 386-ix, esix, or xenix.
+  isc2-2, 386-ix, esix, linux, sco3.2v4, and xenix.
 
   18.58 should support a wide variety of operating systems.
   Use isc2-2 for Interactive 386/ix version 2.2.
   Use 386ix for prior versions.
-  Use esix for Esix.  It isn't clear what to do on an SCO system.
+  Use esix for Esix.
+  Use linux for Linux.
+  It isn't clear what to do on an SCO system.
 
   -machine=is386 is used for an Integrated Solutions 386 machine.
   It may also be correct for Microport systems.
@@ -49,15 +51,17 @@ NOTE-END */
 /* The following three symbols give information on
  the size of various data types.  */
 
+
+/* Linux defines these in <values.h>, but they can't be used in #if's */
+#undef SHORTBITS
+#undef INTBITS
+#undef LONGBITS
+  
 #define SHORTBITS 16		/* Number of bits in a short */
 
 #define INTBITS 32		/* Number of bits in an int */
 
 #define LONGBITS 32		/* Number of bits in a long */
-
-/* i386 is not big-endian: lowest numbered byte is least significant. */
-
-/* #undef BIG_ENDIAN */
 
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
@@ -77,6 +81,8 @@ NOTE-END */
 #define INTEL386
 
 /* Use type int rather than a union, to represent Lisp_Object */
+/* (Now that the byte-order business has been straightened out,
+    it may be save to leave NO_UNION_TYPE undefined.) */
 
 #define NO_UNION_TYPE
 
@@ -128,9 +134,6 @@ NOTE-END */
 /* #define VIRT_ADDR_VARIES */
 
 #ifdef XENIX
-/* lemacs has fewer tags than v18, so let lisp.h take care of this */
-/* #define VALBITS 26 */
-/* #define GCTYPEBITS 5 */
 
 /* Define NO_REMAP if memory segmentation makes it not work well
    to change the boundary between the text section and data section
@@ -155,14 +158,20 @@ NOTE-END */
 #define LIB_STANDARD /lib/386/Slibcfp.a /lib/386/Slibc.a
 #else /* not XENIX */
 
+/* this brings in alloca() if we're using cc */
 #ifdef USG
 #ifndef LIB_STANDARD
+#ifdef USG5_4
+#define LIB_STANDARD -lc
+#else /* not USG5_4 */
 #define LIB_STANDARD -lPW -lc
-#endif
+#endif /* not USG5_4 */
+#endif /* LIB_STANDARD */
+
 #define HAVE_ALLOCA
 #define NO_REMAP 
 #define TEXT_START 0
-#endif /* USG */
+#endif /* not USG */
 #endif /* not XENIX */
 
 #ifdef BSD

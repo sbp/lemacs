@@ -10,11 +10,12 @@
 /* Don't tell the linker to link statically */
 #ifdef THIS_IS_YMAKEFILE
 #define START_FILES
-#define LD_CMD $(CC)
-#define LD_SWITCH_SYSTEM -L/usr/lib/X11R5 -L/usr/lib/Motif1.2
+#define LINKER $(CC)
+/* now done in hpux8.h */
+/* #define LD_SWITCH_SYSTEM -L/usr/lib/X11R5 -L/usr/lib/Motif1.2 */
 #endif /* THIS IS YMAKEFILE */
 
-/* get call to brk() when rerunning xemacs */
+/* get call to brk() when rerunning lemacs */
 /* #ifndef USE_GCC */
 #define RUN_TIME_REMAP
 /* #endif */

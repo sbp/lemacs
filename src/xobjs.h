@@ -99,6 +99,7 @@ extern Lisp_Object Fpixmap_file_name (Lisp_Object obj);
 extern Lisp_Object Fcolorize_pixmap (Lisp_Object, Lisp_Object, Lisp_Object);
 extern Lisp_Object make_pixmap_from_data (Screen *screen, char *bits,
 					  int width, int height);
+extern Lisp_Object Fpixmap_contributes_to_line_height_p (Lisp_Object);
 extern Lisp_Object Qpixmapp;
 
 struct Lisp_Pixmap {
@@ -108,6 +109,7 @@ struct Lisp_Pixmap {
   unsigned short width, height;
   unsigned int depth;	/* depth 0 means bitmap rather than pixmap */
   int x, y;		/* hotspot */
+  int contrib_p;	/* whether to figure into line height */
   Pixmap pixmap;
   Pixmap mask;
 
@@ -120,6 +122,44 @@ struct Lisp_Pixmap {
   /* Should we hang on to the extra info from the XpmAttributes, like
      the textual color table and the comments?   Is that useful? */
 };
+
+#define XSUBWINDOW(a) ((struct Lisp_Subwindow *) XPNTR(a))
+#define SUBWINDOWP(x) RECORD_TYPEP ((x), lrecord_subwindow)
+#define CHECK_SUBWINDOW(x, i) \
+ do { if (!SUBWINDOWP ((x))) x = wrong_type_argument (Qx_window_glyph_p, (x)); } while (0)
+extern CONST struct lrecord_implementation lrecord_subwindow[];
+extern Lisp_Object Qx_window_glyph_p;
+
+struct Lisp_Subwindow {
+  struct lcrecord_header header;
+  Lisp_Object screen;
+  Screen *xscreen;
+  Window parent_window;
+
+  unsigned int width, height;
+  Window subwindow;
+
+  int being_displayed;		/* used to detect when needs to be unmapped */
+};
+
+#ifdef EPOCH
+
+#define XXRESOURCE(a) ((struct Lisp_X_Resource *) XPNTR(a))
+#define XRESOURCEP(x) RECORD_TYPEP ((x), lrecord_x_resource)
+#define CHECK_XRESOURCE(x, i) \
+  do { if (!XRESOURCEP ((x))) x = wrong_type_argument (Qx_resource_p, (x)); } while (0)
+extern CONST struct lrecord_implementation lrecord_x_resource[];
+extern Lisp_Object Qx_resource_p;
+
+struct Lisp_X_Resource {
+  struct lcrecord_header header;
+
+  XID xid;
+  Atom type;
+/*  Display *dpy; */	/* #### We can't run on multiple displays yet. */
+};
+
+#endif /* EPOCH */
 
 #endif /* HAVE_X_WINDOWS */
 #endif /* _EMACS_XOBJS_H_ */

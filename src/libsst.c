@@ -13,7 +13,7 @@
 
 */
 
-#if __STDC__
+#if __STDC__ || defined(STDC_HEADERS)
 #include <stdlib.h>
 #include <unistd.h>
 #endif

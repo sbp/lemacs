@@ -110,7 +110,7 @@ typedef struct Energize_Extent_Data
   int seal;                     /* must be EXTENT_SEAL */
   EId id;
   int extentType;               /* oneof CEAttribute, CEAbbreviation, etc. */
-  Lisp_Object extent;           /* corresponding extent */
+  Lisp_Object extent;           /* corresponding extent (never nil) */
   struct x_pixmap *start_pixmap;
   struct x_pixmap *end_pixmap;
   int warn_modify;

@@ -131,10 +131,11 @@ enum Lisp_Type
        The length of the string, and its contents, are stored therein. */
     ,Lisp_String                /* 3  DTP-STRING */
 
-/* LRECORD_VECTOR is NYI */
+#ifndef LRECORD_VECTOR
     /* Vector of Lisp objects.  XVECTOR(object) points to a struct Lisp_Vector.
        The length of the vector, and its contents, are stored therein. */
     ,Lisp_Vector                /* 4  DTP-SIMPLE-ARRAY */
+#endif
 
 #ifndef LRECORD_SYMBOL
     ,Lisp_Symbol
@@ -199,15 +200,22 @@ struct Lisp_String
 
 struct Lisp_Vector
   {
+#ifdef LRECORD_VECTOR
+    struct lrecord_header lheader;
+#endif
     long size;
-    /* Now uses vector->contents[size], terminated by Qzero.
+    /* next is now chained through v->contents[size], terminated by Qzero.
      * This means that pure vectors don't need a "next" */
     /* struct Lisp_Vector *next; */
     Lisp_Object contents[1];
   };
 #define vector_length(v) ((v)->size)
 #define vector_next(v) ((v)->contents[(v)->size])
-#define XSETVECTOR(v,p) XSET ((v), Lisp_Vector, (p))
+#ifndef LRECORD_VECTOR
+# define XSETVECTOR(v,p) XSET ((v), Lisp_Vector, (p))
+#else
+# define XSETVECTOR(v,p) XSETR ((v), Lisp_Vector, (p))
+#endif /* LRECORD_VECTOR */
 
 /* In a symbol, the markbit of the plist is used as the gc mark bit */
 struct Lisp_Symbol
@@ -293,9 +301,19 @@ extern CONST struct lrecord_implementation lrecord_symbol[];
 # define SYMBOLP(x) (XTYPE ((x)) == Lisp_Symbol)
 #endif /* !LRECORD_SYMBOL */
 
+#ifdef LRECORD_STRING
+# define STRINGP(x) (RECORD_TYPEP ((x), lrecord_string))
+extern CONST struct lrecord_implementation lrecord_string[];
+#else /* !LRECORD_STRING */
 #define STRINGP(x) (XTYPE ((x)) == Lisp_String)
+#endif /* !LRECORD_STRING */
 
-#define VECTORP(x) (XTYPE ((x)) == Lisp_Vector)
+#ifdef LRECORD_VECTOR
+# define VECTORP(x) (RECORD_TYPEP ((x), lrecord_vector))
+extern CONST struct lrecord_implementation lrecord_vector[];
+#else /* !LRECORD_VECTOR */
+# define VECTORP(x) (XTYPE ((x)) == Lisp_Vector)
+#endif /* !LRECORD_VECTOR */
 
 #define FLOATP(x) (RECORD_TYPEP ((x), lrecord_float))
 extern CONST struct lrecord_implementation lrecord_float[];
@@ -494,20 +512,20 @@ extern void defvar_mumble (CONST char *names,
 
 #define DEFVARLISP(lname, c_location, doc) \
  do { static CONST struct symbol_value_forward I_hate_C \
-       = { { { { lrecord_symbol_value_forward }, (void *) (c_location), 69 }, \
+       = { { { { lrecord_symbol_value_forward }, (void *) (c_location) }, \
              object_forward } }; \
       defvar_mumble ((lname), &I_hate_C, sizeof (I_hate_C)); \
       staticpro ((c_location)); \
  } while (0)
 #define DEFVARINT(lname, c_location, doc) \
  do { static CONST struct symbol_value_forward I_hate_C \
-       = { { { {lrecord_symbol_value_forward}, (void *) (c_location), 69 }, \
+       = { { { {lrecord_symbol_value_forward}, (void *) (c_location) }, \
              fixnum_forward } }; \
       defvar_mumble ((lname), (&I_hate_C), (sizeof (I_hate_C))); \
  } while (0)
 #define DEFVARBOOL(lname, c_location, doc) \
  do { static CONST struct symbol_value_forward I_hate_C \
-       = { { { {lrecord_symbol_value_forward}, (void *) (c_location), 69 }, \
+       = { { { {lrecord_symbol_value_forward}, (void *) (c_location) }, \
              boolean_forward } }; \
       defvar_mumble ((lname), &I_hate_C, sizeof (I_hate_C)); \
  } while (0)
@@ -727,6 +745,13 @@ extern int immediate_quit;
 extern DOESNT_RETURN exit (int);
 extern DOESNT_RETURN abort (void);
 #endif
+#endif
+
+#ifdef USE_ASSERTIONS
+/* Highly dubious kludge */
+/*   (thanks, Jamie, I feel better now -- bpw) */
+extern void assert_failed (char *, int, char *);
+# define abort() (assert_failed (__FILE__, __LINE__, 0))
 #endif
 
 #include "emacsfns.h"

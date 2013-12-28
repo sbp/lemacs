@@ -19,15 +19,22 @@
    Among other things, the copyright notice and this notice must be
    preserved on all copies.  */
 
-/* This is Makeinfo version 1.55.  If you change the version number of
+/* This is Makeinfo version 1.56.  If you change the version number of
    Makeinfo, please change it here and at the lines reading:
 
     int major_version = 1;
-    int minor_version = 55;
+    int minor_version = 56;
 
    in the code below.
 
-   Makeinfo is authored by Brian Fox (bfox@ai.mit.edu). */
+   Makeinfo is authored by Brian Fox (bfox@ai.mit.edu).
+
+   March 1994: additions by Ben Wing (wing@netcom.com).
+*/
+
+#if defined (HAVE_CONFIG_H)
+#include "config.h"
+#endif /* HAVE_CONFIG_H */
 
 /* You can change some of the behaviour of Makeinfo by changing the
    following defines: */
@@ -74,14 +81,29 @@
 #include <ctype.h>
 #include <pwd.h>
 #include <errno.h>
+#if defined (HAVE_STDARG_H)
+#include <stdarg.h>
+#else /* !HAVE_STDARG_H */
 #if defined (HAVE_VARARGS_H)
 #include <varargs.h>
 #endif /* HAVE_VARARGS_H */
+#endif /* !HAVE_STDARG_H */
 #include "getopt.h"
 
 #if defined (VMS)
 #include <perror.h>
 #endif
+
+#if defined (STDC_HEADERS)
+#include <stdlib.h>
+#else
+extern int errno;
+#endif /* !STDC_HEADERS */
+
+#if !defined (__WATCOMC__)
+extern char *sys_errlist[];
+extern int sys_nerr;
+#endif /* !__WATCOMC__ */
 
 #if defined (HAVE_STRING_H)
 #include <string.h>
@@ -101,22 +123,32 @@
 #include <fcntl.h>
 #endif /* !HAVE_SYS_FCNTL_H */
 
+#if defined (HAVE_UNISTD_H)
+#include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+
+#if !defined (_POSIX_VERSION)
 #include <sys/file.h>
+#endif /* !_POSIX_VERSION */
 
 #if defined (__GNUC__)
 #define alloca __builtin_alloca
 #else
-#if defined(HAVE_ALLOCA_H)
+#if defined (HAVE_ALLOCA_H)
 #include <alloca.h>
 #else /* !HAVE_ALLOCA_H */
+#if defined (__WATCOMC__)
+#include <malloc.h>
+#else /* !__WATCOMC__ */
 #if !defined (_AIX)
 extern char *alloca ();
 #endif /* !_AIX */
+#endif /* !__WATCOMC__ */
 #endif /* !HAVE_ALLOCA_H */
 #endif /* !__GNUC__ */
 
-void *xmalloc (), *xrealloc ();
-static void isolate_nodename ();
+void *xmalloc (int), *xrealloc (void *, int);
+static void isolate_nodename (char *);
 
 /* Non-zero means that we are currently hacking the insides of an
    insertion which would use a fixed width font. */
@@ -143,7 +175,7 @@ struct passwd *getpwnam ();
 
 /* How to allocate permanent storage for STRING. */
 #define savestring(x) \
-  ((char *)strcpy ((char *)xmalloc (1 + ((x) ? strlen (x) : 0)), \
+  ((char *)strcpy ((char *)xmalloc (1 + ((x) ? (int) strlen (x) : 0)), \
 		   (x) ? (x) : ""))
 
 /* C's standard macros don't check to make sure that the characters being
@@ -444,6 +476,15 @@ int reference_warning_limit = 1000;
    is going on. */
 int verbose_mode = 0;
 
+/* Count of @ifinfo commands seen.  @ifinfo is handled specially
+   to allow non-hierarchical contstructions like
+
+   @ifinfo
+   @table foo
+   @end ifinfo
+*/
+int ifinfo_count = 0;
+
 /* The list of commands that we hack in texinfo.  Each one
    has an associated function.  When the command is encountered in the
    text, the associated function is called with START as the argument.
@@ -514,6 +555,14 @@ int cm_paragraphindent (), cm_footnotestyle ();
 /* Internals. */
 int do_nothing (), command_name_condition ();
 int misplaced_brace (), cm_obsolete ();
+
+#if defined (HAVE_STDARG_H)
+int error (char *, ...);
+int line_error (char *, ...);
+int warning (char *, ...);
+void add_word_args (char *, ...);
+void execute_string (char *, ...);
+#endif
 
 typedef struct
 {
@@ -748,7 +797,7 @@ static COMMAND CommandTable[] = {
   {(char *) NULL, (FUNCTION *) NULL}, NO_BRACE_ARGS};
 
 int major_version = 1;
-int minor_version = 55;
+int minor_version = 56;
 
 struct option long_options[] =
 {
@@ -984,6 +1033,16 @@ The options are:\n\
   exit (FATAL);
 }
 
+#if defined (MSDOS)
+
+struct passwd *
+getpwnam (char *name)
+{
+  return (struct passwd *) 0;
+}
+
+#endif /* MSDOS */
+
 /* **************************************************************** */
 /*								    */
 /*			Manipulating Lists      		    */
@@ -1050,15 +1109,17 @@ find_and_load (filename)
   /* VMS stat lies about the st_size value.  The actual number of
      readable bytes is always less than this value.  The arcane
      mysteries of VMS/RMS are too much to probe, so this hack
-    suffices to make things work. */
-#if defined (VMS)
+     suffices to make things work.
+    
+     BPW: same business applies under MS-DOS.  */
+#if defined (VMS) || defined (MSDOS)
   while ((n = read (file, result + count, fileinfo.st_size)) > 0)
     count += n;
   if (n == -1)
-#else /* !VMS */
+#else /* !(VMS && MSDOS) */
     count = fileinfo.st_size;
     if (read (file, result, fileinfo.st_size) != fileinfo.st_size)
-#endif /* !VMS */
+#endif /* !(VMS && MSDOS) */
   error_exit:
     {
       if (result)
@@ -1363,6 +1424,7 @@ error (va_alist)
   vfprintf (stderr, format, args);
   va_end (args);
   fprintf (stderr, "\n");
+  return ((int) 0);
 }
 
 /* Just like error (), but print the line number as well. */
@@ -1403,6 +1465,53 @@ warning (va_alist)
 }
 
 #else /* !(HAVE_VARARGS_H && HAVE_VFPRINTF) */
+#if defined (HAVE_STDARG_H)
+
+int
+error (char *format, ...)
+{
+  va_list ap;
+
+  remember_error ();
+  va_start (ap, format);
+  vfprintf (stderr, format, ap);
+  fprintf (stderr, "\n");
+  va_end (ap);
+  return ((int) 0);
+}
+
+/* Just like error (), but print the line number as well. */
+int
+line_error (char *format, ...)
+{
+  va_list ap;
+
+  remember_error ();
+  va_start (ap, format);
+  fprintf (stderr, "%s:%d: ", input_filename, line_number);
+  vfprintf (stderr, format, ap);
+  fprintf (stderr, ".\n");
+  va_end (ap);
+  return ((int) 0);
+}
+
+int
+warning (char *format, ...)
+{
+  va_list ap;
+
+  va_start (ap, format);
+  if (print_warnings)
+    {
+      fprintf (stderr, "%s:%d: Warning: ", input_filename, line_number);
+      vfprintf (stderr, format, ap);
+      fprintf (stderr, ".\n");
+    }
+  va_end (ap);
+  return ((int) 0);
+}
+
+#else /* !HAVE_STDARG_H */
 
 int
 error (format, arg1, arg2, arg3, arg4, arg5)
@@ -1439,6 +1548,7 @@ warning (format, arg1, arg2, arg3, arg4, arg5)
   return ((int) 0);
 }
 
+#endif /* !HAVE_STDARG_H */
 #endif /* !(HAVE_VARARGS_H && HAVE_VFPRINTF) */
 
 /* Remember that an error has been printed.  If this is the first
@@ -2200,6 +2310,7 @@ get_char_len (character)
 
 #if defined (HAVE_VARARGS_H) && defined (HAVE_VSPRINTF)
 
+void
 add_word_args (va_alist)
      va_dcl
 {
@@ -2215,7 +2326,23 @@ add_word_args (va_alist)
 }
 
 #else /* !(HAVE_VARARGS_H && HAVE_VSPRINTF) */
+#if defined (HAVE_STDARG_H)
 
+void
+add_word_args (char *format, ...)
+{
+  va_list ap;
+  char buffer[1000];
+
+  va_start (ap, format);
+  vsprintf (buffer, format, ap);
+  add_word (buffer);
+  va_end (ap);
+}
+
+#else /* !HAVE_STDARG_H */
+
+void
 add_word_args (format, arg1, arg2, arg3, arg4, arg5)
      char *format;
 {
@@ -2224,6 +2351,7 @@ add_word_args (format, arg1, arg2, arg3, arg4, arg5)
   add_word (buffer);
 }
 
+#endif /* !HAVE_STDARG_H */
 #endif /* !(HAVE_VARARGS_H && HAVE_VSPRINTF) */
 
 /* Add STRING to output_paragraph. */
@@ -3298,6 +3426,13 @@ end_insertion (type)
       close_insertion_paragraph ();
       break;
     }
+
+#if 0
+    if (current_indent < 0) {
+	current_indent = 0;
+	printf ("Warning: attempt to set current_indent < 0\n");
+    }
+#endif
 }
 
 /* Insertions cannot cross certain boundaries, such as node beginnings.  In
@@ -3518,7 +3653,7 @@ cm_italic (arg, start, end)
 cm_bold (arg, start, end)
      int arg, start, end;
 {
-  cm_italic (arg);
+  cm_italic (arg, start, end);
 }
 
 /* Current text is in roman font. */
@@ -3537,7 +3672,7 @@ cm_titlefont (arg, start, end)
 cm_title (arg, start, end)
      int arg, start, end;
 {
-  cm_italic (arg);
+  cm_italic (arg, start, end);
 }
 
 /* @refill is a NOP. */
@@ -4612,7 +4747,11 @@ split_file (filename, size)
 		    (10 + strlen (root_pathname) + strlen (root_filename));
 		  sprintf
 		    (split_filename,
+#ifdef MSDOS
+		     "%s%s.%d", root_pathname, root_filename, which_file);
+#else /* !MSDOS */
 		     "%s%s-%d", root_pathname, root_filename, which_file);
+#endif /* !MSDOS */
 
 		  fd = open
 		    (split_filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
@@ -4636,7 +4775,11 @@ split_file (filename, size)
 		      indirect_info += strlen (indirect_info);
 		    }
 
+#ifdef MSDOS
+		  sprintf (indirect_info, "%s.%d: %d\n",
+#else
 		  sprintf (indirect_info, "%s-%d: %d\n",
+#endif
 			   root_filename, which_file, file_top);
 
 		  free (split_filename);
@@ -5115,7 +5258,11 @@ cm_group ()
 
 cm_ifinfo ()
 {
-  begin_insertion (ifinfo);
+  /* begin_insertion (ifinfo); */
+  /* BPW: @ifinfo can cross hierarchies */
+  ifinfo_count++;
+  if (in_menu)
+    discard_until ("\n");  
 }
 
 /* Begin an insertion where the lines are not filled or indented. */
@@ -5446,6 +5593,7 @@ int executing_string = 0;
    is like submitting a new file with @include. */
 #if defined (HAVE_VARARGS_H) && defined(HAVE_VSPRINTF)
 
+void
 execute_string (va_alist)
      va_dcl
 {
@@ -5459,13 +5607,28 @@ execute_string (va_alist)
   va_end (args);
 
 #else /* !(HAVE_VARARGS_H && HAVE_VSPRINTF) */
+#if defined (HAVE_STDARG_H)
 
+void
+execute_string (char *format, ...)
+{
+  va_list ap;
+  static char temp_string[4000];
+
+  va_start (ap, format);
+  vsprintf (temp_string, format, ap);
+  va_end (ap);
+
+#else /* !HAVE_STDARG_H */
+
+void
 execute_string (format, arg1, arg2, arg3, arg4, arg5)
      char *format;
 {
   static char temp_string[4000];
   sprintf (temp_string, format, arg1, arg2, arg3, arg4, arg5);
 
+#endif /* !HAVE_STDARG_H */
 #endif /* !(HAVE_VARARGS_H && HAVE_VSPRINTF) */
 
   strcat (temp_string, "@bye\n");
@@ -6148,12 +6311,6 @@ cm_end ()
   char *temp;
   enum insertion_type type;
 
-  if (!insertion_level)
-    {
-      line_error ("Unmatched `@%s'", command);
-      return;
-    }
-
   get_rest_of_line (&temp);
   canon_white (temp);
 
@@ -6167,7 +6324,23 @@ cm_end ()
       line_error ("Bad argument to `%s', `%s', using `%s'",
 	   command, temp, insertion_type_pname (current_insertion_type ()));
     }
-  end_insertion (type);
+
+  /* see comment under cm_ifinfo() */
+  if (type == ifinfo)
+    {
+      if (!ifinfo_count)
+	line_error ("Unmatched `@%s'", command);
+      else
+	ifinfo_count--;
+    }
+  else
+    {
+      if (!insertion_level)
+	line_error ("Unmatched `@%s'", command);
+      else
+	end_insertion (type);
+    }
+
   free (temp);
 }
 
@@ -6348,6 +6521,8 @@ cm_exdent ()
 
   if (current_indent)
     current_indent -= default_indentation_increment;
+  if (current_indent < 0)
+    printf("ci < 0, line %d\n", __LINE__);
 
   get_rest_of_line (&line);
   close_single_paragraph ();
@@ -6388,8 +6563,6 @@ cm_infoinclude ()
 
   if (!find_and_load (filename))
     {
-      extern char *sys_errlist[];
-      extern int errno, sys_nerr;
       popfile ();
 
       /* Cannot "@include foo", in line 5 of "/wh/bar". */

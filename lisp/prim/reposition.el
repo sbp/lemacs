@@ -73,8 +73,8 @@ first comment line visible (if point is in a comment)."
 		  (if (not (eobp)) (forward-char 1))
 		  (end-of-defun -1) 
 		  ;; Skip whitespace, newlines, and form feeds.
-		  (re-search-forward "[^\\s \n\014]")
-		  (backward-char 1)
+		  (if (re-search-forward "[^ \t\n\f]" nil t)
+		      (backward-char 1))
 		  (point))
 		here)))
 	 (defun-height 

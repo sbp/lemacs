@@ -177,6 +177,7 @@ the special minibuffer behavior."
       (minibuf-mouse-tracker event) ; make sure we're sync'd
       (set-buffer (window-buffer (event-window event)))
       (if (or (null mode-motion-extent)
+	      (null (extent-buffer mode-motion-extent))
 	      (= (extent-start-position mode-motion-extent)
 		 (extent-end-position mode-motion-extent)))
 	  (setq command-p t)

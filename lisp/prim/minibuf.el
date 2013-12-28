@@ -66,6 +66,9 @@ minibuffer is reinvoked while it is the selected window.")
 (defvar minibuffer-setup-hook nil
   "Normal hook run just after entry to minibuffer.")
 
+(defvar minibuffer-exit-hook nil
+  "Normal hook run just after exit from minibuffer.")
+
 (defvar minibuffer-help-form nil
   "Value that `help-form' takes on inside the minibuffer.")
 
@@ -266,7 +269,7 @@ Fifth arg HISTORY, if non-nil, specifies a history list
                       nil (current-window-configuration screen)))
          (oconfig (current-window-configuration)))
     (unwind-protect
-         (let ((got-error nil))
+         (progn
            (set-buffer buffer)
            (reset-buffer buffer)
            (setq default-directory dir)
@@ -304,6 +307,7 @@ Fifth arg HISTORY, if non-nil, specifies a history list
                  (minibuffer-scroll-window owindow))
              (if minibuffer-setup-hook
                  (run-hooks 'minibuffer-setup-hook))
+             (message nil)
              (if (eq 't
                      (catch 'exit
                        (if (> (recursion-depth) (minibuffer-depth))
@@ -315,20 +319,28 @@ Fifth arg HISTORY, if non-nil, specifies a history list
                  ;;  into a real quit
                  (signal 'quit '())
                ;; return value
-               (let* ((val (progn (set-buffer buffer) (buffer-string)))
-		      (valid (and (symbolp minibuffer-history-variable)
-				  (boundp minibuffer-history-variable))))
-		 (if readp
-		     (condition-case c
-			 (progn
-			   (setq val (car (read-from-string val)))
-			   ;; total total kludge
-			   (if (stringp val) (setq val (list 'quote val))))
-		       (error (setq got-error c))))
+               (let* ((val (progn (set-buffer buffer)
+                                  (if minibuffer-exit-hook
+                                      (run-hooks 'minibuffer-exit-hook))
+                                  (buffer-string)))
+                      (err nil))
+                 (if readp
+                     (condition-case e
+                         (let ((v (read-from-string val)))
+                           (if (< (cdr v) (length val))
+                               (save-match-data
+                                 (or (string-match "[ \t\n]*\\'" val (cdr v))
+                                     (error (gettext "Trailing garbage following expression")))))
+                           (setq v (car v))
+                           ;; total total kludge
+                           (if (stringp v) (setq v (list 'quote v)))
+                           (setq val v))
+                       (error (setq err e))))
                  ;; Add the value to the appropriate history list unless
                  ;; it's already the most recent element, or it's only
                  ;; two characters long.
-                 (if valid
+                 (if (and (symbolp minibuffer-history-variable)
+                          (boundp minibuffer-history-variable))
 		     (let ((list (symbol-value minibuffer-history-variable)))
 		       (or (eq list t)
 			   (null val)
@@ -338,9 +350,8 @@ Fifth arg HISTORY, if non-nil, specifies a history list
 				(< (length val)
 				   minibuffer-history-minimum-string-length))
 			   (set minibuffer-history-variable (cons val list)))))
-		 ;; kludge kludge kludge
-		 (if got-error (signal (car got-error) (cdr got-error)))
-		 val))))
+                 (if err (signal (car err) (cdr err)))
+                 val))))
       ;; stupid display code requires this for some reason
       (set-buffer buffer)
       (buffer-disable-undo buffer)
@@ -598,17 +609,43 @@ Completion ignores case if the ambient value of
 
 
 (defun minibuffer-complete ()
-  "Complete the minibuffer contents as far as possible."
+  "Complete the minibuffer contents as far as possible.
+Return nil if there is no valid completion, else t.
+If no characters can be completed, display a list of possible completions.
+If you repeat this command after it displayed such a list,
+scroll the window of possible completions."
   (interactive)
-  (let ((status (minibuffer-do-completion (buffer-string))))
-    (if (eq status 'none)
-        nil
-      (progn
-        (cond ((eq status 'unique)
-               (temp-minibuffer-message (gettext " [Sole completion]")))
-              ((eq status 'exact)
-               (temp-minibuffer-message (gettext " [Complete, but not unique]"))))
-        t))))
+  ;; If the previous command was not this, then mark the completion
+  ;;  buffer obsolete.
+  (or (eq last-command this-command)
+      (setq minibuffer-scroll-window nil))
+  (let ((window minibuffer-scroll-window))
+    (if (and window (windowp window) (window-buffer window)
+             (buffer-name (window-buffer window)))
+	;; If there's a fresh completion window with a live buffer
+	;;  and this command is repeated, scroll that window.
+	(let ((obuf (current-buffer)))
+          (unwind-protect
+	      (progn
+		(set-buffer (window-buffer window))
+		(if (pos-visible-in-window-p (point-max) window)
+		    ;; If end is in view, scroll up to the beginning.
+		    (set-window-start window (point-min))
+		  ;; Else scroll down one screen.
+		  (scroll-other-window)))
+	    (set-buffer obuf))
+          nil)
+      (let ((status (minibuffer-do-completion (buffer-string))))
+	(if (eq status 'none)
+	    nil
+	  (progn
+	    (cond ((eq status 'unique)
+		   (temp-minibuffer-message
+		    (gettext " [Sole completion]")))
+		  ((eq status 'exact)
+		   (temp-minibuffer-message
+		    (gettext " [Complete, but not unique]"))))
+	    t))))))
 
 
 (defun minibuffer-complete-and-exit ()
@@ -687,7 +724,8 @@ the character in question must be typed again)."
 (defun minibuffer-complete-word ()
   "Complete the minibuffer contents at most a single word.
 After one word is completed as much as possible, a space or hyphen
-is added, provided that matches some possible completion."
+is added, provided that matches some possible completion.
+Return nil if there is no valid completion, else t."
   (interactive)
   (let* ((buffer-string (buffer-string))
          (completion (try-completion buffer-string
@@ -764,7 +802,9 @@ is added, provided that matches some possible completion."
 (defun display-completion-list (completions)
   "Display the list of completions, COMPLETIONS, using `standard-output'.
 Each element may be just a symbol or string
-or may be a list of two strings to be printed as if concatenated."
+or may be a list of two strings to be printed as if concatenated.
+At the end, run the normal hook `completion-setup-hook'.
+It can find the completion buffer in `standard-output'."
   (let ((old-buffer (current-buffer))
         (bufferp (bufferp standard-output)))
     (if bufferp
@@ -840,11 +880,10 @@ or may be a list of two strings to be printed as if concatenated."
                                 (setq column (+ column (length elt)))))))
                     (setq tail2 (nthcdr rows tail2)))
                   (setq tail (cdr tail)
-                        r (1+ r))))
-              ;; RMSmacs
-              (run-hooks 'completion-setup-hook))))))
+                        r (1+ r)))))))))
     (if bufferp
-        (set-buffer old-buffer))))
+        (set-buffer old-buffer)))
+  (run-hooks 'completion-setup-hook))
 
 (defun minibuffer-completion-help ()
   "Display a list of possible completions of the current minibuffer contents."
@@ -978,8 +1017,7 @@ If N is negative, find the previous or Nth previous match."
   (next-history-element (- n)))
 
 (defun next-complete-history-element (n)
-  "\
-Get previous element of history which is a completion of minibuffer contents."
+  "Get next element of history which is a completion of minibuffer contents."
   (interactive "p")
   (let ((point-at-start (point)))
     (next-matching-history-element
@@ -990,7 +1028,7 @@ Get previous element of history which is a completion of minibuffer contents."
     (goto-char point-at-start)))
 
 (defun previous-complete-history-element (n)
-  "Get next element of history which is a completion of minibuffer contents."
+  "Get previous element of history which is a completion of minibuffer contents."
   (interactive "p")
   (next-complete-history-element (- n)))
 
@@ -1150,7 +1188,8 @@ only existing buffer names are allowed."
   (if (not dir)
       (setq dir default-directory))
   (setq dir (abbreviate-file-name dir t))
-  (let* ((insert (cond ((not insert-default-directory)
+  (let* ((insert (cond ((and (not insert-default-directory)
+			     (not initial-contents))
                         "")
                        (initial-contents
                         (cons (un-substitute-in-file-name
@@ -1247,8 +1286,14 @@ DIR defaults to current buffer's directory default."
                                     (1+ start))
                                    (t
                                     start))))
-             (head (substring string 0 (1- start))))
-        (cond ((eq action 'lambda)
+             (head (substring string 0 (1- start)))
+             (alist #'(lambda ()
+                        (mapcar #'(lambda (x)
+                                    (cons (substring x 0 (string-match "=" x))
+                                          'nil))
+                                process-environment))))
+        
+	(cond ((eq action 'lambda)
                nil)
               ((eq action 't)
                ;; all completions
@@ -1259,10 +1304,10 @@ DIR defaults to current buffer's directory default."
 				    (/= (aref p 0) ?/))
 			       (concat "$" p)
                              (concat head "$" p)))
-                       (all-completions env (getenv t))))
+                       (all-completions env (funcall alist))))
               (t ;; 'nil
                ;; complete
-               (let* ((e (getenv t))
+               (let* ((e (funcall alist))
                       (val (try-completion env e)))
                  (cond ((stringp val)
                         (if (string-match "[^A-Za-z0-9_]" val)
@@ -1298,8 +1343,8 @@ DIR defaults to current buffer's directory default."
                      (file-name-all-completions name dir)))
             (t;; 'nil
              ;; complete
-	     (or specdir (setq specdir default-directory))
-             (let ((val (file-name-completion name specdir)))
+             (let* ((d (or dir default-directory))
+		    (val (file-name-completion name d)))
                (if (and (eq val 't)
                         (not (null completion-ignored-extensions)))
                    ;;>> (file-name-completion "foo") returns 't
@@ -1307,7 +1352,7 @@ DIR defaults to current buffer's directory default."
                    ;;   is "pruned" by completion-ignored-extensions.
                    ;; I think this is a bug in file-name-completion.
                    (setq val (let ((completion-ignored-extensions '()))
-                               (file-name-completion name specdir))))
+                               (file-name-completion name d))))
                (if (stringp val)
                    (un-substitute-in-file-name (if specdir
                                                    (concat specdir val)

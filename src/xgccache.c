@@ -281,13 +281,13 @@ describe_gc_cache (struct gc_cache *cache)
   {
     struct gc_cache_cell *cell2;
     int i = 0;
-    fprintf (stderr,"\n%d:\t0x%x  GC: 0x%08x  hash: 0x%08x\n",
+    fprintf (stderr,"\n%d:\t0x%x  GC: 0x%08x  hash: 0x%08lx\n",
 	     count, (int) cell, (int) cell->gc, gc_cache_hash (&cell->gcvm));
     for (cell2 = cache->head; cell2; cell2 = cell2->next, i++)
       if (count != i &&
 	  gc_cache_hash (&cell->gcvm) == gc_cache_hash (&cell2->gcvm))
 	fprintf (stderr, "\tHASH COLLISION with cell %d\n", i);
-    fprintf (stderr,"\tmask:       %8x\n", cell->gcvm.mask);
+    fprintf (stderr,"\tmask:       %8lx\n", cell->gcvm.mask);
 #define F(x) (int)cell->gcvm.gcv.x
 #define G(w,x) if (F(x) != (~0)) fprintf (stderr, "\t%-12s%8x\n", w, F(x))
     G("function:", function);

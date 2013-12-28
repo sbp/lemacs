@@ -656,8 +656,11 @@
 ;;; - make-directory takes a second optional argument
 ;;; - made ange-ftp-overwrite-fn use the 19.8 interface to byte-code objects
 ;;; - made ange-ftp-shell-mode work better with the latest comint
-;;; - insert-file-contents takes 2-4 args in v19
+;;; - insert-file-contents takes 2-5 args in v19
 ;;; - moved invocation of shell-mode to get along with the latest shell-font.el
+;;; - implemented ange-ftp-read-passwd in terms of read-passwd (from passwd.el)
+;;; - initialize all buffer-local variables to nil
+
 
 ;;; -----------------------------------------------------------
 ;;; Hall of fame:
@@ -1066,26 +1069,31 @@ the directory part of the file."
 ;;;; ------------------------------------------------------------
 
 (defun ange-ftp-read-passwd (prompt &optional default)
-  "Read a password from the user. Echos a . for each character typed.
-End with RET, LFD, or ESC. DEL or C-h rubs out.  ^U kills line.
-Optional DEFAULT is password to start with."
-  (let ((pass (if default default ""))
-	(c 0)
-	(echo-keystrokes 0)
-	(cursor-in-echo-area t))
-    (while (and (/= c ?\r) (/= c ?\n) (/= c ?\e))
-      (message "%s%s"
-	       prompt
-	       (make-string (length pass) ?.))
-      (setq c (read-char))
-      (if (= c ?\C-u)
-	  (setq pass "")
-	(if (and (/= c ?\b) (/= c ?\177))
-	    (setq pass (concat pass (char-to-string c)))
-	  (if (> (length pass) 0)
-	      (setq pass (substring pass 0 -1))))))
-    (ange-ftp-repaint-minibuffer)
-    (substring pass 0 -1)))
+  "Read a password from the user.
+See documentation of `read-passwd' for more info."
+  (read-passwd prompt nil default))
+
+;(defun ange-ftp-read-passwd (prompt &optional default)
+;  "Read a password from the user. Echos a . for each character typed.
+;End with RET, LFD, or ESC. DEL or C-h rubs out.  ^U kills line.
+;Optional DEFAULT is password to start with."
+;  (let ((pass (if default default ""))
+;	(c 0)
+;	(echo-keystrokes 0)
+;	(cursor-in-echo-area t))
+;    (while (and (/= c ?\r) (/= c ?\n) (/= c ?\e))
+;      (message "%s%s"
+;	       prompt
+;	       (make-string (length pass) ?.))
+;      (setq c (read-char))
+;      (if (= c ?\C-u)
+;	  (setq pass "")
+;	(if (and (/= c ?\b) (/= c ?\177))
+;	    (setq pass (concat pass (char-to-string c)))
+;	  (if (> (length pass) 0)
+;	      (setq pass (substring pass 0 -1))))))
+;    (ange-ftp-repaint-minibuffer)
+;    (substring pass 0 -1)))
 
 (defmacro ange-ftp-generate-passwd-key (host user)
   (` (concat (, host) "/" (, user))))
@@ -2222,20 +2230,20 @@ Runs ange-ftp-shell-mode-hook if not nil."
     (setq mode-name "ange-ftp")
     (goto-char (point-max))
     (set-marker (process-mark proc) (point))
-    (make-local-variable 'ange-ftp-process-string)
+    (set (make-local-variable 'ange-ftp-process-string) nil)
     (setq ange-ftp-process-string "")
-    (make-local-variable 'ange-ftp-process-busy)
-    (make-local-variable 'ange-ftp-process-result)
-    (make-local-variable 'ange-ftp-process-msg)
-    (make-local-variable 'ange-ftp-process-multi-skip)
-    (make-local-variable 'ange-ftp-process-result-line)
-    (make-local-variable 'ange-ftp-process-continue)
-    (make-local-variable 'ange-ftp-hash-mark-count)
-    (make-local-variable 'ange-ftp-binary-hash-mark-size)
-    (make-local-variable 'ange-ftp-ascii-hash-mark-size)
-    (make-local-variable 'ange-ftp-hash-mark-unit)
-    (make-local-variable 'ange-ftp-xfer-size)
-    (make-local-variable 'ange-ftp-last-percent)
+    (set (make-local-variable 'ange-ftp-process-busy) nil)
+    (set (make-local-variable 'ange-ftp-process-result) nil)
+    (set (make-local-variable 'ange-ftp-process-msg) nil)
+    (set (make-local-variable 'ange-ftp-process-multi-skip) nil)
+    (set (make-local-variable 'ange-ftp-process-result-line) nil)
+    (set (make-local-variable 'ange-ftp-process-continue) nil)
+    (set (make-local-variable 'ange-ftp-hash-mark-count) nil)
+    (set (make-local-variable 'ange-ftp-binary-hash-mark-size) nil)
+    (set (make-local-variable 'ange-ftp-ascii-hash-mark-size) nil)
+    (set (make-local-variable 'ange-ftp-hash-mark-unit) nil)
+    (set (make-local-variable 'ange-ftp-xfer-size) nil)
+    (set (make-local-variable 'ange-ftp-last-percent) nil)
     (setq ange-ftp-hash-mark-count 0)
     (setq ange-ftp-xfer-size 0)
     (setq ange-ftp-process-result-line "")
@@ -2991,7 +2999,7 @@ ftp transfers."
 	  (ange-ftp-add-file-entry filename))
       (ange-ftp-real-write-region start end filename append visit))))
 
-(defun ange-ftp-insert-file-contents (filename &optional visit beg end)
+(defun ange-ftp-insert-file-contents (filename &optional visit beg end replace)
   "Documented as original."
   (barf-if-buffer-read-only)
   (setq filename (expand-file-name filename))
@@ -3035,10 +3043,12 @@ ftp transfers."
 			      (ange-ftp-real-file-readable-p temp))
 			  (setq
 			   size
-			   (nth 1 (ange-ftp-real-insert-file-contents temp
-								      visit
-								      beg
-								      end)))
+			   (nth 1 (progn
+				    (if replace ; kludge...
+					(delete-region (point-min)
+						       (point-max)))
+				    (ange-ftp-real-insert-file-contents
+				     temp visit beg end nil))))
 			(signal 'ftp-error
 				(list
 				 "Opening input file:"
@@ -3058,7 +3068,7 @@ ftp transfers."
 		    (list 
 		     "Opening input file"
 		     filename))))
-      (ange-ftp-real-insert-file-contents filename visit beg end))))
+      (ange-ftp-real-insert-file-contents filename visit beg end replace))))
  
 (defun ange-ftp-revert-buffer (arg noconfirm)
   "Revert this buffer from a remote file using ftp."
@@ -4785,15 +4795,17 @@ placed on the new definition suitably augmented."
 		     (setcdr (nthcdr 3 new-code) (cons ndoc-str nil)))
 		   (fset new (apply 'make-byte-code new-code)))
 	       ;; the new way (marginally less random) for lemacs 19.8+
-	       (apply 'make-byte-code
-		      (compiled-function-arglist nfun)
-		      (compiled-function-instructions nfun)
-		      (compiled-function-constants nfun)
-		      (compiled-function-stack-depth nfun)
-		      ndoc-str
-		      (if (commandp nfun)
-			  (list (nth 1 (compiled-function-interactive nfun)))
-			nil))
+	       (fset new
+		     (apply 'make-byte-code
+			    (compiled-function-arglist nfun)
+			    (compiled-function-instructions nfun)
+			    (compiled-function-constants nfun)
+			    (compiled-function-stack-depth nfun)
+			    ndoc-str
+			    (if (commandp nfun)
+				(list (nth 1 (compiled-function-interactive
+					      nfun)))
+			      nil)))
 	       ))))))
 
 (defun ange-ftp-overwrite-dired ()

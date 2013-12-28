@@ -61,16 +61,18 @@ DEFUN ("identity", Fidentity, Sidentity, 1, 1, 0,
 
 
 /* Under linux with gcc -O, these are macros.  Do not declare. */
+#ifndef __osf__ 	/* lemacs: <grunwald@foobar.cs.colorado.edu> */
 #ifndef	random
 extern long random ();
 #endif
 #ifndef srandom
 extern void srandom ();
 #endif
+#endif
 
 DEFUN ("random", Frandom, Srandom, 0, 1, 0,
   "Return a pseudo-random number.\n\
-On most systems all integers representable in Lisp are equally likely.\n(\
+On most systems all integers representable in Lisp are equally likely.\n\
 A lisp integer is a few bits smaller than a C `long'; on most systems,\n\
 this means 28 bits.)\n\
 With argument N, return random number in interval [0,N).\n\
@@ -82,18 +84,22 @@ With argument t, set the random number seed from the current time and pid.")
 
   if (EQ (limit, Qt))
     srandom (getpid () + time (0));
-  val = random ();
-  if (FIXNUMP (limit) && XINT (limit) != 0)
+  if (FIXNUMP (limit) && XINT (limit) > 0)
     {
       /* Try to take our random number from the higher bits of VAL,
 	 not the lower, since (says Gentzel) the low bits of `random'
-	 are less random than the higher ones.  */
-      val &= 0xfffffff;		/* Ensure positive.  */
-      val >>= 5;
-      if (XINT (limit) < 10000)
-	val >>= 6;
-      val %= XINT (limit);
+	 are less random than the higher ones.  We do this by using the
+	 quotient rather than the remainder.  At the high end of the RNG
+	 it's possible to get a quotient larger than limit; discarding
+	 these values eliminates the bias that would otherwise appear
+	 when using a large limit.  */
+      unsigned long denominator = (unsigned long)0x80000000 / XFASTINT (limit);
+      do
+	val = (random () & 0x7fffffff) / denominator;
+      while (val >= XINT (limit));
     }
+  else
+    val = random ();
   return make_number (val);
 }
 
@@ -107,10 +113,8 @@ length_with_bytecode_hack (Lisp_Object seq)
   else
   {
     struct Lisp_Bytecode *b = XBYTECODE (seq);
-    int docp = b->flags.documentationp;
     int intp = b->flags.interactivep;
     int domainp = b->flags.domainp;
-    int lesser = min (COMPILED_INTERACTIVE, COMPILED_DOC_STRING);
 
     if (intp)
       return (COMPILED_INTERACTIVE + 1);
@@ -196,7 +200,6 @@ Symbols are also allowed; their print names are used instead.")
   (s1, s2)
      Lisp_Object s1, s2;
 {
-  register int i;
   register unsigned char *p1, *p2;
 #ifndef I18N2
   register int end;
@@ -223,18 +226,22 @@ Symbols are also allowed; their print names are used instead.")
   /* Compare strings using collation order of locale. */
   return strcoll ((char *) p1, (char *) p2) < 0 ? Qt : Qnil;
 #else /* not I18N2 */
+  {
+    int i;
 
-  for (i = 0; i < end; i++)
-    {
-      if (p1[i] != p2[i])
-	return p1[i] < p2[i] ? Qt : Qnil;
-    }
-  return ((i < len2) ? Qt : Qnil);
+    for (i = 0; i < end; i++)
+      {
+        if (p1[i] != p2[i])
+          return p1[i] < p2[i] ? Qt : Qnil;
+      }
+    return ((i < len2) ? Qt : Qnil);
+  }
 #endif /* not I18N2 */
 }
 
+enum  concat_target_type { c_cons, c_string, c_vector };
 static Lisp_Object concat (int nargs, Lisp_Object *args,
-                           enum Lisp_Type target_type, 
+                           enum concat_target_type target_type,
                            int last_special);
 
 Lisp_Object
@@ -244,7 +251,7 @@ concat2 (s1, s2)
   Lisp_Object args[2];
   args[0] = s1;
   args[1] = s2;
-  return concat (2, args, Lisp_String, 0);
+  return concat (2, args, c_string, 0);
 }
 
 DEFUN ("append", Fappend, Sappend, 0, MANY, 0,
@@ -256,18 +263,19 @@ The last argument is not copied, just used as the tail of the new list.")
      int nargs;
      Lisp_Object *args;
 {
-  return concat (nargs, args, Lisp_Cons, 1);
+  return concat (nargs, args, c_cons, 1);
 }
 
 DEFUN ("concat", Fconcat, Sconcat, 0, MANY, 0,
   "Concatenate all the arguments and make the result a string.\n\
 The result is a string whose elements are the elements of all the arguments.\n\
-Each argument may be a string, a list of numbers, or a vector of numbers.")
+Each argument may be a string, a list of characters (integers),\n\
+or a vector of numbers.")
   (nargs, args)
      int nargs;
      Lisp_Object *args;
 {
-  return concat (nargs, args, Lisp_String, 0);
+  return concat (nargs, args, c_string, 0);
 }
 
 DEFUN ("vconcat", Fvconcat, Svconcat, 0, MANY, 0,
@@ -278,7 +286,7 @@ Each argument may be a list, vector or string.")
      int nargs;
      Lisp_Object *args;
 {
-  return concat (nargs, args, Lisp_Vector, 0);
+  return concat (nargs, args, c_vector, 0);
 }
 
 DEFUN ("copy-sequence", Fcopy_sequence, Scopy_sequence, 1, 1, 0,
@@ -288,9 +296,8 @@ with the original.")
   (arg)
      Lisp_Object arg;
 {
+ again:
   if (NILP (arg)) return arg;
-  if (!CONSP (arg) && !VECTORP (arg) && !STRINGP (arg))
-    arg = wrong_type_argument (Qsequencep, arg);
   /* We handle conses seperately because concat() is big and hairy and
      doesn't handle (copy-sequence '(a b . c)) and it's easier to redo this
      than to fix concat() without worrying about breaking other things.
@@ -314,16 +321,21 @@ with the original.")
 	XCONS (tail)->cdr = rest;
       return head;
     }
+  else if (STRINGP (arg))
+    return concat (1, &arg, c_string, 0);
+  else if (VECTORP (arg))
+    return concat (1, &arg, c_vector, 0);
   else
-    return concat (1, &arg, ((CONSP (arg)) ? Lisp_Cons : XTYPE (arg)), 0);
+    {
+      arg = wrong_type_argument (Qsequencep, arg);
+      goto again;
+    }
 }
 
 static Lisp_Object
-concat (nargs, args, target_type, last_special)
-     int nargs;
-     Lisp_Object *args;
-     enum Lisp_Type target_type;
-     int last_special;
+concat (int nargs, Lisp_Object *args,
+        enum concat_target_type target_type,
+        int last_special)
 {
   Lisp_Object val;
   register Lisp_Object tail = Qnil;
@@ -333,7 +345,7 @@ concat (nargs, args, target_type, last_special)
   Lisp_Object prev;
   struct merge_replicas_struct *args_mr = 0;
 
-  if (target_type == Lisp_String)
+  if (target_type == c_string)
     {
       int size = nargs * sizeof (struct merge_replicas_struct);
       args_mr = (struct merge_replicas_struct *) alloca (size);
@@ -390,16 +402,16 @@ concat (nargs, args, target_type, last_special)
 
     switch (target_type)
       {
-      case Lisp_Cons:
+      case c_cons:
         if (total_length == 0)
           /* In append, if all but last arg are nil, return last arg */
           return (last_tail);
         val = Fmake_list (make_number (total_length), Qnil);
         break;
-      case Lisp_Vector:
+      case c_vector:
         val = make_vector (total_length, Qnil);
         break;
-      case Lisp_String:
+      case c_string:
         val = Fmake_string (make_number (total_length), Qzero);
         XSTRING (val)->dup_list = merge_replicas (nargs, args_mr);
         break;
@@ -505,7 +517,7 @@ Elements of ALIST that are not conses are also shared.")
   CHECK_LIST (alist, 0);
   if (NILP (alist))
     return alist;
-  alist = concat (1, &alist, Lisp_Cons, 0);
+  alist = concat (1, &alist, c_cons, 0);
   for (tem = alist; CONSP (tem); tem = XCONS (tem)->cdr)
     {
       register Lisp_Object car;
@@ -556,6 +568,37 @@ Second arg VECP causes vectors to be copied, too.  Strings are not copied.")
   return arg;
 }
 
+int
+check_substring_args (Lisp_Object string, Lisp_Object *from, Lisp_Object *to)
+{
+  int len;
+  int from1, to1;
+
+  CHECK_STRING (string, 0);
+  len = string_length (XSTRING (string));
+  CHECK_FIXNUM (*from, 1);
+  from1 = XINT (*from);
+  if (NILP (*to))
+    to1 = len;
+  else
+  {
+    CHECK_FIXNUM (*to, 2);
+    to1 = XINT (*to);
+  }
+
+  if (from1 < 0)
+    from1 = from1 + len;
+  if (to1 < 0)
+    to1 = to1 + len;
+  if (!(0 <= from1 && from1 <= to1 && to1 <= len))
+    args_out_of_range_3 (string, make_number (from1), make_number (to1));
+
+  *from = make_number (from1);
+  *to = make_number (to1);
+  return (to1 - from1);
+}
+
+
 DEFUN ("substring", Fsubstring, Ssubstring, 2, 3, 0,
   "Return a substring of STRING, starting at index FROM and ending before TO.\n\
 TO may be nil or omitted; then the substring runs to the end of STRING.\n\
@@ -563,35 +606,17 @@ If FROM or TO is negative, it counts from the end.\n\
 Relevant parts of the string-extent-data are copied in the new string.")
   (string, from, to)
      Lisp_Object string;
-     register Lisp_Object from, to;
+     Lisp_Object from, to;
 {
-  int len;
-  Lisp_Object val;
-
-  CHECK_STRING (string, 0);
-  CHECK_FIXNUM (from, 1);
-  if (NILP (to))
-    to = Flength (string);
-  else
-    CHECK_FIXNUM (to, 2);
-
-  len = string_length (XSTRING (string));
-  if (XINT (from) < 0)
-    XSETINT (from, XINT (from) + len);
-  if (XINT (to) < 0)
-    XSETINT (to, XINT (to) + len);
-  if (!(0 <= XINT (from) && XINT (from) <= XINT (to)
-        && XINT (to) <= len))
-    args_out_of_range_3 (string, from, to);
-
-  val = make_string ((char *) XSTRING (string)->data + XINT (from),
-		     XINT (to) - XINT (from));
+  int len = check_substring_args (string, &from, &to);
+  Lisp_Object val = make_string ((char *) XSTRING (string)->data + XINT (from),
+                                 len);
   /* Copy any applicable extent information into the new string: */
   if (!NILP (XSTRING (string)->dup_list))
-    XSTRING(val)->dup_list = shift_replicas (XSTRING (string)->dup_list,
-					     - XINT (from),
-					     XSTRING (val)->size);
-  return val;
+    XSTRING (val)->dup_list = shift_replicas (XSTRING (string)->dup_list,
+                                              - XINT (from),
+                                              len);
+  return (val);
 }
 
 DEFUN ("nthcdr", Fnthcdr, Snthcdr, 2, 2, 0,
@@ -630,6 +655,10 @@ DEFUN ("elt", Felt, Selt, 2, 2, 0,
   if (CONSP (seq) || NILP (seq))
     {
       Lisp_Object tem = Fnthcdr (n, seq);
+      /* >>>>> Utterly, completely, fucking disgusting.
+       * >>>>>  The whole point of "elt" is that it operates on
+       * >>>>>  sequences, and does error- (bounds-) checking.
+       */
       if (CONSP (tem))
 	return (XCONS (tem)->car);
       else
@@ -740,8 +769,8 @@ memq_no_quit (elt, list)
 }
 
 DEFUN ("assq", Fassq, Sassq, 2, 2, 0,
-  "Return non-nil if ELT is `eq' to the car of an element of LIST.\n\
-The value is actually the element of LIST whose car is ELT.\n\
+  "Return non-nil if KEY is `eq' to the car of an element of LIST.\n\
+The value is actually the element of LIST whose car is KEY.\n\
 Elements of LIST that are not conses are ignored.")
   (key, list)
      register Lisp_Object key;
@@ -781,8 +810,8 @@ assq_no_quit (key, list)
 }
 
 DEFUN ("assoc", Fassoc, Sassoc, 2, 2, 0,
-  "Return non-nil if ELT is `equal' to the car of an element of LIST.\n\
-The value is actually the element of LIST whose car is ELT.")
+  "Return non-nil if KEY is `equal' to the car of an element of LIST.\n\
+The value is actually the element of LIST whose car is KEY.")
   (key, list)
      register Lisp_Object key;
      Lisp_Object list;
@@ -811,8 +840,8 @@ assoc_no_quit (key, list)
 }
 
 DEFUN ("rassq", Frassq, Srassq, 2, 2, 0,
-  "Return non-nil if ELT is `eq' to the cdr of an element of LIST.\n\
-The value is actually the element of LIST whose cdr is ELT.")
+  "Return non-nil if KEY is `eq' to the cdr of an element of LIST.\n\
+The value is actually the element of LIST whose cdr is KEY.")
   (key, list)
      register Lisp_Object key;
      Lisp_Object list;
@@ -1016,7 +1045,7 @@ list_sort (Lisp_Object list,
 
 /* Emacs' GC doesn't actually relocate pointers, so this probably
    isn't strictly necessary */
-static Lisp_Object
+Lisp_Object
 restore_gc_inhibit (Lisp_Object val)
 {
   gc_currently_forbidden = XINT (val);
@@ -1326,6 +1355,7 @@ internal_equal (Lisp_Object o1, Lisp_Object o2, int depth)
       goto do_cdr;
     }
 
+#ifndef LRECORD_VECTOR
   else if (VECTORP (o1))
     {
       register int index;
@@ -1342,6 +1372,7 @@ internal_equal (Lisp_Object o1, Lisp_Object o2, int depth)
 	}
       return (1);
     }
+#endif /* !LRECORD_VECTOR */
   else if (STRINGP (o1))
     {
       int len = string_length (XSTRING (o1));
@@ -1528,7 +1559,7 @@ mapcar1 (leni, vals, fn, seq)
 DEFUN ("mapconcat", Fmapconcat, Smapconcat, 3, 3, 0,
   "Apply FN to each element of SEQ, and concat the results as strings.\n\
 In between each pair of results, stick in SEP.\n\
-Thus, \" \" as SEP results in spaces between the values return by FN.")
+Thus, \" \" as SEP results in spaces between the values returned by FN.")
   (fn, seq, sep)
      Lisp_Object fn, seq, sep;
 {
@@ -1678,8 +1709,23 @@ If FILENAME is omitted, the printname of FEATURE is used as the file name.")
 
 /* Sound stuff, by jwz. */
 
+Lisp_Object Q_volume, Q_pitch, Q_duration, Q_sound;
+
 extern void play_sound_file (char *name, int volume);
 extern void play_sound_data (unsigned char *data, int length, int volume);
+
+#ifdef HAVE_NATIVE_SOUND
+/* If we have native sound support, then we must be careful not to play
+   the sounds unless we are running on the console.  This is set in xterm.c
+   to let us know whether it's ok.
+ */
+int not_on_console;
+#endif
+
+#ifdef HAVE_NETAUDIO_SOUND
+/* True if we have a connection to a NetAudio server. */
+int connected_to_netaudio_p;
+#endif
 
 DEFUN ("play-sound-file", Fplay_sound_file, Splay_sound_file,
        1, 2, "fSound file name: ",
@@ -1690,7 +1736,6 @@ The sound file must be in the Sun/NeXT U-LAW format."
      (file, volume)
    Lisp_Object file, volume;
 {
-#ifdef USE_SOUND
   int vol;
   CHECK_STRING (file, 0);
   if (NILP (volume))
@@ -1708,24 +1753,129 @@ The sound file must be in the Sun/NeXT U-LAW format."
     else
       error (GETTEXT ("file is unreadable."));
 
-  /* The sound code doesn't like getting SIGIO interrupts.  Unix sucks! */
-  if (interrupt_input) unrequest_sigio ();
-  play_sound_file ((char *) XSTRING (file)->data, vol);
-  if (interrupt_input) request_sigio ();
-  QUIT;
-
-#endif /* USE_SOUND */
+#ifdef HAVE_NETAUDIO_SOUND
+  if (connected_to_netaudio_p)
+      {
+      netaudio_play_sound_file((char *) XSTRING (file)->data, vol);
+      }
+  else 
+#endif /* HAVE_NETAUDIO_SOUND */
+#ifdef HAVE_NATIVE_SOUND
+  if (!not_on_console)
+      {
+      /* The sound code doesn't like getting SIGIO interrupts.  Unix sucks! */
+      if (interrupt_input) unrequest_sigio ();
+      play_sound_file ((char *) XSTRING (file)->data, vol);
+      if (interrupt_input) request_sigio ();
+      QUIT;
+      }
+#endif /* HAVE_NATIVE_SOUND */
 
   return Qnil;
 }
 
 Lisp_Object Vsound_alist;
 
-#ifdef USE_SOUND
-int not_on_console; /*set at startup to determine whether we can play sounds*/
-#endif
+void (*beep_hook) (int volume, int pitch, int duration);
 
-void (*beep_hook) (int vol);
+static void
+parse_sound_alist_elt (Lisp_Object elt,
+		       Lisp_Object *volume,
+		       Lisp_Object *pitch,
+		       Lisp_Object *duration,
+		       Lisp_Object *sound)
+{
+  *volume = Qnil;
+  *pitch = Qnil;
+  *duration = Qnil;
+  *sound = Qnil;
+  if (! CONSP (elt))
+    return;
+
+  /* The things we do for backward compatibility...
+     I wish I had just forced this to be a plist to begin with.
+   */
+
+  if (SYMBOLP (elt) || STRINGP (elt))		/* ( name . <sound> ) */
+    {
+      *sound = elt;
+    }
+  else if (!CONSP (elt))
+    {
+      return;
+    }
+  else if (NILP (XCONS (elt)->cdr) &&		/* ( name <sound> ) */
+	   (SYMBOLP (XCONS (elt)->car) ||
+	    STRINGP (XCONS (elt)->car)))
+    {
+      *sound = XCONS (elt)->car;
+    }
+  else if (NUMBERP (XCONS (elt)->car) &&	/* ( name <vol> . <sound> ) */
+	   (SYMBOLP (XCONS (elt)->cdr) ||
+	    STRINGP (XCONS (elt)->cdr)))
+    {
+      *volume = XCONS (elt)->car;
+      *sound = XCONS (elt)->cdr;
+    }
+  else if (NUMBERP (XCONS (elt)->car) &&	/* ( name <vol> <sound> ) */
+	   CONSP (XCONS (elt)->cdr) &&
+	   NILP (XCONS (XCONS (elt)->cdr)->cdr) &&
+	   (SYMBOLP (XCONS (XCONS (elt)->cdr)->car) ||
+	    STRINGP (XCONS (XCONS (elt)->cdr)->car)))
+    {
+      *volume = XCONS (elt)->car;
+      *sound = XCONS (XCONS (elt)->cdr)->car;
+    }
+  else if ((SYMBOLP (XCONS (elt)->car) ||	/* ( name <sound> . <vol> ) */
+	    STRINGP (XCONS (elt)->car)) &&
+	   NUMBERP (XCONS (elt)->cdr))
+    {
+      *sound = XCONS (elt)->car;
+      *volume = XCONS (elt)->cdr;
+    }
+#if 0 /* this one is ambiguous with the plist form */
+  else if ((SYMBOLP (XCONS (elt)->car) ||	/* ( name <sound> <vol> ) */
+	    STRINGP (XCONS (elt)->car)) &&
+	   CONSP (XCONS (elt)->cdr) &&
+	   NILP (XCONS (XCONS (elt)->cdr)->cdr) &&
+	   NUMBERP (XCONS (XCONS (elt)->cdr)->car))
+    {
+      *sound = XCONS (elt)->car;
+      *volume = XCONS (XCONS (elt)->cdr)->car;
+    }
+#endif /* 0 */
+  else					/* ( name [ keyword <value> ]* ) */
+    {
+      while (CONSP (elt))
+	{
+	  Lisp_Object key, val;
+	  key = XCONS (elt)->car;
+	  val = XCONS (elt)->cdr;
+	  if (!CONSP (val))
+	    return;
+	  elt = XCONS (val)->cdr;
+	  val = XCONS (val)->car;
+	  if (EQ (key, Q_volume))
+	    {
+	      if (NUMBERP (val)) *volume = val;
+	    }
+	  else if (EQ (key, Q_pitch))
+	    {
+	      if (NUMBERP (val)) *pitch = val;
+	      if (NILP (*sound)) *sound = Qt;
+	    }
+	  else if (EQ (key, Q_duration))
+	    {
+	      if (NUMBERP (val)) *duration = val;
+	      if (NILP (*sound)) *sound = Qt;
+	    }
+	  else if (EQ (key, Q_sound))
+	    {
+	      if (SYMBOLP (val) || STRINGP (val)) *sound = val;
+	    }
+	}
+    }
+}
 
 DEFUN ("play-sound", Fplay_sound, Splay_sound, 1, 2, 0,
        "Play a sound of the provided type.\n\
@@ -1735,64 +1885,70 @@ See the variable sound-alist.")
      Lisp_Object volume;
 {
   int looking_for_default = 0;
+  /* variable `sound' is anything that can be a cdr in sound-alist */
+  Lisp_Object new_volume, pitch, duration, data;
+  int loop_count = 0;
   int vol;
 
+  /* NOTE!  You'd better not signal an error in here. */
+
  TRY_AGAIN:
-    while (!NILP (sound) && SYMBOLP (sound) && !EQ (sound, Qt))
-      {
+  while (1)
+    {
+      if (SYMBOLP (sound))
 	sound = Fcdr (Fassq (sound, Vsound_alist));
-	/* allow (name foo) as well as (name . foo) */
-	if (!CONSP (sound))
-	  ;
-	else if (NILP (Fcdr (sound)))
-	  {
-	    sound = Fcar (sound);
-	  }
-	else if (FIXNUMP (Fcar (Fcdr (sound))) &&
-		 NILP (Fcdr (Fcdr (sound))))
-	  {
-	    if (NILP (volume)) volume = Fcar (Fcdr (sound));
-	    sound = Fcar (sound);
-	  }
-	else if (FIXNUMP (Fcar (sound)) &&
-		 NILP (Fcdr (Fcdr (sound))))
-	  {
-	    if (NILP (volume)) volume = Fcar (sound);
-	    sound = Fcar (Fcdr (sound));
-	  }
-      }
+      parse_sound_alist_elt (sound, &new_volume, &pitch, &duration, &data);
+      sound = data;
+      if (NILP (volume)) volume = new_volume;
+      if (EQ (sound, Qt) || EQ (sound, Qnil) || STRINGP (sound))
+	break;
+      if (loop_count++ > 500)	/* much bogosity has occurred */
+	break;
+    }
 
   if (NILP (sound) && !looking_for_default)
     {
       looking_for_default = 1;
+      loop_count = 0;
       sound = Qdefault;
       goto TRY_AGAIN;
     }
 
-  if (FIXNUMP (volume))
-    vol = XINT (volume);
-  else
-    vol = bell_volume;
   
-#ifdef USE_SOUND
-  if (not_on_console) sound = Qt;
+  vol = (NUMBERP (volume) ? XFLOATINT (volume) : bell_volume);
 
-  if (!STRINGP (sound))
+  /* If the sound is a string, and we're connected to NetAudio, do that.
+     Else if the sound is a string, and we're on console, play it natively.
+     Else just beep.
+   */
+#ifdef HAVE_NETAUDIO_SOUND
+  if (connected_to_netaudio_p && STRINGP (sound))
     {
-      if (beep_hook) (*beep_hook) (vol);
+      netaudio_play_sound_data (XSTRING (sound)->data, 
+				string_length (XSTRING (sound)),
+				vol);
     }
   else
-    {
-      /* The sound code doesn't like getting SIGIO interrupts.  Unix sucks! */
-      if (interrupt_input) unrequest_sigio ();
-      play_sound_data (XSTRING (sound)->data, string_length (XSTRING (sound)),
-                       vol);
-      if (interrupt_input) request_sigio ();
-      QUIT;
-    }
-#else  /* ! USE_SOUND */
-  if (beep_hook) (*beep_hook) (vol);
-#endif  /* ! USE_SOUND */
+#endif /* HAVE_NETAUDIO_SOUND */
+#ifdef HAVE_NATIVE_SOUND
+    if (!not_on_console && STRINGP (sound))
+      {
+	/* The sound code doesn't like getting SIGIO interrupts. Unix sucks! */
+	if (interrupt_input) unrequest_sigio ();
+	play_sound_data (XSTRING (sound)->data,
+			 string_length (XSTRING (sound)),
+			 vol);
+	if (interrupt_input) request_sigio ();
+	QUIT;
+      }
+    else
+#endif  /* HAVE_NATIVE_SOUND */
+      {
+	if (beep_hook)
+	  (*beep_hook) ((NUMBERP (volume) ? XFLOATINT (volume) : bell_volume),
+			(NUMBERP (pitch) ? XFLOATINT (pitch) : -1),
+			(NUMBERP (duration) ? XFLOATINT (duration) : -1));
+      }
 
   return Qnil;
 }
@@ -1803,6 +1959,11 @@ Lisp_Object Qyes_or_no_p;
 void
 syms_of_fns ()
 {
+  defsymbol (&Q_volume,   ":volume");	Fset (Q_volume,   Q_volume);
+  defsymbol (&Q_pitch,    ":pitch");	Fset (Q_pitch,    Q_pitch);
+  defsymbol (&Q_duration, ":duration");	Fset (Q_duration, Q_duration);
+  defsymbol (&Q_sound,    ":sound");	Fset (Q_sound,    Q_sound);
+
   defsymbol (&Qstring_lessp, "string-lessp");
   defsymbol (&Qyes_or_no_p, "yes-or-no-p");
 
@@ -1854,32 +2015,36 @@ Used by `featurep' and `require', and altered by `provide'.");
   bell_volume = 50;
 
   DEFVAR_LISP ("sound-alist", &Vsound_alist,
-    "An alist associating symbols with strings of audio-data.\n\
-When `beep' or `ding' is called with one of the symbols, the associated\n\
-sound data will be played instead of the standard beep.  This only works\n\
-if you are running emacs on the console of a Sun SparcStation, SGI machine,\n\
-or HP9000s700.\n\
+    "An alist associating names with sounds.\n\
+When `beep' or `ding' is called with one of the name symbols, the associated\n\
+sound will be generated instead of the standard beep.\n\
 \n\
-Elements of this list should be of one of the following forms:\n\
+Each element of `sound-alist' is a list describing a sound.\n\
+The first element of the list is the name of the sound being defined.\n\
+Subsequent elements of the list are alternating keyword/value pairs:\n\
 \n\
-   ( symbol . string-or-symbol )\n\
-   ( symbol integer string-or-symbol )\n\
+   Keyword:	Value:\n\
+   -------	-----\n\
+   sound	A string of raw sound data, or the name of another sound to\n\
+		play.   The symbol `t' here means use the default X beep.\n\
+   volume	An integer from 0-100, defaulting to `bell-volume'\n\
+   pitch	If using the default X beep, the pitch (Hz) to generate.\n\
+   duration	If using the default X beep, the duration (milliseconds).\n\
 \n\
-If the `string-or-symbol' is a string, then it should contain raw sound data,\n\
-the contents of a `.au' file.  If it is a symbol, then that means that this\n\
-element is an alias for some other element, and the sound-player will look\n\
-for that next.  If the integer is provided, it is the volume at which the\n\
-sound should be played, from 0 to 100.  \n\
+For compatibility, elements of `sound-alist' may also be:\n\
 \n\
-If an element of this alist begins with the symbol `default', then that sound\n\
-will be used when no other sound is appropriate.\n\
-\n\
-The symbol `t' in place of a sound-string means to use the default X beep.\n\
-In this way, you can define beep-types to have different volumes even when\n\
-not running on the console.\n\
+   ( sound-name . <sound> )\n\
+   ( sound-name <volume> <sound> )\n\
 \n\
 You should probably add things to this list by calling the function\n\
 load-sound-file.\n\
+\n\
+Caveats:\n\
+ - You can only play audio data if running on the console screen of a\n\
+   Sun SparcStation, SGI, or HP9000s700.\n\
+\n\
+ - The pitch, duration, and volume options are available everywhere, but\n\
+   many X servers ignore the `pitch' option.\n\
 \n\
 The following beep-types are used by emacs itself:\n\
 \n\
@@ -1890,18 +2055,25 @@ The following beep-types are used by emacs itself:\n\
     no-completion	during completing-read\n\
     y-or-n-p		when you type something other than 'y' or 'n'\n\
     yes-or-no-p  	when you type something other than 'yes' or 'no'\n\
+    default		used when nothing else is appropriate.\n\
 \n\
 Other lisp packages may use other beep types, but these are the ones that\n\
-the C kernel of emacs uses.");
+the C kernel of Emacs uses.");
   Vsound_alist = Qnil;
   defsubr (&Splay_sound_file);
   defsubr (&Splay_sound);
-#ifdef USE_SOUND
-  not_on_console = 0;	/* set by X startup code */
-#endif
-  beep_hook = 0	;	/* set by X startup code */
 
-#if defined(USE_SOUND) && defined(hp9000s800)
+#ifdef HAVE_NETAUDIO_SOUND
+  connected_to_netaudio_p = 0;	/* set by X startup code */
+#endif
+
+#ifdef HAVE_NATIVE_SOUND
+  not_on_console = 0;		/* set by X startup code */
+#endif
+
+  beep_hook = 0;		/* set by X startup code */
+
+#if defined(HAVE_NATIVE_SOUND) && defined(hp9000s800)
   syms_of_hpplay ();
 #endif
 }

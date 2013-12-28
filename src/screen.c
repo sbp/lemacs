@@ -35,7 +35,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 Lisp_Object Vscreen_list;
 Lisp_Object Vterminal_screen;
 Lisp_Object Vglobal_minibuffer_screen;
-int allow_deletion_of_last_visible_screen;
 
 Lisp_Object Vcreate_screen_hook, Qcreate_screen_hook;
 Lisp_Object Vdelete_screen_hook, Qdelete_screen_hook;
@@ -47,7 +46,7 @@ Lisp_Object Vmouse_motion_handler;
 Lisp_Object Vsynchronize_minibuffers;
 
 Lisp_Object Qicon;
-Lisp_Object Qscreenp, Qlive_screen_p;
+Lisp_Object Qscreenp, Qscreen_live_p;
 Lisp_Object Qdelete_screen;
 
 Lisp_Object Qselect_screen_hook, Qdeselect_screen_hook;
@@ -55,10 +54,9 @@ Lisp_Object Qselect_screen_hook, Qdeselect_screen_hook;
 
 static Lisp_Object mark_screen (Lisp_Object, void (*) (Lisp_Object));
 static void print_screen (Lisp_Object, Lisp_Object, int);
-static int sizeof_screen (void *h) { return (sizeof (struct screen)); }
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_screen,
-                               mark_screen, print_screen, 
-                               0, sizeof_screen, 0);
+DEFINE_LRECORD_IMPLEMENTATION ("screen", lrecord_screen,
+                               mark_screen, print_screen, 0, 0,
+			       sizeof (struct screen));
 
 static Lisp_Object
 mark_screen (Lisp_Object obj, void (*markobj) (Lisp_Object))
@@ -71,10 +69,10 @@ mark_screen (Lisp_Object obj, void (*markobj) (Lisp_Object))
   ((markobj) (s->buffer_alist));
   ((markobj) (s->param_alist));
   ((markobj) (s->menubar_data));
-
-  /* The scrollbars reference some Lisp_Objects.  Let them take care
-     of it cause we don't know (or care) what they are referencing. */
-  mark_scrollbar (s->scrollbar_instances, markobj);
+  /* #### Do these really need to be lisp objects?
+     Can't we use -1 for whatever it is nil means right now? */
+  ((markobj) (s->left_outside_margin_width));
+  ((markobj) (s->right_outside_margin_width));
 
 #ifdef HAVE_X_WINDOWS
   if (SCREEN_IS_X (s))
@@ -95,11 +93,11 @@ static void
 print_screen (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 {
   struct screen *scr = XSCREEN (obj);
-  char buf[10];
+  char buf[200];
   
   if (print_readably)
     error (GETTEXT ("printing unreadable object #<screen %s 0x%x>"),
-           XSTRING (scr->name)->data, scr->header.uid);
+           XSTRING (scr->name)->data, (long) scr);
 
   write_string_1 ("#<", -1, printcharfun);
   if (!SCREEN_LIVE_P (scr))
@@ -112,7 +110,7 @@ print_screen (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
     write_string_1 ("UNKNOWN", -1, printcharfun);
   write_string_1 ("-screen ", -1, printcharfun);
   print_internal (scr->name, printcharfun, 1);
-  sprintf (buf, " 0x%x>", scr->header.uid);
+  sprintf (buf, " 0x%x>", (long) scr);
   write_string_1 (buf, -1, printcharfun);
 }
 
@@ -142,11 +140,14 @@ make_screen (int mini_p)
   s->new_width = 0;
   s->name = Qnil;
   s->root_window = Qnil;
+  s->root_mirror = 0;
   s->selected_window = Qnil;
   s->minibuffer_window = Qnil;
   s->buffer_alist = Fcopy_sequence (Vbuffer_alist);
   s->param_alist = Qnil;
   s->menubar_data = Qnil;
+  s->left_outside_margin_width = Qnil;
+  s->right_outside_margin_width = Qnil;
   s->scrollbar_instances = 0;
   s->scrollbar_count = 0;
   s->output_method = output_dead_screen;
@@ -169,10 +170,6 @@ make_screen (int mini_p)
   ensure_face_ready (s, 3);
 
   root_window = make_window ();
-
-  s->cur_line = s->new_cur_line = XWINDOW(root_window)->lines;
-  s->cur_char = s->new_cur_char = XWINDOW(root_window)->lines->body;
-  s->cur_w = s->new_cur_w = XWINDOW(root_window);
 
   if (mini_p)
     {
@@ -230,6 +227,13 @@ make_screen (int mini_p)
 
   s->root_window = root_window;
   s->selected_window = root_window;
+
+  update_screen_window_mirror (s);
+
+  s->cur_line = s->new_cur_line = window_display_lines (XWINDOW(root_window));
+  s->cur_char = s->new_cur_char =
+    window_display_lines (XWINDOW(root_window))->body;
+  s->cur_mir = s->new_cur_mir = find_window_mirror (XWINDOW (root_window));
 
 #if 0
   /* Make sure this window seems more recently used than
@@ -341,7 +345,7 @@ get_screen (Lisp_Object screen, int dead_ok)
     {
       CHECK_SCREEN (screen, 0);
       if (! dead_ok && ! SCREEN_LIVE_P (XSCREEN (screen)))
-	screen = wrong_type_argument (Qlive_screen_p, screen);
+	screen = wrong_type_argument (Qscreen_live_p, screen);
       return (screen);
     }
 }
@@ -399,7 +403,7 @@ Value is t for a termcap screen (a character-only terminal),\n\
     }
 }
 
-DEFUN ("live-screen-p", Flive_screen_p, Slive_screen_p, 1, 1, 0,
+DEFUN ("screen-live-p", Fscreen_live_p, Sscreen_live_p, 1, 1, 0,
   "Return non-nil if OBJECT is a screen which has not been deleted.\n\
 Value is nil if OBJECT is not a live screen.  If object is a live\n\
 screen, the return value indicates what sort of output device it is\n\
@@ -455,6 +459,7 @@ select_screen_internal (s)
 
   Fselect_window (s->selected_window);
   choose_minibuf_screen ();
+  update_screen_window_mirror (s);
 
   if (!NILP (Vrun_hooks))
     call1 (Vrun_hooks, Qselect_screen_hook);
@@ -532,6 +537,97 @@ DEFUN ("screen-list", Fscreen_list, Sscreen_list,
 }
 
 #ifdef MULTI_SCREEN
+
+DEFUN ("set-screen-left-margin-width", Fset_screen_left_margin_width,
+       Sset_screen_left_margin_width, 1, 2, 0,
+       "Set the default left margin width of SCREEN to WIDTH.\n\
+If SCREEN is nil, set the selected screen margin width.  If SCREEN is\n\
+t set the default value for all screens.")
+     (width, screen)
+     Lisp_Object width, screen;
+{
+  Lisp_Object rest;
+  struct screen *s;
+
+  if (NILP (screen)) screen = Fselected_screen();
+
+  if (!EQ (screen, Qt))
+    CHECK_SCREEN (screen, 0);
+  if (!NILP (width))
+    CHECK_FIXNUM (width, 0);
+
+  if (EQ (screen, Qt))
+    for (rest = Vscreen_list ; !NILP (rest) ; rest = XCONS(rest)->cdr)
+      {
+	if (!SCREENP (XCONS(rest)->car))
+	  abort();
+	s = XSCREEN (XCONS (rest)->car);
+	s->left_outside_margin_width = width;
+      }
+  else
+    XSCREEN (screen)->left_outside_margin_width = width;
+
+  return width;
+}
+
+DEFUN ("set-screen-right-margin-width", Fset_screen_right_margin_width,
+       Sset_screen_right_margin_width, 1, 2, 0,
+       "Set the default right margin width of SCREEN to WIDTH.\n\
+If SCREEN is nil, set the selected screen margin width.  If SCREEN is\n\
+t set the default value for all screens.")
+     (width, screen)
+     Lisp_Object width, screen;
+{
+  Lisp_Object rest;
+  struct screen *s;
+
+  if (NILP (screen)) screen = Fselected_screen();
+
+  if (!EQ (screen, Qt))
+    CHECK_SCREEN (screen, 0);
+  if (!NILP (width))
+    CHECK_FIXNUM (width, 0);
+
+  if (EQ (screen, Qt))
+    for (rest = Vscreen_list ; !NILP (rest) ; rest = XCONS(rest)->cdr)
+      {
+	if (!SCREENP (XCONS(rest)->car))
+	  abort();
+	s = XSCREEN (XCONS (rest)->car);
+	s->right_outside_margin_width = width;
+      }
+  else
+    XSCREEN (screen)->right_outside_margin_width = width;
+
+  return width;
+}
+
+DEFUN ("screen-left-margin-width", Fscreen_left_margin_width,
+       Sscreen_left_margin_width, 0, 1, 0,
+       "Return the width in characters of the right outside margin of\n\
+screen SCREEN.  If SCREEN is nil, the selected screen is assumed.")
+     (screen)
+     Lisp_Object screen;
+{
+  if (NILP (screen)) screen = Fselected_screen();
+  CHECK_SCREEN (screen, 0);
+
+  return (XSCREEN (screen)->left_outside_margin_width);
+}
+
+DEFUN ("screen-right-margin-width", Fscreen_right_margin_width,
+       Sscreen_right_margin_width, 0, 1, 0,
+       "Return the width in characters of the right outside margin of\n\
+screen SCREEN.  If SCREEN is nil, the selected screen is assumed.")
+     (screen)
+     Lisp_Object screen;
+{
+  if (NILP (screen)) screen = Fselected_screen();
+  CHECK_SCREEN (screen, 0);
+
+  return (XSCREEN (screen)->right_outside_margin_width);
+}
+
 
 Lisp_Object
 next_screen (Lisp_Object screen, int mini_screen, int visible_only_p)
@@ -640,7 +736,7 @@ Lisp_Object screen, miniscreen, visible_only_p;
 
 extern void free_screen_menubar (struct screen *s);
 extern void free_screen_scrollbars (struct screen *s);
-extern void free_display_structs (Lisp_Object win);
+extern void free_window_mirror (struct window_mirror *mir);
 extern void free_line_insertion_deletion_costs (struct screen *s);
 
 DEFUN ("delete-screen", Fdelete_screen, Sdelete_screen,
@@ -694,8 +790,6 @@ A screen may not be deleted if its minibuffer is used by other screens.")
 	  Lisp_Object invisible_next = next_screen (screen, 0, 0);
 	  if (EQ (screen, invisible_next))
 	    error (GETTEXT ("Attempt to delete the only screen"));
-	  else if (!allow_deletion_of_last_visible_screen)
-	    error (GETTEXT ("Attempt to delete the only visible screen"));
 	  else
 	    next = invisible_next;
 	}
@@ -732,8 +826,6 @@ A screen may not be deleted if its minibuffer is used by other screens.")
 #ifdef HAVE_X_WINDOWS
   if (SCREEN_IS_X (s))
     {
-      /* #### all that UnrealizeWidget crap should be in EmacsShell.c called
-	 from x_destroy_window instead of here. */
       x_destroy_window (s);
       s->display.x = 0;
     }
@@ -744,7 +836,7 @@ A screen may not be deleted if its minibuffer is used by other screens.")
 
   free_screen_menubar (s);
   free_screen_scrollbars (s);
-  free_display_structs (s->root_window);
+  free_window_mirror (s->root_mirror);
 /*  free_line_insertion_deletion_costs (s); */
 
 #if 0
@@ -1024,12 +1116,7 @@ DEFUN ("visible-screen-list", Fvisible_screen_list, Svisible_screen_list,
 Lisp_Object
 get_screen_param (struct screen *screen, Lisp_Object prop)
 {
-  register Lisp_Object tem;
-
-  tem = Fassq (prop, screen->param_alist);
-  if (EQ (tem, Qnil))
-    return tem;
-  return Fcdr (tem);
+  return Fcdr (assq_no_quit (prop, screen->param_alist));
 }
 
 void
@@ -1039,7 +1126,7 @@ store_in_alist (Lisp_Object *alistptr, CONST char *propname, Lisp_Object val)
   register Lisp_Object prop;
 
   prop = intern (propname);
-  tem = Fassq (prop, *alistptr);
+  tem = assq_no_quit (prop, *alistptr);
   if (EQ (tem, Qnil))
     *alistptr = Fcons (Fcons (prop, val), *alistptr);
   else
@@ -1051,7 +1138,7 @@ store_screen_param (struct screen *s, Lisp_Object prop, Lisp_Object val)
 {
   register Lisp_Object tem;
 
-  tem = Fassq (prop, s->param_alist);
+  tem = assq_no_quit (prop, s->param_alist);
   if (EQ (tem, Qnil))
     s->param_alist = Fcons (Fcons (prop, val), s->param_alist);
   else
@@ -1125,7 +1212,7 @@ The meaningful PARMs depend on the kind of screen; undefined PARMs are ignored."
   s = XSCREEN (screen);
 
   if (! SCREEN_IS_X (s))
-    error (GETTEXT ("Can only modified parameters of an X window screen"));
+    error (GETTEXT ("Can only modify parameters of an X window screen"));
 
   x_set_screen_values (s, alist);
 
@@ -1154,6 +1241,24 @@ DEFUN ("screen-width", Fscreen_width, Sscreen_width, 0, 1, 0,
 {
   screen = get_screen (screen, 0);
   return (make_number (SCREEN_WIDTH (XSCREEN (screen))));
+}
+
+DEFUN ("screen-pixel-height", Fscreen_pixel_height, Sscreen_pixel_height, 0, 1, 0,
+  "Returns the height in pixels of SCREEN.")
+  (screen)
+     Lisp_Object screen;
+{
+  screen = get_screen (screen, 0);
+  return (make_number (PIXEL_HEIGHT (XSCREEN (screen))));
+}
+
+DEFUN ("screen-pixel-width", Fscreen_pixel_width, Sscreen_pixel_width, 0, 1, 0,
+  "Returns the width in pixels of SCREEN.")
+  (screen)
+     Lisp_Object screen;
+{
+  screen = get_screen (screen, 0);
+  return (make_number (PIXEL_WIDTH (XSCREEN (screen))));
 }
 
 DEFUN ("screen-name", Fscreen_name, Sscreen_name, 0, 1, 0,
@@ -1303,15 +1408,18 @@ DEFUN ("lower-screen", Flower_screen, Slower_screen, 1, 1, 0,
 }
 
 int
-coordinates_in_window (w, x, y)
-     register struct window *w;
-     register int *x, *y;
+coordinates_in_window (struct window *w, int *x, int *y)
 {
-  register int left = window_char_left (w);
-  register int width = window_char_width (w);
-  register int screen_height = XSCREEN (w->screen)->height;
-  register int window_height = window_char_height (w);
-  register int top = window_char_top (w);
+  int left, top;
+  int width = window_char_width (w);
+  int screen_height = XSCREEN (w->screen)->height;
+  int window_height = window_char_height (w);
+  Lisp_Object window, edges;
+
+  XSETR (window, Lisp_Window, w);
+  edges = Fwindow_edges (window);
+  left = XINT (Fnth (make_number (0), edges));
+  top = XINT (Fnth (make_number (1), edges));
 
   if (*x < left || *x >= left + width
       ||
@@ -1428,8 +1536,7 @@ choose_minibuf_screen ()
 
   /* For lowest-level minibuf, put it on currently selected screen
      if screen has a minibuffer.  */
-  if (minibuf_level == 0
-      && selected_screen != 0
+  if (selected_screen != 0
       && !EQ (minibuf_window, SCREEN_MINIBUF_WINDOW (selected_screen))
       && !EQ (Qnil, SCREEN_MINIBUF_WINDOW (selected_screen)))
     {
@@ -1440,6 +1547,32 @@ choose_minibuf_screen ()
 
   return selected_screen;
 }
+
+DEFUN ("set-screen-scrollbar-width", Fset_screen_scrollbar_width,
+       Sset_screen_scrollbar_width, 2, 2, 0,
+  "Specify that the scrollbars on SCREEN are WIDTH pixels wide.")
+     (screen, width)
+     Lisp_Object screen, width;
+{
+  screen = get_screen (screen, 0);
+  CHECK_FIXNUM (width, 0);
+
+  x_set_scrollbar_width (XSCREEN (screen), XINT (width));
+
+  return screen;
+}
+
+DEFUN ("screen-scrollbar-width", Fscreen_scrollbar_width,
+       Sscreen_scrollbar_width, 0, 1, 0,
+  "Return the width in pixels of the scrollbars of SCREEN.")
+     (screen)
+     Lisp_Object screen;
+{
+  screen = get_screen (screen, 0);
+
+  return (make_number (x_scrollbar_width (XSCREEN (screen))));
+}
+
 
 void
 syms_of_screen ()
@@ -1454,13 +1587,6 @@ When you create a minibufferless screen, by default it will use the\n\
 minibuffer of this screen.  It is up to you to create a suitable screen\n\
 and store it in this variable.");
   Vglobal_minibuffer_screen = Qnil;
-
-  DEFVAR_BOOL ("allow-deletion-of-last-visible-screen",
-	       &allow_deletion_of_last_visible_screen,
- "*If nil, the last visible screen may not be deleted by `delete-window'\n\
-You can never delete the last screen, but setting this to t will allow you\n\
-to delete the last non-iconified screen.");
-  allow_deletion_of_last_visible_screen = 0;
 
   DEFVAR_LISP ("delete-screen-hook", &Vdelete_screen_hook,
     "Function or functions of one argument,\
@@ -1521,18 +1647,22 @@ For most applications, you should use `mode-motion-hook' instead of this.");
   Vsynchronize_minibuffers = Qnil;
 
   defsymbol (&Qscreenp, "screenp");
-  defsymbol (&Qlive_screen_p, "live-screen-p");
+  defsymbol (&Qscreen_live_p, "screen-live-p");
   defsymbol (&Qdelete_screen, "delete-screen");
   defsymbol (&Qicon, "icon");
 
   defsubr (&Sscreenp);
-  defsubr (&Slive_screen_p);
+  defsubr (&Sscreen_live_p);
   defsubr (&Sselect_screen);
   defsubr (&Sselected_screen);
   defsubr (&Swindow_screen);
   defsubr (&Sscreen_root_window);
   defsubr (&Sscreen_selected_window);
   defsubr (&Sscreen_list);
+  defsubr (&Sset_screen_left_margin_width);
+  defsubr (&Sset_screen_right_margin_width);
+  defsubr (&Sscreen_left_margin_width);
+  defsubr (&Sscreen_right_margin_width);
   defsubr (&Snext_screen);
   defsubr (&Sprevious_screen);
   defsubr (&Sdelete_screen);
@@ -1555,6 +1685,8 @@ For most applications, you should use `mode-motion-hook' instead of this.");
   defsubr (&Smodify_screen_parameters);
   defsubr (&Sscreen_height);
   defsubr (&Sscreen_width);
+  defsubr (&Sscreen_pixel_height);
+  defsubr (&Sscreen_pixel_width);
   defsubr (&Sscreen_name);
   defsubr (&Sscreen_totally_visible_p);
   defsubr (&Sset_screen_height);
@@ -1563,4 +1695,7 @@ For most applications, you should use `mode-motion-hook' instead of this.");
   defsubr (&Sset_screen_position);
   defsubr (&Scoordinates_in_window_p);
   defsubr (&Slocate_window_from_coordinates);
+
+  defsubr (&Sset_screen_scrollbar_width);
+  defsubr (&Sscreen_scrollbar_width);
 }

@@ -605,7 +605,7 @@ Miscellaneous Commands
      Replace.
 
 
-File: vip.info,  Node: Vi Commands,  Next: Numeric Arguments,  Prev: Misc Commands,  Up: Top
+File: vip.info,  Node: Vi Commands,  Next: Ex Commands,  Prev: Misc Commands,  Up: Top
 
 Vi Commands
 ***********
@@ -624,7 +624,12 @@ mode.
 * Viewing the Buffer::	How you can view the current buffer.
 * Mark Commands::	Marking positions in a buffer.
 * Motion Commands::	Commands for moving point.
+* Searching and Replacing::
+                        Looking for text in a buffer.
 * Modifying Commands::	Commands for modifying the buffer.
+* Other Vi Commands::   Miscellaneous commands.
+* Commands in Insert Mode::
+                        Commands available while inserting text.
 
 
 File: vip.info,  Node: Numeric Arguments,  Next: Important Keys,  Prev: Vi Commands,  Up: Vi Commands
@@ -1152,7 +1157,7 @@ The commands `/' and `?' mark point before move, so that you can return
 to the original point by `` `'.
 
 
-File: vip.info,  Node: Modifying Commands,  Next: Delete Commands,  Prev: Searching and Replacing,  Up: Vi Commands
+File: vip.info,  Node: Modifying Commands,  Next: Other Vi Commands,  Prev: Searching and Replacing,  Up: Vi Commands
 
 Modifying Commands
 ==================
@@ -1183,6 +1188,8 @@ affected by the modifying command.
 * Yank Commands::	Commands for yanking text in Vi's sense.
 * Put Back Commands::	Commands for putting bake deleted/yanked text.
 * Change Commands::	Commands for changing text.
+* Repeating and Undoing Modifications::
+                        Commands for repeating and undoing textual changes.
 
 
 File: vip.info,  Node: Delete Commands,  Next: Yank Commands,  Prev: Modifying Commands,  Up: Modifying Commands
@@ -1325,7 +1332,7 @@ you can type `b a r RET' to complete the change command.
      Expand current region and change it.
 
 
-File: vip.info,  Node: Repeating and Undoing Modifications,  Next: Other Vi Commands,  Prev: Change Commands,  Up: Modifying Commands
+File: vip.info,  Node: Repeating and Undoing Modifications,  Prev: Change Commands,  Up: Modifying Commands
 
 Repeating and Undoing Modifications
 -----------------------------------
@@ -1346,7 +1353,7 @@ commands.
      last modifying command is used again (`vip-repeat').
 
 
-File: vip.info,  Node: Other Vi Commands,  Next: Commands in Insert Mode,  Prev: Repeating and Undoing Modifications,  Up: Vi Commands
+File: vip.info,  Node: Other Vi Commands,  Next: Commands in Insert Mode,  Prev: Modifying Commands,  Up: Vi Commands
 
 Other Vi Commands
 =================

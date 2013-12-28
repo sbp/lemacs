@@ -171,39 +171,34 @@ pop_kbd_macro_event (Lisp_Object event)
 {
   if (NILP (Vexecuting_macro)) abort ();
 
-  switch (XTYPE (Vexecuting_macro))
+  if (STRINGP (Vexecuting_macro))
     {
-    case Lisp_String:
-      {
-	if (XSTRING (Vexecuting_macro)->size > executing_macro_index)
-	  {
-	    unsigned int c = 
-	      (unsigned char)
-		(XSTRING (Vexecuting_macro)->data [executing_macro_index++]);
-	    Fcharacter_to_event (make_number (c), event);
-	    return;
-	  }
-        break;
-      }
-    case Lisp_Vector:
-      {
-	if (XVECTOR (Vexecuting_macro)->size > executing_macro_index)
-	  {
-	    Lisp_Object macro_event 
-              = XVECTOR (Vexecuting_macro)->contents [executing_macro_index++];
-	    if (FIXNUMP (macro_event))
-              character_to_event (XINT (macro_event), XEVENT (event));
-	    else if (CONSP (macro_event) || SYMBOLP (macro_event))
-              key_desc_list_to_event (macro_event, event, 1);
-	    else
-	      Fcopy_event (macro_event, event);
-	    return;
-	  }
-	break;
-      }
-    default:
-      error (GETTEXT ("junk in executing-macro"));
+      if (XSTRING (Vexecuting_macro)->size > executing_macro_index)
+        {
+          unsigned int c = 
+            (unsigned char)
+              (XSTRING (Vexecuting_macro)->data [executing_macro_index++]);
+          Fcharacter_to_event (make_number (c), event);
+          return;
+        }
     }
+  else if (VECTORP (Vexecuting_macro))
+    {
+      if (XVECTOR (Vexecuting_macro)->size > executing_macro_index)
+        {
+          Lisp_Object macro_event 
+            = XVECTOR (Vexecuting_macro)->contents [executing_macro_index++];
+          if (FIXNUMP (macro_event))
+            character_to_event (XINT (macro_event), XEVENT (event));
+          else if (CONSP (macro_event) || SYMBOLP (macro_event))
+            key_desc_list_to_event (macro_event, event, 1);
+          else
+            Fcopy_event (macro_event, event);
+          return;
+        }
+    }
+  else
+    error (GETTEXT ("junk in executing-macro"));
 
   Fthrow (Qexecute_kbd_macro, Qt);
 }

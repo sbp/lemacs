@@ -90,26 +90,6 @@ extern Lisp_Object Faset (Lisp_Object array, Lisp_Object idx, Lisp_Object x);
 extern Lisp_Object Farray_length (Lisp_Object array);
 extern Lisp_Object Felt (Lisp_Object seq, Lisp_Object idx);
 
-extern Lisp_Object Fboundp (Lisp_Object sym);
-extern Lisp_Object Ffboundp (Lisp_Object);
-extern Lisp_Object Ffset (Lisp_Object sym, Lisp_Object val);
-extern Lisp_Object Fsymbol_plist (Lisp_Object sym);
-extern Lisp_Object Fsetplist (Lisp_Object sym, Lisp_Object val);
-extern Lisp_Object Fsymbol_function (Lisp_Object sym);
-extern Lisp_Object Fsymbol_value (Lisp_Object sym);
-extern Lisp_Object Fdefault_value (Lisp_Object sym);
-extern Lisp_Object Fdefault_boundp (Lisp_Object sym);
-extern Lisp_Object Fset (Lisp_Object sym, Lisp_Object val);
-extern Lisp_Object Fset_default (Lisp_Object sym, Lisp_Object val);
-extern Lisp_Object Fsymbol_name (Lisp_Object sym);
-extern Lisp_Object Findirect_function (Lisp_Object object);
-extern Lisp_Object indirect_function (Lisp_Object object, int error);
-extern Lisp_Object symbol_value_in_buffer (Lisp_Object sym, Lisp_Object buf);
-extern void decache_buffer_local_variables (struct buffer *buf);
-extern void store_symval_forwarding (Lisp_Object sym,
-                                     Lisp_Object valcontents, 
-                                     Lisp_Object newval);
-extern Lisp_Object Fmake_local_variable (Lisp_Object object);
 extern Lisp_Object Fzerop (Lisp_Object);
 extern Lisp_Object Fnumber_to_string (Lisp_Object num);
 extern Lisp_Object Fstring_to_number (Lisp_Object str);
@@ -177,7 +157,10 @@ extern Lisp_Object Fconcat (int nargs, Lisp_Object *args);
 extern Lisp_Object Fvconcat (int nargs, Lisp_Object *args);
 extern Lisp_Object Fcopy_sequence (Lisp_Object seq);
 extern Lisp_Object Fsubstring (Lisp_Object str, Lisp_Object s, Lisp_Object e);
+extern int check_substring_args (Lisp_Object string,
+                                 Lisp_Object *from, Lisp_Object *to);
 extern Lisp_Object Fnthcdr (Lisp_Object n, Lisp_Object list);
+extern Lisp_Object Fnth (Lisp_Object n, Lisp_Object list);
 extern Lisp_Object Fmemq (Lisp_Object elt, Lisp_Object list);
 extern Lisp_Object Fassq (Lisp_Object key, Lisp_Object alist);
 extern Lisp_Object Fassoc (Lisp_Object elt, Lisp_Object list);
@@ -210,7 +193,13 @@ extern Lisp_Object Fcopy_alist (Lisp_Object alist);
 
 extern Lisp_Object Fplay_sound (Lisp_Object sound, Lisp_Object volume);
 extern void bitch_at_user (Lisp_Object sound);
+
+#ifdef HAVE_NATIVE_SOUND
 extern int not_on_console;
+#endif
+#ifdef HAVE_NETAUDIO_SOUND
+extern int connected_to_netaudio_p;
+#endif
 
 
 /* Defined in alloc.c */
@@ -256,7 +245,8 @@ extern Lisp_Object make_float (double float_value);
 extern Lisp_Object Fmake_byte_code (int nargs, Lisp_Object *args);
 
 extern Lisp_Object Fpurecopy (Lisp_Object);
-extern void report_pure_usage (int report_impurities);
+extern void report_pure_usage (int report_impurities,
+                               int die_if_pure_storage_exceeded);
 extern Lisp_Object make_pure_string (CONST char *, int len, int nocopy);
 extern Lisp_Object make_pure_pname (CONST char *, int len, int nocopy);
 extern Lisp_Object pure_cons (Lisp_Object, Lisp_Object);
@@ -333,7 +323,7 @@ extern Lisp_Object oblookup (Lisp_Object obarray,
 extern void map_obarray (Lisp_Object obarray, 
                          void (*fn) (Lisp_Object sym, Lisp_Object arg),
                          Lisp_Object arg);
-extern int isfloat_string (CONST char *);
+extern int isfloat_string (CONST unsigned char *);
 
 #ifdef LOADHIST /* this is just a stupid idea */
 #define LOADHIST_ATTACH(x) \
@@ -430,10 +420,17 @@ extern int find_file_compare_truenames;
 extern int find_file_use_truenames;
 
 /* Functions to call before and after each text change. */
+extern Lisp_Object Vbefore_change_functions;
+extern Lisp_Object Qbefore_change_functions;
+extern Lisp_Object Vafter_change_functions;
+extern Lisp_Object Qafter_change_functions;
+
+/* #### Obsolete, for compatibility */
 extern Lisp_Object Vbefore_change_function;
 extern Lisp_Object Qbefore_change_function;
 extern Lisp_Object Vafter_change_function;
 extern Lisp_Object Qafter_change_function;
+
 extern Lisp_Object Vfirst_change_hook;
 extern Lisp_Object Qfirst_change_hook;
 extern Lisp_Object Vinhibit_read_only;
@@ -476,7 +473,8 @@ extern Lisp_Object Ffile_exists_p (Lisp_Object fn);
 extern Lisp_Object Ffile_executable_p (Lisp_Object filename);
 extern Lisp_Object Ffile_accessible_directory_p (Lisp_Object fn);
 extern void record_auto_save (void);
-extern Lisp_Object Ffind_file_name_handler (Lisp_Object filename);
+extern Lisp_Object Ffind_file_name_handler (Lisp_Object filename,
+					    Lisp_Object operation);
 extern DOESNT_RETURN report_file_error (CONST char *string, Lisp_Object data);
 extern Lisp_Object expand_and_dir_to_file (Lisp_Object fn, Lisp_Object def);
 extern Lisp_Object Fwrite_region (Lisp_Object start, Lisp_Object end,
@@ -496,6 +494,9 @@ extern Lisp_Object Funlock_buffer (void);
 extern void unlock_buffer (struct buffer *buffer);
 extern Lisp_Object Ffile_locked_p (Lisp_Object fn);
 
+/* defined in process.c */
+extern Lisp_Object Fprocess_send_eof (Lisp_Object process);
+
 
 /* defined in event*.c */
 extern Lisp_Object Fread_key_sequence (Lisp_Object prompt);
@@ -504,12 +505,12 @@ extern Lisp_Object Fsleep_for (Lisp_Object seconds);
 extern Lisp_Object Faccept_process_output (Lisp_Object process,
 					   Lisp_Object timeout_secs,
 					   Lisp_Object timeout_msecs);
-extern Lisp_Object Fnext_event_1 (Lisp_Object event, Lisp_Object prompt);
+extern Lisp_Object Fnext_event (Lisp_Object event, Lisp_Object prompt);
 extern Lisp_Object Fnext_command_event (Lisp_Object event);
 extern Lisp_Object Fdispatch_event (Lisp_Object event);
 extern void wait_delaying_user_input (int (*predicate) (void *arg),
                                       void *predicate_arg);
-extern int detect_input_pending (void);
+extern int detect_input_pending (int);
 extern void enqueue_command_event (Lisp_Object event);
 
 extern Lisp_Object Fallocate_event (void);
@@ -553,8 +554,7 @@ extern Lisp_Object QKbackspace, QKtab, QKlinefeed, QKreturn;
 extern Lisp_Object QKescape, QKspace, QKdelete, QKnosymbol;
 
 /* Defined in event-stream.c */
-extern Lisp_Object reset_this_command_keys (Lisp_Object dummy);
-extern Lisp_Object event_binding (Lisp_Object event0);
+extern Lisp_Object reset_this_command_keys (Lisp_Object reset_key_echo);
 extern int event_to_character (struct Lisp_Event *event,
 			       int allow_extra_modifiers,
 			       int allow_meta,
@@ -563,12 +563,7 @@ extern Lisp_Object Fenqueue_command_event (Lisp_Object, Lisp_Object);
 
 /* defined in keymap.c */
 extern Lisp_Object Fcurrent_local_map (void);
-extern void where_is_to_char (Lisp_Object definition, 
-                              Lisp_Object local_map, Lisp_Object global_map,
-                              char *buf);
 extern Lisp_Object Fkeymapp (Lisp_Object);
-extern void describe_map_tree (Lisp_Object startmap, int partial,
-                               Lisp_Object shadow, int mice_only_p);
 extern Lisp_Object Fmake_sparse_keymap (void);
 extern Lisp_Object Fkeymap_fullness (Lisp_Object keymap);
 extern Lisp_Object Fkey_description (Lisp_Object key);
@@ -578,6 +573,9 @@ extern Lisp_Object Qmode_line_map;
 extern Lisp_Object Vsingle_space_string;
 extern Lisp_Object Qcontrol, Qctrl, Qmeta, Qsuper, Qhyper, Qsymbol, Qshift;
 extern Lisp_Object Qkeymap, Qkeymapp;
+extern void where_is_to_char (Lisp_Object definition, 
+                              Lisp_Object local_map, Lisp_Object global_map,
+                              char *buf);
 
 /* Defined in elhash.c */
 extern Lisp_Object Fhashtablep (Lisp_Object obj);
@@ -610,13 +608,14 @@ extern Lisp_Object Fmatch_end (Lisp_Object n);
 extern Lisp_Object Fskip_chars_forward (Lisp_Object string, Lisp_Object lim);
 extern Lisp_Object Fskip_chars_backward (Lisp_Object string, Lisp_Object lim);
 extern int scan_buffer (struct buffer *buf,
-			int target, int pos, int cnt, int *shortage);
+			int target, int pos, int cnt, int *shortage,
+                        int allow_quit);
 extern int find_next_newline (struct buffer *buf, int from, int cnt);
 extern void compile_pattern (Lisp_Object pattern, 
                              struct re_pattern_buffer *bufp, 
                              struct re_registers *regp,
                              char *translate);
-int fast_string_match (Lisp_Object regexp, Lisp_Object string);
+int fast_string_match (Lisp_Object regexp, CONST char *string, int len);
 extern Lisp_Object Fre_search_forward (Lisp_Object string, Lisp_Object bound,
                                        Lisp_Object noerror, Lisp_Object count);
 
@@ -635,6 +634,8 @@ extern Lisp_Object Fread_from_minibuffer (Lisp_Object prompt,
                                           Lisp_Object hist);
 extern int completion_ignore_case;
 extern Lisp_Object Qcompletion_ignore_case;
+extern Lisp_Object Vcompletion_regexp_list;
+extern int regexp_ignore_completion_p (CONST char *completion, int len);
 
 extern Lisp_Object Vminibuffer_zero;
 
@@ -663,6 +664,9 @@ extern Lisp_Object upcase_initials_region (Lisp_Object b, Lisp_Object e);
 extern Lisp_Object Fupcase_word (Lisp_Object arg);
 extern Lisp_Object Fdowncase_word (Lisp_Object arg);
 extern Lisp_Object Fcapitalize_word (Lisp_Object arg);
+
+extern Lisp_Object Vascii_downcase_table, Vascii_upcase_table;
+extern Lisp_Object Vascii_canon_table, Vascii_eqv_table;
 
 
 /* defined in keyboard.c */
@@ -737,11 +741,13 @@ extern void set_window_width (Lisp_Object window, int height, int nodelete);
 extern int window_internal_height (struct window *);
 extern Lisp_Object Fbuffer_left_margin_pixwidth (Lisp_Object buffer);
 extern Lisp_Object Fbuffer_right_margin_pixwidth (Lisp_Object buffer);
+extern Lisp_Object Fwindow_edges (Lisp_Object window);
+extern Lisp_Object Fwindow_point (Lisp_Object window);
 
 
 /* defined in screen.c */
 extern Lisp_Object Fscreenp (Lisp_Object obj);
-extern Lisp_Object Flive_screen_p (Lisp_Object obj);
+extern Lisp_Object Fscreen_live_p (Lisp_Object obj);
 extern Lisp_Object Fselect_screen (Lisp_Object scr);
 extern Lisp_Object Fselected_screen (void);
 extern Lisp_Object Fwindow_screen (Lisp_Object window);
@@ -785,7 +791,6 @@ extern Lisp_Object window_from_coordinates (Lisp_Object frame,
                                             Lisp_Object *part);
 extern Lisp_Object Vscreen_list;
 extern Lisp_Object Vglobal_minibuffer_screen;
-extern int allow_deletion_of_last_visible_screen;
 
 extern Lisp_Object Vcreate_screen_hook, Qcreate_screen_hook;
 extern Lisp_Object Vmouse_enter_screen_hook, Qmouse_enter_screen_hook;
@@ -795,7 +800,7 @@ extern Lisp_Object Vunmap_screen_hook, Qunmap_screen_hook;
 extern Lisp_Object Vmouse_motion_handler;
 extern Lisp_Object Vsynchronize_minibuffers;
 
-extern Lisp_Object Qscreenp, Qlive_screen_p, Qdelete_screen;
+extern Lisp_Object Qscreenp, Qscreen_live_p, Qdelete_screen;
 extern Lisp_Object Qselect_screen_hook, Qdeselect_screen_hook;
 
 
@@ -948,19 +953,17 @@ extern Lisp_Object Vmocklisp_arguments, Qmocklisp, Qmocklisp_arguments;
 extern Lisp_Object ml_apply (Lisp_Object function, Lisp_Object args);
 
 /* defined in menubar.c */
-void initialize_screen_menubar (struct screen *s);
+int initialize_screen_menubar (struct screen *s);
 extern Lisp_Object Fpopup_dialog_box (Lisp_Object dbox_desc);
 extern Lisp_Object Fpopup_menu (Lisp_Object menu_desc);
 extern int menubar_has_changed;
 extern Lisp_Object Qcurrent_menubar;
 extern Lisp_Object Qactivate_menubar_hook;
 extern Lisp_Object Vactivate_menubar_hook;
-extern unsigned int popup_id_tick;
 extern int popup_menu_up_p;
-extern int dbox_up_p;
 
 /* defined in scrollbar.c */
-void initialize_screen_scrollbars (struct screen *s);
+int initialize_screen_scrollbars (struct screen *s);
 
 
 /* Defined in eval.c */
@@ -1020,8 +1023,34 @@ extern void record_unwind_protect (Lisp_Object (*function) (Lisp_Object arg),
                                    Lisp_Object arg);
 extern void do_autoload (Lisp_Object fundef, Lisp_Object funname);
 extern Lisp_Object un_autoload (Lisp_Object oldqueue);
+
+
+/* From symbols.c */
+extern Lisp_Object Fboundp (Lisp_Object sym);
+extern Lisp_Object Ffboundp (Lisp_Object);
+extern Lisp_Object Ffset (Lisp_Object sym, Lisp_Object val);
+extern Lisp_Object Fsymbol_plist (Lisp_Object sym);
+extern Lisp_Object Fsetplist (Lisp_Object sym, Lisp_Object val);
+extern Lisp_Object Fsymbol_function (Lisp_Object sym);
+extern Lisp_Object Fsymbol_value (Lisp_Object sym);
+extern Lisp_Object Fdefault_value (Lisp_Object sym);
+extern Lisp_Object Fdefault_boundp (Lisp_Object sym);
+extern Lisp_Object Fset (Lisp_Object sym, Lisp_Object val);
+extern Lisp_Object Fset_default (Lisp_Object sym, Lisp_Object val);
+extern Lisp_Object Fsymbol_name (Lisp_Object sym);
+extern Lisp_Object Findirect_function (Lisp_Object object);
+extern Lisp_Object indirect_function (Lisp_Object object, int error);
+extern Lisp_Object symbol_value_in_buffer (Lisp_Object sym, Lisp_Object buf);
+extern void decache_buffer_local_variables (struct buffer *buf);
+extern void store_symval_forwarding (Lisp_Object sym,
+                                     Lisp_Object valcontents, 
+                                     Lisp_Object newval);
+extern Lisp_Object Fmake_local_variable (Lisp_Object object);
+extern int symbol_value_buffer_local_info (Lisp_Object symbol);
 extern Lisp_Object find_symbol_value (Lisp_Object symbol);
 extern Lisp_Object top_level_value (Lisp_Object symbol);
+extern Lisp_Object Fkill_local_variable (Lisp_Object symbol);
+
 
 extern char *egetenv (CONST char *);
 /* extern char *getenv (CONST char *); */

@@ -46,6 +46,18 @@
 /* Energize editor requests and I/O operations */
 #include "editorside.h"
 
+#ifndef CBFileYourself
+/* This means that emacs is being compiled against the connection library
+   and headers that go with an Energize protocol less than 0.10.  We need
+   to do some slightly different things in this file because of that.
+
+   Note that if Emacs is compiled against the 3.0 version of the connection
+   library and associated headers, it can still talk to 2.1- or 2.5-level
+   servers.  But the opposite is not true.
+ */
+# define ENERGIZE_V2_HEADERS
+#endif
+
 /* The Connection library
  */
 extern void CWriteQueryChoicesRequest ();
@@ -92,11 +104,13 @@ static struct reply_wait *global_reply_wait;
 Lisp_Object Venergize_kernel_busy;
 Lisp_Object Qenergize_kernel_busy;
 Lisp_Object Venergize_attributes_mapping;
+int energize_extent_gc_threshold;
 Lisp_Object Venergize_kernel_busy_hook;
 Lisp_Object Qenergize_kernel_busy_hook;
 Lisp_Object Venergize_menu_update_hook;
 Lisp_Object Qenergize_menu_update_hook;
 Lisp_Object Qenergize;
+Lisp_Object Qenergize_auto_revert_buffer;
 
 
 static void set_energize_extent_data (EXTENT extent, void *data);
@@ -151,7 +165,7 @@ int inside_parse_buffer;
 
 /* List of all buffers currently managed by Energize.  This is
 Staticpro'ed so that they don't get GC'ed from under us. */
-static Lisp_Object energize_buffers_list;
+static Lisp_Object Venergize_buffers_list;
 
 static Editor *energize_connection;
 static protocol_edit_options *peo;
@@ -425,7 +439,7 @@ energize_extent_finalization (EXTENT extent)
 {
   /* In the new world, extents are protected from GC until Energize is
      done with them, so if we GC an extent that still has Energize
-     data, that means the extents weren't prosssssssperly protected. */
+     data, that means the extents weren't properly protected. */
   /*
      Except that in the even newer world, we can't do this check because the
      Energize_Extent_Data is pointed to by a cons that may have been collected
@@ -438,7 +452,7 @@ energize_extent_finalization (EXTENT extent)
 
 static BufferInfo *
 alloc_BufferInfo (EId id, Lisp_Object name, Lisp_Object filename,
-		  char *class_str, Editor *editor, Window win)
+		  char *class_str, Editor *editor, Window win, int nobjects)
 {
   BufferInfo *binfo = xnew (BufferInfo);
   Widget nw = 0;
@@ -483,7 +497,7 @@ alloc_BufferInfo (EId id, Lisp_Object name, Lisp_Object filename,
   binfo->id = id;
   binfo->flags = 0;
   binfo->editor = editor;
-  binfo->id_to_object = make_hashtable (100);
+  binfo->id_to_object = make_hashtable (nobjects);
   binfo->emacs_buffer = buffer;
   binfo->modified_state = 0;
   binfo->editable = 0;
@@ -495,7 +509,7 @@ alloc_BufferInfo (EId id, Lisp_Object name, Lisp_Object filename,
   binfo->n_notes = 0;
   put_buffer_info (id, binfo->emacs_buffer, binfo, editor);
 
-  energize_buffers_list = Fcons (buffer, energize_buffers_list);
+  Venergize_buffers_list = Fcons (buffer, Venergize_buffers_list);
 
 #if 0
  *  if (nw){
@@ -561,7 +575,7 @@ get_buffer_info_for_emacs_buffer (Lisp_Object emacs_buf, Editor *editor)
    from the obvious lossage (that the extent itself would be trashed) this
    would also cause us to free the Energize_Extent_Data which the server still
    believes we have.  The buffers all get marked because they're on the
-   `energize_buffers_list'.
+   `Venergize_buffers_list'.
 
    So, an Energize extent or buffer only ever gets collected when the server
    has claimed that it is done with it (or when the connection is closed.)
@@ -847,34 +861,17 @@ set_energize_extent_data (EXTENT e, void *data)
 
 DEFUN ("energize-update-menubar", Fenergize_update_menubar,
        Senergize_update_menubar, 0, 1, 0,
-       "Updates the menubar of optional SCREEN argument to reflect the \n\
-commands currently enabled by Energize.")
+       "obsolete")
      (screen)
      Lisp_Object screen;
 {
-  struct screen* s;
-
-  if (!energize_connection) return Qnil;
-
-  if (NILP (screen))
-    s = selected_screen;
-  else
-    {
-      CHECK_SCREEN (screen, 0);
-      s = XSCREEN (screen);
-    }
-
-  if (!SCREEN_IS_X (s))
-    error ("not an X screen");
-
   return Qnil;
 }
 
 
-/* Return true if the extent is an Energize extent that can have a menu */
 DEFUN ("energize-extent-menu-p", Fenergize_extent_menu_p,
        Senergize_extent_menu_p, 1, 1, 0,
-       "Return true if the extent has a set of commands defined by Energize")
+       "Whether the extent has a set of commands defined by Energize.")
      (extent_obj)
      Lisp_Object extent_obj;
 {
@@ -908,7 +905,7 @@ notify_delayed_requests ()
 
 /******************* IMAGE storage maintenance *******************/
 
-extern GLYPH x_get_pixmap (Lisp_Object lisp_name, char *hash);
+extern GLYPH pixmap_to_glyph (Lisp_Object);
 
 static c_hashtable image_cache;
 
@@ -919,6 +916,10 @@ extern Lisp_Object Fbuffer_file_name (Lisp_Object);
 extern Lisp_Object Fmake_face (Lisp_Object name);
 extern Lisp_Object Fface_foreground (Lisp_Object face, Lisp_Object screen);
 extern Lisp_Object Fface_background (Lisp_Object face, Lisp_Object screen);
+
+/* Don't let any of these get GCed, since we hold their GLYPH ids in
+   a non-lisp hash table (image_cache) . */
+static Lisp_Object Vall_energize_pixmaps;
 
 /* Parses an image from the image language */
 static GLYPH
@@ -931,7 +932,7 @@ read_energize_image_data (Connection *conn, BufferInfo *binfo)
   int attr_number, pix_len;
   char *file;
   GLYPH result = 0;
-  /* I don't know if it's ok to pass the address of a short to gethash... */
+  /* It is bad news to pass the address of a short to gethash. */
   int hashed = 0;
 
   if (s[0] != 'f')
@@ -975,10 +976,19 @@ read_energize_image_data (Connection *conn, BufferInfo *binfo)
     result = 0;
   else
     {
-      Lisp_Object p;
+      Lisp_Object lfile = Qnil;
+      Lisp_Object p = Qnil;
+      struct gcpro gcpro1, gcpro2;
       sprintf (buf, "attribute%d", attr_number);
-      result = x_get_pixmap (build_string (file), buf);
-      p = glyph_to_pixmap (result);
+      GCPRO2 (lfile, p);
+      lfile = build_string (file);
+      p = Fmake_pixmap (lfile, Qnil); /* may gc */
+      result = pixmap_to_glyph (p);
+      Vall_energize_pixmaps = Fcons (Fcons (make_number (result), p),
+				     Vall_energize_pixmaps);
+      if (!EQ (p, glyph_to_pixmap (result)))
+	abort ();
+      UNGCPRO;
 
       if (XPIXMAP (p)->depth == 0)
 	/* if depth is >0 then this is an XPM, and its colors are not
@@ -1191,15 +1201,33 @@ insert_one_extent (CExtent* ptr, BufferInfo* binfo, int modify_ok)
       extent_start = EmacsPosForEnergizePos (ptr->startPosition);
       extent_end = EmacsPosForEnergizePos (ptr->endPosition);
 
-      if (extent_end >= BUF_ZV (b))
-	extent_end = BUF_ZV (b) - 1;
+      /* We have to be careful to create the extents with endpoints
+	 which are in the buffer.
+
+	 Under certain obscure conditions involving changes made outside
+	 of Emacs (bug 19983), the server and the editor can have different
+	 ideas about where the extents are, so these numbers can be off
+	 temporarily (during the window between read_energize_extent_data
+	 and Qenergize_auto_revert_buffer in read_energize_buffer_data
+	 from ModifyBufferRType).
+       */
+
+      /* Don't allow 0-length extents, as they tend to disappear. */
       if (extent_start >= extent_end)
-	{
-	  if (extent_start == 1)
-	    extent_end = extent_start + 1;
-	  else
-	    extent_start = extent_end - 1;
-	}
+	extent_end = extent_start + 1;
+
+      /* Don't let them outside the buffer (even if we grew them.) */
+      if (extent_start >= BUF_Z (b))  extent_start = BUF_Z (b) - 1;
+      if (extent_end   >= BUF_Z (b))  extent_end   = BUF_Z (b) - 1;
+      if (extent_start < BUF_BEG (b)) extent_start = BUF_BEG (b);
+      if (extent_end   < BUF_BEG (b)) extent_end   = BUF_BEG (b);
+
+      /* If they're 0-length again, then the extent must be at point-max.
+	 In that case, extent it backward (if possible) instead of forward.
+       */
+      if (extent_start >= extent_end
+	  && BUF_BEG (b) != BUF_Z (b))
+	extent_start = extent_end - 1;
     }
 
   /* no zero width extent */
@@ -1207,9 +1235,9 @@ insert_one_extent (CExtent* ptr, BufferInfo* binfo, int modify_ok)
     extent_end += 1;
 
   /* Now create the extent for the extent-data.  There is a 1:1 mapping between
-     these, and an extent-data points at an extent (and that extent points back)
-     until energize tells us to delete the extent.  This is the only function
-     in which ext->extent is ever not an extent. */
+     these, and an extent-data points at an extent (and that extent points
+     back) until energize tells us to delete the extent.  This is the only
+     function in which ext->extent is ever not an extent. */
   if (created_ext_data)
     {
       ext->extent = make_extent_internal (extent_start, extent_end, buffer);
@@ -1408,6 +1436,26 @@ extern Lisp_Object Finsert_file_contents (Lisp_Object filename,
 					  Lisp_Object end);
 
 static void
+hack_window_point (Lisp_Object window,
+		   Lisp_Object old_point,
+		   Lisp_Object old_start,
+		   int keep_start_p,
+		   BufferInfo *binfo)
+     /* If we've reverted a buffer, sometimes we want to make sure that
+	the window-point doesn't move. */
+{
+  if (NILP (window))
+    return;
+
+  Fset_marker (XWINDOW (window)->pointm, old_point, binfo->emacs_buffer);
+  if (NILP (binfo->output_mark) && keep_start_p)
+    {
+      Fset_marker (XWINDOW (window)->start, old_start, binfo->emacs_buffer);
+      XWINDOW (window)->force_start = 1;
+    }
+}
+
+static void
 read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
 			   EnergizePos delete_from, EnergizePos delete_to,
 			   Window win, int relative_p)
@@ -1435,7 +1483,7 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
 #endif
   char *text;
   ReqLen text_len;
-  int get_chars_from_file;
+  int get_chars_from_file = 0;
   Lisp_Object modified_buffer_flag;
   int speccount = specpdl_depth ();
   int extent_offset;
@@ -1444,6 +1492,14 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
   int no_text_deleted = 0;
 
   struct gcpro gcpro1, gcpro2, gcpro3, gcpro4;
+
+  /* For some reason calling the GC before parsing the buffer data
+     makes a better usage of memory and emacs leaks less when 
+     creating/deleting LE browser buffers.  
+     However you don't want to call GC all the tiem so we only do it if the request
+     will create more than a given number of extents. */
+  if (cbu->nExtent > energize_extent_gc_threshold)
+    garbage_collect_1 ();
 
   record_unwind_protect (save_restriction_restore, save_restriction_save ());
 
@@ -1497,7 +1553,8 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
 	}
       /* create new buffer */
       binfo = alloc_BufferInfo (cbu->bufferId, buffer_name, pathname,
-				buffer_class_str, editor, win);
+				buffer_class_str, editor, win,
+				cbu->nExtent + cbu->nClass + cbu->nGeneric);
       XBUFFER (binfo->emacs_buffer)->read_only =
 	cbu->flags == CBReadOnly ? Qt : Qnil;
     }
@@ -1556,10 +1613,12 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
   /* any changes here should take place "underneath" these hooks, I think */
   specbind (Qenergize_buffer_modified_hook, Qnil);
   specbind (Qfirst_change_hook, Qnil);
-  specbind (Qbefore_change_function, Qnil);
+  specbind (Qbefore_change_functions, Qnil);
+  specbind (Qbefore_change_function, Qnil); /* #### */
   /* As energize does not use the after-change-function it's not useful to
      bind it to NIL */
-  /* specbind (Qafter_change_function, Qnil); */
+  /* specbind (Qafter_change_functions, Qnil); */
+  /* specbind (Qafter_change_function, Qnil); #### */
   record_unwind_protect (restore_inside_parse_buffer,
 			 make_number (inside_parse_buffer));
   inside_parse_buffer = 1;
@@ -1571,13 +1630,17 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
   from = EmacsPosForEnergizePos (delete_from);
   to = EmacsPosForEnergizePos (delete_to);
 
-  /* See if we should get the characters from the file directly */
-  
+  /* See if we should get the characters from the file directly.
+     Only protocol 0.10+ will do this.
+   */
+#ifdef ENERGIZE_V2_HEADERS
+  get_chars_from_file = 0;
+#else
   if (cbu->flags != 0xff)
     get_chars_from_file = cbu->flags &  CBFileYourself;
   else
     get_chars_from_file = binfo->flags &  CBFileYourself;
-  
+#endif
   
   /* Even when we get the chars from a file there is an empty text string */
   if (get_chars_from_file)
@@ -1591,8 +1654,10 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
       text = CGetVstring (conn, &text_len);
     }
   
-  if (modifying_p && (from != to || text_len))
-    /* updates the visited file modtime */
+  /* updates the visited file modtime */
+  if (modifying_p && (from != to || text_len)
+      /* but only when we do not read the file ourselves */
+      && !get_chars_from_file)
     Fset_buffer_modtime (binfo->emacs_buffer, Qnil);
 
   if (!modifying_p)
@@ -1685,6 +1750,10 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
   else
     extent_offset = BUF_Z (XBUFFER (binfo->emacs_buffer)) + text_len - 1;
 
+  if (get_chars_from_file && text_len != 0)
+    /* I think this is always true, but let's make sure - jwz */
+    abort ();
+
   if (text_len)
     {
       if (!NILP (binfo->output_mark))
@@ -1720,35 +1789,26 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
     }
   else if (get_chars_from_file && !modifying_p)
     {
-      /* read the buffer from the file */
-      /* when we are supposed to get teh chars form the file ourselves we
-	 never bother to update the buffer text automatically. */
+      /* !modifying_p means the buffer is being created - read the text
+	 from the file. */
       Finsert_file_contents (Fbuffer_file_name (binfo->emacs_buffer),
 			     Qt, Qnil, Qnil);
     }
 
 #if 1
   if (text_len || !text)
-    {
-      if (!NILP (display_window))
-	{
-	  
-	  Fset_marker (XWINDOW (display_window)->pointm,
+    hack_window_point (display_window,
 		       make_number (previous_point),
-		       binfo->emacs_buffer);
-	  if (NILP (binfo->output_mark) && should_keep_window_start)
-	    {
-	      Fset_marker (XWINDOW (display_window)->start,
-			   make_number (display_start),
-			   binfo->emacs_buffer);
-	      XWINDOW (display_window)->force_start = 1;
-	    }
-	}
+		       make_number (display_start),
+		       should_keep_window_start,
+		       binfo);
 #endif
-    }
 
 
   /* Classes, generics and extents */
+  /* make sure that we have enough room in the hash table */
+  expand_hashtable (binfo->id_to_object,
+		    cbu->nClass + cbu->nGeneric + cbu->nExtent);
   read_energize_class_data (conn, cbu->nClass, binfo, modifying_p);
   read_energize_generic_data (conn, cbu->nGeneric, binfo, modifying_p);
   read_energize_extent_data (conn, cbu->nExtent, binfo, modifying_p, extent_offset);
@@ -1756,6 +1816,30 @@ read_energize_buffer_data (Connection *conn, CBuffer *cbu, Editor *editor,
   /* Restore the modified bit */
   Fset_buffer (binfo->emacs_buffer);
   Fset_buffer_modified_p (modified_buffer_flag);
+
+  if (get_chars_from_file && modifying_p)
+    {
+      /* modifying_p means the buffer already exists and the extents are
+	 being re-written.  It may be that the file has changed on disk,
+	 and the extents no longer correspond to the text in the buffer,
+	 which would be bad.  So, check the file on disk, and if it has
+	 changed, offer to revert.
+
+	 As this runs lisp code which may prompt the user, and consequently
+	 may accept process output, be careful to do this after we have
+	 finished reading the current request from the Energize connection.
+       */
+     if (NILP (Fverify_visited_file_modtime (binfo->emacs_buffer)))
+       {
+	 call1 (Qenergize_auto_revert_buffer, binfo->emacs_buffer);
+	 hack_window_point (display_window,
+			    make_number (previous_point),
+			    make_number (display_start),
+			    1,
+			    binfo);
+       }
+   }
+
 
   /* restore modified hooks and globals, and return the previous buffer */
   UNGCPRO;
@@ -1839,7 +1923,7 @@ forget_buffer (BufferInfo *binfo)
   Lisp_Object buffer = binfo->emacs_buffer;
 
   remove_buffer_info (binfo->id, buffer, binfo->editor);
-  energize_buffers_list = Fdelq (buffer, energize_buffers_list);
+  Venergize_buffers_list = Fdelq (buffer, Venergize_buffers_list);
 
   /* if there was an associated screen */
   if (!NILP (binfo->screen))
@@ -1889,7 +1973,11 @@ write_energize_extent_data (Connection *conn, Energize_Extent_Data *ext,
     }
 }
 
-/* Utility to return a char* to the contents of the current buffer */
+/* Utility to return a char* to the contents of the current buffer
+   Be VERY CAREFUL of the lifetime of this string.  This data gets
+   relocated: any modification to any buffer may cause the result
+   of get_buffer_as_string() on any *other* buffer to become invalid.
+ */
 static char*
 get_buffer_as_string (unsigned int *len)
 {
@@ -1955,8 +2043,10 @@ write_energize_buffer_data (BufferInfo *binfo)
   CWriteVstring0 (conn, "");	/* buffer name */
 
   /* write the text */
+#ifndef ENERGIZE_V2_HEADERS
   if (binfo->flags & CBFileYourself)
     {
+      /* Only the 0.10+ protocol will ask us to write the file directly. */
       Lisp_Object start;
       Lisp_Object end;
       XSET (start, Lisp_Int, BEG);
@@ -1967,6 +2057,7 @@ write_energize_buffer_data (BufferInfo *binfo)
       CWriteVstringLen (conn, NULL, 0);
     }
   else
+#endif /*  ENERGIZE_V2_HEADERS */
     {
       CNeedOutputSize (conn, (Z - BEG) + 9);
       text = get_buffer_as_string ((unsigned int *) &length);
@@ -1978,7 +2069,9 @@ write_energize_buffer_data (BufferInfo *binfo)
   bane.n_extents = 0;
 
   /* Only write the extents when not filing ourselves */
+#ifndef ENERGIZE_V2_HEADERS
   if (!(binfo->flags & CBFileYourself))
+#endif
     {
       map_extents (BUF_BEG (current_buffer), BUF_Z (current_buffer),
 		   write_energize_extent_data_mapper, 0, &bane,
@@ -2067,7 +2160,7 @@ wait_for_reply (struct reply_wait* rw)
 }
 
 /* gets the menu for the buffer/extent pair at the head of the request buffer.
-   returns the propose choice request if succeeds, 0 otherwise (kernel
+   returns the propose choice request if succeeds, nil otherwise (kernel
    connection closed, or not connected)
  */
 
@@ -2144,53 +2237,47 @@ execute_energize_menu (Lisp_Object buffer, Energize_Extent_Data* ext,
     CWriteVstring0 (conn, name);
   conn->header->serial = ++request_serial_number;
   conn->header->data = 0;
-  switch (XTYPE (selection))
+  if (STRINGP (selection))
     {
-    case Lisp_String:
       conn->header->data |= CEChasCharSelection;
       CWriteVstringLen (conn, (char*)XSTRING (selection)->data,
 			string_length (XSTRING (selection)));
-      break;
-    case Lisp_Vector:
-      {
-	int i;
-	EId data;
-	conn->header->data |= CEChasObjectSelection;
-
-	/* writes the length */
-	data = vector_length (XVECTOR (selection));
-	CWrite (conn, EId, &data);
-
-	/* writes the elements */
-	for (i = 0; i < vector_length (XVECTOR (selection)); i++)
-	  {
-	    if (CONSP (XVECTOR (selection)->contents [i]))
-	      data = lisp_to_word (XVECTOR (selection)->contents [i]);
-	    else
-	      data = XINT (XVECTOR (selection)->contents [i]);
-	    CWrite (conn, EId, &data);
-	  }
-      }
-      break;
-
-    case Lisp_Cons:
-      {
-	Lisp_Object type = Fcar (selection);
-	Lisp_Object value = Fcdr (selection);
-	if (EQ (type, intern ("ENERGIZE_OBJECT"))
-	    && STRINGP (value))
-	  {
-	    conn->header->data |= CEChasObjectSelection;
-	    CWriteN (conn, char, XSTRING (value)->data,
-		     string_length (XSTRING (value)));
-	  }
-      }
-      break;
-
-    default:
-      if (!NILP (selection))
-	error ("unrecognised energize selection");
     }
+  else if (VECTORP (selection))
+    {
+      int i;
+      EId data;
+      conn->header->data |= CEChasObjectSelection;
+
+      /* writes the length */
+      data = vector_length (XVECTOR (selection));
+      CWrite (conn, EId, &data);
+
+      /* writes the elements */
+      for (i = 0; i < vector_length (XVECTOR (selection)); i++)
+	{
+	  if (CONSP (XVECTOR (selection)->contents [i]))
+	    data = lisp_to_word (XVECTOR (selection)->contents [i]);
+	  else
+	    data = XINT (XVECTOR (selection)->contents [i]);
+	  CWrite (conn, EId, &data);
+	}
+    }
+  else if (CONSP (selection))
+    {
+      Lisp_Object type = Fcar (selection);
+      Lisp_Object value = Fcdr (selection);
+      if (EQ (type, intern ("ENERGIZE_OBJECT"))
+	  && STRINGP (value))
+	{
+	  conn->header->data |= CEChasObjectSelection;
+	  CWriteN (conn, char, XSTRING (value)->data,
+		   string_length (XSTRING (value)));
+	}
+    }
+  else if (!NILP (selection))
+    error ("unrecognised energize selection");
+  
   if (!NILP (no_confirm))
     conn->header->data |= CECnoConfirm;
   CWriteLength (conn);
@@ -2593,7 +2680,7 @@ handle_new_buffer_request (Editor *editor, CNewBufferRequest *creq)
 static void
 handle_modify_buffer_request (Editor *editor, CModifyBufferRequest *creq)
 {
-  windows_or_buffers_changed++;
+  buffers_changed++;
   read_energize_buffer_data (editor->conn, &creq->newData, editor,
 			     creq->startPosition, creq->endPosition,
 			     0, creq->head.data);
@@ -2823,7 +2910,7 @@ handle_remove_extents_request (Editor *editor, CRemoveExtentsRequest *creq)
   specbind (Qenergize_buffer_modified_hook, Qnil);
 
   BUF_FACECHANGE (XBUFFER (binfo->emacs_buffer))++;
-  windows_or_buffers_changed++;
+  extents_changed++;
 
   ids = CGetN (editor->conn, EId, creq->nExtent);
   for (i = 0; i < creq->nExtent; i++)
@@ -2837,12 +2924,36 @@ handle_remove_extents_request (Editor *editor, CRemoveExtentsRequest *creq)
   unbind_to (speccount, Qnil);
 }
 
+#ifndef ENERGIZE_V2_HEADERS
+static Lisp_Object
+save_to_energize_unwind (Lisp_Object closure)
+{
+  if (!CONSP (closure)) abort ();
+  if (!NILP (XCONS (closure)->car))
+    {
+      /* If the id cons doesn't begin with nil, then the call to save-buffer
+	 didn't complete normally - so tell Energize the save was aborted. */
+      BITS32 buffer_id = (BITS32) lisp_to_word (closure);
+      Editor *editor = energize_connection;
+      if (editor && editor->conn)  /* Maybe the kernel has gone away. */
+	{
+	  CWriteBufferSaveAbortedHeader (editor->conn, buffer_id);
+	  CWriteRequestBuffer (editor->conn);
+	}
+    }
+  return Qnil;
+}
+#endif /*  ENERGIZE_V2_HEADERS */
+
+
 /* handles a request to save a buffer from the kernel */
 static void
 handle_save_buffer_request (Editor *editor, CSaveBufferRequest *creq)
 {
   BufferInfo *binfo;
   int speccount = specpdl_depth ();
+  struct gcpro gcpro1;
+  Lisp_Object closure = Qnil;
 
   if (!(binfo = get_buffer_info_for_id (creq->bufferId, editor)))
     {
@@ -2856,16 +2967,25 @@ handle_save_buffer_request (Editor *editor, CSaveBufferRequest *creq)
       Fset_buffer (binfo->emacs_buffer);
     }
 
+  GCPRO1 (closure);
   if (creq->head.data == CSExecuteSave)
     {
-      Lisp_Object args[2];
-      args [0] = intern ("save-buffer");
-      args [1] = Qnil;
-      Fapply (2, args);
+#ifndef ENERGIZE_V2_HEADERS
+      Lisp_Object closure = word_to_lisp ((unsigned int) creq->bufferId);
+      record_unwind_protect (save_to_energize_unwind, closure);
+#endif /*  ENERGIZE_V2_HEADERS */
+      call0 (intern ("save-buffer"));
+#ifndef ENERGIZE_V2_HEADERS
+      /* clear out the id to tell the unwind-protect form that the save
+	 completed normally. */
+      XCONS (closure)->car = Qnil;
+      XCONS (closure)->cdr = Qnil;
+#endif /*  ENERGIZE_V2_HEADERS */
     }
   else
     write_energize_buffer_data (binfo);
 
+  UNGCPRO;
   unbind_to (speccount, Qnil);
 }
 
@@ -2885,7 +3005,17 @@ handle_set_modified_flag_request (Editor* editor,
   record_unwind_protect (Fset_buffer, Fcurrent_buffer ());
   Fset_buffer (binfo->emacs_buffer);
   specbind (Qenergize_buffer_modified_hook, Qnil);
-  Fset_buffer_modtime (binfo->emacs_buffer, Qnil);
+
+  /* Only set buffer modified time in older protocols
+     as we handle the file timestamps ourselves now for
+     CBFileYourself buffers. */
+#ifndef ENERGIZE_V2_HEADERS
+  if ((energize_connection->minor < 10) && !(binfo->flags &  CBFileYourself))
+#endif
+    {
+      Fset_buffer_modtime (binfo->emacs_buffer, Qnil);
+    }
+
   Fset_buffer_modified_p (creq->state ? Qt : Qnil);
   binfo->modified_state = creq->state;
   /* Mark the buffer so that we ask permission to Energize when the
@@ -3427,9 +3557,11 @@ process_one_energize_request ()
 	  handle_logging_request (editor, (CLoggingRequest*)req);
 	  break;
 
+#ifndef ENERGIZE_V2_HEADERS
 	case KernelEventRType:
 	  CSkipRequest (editor->conn);
 	  break;
+#endif
 
 	default:
 	  Post1("ProcessEnergizeRequest: can't handle request of type %d",
@@ -3659,7 +3791,7 @@ connect_to_energize (char *server_str, char *arg)
 	  if (arg)
 	    sscanf (arg, "%x,%x", &id1, &id2);
 
-	  energize_buffers_list = Qnil;
+	  Venergize_buffers_list = Qnil;
 
 	  setup_connection (energize_connection, id1, id2);
 
@@ -3670,6 +3802,17 @@ connect_to_energize (char *server_str, char *arg)
     }
   else
     error ("couldn't determine " IDENTITY_CRISIS " server port number");
+
+
+#ifdef ENERGIZE_V2_HEADERS
+  if (energize_connection->minor > 9)
+    {
+      close_energize_connection ();
+      error ("This Emacs doesn't understand " IDENTITY_CRISIS " version 3.");
+    }
+
+#endif /* ENERGIZE_V2_HEADERS */
+
 }
 
 
@@ -3723,7 +3866,7 @@ close_energize_connection ()
 	Fdelete_process (ed->proc);
       ed->proc = Qnil;
 
-      energize_buffers_list = Qnil;
+      Venergize_buffers_list = Qnil;
 
       /* now kill buffers created to satisfy requests on old connection */
       xfree (ed);
@@ -3786,14 +3929,14 @@ DEFUN ("close-connection-to-energize", Fclose_connection_to_energize,
 
 /* Extents stuff; this used to be in extents.c */
 
+extern void set_extent_glyph (EXTENT, GLYPH, int endp, unsigned int layout);
+
 static void
 set_extent_flags (EXTENT extent, Energize_Extent_Data *ext)
 {
   /* clear every flag except the EF_DETACHED flag */
   if (EXTENT_DESTROYED_P (extent))
     return;
-  extent->flags.glyph_layout = GL_TEXT;
-  extent->flags.glyph_end_p = 0;
   extent->flags.start_open = 0;
   extent->flags.end_open = 1;
   extent->flags.read_only = 0;
@@ -3801,6 +3944,9 @@ set_extent_flags (EXTENT extent, Energize_Extent_Data *ext)
   extent->flags.unique = 0;
   extent->flags.duplicable = 0;
   extent->flags.invisible = 0;
+
+  set_extent_glyph (extent, 0, 0, GL_TEXT);
+  set_extent_glyph (extent, 0, 1, GL_TEXT);
 
   if (ext)
     {
@@ -3819,36 +3965,46 @@ set_extent_flags (EXTENT extent, Energize_Extent_Data *ext)
 	  break;
 
 	case CEGeneric:
-	  if (ext->u.generic.gData->id)
-/*	    SET_EXTENT_FLAG (extent, EF_MENU);*/
-	  if (ext->u.generic.gData->glyph)
-	    {
-	      extent->flags.glyph_end_p = 1;
-	      extent->flags.glyph_layout = GL_TEXT;
-	      extent_glyph (extent) = ext->u.generic.gData->glyph;
-	      BUF_FACECHANGE (XBUFFER (extent_buffer (extent)))++;
-	    }
-	  if (ext->u.generic.gData->cl && ext->u.generic.gData->cl->glyph)
-	    {
-	      extent->flags.glyph_end_p = 0;
-	      extent->flags.glyph_layout = GL_TEXT;
-	      extent_glyph (extent) = ext->u.generic.gData->cl->glyph;
-	      BUF_FACECHANGE (XBUFFER (extent_buffer (extent)))++;
-	    }
-	  if (ext->u.generic.gData->cl &&
-	      (ext->u.generic.gData->cl->flags & CCElectric))
-	    extent->flags.highlight = 1;
-	  if (ext->u.generic.gData->cl &&
-	      (ext->u.generic.gData->cl->flags & CCWarnModified))
-	    ext->warn_modify = 1;
-#if 0 /* #### some day (soon?)... */
-	  if (ext->u.generic.gData->cl &&
-	      (ext->u.generic.gData->cl->flags & CCColumn))
-	    SET_EXTENT_FLAG (extent, EF_COLUMN);
+	  {
+	    GLYPH begin_glyph = 0;	/* always the class glyph */
+	    GLYPH end_glyph = 0;	/* always the instance glyph */
+
+	    /* if (ext->u.generic.gData->id)
+	         SET_EXTENT_FLAG (extent, EF_MENU);*/
+
+	    if (ext->u.generic.gData->glyph)
+	      end_glyph = ext->u.generic.gData->glyph;
+	    if (ext->u.generic.gData->cl && ext->u.generic.gData->cl->glyph)
+	      begin_glyph = ext->u.generic.gData->cl->glyph;
+
+#if 0
+	    if (begin_glyph && end_glyph)
+	      {
+		begin_glyph = end_glyph;
+		end_glyph = 0;
+	      }
 #endif
-	  extent->flags.duplicable = 1;
-	  extent->flags.unique = 1;
-	  break;
+
+	    if (begin_glyph)
+	      set_extent_glyph (extent, begin_glyph, 0, GL_TEXT);
+	    if (end_glyph)
+	      set_extent_glyph (extent, end_glyph, 1, GL_TEXT);
+
+	    if (ext->u.generic.gData->cl &&
+		(ext->u.generic.gData->cl->flags & CCElectric))
+	      extent->flags.highlight = 1;
+	    if (ext->u.generic.gData->cl &&
+		(ext->u.generic.gData->cl->flags & CCWarnModified))
+	      ext->warn_modify = 1;
+#if 0 /* #### some day (soon?)... */
+	    if (ext->u.generic.gData->cl &&
+		(ext->u.generic.gData->cl->flags & CCColumn))
+	      SET_EXTENT_FLAG (extent, EF_COLUMN);
+#endif
+	    extent->flags.duplicable = 1;
+	    extent->flags.unique = 1;
+	    break;
+	  }
 
 	default:
 	  break;
@@ -3891,7 +4047,7 @@ set_extent_attributes_index (EXTENT extent, Energize_Extent_Data *ext)
 
       {
 	/* The Venergize_attributes_mapping global is an alist of the form
-	   ( (<kernel-attribute-number> <emacs-face-name> ) ... )
+	   ( (<kernel-attribute-number> . <emacs-face-name> ) ... )
 	   */
 	Lisp_Object face = Fcdr (Fassq (make_number (graphic_attributes),
 					Venergize_attributes_mapping));
@@ -4185,7 +4341,9 @@ DEFUN ("energize-send-buffer-modified", Fenergize_send_buffer_modified,
 					  modifiedp);
 	  binfo->modified_state = modifiedp;
 	}
+#ifndef ENERGIZE_V2_HEADERS
       if (!(binfo->flags & CBFileYourself))
+#endif
 	{
 	  if (modifiedp)
 	    {
@@ -4490,6 +4648,13 @@ make_psheets_desired (s, buffer)
       x->desired_psheet_count = count;
       x->desired_psheet_buffer = buffer;
     }
+
+  /* Garbage the screen so that the sheets get recomputed right away and not
+     the next time some display change happens.  Possibly redisplay should
+     notice this on its own without the garbaged flag.  But once redisplay
+     gets smarter about such things, all garbagers should be revisited.
+   */
+  SET_SCREEN_GARBAGED (s);
 }
 
 Lisp_Object
@@ -4776,6 +4941,8 @@ editmode_done (void *arg)
   return (editmode.ok != 0);
 }
 
+extern LWLIB_ID new_lwlib_id (void);
+
 DEFUN ("energize-edit-mode-prompt", Fenergize_edit_mode_prompt,
        Senergize_edit_mode_prompt, 6, 6, 0, "")
      (external, edit_mode, view_mode, other_text, window, split)
@@ -4810,7 +4977,7 @@ DEFUN ("energize-edit-mode-prompt", Fenergize_edit_mode_prompt,
   data->value = "editmode";
   data->enabled = 1;
 
-  dbox_id = ++popup_id_tick;
+  dbox_id = new_lwlib_id ();
   dbox = lw_create_widget ("editmode", "editmode", dbox_id, data, parent,
 			   1, 0, edit_mode_callback, 0);
   data->value = 0;
@@ -4876,7 +5043,6 @@ DEFUN ("energize-edit-mode-prompt", Fenergize_edit_mode_prompt,
 
   free_widget_value (data);
 
-  dbox_up_p++;
   lw_pop_up_all_widgets (dbox_id);
   UNBLOCK_INPUT;
 
@@ -5048,7 +5214,7 @@ DEFUN ("energize-search", Fenergize_search, Senergize_search, 0, 0, "",
   BLOCK_INPUT;
   data = malloc_widget_value ();
 
-  dbox_id = (search_id ? search_id : (++popup_id_tick));
+  dbox_id = (search_id ? search_id : new_lwlib_id());
   dbox = lw_create_widget ("search", "search", dbox_id, NULL, parent,
 			   1, 0, search_callback, 0);
   data->enabled = 1;
@@ -5098,7 +5264,6 @@ DEFUN ("energize-search", Fenergize_search, Senergize_search, 0, 0, "",
   else
     {
       search_id = dbox_id;
-      dbox_up_p++;
     }
   UNBLOCK_INPUT;
 
@@ -5117,8 +5282,11 @@ syms_of_editorside ()
 
   image_cache = make_strings_hashtable (50);
 
-  staticpro (&energize_buffers_list);
-  energize_buffers_list = Qnil;
+  staticpro (&Venergize_buffers_list);
+  Venergize_buffers_list = Qnil;
+
+  staticpro (&Vall_energize_pixmaps);
+  Vall_energize_pixmaps = Qnil;
 
   defsubr (&Senergize_send_buffer_modified);
   defsubr (&Senergize_list_menu);
@@ -5191,17 +5359,17 @@ takes no arguments.");
 	       "A-list to map kernel attributes indexes to Emacs attributes");
   Venergize_attributes_mapping = Qnil;
 
-/*  DEFVAR_INT ("energize-font-lock-p", &energize_font_lock_p,
-	       "Set to true enable to use Energize with font-lock");
-  energize_font_lock_p = 1;
- */
-
+  DEFVAR_INT ("energize-extent-gc-threshold", &energize_extent_gc_threshold,
+	      "Number of  extents in a ModifyBuffer request above which to do a GC");
+  energize_extent_gc_threshold = 20;
+  
   defsymbol (&Qbuffer_locked_by_energize, "buffer-locked-by-energize");
   defsymbol (&Qenergize_user_input_buffer_mark,
 	     "energize-user-input-buffer-mark");
   defsymbol (&Qenergize_make_many_buffers_visible,
 	     "energize-make-many-buffers-visible");
   defsymbol (&Qenergize, "energize");
+  defsymbol (&Qenergize_auto_revert_buffer, "energize-auto-revert-buffer");
 
   pure_put (Qbuffer_locked_by_energize, Qerror_conditions,
 	    list2 (Qbuffer_locked_by_energize, Qerror));

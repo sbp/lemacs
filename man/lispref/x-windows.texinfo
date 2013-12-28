@@ -1,0 +1,330 @@
+@c -*-texinfo-*-
+@c This is part of the GNU Emacs Lisp Reference Manual.
+@c Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc. 
+@c See the file lispref.texinfo for copying conditions.
+@setfilename ../../info/x-windows.texinfo
+@node X-Windows, ToolTalk Support, System Interface, Top
+@chapter Functions Specific to the X Window System
+@cindex X
+@cindex X-Windows
+
+Only sparsely documented.
+
+@menu
+* X Selections::		Transferring text to and from other X clients.
+* X Server::			
+* X Miscellaneous::             
+@end menu
+
+@node X Selections
+@section X Selections
+@cindex selection (for X windows)
+
+The X server records a set of @dfn{selections} which permit transfer of
+data between application programs.  The various selections are
+distinguished by @dfn{selection types}, represented in Emacs by
+symbols.  X clients including Emacs can read or set the selection for
+any given type.
+
+@defun x-own-selection data &optional type
+This function sets a ``selection'' in the X server.  It takes two
+arguments: a value, @var{data}, and the selection type @var{type} to
+assign it to.  @var{data} may be a string, a cons of two markers, or an
+extent.  In the latter cases, the selection is considered to be the text
+between the markers, or between the extent's endpoints.
+
+Each possible @var{type} has its own selection value, which changes
+independently.  The usual values of @var{type} are @code{PRIMARY} and
+@code{SECONDARY}; these are symbols with upper-case names, in accord
+with X Windows conventions.  The default is @code{PRIMARY}.
+
+(In FSF Emacs 19, this function is called @code{x-set-selection} and
+takes different arguments.)
+@end defun
+
+@defun x-get-selection
+This function accesses selections set up by Emacs or by other X
+clients.  It returns the value of the current primary selection.
+@ignore
+
+  It takes two optional arguments, @var{type} and
+@var{data-type}.  The default for @var{type}, the selection type, is
+@code{PRIMARY}.
+
+The @var{data-type} argument specifies the form of data conversion to
+use, to convert the raw data obtained from another X client into Lisp
+data.  Meaningful values include @code{TEXT}, @code{STRING},
+@code{TARGETS}, @code{LENGTH}, @code{DELETE}, @code{FILE_NAME},
+@code{CHARACTER_POSITION}, @code{LINE_NUMBER}, @code{COLUMN_NUMBER},
+@code{OWNER_OS}, @code{HOST_NAME}, @code{USER}, @code{CLASS},
+@code{NAME}, @code{ATOM}, and @code{INTEGER}.  (These are symbols with
+upper-case names in accord with X conventions.)  The default for
+@var{data-type} is @code{STRING}.
+@end ignore
+@end defun
+
+@defun x-disown-selection &optional secondary-p
+Assuming we own the selection, this function disowns it.  If
+@var{secondary-p} is non-@code{nil}, the secondary selection instead of
+the primary selection is discarded.
+@end defun
+
+@cindex cut buffer
+The X server also has a set of numbered @dfn{cut buffers} which can
+store text or other data being moved between applications.  Cut buffers
+are considered obsolete, but Emacs supports them for the sake of X
+clients that still use them.
+
+@defun x-get-cutbuffer &optional n
+This function returns the contents of cut buffer number @var{n}. (This
+function is called @code{x-get-cut-buffer} in FSF Emacs 19.)
+@end defun
+
+@defun x-store-cutbuffer string
+This function stores @var{string} into the first cut buffer (cut buffer
+0), moving the other values down through the series of cut buffers,
+kill-ring-style. (This function is called @code{x-set-cut-buffer} in FSF
+Emacs 19.)
+@end defun
+
+@node X Server
+@section X Server
+
+This section describes how to access and change the overall status of
+the X server Emacs is using.
+
+@menu
+* X Connections::	Opening and closing the X server connection.
+* Resources::		Getting resource values from the server.
+* Server Data::		Getting info about the X server.
+@end menu
+
+@node X Connections
+@subsection X Connections
+
+You can close the connection with the X server with the function
+@code{x-close-current-connection}, and open a new one with
+@code{x-open-connection} (perhaps with a different server and display).
+
+@defun x-close-current-connection
+This function closes the connection to the X server.  It deletes all
+screens, making Emacs effectively inaccessible to the user; therefore, a
+Lisp program that closes the connection should open another one.
+@end defun
+
+@defun x-open-connection argv-list
+This function opens a connection to an X server.  @var{argv} is a list
+of strings describing the command line options.  The function returns a
+copy of @var{argv} from which the arguments used by the Xt code to open
+the connection have been removed.
+
+Note that the arguments to this function are different from the
+corresponding function in FSF Emacs 19.
+@ignore
+This function opens a connection to an X server, for use of display
+@var{display}.
+
+The optional argument @var{resource-string} is a string of resource
+names and values, in the same format used in the @file{.Xresources}
+file.  The values you specify override the resource values recorded in
+the X server itself.  Here's an example of what this string might look
+like:
+
+@example
+"*BorderWidth: 3\n*InternalBorder: 2\n"
+@end example
+@end ignore
+@end defun
+
+@defun x-color-display-p &optional screen
+This returns @code{t} if the X display of the given screen has color,
+and @code{nil} otherwise.
+@end defun
+@ignore  @c Not in Lucid Emacs
+
+@defun x-color-defined-p color
+This function reports whether a color name is meaningful and supported
+on the X display Emacs is using.  It returns @code{t} if the display
+supports that color; otherwise, @code{nil}.
+
+Black-and-white displays support just two colors, @code{"black"} or
+@code{"white"}.  Color displays support many other colors.
+@end defun
+
+@defun x-synchronize flag
+The function @code{x-synchronize} enables or disables synchronous
+communication with the X server.  It enables synchronous communication
+if @var{flag} is non-@code{nil}, and disables it if @var{flag} is
+@code{nil}.
+
+In synchronous mode, Emacs waits for a response to each X protocol
+command before doing anything else.  This is useful for debugging Emacs,
+because protocol errors are reported right away, which helps you find
+the erroneous command.  Synchronous mode is not the default because it
+is much slower.
+@end defun
+@end ignore
+
+@node Resources
+@subsection Resources
+
+@defun x-get-resource name class type &optional screen
+The function @code{x-get-resource} retrieves a resource value from the X
+resource manager.
+
+The first arg is the name of the resource to retrieve, such as "font".
+The second arg is the class of the resource to retrieve, like "Font".
+The third arg should be one of the symbols string, integer, or boolean,
+specifying the type of object that the database is searched for.
+The fourth arg is the screen to search for the resources on, defaulting
+to the selected screen.
+
+Resources are indexed by a combination of a @dfn{key} and a @dfn{class},
+as specified by the arguments @var{name} and @var{class}.  @var{type}
+should be one of the symbols @code{string}, @code{integer}, or
+@code{boolean}, specifying the type of object that the database is
+searched for.
+
+The resource names passed to this function are looked up relative to the
+screen widgetof @var{screen}, so the call
+
+@example
+    (x-get-resource "font" "Font" 'string)
+@end example
+
+is an interface to a C call something like
+
+@example
+    XrmGetResource (db, "lemacs.shell.pane.this_screen_name.font",
+			"Emacs.Shell.Paned.EmacsScreen.Font",
+			"String");
+@end example
+
+Therefore if you want to retrieve a deeper resource, for example,
+@code{"Emacs.foo.foreground"}, you need to specify the same number of
+links in the class path:
+
+@example
+    (x-get-resource "foo.foreground" "Thing.Foreground" 'string)
+@end example
+
+which is equivalent to something like
+
+@example
+    XrmGetResource (db, "lemacs.shell.pane.this_screen_name.foo.foreground",
+			"Emacs.Shell.Paned.EmacsScreen.Thing.Foreground",
+			"String");
+@end example
+
+The returned value of this function is @code{nil} if the queried
+resource is not found.  If @var{type} is @code{string}, a string is
+returned, and if it is @code{integer}, an integer is returned.  If
+@var{type} is @code{boolean}, then the returned value is the list
+@code{(t)} for true, @code{(nil)} for false, and is @code{nil} to mean
+``unspecified''.
+@end defun
+
+@node Server Data
+@subsection Data about the X Server
+
+  This section describes functions and a variable that you can use to
+get information about the capabilities and origin of the X server that
+Emacs is displaying a screen on.  These functions take an optional
+screen argument because of the possibility that different screens are
+displayed on different X servers (this capability does not currently
+exist but may in the future).  If the screen argument is omitted,
+information associated with the selected screen is returned.
+
+@ignore
+
+@defun x-display-screens
+This function returns the number of screens associated with the current
+display.
+@end defun
+@end ignore
+
+@defun x-server-version &optional screen 
+This function returns the list of version numbers of the X server
+@var{screen} is on.  The returned value is a list of three integers: the
+major and minor version numbers of the X protocol in use, and the
+vendor-specific release number.
+@end defun
+
+@defun x-server-vendor &optional screen
+This function returns the vendor supporting the X server @var{screen} is
+on.
+@end defun
+
+@defun x-display-pixel-height &optional screen
+This function returns the height in pixels of the display @var{screen}
+is on.
+@end defun
+@ignore
+
+@defun x-display-mm-height
+This function returns the height of this X screen in millimeters.
+@end defun
+@end ignore
+
+@defun x-display-pixel-width &optional screen
+This function returns the width in pixels of the display @var{screen}
+is on.
+@end defun
+@ignore
+
+@defun x-display-mm-width
+This function returns the width of this X screen in millimeters.
+@end defun
+
+@defun x-display-backing-store
+This function returns the backing store capability of this screen.
+Values can be the symbols @code{always}, @code{when-mapped}, or
+@code{not-useful}.
+@end defun
+
+@defun x-display-save-under
+This function returns non-@code{nil} if this X screen supports the
+SaveUnder feature.
+@end defun
+@end ignore
+
+@defun x-display-planes &optional screen
+This function returns the number of bitplanes of the display
+@var{screen} is on.
+@end defun
+
+@defun x-display-visual-class &optional screen
+This function returns the visual class of the display @var{screen} is
+on.  The value is one of the symbols @code{StaticGray},
+@code{GrayScale}, @code{StaticColor}, @code{PseudoColor},
+@code{TrueColor}, and @code{DirectColor}. (Note that this is different
+from FSF Emacs 19, which returns values like @code{static-gray},
+@code{gray-scale}, etc.)
+@end defun
+@ignore
+
+@defun x-display-color-p
+This function returns @code{t} if the X screen in use is a color
+screen.
+@end defun
+@end ignore
+
+@defun x-display-color-cells &optional screen
+This function returns the number of color cells of the display
+@var{screen} is on.
+@end defun
+@ignore
+
+@defvar x-no-window-manager
+This variable's value is is @code{t} if no X window manager is in use.
+@end defvar
+@end ignore
+
+@node X Miscellaneous
+@section Miscellaneous X Functions and Variables
+
+@defvar x-allow-sendevents
+If non-@code{nil}, synthetic events are allowed.  @code{nil} means
+they are ignored.  Beware: allowing Emacs to process SendEvents opens a
+big security hole.
+@end defvar

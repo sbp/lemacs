@@ -1,5 +1,5 @@
 /* Tooltalk support for Emacs.
-   Copyright (C) 1993 Sun Microsystems, Inc.
+   Copyright (C) 1993, 1994 Sun Microsystems, Inc.
 
 This file is part of GNU Emacs.
 
@@ -33,8 +33,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define writeit(x) (write_string_1 ((x), -1, printcharfun))
 
 /* static Tt_pattern tooltalk_pattern; */ /* UNUSED */
-int tooltalk_fd;
-int tooltalk_init_override_p = 0;
+Lisp_Object Vtooltalk_fd;
 
 #ifdef TT_DEBUG
 static FILE *tooltalk_log_file;
@@ -145,10 +144,10 @@ struct Lisp_Tooltalk_Message
 
 static Lisp_Object mark_tooltalk_message (Lisp_Object, void (*) (Lisp_Object));
 static void print_tooltalk_message (Lisp_Object, Lisp_Object, int);
-static int tooltalk_message_sizeof (void *h) { return sizeof (struct Lisp_Tooltalk_Message); }
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_tooltalk_message,
+DEFINE_LRECORD_IMPLEMENTATION ("tooltalk-message", lrecord_tooltalk_message,
                                mark_tooltalk_message, print_tooltalk_message, 
-                               0, tooltalk_message_sizeof, 0);
+                               0, 0,
+			       sizeof (struct Lisp_Tooltalk_Message));
 
 static Lisp_Object
 mark_tooltalk_message (Lisp_Object obj, void (*markobj) (Lisp_Object))
@@ -161,11 +160,11 @@ print_tooltalk_message (Lisp_Object obj, Lisp_Object printcharfun, int escapefla
 {
   struct Lisp_Tooltalk_Message *p = XTOOLTALK_MESSAGE (obj);
   
-  char buf[50];
+  char buf[200];
 
   if (print_readably)
     error (GETTEXT ("printing unreadable object #<tooltalk_message 0x%x>"),
-	   p->header.uid);
+	   (long) p);
 
   sprintf (buf, "#<tooltalk_message id:%d>", p->m);
   writeit (buf);
@@ -217,10 +216,10 @@ struct Lisp_Tooltalk_Pattern
 
 static Lisp_Object mark_tooltalk_pattern (Lisp_Object, void (*) (Lisp_Object));
 static void print_tooltalk_pattern (Lisp_Object, Lisp_Object, int);
-static int tooltalk_pattern_sizeof (void *h) { return sizeof (struct Lisp_Tooltalk_Pattern); }
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_tooltalk_pattern,
+DEFINE_LRECORD_IMPLEMENTATION ("tooltalk-pattern", lrecord_tooltalk_pattern,
                                mark_tooltalk_pattern, print_tooltalk_pattern, 
-                               0, tooltalk_pattern_sizeof, 0);
+                               0, 0,
+			       sizeof (struct Lisp_Tooltalk_Pattern));
 
 static Lisp_Object
 mark_tooltalk_pattern (Lisp_Object obj, void (*markobj) (Lisp_Object))
@@ -233,11 +232,11 @@ print_tooltalk_pattern (Lisp_Object obj, Lisp_Object printcharfun, int escapefla
 {
   struct Lisp_Tooltalk_Pattern *p = XTOOLTALK_PATTERN (obj);
   
-  char buf[50];
+  char buf[200];
 
   if (print_readably)
     error (GETTEXT ("printing unreadable object #<tooltalk_pattern 0x%x>"),
-	   p->header.uid);
+	   (long) p);
 
   sprintf (buf, "#<tooltalk_pattern id:%d>", p->p);
   writeit (buf);
@@ -1186,9 +1185,9 @@ It can be set with (tooltalk-pattern-plist-set plist pattern).")
 
   if (VALID_TOOLTALK_PATTERNP(p))
     {
-      Lisp_Object retval;
-      VOID_TO_LISP (retval, tt_pattern_user(p, TOOLTALK_PLIST_KEY));
-      return (retval);
+      Lisp_Object tempval;
+      VOID_TO_LISP (tempval, tt_pattern_user(p, TOOLTALK_PLIST_KEY));
+      return Fsymbol_plist(tempval);
     }
   else
     return Qnil;
@@ -1246,69 +1245,80 @@ DEFUN ("tooltalk-default-session",
   return build_string(session);
 }
 
-void basic_init_tooltalk (int *argc, char **argv);
+extern Lisp_Object connect_to_file_descriptor (Lisp_Object, Lisp_Object,
+					       Lisp_Object, Lisp_Object);
 
-void
-init_tooltalk (int *argc, char **argv)
+static void
+init_tooltalk (void)
 {
-  if (!tooltalk_init_override_p)
-    basic_init_tooltalk(argc, argv);
-}
-
-extern Lisp_Object Fconnect_to_file_descriptor (Lisp_Object, Lisp_Object,
-						Lisp_Object, Lisp_Object);
-
-void
-start_emacs_tooltalk_connection (void)
-{
+  char *retval;
   Lisp_Object lp;
   Lisp_Object fil;
 
-  lp = Fconnect_to_file_descriptor (build_string ("tooltalk"), Qnil,
-				    make_number (tooltalk_fd),
-				    make_number (tooltalk_fd));
-  if (!NILP(lp)) {
-    /* Don't ask the user for confirmation when exiting Emacs */
-    Fprocess_kill_without_query (lp, Qnil);
-    XSETR (fil, Lisp_Subr, &Sreceive_tooltalk_message);
-    set_process_filter (lp, fil, 1);
-  } else
-    signal_error (Qtooltalk_error,
-		  list1 (build_string
-			 (GETTEXT ("couldn't connect to Tooltalk"))));
-}
-
-void
-basic_init_tooltalk (int *argc, char **argv)
-{
-  char *retval;
-  Tt_message exit_msg;
-
   retval = tt_open();
   if (tt_ptr_error(retval) != TT_OK)
-    signal_error (Qtooltalk_error,
-		  list1 (build_string
-			 (GETTEXT ("couldn't connect to Tooltalk"))));
+    return;
     
-  tooltalk_fd = tt_fd();
+  Vtooltalk_fd = make_number (tt_fd ());
 
   tt_session_join(tt_default_session());
 
-  start_emacs_tooltalk_connection();
+  lp = connect_to_file_descriptor (build_string ("tooltalk"), Qnil,
+				   Vtooltalk_fd, Vtooltalk_fd);
+  if (!NILP(lp))
+    {
+      /* Don't ask the user for confirmation when exiting Emacs */
+      Fprocess_kill_without_query (lp, Qnil);
+      XSETR (fil, Lisp_Subr, &Sreceive_tooltalk_message);
+      set_process_filter (lp, fil, 1);
+    }
+  else
+    {
+      tt_close ();
+      Vtooltalk_fd = Qnil;
+      return;
+    }
 
-  exit_msg = tt_message_create();
-
-  tt_message_op_set(exit_msg, "emacs-aborted");
-  tt_message_scope_set(exit_msg, TT_SESSION);
-  tt_message_class_set(exit_msg, TT_NOTICE);
-  tt_message_address_set(exit_msg, TT_HANDLER);
-#ifdef IRIX5 /* drich@lerc.nasa.gov */
-  tt_message_send(exit_msg);
-#else
-  tt_message_send_on_exit(exit_msg);
+#if defined (USG) && defined (sparc)
+  /* Apparently the tt_message_send_on_exit() function does not exist
+     under SunOS 4.x or IRIX 5 or various other non-Solaris-2 systems.
+     No big deal if we don't do the following under those systems. */
+  {
+    Tt_message exit_msg = tt_message_create();
+    
+    tt_message_op_set(exit_msg, "emacs-aborted");
+    tt_message_scope_set(exit_msg, TT_SESSION);
+    tt_message_class_set(exit_msg, TT_NOTICE);
+    tt_message_send_on_exit(exit_msg);
+    tt_message_destroy(exit_msg);
+  }
 #endif
-  tt_message_destroy(exit_msg);
 }
+
+
+DEFUN ("tooltalk-open-connection",
+       Ftooltalk_open_connection, Stooltalk_open_connection,
+       0, 0, 0,
+       "Opens a connection to the ToolTalk server.\n\
+Returns t if successful, nil otherwise.")
+ 	()
+/*
+       "Opens a connection to the ToolTalk server.\n\
+Argument ARGV is a list of strings describing the command line options.\n\
+Returns a copy of ARGV from which the arguments used by the ToolTalk code\n\
+to open the connection have been removed.")
+ 	(argv_list)
+	Lisp_Object argv_list;
+ */
+{
+  if (!NILP (Vtooltalk_fd))
+    error ("Already connected to ToolTalk.");
+  if (noninteractive)
+    error ("Can't connect to ToolTalk in batch mode.");
+  init_tooltalk ();
+  return (NILP (Vtooltalk_fd) ? Qnil : Qt);
+}
+
 
 void
 syms_of_tooltalk (void)
@@ -1322,10 +1332,9 @@ syms_of_tooltalk (void)
   defsymbol (&Qtooltalk_unprocessed_message_hook,
 	     "tooltalk-unprocessed-message-hook");
 
-  DEFVAR_INT ("tooltalk-fd", &tooltalk_fd, "File descriptor returned by tt_initialize.");
-
-  DEFVAR_BOOL ("tooltalk-init-override-p", &tooltalk_init_override_p,
-     "If true, don't do normal tooltalk initialization.");
+  DEFVAR_LISP ("tooltalk-fd", &Vtooltalk_fd,
+ "File descriptor returned by tt_initialize, or nil if not connected to ToolTalk.");
+  Vtooltalk_fd = Qnil;
 
   DEFVAR_LISP ("tooltalk-message-handler-hook", 
 	      &Vtooltalk_message_handler_hook, 
@@ -1348,8 +1357,7 @@ corresponding pattern.");
   DEFVAR_LISP ("tooltalk-unprocessed-message-hook",
 	      &Vtooltalk_unprocessed_message_hook,
     "List of functions to be applied to each unprocessed ToolTalk message.\n\
-Most of the time, this will happen when the message does not have a\n\
-C-level callback.");
+Unprocessed messages are messages that didn't match any patterns.");
   Vtooltalk_unprocessed_message_hook = Qnil;
 
   defsubr(&Sreceive_tooltalk_message);
@@ -1372,6 +1380,7 @@ C-level callback.");
   defsubr(&Stooltalk_pattern_prop_get);
   defsubr(&Stooltalk_default_procid);
   defsubr(&Stooltalk_default_session);
+  defsubr(&Stooltalk_open_connection);
 
   defsymbol (&Qtooltalk_error, "tooltalk-error");
 
@@ -1459,6 +1468,6 @@ C-level callback.");
   pure_put (Qtooltalk_error, Qerror_conditions,
 	    list2 (Qtooltalk_error, Qerror));
   pure_put (Qtooltalk_error, Qerror_message,
-	    build_string (DEFER_GETTEXT ("Tooltalk error")));
+	    build_string (DEFER_GETTEXT ("ToolTalk error")));
 }
 

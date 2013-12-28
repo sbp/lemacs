@@ -1,0 +1,879 @@
+This is Info file ./w3.info, produced by Makeinfo-1.55 from the input
+file w3.texi.
+
+   This file documents the W3 World Wide Web browser.
+
+   Copyright (C) 1993, 1994 William M. Perry
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+
+File: w3.info,  Node: Other Variables,  Prev: Hooks,  Up: Advanced Features
+
+Miscellaneous variables
+=======================
+
+   There are lots of variables that control the real nitty-gritty of W3
+that the beginning user probably shouldn't mess with.  Here they are.
+
+`w3-always-show-output'
+     Controls whether to show process output or not.  If `nil', never
+     show output, if `t', always show output, if other than `nil' or
+     `t', prompt.
+
+`w3-icon-directory-list'
+     A list of directorys to look in for the w3 standard icons...  must
+     end in a /!  If the directory `data-directory'/w3 exists, then
+     this is automatically added to the default value of
+     http://cs.indiana.edu/elisp/w3/icons/.
+
+`w3-keep-old-buffers'
+     Whether to keep old buffers around when following links.  If you
+     do not like having lots of buffers in one emacs session, you
+     should set this to `nil'.  I recommend setting it to `t', so that
+     backtracking from one link to another is faster.
+
+`w3-passwd-entry-func'
+     This is a symbol indicating which function to call to read in a
+     password.  It will be set up depending on whether you are running
+     "EFS" or "ange-ftp" at startup if it is nil.  This function should
+     accept the prompt string as its first argument, and the default
+     value as its second argument.
+
+`w3-reuse-buffers'
+     What to do when following a link will re-fetch a document that has
+     already been fetched into a W3 buffer.  Possible values are: `nil',
+     `yes', and `no'.  `nil' means ask the user if we should reuse the
+     buffer (this is the default value).  A value of `yes' means assume
+     the user wants us to reuse the buffer.  A value of `no' means
+     assume the user wants us to re-fetch the document.
+
+`w3-show-headers'
+     This is a list of HTTP/1.0 headers to show at the end of a buffer.
+     All the headers should be in lowercase.  They will be inserted at
+     the end of the buffer in a <UL> list.
+
+`w3-show-status'
+     Whether to show a running total of bytes transferred.  Can cause a
+     large performance hit if using a remote X display over a slow
+     link, or a terminal with a slow modem.
+
+`w3-starting-documents'
+     :: WORK ::
+
+`w3-uncompressor-alist'
+     :: WORK ::
+
+`w3-waisq-prog'
+     Name of the waisq executable on this system.  This should be the
+     `waisq' program from think.com's wais8-b5.1 distribution.
+
+
+File: w3.info,  Node: More Help,  Next: Future Directions,  Up: Top
+
+More Help
+*********
+
+   If you need more help on W3, please send me mail
+(wmperry@indiana.edu).  Several discussion lists have also been created
+for W3.  To subscribe, send mail to <listname>-request@indiana.edu.
+All other mail should go to <listname>@indiana.edu
+
+   * w3-announce - this list is for anyone interested in W3, and should
+     in general only be used by me.  The gnu.emacs.sources newsgroup
+     and a few other mailing lists are included on this.  You may use
+     this if you have written an enhancement to W3 that you wish more
+     people to know about.  (www-announce@info.cern.ch is included on
+     this list).
+
+   * w3-beta - this list is for beta testers of W3.  These brave souls
+     test out not-quite stable code.
+
+   * w3-dev - a list consisting of myself and a few other people who are
+     interested in the internals of W3, and doing active development
+     work.  Pretty dead right now, but I hope it will grow.
+
+   If you need more help on the World Wide Web in general, please refer
+to the newsgroup comp.infosystems.www.  There are also several
+discussion lists concerning the Web.  Send mail to
+listserv@info.cern.ch with a subject line of 'subscribe <listname>'.
+All mail should go to <listname>@info.cern.ch.  Administrative mail
+should go to www-admin@info.cern.ch.  The lists are:
+
+   * www-talk - for general discussion of the World Wide Web, where its
+     going, new features, etc.  All the major developers are subscribed
+     to this list.
+
+   * www-announce - for announcements concerning the World Wide Web.
+     Server changes, new servers, new software, etc.
+
+   As a last resort, you may always mail me.  I'll try to answer as
+quickly as I can.
+
+
+File: w3.info,  Node: Future Directions,  Next: Programming Interface,  Prev: More Help,  Up: Top
+
+Future Directions
+*****************
+
+   Changes are constantly being made to the emacs browser (hopefully all
+for the better).  This is a list of the things that are being worked on
+right now.
+     Fix before 2.2
+       1. more texinfo documentation
+
+       2. Way to save url under point without viewing it first.
+
+       3. Fix <DL> handling.
+
+       4. ability to read in .info files natively
+
+       5. cacheing - easy in emacs19/lucid - just grab the entire
+          buffer and tell it to save the text properties, then insert
+          it into a new buffer and boom, done
+
+       6. have a 'timeout' when retrieving images.  Use (nth 1
+          (current-time)) when in lucid.
+
+       7. PATHs
+
+       8. TABLEs
+
+       9. Merge hotlist stuff with bookmark.el
+
+     Long range goals
+       1. Multi-DTD browsing
+
+       2. Style sheets
+
+       3. New parser, with process-filter and process-sentinel
+
+
+File: w3.info,  Node: Programming Interface,  Next: Generalized ZONES,  Prev: Future Directions,  Up: Top
+
+Internals of W3
+***************
+
+   This chapter will attempt to explain some of the internal workings
+of W3 and various data structures that are used.  It will also detail
+some functions that are useful for using some of the W3 functionality
+from within your own programs, or extending the current capabilities of
+W3.
+
+* Menu:
+
+* Generalized ZONES::           A generic interface to 'zones' of text
+                                that can contain information.
+* Global Variables::            Global variables used throughout W3
+* Data Structures::             The various data structures used in W3
+* Miscellaneous Functions::     Miscellaneous functions you can use to
+                                interface with w3 and access its data
+                                structures
+
+
+File: w3.info,  Node: Generalized ZONES,  Next: Global Variables,  Prev: Programming Interface,  Up: Programming Interface
+
+   Programming Interface
+
+Generalized ZONES
+=================
+
+   Due to the many different flavors of Emacs in existence, the
+addition of data and font information to arbitrary regions of text has
+been generalized.  The following functions are defined for
+using/manipulating these "zones" of data.
+
+`w3-add-zone (start end style data &optional highlight)'
+     This function creates a zone between buffer positions start and
+     end, with font information specified by style, and a data segment
+     of data.  If the optional argument highlight is non-`nil', then
+     the region will highlight when the mouse moves over it.
+
+`w3-zone-at (point)'
+     Returns the the zone at POINT.  Preference is given to hypertext
+     links, then to form entry areas, then to inlined images.  So if an
+     inlined image was part of a hypertext link, this would always
+     return the hypertext link.
+
+`w3-zone-data (zone)'
+     Returns the zone's data segment. The data structures used in W3 are
+     relatively simple.  They are just list structures that follow a
+     certain format.  The two main data types are "form objects", "link
+     objects",and "inlined images".  All the information for these types
+     of links are stored as lists.
+
+`w3-zone-hidden-p (zone)'
+     Returns `t' if and only if a zone is currently invisible.
+
+`w3-hide-zone (start end)'
+     Makes a region of text from `start' to `end' invisible.
+
+`w3-unhide-zone (start end)'
+     Makes a region of text from `start' to `end' visible again.
+
+`w3-zone-start (zone)'
+     Returns an integer that is the start of zone, as a buffer
+     position.  In emacs 18.xx, this will return a marker instead of an
+     integer, but it can be used just like an integer.
+
+`w3-zone-end (zone)'
+     Returns an integer that is the end of zone, as a buffer position.
+     In emacs 18.xx, this will return a marker instead of an integer,
+     but it can be used just like an integer.
+
+`w3-zone-eq (zone1 zone2)'
+     Returns `t' if and only if zone1 and zone2 represent the same
+     region of text in the same buffer, with the same properties and
+     data.
+
+`w3-delete-zone (zone)'
+     Removes zone from its buffer (or current buffer).  The return
+     value is irrelevant, and varies for each version of emacs.
+
+`w3-all-zones ()'
+     Returns a list of all the zones contained in the current buffer.
+     Useful for extracting information about hypertext links or form
+     entry areas.  Programs should not rely on this list being sorted,
+     as the order varies with each version of emacs.
+
+`w3-zone-at (pt)'
+     This will return the zone at character position PT in the current
+     buffer that is either a link or a forms entry area.  Returns nil
+     if no link at point.  These data structures are what is generally
+returned by `w3-zone-data'.
+
+
+File: w3.info,  Node: Global Variables,  Next: Data Structures,  Prev: Generalized ZONES,  Up: Programming Interface
+
+Global variables
+================
+
+   There are also some variables that may be useful if you are writing a
+program or function that interacts with W3.  All of the `w3-current-*'
+variables are local to each buffer.
+
+`w3-current-mime-headers'
+     An assoc list of all the MIME headers for the current document.
+     Keyed on the lowercase MIME header (ie: `content-type' or
+     `content-encoding'.
+
+`w3-current-server'
+     Server that the current document was retrieved from.
+
+`w3-current-file'
+     Filename of the current document
+
+`w3-current-type'
+     A string representing what network protocol was used to retrieve
+     the current buffer's document.  Can be one of http, gopher, file,
+     ftp, news, or mailto.
+
+`w3-current-port'
+     Port # of the current document.
+
+`w3-current-last-buffer'
+     The last buffer seen before this one.
+
+`w3-running-FSF19'
+     This is `t' if and only if we are running in FSF Emacs 19.
+
+`w3-running-epoch'
+     This is `t' if and only if we are running in Epoch 4.x
+
+`w3-running-lemacs'
+     This is `t' if and only if we are running in Lucid Emacs 19.6 or
+     Lucid Emacs 19.8.
+
+`w3-running-new-lucid'
+     This is `t' if and only if we are running in Lucid Emacs 19.9 or
+     later.
+
+
+File: w3.info,  Node: Data Structures,  Next: Miscellaneous Functions,  Prev: Global Variables,  Up: Programming Interface
+
+Data Structures
+===============
+
+   Form objects are used to store information about a FORM data entry
+area.
+  1. `'w3form'
+
+  2. A cons pair of (METHOD . URL), where METHOD specifies what method
+     to use to retrieve the form when it is submitted (ie: `GET') and
+     URL is a fully specified URL pointing at where to submit the FORM
+     data to.
+
+  3. The type of input area this is.  (ie: `CHECKBOX' or `RADIO')
+
+  4. The name of the input tag.  This is used when sending the form to
+     the server, so that the server can tell what data is what.
+
+  5. The default value of the input area.  Gotten from the INPUT tag at
+     creation time.
+
+  6. The current value of the input area.
+
+  7. Whether the item is checked or not.  Only used for RADIO or
+     CHECKBOX items.
+
+  8. The size (in characters) of the input area.  Not used for CHECKBOX,
+     RADIO, or TEXTAREA input areas.
+
+  9. The maximum length of the input.  Only used for TEXT or PASSWORD
+     input areas.
+
+ 10. The form that this input area belongs to.  Each form in the same
+     buffer has a unique identifier assigned when the document is
+     parsed.  It is used when the form is submitted to get only the
+     data for the correct form.
+
+ 11. A list of strings that represent the choices for this input area.
+     Only used for SELECT tags.
+
+   A new development in the World Wide Web is the concept of collapsible
+areas of text.  If a zone controls one of these regions, it will be
+marked with the w3expandlist property.  The format of this structure is:
+
+  1. `'w3expandlist'
+
+  2. A marker representing the start of the hidden text as a buffer
+     position.
+
+  3. A marker representing the end of the hidden text as a buffer
+     position.
+
+   A zone with the w3graphic property is a link to an inlined image's
+source file.
+  1. `'w3graphic'
+
+  2. The full URL of the inlined image.  This is only ever returned if
+     the inlined image is the only extent under point, or
+     `w3-follow-inlined-image' is invoked.
+
+   A zone with the w3 property is a full-fledged hypertext link to
+another document.
+  1. `'w3'
+
+  2. The ID attribute of this link.  Used for resolving references to
+     specific points within a document (ie: `file.html#sectionA'.
+
+  3. The HREF attribute of this link.  This is a fully specified URL
+     pointing at a network resource.  All relative directory references
+     should have been removed before being stored in this structure.
+
+  4. The text between the <A> and </A> tags.  This is used to build
+     menus or to get the text of a link without doing a
+     buffer-substring.
+
+  5. The URN attribute of this link.  Currently not used for anything,
+     waiting for the URN specification to be hammered out.
+
+  6. The REL attribute of this link.  Specifies the links relevance to
+     the current document.
+
+  7. The REV attribute of this link.  Specifies the current documents
+     relevance to the link.
+
+  8. The METHODS attribute, which tells what methods can be used on this
+     link.  (ie: `GET, HEAD, PUT'.
+
+
+File: w3.info,  Node: Miscellaneous Functions,  Next: Concept Index,  Prev: Data Structures,  Up: Programming Interface
+
+Miscellaneous Functions
+=======================
+
+   I have done quite a bit of work trying to make a semi-clean
+interface to the internals of W3.  Here is a list of functions that you
+can use to take advantage of the World Wide Web.
+
+`w3-clear-tmp-buffer'
+     This will set the current buffer to be `w3-working-buffer',
+     creating it if necessary, and erase it.  This should usually be
+     called before retrieving URLs.
+
+`w3-convert-html-to-latex'
+     This will take a buffer of HTML markup (which should be in
+     `w3-working-buffer'), and convert it into LaTeX.  This is an
+     adaptation of the simple sed scripts from Cern.  Does as good a
+     job as the html2latex program, and I usually prefer its formatting
+     over html2latex's.
+
+`w3-extension-to-mime'
+     This functions takes a file extension and returns the corresponding
+     MIME-type, as defined in `w3-mime-extensions'.  For example,
+     `(w3-extension-to-mime ".gif")' would return `"image/gif"'.
+
+`w3-fetch'
+     This function takes a URL as its only argument. It then attempts to
+     retrieve the URL using the specified method, using data (if any)
+     as the body of the MIME request.  For example: `(w3-fetch
+     "http://cs.indiana.edu/")' would retrieve the Indiana University
+     CS home page and parse it as HTML.
+
+`w3-fix-entities-in-string'
+     This function takes a string, and removes all HTML[+] entity
+     references from it, replacing them with the correct character(s).
+     It consults the variable `w3-html-entities' for the entity names
+     and translations.  For example, `(w3-fix-entities-in-string
+     "&gt;testing&lt;&amp;")' would return `">testing<&"'.
+
+`w3-generate-new-buffer-name'
+     This function takes a string, and returns the first unique buffer
+     name using that string as a base.  For example
+     `(w3-generate-new-buffer-name "new-buff")' would return
+     `"new-buff<1>"' if buffer `new-buff' already existed.
+
+`w3-generate-unique-filename'
+     This functions returns a string that represents a unique filename
+     in the /tmp directory.  For example,
+     `(w3-generate-unique-filename)' would return
+     `"/tmp/w3-tmp129440"'.  The filename is arrived at by using a
+     unique prefix (w3-tmp), the uid of the current user (12944 in my
+     case), and a number that is incremented if a file already exists.
+
+`w3-buffer-visiting (url)'
+     Return the name of a buffer (if any) that is visiting URL.
+
+`w3-create-mime-request (fname ref-url)'
+     Create a MIME request for the file fname.  The Referer: field of
+     the HTTP/1.0 request is set to the value of ref-url if necessary.
+     Returns a string that can be sent to an HTTP server.  The request
+     uses several variables that control how the request looks.
+
+     If the value of `w3-current-server' is found in the assoc list of
+     `w3-bad-server-list', then the basic HTTP/0.9 request type is used.
+     This loses lots of information and server-side typing of files,
+     but it is necessary for some older HTTP/0.9 servers that can't
+     understand the newer, longer HTTP/1.0 requests.
+
+     If the value of `w3-request-extra-headers' is non-`nil', then it
+     will be used as extra MIME headers in the
+
+`w3-get-url-at-point'
+     This function returns the url at a point specified by an optional
+     argument.  If no argument is given to the function (point) is used.
+     Tries to find the url closest to that point, but does not change
+     the users position in the buffer.  Has a preference for looking
+     backward when not directly on a URL.
+
+`w3-hexify-string'
+     This function takes a string and replaces any characters that are
+     not acceptable in a URL with the "escaped" encoding that is
+     standard for URLs (replaces the character with a % followed by the
+     hexadecimal representation of the ASCII value of the character).
+     For example, `(w3-hexify-string "this is a test")' would return
+     `"this%20is%20a%20test"'.
+
+`w3-insert-entities-in-string'
+     This function takes a string and replaces any occurences of HTML[+]
+     reserved characters with the corresponding entity definitions.  For
+     example, `(w3-insert-entities-in-string "<testing>")' would return
+     `"&lt;testing&gt;"'.
+
+`w3-mime-viewer'
+     This functions takes a string specifying a MIME content-type, and
+     returns a string or symbol.  If it returns a string, it specifies a
+     shell command to execute to view that type of file.  This string
+     can be passed to 'format with a file name to get the complete
+     command to use.  If it is a symbol, it represents an Emacs lisp
+     function to call with no arguments.
+
+`w3-open-stream'
+     This function takes the same parameters as `open-network-stream',
+     and functions similarly.  It takes a process name, a buffer name,
+     a host name, and a port number or server name.  It attempts to
+     open a network connection to the remote host on the specified
+     port/service name, with output going to the buffer.  It returns
+     the process object that is the network connection.  This function
+     is different from `open-network-stream' in that it allows you to
+     use programs in a subprocess to emulate a network connection.
+     This is necessary if you are behind a firewall, or something
+     similar.  If the variable `w3-use-telnet' is `t', then the program
+     specified by `w3-telnet-prog' will be run in an asynchronous
+     subprocess.  This program should expect a command line of the form
+     `w3-telnet-prog hostname portnumber', and feed anything on its
+     standard input to the remote machine.
+
+`w3-retrieve'
+     This function takes 3 arguments, a URL, a method type, and a data
+     block.  It then attempts to retrieve the URL using the specified
+     method, using data (if any) as the body of the MIME request.  For
+     example: `(w3-fetch "http://cs.indiana.edu/" "GET" nil)' would
+     retrieve the Indiana University CS home page.  This function will
+     do no parsing of the retrieved page, and leaves you in the buffer
+     containing the document you requested.  Any HTTP/1.0
+     redirection/authorization is done before this function exits.
+
+`w3-unhex-string'
+     This is the opposite of `w3-hexify-string'.  It removes any %XXX
+     encoded characters in a string.  For example `(w3-unhex-string
+     "this%20is%20a%20test")' would return `"this is a test"'.
+
+`w3-upcase-region'
+     This function takes a start and end position in the current buffer
+     as its arguments, and converts all the text to uppercase, except
+     for text between < and >, and it also ignores HTML[+] entity
+     references (ie: `&lt;').  This is useful for converting regions to
+     uppercase without corrupting any URLs within it.
+
+`w3-view-this-url'
+     This function returns the URL of the zone under point (if no zone
+     is under point, then it returns nil).  If the optional argument is
+     `nil', then the URL is also displayed in the minibuffer.
+
+`w3-view-url'
+     This function returns the URL of current document.  If the optional
+     argument is `nil', then the URL is also displayed in the
+     minibuffer.
+
+
+File: w3.info,  Node: Concept Index,  Next: Key Index,  Prev: Miscellaneous Functions,  Up: Top
+
+Concept Index
+*************
+
+* Menu:
+
+* Annotations:                          Annotations.
+* ASK blocks:                           General Formatting.
+* Broken SUN libc:                      Firewalls.
+* Can't resolve hostnames:              Firewalls.
+* Colors:                               Controlling Formatting.
+* Completion of URLs:                   Global History.
+* Connections hanging with lemacs & solaris: Firewalls.
+* Creating an HTTP request:             Miscellaneous Functions.
+* Creating w3-emacs19-hack-XXX functions: Smart terminals.
+* Customizing formatting:               Controlling Formatting.
+* Depth-first search:                   Searching.
+* Emacs 19.22 on terminals:             Smart terminals.
+* Encryption:                           Using PGP/PEM.
+* Faulty hostname resolvers:            Firewalls.
+* Firewalls:                            Firewalls.
+* Fonts:                                Controlling Formatting.
+* Forms based searching:                Basic Setup.
+* Gateways:                             Firewalls.
+* GNUS:                                 Interfacing to GNUS.
+* Gopher+:                              General Formatting.
+* Gopher+:                              Basic Setup.
+* Group Annotations:                    Group Annotations.
+* Hair-pulling gateway-headaches:       Firewalls.
+* Highlighting on new terminals:        Smart terminals.
+* Highlighting on terminals:            Smart terminals.
+* History Lists:                        Session History.
+* Hooks:                                Hooks.
+* Host-based gateways:                  Firewalls.
+* HTML+:                                Markup Languages Supported.
+* Interfacing to GNUS:                  Interfacing to GNUS.
+* Interfacing to RMAIL:                 Interfacing to RMAIL.
+* Interfacing to VM:                    Interfacing to VM.
+* Internals of W3:                      Programming Interface.
+* ISINDEX handling:                     Basic Setup.
+* Lucid Emacs & Solaris network problems: Firewalls.
+* Mailcrypt:                            Using PGP/PEM.
+* mime-types file:                      Adding MIME types based on file extensions.
+* Network Protocols:                    Supported Protocols.
+* Newsgroups:                           More Help.
+* NeXTstep resources:                   Graphics workstations.
+* Personal Annotations:                 Personal Annotations.
+* PGP:                                  Using PGP/PEM.
+* Pretty Good Privacy:                  Using PGP/PEM.
+* Protocols Supported:                  Supported Protocols.
+* Public Key Cryptography:              Using PGP/PEM.
+* Recursive searching:                  Searching.
+* Relevant Newsgroups:                  More Help.
+* Retrieving W3:                        Setting Up.
+* RIPEM:                                Using PGP/PEM.
+* RMAIL:                                Interfacing to RMAIL.
+* Searching more than one node:         Searching.
+* Searching with forms:                 Basic Setup.
+* Security:                             Using PGP/PEM.
+* Setting Up W3:                        Setting Up.
+* Solaris networking problems:          Firewalls.
+* Specifying Fonts:                     Controlling Formatting.
+* Support:                              More Help.
+* Supported Protocols:                  Supported Protocols.
+* TERM:                                 Firewalls.
+* Text highlighting on terminals:       Smart terminals.
+* Usefulness of global history:         Global History.
+* Usenet meets W3:                      Interfacing to GNUS.
+* Using GNUS and W3:                    Interfacing to GNUS.
+* Using W3 from your own programs:      Programming Interface.
+* Using W3 with RMAIL:                  Interfacing to RMAIL.
+* Using W3 with VM:                     Interfacing to VM.
+* VM:                                   Interfacing to VM.
+* VTx00 terminals:                      Smart terminals.
+* World Wide Web:                       Introduction.
+* Xresources:                           Graphics workstations.
+
+
+File: w3.info,  Node: Key Index,  Next: Command Index,  Prev: Concept Index,  Up: Top
+
+Key Index
+*********
+
+* Menu:
+
+* <:                                    Movement.
+* >:                                    Movement.
+* a:                                    Hotlist Handling.
+* B:                                    Action.
+* b:                                    Movement.
+* button2:                              Action.
+* C-button2:                            Action.
+* C-c C-b:                              Action.
+* C-k:                                  Information.
+* C-o:                                  Action.
+* C-q:                                  Session History.
+* d:                                    Hotlist Handling.
+* DEL:                                  Movement.
+* F:                                    Action.
+* f:                                    Movement.
+* g:                                    Action.
+* H:                                    Hotlist Handling.
+* H:                                    Movement.
+* K:                                    Information.
+* k:                                    Information.
+* l:                                    Action.
+* m:                                    Action.
+* m:                                    Movement.
+* M-M:                                  Miscellaneous.
+* M-m:                                  Miscellaneous.
+* M-return:                             Action.
+* M-s:                                  Action.
+* M-tab:                                Miscellaneous.
+* M-x w3-hotlist-refresh:               Hotlist Handling.
+* M-x w3-insert-formatted-url:          Miscellaneous.
+* n:                                    Movement.
+* o:                                    Action.
+* P:                                    Miscellaneous.
+* p:                                    Miscellaneous.
+* q:                                    Action.
+* r:                                    Action.
+* return:                               Action.
+* S:                                    Information.
+* s:                                    Information.
+* SPC:                                  Movement.
+* U:                                    Miscellaneous.
+* u:                                    Action.
+* V:                                    Information.
+* v:                                    Information.
+
+
+File: w3.info,  Node: Command Index,  Next: Variable Index,  Prev: Key Index,  Up: Top
+
+Command Index
+*************
+
+* Menu:
+
+* lpr-buffer:                           Miscellaneous.
+* system-name:                          Basic Setup.
+* user-real-login-name:                 Basic Setup.
+* w3-add-group-annotation:              Group Annotations.
+* w3-add-personal-annotation:           Personal Annotations.
+* w3-add-zone:                          Generalized ZONES.
+* w3-all-zones:                         Generalized ZONES.
+* w3-back-link:                         Movement.
+* w3-backward-in-history:               Session History.
+* w3-backward-in-history:               Action.
+* w3-buffer-visiting:                   Miscellaneous Functions.
+* w3-clear-tmp-buffer:                  Miscellaneous Functions.
+* w3-complete-link:                     Action.
+* w3-complete-link:                     Movement.
+* w3-convert-html-to-latex:             Miscellaneous Functions.
+* w3-create-mime-request:               Miscellaneous Functions.
+* w3-delete-group-annotation:           Group Annotations.
+* w3-delete-personal-annotation:        Personal Annotations.
+* w3-delete-zone:                       Generalized ZONES.
+* w3-emacs19-hack-TERMINAL:             Smart terminals.
+* w3-emacs19-unhack-faces:              Smart terminals.
+* w3-end-of-document:                   Movement.
+* w3-extension-to-mime:                 Miscellaneous Functions.
+* w3-fetch:                             Miscellaneous Functions.
+* w3-fetch:                             Session History.
+* w3-fetch:                             Action.
+* w3-fix-entities-in-string:            Miscellaneous Functions.
+* w3-follow-inlined-image:              Data Structures.
+* w3-follow-inlined-image:              Action.
+* w3-follow-link:                       Action.
+* w3-follow-mouse:                      Action.
+* w3-forward-in-history:                Session History.
+* w3-forward-in-history:                Action.
+* w3-forward-link:                      Movement.
+* w3-generate-new-buffer-name:          Miscellaneous Functions.
+* w3-generate-unique-filename:          Miscellaneous Functions.
+* w3-get-url-at-point:                  Miscellaneous Functions.
+* w3-goto-last-buffer:                  Action.
+* w3-hexify-string:                     Miscellaneous Functions.
+* w3-hide-zone:                         Generalized ZONES.
+* w3-hotlist-add-document:              Hotlist Handling.
+* w3-hotlist-delete:                    Hotlist Handling.
+* w3-hotlist-refresh:                   Hotlist Handling.
+* w3-hotlist-rename-entry:              Hotlist Handling.
+* w3-insert-entities-in-string:         Miscellaneous Functions.
+* w3-insert-formatted-url:              Miscellaneous.
+* w3-insert-this-url:                   Miscellaneous.
+* w3-leave-buffer:                      Action.
+* w3-mail-current-document:             Miscellaneous.
+* w3-mail-document-under-point:         Miscellaneous.
+* w3-mime-viewer:                       Miscellaneous Functions.
+* w3-open-local:                        Action.
+* w3-open-stream:                       Miscellaneous Functions.
+* w3-parse-mime-types:                  Adding MIME types based on file extensions.
+* w3-print-this-url:                    Miscellaneous.
+* w3-print-url-under-point:             Miscellaneous.
+* w3-quit:                              Action.
+* w3-reload-document:                   Action.
+* w3-retrieve:                          Miscellaneous Functions.
+* w3-save-this-url:                     Information.
+* w3-save-url:                          Information.
+* w3-search:                            Action.
+* w3-show-history:                      Session History.
+* w3-show-history-list:                 Action.
+* w3-show-hotlist:                      Hotlist Handling.
+* w3-show-hotlist:                      Movement.
+* w3-source-document:                   Information.
+* w3-source-document-at-point:          Information.
+* w3-start-of-document:                 Movement.
+* w3-unhex-string:                      Miscellaneous Functions.
+* w3-unhide-zone:                       Generalized ZONES.
+* w3-upcase-region:                     Miscellaneous Functions.
+* w3-upcase-region:                     Character based terminals.
+* w3-use-hotlist:                       Hotlist Handling.
+* w3-use-hotlist:                       Movement.
+* w3-use-links:                         Miscellaneous.
+* w3-view-this-url:                     Miscellaneous Functions.
+* w3-view-this-url:                     Information.
+* w3-view-url:                          Miscellaneous Functions.
+* w3-view-url:                          Information.
+* w3-write-global-history:              Session History.
+* w3-zone-at:                           Generalized ZONES.
+* w3-zone-data:                         Generalized ZONES.
+* w3-zone-data:                         Generalized ZONES.
+* w3-zone-end:                          Generalized ZONES.
+* w3-zone-eq:                           Generalized ZONES.
+* w3-zone-hidden-p:                     Generalized ZONES.
+* w3-zone-start:                        Generalized ZONES.
+* window-width:                         Basic Setup.
+
+
+File: w3.info,  Node: Variable Index,  Prev: Command Index,  Up: Top
+
+Variable Index
+**************
+
+* Menu:
+
+* fill-column:                          General Formatting.
+* lpr-command:                          Miscellaneous.
+* lpr-switches:                         Miscellaneous.
+* tab-stop-list:                        General Formatting.
+* tab-width:                            General Formatting.
+* w3-allow-searching-of:                Searching.
+* w3-always-show-output:                Other Variables.
+* w3-bad-port-list:                     Basic Setup.
+* w3-bad-server-list:                   Miscellaneous Functions.
+* w3-be-asynchronous:                   Basic Setup.
+* w3-confirmation-func:                 Basic Setup.
+* w3-current-file:                      Global Variables.
+* w3-current-last-buffer:               Global Variables.
+* w3-current-mime-headers:              Global Variables.
+* w3-current-port:                      Global Variables.
+* w3-current-server:                    Miscellaneous Functions.
+* w3-current-server:                    Global Variables.
+* w3-current-type:                      Global Variables.
+* w3-default-action:                    Basic Setup.
+* w3-default-homepage:                  Basic Setup.
+* w3-delay-image-loads:                 Basic Setup.
+* w3-delimit-emphasis:                  Character based terminals.
+* w3-delimit-emphasis:                  Basic Setup.
+* w3-delimit-links:                     General Formatting.
+* w3-delimit-links:                     Basic Setup.
+* w3-directory-format:                  General Formatting.
+* w3-directory-format:                  Action.
+* w3-emacs19-hack-faces-p:              Smart terminals.
+* w3-file-prepare-hooks:                General Formatting.
+* w3-gateway-handholding-login-regexp:  Firewalls.
+* w3-gateway-handholding-password-regexp: Firewalls.
+* w3-gateway-host:                      Firewalls.
+* w3-gateway-host-password:             Firewalls.
+* w3-gateway-host-program:              Firewalls.
+* w3-gateway-host-program:              Firewalls.
+* w3-gateway-host-program-ready-regexp: Firewalls.
+* w3-gateway-host-prompt-pattern:       Firewalls.
+* w3-gateway-host-username:             Firewalls.
+* w3-gateway-local-host-regexp:         Firewalls.
+* w3-gateway-method:                    Firewalls.
+* w3-gateway-program-interactive:       Firewalls.
+* w3-gateway-telnet-program:            Firewalls.
+* w3-gateway-telnet-ready-regexp:       Firewalls.
+* w3-global-history-file:               Global History.
+* w3-global-history-file:               Basic Setup.
+* w3-gopher-labels:                     General Formatting.
+* w3-group-annotation-port:             Group Annotations.
+* w3-group-annotation-server:           Group Annotations.
+* w3-header-chars-assoc:                Character based terminals.
+* w3-horizontal-rule-char:              General Formatting.
+* w3-hotlist-file:                      Hotlist Handling.
+* w3-hotlist-file:                      Hotlist Handling.
+* w3-hotlist-file:                      Hotlist Handling.
+* w3-hotlist-file:                      Hotlist Handling.
+* w3-hotlist-file:                      Basic Setup.
+* w3-html-entities:                     Miscellaneous Functions.
+* w3-html2latex-args:                   Miscellaneous.
+* w3-html2latex-prog:                   Miscellaneous.
+* w3-icon-directory-list:               Other Variables.
+* w3-keep-history:                      Global History.
+* w3-keep-history:                      Session History.
+* w3-keep-history:                      Action.
+* w3-keep-old-buffers:                  Other Variables.
+* w3-latex-docstyle:                    Miscellaneous.
+* w3-link-cursor:                       Basic Setup.
+* w3-link-end-delimiter:                General Formatting.
+* w3-link-start-delimiter:              General Formatting.
+* w3-list-chars-assoc:                  General Formatting.
+* w3-load-hooks:                        Hooks.
+* w3-mime-accept-string:                Miscellaneous Functions.
+* w3-mime-extensions:                   Miscellaneous Functions.
+* w3-mime-extensions:                   Adding MIME types based on file extensions.
+* w3-mime-viewers:                      Miscellaneous Functions.
+* w3-mime-viewers:                      Specifying Viewers.
+* w3-passwd-entry-func:                 Other Variables.
+* w3-personal-annotation-directory:     Personal Annotations.
+* w3-personal-annotation-directory:     Basic Setup.
+* w3-personal-mail-address:             Basic Setup.
+* w3-print-commnad:                     Miscellaneous.
+* w3-request-data:                      Miscellaneous Functions.
+* w3-request-extra-headers:             Miscellaneous Functions.
+* w3-request-method:                    Miscellaneous Functions.
+* w3-reuse-buffers:                     Other Variables.
+* w3-right-border:                      General Formatting.
+* w3-right-border:                      Basic Setup.
+* w3-running-epoch:                     Global Variables.
+* w3-running-FSF19:                     Global Variables.
+* w3-running-lemacs:                    Global Variables.
+* w3-running-new-lucid:                 Global Variables.
+* w3-show-headers:                      Other Variables.
+* w3-show-status:                       Other Variables.
+* w3-starting-documents:                Other Variables.
+* w3-style-assoc:                       Graphics workstations.
+* w3-style-chars-assoc:                 Character based terminals.
+* w3-style-chars-assoc:                 Basic Setup.
+* w3-telnet-prog:                       Miscellaneous Functions.
+* w3-track-mouse:                       Basic Setup.
+* w3-uncompressor-alist:                Other Variables.
+* w3-use-forms-index:                   Basic Setup.
+* w3-use-html2latex:                    Miscellaneous.
+* w3-use-hypertext-gopher:              General Formatting.
+* w3-use-hypertext-gopher:              Basic Setup.
+* w3-use-telnet:                        Miscellaneous Functions.
+* w3-wais-gateway-port:                 Basic Setup.
+* w3-wais-gateway-server:               Basic Setup.
+* w3-waisq-prog:                        Other Variables.
+* w3-working-buffer:                    Miscellaneous Functions.
+* w3-xterm-command:                     Basic Setup.
+
+

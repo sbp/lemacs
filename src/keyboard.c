@@ -1,5 +1,5 @@
 /* Keyboard input; editor command loop.
-   Copyright (C) 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -26,11 +26,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "termchar.h"
 #include "termopts.h"
 #include "lisp.h"
+#include "window.h"
 #include "termhooks.h"
 #include "macros.h"
 #include "buffer.h"
 #include "screen.h"
-#include "window.h"
 #include "commands.h"
 #include "disptab.h"
 #include "events.h"
@@ -70,9 +70,6 @@ int interrupt_char;
 
 /* Form to execute when help char is typed.  */
 Lisp_Object Vhelp_form;
-
-Lisp_Object Vpre_command_hook, Vpost_command_hook;
-Lisp_Object Qpre_command_hook, Qpost_command_hook;
 
 Lisp_Object Qsuspend_hook;
 Lisp_Object Qsuspend_resume_hook;
@@ -465,7 +462,6 @@ initial_command_loop (Lisp_Object load_me)
 
 /* This is the actual command reading loop,
    sans error-handling encapsulation */
-
 DEFUN ("command-loop-1", Fcommand_loop_1, Scommand_loop_1, 0, 0, 0,
   "Invoke the internals of the canonical editor command loop.\n\
 Don't call this unless you know what you're doing.")
@@ -493,6 +489,21 @@ Don't call this unless you know what you're doing.")
   while (EQ (Vcommand_loop, old_loop))
 #endif /* LISP_COMMAND_LOOP */
     {
+      /* If we have made it back here with input blocked, then that means
+	 that Fthrow() (probably via Fsignal()) blew out of a BLOCK_INPUT/
+	 UNBLOCK_INPUT section.  The most probable cause of this is that
+	 some lisp code run on a widget callback function got an error.
+	 Which means we longjmp()ed out of a toolkit callback, which is
+	 almost guarenteed to be disasterous.  So puke on stderr, but
+	 otherwise try to deal.
+       */
+      if (interrupt_input_blocked)
+	{
+	  fprintf (stderr,
+   "DANGER, back to command loop with input blocked; attempting to cope...\n");
+	  TOTALLY_UNBLOCK_INPUT;
+	}
+
       /* Make sure the current window's buffer is selected.  */
       if (XBUFFER (XWINDOW (selected_window)->buffer) != current_buffer)
 	set_buffer_internal (XBUFFER (XWINDOW (selected_window)->buffer));
@@ -524,7 +535,7 @@ Don't call this unless you know what you're doing.")
 				/* Since we can free the most stuff here.  */
 #endif /* C_ALLOCA */
 
-      Fnext_event_1 (event, Qnil);
+      Fnext_event (event, Qnil);
       /* If ^G was typed while emacs was reading input from the user, then
 	 it is treated as just another key.  This is strange, but it is
 	 what emacs 18 did. */
@@ -545,9 +556,7 @@ Don't call this unless you know what you're doing.")
 DEFUN ("command-execute", Fcommand_execute, Scommand_execute, 1, 2, 0,
  "Execute CMD as an editor command.\n\
 CMD must be a symbol that satisfies the `commandp' predicate.\n\
-Optional second arg RECORD-FLAG non-nil\n\
-means unconditionally put this command in `command-history'.\n\
-Otherwise, that is done only if an arg is read using the minibuffer.")
+Optional second arg RECORD-FLAG is as in 'call-interactively'.")
      (cmd, record)
      Lisp_Object cmd, record;
 {
@@ -715,32 +724,6 @@ input_available_signal (signo)
 }
 #endif /* SIGIO */
 
-
-DEFUN ("recent-keys", Frecent_keys, Srecent_keys, 0, 0, 0,
-  "Return vector of last 100 keyboard or mouse button events read.\n\
-This copies 100 event objects and a vector; it is safe to keep and modify\n\
-them.")
-  ()
-{
-  struct gcpro gcpro1;
-  Lisp_Object val = make_vector (100, Qnil);
-  Lisp_Object *vec = XVECTOR (val)->contents;
-  Lisp_Object *vec2 = XVECTOR (recent_keys_ring)->contents;
-  int i = 0, j = recent_keys_ring_index;
-  GCPRO1 (val);
-  while (i < 100) {
-    vec [i] = vec2 [j];
-    if (NILP (vec [i]))
-      vec [i] = Fallocate_event ();
-    else
-      vec [i] = Fcopy_event (vec [i], Qnil);
-    if (++j >= 100) j = 0;
-    i++;
-  }
-  UNGCPRO;
-  return val;
-}
-
 DEFUN ("open-dribble-file", Fopen_dribble_file, Sopen_dribble_file, 1, 1,
   "FOpen dribble file: ",
   "Start writing all keyboard characters to FILE.")
@@ -861,7 +844,7 @@ set_waiting_for_input (word_to_clear)
 
   /* If interrupt_signal was called before and buffered a C-g,
      make it run again now, to avoid timing error. */
-  detect_input_pending ();
+  detect_input_pending (0);
   QUIT;
 
 }
@@ -1074,7 +1057,6 @@ syms_of_keyboard ()
   defsubr (&Scommand_loop_1);
   defsubr (&Scommand_execute);
 
-  defsubr (&Srecent_keys);
   defsubr (&Ssuspend_emacs);
   defsubr (&Sopen_dribble_file);
   defsubr (&Sset_input_mode);
@@ -1107,7 +1089,7 @@ you are certain that it will be one of a small set of characters.");
   Vlast_command_char = Qnil;
 
   DEFVAR_LISP ("last-input-event", &Vlast_input_event,
-    "Last keyboard or mouse button event recieved.  This variable is off\n\
+    "Last keyboard or mouse button event received.  This variable is off\n\
 limits: you may not set its value or modify the event that is its value, as\n\
 it is destructively modified by `next-event'.  If you want to keep a pointer\n\
 to this value, you must use `copy-event'.");
@@ -1129,7 +1111,7 @@ modified, so copy it if you want to keep it.");
   Vlast_input_time = Qnil;
 
   DEFVAR_LISP ("unread-command-event", &Vunread_command_event,
-    "Set this to an event object to simulate the reciept of an event from\n\
+    "Set this to an event object to simulate the receipt of an event from\n\
 the user.  Normally this is nil.");
   Vunread_command_event = Qnil;
 
@@ -1175,21 +1157,6 @@ Useful to set before you dump a modified Emacs.");
 The passed argument specifies whether or not to handle errors.");
   Vcommand_loop = Qnil;
 #endif /* LISP_COMMAND_LOOP */
-
-  DEFVAR_LISP ("pre-command-hook", &Vpre_command_hook,
-     "Function or functions to run before every command.\n\
-This may examine the `this-command' variable to find out what command\n\
-is about to be run, or may change it to cause a different command to run.\n\
-Function on this hook must be careful to avoid signalling errors!");
-  Vpre_command_hook = Qnil;
-  defsymbol (&Qpre_command_hook, "pre-command-hook");
-
-  DEFVAR_LISP ("post-command-hook", &Vpost_command_hook,
-     "Function or functions to run after every command.\n\
-This may examine the `this-command' variable to find out what command\n\
-was just executed.");
-  Vpost_command_hook = Qnil;
-  defsymbol (&Qpost_command_hook, "post-command-hook");
 
   DEFVAR_LISP ("keyboard-translate-table", &Vkeyboard_translate_table,
     "String used as translate table for keyboard input, or nil.\n\

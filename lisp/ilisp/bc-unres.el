@@ -12,7 +12,7 @@
 (require 'byte-compile "bytecomp")
 
 (if (eq byte-compile-warnings t)
-    (setq byte-compile-warnings byte-compile-warning-types))
+    (setq byte-compile-warnings byte-compile-default-warnings))
 
 (setq byte-compile-warnings
       (delq 'unresolved byte-compile-warnings))

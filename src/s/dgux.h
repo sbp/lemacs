@@ -6,7 +6,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -32,13 +32,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* #define BSD4_1 */
 #define BSD4_2
 #define BSD4_3
+#define BSD4_4
 #define BSD
-/* #define VMS */
+#define SVR4
 
 /* SYSTEM_TYPE should indicate the kind of system you are using.
  It sets the Lisp variable system-type.  */
 
-#define SYSTEM_TYPE "berkeley-unix"
+#define SYSTEM_TYPE "dgux"
 
 /* NOMULTIPLEJOBS should be defined if your system's shell
  does not have "job control" (the ability to stop a program,
@@ -52,7 +53,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    Define INTERRUPT_INPUT to make interrupt_input = 1 the default (use SIGIO)
 
    SIGIO can be used only on systems that implement it (4.2 and 4.3).
-   CBREAK mode has two disadvatages
+   CBREAK mode has two disadvantages
      1) At least in 4.2, it is impossible to handle the Meta key properly.
         I hear that in system V this problem does not exist.
      2) Control-G causes output to be discarded.
@@ -62,14 +63,18 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    It would have Emacs fork off a separate process
    to read the input and send it to the true Emacs process
    through a pipe.
+
+NOTE: On DGUX, there is a problem using INTERRUPT_INPUT: When invoked
+under X11 using a job control shell (csh, ksh) in the background,
+emacs will stop on tty output.  I suspect this is a kernel problem and
+have reported it and a sample program to DGC.  Meanwhile, a workaround
+is to define BROKEN_FIONREAD and not use INTERRUPT_INPUT.
+
+-pmr@rock.concert.net
 */
 
-#define INTERRUPT_INPUT
-
-/* Letter to use in finding device name of first pty,
-  if system supports pty's.  'a' means it is /dev/ptya0  */
-
-#define FIRST_PTY_LETTER 'r'
+#define BROKEN_FIONREAD
+/* #define INTERRUPT_INPUT */
 
 /*
  *	Define HAVE_TIMEVAL if the system supports the BSD style clock values.
@@ -91,10 +96,21 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define HAVE_SOCKETS
 
 /*
+ *	Define HAVE_UNIX_DOMAIN if the system supports Unix
+ *      domain sockets.
+ */
+
+#define HAVE_UNIX_DOMAIN
+
+/*
  *	Define HAVE_PTYS if the system supports pty devices.
  */
 
 #define HAVE_PTYS
+
+/* (Assume) we do have vfork.  */
+
+#define HAVE_VFORK
 
 /*
  *	Define NONSYSTEM_DIR_LIBRARY to make Emacs emulate
@@ -116,9 +132,43 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define subprocesses
 
 /* If your system uses COFF (Common Object File Format) then define the
-   preprocessor symbol "COFF". */
+   preprocessor symbol "COFF".
 
+   DGUX can use either COFF or ELF; the default is ELF.
+   To compile for COFF (or BCS) use the TARGET_BINARY_INTERFACE
+   environment variable.   */
+
+#if defined(_DGUXCOFF_TARGET) || defined(_DGUXBCS_TARGET)
+#undef ELF
+#ifndef COFF
 #define COFF
+#endif  /* COFF */
+#else   /* defined(_DGUXCOFF_TARGET) || defined(_DGUXBCS_TARGET) */
+#undef COFF
+#ifndef ELF
+#define ELF
+#endif  /* ELF */
+#endif  /* defined(_DGUXCOFF_TARGET) || defined(_DGUXBCS_TARGET) */
+
+#ifndef COFF /* People will probably find this apparently unreliable
+		till the NFS dumping bug is fixed.  */
+
+/* It is possible to undump to ELF with DG/UX 5.4, but for revisions below
+   5.4.1 the undump MUST be done on a local file system, or the kernel will
+   panic.  ELF executables have the advantage of using shared libraries,
+   while COFF executables will still work on 4.2x systems. */
+
+#define UNEXEC unexelf.o
+
+/* This makes sure that all segments in the executable are undumped,
+   not just text, data, and bss.  In the case of Mxdb and shared
+   libraries, additional information is stored in other sections.
+   It does not hurt to have this defined if you don't use Mxdb or
+   shared libraries.  In fact, it makes no difference. */
+
+/* Necessary for shared libraries and Mxdb debugging information. */
+#define USG_SHARED_LIBRARIES
+#endif
 
 /* define MAIL_USE_FLOCK if the mailer uses flock
    to interlock access to /usr/spool/mail/$USER.
@@ -138,12 +188,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define	BAUD_CONVERT    { 0, 110, 134, 150, 300, 600, 1200, 1800, 2400, \
 			  4800, 9600, 19200, 38400 }
-
-/*
- *	Define HAVE_GETTIMEOFDAY if gettimeofday() system call is available.
- */
-
-#define HAVE_GETTIMEOFDAY
 
 /*
  *	Define NLIST_STRUCT if the system has nlist.h
@@ -188,21 +232,19 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define	TERMINFO
 
 /*
- *	Define HAVE_TERMIO if the system provides sysV-style ioctls
- *	for terminal control.
- *	DG/UX has both BSD and AT&T style ioctl's.  Bsd ioctl's don't
- *	seem to wait for the output to drain properly, so use System V.
+ *      Send signals to subprocesses using characters.
+ *
  */
 
-/* #define HAVE_TERMIO */
+#define SIGNALS_VIA_CHARACTERS
 
 /*
- *	DG/UX 4.10 needs the following to turn on berkeley ioctl's.
+ *	Define HAVE_TERMIOS since this is POSIX,
+ *	for terminal control.  Prevent redundant inclusion of termio.h.
  */
 
-#ifndef HAVE_TERMIO
-#define _BSD_TTY_FLAVOR
-#endif
+#define HAVE_TERMIOS
+#define NO_TERMIO
 
 /*
  *	Use a Berkeley style sys/wait.h.
@@ -211,27 +253,28 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define _BSD_WAIT_FLAVOR
 
-/* Enable the x-rebind keysym function.  Do not try to map function
-   keys internally. */
-
-#define XREBINDKEYSYM
-
 /*
  *      Use BSD and POSIX-style signals.  This is crucial!
  */
 
+/* pmr now says the GNU malloc works.  */
+/* pmr@rock.concert.net says Emacs fails without this.  We don't know why.  */
+/* #define SYSTEM_MALLOC */
+
 /* MAKING_MAKEFILE must be defined in "ymakefile" before including config.h */
-#ifndef MAKING_MAKEFILE
+#ifndef THIS_IS_YMAKEFILE
 
 /* Make sure signal.h is included so macros below don't mess with it. */
 /* DG/UX include files prevent multiple inclusion. */
 
 #include <signal.h>
 
-#define POSIX_SIGNALS
+/* but undefine the sigmask and sigpause macros since they will get
+   #define'd later. */
+#undef sigmask
+#undef sigpause
 
-/* Not worth converting the old GNU malloc to work with POSIX_SIGNALS.  */
-#define SYSTEM_MALLOC
+#define POSIX_SIGNALS
 
 /* Define this if you use System 5 Release 4 Streams */
 #define SYSV4_PTYS
@@ -240,15 +283,129 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define emacs_read  sys_read
 #define emacs_write sys_write
 
-#define INTERRUPTABLE_OPEN
-#define INTERRUPTABLE_CLOSE
+#define INTERRUPTIBLE_OPEN
+#define INTERRUPTIBLE_CLOSE
 /* can't hurt to define these, even though read/write should auto restart */
-#define INTERRUPTABLE_IO
+#define INTERRUPTIBLE_IO
 
 /* Can't use sys_signal because then etc/server.c would need sysdep.o.  */
+extern struct sigaction act, oact;
 #define signal(SIG,FUNC) berk_signal(SIG,FUNC)
 
-#else /* MAKING_MAKEFILE */
+#else /* THIS_IS_YMAKEFILE */
 /* force gcc to be used */
 CC=gcc
-#endif /* not MAKING_MAKEFILE */
+#endif /* not THIS_IS_YMAKEFILE */
+
+#define LD_SWITCH_SYSTEM
+#define START_FILES pre-crt0.o
+#if 0  /* Shawn M. Carey <smcarey@mailbox.syr.edu> found this
+	  caused trouble on DGUX 5.4.2.  */
+#define LIBS_SYSTEM -ldgc
+#endif
+#define LIB_GCC /usr/lib/gcc/libgcc.a
+
+#ifdef _M88KBCS_TARGET
+/* Karl Berry says: the environment
+   recommended by gcc (88/open, a.k.a. m88kbcs) doesn't support some system
+   functions, and gcc doesn't make it easy to switch environments.  */
+#define NO_GET_LOAD_AVG
+#endif
+
+/* definitions for xmakefile production */
+#ifdef COFF
+
+/* Define the following to use all of the available pty's. */
+
+#define PTY_ITERATION 						\
+  for (c = 'p'; c < 't'; c++)					\
+    for (i = 0; (((c == 'p') && (i < 64)) || ((c != 'p') && (i < 16))); i++)
+
+#define PTY_NAME_SPRINTF					\
+      if (c == 'p')						\
+        sprintf (pty_name, "/dev/pty%c%d", c, i);		\
+      else							\
+        sprintf (pty_name, "/dev/pty%c%x", c, i);
+
+#define PTY_TTY_NAME_SPRINTF					\
+      if (c == 'p')						\
+        sprintf (pty_name, "/dev/tty%c%d", c, i);		\
+      else							\
+        sprintf (pty_name, "/dev/tty%c%x", c, i);
+
+#define C_COMPILER \
+  TARGET_BINARY_INTERFACE=m88kdguxcoff gcc -traditional
+ 
+#define LINKER \
+  TARGET_BINARY_INTERFACE=m88kdguxcoff gcc
+
+#define MAKE_COMMAND \
+  TARGET_BINARY_INTERFACE=m88kdguxcoff make
+
+#define C_DEBUG_SWITCH -g
+
+#else /* not COFF */
+
+/* Pseudo-terminal support under SVR4 only loops to deal with errors. */
+
+#define PTY_ITERATION for (i = 0; i < 1; i++)
+
+/* This sets the name of the master side of the PTY. */
+
+#define PTY_NAME_SPRINTF strcpy (pty_name, "/dev/ptmx");
+
+/* This sets the name of the slave side of the PTY.  On SysVr4,
+   grantpt(3) forks a subprocess, so keep sigchld_handler() from
+   intercepting that death.  If any child but grantpt's should die
+   within, it should be caught after sigrelse(2). */
+
+#define PTY_TTY_NAME_SPRINTF			\
+  {						\
+    char *ptsname(), *ptyname;			\
+						\
+    sigblock(sigmask(SIGCLD));				\
+    if (grantpt(fd) == -1)			\
+      fatal("could not grant slave pty");	\
+    sigunblock(sigmask(SIGCLD));				\
+    if (unlockpt(fd) == -1)			\
+      fatal("could not unlock slave pty");	\
+    if (!(ptyname = ptsname(fd)))		\
+      fatal ("could not enable slave pty");	\
+    strncpy(pty_name, ptyname, sizeof(pty_name)); \
+    pty_name[sizeof(pty_name) - 1] = 0;		\
+  }
+
+/* Push various streams modules onto a PTY channel. */
+
+#define SETUP_SLAVE_PTY \
+  if (ioctl (xforkin, I_PUSH, "ptem") == -1)	\
+    fatal ("ioctl I_PUSH ptem", errno);		\
+  if (ioctl (xforkin, I_PUSH, "ldterm") == -1)	\
+    fatal ("ioctl I_PUSH ldterm", errno);	\
+  if (ioctl (xforkin, I_PUSH, "ttcompat") == -1) \
+    fatal ("ioctl I_PUSH ttcompat", errno);
+
+
+#define C_COMPILER \
+  TARGET_BINARY_INTERFACE=m88kdguxelf gcc -traditional
+ 
+#define LINKER \
+  TARGET_BINARY_INTERFACE=m88kdguxelf gcc
+
+#define MAKE_COMMAND \
+  TARGET_BINARY_INTERFACE=m88kdguxelf make
+
+#define C_DEBUG_SWITCH -g -V2 -mversion-03.00 -mstandard
+#endif /* COFF */
+
+/* Extra stuff which probably should be someplace else but is here out
+   of expediency. */
+
+#define LIB_X11_LIB -lX11
+
+/* Process groups work in the traditional BSD manner.  */
+
+#define BSD_PGRPS
+
+/* lemacs addition */
+#define HAVE_BROKEN_INET_ADDR

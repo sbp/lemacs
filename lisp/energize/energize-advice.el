@@ -1,5 +1,5 @@
 ;;; -*- Mode:Emacs-Lisp -*-
-;;; Copyright © 1991-1993 by Lucid, Inc.  All Rights Reserved.
+;;; Copyright © 1991, 1992, 1993, 1994 by Lucid, Inc.  All Rights Reserved.
 
 ;;; This file contains the definitions of existing functions which Energize
 ;;; must encapsulate.  (The number of such functions should be minimized.)
@@ -18,7 +18,8 @@
  (or noninteractive
      (error "bad idea to compile this file in a non-batch-mode emacs!"))
 
- (load-library "advice-freeze")
+ (load-library "advice")
+ (fset 'ad-make-freeze-docstring 'ad-make-plain-docstring)
 
  (load-library "files.el")
  (load-library "userlock.el")
@@ -26,26 +27,6 @@
  (load-library "gdb.el")
 
 ) ;closes eval-when-compile
-
-;; Kludge to make docstrings prettier.
-;; This can't be in the same top-level form as the above.
-(eval-when-compile
-
- (defun ad-make-advised-docstring (function)
-   (let* ((origdef (ad-real-orig-definition function))
-	  (origdoc
-	   (documentation origdef t)))
-     (concat (or origdoc "")
-	     (mapconcat
-	      #'(lambda (class)
-		  (mapconcat
-		   #'(lambda (advice)
-		       (let ((doc (ad-docstring (ad-advice-definition advice))))
-			 (if doc (concat "\n\n" doc) "")))
-		   (ad-get-enabled-advices function class)
-		   ""))
-	      ad-advice-classes ""))))
- )
 
 
 ;;; The actual definitions

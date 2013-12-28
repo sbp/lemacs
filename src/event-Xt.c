@@ -27,7 +27,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/keysym.h>
-#include "xintrinsicp.h"
+#include "xintrinsic.h"
 
 #include "lwlib.h"
 
@@ -38,15 +38,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "dispextern.h"
 #include "screen.h"
 
-#include "EmacsScreenP.h"
-
-#ifdef EXTERNAL_WIDGET
-#include "EmacsShell.h"
-#endif
-
-#ifdef DEBUG_WIDGET
-extern int debug_widget;
-#endif
+#include "EmacsScreen.h"
 
 /* The timestamp of the last button or key event used by emacs itself.
    This is used for asserting selections and input focus. */
@@ -67,7 +59,6 @@ extern struct screen *x_window_to_screen (Window),
 extern XtAppContext Xt_app_con;
 
 extern Atom Xatom_WM_PROTOCOLS, Xatom_WM_DELETE_WINDOW, Xatom_WM_TAKE_FOCUS;
-
 
 /* X bogusly doesn't define the interpretations of any bits besides
    ModControl, ModShift, and ModLock; so the Interclient Communication
@@ -133,9 +124,37 @@ x_reset_key_mapping (display)
 }
 
 
+static CONST char *
+index_to_name (int index)
+{
+  return ((index == ShiftMapIndex ? "ModShift"
+           : (index == LockMapIndex ? "ModLock"
+              : (index == ControlMapIndex ? "ModControl"
+                 : (index == Mod1MapIndex ? "Mod1"
+                    : (index == Mod2MapIndex ? "Mod2"
+                       : (index == Mod3MapIndex ? "Mod3"
+                          : (index == Mod4MapIndex ? "Mod4"
+                             : (index == Mod5MapIndex ? "Mod5"
+                                : "???")))))))));
+}
+
+/* Boy, I really wish C had local functions... */
+struct c_doesnt_have_closures   /* >>> not yet used */
+  {
+    int warned_about_overlapping_modifiers;
+    int warned_about_predefined_modifiers;
+    int warned_about_duplicate_modifiers;
+    int meta_bit;
+    int hyper_bit;
+    int super_bit;
+    int symbol_bit;
+    int mode_bit;
+  };
+
+
+
 static void
-x_reset_modifier_mapping (display)
-     Display *display;
+x_reset_modifier_mapping (Display *display)
 {
   int modifier_index, modifier_key, column, mkpm;
   int warned_about_overlapping_modifiers = 0;
@@ -149,26 +168,17 @@ x_reset_modifier_mapping (display)
 
   lock_interpretation = 0;
 
+  BLOCK_INPUT;
+
   if (x_modifier_keymap)
     XFreeModifiermap (x_modifier_keymap);
 
   x_reset_key_mapping (display);
 
-  BLOCK_INPUT;
   x_modifier_keymap = XGetModifierMapping (display);
 
   /* Boy, I really wish C had local functions...
    */
-#define index_to_name(index) \
-  ((index == ShiftMapIndex ? "ModShift" \
-    : (index == LockMapIndex ? "ModLock" \
-       : (index == ControlMapIndex ? "ModControl" \
-          : (index == Mod1MapIndex ? "Mod1" \
-             : (index == Mod2MapIndex ? "Mod2" \
-                : (index == Mod3MapIndex ? "Mod3" \
-                   : (index == Mod4MapIndex ? "Mod4" \
-                      : (index == Mod5MapIndex ? "Mod5" \
-                         : "???")))))))))
 
 #define modwarn(name,old,other) \
   fprintf (stderr, \
@@ -430,7 +440,7 @@ x_to_emacs_keysym (XEvent *event, int simple_p)
     if (!name || !name[0])	/* this shouldn't happen... */
       {
 	char buf [255];
-	sprintf (buf, "unknown_keysym_0x%X", keysym);
+	sprintf (buf, "unknown_keysym_0x%X", (int) keysym);
 	return (KEYSYM (buf));
       }
     /* If it's got a one-character name, that's good enough. */
@@ -519,10 +529,6 @@ set_last_server_timestamp (XEvent* x_event)
     }
 }
 
-#ifdef EXTERNAL_WIDGET
-extern Widget get_emacs_shell (Widget);
-#endif
-
 static void
 x_event_to_emacs_event (x_event, emacs_event)
      struct Lisp_Event *emacs_event;
@@ -542,9 +548,7 @@ x_event_to_emacs_event (x_event, emacs_event)
       int lock_p  = x_event->xkey.state & LockMask;
 #ifdef EXTERNAL_WIDGET
       struct screen *s = x_any_window_to_screen (x_event->xany.window);
-      int emacs_shell_p = s && is_emacs_shell (s->display.x->widget);
 #endif
-
 #ifdef LWLIB_HAS_EXTENSIONS
       Widget to_widget;
 #endif
@@ -559,16 +563,12 @@ x_event_to_emacs_event (x_event, emacs_event)
 	   ? x_event->xkey.send_event
 	   : x_event->xbutton.send_event)
 #ifdef EXTERNAL_WIDGET
-	  /* BPW events get sent to an EmacsShell using XSendEvent.
+	  /* BPW: events get sent to an ExternalShell using XSendEvent.
 	     This is not a perfect solution. */
-	  && !emacs_shell_p
+	  && !s->display.x->external_window_p
 #endif
 	  && !x_allow_sendevents)
 	{
-#ifdef DEBUG_WIDGET
-	  if (debug_widget)
-	    printf ("dropped send event\n");
-#endif
 	  x_event->xany.type = 0;
 	  goto MAGIC;
 	}
@@ -621,14 +621,16 @@ x_event_to_emacs_event (x_event, emacs_event)
 	    KeyCode keycode = x_event->xkey.keycode;
 
 #ifdef I18N4
-	  /* "A KeyPress event with a KeyCode of zero is used exclusively as
-	     a signal that an input method has composed input which can be
-	     returned..." -- X11 R5 Xlib - C Library manual, section 13.14.2.
-	     We treat the signal itself as a magic event -- i.e., ignore it. */
-	  if (keycode == 0) {
-	    get_composed_input (&(x_event->xkey));
-	    goto MAGIC;
-	  }
+	    /* "A KeyPress event with a KeyCode of zero is used exclusively as
+	       a signal that an input method has composed input which can be
+	       returned..." -- X11 R5 Xlib - C Library manual, section 13.14.2.
+	       We treat the signal itself as a magic event -- i.e., ignore it.
+	     */
+	    if (keycode == 0)
+	      {
+		get_composed_input (&(x_event->xkey));
+		goto MAGIC;
+	      }
 #endif
 
 	    if (x_key_is_modifier_p (keycode)) /* it's a modifier key */
@@ -636,7 +638,11 @@ x_event_to_emacs_event (x_event, emacs_event)
 
 #ifdef LWLIB_HAS_EXTENSIONS
 	    if (to_widget)
-	      screen = ((EmacsScreen)to_widget)->emacs_screen.screen;
+	      {
+		BLOCK_INPUT;
+		XtVaGetValues (to_widget, XtNemacsScreen, &screen, 0);
+		UNBLOCK_INPUT;
+	      }
 #endif
 	    if (!screen)
 	      screen = x_any_window_to_screen (x_event->xkey.window);
@@ -698,18 +704,14 @@ x_event_to_emacs_event (x_event, emacs_event)
 	    emacs_event->event_type	   = key_press_event;
 	    emacs_event->timestamp	   = x_event->xkey.time;
 	    emacs_event->event.key.modifiers = modifiers;
-	    emacs_event->event.key.key       = keysym;
+	    emacs_event->event.key.keysym   = keysym;
 	    break;
 	  }
 	case ButtonPress:
 	case ButtonRelease:
 	  {
 	    struct screen *screen = x_window_to_screen (x_event->xbutton.window);
-#ifdef LWLIB_USES_OLIT
-	    if (! screen || olit_menu_up_flag)
-#else
 	    if (! screen)
-#endif
 	      goto MAGIC;	/* not for us */
 	    XSETR (emacs_event->channel, Lisp_Screen, screen);
 	  }
@@ -800,6 +802,9 @@ x_event_to_emacs_event (x_event, emacs_event)
       {
 	x_event->xclient.data.l[1] = last_server_timestamp;
       }
+#ifdef EPOCH
+    emacs_event->epoch_event = Qx_client_message;
+#endif
     goto MAGIC;
 
   default:
@@ -852,7 +857,12 @@ emacs_Xt_handle_magic_event (emacs_event)
 
   case PropertyNotify:
     if (x_window_to_screen (event->xproperty.window))
-      x_handle_property_notify (&event->xproperty);
+      {
+	x_handle_property_notify (&event->xproperty);
+#ifdef EPOCH
+	dispatch_epoch_event (emacs_event, Qx_property_change);
+#endif
+      }
     else
       goto OTHER;
     break;
@@ -880,6 +890,9 @@ emacs_Xt_handle_magic_event (emacs_event)
       Lisp_Object event = Fallocate_event ();
       XEVENT (event)->event_type = eval_event;
       XEVENT (event)->event.eval.function = Qx_MapNotify_internal;
+#ifdef EPOCH
+      XEVENT (event)->epoch_event = Qx_map;
+#endif
       XSETR (XEVENT (event)->event.eval.object, Lisp_Screen, s);
       enqueue_command_event (event);
     }
@@ -892,6 +905,9 @@ emacs_Xt_handle_magic_event (emacs_event)
       Lisp_Object event = Fallocate_event ();
       XEVENT (event)->event_type = eval_event;
       XEVENT (event)->event.eval.function = Qx_UnmapNotify_internal;
+#ifdef EPOCH
+      XEVENT (event)->epoch_event = Qx_unmap;
+#endif
       XSETR (XEVENT (event)->event.eval.object, Lisp_Screen, s);
       enqueue_command_event (event);
     }
@@ -930,7 +946,7 @@ emacs_Xt_handle_magic_event (emacs_event)
 #if 0
     /*
      * We were handling some focus events twice: once here, then again
-     * because we called XtDispatchEvent, and the EmacsShell widget called
+     * because we called XtDispatchEvent, and the EmacsScreen widget called
      * emacs_Xt_focus_event_handler() again.  We need to have the shell
      * widget call emacs_Xt_focus_event_handler() because sometimes Motif
      * calls XtDispatchEvent on synthetic focus events that we have no other
@@ -943,7 +959,7 @@ emacs_Xt_handle_magic_event (emacs_event)
      * of x_window_to_screen().  I don't know what the impact of this is.
      *
      * So for now, let's try handing focus events *only* via XtDispatchEvent
-     * and the EmacsShell callbacks.  This appears to make there be less
+     * and the EmacsScreen callbacks.  This appears to make there be less
      * focus problems with the Browse Language Element dbox: pasting from
      * emacs into the text field no longer makes the dbox stop accepting
      * keyboard input.
@@ -994,14 +1010,14 @@ emacs_Xt_handle_magic_event (emacs_event)
 	     event->xclient.data.l[0] == Xatom_WM_TAKE_FOCUS)
       {
 	Lisp_Object scr;
-	Lisp_Object event = Fallocate_event ();
+	Lisp_Object levent = Fallocate_event ();
 
 	XSETR (scr, Lisp_Screen, s);
 
-	XEVENT (event)->event_type = eval_event;
-	XEVENT (event)->event.eval.function = Qx_FocusIn_internal;
-	XEVENT (event)->event.eval.object = scr;
-	enqueue_command_event (event);
+	XEVENT (levent)->event_type = eval_event;
+	XEVENT (levent)->event.eval.function = Qx_FocusIn_internal;
+	XEVENT (levent)->event.eval.object = scr;
+	enqueue_command_event (levent);
       }
 #if 0
     else if (event->xclient.message_type == Xatom_WM_PROTOCOLS &&
@@ -1152,7 +1168,7 @@ emacs_Xt_focus_event_handler (x_event, s)
 
 
 
-#if 0 /* include describe_event definition */
+#ifdef DEBUG_EXTERNAL_WIDGET
 #include "xintrinsicp.h"	/* only describe_event() needs this */
 #include <X11/Xproto.h>		/* only describe_event() needs this */
 
@@ -1569,11 +1585,11 @@ emacs_Xt_unselect_process (process)
   XtInputId id;
   get_process_file_descriptors (process, &infd, &outfd);
 
-  /* If the infd is <= 0, it has already been deleted, and Xt will freak
-     because it's calls to select() will fail.  (Actually 0 is a legal
-     file descriptor but it's not one we'll see here because it's stdin.)
+  /* If the infd is < 0, it has already been deleted, and Xt will freak
+     because its calls to select() will fail.
    */
-  if (infd <= 0) abort ();
+  if (infd < 0)
+    abort ();
 
   if (!NILP (process_fds_with_input[infd]))
     {
@@ -1713,21 +1729,8 @@ emacs_Xt_next_event (emacs_event)
     goto get_next_event;
 #endif
   UNBLOCK_INPUT;
-#ifdef DEBUG_WIDGET
-  if (debug_widget)
-    describe_event(&x_event);
-#if 0
-  {
-    XWindowAttributes xwa;
-
-    if (x_event.xany.send_event && x_event.xany.type == KeyPress) {
-	XGetWindowAttributes(x_current_display, 0xD0002C, &xwa);
-	printf("key send-event on window %d, aem = %x, yem = %x\n",
-		x_event.xany.window, xwa.all_event_masks,
-		xwa.your_event_mask);
-    }
-  }
-#endif
+#ifdef DEBUG_EXTERNAL_WIDGET
+  describe_event(&x_event);
 #endif
 
   if (x_event.xany.type == 0 &&
@@ -1770,15 +1773,19 @@ XtAppNextEvent_non_synthetic (Display *dpy, XtAppContext app, XEvent *x_event)
 static void x_check_for_interrupt_char (Display *);
 static Bool look_for_key_or_mouse_event (Display *, XEvent *, XPointer);
 
+struct look_for_key_or_mouse_event_closure {
+  int ignore_expose_p;
+  int result;
+};
+
 static int
-emacs_Xt_event_pending_p (user_p)
-     int user_p;
+emacs_Xt_event_pending_p (int user_p, int focus_and_expose_count_as_input_p)
 {
   /* If `user_p' is false, then this function returns whether there are any
      X, timeout, or fd events pending (that is, whether emacs_Xt_next_event()
      would return immediately without blocking.)
 
-     if `user_p' is false, then this function returns whether there are any
+     if `user_p' is true, then this function returns whether there are any
      *user generated* events available (that is, whether there are keyboard
      or mouse-click events ready to be read.)  This also implies that
      emacs_Xt_next_event() would not block.
@@ -1787,29 +1794,35 @@ emacs_Xt_event_pending_p (user_p)
      since this is a convenient place to do so.  We don't need to do this
      in a SIGIO world, since input causes an interrupt.
    */
-  int res;
-  XEvent event;
   Display *display = x_current_display;
 
-  BLOCK_INPUT;
-  res = XtAppPending (Xt_app_con);
+  {
+    int pending_value;
+    BLOCK_INPUT;
+    pending_value = XtAppPending (Xt_app_con);
 #ifndef SIGIO
-  x_check_for_interrupt_char (x_current_display);
+    x_check_for_interrupt_char (x_current_display);
 #endif
-  UNBLOCK_INPUT;
+    UNBLOCK_INPUT;
 
-  if (! user_p)
-    return (res != 0);
+    if (! user_p)
+      return (pending_value != 0);
 
-  if (! (res & XtIMXEvent)) /* no X events means no user input */
-    return 0;
-
-  res = 0;
-  BLOCK_INPUT;
-  XEventsQueued (display, QueuedAfterReading);
-  XCheckIfEvent (display, &event, look_for_key_or_mouse_event, (char *) &res);
-  UNBLOCK_INPUT;
-  return res;
+    if (! (pending_value & XtIMXEvent)) /* no X events means no user input */
+      return 0;
+  }
+  {
+    XEvent event;
+    struct look_for_key_or_mouse_event_closure closure;
+    closure.ignore_expose_p = !focus_and_expose_count_as_input_p;
+    closure.result = 0;
+    BLOCK_INPUT;
+    XEventsQueued (display, QueuedAfterReading);
+    XCheckIfEvent (display, &event, look_for_key_or_mouse_event,
+		   (char *) &closure);
+    UNBLOCK_INPUT;
+    return closure.result;
+  }
 }
 
 
@@ -1823,14 +1836,31 @@ emacs_Xt_event_pending_p (user_p)
 static Bool
 look_for_key_or_mouse_event (Display *display, XEvent *event, XPointer arg)
 {
+  struct look_for_key_or_mouse_event_closure *closure
+    = (struct look_for_key_or_mouse_event_closure *) arg;
+
   switch (event->xany.type)
     {
     case KeyPress:
-      if (x_key_is_modifier_p (event->xkey.keycode))
-	break;
+      if (! x_key_is_modifier_p (event->xkey.keycode))
+	closure->result = 1;
+      break;
     case ButtonPress:
     case ButtonRelease:
-      *((int *) arg) = 1;
+      closure->result = 1;
+      break;
+    case Expose:
+    case GraphicsExpose:
+    case FocusIn:
+    case FocusOut:
+      /* This was added because otherwise it takes forever for Expose
+         events to get noticed and handled.  This appears to be
+         because redisplay is busy doing nothing.  So if we get an
+         Expose event we'll just act as if we have input pending and
+         that will safely abort redisplay and let the event get
+         handled right way. */
+      if (! closure->ignore_expose_p)
+	closure->result = 1;
       break;
     }
   return False;
@@ -1853,9 +1883,12 @@ static void
 x_check_for_interrupt_char (Display *display)
 {
   XEvent event;
+  int queued;
   BLOCK_INPUT;
   XEventsQueued (display, QueuedAfterReading);
-  if (XCheckIfEvent (display, &event, interrupt_char_predicate, 0))
+  queued = XCheckIfEvent (display, &event, interrupt_char_predicate, 0);
+  UNBLOCK_INPUT;
+  if (queued)
     {
       interrupt_signal (0);
 
@@ -1871,12 +1904,12 @@ x_check_for_interrupt_char (Display *display)
 	 with other events in front of it, then XCheckIfEvent will notice
 	 the ^G multiple times, which is no good.
        */
+      BLOCK_INPUT;
       if (! XEventsQueued (display, QueuedAlready))
 	XPutBackEvent (display, &event);
+      UNBLOCK_INPUT;
 #endif /* !LISP_COMMAND_LOOP */
-
     }
-  UNBLOCK_INPUT;
 }
 
 

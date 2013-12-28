@@ -1,23 +1,21 @@
-Info file elisp, produced by Makeinfo, -*- Text -*- from input file
-elisp.texi.
+This is Info file ../../info/lispref.info, produced by Makeinfo-1.56
+from the input file lispref.texinfo.
 
-   This file documents GNU Emacs Lisp.
+   This version is newer than the second printed edition of the GNU
+Emacs Lisp Reference Manual.  It corresponds to Emacs Version 19.19.
 
-   This is edition 1.03 of the GNU Emacs Lisp Reference Manual,   for
-Emacs Version 18.
+   Published by the Free Software Foundation 675 Massachusetts Avenue
+Cambridge, MA 02139 USA
 
-   Published by the Free Software Foundation, 675 Massachusetts
-Avenue,  Cambridge, MA 02139 USA
+   Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
 
-   Copyright (C) 1990 Free Software Foundation, Inc.
-
-   Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
 
    Permission is granted to copy and distribute modified versions of
-this manual under the conditions for verbatim copying, provided that
-the entire resulting derived work is distributed under the terms of a
+this manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
 permission notice identical to this one.
 
    Permission is granted to copy and distribute translations of this
@@ -25,1286 +23,1312 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be stated in a
 translation approved by the Foundation.
 
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the Free Software
+Foundation instead of in the original English.
 
 
-File: elisp,  Node: Vectors,  Prev: Array Functions,  Up: Sequences Arrays Vectors
+File: lispref.info,  Node: Case Table,  Prev: Character Case,  Up: Strings and Characters
 
-Vectors
-=======
+The Case Table
+==============
 
-   Arrays in Lisp, like arrays in most languages, are blocks of
-memory whose elements can be accessed in constant time.  A "vector"
-is a general-purpose array; its elements can be any Lisp objects. 
-(The other kind of array provided in Emacs Lisp is the "string",
-whose elements must be characters.)  The main uses of vectors in
-Emacs are as syntax tables (vectors of integers) and keymaps (vectors
-of commands).  They are also used internally as part of the
-representation of a byte-compiled function; if you print such a
-function, you will see a vector in it.
+   You can customize case conversion by installing a special "case
+table".  A case table specifies the mapping between upper case and lower
+case letters.  It affects both the string and character case conversion
+functions (see the previous section) and those that apply to text in the
+buffer (*note Case Changes::.).  Use case table if you are using a
+language which has letters that are not the standard ASCII letters.
 
-   The indices of the elements of a vector are numbered starting with
-zero in Emacs Lisp.
+   A case table is a list of this form:
 
-   Vectors are printed with square brackets surrounding the elements
-in their order.  Thus, a vector containing the symbols `a', `b' and
-`c' is printed as `[a b c]'.  You can write vectors in the same way
-in Lisp input.
+     (DOWNCASE UPCASE CANONICALIZE EQUIVALENCES)
 
-   A vector, like a string or a number, is considered a constant for
-evaluation: the result of evaluating it is the same vector.  The
-elements of the vector are not evaluated.  *Note Self-Evaluating
-Forms::.
+where each element is either `nil' or a string of length 256.  The
+element DOWNCASE says how to map each character to its lower-case
+equivalent.  The element UPCASE maps each character to its upper-case
+equivalent.  If lower and upper case characters are in one-to-one
+correspondence, use `nil' for UPCASE; then Emacs deduces the upcase
+table from DOWNCASE.
 
-   Here are examples of these principles:
+   For some languages, upper and lower case letters are not in
+one-to-one correspondence.  There may be two different lower case
+letters with the same upper case equivalent.  In these cases, you need
+to specify the maps for both directions.
 
-     (setq avector [1 two '(three) "four" [five]])
-          => [1 two (quote (three)) "four" [five]]
-     (eval avector)
-          => [1 two (quote (three)) "four" [five]]
-     (eq avector (eval avector))
-          => t
+   The element CANONICALIZE maps each character to a canonical
+equivalent; any two characters that are related by case-conversion have
+the same canonical equivalent character.
 
-   Here are some functions that relate to vectors:
+   The element EQUIVALENCES is a map that cyclicly permutes each
+equivalence class (of characters with the same canonical equivalent).
+(For ordinary ASCII, this would map `a' into `A' and `A' into `a', and
+likewise for each set of equivalent characters.)
 
- * Function: vectorp OBJECT
-     This function returns `t' if OBJECT is a vector.
+   You can provide `nil' for both CANONICALIZE and EQUIVALENCES, in
+which case both are deduced from DOWNCASE and UPCASE.  Normally, that's
+what you should do, when you construct a case table.  Alternatively,
+you can provide suitable strings for both CANONICALIZE and
+EQUIVALENCES.  When you look at the case table that's in use, you will
+find non-`nil' values for those components.  Do not try to make just
+one of these components `nil'; that is not meaningful.
 
-          (vectorp [a])
-               => t
-          (vectorp "asdf")
-               => nil
+   Each buffer has a case table.  Emacs also has a "standard case
+table" which is copied into each buffer when you create the buffer.
+(Changing the standard case table doesn't affect any existing buffers.)
 
- * Function: vector &rest OBJECTS
-     This function creates and returns a vector whose elements are
-     the arguments, OBJECTS.
+   Here are the functions for working with case tables:
 
-          (vector 'foo 23 [bar baz] "rats")
-               => [foo 23 [bar baz] "rats"]
-          (vector)
-               => []
+ - Function: case-table-p OBJECT
+     This predicate returns non-`nil' if OBJECT is a valid case table.
 
- * Function: make-vector INTEGER OBJECT
-     This function returns a new vector consisting of INTEGER
-     elements, each initialized to OBJECT.
+ - Function: set-standard-case-table TABLE
+     This function makes TABLE the standard case table, so that it will
+     apply to any buffers created subsequently.
 
-          (setq sleepy (make-vector 9 'Z))
-               => [Z Z Z Z Z Z Z Z Z]
+ - Function: standard-case-table
+     This returns the standard case table.
 
- * Function: vconcat &rest SEQUENCES
-     This function returns a new vector containing all the elements
-     of the SEQUENCES.  The arguments SEQUENCES may be lists,
-     vectors, or strings.  If no SEQUENCES are given, an empty vector
-     is returned.
+ - Function: current-case-table
+     This function returns the current buffer's case table.
 
-     The value is a newly constructed vector that is not `eq' to any
-     existing vector.
+ - Function: set-case-table TABLE
+     This sets the current buffer's case table to TABLE.
 
-          (setq a (vconcat '(A B C) '(D E F)))
-               => [A B C D E F]
-          (eq a (vconcat a))
-               => nil
-          (vconcat)
-               => []
-          (vconcat [A B C] "aa" '(foo (6 7)))
-               => [A B C 97 97 foo (6 7)]
+   The following three functions are convenient subroutines for packages
+that define non-ASCII character sets.  They modify a string
+DOWNCASE-TABLE provided as an argument; this should be a string to be
+used as the DOWNCASE part of a case table.  They also modify two syntax
+tables, the standard syntax table and the Text mode syntax table.
+(*Note Syntax Tables::.)
 
-     When an argument is an integer (not a sequence of integers), it
-     is converted to a string of digits making up the decimal printed
-     representation of the integer.  This special case exists for
-     compatibility with Mocklisp, and we don't recommend you take
-     advantage of it.  If you want to convert an integer in this way,
-     use `format' (*note Formatting Strings::.) or `int-to-string'
-     (*note String Conversion::.).
+ - Function: set-case-syntax-pair UC LC DOWNCASE-TABLE
+     This function specifies a pair of corresponding letters, one upper
+     case and one lower case.
 
-     For other concatenation functions, see `mapconcat' in *Note
-     Mapping Functions::, `concat' in *Note Creating Strings::, and
-     `append' in *Note Building Lists::.
+ - Function: set-case-syntax-delims L R DOWNCASE-TABLE
+     This function makes characters L and R a matching pair of
+     case-invariant delimiters.
 
-   The `append' function may be used to convert a vector into a list
-with the same elements (*note Building Lists::.):
+ - Function: set-case-syntax CHAR SYNTAX DOWNCASE-TABLE
+     This function makes CHAR case-invariant, with syntax SYNTAX.
 
-     (setq avector [1 two (quote (three)) "four" [five]])
-          => [1 two (quote (three)) "four" [five]]
-     (append avector nil)
-          => (1 two (quote (three)) "four" [five])
+ - Command: describe-buffer-case-table
+     This command displays a description of the contents of the current
+     buffer's case table.
 
+   You can load the library `iso-syntax' to set up the syntax and case
+table for the 256 bit ISO Latin 1 character set.
 
 
-File: elisp,  Node: Symbols,  Next: Evaluation,  Prev: Sequences Arrays Vectors,  Up: Top
+File: lispref.info,  Node: Lists,  Next: Sequences Arrays Vectors,  Prev: Strings and Characters,  Up: Top
 
-Symbols
-*******
+Lists
+*****
 
-   A "symbol" is an object with a unique name.  This chapter
-describes symbols, their components, and how they are created and
-interned.  Property lists are also described.  The uses of symbols as
-variables and as function names are described in separate chapters;
-see *Note Variables::, and *Note Functions::.
-
-   You may test whether an arbitrary Lisp object is a symbol with
-`symbolp':
-
- * Function: symbolp OBJECT
-     This function returns `t' if OBJECT is a symbol, `nil' otherwise.
+   A "list" represents a sequence of zero or more elements (which may
+be any Lisp objects).  The important difference between lists and
+vectors is that two or more lists can share part of their structure; in
+addition, you can insert or delete elements in a list without copying
+the whole list.
 
 * Menu:
 
-* Symbol Components::        Symbols have names, values, function definitions
-                               and property lists.
-* Definitions::              A definition says how a symbol will be used.
-* Creating Symbols::         How symbols are kept unique.
-* Property Lists::           Each symbol has a property list
-                               for recording miscellaneous information.
-
- 
-
-File: elisp,  Node: Symbol Components,  Next: Definitions,  Prev: Symbols,  Up: Symbols
-
-Symbol Components
-=================
-
-   Each symbol has four components (or "cells"), each of which
-references another object:
-
-Print name
-     The "print name cell" holds a string which names the symbol for
-     reading and printing.  See `symbol-name' in *Note Creating
-     Symbols::.
-
-Value
-     The "value cell" holds the current value of the symbol as a
-     variable.  When a symbol is used as a form, the value of the
-     form is the contents of the symbol's value cell.  See
-     `symbol-value' in *Note Accessing Variables::.
-
-Function
-     The "function cell" holds the function definition of the symbol.
-     When a symbol is used as a function, its function definition is
-     used in its place.  This cell is also used by the editor command
-     loop to record keymaps and keyboard macros.  Because each symbol
-     has separate value and function cells, variables and function
-     names do not conflict.  See `symbol-function' in *Note Function
-     Cells::.
-
-Property list
-     The "property list cell" holds the property list of the symbol. 
-     See `symbol-plist' in *Note Property Lists::.
-
-   The print name cell always holds a string, and cannot be changed. 
-The other three cells can be set individually to any specified Lisp
-object.
-
-   The print name cell holds the string that is the name of the symbol.
-Since symbols are represented textually by their names, it is
-important not to have two symbols with the same name.  The Lisp
-reader ensures this: every time it reads a symbol, it looks for an
-existing symbol with the specified name before it creates a new one. 
-(In GNU Emacs Lisp, this is done with a hashing algorithm that uses
-an obarray; see *Note Creating Symbols::.)
-
-   In normal usage, the function cell usually contains a function or
-macro, as that is what the Lisp interpreter expects to see there
-(*note Evaluation::.).  Keyboard macros (*note Keyboard Macros::.),
-keymaps (*note Keymaps::.) and autoload objects (*note
-Autoloading::.) are also sometimes stored in the function cell of
-symbols.  We often refer to "the function `foo'" when we really mean
-the function stored in the function cell of the symbol `foo'.  The
-distinction will be made only when necessary.
-
-   Similarly, the property list cell normally holds a correctly
-formatted property list (*note Property Lists::.), as a number of
-functions will expect to see a property list there.
-
-   The function cell or the value cell may be "void", which means
-that the cell does not reference any object.  (This is not the same
-thing as holding the symbol `void', nor the same as holding the
-symbol `nil'.)  Examining the value of a cell which is void results
-in an error, such as `Symbol's value as variable is void'.
-
-   The four functions `symbol-name', `symbol-value', `symbol-plist',
-and `symbol-function' return the contents of the four cells.  Here as
-an example we show the contents of the four cells of the symbol
-`buffer-file-name':
-
-     (symbol-name 'buffer-file-name)
-          => "buffer-file-name"
-     (symbol-value 'buffer-file-name)
-          => "/gnu/elisp/symbols.texi"
-     (symbol-plist 'buffer-file-name)
-          => (variable-documentation 29529)
-     (symbol-function 'buffer-file-name)
-          => #<subr buffer-file-name>
-
-Because this symbol is the variable which holds the name of the file
-being visited in the current buffer, the value cell contents we see
-are the name of the source file of this chapter of the Emacs Lisp
-Manual.  The property list cell contains the list
-`(variable-documentation 29529)' which tells the documentation
-functions where to find documentation about `buffer-file-name' in the
-`DOC' file.  (29529 is the offset from the beginning of the `DOC'
-file where the documentation for the function begins.)  The function
-cell contains the function for returning the name of the file.  Since
-`buffer-file-name' is a primitive function, its function definition
-has no read syntax and prints in hash notation (*note Primitive
-Function Type::.).  A function definition written in Lisp will have a
-lambda expression (or byte-code) in this cell.
-
+* Cons Cells::          How lists are made out of cons cells.
+* Lists as Boxes::                 Graphical notation to explain lists.
+* List-related Predicates::        Is this object a list?  Comparing two lists.
+* List Elements::       Extracting the pieces of a list.
+* Building Lists::      Creating list structure.
+* Modifying Lists::     Storing new pieces into an existing list.
+* Sets And Lists::      A list can represent a finite mathematical set.
+* Association Lists::   A list can represent a finite relation or mapping.
 
 
-File: elisp,  Node: Definitions,  Next: Creating Symbols,  Prev: Symbol Components,  Up: Symbols
+File: lispref.info,  Node: Cons Cells,  Next: Lists as Boxes,  Prev: Lists,  Up: Lists
 
-Defining Symbols
-================
+Lists and Cons Cells
+====================
 
-   A "definition" in Lisp is a special form that announces your
-intention to use a certain symbol in a particular way.  In Emacs
-Lisp, you can define a symbol as a variable, or define it as a
-function (or macro), or both independently.
+   Lists in Lisp are not a primitive data type; they are built up from
+"cons cells".  A cons cell is a data object which represents an ordered
+pair.  It records two Lisp objects, one labeled as the CAR, and the
+other labeled as the CDR.  (These names are traditional.)
 
-   A definition construct typically specifies a value or meaning for
-the symbol for one kind of use, plus documentation for its meaning
-when used in this way.  Thus, when you define a symbol as a variable,
-you can supply an initial value for the variable, plus documentation
-for the variable.
+   A list is made by chaining cons cells together, one cons cell per
+element.  By convention, the CARs of the cons cells are the elements of
+the list, and the CDRs are used to chain the list: the CDR of each cons
+cell is the following cons cell.  The CDR of the last cons cell is
+`nil'.  This asymmetry between the CAR and the CDR is entirely a matter
+of convention; at the level of cons cells, the CAR and CDR slots have
+the same characteristics.
 
-   `defvar' and `defconst' are definitions that establish a symbol as
-a global variable.  They are documented in detail in *Note Defining
-Variables::.
+   The symbol `nil' is considered a list as well as a symbol; it is the
+list with no elements.  For convenience, the symbol `nil' is considered
+to have `nil' as its CDR (and also as its CAR).
 
-   `defun' defines a symbol as a function, creating a lambda
-expression and storing it in the function cell of the symbol.  This
-lambda expression thus becomes the function definition of the symbol.
-(The term "function definition", meaning the contents of the function
-cell, is derived from the idea that `defun' gives the symbol its
-definition as a function.)  *Note Functions::.
-
-   `defmacro' defines a symbol as a macro.  It creates a macro object
-and stores it in the function cell of the symbol.  Note that a given
-symbol can be a macro or a function, but not both at once, because
-both macro and function definitions are kept in the function cell,
-and that cell can hold only one Lisp object at any given time.  *Note
-Macros::.
-
-   In GNU Emacs Lisp, a definition is not required in order to use a
-symbol as a variable or function.  Thus, you can make a symbol a
-global variable with `setq', whether you define it first or not.  The
-real purpose of definitions is to guide programmers and programming
-tools.  They inform programmers who read the code that certain
-symbols are *intended* to be used as variables, or as functions.  In
-addition, utilities such as `etags' and `make-docfile' can recognize
-definitions, and add the appropriate information to tag tables and
-the `emacs/etc/DOC-VERSION' file. *Note Accessing Documentation::.
-
+   The CDR of any nonempty list L is a list containing all the elements
+of L except the first.
 
 
-File: elisp,  Node: Creating Symbols,  Next: Property Lists,  Prev: Definitions,  Up: Symbols
+File: lispref.info,  Node: Lists as Boxes,  Next: List-related Predicates,  Prev: Cons Cells,  Up: Lists
 
-Creating and Interning Symbols
+Lists as Linked Pairs of Boxes
 ==============================
 
-   To understand how symbols are created in GNU Emacs Lisp, it is
-necessary to know how Lisp reads them.  It is essential to ensure
-that every time Lisp reads the same set of characters, it finds the
-same symbol.  Failure to do so would be disastrous.
+   A cons cell can be illustrated as a pair of boxes.  The first box
+represents the CAR and the second box represents the CDR.  Here is an
+illustration of the two-element list, `(tulip lily)', made from two
+cons cells:
 
-   When the Lisp reader encounters a symbol, it reads all the
-characters of the name.  Then it "hashes" those characters to find an
-index in a table called an "obarray".  Hashing is an efficient method
-of looking something up.  For example, instead of searching a
-telephone book cover to cover when looking up Jan Jones, you start
-with the J's and go from there.  That is a simple version of hashing.
-Each element of the obarray is a "bucket" which holds all the symbols
-with a given hash code; to look for a given name, it is sufficient to
-look through all the symbols in the bucket for that name's hash code.
+      ---------------         ---------------
+     | car   | cdr   |       | car   | cdr   |
+     | tulip |   o---------->| lily  |  nil  |
+     |       |       |       |       |       |
+      ---------------         ---------------
 
-   If a symbol with the desired name is found, then it is used.  If
-no such symbol is found, then a new symbol is created and added to
-the obarray bucket.  Adding a symbol to an obarray is called
-"interning" it, and the symbol is then called an "interned symbol". 
-In Emacs Lisp, a symbol may be interned in only one obarray.
+   Each pair of boxes represents a cons cell.  Each box "refers to",
+"points to" or "contains" a Lisp object.  (These terms are synonymous.)
+The first box, which is the CAR of the first cons cell, contains the
+symbol `tulip'.  The arrow from the CDR of the first cons cell to the
+second cons cell indicates that the CDR of the first cons cell points
+to the second cons cell.
 
-     Common Lisp note: in Common Lisp, a symbol may be interned in
-     several obarrays at once.
+   The same list can be illustrated in a different sort of box notation
+like this:
 
-   If a symbol is not in the obarray, then there is no way for Lisp
-to find it when its name is read.  Such a symbol is called an
-"uninterned symbol" relative to the obarray.  An uninterned symbol
-has all the other characteristics of symbols.  It is possible, though
-uncommon, for two different symbols to have the same name in
-different obarrays; they are not `eq' or `equal'.
+         ___ ___      ___ ___
+        |___|___|--> |___|___|--> nil
+          |            |
+          |            |
+           --> tulip    --> lily
 
-   In Emacs Lisp, an obarray is represented as a vector.  Each
-element of the vector is a bucket; its value is either an interned
-symbol whose name hashes to that bucket, or 0 if the bucket is empty.
-Each interned symbol has an internal link (invisible to the user) to
-the next symbol in the bucket.  Because these links are invisible,
-there is no way to scan the symbols in an obarray except using
-`mapatoms' (below).  The order of symbols in a bucket is not
-significant.
+   Here is a more complex illustration, this time of the three-element
+list, `((pine needles) oak maple)', the first element of which is a
+two-element list:
 
-   In an empty obarray, every element is 0, and you can create an
-obarray with `(make-vector LENGTH 0)'.  Prime numbers as lengths tend
-to result in good hashing; lengths one less than a power of two are
-also good.
+         ___ ___      ___ ___      ___ ___
+        |___|___|--> |___|___|--> |___|___|--> nil
+          |            |            |
+          |            |            |
+          |             --> oak      --> maple
+          |
+          |     ___ ___      ___ ___
+           --> |___|___|--> |___|___|--> nil
+                 |            |
+                 |            |
+                  --> pine     --> needles
 
-   Most of the functions below take a name and sometimes an obarray
-as arguments.  A `wrong-type-argument' error is signaled if the name
-is not a string, or if the obarray is not a vector.
+   The same list is represented in the first box notation like this:
 
- * Function: symbol-name SYMBOL
-     This function returns the string that is SYMBOL's name.  For
+      --------------       --------------       --------------
+     | car   | cdr  |     | car   | cdr  |     | car   | cdr  |
+     |   o   |   o------->| oak   |   o------->| maple |  nil |
+     |   |   |      |     |       |      |     |       |      |
+      -- | ---------       --------------       --------------
+         |
+         |
+         |        --------------       ----------------
+         |       | car   | cdr  |     | car     | cdr  |
+          ------>| pine  |   o------->| needles |  nil |
+                 |       |      |     |         |      |
+                  --------------       ----------------
+
+   *Note List Type::, for the read and print syntax of lists, and for
+more "box and arrow" illustrations of lists.
+
+
+File: lispref.info,  Node: List-related Predicates,  Next: List Elements,  Prev: Lists as Boxes,  Up: Lists
+
+Predicates on Lists
+===================
+
+   The following predicates test whether a Lisp object is an atom, is a
+cons cell or is a list, or whether it is the distinguished object `nil'.
+(Many of these tests can be defined in terms of the others, but they are
+used so often that it is worth having all of them.)
+
+ - Function: consp OBJECT
+     This function returns `t' if OBJECT is a cons cell, `nil'
+     otherwise.  `nil' is not a cons cell, although it *is* a list.
+
+ - Function: atom OBJECT
+     This function returns `t' if OBJECT is an atom, `nil' otherwise.
+     All objects except cons cells are atoms.  The symbol `nil' is an
+     atom and is also a list; it is the only Lisp object which is both.
+
+          (atom OBJECT) == (not (consp OBJECT))
+
+ - Function: listp OBJECT
+     This function returns `t' if OBJECT is a cons cell or `nil'.
+     Otherwise, it returns `nil'.
+
+          (listp '(1))
+               => t
+          (listp '())
+               => t
+
+ - Function: nlistp OBJECT
+     This function is the opposite of `listp': it returns `t' if OBJECT
+     is not a list.  Otherwise, it returns `nil'.
+
+          (listp OBJECT) == (not (nlistp OBJECT))
+
+ - Function: null OBJECT
+     This function returns `t' if OBJECT is `nil', and returns `nil'
+     otherwise.  This function is identical to `not', but as a matter
+     of clarity we use `null' when OBJECT is considered a list and
+     `not' when it is considered a truth value (see `not' in *Note
+     Combining Conditions::).
+
+          (null '(1))
+               => nil
+          (null '())
+               => t
+
+
+File: lispref.info,  Node: List Elements,  Next: Building Lists,  Prev: List-related Predicates,  Up: Lists
+
+Accessing Elements of Lists
+===========================
+
+ - Function: car CONS-CELL
+     This function returns the value pointed to by the first pointer of
+     the cons cell CONS-CELL.  Expressed another way, this function
+     returns the CAR of CONS-CELL.
+
+     As a special case, if CONS-CELL is `nil', then `car' is defined to
+     return `nil'; therefore, any list is a valid argument for `car'.
+     An error is signaled if the argument is not a cons cell or `nil'.
+
+          (car '(a b c))
+               => a
+          (car '())
+               => nil
+
+ - Function: cdr CONS-CELL
+     This function returns the value pointed to by the second pointer of
+     the cons cell CONS-CELL.  Expressed another way, this function
+     returns the CDR of CONS-CELL.
+
+     As a special case, if CONS-CELL is `nil', then `cdr' is defined to
+     return `nil'; therefore, any list is a valid argument for `cdr'.
+     An error is signaled if the argument is not a cons cell or `nil'.
+
+          (cdr '(a b c))
+               => (b c)
+          (cdr '())
+               => nil
+
+ - Function: car-safe OBJECT
+     This function lets you take the CAR of a cons cell while avoiding
+     errors for other data types.  It returns the CAR of OBJECT if
+     OBJECT is a cons cell, `nil' otherwise.  This is in contrast to
+     `car', which signals an error if OBJECT is not a list.
+
+          (car-safe OBJECT)
+          ==
+          (let ((x OBJECT))
+            (if (consp x)
+                (car x)
+              nil))
+
+ - Function: cdr-safe OBJECT
+     This function lets you take the CDR of a cons cell while avoiding
+     errors for other data types.  It returns the CDR of OBJECT if
+     OBJECT is a cons cell, `nil' otherwise.  This is in contrast to
+     `cdr', which signals an error if OBJECT is not a list.
+
+          (cdr-safe OBJECT)
+          ==
+          (let ((x OBJECT))
+            (if (consp x)
+                (cdr x)
+              nil))
+
+ - Function: nth N LIST
+     This function returns the Nth element of LIST.  Elements are
+     numbered starting with zero, so the CAR of LIST is element number
+     zero.  If the length of LIST is N or less, the value is `nil'.
+
+     If N is less than zero, then the first element is returned.
+
+          (nth 2 '(1 2 3 4))
+               => 3
+          (nth 10 '(1 2 3 4))
+               => nil
+          (nth -3 '(1 2 3 4))
+               => 1
+          
+          (nth n x) == (car (nthcdr n x))
+
+ - Function: nthcdr N LIST
+     This function returns the Nth cdr of LIST.  In other words, it
+     removes the first N links of LIST and returns what follows.
+
+     If N is less than or equal to zero, then all of LIST is returned.
+     If the length of LIST is N or less, the value is `nil'.
+
+          (nthcdr 1 '(1 2 3 4))
+               => (2 3 4)
+          (nthcdr 10 '(1 2 3 4))
+               => nil
+          (nthcdr -3 '(1 2 3 4))
+               => (1 2 3 4)
+
+
+File: lispref.info,  Node: Building Lists,  Next: Modifying Lists,  Prev: List Elements,  Up: Lists
+
+Building Cons Cells and Lists
+=============================
+
+   Many functions build lists, as lists reside at the very heart of
+Lisp.  `cons' is the fundamental list-building function; however, it is
+interesting to note that `list' is used more times in the source code
+for Emacs than `cons'.
+
+ - Function: cons OBJECT1 OBJECT2
+     This function is the fundamental function used to build new list
+     structure.  It creates a new cons cell, making OBJECT1 the CAR,
+     and OBJECT2 the CDR.  It then returns the new cons cell.  The
+     arguments OBJECT1 and OBJECT2 may be any Lisp objects, but most
+     often OBJECT2 is a list.
+
+          (cons 1 '(2))
+               => (1 2)
+          (cons 1 '())
+               => (1)
+          (cons 1 2)
+               => (1 . 2)
+
+     `cons' is often used to add a single element to the front of a
+     list.  This is called "consing the element onto the list".  For
      example:
 
-             (symbol-name 'foo)
-               => "foo"
+          (setq list (cons newelt list))
 
-     Changing the string by substituting characters, etc, will change
-     the name of the symbol, but will fail to update the obarray, so
-     don't do it!
+     Note that there is no conflict between the variable named `list'
+     used in this example and the function named `list' described below;
+     any symbol can serve both functions.
 
- * Function: make-symbol NAME
-     This function returns a newly-allocated uninterned symbol whose
-     name is NAME (which must be a string).  Its value and function
-     definition are void, and its property list is `nil'.  In the
-     example below, the value of `sym' is not `eq' to `foo' because
-     it is a distinct uninterned symbol whose name is also `foo'.
+ - Function: list &rest OBJECTS
+     This function creates a list with OBJECTS as its elements.  The
+     resulting list is always `nil'-terminated.  If no OBJECTS are
+     given, the empty list is returned.
 
-          (setq sym (make-symbol "foo"))
-               => foo
-          (eq sym 'foo)
+          (list 1 2 3 4 5)
+               => (1 2 3 4 5)
+          (list 1 2 '(3 4 5) 'foo)
+               => (1 2 (3 4 5) foo)
+          (list)
                => nil
 
- * Function: intern NAME &optional OBARRAY
-     This function returns the interned symbol whose name is NAME. 
-     If there is no such symbol in the obarray, a new one is created,
-     added to the obarray, and returned.  If OBARRAY is supplied, it
-     specifies the obarray to use; otherwise, the value of the global
-     variable `obarray' is used.
+ - Function: make-list LENGTH OBJECT
+     This function creates a list of length LENGTH, in which all the
+     elements have the identical value OBJECT.  Compare `make-list'
+     with `make-string' (*note Creating Strings::.).
 
-          (setq sym (intern "foo"))
-               => foo
-          (eq sym 'foo)
-               => t
-
- * Function: intern-soft NAME &optional OBARRAY
-     This function returns the symbol whose name is NAME, or `nil' if
-     a symbol with that name is not found in the obarray.  Therefore,
-     you can use `intern-soft' to test whether a symbol with a given
-     name is interned.  If OBARRAY is supplied, it specifies the
-     obarray to use; otherwise the value of the global variable
-     `obarray' is used.
-
-          (intern-soft "frazzle")                ; No such symbol exists.
+          (make-list 3 'pigs)
+               => (pigs pigs pigs)
+          (make-list 0 'pigs)
                => nil
-          (make-symbol "frazzle")                ; Create an uninterned one.
-               => frazzle
-          (intern-soft "frazzle")                ; That one cannot be found.
-               => nil
-          (setq sym (intern "frazzle"))          ; Create an interned one.
-               => frazzle
-          (intern-soft "frazzle")                ; That one can be found!
-               => frazzle
 
-             (eq sym 'frazzle)                      ; And it is the same one.
-               => t
+ - Function: append &rest SEQUENCES
+     This function returns a list containing all the elements of
+     SEQUENCES.  The SEQUENCES may be lists, vectors, strings, or
+     integers.  All arguments except the last one are copied, so none
+     of them are altered.
 
- * Variable: obarray
-     This variable is the standard obarray for use by `intern' and
-     `read'.
+     The final argument to `append' may be any object but it is
+     typically a list.  The final argument is not copied or converted;
+     it becomes part of the structure of the new list.
 
- * Function: mapatoms FUNCTION &optional OBARRAY
-     This function applies FUNCTION to every symbol in OBARRAY.  It
-     returns `nil'.  If OBARRAY is not supplied, it defaults to the
-     value of `obarray', the standard obarray for ordinary symbols.
-
-          (setq count 0)
-               => 0
-          (defun count-syms (s)
-            (setq count (1+ count)))
-               => count-syms
-          (mapatoms 'count-syms)
-               => nil
-          count
-               => 1871
-
-     See `documentation' in *Note Accessing Documentation::, for
-     another example using `mapatoms'.
-
-
-
-File: elisp,  Node: Property Lists,  Prev: Creating Symbols,  Up: Symbols
-
-Property Lists
-==============
-
-   A "property list" ("plist" for short) is a list of paired elements
-stored in the property list cell of a symbol.  Each of the pairs
-associates a property name (usually a symbol) with a property or
-value.  Property lists are generally used to record information about
-a symbol, such as how to compile it, the name of the file where it
-was defined, or perhaps even the grammatical class of the symbol
-(representing a word) in a language understanding system.
-
-   The property names and property values may be any Lisp objects,
-but the names are usually symbols.  They are compared using `eq'. 
-Here is an example of a property list, found on the symbol `progn'
-when the compiler is loaded:
-
-     (lisp-indent-hook 0 byte-compile byte-compile-progn)
-
-Here `lisp-indent-hook' and `byte-compile' are property names, and
-the other two elements are the corresponding values.
-
-   Association lists (*note Association Lists::.) are very similar to
-property lists.  In contrast to association lists, the order of the
-pairs in the property list is not significant since the property
-names must be distinct.
-
-   Property lists are better than association lists when it is
-necessary to attach information to various Lisp function names or
-variables.  If all the pairs are recorded in one association list, it
-will be necessary to search that entire list each time a function or
-variable is to be operated on.  By contrast, if the information is
-recorded in the property lists of the function names or variables
-themselves, each search will scan only the length of one property
-list, which is usually short.  For this reason, the documentation for
-a variable is recorded in a property named `variable-documentation'. 
-The byte compiler likewise uses properties to record those functions
-needing special treatment.
-
-   However, association lists have their own advantages.  Depending
-on your application, it may be faster to add an association to the
-front of an association list than to update a property.  All
-properties for a symbol are stored in the same property list, so
-there is a possibility of a conflict between different uses of a
-property name.  (For this reason, it is a good idea to use property
-names that are probably unique, such as by including the name of the
-library in the property name.)  An association list may be used like
-a stack where associations are pushed on the front of the list and
-later discarded; this is not possible with a property list.
-
- * Function: symbol-plist SYMBOL
-     This function returns the property list of SYMBOL.
-
- * Function: setplist SYMBOL PLIST
-     This function sets SYMBOL's property list to PLIST.  Normally,
-     PLIST should be a well-formed property list, but this is not
-     enforced.
-
-          (setplist 'foo '(a 1 b (2 3) c nil))
-               => (a 1 b (2 3) c nil)
-          (symbol-plist 'foo)
-               => (a 1 b (2 3) c nil)
-
-     For symbols in special obarrays, which are not used for ordinary
-     purposes, it may make sense to use the property list cell in a
-     nonstandard fashion; in fact, the abbrev mechanism does so
-     (*note Abbrevs::.).
-
- * Function: get SYMBOL PROPERTY
-     This function finds the value of the property named PROPERTY in
-     SYMBOL's property list.  If there is no such property, `nil' is
-     returned.  Thus, there is no distinction between a value of
-     `nil' and the absence of the property.
-
-     The name PROPERTY is compared with the existing property names
-     using `eq', so any object is a legitimate property.
-
-     See `put' for an example.
-
- * Function: put SYMBOL PROPERTY VALUE
-     This function puts VALUE onto SYMBOL's property list under the
-     property name PROPERTY, replacing any previous value.
-
-          (put 'fly 'verb 'transitive)
-               =>'transitive
-          (put 'fly 'noun '(a buzzing little bug))
-               => (a buzzing little bug)
-          (get 'fly 'verb)
-               => transitive
-          (symbol-plist 'fly)
-               => (verb transitive noun (a buzzing little bug))
-
-
-
-File: elisp,  Node: Evaluation,  Next: Control Structures,  Prev: Symbols,  Up: Top
-
-Evaluation
-**********
-
-   The "evaluation" of expressions in Emacs Lisp is performed by the
-"Lisp interpreter"--a program that receives a Lisp object as input
-and computes its "value as an expression".  The value is computed in
-a fashion that depends on the data type of the object, following
-rules described in this chapter.  The interpreter runs automatically
-to evaluate portions of your program, but can also be called
-explicitly via the Lisp primitive function `eval'.
-
-* Menu:
-
-* Intro Eval::  Evaluation in the scheme of things.
-* Eval::        How to invoke the Lisp interpreter explicitly.
-* Forms::       How various sorts of objects are evaluated.
-* Quoting::     Avoiding evaluation (to put constants in the program).
-
- 
-
-File: elisp,  Node: Intro Eval,  Next: Eval,  Prev: Evaluation,  Up: Evaluation
-
-Introduction to Evaluation
-==========================
-
-   The Lisp interpreter, or evaluator, is the program which computes
-the value of an expression which is given to it.  When a function 
-written in Lisp is called, the evaluator computes the value of the
-function by evaluating the expressions in the function body.  Thus,
-running any Lisp program really means running the Lisp interpreter.
-
-   How the evaluator handles an object depends primarily on the data
-type of the object.
-
-   A Lisp object which is intended for evaluation is called an
-"expression" or a "form".  The fact that expressions are data objects
-and not merely text is one of the fundamental differences between
-Lisp-like languages and typical programming languages.  Any object
-can be evaluated, but in practice only numbers, symbols, lists and
-strings are evaluated very often.
-
-   It is very common to read a Lisp expression and then evaluate the
-expression, but reading and evaluation are separate activities, and
-either can be performed alone.  Reading per se does not evaluate
-anything; it converts the printed representation of a Lisp object to
-the object itself.  It is up to the caller of `read' whether this
-object is a form to be evaluated, or serves some entirely different
-purpose.  *Note Input Functions::.
-
-   Do not confuse evaluation with command key interpretation.  The
-editor command loop translates keyboard input into a command (an
-interactively callable function) using the current keymaps, and then
-uses `call-interactively' to invoke the command.  The execution of
-the command itself involves evaluation if the command is written in
-Lisp, but that is not a part of command key interpretation itself. 
-*Note Command Loop::.
-
-   Evaluation is a recursive process.  That is, evaluation of a form
-may cause `eval' to be called again in order to evaluate parts of the
-form.  For example, evaluation of a function call first evaluates
-each argument of the function call, and then evaluates each form in
-the function body.  Consider evaluation of the form `(car x)': the
-subform `x' must first be evaluated recursively, so that its value
-can be passed as an argument to the function `car'.
-
-   The evaluation of forms takes place in a context called the
-"environment", which consists of the current values and bindings of
-all Lisp variables.  Whenever the form refers to a variable without
-creating a new binding for it, the value of the current binding is
-used.  *Note Variables::.
-
-   Evaluation of a form may create new environments for recursive
-evaluation by binding variables (*note Local Variables::.).  These
-environments are temporary and will be gone by the time evaluation of
-the form is complete.  The form may also make changes that persist;
-these changes are called "side-effects".  An example of a form that
-produces side-effects is `(setq foo 1)'.
-
-   Finally, evaluation of one particular function call, `byte-code',
-invokes the "byte-code interpreter" on its arguments.  Although the
-byte-code interpreter is not the same as the Lisp interpreter, it
-uses the same environment as the Lisp interpreter, and may on
-occasion invoke the Lisp interpreter.  (*Note Byte Compilation::.)
-
-   The details of what evaluation means for each kind of form are
-described below (*note Forms::.).
-
-
-
-File: elisp,  Node: Eval,  Next: Forms,  Prev: Intro Eval,  Up: Evaluation
-
-Eval
-====
-
-   Most often, forms are evaluated automatically, by virtue of their
-occurrence in a program being run.  On rare occasions, you may need
-to write code that evaluates a form that is computed at run time,
-such as when the form is read from text being edited or found on a
-property list.  On these occasions, use the `eval' function.
-
-   The functions and variables described in this section evaluate
-forms, specify limits to the evaluation process, or record recently
-returned values.  Evaluation is also performed by `load' (*note
-Loading::.).
-
- * Function: eval FORM
-     This is the basic function for performing evaluation.  It
-     evaluates FORM in the current environment and returns the
-     result.  How the evaluation proceeds depends on the type of the
-     object (*note Forms::.).
-
-     Since `eval' is a function, the argument expression that appears
-     in a call to `eval' is evaluated twice: once as preparation
-     before `eval' is called, and again by the `eval' function itself.
      Here is an example:
 
-          (setq foo 'bar)
-               => bar
-          (setq bar 'baz)
-               => baz
-          ;; `eval' is called on the form `bar', which is the value of `foo'
-          (eval foo)
-               => baz
+          (setq trees '(pine oak))
+               => (pine oak)
+          (setq more-trees (append '(maple birch) trees))
+               => (maple birch pine oak)
+          
+          trees
+               => (pine oak)
+          more-trees
+               => (maple birch pine oak)
+          (eq trees (cdr (cdr more-trees)))
+               => t
 
-     The number of currently active calls to `eval' is limited to
-     `max-lisp-eval-depth'.
+     You can see what happens by looking at a box diagram.  The variable
+     `trees' is set to the list `(pine oak)' and then the variable
+     `more-trees' is set to the list `(maple birch pine oak)'.
+     However, the variable `trees' continues to refer to the original
+     list:
 
- * Command: eval-current-buffer &optional STREAM
-     This function evaluates the forms in the current buffer.  It
-     reads forms from the buffer and calls `eval' on them until the
-     end of the buffer is reached, or until an error is signaled and
-     not handled.
+          more-trees                trees
+          |                           |
+          |     ___ ___      ___ ___   -> ___ ___      ___ ___
+           --> |___|___|--> |___|___|--> |___|___|--> |___|___|--> nil
+                 |            |            |            |
+                 |            |            |            |
+                  --> maple    -->birch     --> pine     --> oak
 
-     If STREAM is supplied, the variable `standard-output' is bound
-     to STREAM during the evaluation (*note Output Functions::.).
+     An empty sequence contributes nothing to the value returned by
+     `append'.  As a consequence of this, a final `nil' argument forces
+     a copy of the previous argument.
 
-     `eval-current-buffer' always returns `nil'.
+          trees
+               => (pine oak)
+          (setq wood (append trees ()))
+               => (pine oak)
+          wood
+               => (pine oak)
+          (eq wood trees)
+               => nil
 
- * Command: eval-region START END &optional STREAM
-     This function evaluates the forms in the current buffer in the
-     region defined by the positions START and END.  It reads forms
-     from the region and calls `eval' on them until the end of the
-     region is reached, or until an error is signaled and not handled.
+     This once was the standard way to copy a list, before the function
+     `copy-sequence' was invented.  *Note Sequences Arrays Vectors::.
 
-     If STREAM is supplied, `standard-output' is bound to it for the
-     duration of the command.
+     With the help of `apply', we can append all the lists in a list of
+     lists:
 
-     `eval-region' always returns `nil'.
+          (apply 'append '((a b c) nil (x y z) nil))
+               => (a b c x y z)
 
- * Variable: max-lisp-eval-depth
-     This variable defines the maximum depth allowed in calls to
-     `eval', `apply', and `funcall' before an error is signaled (with
-     error message `"Lisp nesting exceeds max-lisp-eval-depth"'). 
-     `eval' is called recursively to evaluate the arguments of Lisp
-     function calls and to evaluate bodies of functions.
+     If no SEQUENCES are given, `nil' is returned:
 
-     This limit, with the associated error when it is exceeded, is
-     one way that Lisp avoids infinite recursion on an ill-defined
-     function.
+          (append)
+               => nil
 
-     The default value of this variable is 200.  If you set it to a
-     value less than 100, Lisp will reset it to 100 if the given
-     value is reached.
+     In the special case where one of the SEQUENCES is an integer (not
+     a sequence of integers), it is first converted to a string of
+     digits making up the decimal print representation of the integer.
+     This special case exists for compatibility with Mocklisp, and we
+     don't recommend you take advantage of it.  If you want to convert
+     an integer in this way, use `format' (*note Formatting Strings::.)
+     or `number-to-string' (*note String Conversion::.).
 
- * Variable: values
-     The value of this variable is a list of values returned by all
-     expressions which were read from buffers (including the
-     minibuffer), evaluated, and printed.  The elements are in order,
-     most recent first.
+          (setq trees '(pine oak))
+               => (pine oak)
+          (char-to-string 54)
+               => "6"
+          (setq longer-list (append trees 6 '(spruce)))
+               => (pine oak 54 spruce)
+          (setq x-list (append trees 6 6))
+               => (pine oak 54 . 6)
 
-          (setq x 1)
-               => 1
-          (list 'A (1+ 2) auto-save-default)
-               => (A 3 t)
-          values
-               => ((A 3 t) 1 ...)
+     See `nconc' in *Note Rearrangement::, for another way to join lists
+     without copying.
 
-     This variable is useful for referring back to values of forms
-     recently evaluated.  It is generally a bad idea to print the
-     value of `values' itself, since this may be very long.  Instead,
-     examine particular elements, like this:
+ - Function: reverse LIST
+     This function creates a new list whose elements are the elements of
+     LIST, but in reverse order.  The original argument LIST is *not*
+     altered.
 
-          ;; Refer to the most recent evaluation result.
-          (nth 0 values)
-               => (A 3 t)
-          ;; That put a new element on, so all elements move back one.
-          (nth 1 values)
-               => (A 3 t)
-          ;; This gets the element that was next-to-last before this example.
-          (nth 3 values)
-               => 1
-
+          (setq x '(1 2 3 4))
+               => (1 2 3 4)
+          (reverse x)
+               => (4 3 2 1)
+          x
+               => (1 2 3 4)
 
 
-File: elisp,  Node: Forms,  Next: Quoting,  Prev: Eval,  Up: Evaluation
+File: lispref.info,  Node: Modifying Lists,  Next: Sets And Lists,  Prev: Building Lists,  Up: Lists
 
-Kinds of Forms
-==============
+Modifying Existing List Structure
+=================================
 
-   A Lisp object that is intended to be evaluated is called a "form".
-How Emacs evaluates a form depends on its data type.  Emacs has three
-different kinds of form that are evaluated differently: symbols,
-lists, and "all other types".  All three kinds are described in this
-section, starting with "all other types" which are self-evaluating
-forms.
+   You can modify the CAR and CDR contents of a cons cell with the
+primitives `setcar' and `setcdr'.
+
+     Common Lisp note: Common Lisp uses functions `rplaca' and `rplacd'
+     to alter list structure; they change structure the same way as
+     `setcar' and `setcdr', but the Common Lisp functions return the
+     cons cell while `setcar' and `setcdr' return the new CAR or CDR.
 
 * Menu:
 
-* Self-Evaluating Forms::   Forms that evaluate to themselves.
-* Symbol Forms::            Symbols evaluate as variables.
-* Classifying Lists::       How to distinguish various sorts of list forms.
-* Function Forms::          Forms that call functions.
-* Macro Forms::             Forms that call macros.
-* Special Forms::           "Special forms" are idiosyncratic primitives,
-                              most of them extremely important.
-* Autoloading::             Functions set up to load files
-                              containing their real definitions.
-
- 
-
-File: elisp,  Node: Self-Evaluating Forms,  Next: Symbol Forms,  Prev: Forms,  Up: Forms
-
-Self-Evaluating Forms
----------------------
-
-   A "self-evaluating form" is any form that is not a list or symbol.
-Self-evaluating forms evaluate to themselves: the result of
-evaluation is the same object that was evaluated.  Thus, the number
-25 evaluates to 25, and the string `"foo"' evaluates to the string
-`"foo"'.  Likewise, evaluation of a vector does not cause evaluation
-of the elements of the vector--it returns the same vector with its
-contents unchanged.
-
-     '123               ; An object, shown without evaluation.
-          => 123
-     123                ; Evaluated as usual---result is the same.
-          => 123
-     (eval '123)        ; Evaluated ``by hand''---result is the same.
-          => 123
-     (eval (eval '123)) ; Evaluating twice changes nothing.
-          => 123
-
-   It is common to write numbers, characters, strings, and even
-vectors in Lisp code, taking advantage of the fact that they
-self-evaluate.  However, it is quite unusual to do this for types
-that lack a read syntax, because it is inconvenient and not very
-useful; however, it is possible to put them inside Lisp programs when
-they are constructed from subexpressions rather than read.  Here is
-an example:
-
-     ;; Build such an expression.
-     (setq buffer (list 'print (current-buffer)))
-          => (print #<buffer eval.texi>)
-     ;; Evaluate it.
-     (eval buffer)
-          -| #<buffer eval.texi>
-          => #<buffer eval.texi>
-
+* Setcar::          Replacing an element in a list.
+* Setcdr::          Replacing part of the list backbone.
+                      This can be used to remove or add elements.
+* Rearrangement::   Reordering the elements in a list; combining lists.
 
 
-File: elisp,  Node: Symbol Forms,  Next: Classifying Lists,  Prev: Self-Evaluating Forms,  Up: Forms
+File: lispref.info,  Node: Setcar,  Next: Setcdr,  Prev: Modifying Lists,  Up: Modifying Lists
 
-Symbol Forms
-------------
+Altering List Elements with `setcar'
+------------------------------------
 
-   When a symbol is evaluated, it is treated as a variable.  The
-result is the variable's value, if it has one.  If it has none (if
-its value cell is void), an error is signaled.  For more information
-on the use of variables, see *Note Variables::.
+   Changing the CAR of a cons cell is done with `setcar' and replaces
+one element of a list with a different element.
 
-   In the following example, the value of a symbol is set with
-`setq'.  When the symbol is later evaluated, that value is returned.
+ - Function: setcar CONS OBJECT
+     This function stores OBJECT as the new CAR of CONS, replacing its
+     previous CAR.  It returns the value OBJECT.  For example:
 
-     (setq a 123)
-          => 123
-     (eval 'a)
-          => 123
-     a
-          => 123
+          (setq x '(1 2))
+               => (1 2)
+          (setcar x '4)
+               => 4
+          x
+               => (4 2)
 
-   The symbols `nil' and `t' are treated specially, so that the value
-of `nil' is always `nil', and the value of `t' is always `t'.  Thus,
-these two symbols act like self-evaluating forms, even though `eval'
-treats them like any other symbol.
+   When a cons cell is part of the shared structure of several lists,
+storing a new CAR into the cons changes one element of each of these
+lists.  Here is an example:
 
+     ;; Create two lists that are partly shared.
+     (setq x1 '(a b c))
+          => (a b c)
+     (setq x2 (cons 'z (cdr x1)))
+          => (z b c)
+     
+     ;; Replace the CAR of a shared link.
+     (setcar (cdr x1) 'foo)
+          => foo
+     x1                           ; Both lists are changed.
+          => (a foo c)
+     x2
+          => (z foo c)
+     
+     ;; Replace the CAR of a link that is not shared.
+     (setcar x1 'baz)
+          => baz
+     x1                           ; Only one list is changed.
+          => (baz foo c)
+     x2
+          => (z foo c)
 
-
-File: elisp,  Node: Classifying Lists,  Next: Function Forms,  Prev: Symbol Forms,  Up: Forms
+   Here is a graphical depiction of the shared structure of the two
+lists X1 and X2, showing why replacing `b' changes them both:
 
-Classification of List Forms
-----------------------------
+             ___ ___        ___ ___      ___ ___
+     x1---> |___|___|----> |___|___|--> |___|___|--> nil
+              |        -->   |            |
+              |       |      |            |
+               --> a  |       --> b        --> c
+                      |
+            ___ ___   |
+     x2--> |___|___|--
+             |
+             |
+              --> z
 
-   A form that is a nonempty list is either a function call, a macro
-call, or a special form, according to its first element.  These three
-kinds of forms are evaluated in different ways, described below.  The
-rest of the list consists of "arguments" for the function, macro or
-special form.
+   Here is an alternative form of box diagram, showing the same
+relationship:
 
-   The first step in evaluating a nonempty list is to examine its
-first element.  This element alone determines what kind of form the
-list is and how the rest of the list is to be processed.  The first
-element is *not* evaluated, as it would be in some Lisp dialects
-including Scheme.
-
-   If the first element of the list is a symbol, as it most commonly
-is, then the symbol's function cell is examined, and its contents are
-used instead of the original symbol.  If the contents are another
-symbol, this process, called "symbol function indirection", is
-repeated until a non-symbol is obtained.
-
-   One possible consequence of this process is an infinite loop, in
-the event that a symbol's function cell refers to the same symbol. 
-Or a symbol may have a void function cell, causing a `void-function'
-error.  But if neither of these things happens, we eventually obtain
-a non-symbol, which ought to be a function or other suitable object.
-
-   More precisely, we should now have a Lisp function (a lambda
-expression), a primitive function, a Lisp macro, a special form, or
-an autoload object.  Each of these types is a case described in one
-of the following sections.  If the object is not one of these types,
-the error `invalid-function' is signaled.
-
-   The following example illustrates the symbol indirection process. 
-We use `fset' to set the function cell of a symbol and
-`symbol-function' to get the function cell contents (*note Function
-Cells::.).  Specifically, we store the symbol `car' into the function
-cell of `first', and the symbol `first' into the function cell of
-`erste'.
-
-        ;; Build this function cell linkage:
-     ;;    -------------       -----        -------        -------
-     ;;   | #<subr car> | <-- | car |  <-- | first |  <-- | erste |
-     ;;    -------------       -----        -------        -------
-
-
-          (symbol-function 'car)
-          => #<subr car>
-     (fset 'first 'car)
-          => car
-     (fset 'erste 'first)
-          => first
-
-        (erste '(1 2 3))           ; Call the function referenced by `erste'.
-          => 1
-
-   By contrast, the following example calls a function without any
-symbol function indirection, because the first element is an
-anonymous Lisp function, not a symbol.
-
-     ((lambda (arg) (erste arg))
-      '(1 2 3)) 
-          => 1
-
-After that function is called, its body is evaluated; this does
-involve symbol function indirection when calling `erste'.
-
+     x1:
+      --------------       --------------       --------------
+     | car   | cdr  |     | car   | cdr  |     | car   | cdr  |
+     |   a   |   o------->|   b   |   o------->|   c   |  nil |
+     |       |      |  -->|       |      |     |       |      |
+      --------------  |    --------------       --------------
+                      |
+     x2:              |
+      --------------  |
+     | car   | cdr  | |
+     |   z   |   o----
+     |       |      |
+      --------------
 
 
-File: elisp,  Node: Function Forms,  Next: Macro Forms,  Prev: Classifying Lists,  Up: Forms
+File: lispref.info,  Node: Setcdr,  Next: Rearrangement,  Prev: Setcar,  Up: Modifying Lists
 
-Evaluation of Function Forms
-----------------------------
+Altering the CDR of a List
+--------------------------
 
-   If the first element of a list being evaluated is a Lisp function
-object or primitive function object, then that list is a "function
-call".  For example, here is a call to the function `+':
+   The lowest-level primitive for modifying a CDR is `setcdr':
 
-     (+ 1 x)
+ - Function: setcdr CONS OBJECT
+     This function stores OBJECT into the cdr of CONS.  The value
+     returned is OBJECT, not CONS.
 
-   When a function call is evaluated, the first step is to evaluate
-the remaining elements of the list in the order they appear.  The
-results are the actual argument values, one argument from each
-element.  Then the function is called with this list of arguments,
-effectively using the function `apply' (*note Calling Functions::.). 
-If the function is written in Lisp, the arguments are used to bind
-the argument variables of the function (*note Lambda Expressions::.);
-then the forms in the function body are evaluated in order, and the
-result of the last one is used as the value of the function call.
+   Here is an example of replacing the CDR of a list with a different
+list.  All but the first element of the list are removed in favor of a
+different sequence of elements.  The first element is unchanged,
+because it resides in the CAR of the list, and is not reached via the
+CDR.
 
+     (setq x '(1 2 3))
+          => (1 2 3)
+     (setcdr x '(4))
+          => (4)
+     x
+          => (1 4)
 
-
-File: elisp,  Node: Macro Forms,  Next: Special Forms,  Prev: Function Forms,  Up: Forms
+   You can delete elements from the middle of a list by altering the
+CDRs of the cons cells in the list.  For example, here we delete the
+second element, `b', from the list `(a b c)', by changing the CDR of
+the first cell:
 
-Lisp Macro Evaluation
----------------------
+     (setq x1 '(a b c))
+          => (a b c)
+     (setcdr x1 (cdr (cdr x1)))
+          => (c)
+     x1
+          => (a c)
 
-   If the first element of a list being evaluated is a macro object,
-then the list is a "macro call".  When a macro call is evaluated, the
-elements of the rest of the list are *not* initially evaluated. 
-Instead, these elements themselves are used as the arguments of the
-macro.  The macro definition computes a replacement form, called the
-"expansion" of the macro, which is evaluated in place of the original
-form.  The expansion may be any sort of form: a self-evaluating
-constant, a symbol or a list.  If the expansion is itself a macro
-call, this process of expansion repeats until some other sort of form
-results.
+   Here is the result in box notation:
 
-   Normally, the argument expressions are not evaluated as part of
-computing the macro expansion, but instead appear as part of the
-expansion, so they are evaluated when the expansion is evaluated.
+                        --------------------
+                       |                    |
+      --------------   |   --------------   |    --------------
+     | car   | cdr  |  |  | car   | cdr  |   -->| car   | cdr  |
+     |   a   |   o-----   |   b   |   o-------->|   c   |  nil |
+     |       |      |     |       |      |      |       |      |
+      --------------       --------------        --------------
 
-   For example, given a macro defined as follows:
+The second cons cell, which previously held the element `b', still
+exists and its CAR is still `b', but it no longer forms part of this
+list.
 
-     (defmacro cadr (x)
-       (list 'car (list 'cdr x)))
+   It is equally easy to insert a new element by changing CDRs:
 
-an expression such as `(cadr (assq 'handler list))' is a macro call,
-and its expansion is:
+     (setq x1 '(a b c))
+          => (a b c)
+     (setcdr x1 (cons 'd (cdr x1)))
+          => (d b c)
+     x1
+          => (a d b c)
 
-     (car (cdr (assq 'handler list)))
+   Here is this result in box notation:
 
-Note that the argument `(assq 'handler list)' appears in the expansion.
-
-   *Note Macros::, for a complete description of Emacs Lisp macros.
-
-
-
-File: elisp,  Node: Special Forms,  Next: Autoloading,  Prev: Macro Forms,  Up: Forms
-
-Special Forms
--------------
-
-   A "special form" is a primitive function specially marked so that
-its arguments are not all evaluated.  Special forms define control
-structures or perform variable bindings--things which functions
-cannot do.
-
-   Each special form has its own rules for which arguments are
-evaluated and which are used without evaluation.  Whether a
-particular argument is evaluated may depend on the results of
-evaluating other arguments.
-
-   Here is a list, in alphabetical order, of all of the special forms
-in Emacs Lisp with a reference to where each is described.
-
-`and'
-     *note Combining Conditions::.
-
-`catch'
-     *note Catch and Throw::.
-
-`cond'
-     *note Conditionals::.
-
-`condition-case'
-     *note Errors::.
-
-`defconst'
-     *note Defining Variables::.
-
-`defmacro'
-     *note Defining Macros::.
-
-`defun'
-     *note Defining Functions::.
-
-`defvar'
-     *note Defining Variables::.
-
-`function'
-     *note Anonymous Functions::.
-
-`if'
-     *note Conditionals::.
-
-`interactive'
-     *note Interactive Call::.
-
-`let'
-     *note Local Variables::.
-
-`let*'
-     *note Local Variables::.
-
-`or'
-     *note Combining Conditions::.
-
-`prog1'
-     *note Sequencing::.
-
-`prog2'
-     *note Sequencing::.
-
-`progn'
-     *note Sequencing::.
-
-`quote'
-     *note Quoting::.
-
-`save-excursion'
-     *note Excursions::.
-
-`save-restriction'
-     *note Narrowing::.
-
-`save-window-excursion'
-     *note Window Configurations::.
-
-`setq'
-     *note Setting Variables::.
-
-`setq-default'
-     *note Creating Buffer-Local::.
-
-`unwind-protect'
-     *note Nonlocal Exits::.
-
-`while'
-     *note Iteration::.
-
-`with-output-to-temp-buffer'
-     *note Temporary Displays::.
-
-     Common Lisp note: here are some comparisons of special forms in
-     GNU Emacs Lisp and Common Lisp.  `setq', `if', and `catch' are
-     special forms in both Emacs Lisp and Common Lisp.  `defun' is a
-     special form in Emacs Lisp, but a macro in Common Lisp. 
-     `save-excursion' is a special form in Emacs Lisp, but doesn't
-     exist in Common Lisp.  `throw' is a special form in Common Lisp
-     (because it must be able to throw multiple values), but it is a
-     function in Emacs Lisp (which doesn't have multiple values).
-
+     --------------        -------------       -------------
+     | car  | cdr   |      | car  | cdr  |     | car  | cdr  |
+     |   a  |   o   |   -->|   b  |   o------->|   c  |  nil |
+     |      |   |   |  |   |      |      |     |      |      |
+      --------- | --   |    -------------       -------------
+                |      |
+          -----         --------
+         |                      |
+         |    ---------------   |
+         |   | car   | cdr   |  |
+          -->|   d   |   o------
+             |       |       |
+              ---------------
 
 
-File: elisp,  Node: Autoloading,  Prev: Special Forms,  Up: Forms
+File: lispref.info,  Node: Rearrangement,  Prev: Setcdr,  Up: Modifying Lists
 
-Autoloading
------------
+Functions that Rearrange Lists
+------------------------------
 
-   The "autoload" feature allows you to call a function or macro
-whose function definition has not yet been loaded into Emacs.  When
-an autoload object appears as a symbol's function definition and that
-symbol is used as a function, Emacs will automatically install the
-real definition (plus other associated code) and then call that
-definition.  (*Note Autoload::.)
+   Here are some functions that rearrange lists "destructively" by
+modifying the CDRs of their component cons cells.  We call these
+functions "destructive" because the original lists passed as arguments
+to them are chewed up to produce a new list that is subsequently
+returned.
 
+ - Function: nconc &rest LISTS
+     This function returns a list containing all the elements of LISTS.
+     Unlike `append' (*note Building Lists::.), the LISTS are *not*
+     copied.  Instead, the last CDR of each of the LISTS is changed to
+     refer to the following list.  The last of the LISTS is not
+     altered.  For example:
 
-
-File: elisp,  Node: Quoting,  Prev: Forms,  Up: Evaluation
+          (setq x '(1 2 3))
+               => (1 2 3)
+          (nconc x '(4 5))
+               => (1 2 3 4 5)
+          x
+               => (1 2 3 4 5)
 
-Quoting
-=======
+     Since the last argument of `nconc' is not itself modified, it is
+     reasonable to use a constant list, such as `'(4 5)', as is done in
+     the above example.  For the same reason, the last argument need
+     not be a list:
 
-   The special form `quote' returns its single argument "unchanged".
+          (setq x '(1 2 3))
+               => (1 2 3)
+          (nconc x 'z)
+               => (1 2 3 . z)
+          x
+               => (1 2 3 . z)
 
- * Special Form: quote OBJECT
-     This special form returns OBJECT, without evaluating it.  This
-     allows symbols and lists, which would normally be evaluated, to
-     be included literally in a program.  (It is not necessary to
-     quote numbers, strings, and vectors since they are
-     self-evaluating.)  Use `function' instead of `quote' when
-     quoting lambda expressions (*note Anonymous Functions::.).
+     A common pitfall is to use a quoted constant list as a non-last
+     argument to `nconc'.  If you do this, your program will change
+     each time you run it!  Here is what happens:
 
-     Because `quote' is used so often in programs, a convenient read
-     syntax is defined for it.  An apostrophe character (`'')
-     followed by a Lisp object (in read syntax) expands to a list
-     whose first element is `quote', and whose second element is the
-     object.  Thus, the read syntax `'x' is an abbreviation for
-     `(quote x)'.
+          (defun add-foo (x)            ; This function should add
+            (nconc '(foo) x))           ;   `foo' to the front of its arg.
 
-     Here are some examples of expressions that use `quote':
+          (symbol-function 'add-foo)
+               => (lambda (x) (nconc (quote (foo)) x))
 
-          (quote (+ 1 2))
-               => (+ 1 2)
-          (quote foo)
-               => foo
-          'foo
-               => foo
-          ''foo
-               => (quote foo)
-          '(quote foo)
-               => (quote foo)
-          ['foo]
-               => [(quote foo)]
+          (setq xx (add-foo '(1 2)))    ; It seems to work.
+               => (foo 1 2)
 
+          (setq xy (add-foo '(3 4)))    ; What happened?
+               => (foo 1 2 3 4)
 
-
-File: elisp,  Node: Control Structures,  Next: Variables,  Prev: Evaluation,  Up: Top
+          (eq xx xy)
+               => t
 
-Control Structures
-******************
+          (symbol-function 'add-foo)
+               => (lambda (x) (nconc (quote (foo 1 2 3 4) x)))
 
-   A Lisp program consists of expressions or "forms" (*note Forms::.).
-We control the order of execution of the forms by enclosing them in
-"control structures".  Control structures are special forms which
-control when, whether, or how many times to execute the forms they
-contain.
+ - Function: nreverse LIST
+     This function reverses the order of the elements of LIST.  Unlike
+     `reverse', `nreverse' alters its argument destructively by
+     reversing the CDRs in the cons cells forming the list.  The cons
+     cell which used to be the last one in LIST becomes the first cell
+     of the value.
 
-   The simplest control structure is sequential execution: first form
-A, then form B, and so on.  This is what happens when you write
-several forms in succession in the body of a function, or at top
-level in a file of Lisp code--the forms are executed in the order
-they are written.  We call this "textual order".  For example, if a
-function body consists of two forms A and B, evaluation of the
-function evaluates first A and then B, and the function's value is
-the value of B.
+     For example:
 
-   Naturally, Emacs Lisp has many kinds of control structures,
-including other varieties of sequencing, function calls,
-conditionals, iteration, and (controlled) jumps.  The built-in
-control structures are special forms since their subforms are not
-necessarily evaluated.  You can use macros to define your own control
-structure constructs (*note Macros::.).
+          (setq x '(1 2 3 4))
+               => (1 2 3 4)
+          x
+               => (1 2 3 4)
+          (nreverse x)
+               => (4 3 2 1)
+          ;; The cell that was first is now last.
+          x
+               => (1)
 
-* Menu:
+     To avoid confusion, we usually store the result of `nreverse' back
+     in the same variable which held the original list:
 
-* Sequencing::             Evaluation in textual order.
-* Conditionals::           `if', `cond'.
-* Combining Conditions::   `and', `or', `not'.
-* Iteration::              `while' loops.
-* Nonlocal Exits::         Jumping out of a sequence.
+          (setq x (nreverse x))
 
- 
-
-File: elisp,  Node: Sequencing,  Next: Conditionals,  Prev: Control Structures,  Up: Control Structures
+     Here is the `nreverse' of our favorite example, `(a b c)',
+     presented graphically:
 
-Sequencing
-==========
+          Original list head:                       Reversed list:
+           -------------        -------------        ------------
+          | car  | cdr  |      | car  | cdr  |      | car | cdr  |
+          |   a  |  nil |<--   |   b  |   o  |<--   |   c |   o  |
+          |      |      |   |  |      |   |  |   |  |     |   |  |
+           -------------    |   --------- | -    |   -------- | -
+                            |             |      |            |
+                             -------------        ------------
 
-   Evaluating forms in the order they are written is the most common
-control structure.  Sometimes this happens automatically, such as in
-a function body.  Elsewhere you must use a control structure
-construct to do this: `progn', the simplest control construct of Lisp.
+ - Function: sort LIST PREDICATE
+     This function sorts LIST stably, though destructively, and returns
+     the sorted list.  It compares elements using PREDICATE.  A stable
+     sort is one in which elements with equal sort keys maintain their
+     relative order before and after the sort.  Stability is important
+     when successive sorts are used to order elements according to
+     different criteria.
 
-   A `progn' special form looks like this:
+     The argument PREDICATE must be a function that accepts two
+     arguments.  It is called with two elements of LIST.  To get an
+     increasing order sort, the PREDICATE should return `t' if the
+     first element is "less than" the second, or `nil' if not.
 
-     (progn A B C ...)
+     The destructive aspect of `sort' is that it rearranges the cons
+     cells forming LIST by changing CDRs.  A nondestructive sort
+     function would create new cons cells to store the elements in their
+     sorted order.  If you wish to sort a list without destroying the
+     original, copy it first with `copy-sequence'.
 
-and it says to execute the forms A, B, C and so on, in that order. 
-These forms are called the body of the `progn' form.  The value of
-the last form in the body becomes the value of the entire `progn'.
+     The CARs of the cons cells are not changed; the cons cell that
+     originally contained the element `a' in LIST still has `a' in its
+     CAR after sorting, but it now appears in a different position in
+     the list due to the change of CDRs.  For example:
 
-   When Lisp was young, `progn' was the only way to execute two or
-more forms in succession and use the value of the last of them.  But
-programmers found they often needed to use a `progn' in the body of a
-function, where (at that time) only one form was allowed.  So the
-body of a function was made into an "implicit `progn'": several forms
-are allowed just as in the body of an actual `progn'.  Many other
-control structures likewise contain an implicit `progn'.  As a
-result, `progn' is not used as often as it used to be.  It is needed
-now most often inside of an `unwind-protect', `and', or `or'.
+          (setq nums '(1 3 2 6 5 4 0))
+               => (1 3 2 6 5 4 0)
+          (sort nums '<)
+               => (0 1 2 3 4 5 6)
+          nums
+               => (1 2 3 4 5 6)
 
- * Special Form: progn FORMS...
-     This special form evaluates all of the FORMS, in textual order,
-     returning the result of the final form.
+     Note that the list in `nums' no longer contains 0; this is the same
+     cons cell that it was before, but it is no longer the first one in
+     the list.  Don't assume a variable that formerly held the argument
+     now holds the entire sorted list!  Instead, save the result of
+     `sort' and use that.  Most often we store the result back into the
+     variable that held the original list:
 
-          (progn (print "The first form")
-                 (print "The second form")
-                 (print "The third form"))
-               -| "The first form"
-               -| "The second form"
-               -| "The third form"
-          => "The third form"
+          (setq nums (sort nums '<))
 
-   Two other control constructs likewise evaluate a series of forms
-but return a different value:
+     *Note Sorting::, for more functions that perform sorting.  See
+     `documentation' in *Note Accessing Documentation::, for a useful
+     example of `sort'.
 
- * Special Form: prog1 FORM1 FORMS...
-     This special form evaluates FORM1 and all of the FORMS, in
-     textual order, returning the result of FORM1.
-
-          (prog1 (print "The first form")
-                 (print "The second form")
-                 (print "The third form"))
-               -| "The first form"
-               -| "The second form"
-               -| "The third form"
-          => "The first form"
-
-     Here is a way to remove the first element from a list in the
-     variable `x', then return the value of that former element:
-
-          (prog1 (car x) (setq x (cdr x)))
-
- * Special Form: prog2 FORM1 FORM2 FORMS...
-     This special form evaluates FORM1, FORM2, and all of the
-     following FORMS, in textual order, returning the result of FORM2.
-
-          (prog2 (print "The first form")
-                 (print "The second form")
-                 (print "The third form"))
-               -| "The first form"
-               -| "The second form"
-               -| "The third form"
-          => "The second form"
-
+   See `delq', in *Note Sets And Lists::, for another function that
+modifies cons cells.
 
 
-File: elisp,  Node: Conditionals,  Next: Combining Conditions,  Prev: Sequencing,  Up: Control Structures
+File: lispref.info,  Node: Sets And Lists,  Next: Association Lists,  Prev: Modifying Lists,  Up: Lists
 
-Conditionals
-============
+Using Lists as Sets
+===================
 
-   Conditional control structures choose among alternatives.  Emacs
-Lisp has two conditional forms: `if', which is much the same as in
-other languages, and `cond', which is a generalized case statement.
+   A list can represent an unordered mathematical set--simply consider a
+value an element of a set if it appears in the list, and ignore the
+order of the list.  To form the union of two sets, use `append' (as
+long as you don't mind having duplicate elements).  Other useful
+functions for sets include `memq' and `delq', and their `equal'
+versions, `member' and `delete'.
 
- * Special Form: if CONDITION THEN-FORM ELSE-FORMS...
-     `if' chooses between the THEN-FORM and the ELSE-FORMS based on
-     the value of CONDITION.  If the evaluated CONDITION is
-     non-`nil', THEN-FORM is evaluated and the result returned. 
-     Otherwise, the ELSE-FORMS are evaluated in textual order, and
-     the value of the last one is returned.  (The ELSE part of `if'
-     is an example of an implicit `progn'.  *Note Sequencing::.)
+     Common Lisp note: Common Lisp has functions `union' (which avoids
+     duplicate elements) and `intersection' for set operations, but GNU
+     Emacs Lisp does not have them.  You can write them in Lisp if you
+     wish.
 
-     If CONDITION has the value `nil', and no ELSE-FORMS are given,
-     `if' returns `nil'.
+ - Function: memq OBJECT LIST
+     This function tests to see whether OBJECT is a member of LIST.  If
+     it is, `memq' returns a list starting with the first occurrence of
+     OBJECT.  Otherwise, it returns `nil'.  The letter `q' in `memq'
+     says that it uses `eq' to compare OBJECT against the elements of
+     the list.  For example:
 
-     `if' is a special form because the branch which is not selected
-     is never evaluated--it is ignored.  Thus, in the example below,
-     `true' is not printed because `print' is never called.
+          (memq 2 '(1 2 3 2 1))
+               => (2 3 2 1)
+          (memq '(2) '((1) (2)))    ; `(2)' and `(2)' are not `eq'.
+               => nil
 
-          (if nil 
-              (print 'true) 
-            'very-false)
-          => very-false
+ - Function: delq OBJECT LIST
+     This function removes all elements `eq' to OBJECT from LIST.  The
+     letter `q' in `delq' says that it uses `eq' to compare OBJECT
+     against the elements of the list, like `memq'.
 
- * Special Form: cond CLAUSE...
-     `cond' chooses among an arbitrary number of alternatives.  Each
-     CLAUSE in the `cond' must be a list.  The CAR of this list is
-     the CONDITION; the remaining elements, if any, the BODY-FORMS. 
-     Thus, a clause looks like this:
+   When `delq' deletes elements from the front of the list, it does so
+simply by advancing down the list and returning a sublist that starts
+after those elements:
 
-          (CONDITION BODY-FORMS...)
-
-     `cond' tries the clauses in textual order, by evaluating the
-     CONDITION of each clause.  If the value of CONDITION is
-     non-`nil', the BODY-FORMS are evaluated, and the value of the
-     last of BODY-FORMS becomes the value of the `cond'.  The
-     remaining clauses are ignored.
-
-     If the value of CONDITION is `nil', the clause "fails", so the
-     `cond' moves on to the following clause, trying its CONDITION.
-
-     If every CONDITION evaluates to `nil', so that every clause
-     fails, `cond' returns `nil'.
-
-     A clause may also look like this:
-
-          (CONDITION)
-
-     Then, if CONDITION is non-`nil' when tested, the value of
-     CONDITION becomes the value of the `cond' form.
-
-     The following example has four clauses, which test for the cases
-     where the value of `x' is a number, string, buffer and symbol,
-     respectively:
-
-          (cond ((numberp x) x)
-                 ((stringp x) x)
-                 ((bufferp x)
-                  (setq temporary-hack x) ; multiple body-forms
-                  (buffer-name x))        ; in one clause
-                 ((symbolp x) (symbol-value x)))
-
-     Often we want the last clause to be executed whenever none of
-     the previous clauses was successful.  To do this, we use `t' as
-     the CONDITION of the last clause, like this: `(t BODY-FORMS)'. 
-     The form `t' evaluates to `t', which is never `nil', so this
-     clause never fails, provided the `cond' gets to it at all.
-
-     For example,
-
-          (cond ((eq a 1) 'foo)
-                (t "default"))
-          => "default"
-
-     This expression is a `cond' which returns `foo' if the value of
-     `a' is 1, and returns the string `"default"' otherwise.
-
-   Both `cond' and `if' can usually be written in terms of the other.
-Therefore, the choice between them is a matter of taste and style. 
-For example:
-
-     (if A B C)
+     (delq 'a '(a b c))
      ==
-     (cond (A B) (t C))
+     (cdr '(a b c))
 
+   When an element to be deleted appears in the middle of the list,
+removing it involves changing the CDRs (*note Setcdr::.).
+
+     (setq sample-list '(1 2 3 (4)))
+          => (1 2 3 (4))
+     (delq 1 sample-list)
+          => (2 3 (4))
+     sample-list
+          => (1 2 3 (4))
+     (delq 2 sample-list)
+          => (1 3 (4))
+     sample-list
+          => (1 3 (4))
+
+   Note that `(delq 2 sample-list)' modifies `sample-list' to splice
+out the second element, but `(delq 1 sample-list)' does not splice
+anything--it just returns a shorter list.  Don't assume that a variable
+which formerly held the argument LIST now has fewer elements, or that
+it still holds the original list!  Instead, save the result of `delq'
+and use that.  Most often we store the result back into the variable
+that held the original list:
+
+     (setq flowers (delq 'rose flowers))
+
+   In the following example, the `(4)' that `delq' attempts to match
+and the `(4)' in the `sample-list' are not `eq':
+
+     (delq '(4) sample-list)
+          => (1 3 (4))
+
+   The following two functions are like `memq' and `delq' but use
+`equal' rather than `eq' to compare elements.  They are new in Emacs 19.
+
+ - Function: member OBJECT LIST
+     The function `member' tests to see whether OBJECT is a member of
+     LIST, comparing members with OBJECT using `equal'.  If OBJECT is a
+     member, `member' returns a list starting with its first occurrence
+     in LIST.  Otherwise, it returns `nil'.
+
+     Compare this with `memq':
+
+          (member '(2) '((1) (2)))  ; `(2)' and `(2)' are `equal'.
+               => ((2))
+          (memq '(2) '((1) (2)))    ; `(2)' and `(2)' are not `eq'.
+               => nil
+          ;; Two strings with the same contents are `equal'.
+          (member "foo" '("foo" "bar"))
+               => ("foo" "bar")
+
+ - Function: delete OBJECT LIST
+     This function removes all elements `equal' to OBJECT from LIST.
+     It is to `delq' as `member' is to `memq': it uses `equal' to
+     compare elements with OBJECT, like `member'; when it finds an
+     element that matches, it removes the element just as `delq' would.
+     For example:
+
+          (delete '(2) '((2) (1) (2)))
+               => '((1))
+
+     Common Lisp note: The functions `member' and `delete' in GNU Emacs
+     Lisp are derived from Maclisp, not Common Lisp.  The Common Lisp
+     versions do not use `equal' to compare elements.
+
+
+File: lispref.info,  Node: Association Lists,  Prev: Sets And Lists,  Up: Lists
+
+Association Lists
+=================
+
+   An "association list", or "alist" for short, records a mapping from
+keys to values.  It is a list of cons cells called "associations": the
+CAR of each cell is the "key", and the CDR is the "associated value".
+(This usage of "key" is not related to the term "key sequence"; it
+means any object which can be looked up in a table.)
+
+   Here is an example of an alist.  The key `pine' is associated with
+the value `cones'; the key `oak' is associated with `acorns'; and the
+key `maple' is associated with `seeds'.
+
+     '((pine . cones)
+       (oak . acorns)
+       (maple . seeds))
+
+   The associated values in an alist may be any Lisp objects; so may the
+keys.  For example, in the following alist, the symbol `a' is
+associated with the number `1', and the string `"b"' is associated with
+the *list* `(2 3)', which is the CDR of the alist element:
+
+     ((a . 1) ("b" 2 3))
+
+   Sometimes it is better to design an alist to store the associated
+value in the CAR of the CDR of the element.  Here is an example:
+
+     '((rose red) (lily white) (buttercup yellow)))
+
+Here we regard `red' as the value associated with `rose'.  One
+advantage of this method is that you can store other related
+information--even a list of other items--in the CDR of the CDR.  One
+disadvantage is that you cannot use `rassq' (see below) to find the
+element containing a given value.  When neither of these considerations
+is important, the choice is a matter of taste, as long as you are
+consistent about it for any given alist.
+
+   Note that the same alist shown above could be regarded as having the
+associated value in the CDR of the element; the value associated with
+`rose' would be the list `(red)'.
+
+   Association lists are often used to record information that you might
+otherwise keep on a stack, since new associations may be added easily to
+the front of the list.  When searching an association list for an
+association with a given key, the first one found is returned, if there
+is more than one.
+
+   In Emacs Lisp, it is *not* an error if an element of an association
+list is not a cons cell.  The alist search functions simply ignore such
+elements.  Many other versions of Lisp signal errors in such cases.
+
+   Note that property lists are similar to association lists in several
+respects.  A property list behaves like an association list in which
+each key can occur only once.  *Note Property Lists::, for a comparison
+of property lists and association lists.
+
+ - Function: assoc KEY ALIST
+     This function returns the first association for KEY in ALIST.  It
+     compares KEY against the alist elements using `equal' (*note
+     Equality Predicates::.).  It returns `nil' if no association in
+     ALIST has a CAR `equal' to KEY.  For example:
+
+          (setq trees '((pine . cones) (oak . acorns) (maple . seeds)))
+               => ((pine . cones) (oak . acorns) (maple . seeds))
+          (assoc 'oak trees)
+               => (oak . acorns)
+          (cdr (assoc 'oak trees))
+               => acorns
+          (assoc 'birch trees)
+               => nil
+
+     Here is another example in which the keys and values are not
+     symbols:
+
+          (setq needles-per-cluster
+                '((2 . ("Austrian Pine" "Red Pine"))
+                  (3 . "Pitch Pine")
+                  (5 . "White Pine")))
+          
+          (cdr (assoc 3 needles-per-cluster))
+               => "Pitch Pine"
+          (cdr (assoc 2 needles-per-cluster))
+               => ("Austrian Pine" "Red Pine")
+
+ - Function: assq KEY ALIST
+     This function is like `assoc' in that it returns the first
+     association for KEY in ALIST, but it makes the comparison using
+     `eq' instead of `equal'.  `assq' returns `nil' if no association
+     in ALIST has a CAR `eq' to KEY.  This function is used more often
+     than `assoc', since `eq' is faster than `equal' and most alists
+     use symbols as keys.  *Note Equality Predicates::.
+
+          (setq trees '((pine . cones) (oak . acorns) (maple . seeds)))
+          
+          (assq 'pine trees)
+               => (pine . cones)
+
+     On the other hand, `assq' is not usually useful in alists where the
+     keys may not be symbols:
+
+          (setq leaves
+                '(("simple leaves" . oak)
+                  ("compound leaves" . horsechestnut)))
+          
+          (assq "simple leaves" leaves)
+               => nil
+          (assoc "simple leaves" leaves)
+               => ("simple leaves" . oak)
+
+ - Function: rassq VALUE ALIST
+     This function returns the first association with value VALUE in
+     ALIST.  It returns `nil' if no association in ALIST has a CDR `eq'
+     to VALUE.
+
+     `rassq' is like `assq' except that the CDR of the ALIST
+     associations is tested instead of the CAR.  You can think of this
+     as "reverse `assq'", finding the key for a given value.
+
+     For example:
+
+          (setq trees '((pine . cones) (oak . acorns) (maple . seeds)))
+          
+          (rassq 'acorns trees)
+               => (oak . acorns)
+          (rassq 'spores trees)
+               => nil
+
+     Note that `rassq' cannot be used to search for a value stored in
+     the CAR of the CDR of an element:
+
+          (setq colors '((rose red) (lily white) (buttercup yellow)))
+          
+          (rassq 'white colors)
+               => nil
+
+     In this case, the CDR of the association `(lily white)' is not the
+     symbol `white', but rather the list `(white)'.  This can be seen
+     more clearly if the association is written in dotted pair notation:
+
+          (lily white) == (lily . (white))
+
+ - Function: copy-alist ALIST
+     This function returns a two-level deep copy of ALIST: it creates a
+     new copy of each association, so that you can alter the
+     associations of the new alist without changing the old one.
+
+          (setq needles-per-cluster
+                '((2 . ("Austrian Pine" "Red Pine"))
+                  (3 . "Pitch Pine")
+                  (5 . "White Pine")))
+          =>
+          ((2 "Austrian Pine" "Red Pine")
+           (3 . "Pitch Pine")
+           (5 . "White Pine"))
+          
+          (setq copy (copy-alist needles-per-cluster))
+          =>
+          ((2 "Austrian Pine" "Red Pine")
+           (3 . "Pitch Pine")
+           (5 . "White Pine"))
+          
+          (eq needles-per-cluster copy)
+               => nil
+          (equal needles-per-cluster copy)
+               => t
+          (eq (car needles-per-cluster) (car copy))
+               => nil
+          (cdr (car (cdr needles-per-cluster)))
+               => "Pitch Pine"
+          (eq (cdr (car (cdr needles-per-cluster)))
+              (cdr (car (cdr copy))))
+               => t
+
+
+File: lispref.info,  Node: Sequences Arrays Vectors,  Next: Symbols,  Prev: Lists,  Up: Top
+
+Sequences, Arrays, and Vectors
+******************************
+
+   Recall that the "sequence" type is the union of three other Lisp
+types: lists, vectors, and strings.  In other words, any list is a
+sequence, any vector is a sequence, and any string is a sequence.  The
+common property that all sequences have is that each is an ordered
+collection of elements.
+
+   An "array" is a single primitive object directly containing all its
+elements.  Therefore, all the elements are accessible in constant time.
+The length of an existing array cannot be changed.  Both strings and
+vectors are arrays.  A list is a sequence of elements, but it is not a
+single primitive object; it is made of cons cells, one cell per
+element.  Therefore, elements farther from the beginning of the list
+take longer to access, but it is possible to add elements to the list or
+remove elements.  The elements of vectors and lists may be any Lisp
+objects.  The elements of strings are all characters.
+
+   The following diagram shows the relationship between these types:
+
+                 ___________________________________
+                |                                   |
+                |          Sequence                 |
+                |  ______   ______________________  |
+                | |      | |                      | |
+                | | List | |         Array        | |
+                | |      | |  ________   _______  | |
+                | |______| | |        | |       | | |
+                |          | | String | | Vector| | |
+                |          | |________| |_______| | |
+                |          |______________________| |
+                |___________________________________|
+
+          The Relationship between Sequences, Arrays, and Vectors
+
+
+* Menu:
+
+* Sequence Functions::    Functions that accept any kind of sequence.
+* Arrays::                Characteristics of arrays in Emacs Lisp.
+* Array Functions::       Functions specifically for arrays.
+* Vectors::               Functions specifically for vectors.
+
+
+File: lispref.info,  Node: Sequence Functions,  Next: Arrays,  Prev: Sequences Arrays Vectors,  Up: Sequences Arrays Vectors
+
+Sequences
+=========
+
+   In Emacs Lisp, a "sequence" is either a list, a vector or a string.
+The common property that all sequences have is that each is an ordered
+collection of elements.  This section describes functions that accept
+any kind of sequence.
+
+ - Function: sequencep OBJECT
+     Returns `t' if OBJECT is a list, vector, or string, `nil'
+     otherwise.
+
+ - Function: copy-sequence SEQUENCE
+     Returns a copy of SEQUENCE.  The copy is the same type of object
+     as the original sequence, and it has the same elements in the same
+     order.
+
+     Storing a new element into the copy does not affect the original
+     SEQUENCE, and vice versa.  However, the elements of the new
+     sequence are not copies; they are identical (`eq') to the elements
+     of the original.  Therefore, changes made within these elements, as
+     found via the copied sequence, are also visible in the original
+     sequence.
+
+     If the sequence is a string with text properties, the property
+     list in the copy is itself a copy, not shared with the original's
+     property list.  However, the actual values of the properties are
+     shared.  *Note Text Properties::.
+
+     See also `append' in *Note Building Lists::, `concat' in *Note
+     Creating Strings::, and `vconcat' in *Note Vectors::, for others
+     ways to copy sequences.
+
+          (setq bar '(1 2))
+               => (1 2)
+          (setq x (vector 'foo bar))
+               => [foo (1 2)]
+          (setq y (copy-sequence x))
+               => [foo (1 2)]
+          
+          (eq x y)
+               => nil
+          (equal x y)
+               => t
+          (eq (elt x 1) (elt y 1))
+               => t
+          
+          ;; Replacing an element of one sequence.
+          (aset x 0 'quux)
+          x => [quux (1 2)]
+          y => [foo (1 2)]
+          
+          ;; Modifying the inside of a shared element.
+          (setcar (aref x 1) 69)
+          x => [quux (69 2)]
+          y => [foo (69 2)]
+
+ - Function: length SEQUENCE
+     Returns the number of elements in SEQUENCE.  If SEQUENCE is a cons
+     cell that is not a list (because the final CDR is not `nil'), a
+     `wrong-type-argument' error is signaled.
+
+          (length '(1 2 3))
+              => 3
+          (length ())
+              => 0
+          (length "foobar")
+              => 6
+          (length [1 2 3])
+              => 3
+
+ - Function: elt SEQUENCE INDEX
+     This function returns the element of SEQUENCE indexed by INDEX.
+     Legitimate values of INDEX are integers ranging from 0 up to one
+     less than the length of SEQUENCE.  If SEQUENCE is a list, then
+     out-of-range values of index return `nil'; otherwise, they produce
+     an `args-out-of-range' error.
+
+          (elt [1 2 3 4] 2)
+               => 3
+          (elt '(1 2 3 4) 2)
+               => 3
+          (char-to-string (elt "1234" 2))
+               => "3"
+          (elt [1 2 3 4] 4)
+               error-->Args out of range: [1 2 3 4], 4
+          (elt [1 2 3 4] -1)
+               error-->Args out of range: [1 2 3 4], -1
+
+     This function duplicates `aref' (*note Array Functions::.) and
+     `nth' (*note List Elements::.), except that it works for any kind
+     of sequence.
+
+
+File: lispref.info,  Node: Arrays,  Next: Array Functions,  Prev: Sequence Functions,  Up: Sequences Arrays Vectors
+
+Arrays
+======
+
+   An "array" object refers directly to a number of other Lisp objects,
+called the elements of the array.  Any element of an array may be
+accessed in constant time.  In contrast, an element of a list requires
+access time that is proportional to the position of the element in the
+list.
+
+   When you create an array, you must specify how many elements it has.
+The amount of space allocated depends on the number of elements.
+Therefore, it is impossible to change the size of an array once it is
+created.  You cannot add or remove elements.  However, you can replace
+an element with a different value.
+
+   Emacs defines two types of array, both of which are one-dimensional:
+"strings" and "vectors".  A vector is a general array; its elements can
+be any Lisp objects.  A string is a specialized array; its elements
+must be characters (i.e., integers between 0 and 255).  Each type of
+array has its own read syntax.  *Note String Type::, and *Note Vector
+Type::.
+
+   Both kinds of arrays share these characteristics:
+
+   * The first element of an array has index zero, the second element
+     has index 1, and so on.  This is called "zero-origin" indexing.
+     For example, an array of four elements has indices 0, 1, 2, and 3.
+
+   * The elements of an array may be referenced or changed with the
+     functions `aref' and `aset', respectively (*note Array
+     Functions::.).
+
+   In principle, if you wish to have an array of characters, you could
+use either a string or a vector.  In practice, we always choose strings
+for such applications, for four reasons:
+
+   * They occupy one-fourth the space of a vector of the same elements.
+
+   * Strings are printed in a way that shows the contents more clearly
+     as characters.
+
+   * Strings can hold text properties.  *Note Text Properties::.
+
+   * Many of the specialized editing and I/O facilities of Emacs accept
+     only strings.  For example, you cannot insert a vector of
+     characters into a buffer the way you can insert a string.  *Note
+     Strings and Characters::.
 

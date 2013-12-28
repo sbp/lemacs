@@ -1,5 +1,5 @@
 ;;; Saving and piping messages under VM
-;;; Copyright (C) 1989, 1990 Kyle E. Jones
+;;; Copyright (C) 1989, 1990, 1993, 1994 Kyle E. Jones
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
     list ))
 
 (defun vm-auto-select-folder (mp auto-folder-alist)
-  (condition-case ()
+  (condition-case error-data
       (catch 'match
 	(let (header alist tuple-list)
 	  (setq alist auto-folder-alist)
@@ -70,13 +70,15 @@
 			     (function (lambda (n) (and n (1+ n))))
 			     match-data)))
 			  (setq result (eval (cdr (car tuple-list))))
-			  (throw 'match (if (listp result)
-					    (vm-auto-select-folder mp result)
-					  result ))))))
+			  (while (consp result)
+			    (setq result (vm-auto-select-folder mp result)))
+			  (if result
+			      (throw 'match result))))))
 		(setq tuple-list (cdr tuple-list))))
 	    (setq alist (cdr alist)))
 	  nil ))
-    (error nil)))
+    (error (error "error processing vm-auto-folder-alist: %s"
+		  (prin1-to-string error-data)))))
 
 (defun vm-auto-archive-messages (&optional arg)
   "Save all unfiled messages that auto-match a folder via
@@ -93,37 +95,52 @@ The saved messages are flagged as `filed'."
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
   (vm-error-if-folder-empty)
+  (message "Archiving...")
   (let ((auto-folder)
 	(archived 0))
-    ;; Need separate (let ...) so vm-message-pointer can revert back
-    ;; in time for (vm-update-summary-and-mode-line).
-    ;; vm-last-save-folder is tucked away here since archives shouldn't affect
-    ;; its value.
-    (let ((vm-message-pointer
-	      (if (eq last-command 'vm-next-command-uses-marks)
-		  (vm-select-marked-or-prefixed-messages 0)
-	        vm-message-list))
-	  (vm-last-save-folder vm-last-save-folder)
-	  (vm-move-after-deleting nil))
-      (while vm-message-pointer
-	(and (not (vm-filed-flag (car vm-message-pointer)))
-	     ;; don't archive deleted messages
-	     (not (vm-deleted-flag (car vm-message-pointer)))
-	     (setq auto-folder (vm-auto-select-folder vm-message-pointer
-						      vm-auto-folder-alist))
-	     (or (null arg)
-		 (y-or-n-p
-		  (format "Save message %s in folder %s? "
-			  (vm-number-of (car vm-message-pointer))
-			  auto-folder)))
-	     (progn (vm-save-message auto-folder)
-		    (and vm-delete-after-archiving (vm-delete-message 1))
-		    (vm-increment archived)))
-	(setq vm-message-pointer (cdr vm-message-pointer))))
+    (unwind-protect
+	;; Need separate (let ...) so vm-message-pointer can
+	;; revert back in time for
+	;; (vm-update-summary-and-mode-line).
+	;; vm-last-save-folder is tucked away here since archives
+	;; shouldn't affect its value.
+	(let ((vm-message-pointer
+	       (if (eq last-command 'vm-next-command-uses-marks)
+		   (vm-select-marked-or-prefixed-messages 0)
+		 vm-message-list))
+	      (done nil)
+	      stop-point
+	      (vm-last-save-folder vm-last-save-folder)
+	      (vm-move-after-deleting nil))
+	  ;; mark the place where we should stop.  otherwise if any
+	  ;; messages in this folder are archived to this folder
+	  ;; we would file messages into this folder forever.
+	  (setq stop-point (vm-last vm-message-pointer))
+	  (while (not done)
+	    (and (not (vm-filed-flag (car vm-message-pointer)))
+		 ;; don't archive deleted messages
+		 (not (vm-deleted-flag (car vm-message-pointer)))
+		 (setq auto-folder (vm-auto-select-folder
+				    vm-message-pointer
+				    vm-auto-folder-alist))
+		 (or (null arg)
+		     (y-or-n-p
+		      (format "Save message %s in folder %s? "
+			      (vm-number-of (car vm-message-pointer))
+			      auto-folder)))
+		 (progn (vm-save-message auto-folder)
+			(and vm-delete-after-archiving (vm-delete-message 1))
+			(vm-increment archived)
+			(message "%d archived, still working..." archived)))
+	    (setq done (eq vm-message-pointer stop-point)
+		  vm-message-pointer (cdr vm-message-pointer))))
+      ;; fix mode line
+      (intern (buffer-name) vm-buffers-needing-display-update)
+      (vm-update-summary-and-mode-line))
     (if (zerop archived)
 	(message "No messages archived")
-      (message "%d message%s archived" archived (if (= 1 archived) "" "s"))
-      (vm-update-summary-and-mode-line))))
+      (message "%d message%s archived"
+	       archived (if (= 1 archived) "" "s")))))
 
 (defun vm-save-message (folder &optional count)
   "Save the current message to a mail folder.
@@ -141,7 +158,8 @@ The saved messages are flagged as `filed'."
   (interactive
    (list
     ;; protect value of last-command
-    (let ((last-command last-command))
+    (let ((last-command last-command)
+	  (this-command this-command))
       (vm-follow-summary-cursor)
       (let ((default (save-excursion
 		       (vm-select-folder-buffer)
@@ -150,8 +168,13 @@ The saved messages are flagged as `filed'."
 						  vm-auto-folder-alist)
 			   vm-last-save-folder)))
 	    (dir (or vm-folder-directory default-directory)))
-	(cond ((and default (file-directory-p default))
-	       (read-file-name "Save in folder: " dir nil nil default))
+	(cond ((and default
+		    (let ((default-directory dir))
+		      (file-directory-p default)))
+	       (condition-case nil
+		   (read-file-name "Save in folder: " dir nil nil default)
+		 (wrong-number-of-arguments
+		  (read-file-name "Save in folder: " default))))
 	      (default
 	       (read-file-name
 		(format "Save in folder: (default %s) " default)
@@ -164,6 +187,7 @@ The saved messages are flagged as `filed'."
     (vm-select-folder-buffer)
     (vm-check-for-killed-summary)
     (vm-error-if-folder-empty)
+    (vm-display nil nil '(vm-save-message) '(vm-save-message))
     (or count (setq count 1))
     ;; Expand the filename, forcing relative paths to resolve
     ;; into the folder directory.
@@ -173,36 +197,51 @@ The saved messages are flagged as `filed'."
     ;; Confirm new folders, if the user requested this.
     (if (and vm-confirm-new-folders (interactive-p)
 	     (not (file-exists-p folder))
-	     (or (not vm-visit-when-saving) (not (get-file-buffer folder)))
+	     (or (not vm-visit-when-saving) (not (vm-get-file-buffer folder)))
 	     (not (y-or-n-p (format "%s does not exist, save there anyway? "
 				    folder))))
 	(error "Save aborted"))
     ;; Check and see if we are currently visiting the folder
     ;; that the user wants to save to.
-    (if (and (not vm-visit-when-saving) (get-file-buffer folder))
+    (if (and (not vm-visit-when-saving) (vm-get-file-buffer folder))
 	(error "Folder %s is being visited, cannot save." folder))
     (let ((mlist (vm-select-marked-or-prefixed-messages count))
-	  m folder-buffer target-type)
-      (cond ((eq vm-visit-when-saving t)
-	     (setq folder-buffer (or (get-file-buffer folder)
+	  (m nil) (count 0) folder-buffer target-type)
+      (cond ((and mlist (eq vm-visit-when-saving t))
+	     (setq folder-buffer (or (vm-get-file-buffer folder)
 				     ;; avoid letter bombs
 				     (let ((inhibit-local-variables t)
 					   (enable-local-variables nil))
 				       (find-file-noselect folder)))))
-	    (vm-visit-when-saving
-	     (setq folder-buffer (get-file-buffer folder))))
-      (if vm-check-folder-types
-	  (setq target-type (or (vm-get-folder-type folder)
-				(and mlist (vm-message-type-of (car mlist))))))
+	    ((and mlist vm-visit-when-saving)
+	     (setq folder-buffer (vm-get-file-buffer folder))))
+      (if (and mlist vm-check-folder-types)
+	  (progn
+	    (setq target-type (or (vm-get-folder-type folder)
+				  vm-default-folder-type
+				  (and mlist
+				       (vm-message-type-of (car mlist)))))
+	    (if (eq target-type 'unknown)
+		(error "Folder %s's type is unrecognized" folder))))
+      ;; if target folder is empty or nonexistent we need to
+      ;; write out the folder header first.
+      (if mlist
+	  (let ((attrs (file-attributes folder)))
+	    (if (or (null attrs) (= 0 (nth 7 attrs)))
+		(if (null folder-buffer)
+		    (vm-write-string folder (vm-folder-header target-type))
+		  (vm-write-string folder-buffer
+				   (vm-folder-header target-type))))))
       (save-excursion
 	(while mlist
 	  (setq m (vm-real-message-of (car mlist)))
-	  (set-buffer (marker-buffer (vm-start-of m)))
+	  (set-buffer (vm-buffer-of m))
 	  (vm-save-restriction
 	   (widen)
 	   ;; have to stuff the attributes in all cases because
 	   ;; the deleted attribute may have been stuffed
 	   ;; previously and we don't want to save that attribute.
+	   ;; also we don't want to save out the cached summary entry.
 	   (vm-stuff-attributes m t)
 	   (if (null folder-buffer)
 	       (if (or (null vm-check-folder-types)
@@ -211,9 +250,9 @@ The saved messages are flagged as `filed'."
 				 (vm-end-of m)
 				 folder t 'quiet)
 		 (if (null vm-convert-folder-types)
-		     (if (vm-virtual-message-p (car mlist))
+		     (if (not (vm-virtual-message-p (car mlist)))
 			 (error "Folder type mismatch: %s, %s"
-				vm-folder-type target-type)
+				(vm-message-type-of m) target-type)
 		       (error "Message %s type mismatches folder %s"
 			      (vm-number-of (car mlist))
 			      folder
@@ -221,7 +260,12 @@ The saved messages are flagged as `filed'."
 			      target-type))
 		   (vm-write-string
 		    folder
-		    (vm-leading-message-separator target-type))
+		    (vm-leading-message-separator target-type m t))
+		   (if (eq target-type 'From_-with-Content-Length)
+		       (vm-write-string
+			folder
+			(concat vm-content-length-header " "
+				(vm-su-byte-count m) "\n")))
 		   (write-region (vm-headers-of m)
 				 (vm-text-end-of m)
 				 folder t 'quiet)
@@ -233,7 +277,7 @@ The saved messages are flagged as `filed'."
 	       ;; if the buffer is a live VM folder
 	       ;; honor vm-folder-read-only.
 	       (if vm-folder-read-only
-		   (error "%s folder is read-only." folder))
+		   (signal 'folder-read-only (list (current-buffer))))
 	       (let ((buffer-read-only nil))
 		 (vm-save-restriction
 		  (widen)
@@ -242,12 +286,12 @@ The saved messages are flagged as `filed'."
 		    (if (or (null vm-check-folder-types)
 			    (eq target-type (vm-message-type-of m)))
 			(insert-buffer-substring
-			 (marker-buffer (vm-start-of m))
+			 (vm-buffer-of m)
 			 (vm-start-of m) (vm-end-of m))
 		      (if (null vm-convert-folder-types)
-			  (if (vm-virtual-message-p (car mlist))
+			  (if (not (vm-virtual-message-p (car mlist)))
 			      (error "Folder type mismatch: %s, %s"
-				     vm-folder-type target-type)
+				     (vm-message-type-of m) target-type)
 			    (error "Message %s type mismatches folder %s"
 				   (vm-number-of (car mlist))
 				   folder
@@ -255,8 +299,13 @@ The saved messages are flagged as `filed'."
 				   target-type))
 			(vm-write-string
 			 (current-buffer)
-			 (vm-leading-message-separator target-type))
-			(insert-buffer-substring folder-buffer
+			 (vm-leading-message-separator target-type m t))
+			(if (eq target-type 'From_-with-Content-Length)
+			    (vm-write-string
+			     (current-buffer)
+			     (concat vm-content-length-header " "
+				     (vm-su-byte-count m) "\n")))
+			(insert-buffer-substring (vm-buffer-of m)
 						 (vm-headers-of m)
 						 (vm-text-end-of m))
 			(vm-write-string
@@ -270,20 +319,33 @@ The saved messages are flagged as `filed'."
 			 (vm-clear-modification-flag-undos)))))))
 	   (if (null (vm-filed-flag m))
 	       (vm-set-filed-flag m t))
+	   (vm-increment count)
 	   (vm-update-summary-and-mode-line)
 	   (setq mlist (cdr mlist)))))
-      (if folder-buffer
-	  (progn
-	    (save-excursion
-	      (set-buffer folder-buffer)
-	      (if (eq major-mode 'vm-mode)
-		  (progn
-		    (vm-check-for-killed-summary)
-		    (vm-assimilate-new-messages)
-		    (vm-update-summary-and-mode-line))))
-	    (message "Message%s saved to buffer %s" (if (/= 1 count) "s" "")
-		     (buffer-name folder-buffer)))
-	(message "Message%s saved to %s" (if (/= 1 count) "s" "") folder)))
+      (if m
+	  (if folder-buffer
+	      (progn
+		(save-excursion
+		  (set-buffer folder-buffer)
+		  (if (eq major-mode 'vm-mode)
+		      (progn
+			(vm-check-for-killed-summary)
+			(vm-assimilate-new-messages)
+			(if (null vm-message-pointer)
+			    (progn (setq vm-message-pointer vm-message-list
+					 vm-need-summary-pointer-update t)
+				   (intern (buffer-name)
+					   vm-buffers-needing-display-update)
+				   (vm-preview-current-message))
+			  (vm-update-summary-and-mode-line)))))
+		(if (interactive-p)
+		    (message "%d message%s saved to buffer %s"
+			     count
+			     (if (/= 1 count) "s" "")
+			     (buffer-name folder-buffer))))
+	    (if (interactive-p)
+		(message "%d message%s saved to %s"
+			 count (if (/= 1 count) "s" "") folder)))))
     (setq vm-last-save-folder unexpanded-folder)
     (if vm-delete-after-saving
 	(vm-delete-message count))))
@@ -304,31 +366,40 @@ This command should NOT be used to save message to mail folders; use
 vm-save-message instead (normally bound to `s')."
   (interactive
    ;; protect value of last-command
-   (let ((last-command last-command))
+   (let ((last-command last-command)
+	 (this-command this-command))
      (vm-follow-summary-cursor)
+     (vm-select-folder-buffer)
      (list
-      (read-file-name "Write text to file: " nil nil nil)
+      (read-file-name
+       (if vm-last-written-file
+	   (format "Write text to file: (default %s) "
+		   vm-last-written-file)
+	 "Write text to file: ")
+       nil vm-last-written-file nil)
       (prefix-numeric-value current-prefix-arg))))
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
   (vm-error-if-folder-empty)
+  (vm-display nil nil '(vm-save-message-sans-headers)
+	      '(vm-save-message-sans-headers))
   (or count (setq count 1))
   (setq file (expand-file-name file))
   ;; Check and see if we are currently visiting the file
   ;; that the user wants to save to.
-  (if (and (not vm-visit-when-saving) (get-file-buffer file))
+  (if (and (not vm-visit-when-saving) (vm-get-file-buffer file))
       (error "File %s is being visited, cannot save." file))
   (let ((mlist (vm-select-marked-or-prefixed-messages count))
-	m file-buffer)
-    (cond ((eq vm-visit-when-saving t)
-	   (setq file-buffer (or (get-file-buffer file)
+	(m nil) file-buffer)
+    (cond ((and mlist (eq vm-visit-when-saving t))
+	   (setq file-buffer (or (vm-get-file-buffer file)
 				 (find-file-noselect file))))
-	  (vm-visit-when-saving
-	   (setq file-buffer (get-file-buffer file))))
+	  ((and mlist vm-visit-when-saving)
+	   (setq file-buffer (vm-get-file-buffer file))))
     (save-excursion
       (while mlist
 	(setq m (vm-real-message-of (car mlist)))
-	(set-buffer (marker-buffer (vm-start-of (car mlist))))
+	(set-buffer (vm-buffer-of m))
 	(vm-save-restriction
 	 (widen)
 	 (if (null file-buffer)
@@ -346,16 +417,18 @@ vm-save-message instead (normally bound to `s')."
 		    (save-excursion
 		      (goto-char (point-max))
 		      (insert-buffer-substring
-		       (marker-buffer (vm-start-of m))
+		       (vm-buffer-of m)
 		       start end))))))))
 	(if (null (vm-written-flag m))
 	    (vm-set-written-flag m t))
 	(vm-update-summary-and-mode-line)
 	(setq mlist (cdr mlist)))))
-    (if file-buffer
-	(message "Message%s written to buffer %s" (if (/= 1 count) "s" "")
-		 (buffer-name file-buffer))
-      (message "Message%s written to %s" (if (/= 1 count) "s" "") file))))
+    (if m
+	(if file-buffer
+	    (message "Message%s written to buffer %s" (if (/= 1 count) "s" "")
+		     (buffer-name file-buffer))
+	  (message "Message%s written to %s" (if (/= 1 count) "s" "") file)))
+    (setq vm-last-written-file file)))
 
 (defun vm-pipe-message-to-command (command prefix-arg)
   "Run shell command with the some or all of the current message as input.
@@ -370,7 +443,8 @@ one message per command invocation.
 Output, if any, is displayed.  The message is not altered."
   (interactive
    ;; protect value of last-command
-   (let ((last-command last-command))
+   (let ((last-command last-command)
+	 (this-command this-command))
      (vm-follow-summary-cursor)
      (vm-select-folder-buffer)
      (list (read-string "Pipe to command: " vm-last-pipe-command)
@@ -391,7 +465,7 @@ Output, if any, is displayed.  The message is not altered."
     (erase-buffer)
     (while mlist
       (setq m (vm-real-message-of (car mlist)))
-      (set-buffer (marker-buffer (vm-start-of m)))
+      (set-buffer (vm-buffer-of m))
       (save-restriction
 	(widen)
 	(goto-char (vm-headers-of m))
@@ -410,4 +484,7 @@ Output, if any, is displayed.  The message is not altered."
       (setq mlist (cdr mlist)))
      (set-buffer buffer)
      (if (not (zerop (buffer-size)))
-	 (vm-display-buffer buffer))))
+	 (vm-display buffer t '(vm-pipe-message-to-command)
+		     '(vm-pipe-message-to-command))
+       (vm-display nil nil '(vm-pipe-message-to-command)
+		   '(vm-pipe-message-to-command)))))

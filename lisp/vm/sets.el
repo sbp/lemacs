@@ -1,5 +1,5 @@
 ;;; Set functions
-;;; Copyright (C) 1993 Kyle E. Jones
+;;; Copyright (C) 1993, 1994 Kyle E. Jones
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -20,10 +20,10 @@
 
 (provide 'sets)
 
-(defconst sets-version "1.01"
+(defconst sets-version "1.04"
   "Version number of the sets implementation.")
 
-(defconst sets-typetag '(set)
+(defvar sets-typetag '(set)
   "Value is used to distinguish sets from other vectors.
 The value of this variable is stored in each set structure,
 but not the set itself.")
@@ -343,6 +343,11 @@ Returns SET."
   "Returns t if SET contains ITEM."
   (funcall 'sets-set-xxxxxx set 'member item))
 
+(defun sets-set-cardinality (set)
+  "Returns the number of members in SET."
+  (sets-check-set set)
+  (sets-cardinality-of set))
+
 (defun sets-inorder-maptree (tree function)
   (if tree
       (progn
@@ -500,7 +505,7 @@ passed to this function."
 		(setq i (1+ i)))
 	      return-value)))
 	 ((sets-setp p) (= (sets-id-of p) (sets-id-of q)))
-	 (t (string= (format "%S" p) (format "%S" q))))))))
+	 (t (string= (prin1-to-string p) (prin1-to-string q))))))))
 
 (defun sets-< (p q)
   (let ((type-p (sets-type p))
@@ -534,7 +539,7 @@ passed to this function."
 	      nil
 	    (sets-< p q)))))
      ((sets-setp p) (< (sets-id-of p) (sets-id-of q)))
-     (t (string< (format "%S" p) (format "%S" q))))))
+     (t (string< (prin1-to-string p) (prin1-to-string q))))))
 
 (defun sets-copy-set (set)
   (sets-check-set set)

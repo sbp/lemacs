@@ -1,5 +1,5 @@
 ;;; Highlighting message headers.
-;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -49,7 +49,13 @@
     (progn
       (copy-face 'message-header-contents
 		 'message-highlighted-header-contents)
-      (set-face-underline-p 'message-highlighted-header-contents t)))
+      ;; Most people seem not to like underlining, so change the font instead.
+;;      (set-face-underline-p 'message-highlighted-header-contents t)
+      (or (make-face-bold 'message-highlighted-header-contents)
+	  (make-face-unbold 'message-highlighted-header-contents)
+	  (make-face-italic 'message-highlighted-header-contents)
+	  (make-face-unitalic 'message-highlighted-header-contents))
+      ))
 
 (or (face-differs-from-default-p 'message-cited-text)
     (copy-face 'italic 'message-cited-text))
@@ -88,6 +94,11 @@ the `message-headers' face.")
 This is to prevent us from wasting time trying to fontify things like
 uuencoded files and large digests.  If this is nil, all messages will
 be highlighted.")
+
+(defvar highlight-headers-hack-x-face-p nil
+  "*If true, then the bitmap in an X-Face header will be displayed
+in the buffer.  This assumes you have the `uncompface' and `icontopbm'
+programs on your path.")
 
 
 ;;;###autoload
@@ -173,11 +184,14 @@ interpreted as cited text.)"
 ;;	      )
 	     (t
 	      (setq current 'message-header-contents)
-	      (end-of-line)
-	      (setq e (make-extent p (point)))
-	      (set-extent-face e current)
-	      (set-extent-property e 'headers t)
-	      )))
+	      (let ((x-face-p (and highlight-headers-hack-x-face-p
+				   (looking-at "^X-Face: *"))))
+		(end-of-line)
+		(setq e (make-extent p (point)))
+		(set-extent-face e current)
+		(set-extent-property e 'headers t)
+		(if x-face-p (highlight-headers-x-face p e))
+		))))
 	   (t
 	    (setq p (point))
 	    (end-of-line)
@@ -211,7 +225,7 @@ interpreted as cited text.)"
 		  (t (setq current nil)))
 	    (cond (current
 		   (setq p (point))
-		   (forward-line 1) ; this is to put the newline in the face too
+		   (forward-line 1) ; this is to put the \n in the face too
 		   (setq e (make-extent p (point)))
 		   (forward-char -1)
 		   (set-extent-face e current)
@@ -220,4 +234,114 @@ interpreted as cited text.)"
 	    (forward-line 1)))))
     ))
 
+
+;;; Kludge kludge kludge for displaying the bitmap in the X-Face header.
+
+;;; This depends on the following programs: icontopbm, from the pbmplus
+;;; toolkit (available everywhere) and uncompface, which comes with
+;;; several faces-related packages, and can also be had at ftp.clark.net
+;;; in /pub/liebman/compface.tar.Z.  See also xfaces 3.*.  Not needed
+;;; for this, but a very nice xbiff replacment.
+
+(defconst highlight-headers-x-face-bitrev
+  (purecopy
+   (eval-when-compile
+     (let* ((v (make-string 256 0))
+	    (i (1- (length v))))
+       (while (>= i 0)
+	 (let ((j 7)
+	       (k 0))
+	   (while (>= j 0)
+	     (if (/= 0 (logand i (lsh 1 (- 7 j))))
+		 (setq k (logior k (lsh 1 j))))
+	     (setq j (1- j)))
+	   (aset v i k))
+	 (setq i (1- i)))
+       v))))
+
+(defun highlight-headers-parse-x-face-data (start end)
+  (save-excursion
+    (let ((b (current-buffer))
+	  (lines 0)
+	  p)
+      (set-buffer (get-buffer-create " *x-face-tmp*"))
+      (buffer-disable-undo (current-buffer))
+      (erase-buffer)
+      (if (stringp start)
+	  (insert start)
+	(insert-buffer-substring b start end))
+      (while (search-forward "\n" nil t)
+	(skip-chars-backward " \t\n")
+	(setq p (point))
+	(skip-chars-forward " \t\n")
+	(delete-region p (point)))
+      (call-process-region (point-min) (point-max) "uncompface" t t nil)
+      (goto-char (point-min))
+      (while (not (eobp))
+	(or (looking-at "0x....,0x....,0x...., *$")
+	    (error "unexpected uncompface output"))
+	(forward-line 1)
+	(setq lines (1+ lines))
+	(delete-char -1))
+      (goto-char (point-min))
+      (insert (format "/* Format_version=1, Width=%d, Height=%d" lines lines))
+      (insert ", Depth=1, Valid_bits_per_item=16\n */\n")
+      (while (not (eobp))
+	(insert ?\t)
+	(forward-char 56) ; 7 groups per line
+	(insert ?\n))
+      (forward-char -1)
+      (delete-char -1)  ; take off last comma
+      ;;
+      ;; Ok, now we've got the format that "icontopbm" knows about.
+      (call-process-region (point-min) (point-max) "icontopbm" t t nil)
+      ;;
+      ;; If PBM is using binary mode, we're winning.
+      (goto-char (point-min))
+      (cond ((looking-at "P4\n")
+	     (forward-line 2)
+	     (delete-region (point-min) (point))
+	     (while (not (eobp))
+	       (insert (aref highlight-headers-x-face-bitrev (following-char)))
+	       (delete-char 1))
+	     (make-pixmap (list lines lines
+				(prog1 (buffer-string) (erase-buffer)))))
+	    (t ; fix me
+	     (error "I only understand binary-format PBM..."))))))
+
+(defvar highlight-headers-x-face-to-pixmap-cache nil)
+
+(defun highlight-headers-x-face-to-pixmap (start end)
+  (let* ((string (if (stringp start)
+		     start
+		   (buffer-substring start end)))
+	 (data (assoc string highlight-headers-x-face-to-pixmap-cache)))
+    (if data
+	(cdr data)
+      (setq data (cons string
+		       (condition-case c
+			   (highlight-headers-parse-x-face-data start end)
+			 (error
+			  (display-error c nil)
+			  (sit-for 2)
+			  nil))))
+      (setq highlight-headers-x-face-to-pixmap-cache
+	    (cons data highlight-headers-x-face-to-pixmap-cache))
+      (cdr data))))
+
+(defun highlight-headers-x-face (start extent)
+  (let* ((end (if (stringp start)
+		  nil
+		(save-excursion
+		  (goto-char start)
+		  (forward-line 1)
+		  (while (looking-at "[ \t]")
+		    (forward-line 1))
+		  (1- (point)))))
+	 (p (highlight-headers-x-face-to-pixmap start end)))
+    ;; Once the `invisible' attribute works, using that to hide
+    ;; the original contents of the header would be nice.
+    (if p (set-extent-begin-glyph extent p))))
+
+
 (provide 'highlight-headers)

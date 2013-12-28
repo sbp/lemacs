@@ -43,11 +43,9 @@ static Lisp_Object Vweak_hash_tables;
 
 static Lisp_Object mark_hashtable (Lisp_Object, void (*) (Lisp_Object));
 static void print_hashtable (Lisp_Object, Lisp_Object, int);
-static int sizeof_hashtable (void *h)
-{ return (sizeof (struct hashtable_struct)); }
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_hashtable,
-                               mark_hashtable, print_hashtable, 
-                               0, sizeof_hashtable, 0);
+DEFINE_LRECORD_IMPLEMENTATION ("hashtable", lrecord_hashtable,
+                               mark_hashtable, print_hashtable, 0, 0,
+			       sizeof (struct hashtable_struct));
 
 #define HASHTABLEP(obj) RECORD_TYPEP((obj), lrecord_hashtable)
 #define XHASHTABLE(obj) ((struct hashtable_struct *) (XPNTR (obj)))
@@ -74,15 +72,15 @@ static void
 print_hashtable (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 {
   struct hashtable_struct *table = XHASHTABLE (obj);
-  char buf[50];
+  char buf[200];
   if (print_readably)
     error (GETTEXT ("printing unreadable object #<hashtable 0x%x>"),
-	   table->header.uid);
+	   (long) table);
   sprintf (buf, GETTEXT ("#<%stable %d/%d 0x%x>"),
 	   (EQ (table->weak, Qunbound) ? "" : GETTEXT ("weak ")),
            table->fullness,
            (vector_length (XVECTOR (table->harray)) / LISP_OBJECTS_PER_HENTRY),
-           table->header.uid);
+           (long) table);
   write_string_1 (buf, -1, printcharfun);
 }
 
@@ -255,7 +253,8 @@ If there is no corresponding value, return DEFAULT (default nil)")
 {
   CONST void *vval;
   struct _C_hashtable htbl;
-  CHECK_HASHTABLE (table, 0);
+  if (!gc_in_progress)
+    CHECK_HASHTABLE (table, 0);
   ht_copy_to_c (XHASHTABLE (table), &htbl);
   if (gethash (LISP_TO_VOID (key), &htbl, &vval))
     {

@@ -80,6 +80,11 @@ struct screen
      Otherwise, if the screen has a minibuffer window, this is its sibling.  */
   Lisp_Object root_window;
 
+  /* This screen's root window mirror.  This structure exactly mirrors
+     the screens window structure but contains only pointers to the
+     display structures. */
+  struct window_mirror *root_mirror;
+  
   /* This screen's selected window.
      Each screen has its own window hierarchy
      and one of the windows in it is selected within the screen.
@@ -104,6 +109,10 @@ struct screen
 
   /* Vector representing the menubar currently displayed.  See menubar.c. */
   Lisp_Object menubar_data;
+
+  /* Possible screen-local default for outside margin widths. */
+  Lisp_Object left_outside_margin_width;
+  Lisp_Object right_outside_margin_width;
 
   /* Status information for each scrollbar on screen.  See scrollbar.c. */
   struct scrollbar_instance *scrollbar_instances;
@@ -154,19 +163,23 @@ struct screen
   Lisp_Object face_data;
 
   /* Fast access to current cursor position */
-  struct window *cur_w;
+  struct window_mirror *cur_mir;
   struct line_header *cur_line; 
   struct char_block *cur_char;
     
   /* Fast access to new cursor position */
-  struct window *new_cur_w;
+  struct window_mirror *new_cur_mir;
   struct line_header *new_cur_line;
   struct char_block *new_cur_char;
 
   char replot_lines;
   int size_change_pending;
 
+  int mirror_dirty;
   int update;
+
+  /* flag indicating if any window on this screen is displaying a subwindow */
+  int subwindows_being_displayed;
 };
 
 extern CONST struct lrecord_implementation lrecord_screen[];
@@ -177,26 +190,26 @@ extern CONST struct lrecord_implementation lrecord_screen[];
 #define CHECK_LIVE_SCREEN(x, i) \
   { if (!RECORD_TYPEP((x), lrecord_screen) \
         || ! SCREEN_LIVE_P (XSCREEN (x))) \
-      x = wrong_type_argument (Qlive_screen_p, (x)); } 
+      x = wrong_type_argument (Qscreen_live_p, (x)); } 
 #define SCREENP(x) RECORD_TYPEP ((x), lrecord_screen)
 #define XSCREEN(p) ((struct screen *) XPNTR (p))
 
 typedef struct screen *SCREEN_PTR;
-extern Lisp_Object Qscreenp, Qlive_screen_p;
+extern Lisp_Object Qscreenp, Qscreen_live_p;
 
 extern int screen_changed;
  
 #define PIXW(s) (\
                  SCREEN_IS_X((s)) ?\
-                 (s)->display.x->pixel_width - 2*INT_BORDER(s)\
+                 (s)->display.x->pixel_width - 2*SCREEN_INT_BORDER(s)\
                  : (s)->width)
  
 #define PIXH(s) (\
                  SCREEN_IS_X((s)) ?\
-                 (s)->display.x->pixel_height - 2*INT_BORDER(s)\
+                 (s)->display.x->pixel_height - 2*SCREEN_INT_BORDER(s)\
                  : (s)->height)
  
-#define INT_BORDER(s) (\
+#define SCREEN_INT_BORDER(s) (\
                       SCREEN_IS_X((s)) ?\
                       (s)->display.x->internal_border_width\
                       : 0)
@@ -240,7 +253,6 @@ extern int screen_changed;
 
 #define SCREEN_PIXWIDTH(s) (s)->display.x->pixel_width
 #define SCREEN_PIXHEIGHT(s) (s)->display.x->pixel_height
-#define SCREEN_INT_BORDER(s) (s)->display.x->internal_border_width
 
 extern Lisp_Object Qscreenp;
 

@@ -1,23 +1,21 @@
-Info file elisp, produced by Makeinfo, -*- Text -*- from input file
-elisp.texi.
+This is Info file ../../info/lispref.info, produced by Makeinfo-1.56
+from the input file lispref.texinfo.
 
-   This file documents GNU Emacs Lisp.
+   This version is newer than the second printed edition of the GNU
+Emacs Lisp Reference Manual.  It corresponds to Emacs Version 19.19.
 
-   This is edition 1.03 of the GNU Emacs Lisp Reference Manual,   for
-Emacs Version 18.
+   Published by the Free Software Foundation 675 Massachusetts Avenue
+Cambridge, MA 02139 USA
 
-   Published by the Free Software Foundation, 675 Massachusetts
-Avenue,  Cambridge, MA 02139 USA
+   Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
 
-   Copyright (C) 1990 Free Software Foundation, Inc.
-
-   Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
 
    Permission is granted to copy and distribute modified versions of
-this manual under the conditions for verbatim copying, provided that
-the entire resulting derived work is distributed under the terms of a
+this manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
 permission notice identical to this one.
 
    Permission is granted to copy and distribute translations of this
@@ -25,1111 +23,1150 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be stated in a
 translation approved by the Foundation.
 
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the Free Software
+Foundation instead of in the original English.
 
 
-File: elisp,  Node: Rename or Copy,  Next: Numbered Backups,  Prev: Making Backups,  Up: Backup Files
+File: lispref.info,  Node: Prefix Command Arguments,  Next: Recursive Editing,  Prev: Quitting,  Up: Command Loop
 
-Backup by Renaming or by Copying?
----------------------------------
+Prefix Command Arguments
+========================
 
-   There are two ways that Emacs can make a backup file:
+   Most Emacs commands can use a "prefix argument", a number specified
+before the command itself.  (Don't confuse prefix arguments with prefix
+keys.)  The prefix argument is represented by a value that is always
+available (though it may be `nil', meaning there is no prefix
+argument).  Each command may use the prefix argument or ignore it.
 
-   * Emacs can rename the original file so that it becomes a backup
-     file, and then write the buffer being saved into a new file.  In
-     this case, any other names (i.e., hard links) of the original
-     file will now refer to the backup file.  The new file will be
-     owned by the user doing the editing, and its group will be the
-     default for the user or the directory.
+   There are two representations of the prefix argument: "raw" and
+"numeric".  The editor command loop uses the raw representation
+internally, and so do the Lisp variables that store the information, but
+commands can request either representation.
 
-   * Emacs can copy the original file into a backup file, and then
-     overwrite the original file with new contents.  In this case,
-     any other names (i.e., hard links) of the original file will
-     still refer to the current version of the file.  The file's
-     owner and group will be unchanged.
+   Here are the possible values of a raw prefix argument:
 
-   The first method, renaming, is the default.
+   * `nil', meaning there is no prefix argument.  Its numeric value is
+     1, but numerous commands make a distinction between `nil' and the
+     integer 1.
 
-   The variable `backup-by-copying', if non-`nil', says to use the
-second method, which is to copy the original file and overwrite it
-with the new buffer contents.  The variable `file-precious-flag', if
-non-`nil', also has this effect (as a sideline of its main
-significance).  *Note Saving Buffers::.
+   * An integer, which stands for itself.
 
-   The variables `backup-by-copying-when-linked' and
-`backup-by-copying-when-mismatch', if non-`nil', cause the second
-method to be used in certain special cases.  They have no effect on
-the treatment of files that don't fall into the special cases.
+   * A list of one element, which is an integer.  This form of prefix
+     argument results from one or a succession of `C-u''s with no
+     digits.  The numeric value is the integer in the list, but some
+     commands make a distinction between such a list and an integer
+     alone.
 
- * Variable: backup-by-copying
-     This variable controls whether to make backup files by copying. 
-     If it is non-`nil', then Emacs always copies the current
-     contents of the file into the backup file before writing the
-     buffer to be saved to the file.  (In many circumstances, this
-     has the same effect as `file-precious-flag'.)
+   * The symbol `-'.  This indicates that `M--' or `C-u -' was typed,
+     without following digits.  The equivalent numeric value is -1, but
+     some commands make a distinction between the integer -1 and the
+     symbol `-'.
 
- * Variable: backup-by-copying-when-linked
-     This variable controls whether to make backups by copying for
-     files with multiple names (hard links).  If it is non-`nil',
-     then Emacs will use copying to create backups for those files.
+   The various possibilities may be illustrated by calling the following
+function with various prefixes:
 
-     This variable is significant only if `backup-by-copying' is
-     `nil', since copying is always used when that variable is
-     non-`nil'.
+     (defun display-prefix (arg)
+       "Display the value of the raw prefix arg."
+       (interactive "P")
+       (message "%s" arg))
 
- * Variable: backup-by-copying-when-mismatch
-     This variable controls whether to make backups by copying when
-     renaming would cause either the owner or the group of the file
-     to change.  If it is non-`nil' then Emacs will create backups by
-     copying in such cases.
+Here are the results of calling `print-prefix' with various raw prefix
+arguments:
 
-     The value has no effect when renaming would not result in
-     changing the owner or group of the file; that is, for files
-     which are owned by the user and whose group matches the default
-     for a new file created there by the user.
+             M-x print-prefix  -| nil
+     
+     C-u     M-x print-prefix  -| (4)
+     
+     C-u C-u M-x print-prefix  -| (16)
+     
+     C-u 3   M-x print-prefix  -| 3
+     
+     M-3     M-x print-prefix  -| 3      ; (Same as `C-u 3'.)
+     
+     C-3     M-x print-prefix  -| 3      ; (Same as `C-u 3'.)
+     
+     C-u -   M-x print-prefix  -| -
+     
+     M- -    M-x print-prefix  -| -      ; (Same as `C-u -'.)
+     
+     C- -    M-x print-prefix  -| -      ; (Same as `C-u -'.)
+     
+     C-u -7  M-x print-prefix  -| -7
+     
+     M- -7   M-x print-prefix  -| -7     ; (Same as `C-u -7'.)
+     
+     C- -7   M-x print-prefix  -| -7     ; (Same as `C-u -7'.)
 
-     This variable is significant only if `backup-by-copying' is
-     `nil', since copying is always used when that variable is
-     non-`nil'.
+   Emacs uses two variables to store the prefix argument: `prefix-arg'
+and `current-prefix-arg'.  Commands such as `universal-argument' that
+set up prefix arguments for other commands store them in `prefix-arg'.
+In contrast, `current-prefix-arg' conveys the prefix argument to the
+current command, so setting it has no effect on the prefix arguments
+for future commands.
 
+   Normally, commands specify which representation to use for the prefix
+argument, either numeric or raw, in the `interactive' declaration.
+(*Note Interactive Call::.)  Alternatively, functions may look at the
+value of the prefix argument directly in the variable
+`current-prefix-arg', but this is less clean.
 
-
-File: elisp,  Node: Numbered Backups,  Next: Backup Names,  Prev: Rename or Copy,  Up: Backup Files
+   Do not call the functions `universal-argument', `digit-argument', or
+`negative-argument' unless you intend to let the user enter the prefix
+argument for the *next* command.
 
-Making and Deleting Numbered Backup Files
------------------------------------------
+ - Command: universal-argument
+     This command reads input and specifies a prefix argument for the
+     following command.  Don't call this command yourself unless you
+     know what you are doing.
 
-   If a file's name is `foo', the names of its numbered backup
-versions are `foo.~V~', for various integers V, like this: `foo.~1~',
-`foo.~2~', `foo.~3~', ..., `foo.~259~', and so on.
+ - Command: digit-argument ARG
+     This command adds to the prefix argument for the following
+     command.  The argument ARG is the raw prefix argument as it was
+     before this command; it is used to compute the updated prefix
+     argument.  Don't call this command yourself unless you know what
+     you are doing.
 
- * User Option: version-control
-     This variable controls whether to make a single non-numbered
-     backup file or multiple numbered backups.
+ - Command: negative-argument ARG
+     This command adds to the numeric argument for the next command.
+     The argument ARG is the raw prefix argument as it was before this
+     command; its value is negated to form the new prefix argument.
+     Don't call this command yourself unless you know what you are
+     doing.
 
-    `nil'
-          Make numbered backups if the visited file already has
-          numbered backups; otherwise, do not.
+ - Function: prefix-numeric-value ARG
+     This function returns the numeric meaning of a valid raw prefix
+     argument value, ARG.  The argument may be a symbol, a number, or a
+     list.  If it is `nil', the value 1 is returned; if it is any other
+     symbol, the value -1 is returned.  If it is a number, that number
+     is returned; if it is a list, the CAR of that list (which should
+     be a number) is returned.
 
-    `never'
-          Do not make numbered backups.
+ - Variable: current-prefix-arg
+     This variable is the value of the raw prefix argument for the
+     *current* command.  Commands may examine it directly, but the usual
+     way to access it is with `(interactive "P")'.
 
-    ANYTHING ELSE
-          Do make numbered backups.
-
-   The use of numbered backups ultimately leads to a large number of
-backup versions, which must then be deleted.  Emacs can do this
-automatically.
-
- * User Option: kept-new-versions
-     The value of this variable is the number of oldest versions to
-     keep when a new numbered backup is made.  The newly made backup
-     is included in the count.  The default value is 2.
-
- * User Option: kept-old-versions
-     The value of this variable is the number of oldest versions to
-     keep when a new numbered backup is made.  The default value is 2.
-
- * User Option: dired-kept-versions
-     This variable plays a role in Dired's `dired-clean-directory'
-     (`.') command like that played by `kept-old-versions' when a
-     backup file is made.  The default value is 2.
-
-   If there are backups numbered 1, 2, 3, 5, and 7, and both of these
-variables have the value 2, then the backups numbered 1 and 2 will be
-kept as old versions and those numbered 5 and 7 will be kept as new
-versions; backup version 3 will be deleted.  The function
-`find-backup-file-name' is responsible for determining which backup
-versions to delete, but does not delete them itself.
-
- * User Option: trim-versions-without-asking
-     If this variable is non-`nil', then excess backup versions are
-     deleted silently.  Otherwise, the user is asked whether to
-     delete them.
-
-
-
-File: elisp,  Node: Backup Names,  Prev: Numbered Backups,  Up: Backup Files
-
-Naming Backup Files
--------------------
-
-   The functions in this section are documented mainly because you
-can customize the naming conventions for backup files by redefining
-them.
-
- * Function: backup-file-name-p FILENAME
-     This function returns a non-`nil' value if FILENAME is a
-     possible name for a backup file.  A file with the name FILENAME
-     need not exist; the function just checks the name.
-
-          (backup-file-name-p "foo")
-               => nil
-          (backup-file-name-p "foo~")
-               => 3
-
-     The standard definition of this function is as follows:
-
-          (defun backup-file-name-p (file)
-            "Return non-nil if FILE is a backup file name (numeric or not)..."
-            (string-match "~$" file))
-
-     Thus, the function returns a non-`nil' value if the file name
-     ends with a `~'
-
-     This simple expression is placed in a separate function to make
-     it easy to redefine for customization.
-
- * Function: make-backup-file-name FILENAME
-     This function returns a string which is the name to use for a
-     non-numbered backup file for file FILENAME.  On Unix, this is
-     just FILENAME with a tilde appended.
-
-     The standard definition of this function is as follows:
-
-          (defun make-backup-file-name (file)
-            "Create the non-numeric backup file name for FILE..."
-            (concat file "~"))
-
-     You can change the backup file naming convention by redefining
-     this function.  In the following example,
-     `make-backup-file-name' is redefined to prepend a `.' as well as
-     to append a tilde.
-
-          (defun make-backup-file-name (filename)
-            (concat "." filename "~"))
-          
-          (make-backup-file-name "backups.texi")
-               => ".backups.texi~"
-
-     If you do redefine `make-backup-file-name', be sure to redefine
-     `backup-file-name-p' and `find-backup-file-name' as well.
-
- * Function: find-backup-file-name FILENAME
-     This function computes the file name for a new backup file for
-     FILENAME.  It may also propose certain existing backup files for
-     deletion.  `find-backup-file-name' returns a list whose CAR is
-     the name for the new backup file and whose CDR is a list of
-     backup files whose deletion is proposed.
-
-     Two variables called `kept-old-versions' and `kept-new-versions'
-     determine which old backup versions will be kept (by excluding
-     them from the list of backup files ripe for deletion).  *Note
-     Numbered Backups::.
-
-     In this example, `~rms/foo.~5~' is the name to use for the new
-     backup file, and `~rms/foo.~3~' is an "excess" version that the
-     caller should consider deleting now.
-
-          (find-backup-file-name "~rms/foo")
-               => ("~rms/foo.~5~" "~rms/foo.~3~")
-
+ - Variable: prefix-arg
+     The value of this variable is the raw prefix argument for the
+     *next* editing command.  Commands that specify prefix arguments for
+     the following command work by setting this variable.
 
 
-File: elisp,  Node: Auto-Saving,  Next: Reverting,  Prev: Backup Files,  Up: Backups and Auto-Saving
+File: lispref.info,  Node: Recursive Editing,  Next: Disabling Commands,  Prev: Prefix Command Arguments,  Up: Command Loop
 
-Auto-Saving
-===========
-
-   Emacs periodically saves all files that you are visiting; this is
-called "auto-saving".  Auto-saving prevents you from losing more than
-a limited amount of work if the system crashes.  By default,
-auto-saves happen every 300 keystrokes.  *Note Auto-Save:
-(emacs)Auto-Save, for information on auto-save for users.  Here we
-describe the functions used to implement auto-saving and the
-variables that control them.
-
- * Variable: buffer-auto-save-file-name
-     This buffer-local variable is the name of the file used for
-     auto-saving the current buffer.  It is `nil' if the buffer
-     should not be auto-saved.
-
-          buffer-auto-save-file-name
-          => "/xcssun/users/rms/lewis/#files.texi#"
-
- * Command: auto-save-mode ARG
-     When used interactively without an argument, this command is a
-     toggle switch: it turns on auto-saving of the current buffer if
-     it is off, and vice-versa.  With an argument ARG, the command
-     turns auto-saving on if the value of ARG is `t', a nonempty
-     list, or a positive integer.  Otherwise, it turns auto-saving off.
-
- * Function: auto-save-file-name-p FILENAME
-     This function returns a non-`nil' value if FILENAME is a string
-     that could be the name of an auto-save file.  It works based on
-     knowledge of the naming convention for auto-save files: a name
-     that begins and ends with hash marks (`#') is a possible
-     auto-save file name.  The argument FILENAME should not contain a
-     directory part.
-
-          (make-auto-save-file-name)
-               => "/xcssun/users/rms/lewis/#files.texi#"
-          (auto-save-file-name-p "#files.texi#")
-               => 0
-          (auto-save-file-name-p "files.texi")
-               => nil
-
-     The standard definition of this function is as follows:
-
-          (defun auto-save-file-name-p (filename)
-            "Return non-nil if FILENAME can be yielded by..."
-            (string-match "^#.*#$" filename))
-
-     This function exists so that you can customize it if you wish to
-     change the naming convention for auto-save files.  If you
-     redefine it, be sure to redefine `make-auto-save-file-name'
-     correspondingly.
-
- * Function: make-auto-save-file-name
-     This function returns the file name to use for auto-saving the
-     current buffer.  This is just the file name with hash marks
-     (`#') appended and prepended to it.  This function does not look
-     at the variable `auto-save-visited-file-name'; that should be
-     checked before this function is called.
-
-          (make-auto-save-file-name)
-               => "/xcssun/users/rms/lewis/#backup.texi#"
-
-     The standard definition of this function is as follows:
-
-          (defun make-auto-save-file-name ()
-            "Return file name to use for auto-saves of current buffer..."
-            (if buffer-file-name
-                (concat (file-name-directory buffer-file-name)
-                        "#"
-                        (file-name-nondirectory buffer-file-name)
-                        "#")
-              (expand-file-name (concat "#%" (buffer-name) "#"))))
-
-     This exists as a separate function so that you can redefine it
-     to customize the naming convention for auto-save files.  Be sure
-     to change `auto-save-file-name-p' in a corresponding way.
-
- * Variable: auto-save-visited-file-name
-     If this variable is non-`nil', Emacs will auto-save buffers in
-     the files they are visiting.  That is, the auto-save is done in
-     the same file which you are editing.  Normally, this variable is
-     `nil', so auto-save files have distinct names that are created
-     by `make-auto-save-file-name'.
-
-     When you change the value of this variable, the value does not
-     take effect until the next time auto-save mode is reenabled in
-     any given buffer.  If auto-save mode is already enabled,
-     auto-saves continue to go in the same file name until
-     `auto-save-mode' is called again.
-
- * Function: recent-auto-save-p
-     This function returns `t' if the current buffer has been
-     auto-saved since the last time it was read in or saved.
-
- * Function: set-buffer-auto-saved
-     This function marks the current buffer as auto-saved.  The
-     buffer will not be auto-saved again until the buffer text is
-     changed again.  The function returns `nil'.
-
- * User Option: auto-save-interval
-     The value of this variable is the number of characters that
-     Emacs reads from the keyboard between auto-saves.  Each time
-     this many more characters are read, auto-saving is done for all
-     buffers in which it is enabled.
-
- * User Option: auto-save-default
-     If this variable is non-`nil', buffers that are visiting files
-     have auto-saving enabled by default.  Otherwise, they do not.
-
- * Command: do-auto-save &optional NO-MESSAGE
-     This function auto-saves all buffers that need to be auto-saved.
-     This is all buffers for which auto-saving is enabled and that
-     have been changed since the last time they were auto-saved.
-
-     Normally, if any buffers are auto-saved, a message
-     `Auto-saving...' is displayed in the echo area while auto-saving
-     is going on.  However, if NO-MESSAGE is non-`nil', the message
-     is inhibited.
-
- * Function: delete-auto-save-file-if-necessary
-     This function deletes the auto-save file for the current buffer
-     if variable `delete-auto-save-files' is non-`nil'.  It is called
-     every time a buffer is saved.
-
- * Variable: delete-auto-save-files
-     This variable is used by the function
-     `delete-auto-save-file-if-necessary'.  If it is non-`nil', Emacs
-     will delete auto-save files when a true save is done (in the
-     visited file).  This saves on disk space and unclutters your
-     directory.
-
- * Function: rename-auto-save-file
-     This function adjusts the current buffer's auto-save file name
-     if the visited file name has changed.  It also renames an
-     existing auto-save file.  If the visited file name has not
-     changed, this function does nothing.
-
-
-
-File: elisp,  Node: Reverting,  Prev: Auto-Saving,  Up: Backups and Auto-Saving
-
-Reverting
-=========
-
-   If you have made extensive changes to a file and then change your
-mind about them, you can get rid of them by reading in the previous
-version of the file with the `revert-buffer' command.  *Note :
-(emacs)Reverting.
-
- * Command: revert-buffer &optional NO-AUTO-SAVE-OFFER-P NOCONFIRM
-     This command replaces the buffer text with the text of the
-     visited file on disk.  This action undoes all changes since the
-     file was visited or saved.
-
-     When the value of the NO-AUTO-SAVE-OFFER-P argument is `nil',
-     and the latest auto-save file is more recent than the visited
-     file, `revert-buffer' asks the user whether to use that instead.
-     Otherwise, it always uses the latest backup file.  This argument
-     is the numeric prefix argument when the function is called
-     interactively.
-
-     When the value of the NOCONFIRM argument is non-`nil',
-     `revert-buffer' does not ask for confirmation for the reversion
-     action.  This means that the buffer contents are deleted and
-     replaced by the text from the file on the disk, with no further
-     opportunities for the user to prevent it.
-
-     Since reverting works by deleting the entire text of the buffer
-     and inserting the file contents, all the buffer's markers are
-     relocated to point at the beginning of the buffer.  This is not
-     "correct", but then, there is no way to determine what would be
-     correct.  It is not possible to determine, from the text before
-     and after, which characters after reversion correspond to which
-     characters before.
-
-     If the value of the `revert-buffer-function' variable is
-     non-`nil', it is called as a function with no arguments to do
-     the work.
-
- * Variable: revert-buffer-function
-     The value of this variable is the function to use to revert this
-     buffer; but if the value of this variable is `nil', then the
-     `revert-buffer' function carries out its default action.  Modes
-     such as Dired mode, in which the text being edited does not
-     consist of a file's contents but can be regenerated in some
-     other fashion, give this variable a buffer-local value that is a
-     function to regenerate the contents.
-
- * Command: recover-file FILENAME
-     This function visits FILENAME, but gets the contents from its
-     last auto-save file.  This is useful after the system has
-     crashed, to resume editing the same file without losing all the
-     work done in the previous session.
-
-     An error is signaled if there is no auto-save file for FILENAME,
-     or if FILENAME is newer than its auto-save file.  If FILENAME
-     does not exist, but its auto-save file does, then the auto-save
-     file is read as usual.  This last situation may occur if you
-     visited a nonexistent file and never actually saved it.
-
-
-
-File: elisp,  Node: Buffers,  Next: Windows,  Prev: Backups and Auto-Saving,  Up: Top
-
-Buffers
-*******
-
-   A "buffer" is a Lisp object containing text to be edited.  Buffers
-are used to hold the contents of files that are being visited; there
-may also be buffers which are not visiting files.  While several
-buffers may exist at one time, exactly one buffer is designated the
-"current buffer" at any time.  Most editing commands act on the
-contents of the current buffer.  Each buffer, including the current
-buffer, may or may not be displayed in any windows.
-
-* Menu:
-
-* Buffer Basics::       What is a buffer?
-* Buffer Names::        Accessing and changing buffer names.
-* Buffer File Name::    The buffer file name indicates which file is visited.
-* Buffer Modification:: A buffer is "modified" if it needs to be saved.
-* Modification Time::   Determining whether the visited file was changed
-                         "behind Emacs's back".
-* Read Only Buffers::   Modifying text is not allowed in a read-only buffer.
-* The Buffer List::     How to look at all the existing buffers.
-* Creating Buffers::    Functions that create buffers.
-* Killing Buffers::     Buffers exist until explicitly killed.
-* Current Buffer::      Designating a buffer as current
-                          so primitives will access its contents.
-
- 
-
-File: elisp,  Node: Buffer Basics,  Next: Buffer Names,  Prev: Buffers,  Up: Buffers
-
-Buffer Basics
-=============
-
-   A "buffer" is a Lisp object containing text to be edited.  Buffers
-are used to hold the contents of files that are being visited; there
-may also be buffers which are not visiting files.  While several
-buffers may exist at one time, exactly one buffer is designated the
-"current buffer" at any time.  Most editing commands act on the
-contents of the current buffer.  Each buffer, including the current
-buffer, may or may not be displayed in any windows.
-
-   Buffers in Emacs editing are objects which have distinct names and
-hold text that can be edited.  Buffers appear to Lisp programs as a
-special data type.  The contents of a buffer may be viewed as an
-extendible string; insertions and deletions may occur in any part of
-the buffer.  *Note Text::.
-
-   A Lisp buffer object contains numerous pieces of information. 
-Some of this information is directly accessible to the programmer
-through variables, while other information is only accessible through
-special-purpose functions.  For example, the width of a tab character
-is directly accessible through a variable, while the value of point
-is accessible only through a primitive function.
-
-   Buffer-specific information that is directly accessible is stored
-in "buffer-local" variable bindings, which are variable values that
-are effective only in a particular buffer.  This feature allows each
-buffer to override the values of certain variables.  Most major modes
-override variables such as `fill-column' or `comment-column' in this
-way.  For more information about buffer-local variables and functions
-related to them, see *Note Buffer-Local Variables::.
-
-   For functions and variables related to visiting files in buffers,
-see *Note Visiting Files:: and *Note Saving Buffers::.  For functions
-and variables related to the display of buffers in windows, see *Note
-Buffers and Windows::.
-
- * Function: bufferp OBJECT
-     This function returns `t' if OBJECT is a buffer, `nil' otherwise.
-
-
-
-File: elisp,  Node: Buffer Names,  Next: Buffer File Name,  Prev: Buffer Basics,  Up: Buffers
-
-Buffer Names
-============
-
-   Each buffer has a unique name, which is a string.  The buffer name
-may be used in place of the buffer object in many functions that
-operate on buffers.  Buffers that are generally ephemeral and
-uninteresting to the user have names starting with a space, which
-prevents them from being listed by the `list-buffers' or
-`buffer-menu' commands.
-
-   Many of the following functions accept either a buffer or a buffer
-name (a string) as an argument.  Any argument called BUFFER-OR-NAME
-is of this sort, and an error is signaled if it is neither a string
-nor a buffer.  Any argument called BUFFER is required to be an actual
-buffer object, not a name.
-
- * Function: buffer-name &optional BUFFER
-     This function returns the name of BUFFER as a string.  If BUFFER
-     is not supplied, it defaults to the current buffer.
-
-     If `buffer-name' returns `nil', it means that BUFFER has been
-     killed.  *Note Killing Buffers::.
-
-          (buffer-name)
-               => "buffers.texi"
-          
-          (setq foo (get-buffer "temp"))
-               => #<buffer temp>
-          (kill-buffer foo)
-               => nil
-          (buffer-name foo)
-               => nil
-          foo
-               => #<killed buffer>
-
- * Command: rename-buffer NEWNAME
-     This function renames the current buffer to NEWNAME.  An error
-     is signaled if NEWNAME is not a string, or if there is already a
-     buffer with that name.  The function returns `nil'.
-
-     One application of this command is to rename the `*shell*'
-     buffer to some other name, thus making it possible to create a
-     second shell buffer under the name `*shell*'.
-
- * Function: get-buffer BUFFER-OR-NAME
-     This function returns the buffer specified by BUFFER-OR-NAME. 
-     If BUFFER-OR-NAME is a string and there is no buffer with that
-     name, the value is `nil'.  If BUFFER-OR-NAME is a buffer, it is
-     returned as given.  (That is not very useful, so the argument is
-     usually  a name.)  For example:
-
-          (setq b (get-buffer "lewis"))
-               => #<buffer lewis>
-          (get-buffer b)
-               => #<buffer lewis>
-          (get-buffer "Frazzle-nots")
-               => nil
-
-
-
-File: elisp,  Node: Buffer File Name,  Next: Buffer Modification,  Prev: Buffer Names,  Up: Buffers
-
-Buffer File Name
-================
-
-   The "buffer file name" is the name of the file that is visited in
-that buffer.  When a buffer is not visiting a file, its buffer file
-name is `nil'.  Most of the time, the buffer name is the same as the
-nondirectory part of the buffer file name, but the buffer file name
-and the buffer name are distinct and can be set independently.  *Note
-Visiting Files::.
-
- * Function: buffer-file-name &optional BUFFER
-     This function returns the absolute file name of the file that
-     BUFFER is visiting.  If BUFFER is not visiting any file,
-     `buffer-file-name' returns `nil'.  If BUFFER is not supplied, it
-     defaults to the current buffer.
-
-          (buffer-file-name (other-buffer))
-               => "/usr/user/lewis/manual/files.texi"
-
- * Variable: buffer-file-name
-     This buffer-local variable contains the name of the file being
-     visited in the current buffer, or `nil' if it is not visiting a
-     file.
-
-          buffer-file-name
-               => "/usr/user/lewis/manual/buffers.texi"
-
-     It is risky to change this variable's value without doing
-     various other things.  See the definition of
-     `set-visited-file-name' in `files.el'; some of the things done
-     there, such as changing the buffer name, are not necessary, but
-     others are essential to avoid confusing Emacs.
-
- * Function: get-file-buffer FILENAME
-     This function returns the buffer visiting file FILENAME.  If
-     there is no such buffer, it returns `nil'.  The argument
-     FILENAME, which must be a string, is expanded (*note File Name
-     Expansion::.), then compared against the visited file names of
-     all live buffers.
-
-          (get-file-buffer "buffers.texi")
-          => #<buffer buffers.texi>
-
-     In unusual circumstances, there can be more than one buffer
-     visiting the same file name.  In such cases, this function
-     returns the first such buffer in the buffer list.
-
- * Command: set-visited-file-name FILENAME
-     If FILENAME is a non-empty string, this function changes the
-     name of the file visited in current buffer to FILENAME.  (If the
-     buffer had no visited file, this gives it one.)  The *next time*
-     the buffer is saved it will go in the newly-specified file.  The
-     buffer is always marked as modified, since it does not (as far
-     as Emacs knows) match the contents of FILENAME, even if it
-     matched the former visited file.
-
-     If FILENAME is `nil' or the empty string, that stands for "no
-     visited file".  In this case, `set-visited-file-name' marks the
-     buffer as having no visited file.
-
-     When `set-visited-file-name' is called interactively, it prompts
-     for FILENAME in the minibuffer.
-
-     See also `clear-visited-file-modtime' and
-     `verify-visited-file-modtime' in *Note Buffer Modification::.
-
-
-
-File: elisp,  Node: Buffer Modification,  Next: Modification Time,  Prev: Buffer File Name,  Up: Buffers
-
-Buffer Modification
-===================
-
-   Emacs keeps a flag called the "modified flag" for each buffer, to
-record whether you have changed the text of the buffer.  This flag is
-set to `t' whenever you alter the contents of the buffer, and cleared
-to `nil' when you save it.  Thus, the flag shows whether there are
-unsaved changes.  The flag value is normally shown in the mode line
-(*note Mode Line Variables::.), and controls saving (*note Saving
-Buffers::.) and auto-saving (*note Auto-Saving::.).
-
-   Some Lisp programs set the flag explicitly.  For example, the Lisp
-function `set-visited-file-name' sets the flag to `t', because the
-text does not match the newly-visited file, even if it is unchanged
-from the file formerly visited.
-
-   The functions that modify the contents of buffers are described in
-*Note Text::.
-
- * Function: buffer-modified-p &optional BUFFER
-     This function returns `t' if the buffer BUFFER has been modified
-     since it was last read in from a file or saved, or `nil'
-     otherwise.  If BUFFER is not supplied, the current buffer is
-     tested.
-
- * Function: set-buffer-modified-p FLAG
-     This function marks the current buffer as modified if FLAG is
-     non-`nil', or as unmodified if the flag is `nil'.
-
-     Another effect of calling this function is to cause
-     unconditional redisplay of the mode line for the current buffer.
-     In fact, the standard way to force redisplay of the mode line is
-     as follows:
-
-          (set-buffer-modified-p (buffer-modified-p))
-
- * Command: not-modified
-     This command marks the current buffer as unmodified, and not
-     needing to be saved.  Don't use this function in programs, since
-     it prints a message; use `set-buffer-modified-p' (above) instead.
-
-
-
-File: elisp,  Node: Modification Time,  Next: Read Only Buffers,  Prev: Buffer Modification,  Up: Buffers
-
-Comparison of Modification Time
-===============================
-
-   Suppose that you visit a file and make changes in its buffer, and
-meanwhile the file itself is changed on disk.  At this point, saving
-the buffer would overwrite the changes in the file.  Occasionally
-this may be what you want, but usually it would lose valuable
-information.  Emacs therefore checks the file's modification time
-using the functions described below before saving the file.
-
- * Function: verify-visited-file-modtime BUFFER
-     This function compares Emacs's record of the modification time
-     for the file that the buffer is visiting against the actual
-     modification time of the file as recorded by the operating
-     system.  The two will be the same unless some other process has
-     written the file since Emacs visited or saved it.
-
-     The function returns `t' if the last actual modification time
-     and Emacs's recorded modification time are the same, `nil'
-     otherwise.
-
- * Function: clear-visited-file-modtime
-     This function clears out the record of the last modification
-     time of the file being visited by the current buffer.  As a
-     result, the next attempt to save this buffer will not complain
-     of a discrepancy in file modification times.
-
-     This function is called in `set-visited-file-name' and other
-     exceptional places where the usual test to avoid overwriting a
-     changed file should not be done.
-
- * Function: ask-user-about-supersession-threat FN
-     This function is used to ask a user how to proceed after an
-     attempt to modify an obsolete buffer.  An "obsolete buffer" is
-     an unmodified buffer for which the associated file on disk is
-     newer than the last save-time of the buffer.  This means some
-     other program has probably altered the file.
-
-     This function is called automatically by Emacs on the proper
-     occasions.  It exists so you can customize Emacs by redefining it.
-     See the file `userlock.el' for the standard definition.
-
-     Depending on the user's answer, the function may return
-     normally, in which case the modification of the buffer proceeds,
-     or it may signal a `file-supersession' error with data `(FN)',
-     in which case the proposed buffer modification is not allowed.
-
-     See also the file locking mechanism in *Note File Locks::.
-
-
-
-File: elisp,  Node: Read Only Buffers,  Next: The Buffer List,  Prev: Modification Time,  Up: Buffers
-
-Read-Only Buffers
+Recursive Editing
 =================
 
-   A buffer may be designated as "read-only".  This means that the
-buffer's contents may not be modified, although you may change your
-view of the contents by scrolling, narrowing, or widening, etc.
+   The Emacs command loop is entered automatically when Emacs starts up.
+This top-level invocation of the command loop is never exited until the
+Emacs is killed.  Lisp programs can also invoke the command loop.  Since
+this makes more than one activation of the command loop, we call it
+"recursive editing".  A recursive editing level has the effect of
+suspending whatever command invoked it and permitting the user to do
+arbitrary editing before resuming that command.
 
-   Read-only buffers are used in two kinds of situations:
+   The commands available during recursive editing are the same ones
+available in the top-level editing loop and defined in the keymaps.
+Only a few special commands exit the recursive editing level; the others
+return to the recursive editing level when finished.  (The special
+commands for exiting are always available, but do nothing when recursive
+editing is not in progress.)
 
-   * A buffer visiting a file is made read-only if the file is
-     write-protected.
+   All command loops, including recursive ones, set up all-purpose error
+handlers so that an error in a command run from the command loop will
+not exit the loop.
 
-     Here, the purpose is to show the user that editing the buffer
-     with the aim of saving it in the file may be futile or
-     undesirable.  The user who wants to change the buffer text
-     despite this can do so after clearing the read-only flag with
-     the function `toggle-read-only'.
+   Minibuffer input is a special kind of recursive editing.  It has a
+few special wrinkles, such as enabling display of the minibuffer and the
+minibuffer window, but fewer than you might suppose.  Certain keys
+behave differently in the minibuffer, but that is only because of the
+minibuffer's local map; if you switch windows, you get the usual Emacs
+commands.
 
-   * Modes such as Dired and Rmail make buffers read-only when
-     altering the contents with the usual editing commands is
-     probably a mistake.
+   To invoke a recursive editing level, call the function
+`recursive-edit'.  This function contains the command loop; it also
+contains a call to `catch' with tag `exit', which makes it possible to
+exit the recursive editing level by throwing to `exit' (*note Catch and
+Throw::.).  If you throw a value other than `t', then `recursive-edit'
+returns normally to the function that called it.  The command `C-M-c'
+(`exit-recursive-edit') does this.  Throwing a `t' value causes
+`recursive-edit' to quit, so that control returns to the command loop
+one level up.  This is called "aborting", and is done by `C-]'
+(`abort-recursive-edit').
 
-     The special commands of the mode in question bind
-     `buffer-read-only' to `nil' (with `let') around the places where
-     they change the text.
+   Most applications should not use recursive editing, except as part of
+using the minibuffer.  Usually it is more convenient for the user if you
+change the major mode of the current buffer temporarily to a special
+major mode, which has a command to go back to the previous mode.  (This
+technique is used by the `w' command in Rmail.)  Or, if you wish to
+give the user different text to edit "recursively", create and select a
+new buffer in a special mode.  In this mode, define a command to
+complete the processing and go back to the previous buffer.  (The `m'
+command in Rmail does this.)
 
- * Variable: buffer-read-only
-     This buffer-local variable specifies whether the buffer is
-     read-only.  The buffer is read-only if this variable is non-`nil'.
+   Recursive edits are useful in debugging.  You can insert a call to
+`debug' into a function definition as a sort of breakpoint, so that you
+can look around when the function gets there.  `debug' invokes a
+recursive edit but also provides the other features of the debugger.
 
- * Command: toggle-read-only
-     This command changes whether the current buffer is read-only. 
-     It is intended for interactive use; don't use it in programs. 
-     At any given point in a program, you should know whether you
-     want the read-only flag on or off; so you can set
-     `buffer-read-only' explicitly to the proper value, `t' or `nil'.
+   Recursive editing levels are also used when you type `C-r' in
+`query-replace' or use `C-x q' (`kbd-macro-query').
 
- * Function: barf-if-buffer-read-only
-     This function signals a `buffer-read-only' error if the current
-     buffer is read-only.  *Note Interactive Call::, for another way
-     to signal an error if the current buffer is read-only.
+ - Function: recursive-edit
+     This function invokes the editor command loop.  It is called
+     automatically by the initialization of Emacs, to let the user begin
+     editing.  When called from a Lisp program, it enters a recursive
+     editing level.
 
+     In the following example, the function `simple-rec' first advances
+     point one word, then enters a recursive edit, printing out a
+     message in the echo area.  The user can then do any editing
+     desired, and then type `C-M-c' to exit and continue executing
+     `simple-rec'.
 
-
-File: elisp,  Node: The Buffer List,  Next: Creating Buffers,  Prev: Read Only Buffers,  Up: Buffers
-
-The Buffer List
-===============
-
-   The "buffer list" is a list of all buffers that have not been
-killed.  The order of the buffers in the list is based primarily on
-how recently each buffer has been displayed in the selected window. 
-Several functions, notably `other-buffer', make use of this ordering.
-
- * Function: buffer-list
-     This function returns a list of all buffers, including those
-     whose names begin with a space.  The elements are actual
-     buffers, not their names.
-
-          (buffer-list)
-               => (#<buffer buffers.texi> #<buffer  *Minibuf-1*>
-                   #<buffer buffer.c>  #<buffer *Help*> #<buffer TAGS>)
-          
-          ;; Note that the name of the minibuffer begins with a space!
-          
-          (mapcar (function buffer-name) (buffer-list))
-          => ("buffers.texi" " *Minibuf-1*" "buffer.c" "*Help*" "TAGS")
-
-     This list is a copy of a list used inside Emacs; modifying it
-     has no effect on the buffers.
-
- * Function: other-buffer &optional BUFFER-OR-NAME
-     This function returns the first buffer in the buffer list other
-     than BUFFER-OR-NAME.  Usually this is the buffer most recently
-     shown in the selected window, aside from BUFFER-OR-NAME. 
-     Buffers are moved to the front of the list when they are
-     selected and to the end when they are buried.  Buffers whose
-     names start with a space are not even considered.
-
-     If BUFFER-OR-NAME is not supplied (or if it is not a buffer),
-     then `other-buffer' returns the first buffer on the buffer list
-     that is not visible in any window.
-
-     If no suitable buffer exists, the buffer `*scratch*' is returned
-     (and created, if necessary).
-
- * Command: list-buffers &optional FILES-ONLY
-     This function displays a listing of the names of existing
-     buffers.  It clears the buffer `*Buffer List*', then inserts the
-     listing into that buffer and displays it in a window. 
-     `list-buffers' is intended for interactive use, and is described
-     fully in ``The GNU Emacs Manual''.  It returns `nil'.
-
- * Command: bury-buffer &optional BUFFER-OR-NAME
-     This function puts BUFFER-OR-NAME at the end of the buffer list
-     without changing the order of any of the other buffers on the
-     list.  This buffer therefore becomes the least desirable
-     candidate for `other-buffer' to return, and appears last in the
-     list displayed by `list-buffers'.
-
-     If BUFFER-OR-NAME is the current buffer, then it is replaced in
-     the selected window by the buffer chosen using `other-buffer'. 
-     If the buffer is displayed in a window other than the selected
-     one, it remains there.
-
-     If BUFFER-OR-NAME is not supplied, it defaults to the current
-     buffer.  This is what happens in an interactive call.
-
-
-
-File: elisp,  Node: Creating Buffers,  Next: Killing Buffers,  Prev: The Buffer List,  Up: Buffers
-
-Creating Buffers
-================
-
-   This section describes the two primitives for creating buffers. 
-`get-buffer-create' creates a buffer if it finds no existing buffer;
-`generate-new-buffer' always creates a new buffer, and gives it a
-unique name.
-
-   Two other functions to create buffers are
-`with-output-to-temp-buffer' (*note Temporary Displays::.) and
-`create-file-buffer' (*note Visiting Files::.).
-
- * Function: get-buffer-create NAME
-     This function returns a buffer named NAME.  If such a buffer
-     already exists, it is returned.  If such a buffer does not
-     exist, one is created and returned.  The buffer does not become
-     the current buffer--this function does not change which buffer
-     is current.
-
-     An error is signaled if NAME is not a string.
-
-          (get-buffer-create "foo")
-               => #<buffer foo>
-
-     The major mode for the new buffer is chosen according to the
-     value of `default-major-mode'.  *Note Auto Major Mode::.
-
- * Function: generate-new-buffer NAME
-     This function returns a newly created, empty buffer.  If there
-     is no buffer named NAME, then that is the name of the new
-     buffer.  If there is a buffer with that name, then suffixes of
-     the form `<N>' are added to NAME, where N stands for successive
-     integers starting with 2.  New suffixes are tried until an
-     unused name is found.
-
-     An error is signaled if NAME is not a string.
-
-          (generate-new-buffer "bar")
-               => #<buffer bar>
-          (generate-new-buffer "bar")
-               => #<buffer bar<2>>
-          (generate-new-buffer "bar")
-               => #<buffer bar<3>>
-
-     The major mode for the new buffer is chosen according to the
-     value of `default-major-mode'.  *Note Auto Major Mode::.
-
-
-
-File: elisp,  Node: Killing Buffers,  Next: Current Buffer,  Prev: Creating Buffers,  Up: Buffers
-
-Killing Buffers
-===============
-
-   "Killing a buffer" makes its name unknown to Emacs and makes its
-space available for other use.
-
-   The buffer object for the buffer which has been killed remains in
-existence as long as anything refers to it, but it is specially
-marked so that you cannot make it current or display it.  Killed
-buffers retain their identity, however; two distinct buffers, when
-killed, remain distinct according to `eq'.
-
-   The `buffer-name' of a killed buffer is `nil'.  You can use this
-feature to test whether a buffer has been killed:
-
-     (defun killed-buffer-p (buffer)
-       "Return t if BUFFER is killed."
-       (not (buffer-name buffer)))
-
- * Command: kill-buffer BUFFER-OR-NAME
-     This function kills the buffer BUFFER-OR-NAME, freeing all its
-     memory for use as space for other buffers.  (In Emacs version
-     18, the memory is not returned to the operating system.)  It
-     returns `nil'.
-
-     Any processes that have this buffer as the `process-buffer' are
-     sent the `SIGHUP' signal, which normally causes them to terminate.
-     (The usual meaning of `SIGHUP' is that a dialup line has been
-     disconnected.)  *Note Deleting Processes::.
-
-     If the buffer is visiting a file when `kill-buffer' is called
-     and the buffer has not been saved since it was last modified,
-     the user is asked to confirm before the buffer is killed.  This
-     is done even if `kill-buffer' is not called interactively.  To
-     prevent the request for confirmation, clear the modified flag
-     before calling `kill-buffer'.  *Note Buffer Modification::.
-
-          (kill-buffer "foo.unchanged")
-               => nil
-          (kill-buffer "foo.changed")
-          
-          ---------- Buffer: Minibuffer ----------
-          Buffer foo.changed modified; kill anyway? (yes or no) `yes'
-          ---------- Buffer: Minibuffer ----------
-          
+          (defun simple-rec ()
+            (forward-word 1)
+            (message "Recursive edit in progress.")
+            (recursive-edit)
+            (forward-word 1))
+               => simple-rec
+          (simple-rec)
                => nil
 
+ - Command: exit-recursive-edit
+     This function exits from the innermost recursive edit (including
+     minibuffer input).  Its definition is effectively `(throw 'exit
+     nil)'.
+
+ - Command: abort-recursive-edit
+     This function aborts the command that requested the innermost
+     recursive edit (including minibuffer input), by signaling `quit'
+     after exiting the recursive edit.  Its definition is effectively
+     `(throw 'exit t)'.  *Note Quitting::.
+
+ - Command: top-level
+     This function exits all recursive editing levels; it does not
+     return a value, as it jumps completely out of any computation
+     directly back to the main command loop.
+
+ - Function: recursion-depth
+     This function returns the current depth of recursive edits.  When
+     no recursive edit is active, it returns 0.
 
 
-File: elisp,  Node: Current Buffer,  Prev: Killing Buffers,  Up: Buffers
+File: lispref.info,  Node: Disabling Commands,  Next: Command History,  Prev: Recursive Editing,  Up: Command Loop
 
-The Current Buffer
+Disabling Commands
 ==================
 
-   There are in general many buffers in an Emacs session.  At any
-time, one of them is designated as the "current buffer".  This is the
-buffer in which most editing takes place, because most of the
-primitives for examining or changing text in a buffer operate
-implicitly on the current buffer (*note Text::.).  Normally the
-buffer that is displayed on the screen in the selected window is the
-current buffer, but this is not always so: a Lisp program can
-designate any buffer as current temporarily in order to operate on
-its contents, without changing what is displayed on the screen.
+   "Disabling a command" marks the command as requiring user
+confirmation before it can be executed.  Disabling is used for commands
+which might be confusing to beginning users, to prevent them from using
+the commands by accident.
 
-   The way to designate a current buffer in a Lisp program is by
-calling `set-buffer'.  The specified buffer remains current until a
-new one is designated.
+   The low-level mechanism for disabling a command is to put a
+non-`nil' `disabled' property on the Lisp symbol for the command.
+These properties are normally set up by the user's `.emacs' file with
+Lisp expressions such as this:
 
-   When an editing command returns to the editor command loop, the
-command loop designates the buffer displayed in the selected window
-as current, to prevent confusion: the buffer that the cursor is in,
-when Emacs reads a command, is the one to which the command will apply.
-(*Note Command Loop::.)  Therefore, `set-buffer' is not usable for
-switching visibly to a different buffer so that the user can edit it.
-For this, you must use the functions described in *Note Displaying
-Buffers::.
+     (put 'upcase-region 'disabled t)
 
-   However, Lisp functions that change to a different current buffer
-should not rely on the command loop to set it back afterwards. 
-Editing commands written in Emacs Lisp can be called from other
-programs as well as from the command loop.  It is convenient for the
-caller if the subroutine does not change which buffer is current
-(unless, of course, that is the subroutine's purpose).  Therefore,
-you should normally use `set-buffer' within a `save-excursion' that
-will restore the current buffer when your program is done (*note
-Excursions::.).  Here is an example, the code for the command
-`append-to-buffer' (with the documentation string abridged):
+For a few commands, these properties are present by default and may be
+removed by the `.emacs' file.
 
-     (defun append-to-buffer (buffer start end)
-       "Append to specified buffer the text of the region..."
-       (interactive "BAppend to buffer: \nr")
-       (let ((oldbuf (current-buffer)))
-         (save-excursion
-           (set-buffer (get-buffer-create buffer))
-           (insert-buffer-substring oldbuf start end))))
+   If the value of the `disabled' property is a string, that string is
+included in the message printed when the command is used:
 
-In this function, a local variable is bound to the current buffer,
-and then `save-excursion' records the values of point, the mark, and
-the original buffer.  Next, `set-buffer' makes another buffer current.
-Finally, `insert-buffer-substring' copies the string from the
-original current buffer to the new current buffer.
+     (put 'delete-region 'disabled
+          "Text deleted this way cannot be yanked back!\n")
 
-   If the buffer appended to happens to be displayed in some window,
-then the next redisplay will show how its text has changed. 
-Otherwise, you will not see the change immediately on the screen. 
-The buffer becomes current temporarily during the execution of the
-command, but this does not cause it to be displayed.
+   *Note Disabling: (emacs)Disabling, for the details on what happens
+when a disabled command is invoked interactively.  Disabling a command
+has no effect on calling it as a function from Lisp programs.
 
- * Function: current-buffer
-     This function returns the current buffer.
+ - Command: enable-command COMMAND
+     Allow COMMAND to be executed without special confirmation from now
+     on.  The user's `.emacs' file is optionally altered so that this
+     will apply to future sessions.
 
-          (current-buffer)
-               => #<buffer buffers.texi>
+ - Command: disable-command COMMAND
+     Require special confirmation to execute COMMAND from now on.  The
+     user's `.emacs' file is optionally altered so that this will apply
+     to future sessions.
 
- * Function: set-buffer BUFFER-OR-NAME
-     This function makes BUFFER-OR-NAME the current buffer.  However,
-     it does not display the buffer in the currently selected window
-     or in any other window.  This means that the user cannot
-     necessarily see the buffer, but Lisp programs can in any case
-     work on it.
+ - Variable: disabled-command-hook
+     This variable is a normal hook that is run instead of a disabled
+     command, when the user runs the disabled command interactively.
+     The hook functions can use `this-command-keys' to determine what
+     the user typed to run the command, and thus find the command
+     itself.
 
-     This function returns the buffer identified by BUFFER-OR-NAME. 
-     An error is signaled if BUFFER-OR-NAME does not identify an
-     existing buffer.
-
+     By default, `disabled-command-hook' contains a function that asks
+     the user whether to proceed.
 
 
-File: elisp,  Node: Windows,  Next: Positions,  Prev: Buffers,  Up: Top
+File: lispref.info,  Node: Command History,  Next: Keyboard Macros,  Prev: Disabling Commands,  Up: Command Loop
 
-Windows
+Command History
+===============
+
+   The command loop keeps a history of the complex commands that have
+been executed, to make it convenient to repeat these commands.  A
+"complex command" is one for which the interactive argument reading
+uses the minibuffer.  This includes any `M-x' command, any `M-ESC'
+command, and any command whose `interactive' specification reads an
+argument from the minibuffer.  Explicit use of the minibuffer during
+the execution of the command itself does not cause the command to be
+considered complex.
+
+ - Variable: command-history
+     This variable's value is a list of recent complex commands, each
+     represented as a form to evaluate.  It continues to accumulate all
+     complex commands for the duration of the editing session, but all
+     but the first (most recent) thirty elements are deleted when a
+     garbage collection takes place (*note Garbage Collection::.).
+
+          command-history
+          => ((switch-to-buffer "chistory.texi")
+              (describe-key "^X^[")
+              (visit-tags-table "~/emacs/src/")
+              (find-tag "repeat-complex-command"))
+
+   This history list is actually a special case of minibuffer history
+(*note Minibuffer History::.), with one special twist: the elements are
+expressions rather than strings.
+
+   There are a number of commands devoted to the editing and recall of
+previous commands.  The commands `repeat-complex-command', and
+`list-command-history' are described in the user manual (*note
+Repetition: (emacs)Repetition.).  Within the minibuffer, the history
+commands used are the same ones available in any minibuffer.
+
+
+File: lispref.info,  Node: Keyboard Macros,  Prev: Command History,  Up: Command Loop
+
+Keyboard Macros
+===============
+
+   A "keyboard macro" is a canned sequence of input events that can be
+considered a command and made the definition of a key.  Don't confuse
+keyboard macros with Lisp macros (*note Macros::.).
+
+ - Function: execute-kbd-macro MACRO &optional COUNT
+     This function executes MACRO as a sequence of events.  If MACRO is
+     a string or vector, then the events in it are executed exactly as
+     if they had been input by the user.  The sequence is *not*
+     expected to be a single key sequence; normally a keyboard macro
+     definition consists of several key sequences concatenated.
+
+     If MACRO is a symbol, then its function definition is used in
+     place of MACRO.  If that is another symbol, this process repeats.
+     Eventually the result should be a string or vector.  If the result
+     is not a symbol, string, or vector, an error is signaled.
+
+     The argument COUNT is a repeat count; MACRO is executed that many
+     times.  If COUNT is omitted or `nil', MACRO is executed once.  If
+     it is 0, MACRO is executed over and over until it encounters an
+     error or a failing search.
+
+ - Variable: last-kbd-macro
+     This variable is the definition of the most recently defined
+     keyboard macro.  Its value is a string or vector, or `nil'.
+
+ - Variable: executing-macro
+     This variable contains the string or vector that defines the
+     keyboard macro that is currently executing.  It is `nil' if no
+     macro is currently executing.
+
+ - Variable: defining-kbd-macro
+     This variable indicates whether a keyboard macro is being defined.
+     It is set to `t' by `start-kbd-macro', and `nil' by
+     `end-kbd-macro'.  You can use this variable to make a command
+     behave differently when run from a keyboard macro (perhaps
+     indirectly by calling `interactive-p').  However, do not set this
+     variable yourself.
+
+   The commands are described in the user's manual (*note Keyboard
+Macros: (emacs)Keyboard Macros.).
+
+
+File: lispref.info,  Node: Keymaps,  Next: Menus,  Prev: Command Loop,  Up: Top
+
+Keymaps
 *******
 
-   This chapter describes most of the functions and variables related
-to Emacs windows.  See *Note Emacs Display::, for information on how
-text is displayed in windows.
+   The bindings between input events and commands are recorded in data
+structures called "keymaps".  Each binding in a keymap associates (or
+"binds") an individual event type either with another keymap or with a
+command.  When an event is bound to a keymap, that keymap is used to
+look up the next character typed; this continues until a command is
+found.  The whole process is called "key lookup".
+
+   NOTE: Keymap documentation has not been completely updated for Lucid
+Emacs.  Much of the information below is incorrect.
 
 * Menu:
 
-* Basic Windows::          Basic information on using windows.
-* Splitting Windows::      Splitting one window into two windows.
-* Deleting Windows::       Deleting a window gives its space to other windows.
-* Selecting Windows::      The selected window is the one that you edit in.
-* Cyclic Window Ordering:: Moving around the existing windows.
-* Buffers and Windows::    Each window displays the contents of a buffer.
-* Displaying Buffers::     Higher-lever functions for displaying a buffer
-                             and choosing a window for it.
-* Window Point::           Each window has its own location of point.
-* Window Start::           The display-start position controls which text
-                             is on-screen in the window. 
-* Vertical Scrolling::     Moving text up and down in the window.
-* Horizontal Scrolling::   Moving text sideways on the window.
-* Size of Window::         Accessing the size of a window.
-* Resizing Windows::       Changing the size of a window.
-* Window Configurations::  Saving and restoring the state of the screen.
+* Keymap Terminology::        	Definitions of terms pertaining to keymaps.
+* Format of Keymaps::		What a keymap looks like as a Lisp object.
+* Creating Keymaps:: 		Functions to create and copy keymaps.
+* Inheritance and Keymaps::	How one keymap can inherit the bindings
+				   of another keymap.
+* Prefix Keys::                 Defining a key with a keymap as its definition.
+* Active Keymaps::	        Each buffer has a local keymap
+                                   to override the standard (global) bindings.
+				   A minor mode can also override them.
+* Key Lookup::                  How extracting elements from keymaps works.
+* Functions for Key Lookup::    How to request key lookup.
+* Changing Key Bindings::       Redefining a key in a keymap.
+* Key Binding Commands::        Interactive interfaces for redefining keys.
+* Scanning Keymaps::            Looking through all keymaps, for printing help.
 
- 
 
-File: elisp,  Node: Basic Windows,  Next: Splitting Windows,  Prev: Windows,  Up: Windows
+File: lispref.info,  Node: Keymap Terminology,  Next: Format of Keymaps,  Up: Keymaps
 
-Basic Concepts of Emacs Windows
-===============================
+Keymap Terminology
+==================
 
-   A "window" is the physical area of the screen in which a buffer is
-displayed.  The term is also used to refer to a Lisp object which
-represents that screen area in Emacs Lisp.  It should be clear from
-the context which is meant.
+   A "keymap" is a table mapping event types to definitions (which can
+be any Lisp objects, though only certain types are meaningful for
+execution by the command loop).  Given an event (or an event type) and a
+keymap, Emacs can get the event's definition.  Events mapped in keymaps
+include keypresses, button presses, and button releases (*note Input
+Events::.).
 
-   There is always at least one window displayed on the screen, and
-there is exactly one window that we call the "selected window".  The
-cursor is in the selected window.  The selected window's buffer is
-usually the current buffer (except when `set-buffer' has been used.) 
-*Note Current Buffer::.
+   A sequence of input events that form a unit is called a "key
+sequence", or "key" for short.  A sequence of one event is always a key
+sequence, and so are some multi-event sequences.
 
-   For all intents, a window only exists while it is displayed on the
-terminal.  Once removed from the display, the window is effectively
-deleted and should not be used, *even though there may still be
-references to it* from other Lisp objects.  (*Note Deleting Windows::.)
+   A keymap determines a binding or definition for any key sequence.  If
+the key sequence is a single event, its binding is the definition of the
+event in the keymap.  The binding of a key sequence of more than one
+event is found by an iterative process: the binding of the first event
+is found, and must be a keymap; then the second event's binding is found
+in that keymap, and so on until all the events in the key sequence are
+used up.
 
-   Each window has the following attributes:
+   If the binding of a key sequence is a keymap, we call the key
+sequence a "prefix key".  Otherwise, we call it a "complete key"
+(because no more characters can be added to it).  If the binding is
+`nil', we call the key "undefined".  Examples of prefix keys are `C-c',
+`C-x', and `C-x 4'.  Examples of defined complete keys are `X', RET,
+and `C-x 4 C-f'.  Examples of undefined complete keys are `C-x C-g',
+and `C-c 3'.  *Note Prefix Keys::, for more details.
 
-   * window height
+   The rule for finding the binding of a key sequence assumes that the
+intermediate bindings (found for the events before the last) are all
+keymaps; if this is not so, the sequence of events does not form a
+unit--it is not really a key sequence.  In other words, removing one or
+more events from the end of any valid key must always yield a prefix
+key.  For example, `C-f C-f' is not a key; `C-f' is not a prefix key,
+so a longer sequence starting with `C-f' cannot be a key.
 
-   * window width
+   Note that the set of possible multi-event key sequences depends on
+the bindings for prefix keys; therefore, it can be different for
+different keymaps, and can change when bindings are changed.  However,
+a one-event sequence is always a key sequence, because it does not
+depend on any prefix keys for its well-formedness.
 
-   * window edges with respect to the screen
+   At any time, several primary keymaps are "active"--that is, in use
+for finding key bindings.  These are the "global map", which is shared
+by all buffers; the "local keymap", which is usually associated with a
+specific major mode; and zero or more "minor mode keymaps" which belong
+to currently enabled minor modes.  (Not all minor modes have keymaps.)
+The local keymap bindings shadow (i.e., take precedence over) the
+corresponding global bindings.  The minor mode keymaps shadow both
+local and global keymaps.  *Note Active Keymaps::, for details.
 
-   * the buffer it displays
+
+File: lispref.info,  Node: Format of Keymaps,  Next: Creating Keymaps,  Prev: Keymap Terminology,  Up: Keymaps
 
-   * position within the buffer at the upper left of the window
+Format of Keymaps
+=================
 
-   * the amount of horizontal scrolling, in columns
+   A keymap is a primitive type that associates events with their
+bindings.  Note that this is different from Emacs 18 and FSF Emacs 19,
+where keymaps are lists.
 
-   * point
+ - Function: keymapp OBJECT
+     This function returns `t' if OBJECT is a keymap, `nil' otherwise.
 
-   * the mark
+
+File: lispref.info,  Node: Creating Keymaps,  Next: Inheritance and Keymaps,  Prev: Format of Keymaps,  Up: Keymaps
 
-   * how recently the window was selected
+Creating Keymaps
+================
 
-   Applications use multiple windows for a variety of reasons, but
-most often to give different views of the same information.  In
-Rmail, for example, you can move through a summary buffer in one
-window while the other window shows messages one at a time as they
-are reached.
+   Here we describe the functions for creating keymaps.
 
-   Use of the word "window" to refer to a view of a buffer was
-established long ago in Emacs.  The metaphor was inspired by how you
-look out a house window--at part (or sometimes all) of an overall view.
-You see part (or sometimes all) of a buffer through an Emacs window. 
-In Emacs, each window may look on a different view, like different
-windows of a house.
+ - Function: make-keymap
+     This function constructs and returns a new keymap object.  All
+     entries in it are `nil', meaning "command undefined".
 
-   The term "window" as used in this manual means something different
-from the term as used in a window system like X Windows.  In this
-manual, the term "window" refers to the nonoverlapping subdivisions
-of the Emacs display.  If Emacs is displaying on a window system, the
-Emacs display may itself be one X window among many on the screen. 
-But Emacs version 18 knows nothing of this.
+ - Function: make-sparse-keymap
+     This function constructs and returns a new keymap object.  All
+     entries in it are `nil', meaning "command undefined".  The only
+     difference between this function and `make-keymap' is that this
+     function returns a "smaller" keymap (one that is expected to
+     contain fewer entries).  As keymaps dynamically resize, the
+     distinction is not great.
 
-   For those familiar with windowing systems, Emacs's windows are
-rectangles tiled onto the rectangle of the screen, and every portion
-of the screen is part of some window, except (sometimes) the
-minibuffer area.  This limitation helps avoid wasting the
-historically scarce resource of screen space.  It also works well
-with character-only terminals.  Because of the way in which Emacs
-creates new windows and resizes them, you can't create every
-conceivable tiling on an Emacs screen.  *Note Splitting Windows::. 
-Also, see *Note Size of Window::.
+ - Function: copy-keymap KEYMAP
+     This function returns a copy of KEYMAP.  Any keymaps which appear
+     directly as bindings in KEYMAP are also copied recursively, and so
+     on to any number of levels.  However, recursive copying does not
+     take place when the definition of a character is a symbol whose
+     function definition is a keymap; the same symbol appears in the
+     new copy.
 
-   *Note Emacs Display::, for information on how the contents of the
-window's buffer are displayed in the window.
+
+File: lispref.info,  Node: Inheritance and Keymaps,  Next: Prefix Keys,  Prev: Creating Keymaps,  Up: Keymaps
 
- * Function: windowp OBJECT
-     This function returns `t' if OBJECT is a window.
+Inheritance and Keymaps
+=======================
 
+   A keymap can inherit the bindings of another keymap.  This other
+keymap is called the keymap's "parent", and is set with
+`set-keymap-parent'.  When searching for a binding for a key sequence
+in a particular keymap, that keymap itself will first be searched;
+then, if no binding was found in the map and it has a parent, the
+parent keymap will be searched; then the parent's parent keymap will be
+searched, and so on, until either a binding for the key sequence is
+found, or a keymap without a parent is encountered.
+
+   `(current-global-map)' is the default parent of all keymaps.
+
+ - Function: set-keymap-parent KEYMAP PARENT
+     Sets the parent keymap of KEYMAP to PARENT.
+
+     If you change the bindings in PARENT using `define-key' or other
+     key-binding functions, these changes are visible in KEYMAP unless
+     shadowed by bindings in that map.  The converse is not true: if
+     you use `define-key' to change KEYMAP, that affects the bindings
+     in that map, but has no effect on PARENT.
+
+ - Function: keymap-parent KEYMAP
+     Returns the parent keymap of KEYMAP, or `nil' if KEYMAP has no
+     parent.
+
+
+File: lispref.info,  Node: Prefix Keys,  Next: Active Keymaps,  Prev: Inheritance and Keymaps,  Up: Keymaps
+
+Prefix Keys
+===========
+
+   A "prefix key" has an associated keymap which defines what to do
+with key sequences that start with the prefix key.  For example, `C-x'
+is a prefix key, and it uses a keymap which is also stored in the
+variable `ctl-x-map'.  Here is a list of the standard prefix keys of
+Emacs and their keymaps:
+
+   * `help-map' is used for events that follow `C-h'.
+
+   * `mode-specific-map' is for events that follow `C-c'.  This map is
+     not actually mode specific; its name was chosen to be informative
+     for the user in `C-h b' (`display-bindings'), where it describes
+     the main use of the `C-c' prefix key.
+
+   * `ctl-x-map' is the variable name for the map used for events that
+     follow `C-x'.  This map is also the function definition of
+     `Control-X-prefix'.
+
+   * `ctl-x-4-map' is used for events that follow `C-x 4'.
+
+   * `ctl-x-5-map' used is for events that follow `C-x 5'.
+
+   * A nameless keymap is used for events that follow `C-x n'.  Others
+     are used for events following `C-x r' and `C-x a'.
+
+   * `esc-map' is used for events that follow ESC.  Thus, the global
+     definitions of all meta characters are actually found here.  This
+     map is also the function definition of `ESC-prefix'.
+
+   The binding of a prefix key is the keymap to use for looking up the
+events that follow the prefix key.  (It may instead be a symbol whose
+function definition is a keymap.  The effect is the same, but the symbol
+serves as a name for the prefix key.)  Thus, the binding of `C-x' is
+the symbol `Control-X-prefix', whose function definition is the keymap
+for `C-x' commands.  (The same keymap is also the value of `ctl-x-map'.)
+
+   Prefix key definitions of this sort can appear in any active keymap.
+The definitions of `C-c', `C-x', `C-h' and ESC as prefix keys appear in
+the global map, so these prefix keys are always available.  Major and
+minor modes can redefine a key as a prefix by putting a prefix key
+definition for it in the local map or the minor mode's map.  *Note
+Active Keymaps::.
+
+   If a key is defined as a prefix in more than one active map, then the
+various definitions are in effect merged: the commands defined in the
+minor mode keymaps come first, followed by those in the local map's
+prefix definition, and then by those from the global map.
+
+   In the following example, we make `C-p' a prefix key in the local
+keymap, in such a way that `C-p' is identical to `C-x'.  Then the
+binding for `C-p C-f' is the function `find-file', just like `C-x C-f'.
+The key sequence `C-p 6' is not found in any active keymap.
+
+     (use-local-map (make-sparse-keymap))
+         => nil
+     (local-set-key "\C-p" ctl-x-map)
+         => nil
+     (key-binding "\C-p\C-f")
+         => find-file
+     
+     (key-binding "\C-p6")
+         => nil
+
+ - Function: define-prefix-command SYMBOL
+     This function defines SYMBOL as a prefix command: it creates a
+     full keymap and stores it as SYMBOL's function definition.
+     Storing the symbol as the binding of a key makes the key a prefix
+     key which has a name.  It also sets SYMBOL as a variable, to have
+     the keymap as its value.  The function returns SYMBOL.
+
+     In Emacs version 18, only the function definition of SYMBOL was
+     set, not the value as a variable.
+
+
+File: lispref.info,  Node: Active Keymaps,  Next: Key Lookup,  Prev: Prefix Keys,  Up: Keymaps
+
+Active Keymaps
+==============
+
+   Emacs normally contains many keymaps; at any given time, just a few
+of them are "active" in that they participate in the interpretation of
+user input.  These are the global keymap, the current buffer's local
+keymap, and the keymaps of any enabled minor modes.
+
+   The "global keymap" holds the bindings of keys that are defined
+regardless of the current buffer, such as `C-f'.  The variable
+`global-map' holds this keymap, which is always active.
+
+   Each buffer may have another keymap, its "local keymap", which may
+contain new or overriding definitions for keys.  At all times, the
+current buffer's local keymap is active.  Text properties can specify an
+alternative local map for certain parts of the buffer; see *Note
+Special Properties::.
+
+   Each minor mode may have a keymap; if it does, the keymap is active
+whenever the minor mode is enabled.
+
+   All the active keymaps are used together to determine what command to
+execute when a key is entered.  The key lookup proceeds as described
+earlier (*note Key Lookup::.), but Emacs *first* searches for the key
+in the minor mode maps (one map at a time); if they do not supply a
+binding for the key, Emacs searches the local map; if that too has no
+binding, Emacs then searches the global map.
+
+   Since every buffer that uses the same major mode normally uses the
+very same local keymap, it may appear as if the keymap is local to the
+mode.  A change to the local keymap of a buffer (using `local-set-key',
+for example) will be seen also in the other buffers that share that
+keymap.
+
+   The local keymaps that are used for Lisp mode, C mode, and several
+other major modes exist even if they have not yet been used.  These
+local maps are the values of the variables `lisp-mode-map',
+`c-mode-map', and so on.  For most other modes, which are less
+frequently used, the local keymap is constructed only when the mode is
+used for the first time in a session.
+
+   The minibuffer has local keymaps, too; they contain various
+completion and exit commands.  *Note Minibuffers::.
+
+   *Note Standard Keymaps::, for a list of standard keymaps.
+
+ - Variable: global-map
+     This variable contains the default global keymap that maps Emacs
+     keyboard input to commands.  Normally this keymap is the global
+     keymap.  The default global keymap is a full keymap that binds
+     `self-insert-command' to all of the printing characters.
+
+ - Function: current-global-map
+     This function returns the current global keymap.  This is always
+     the same as the value of `global-map' unless you change one or the
+     other.
+
+          (current-global-map)
+          => (keymap [set-mark-command beginning-of-line ...
+                      delete-backward-char])
+
+ - Function: current-local-map
+     This function returns the current buffer's local keymap, or `nil'
+     if it has none.  In the following example, the keymap for the
+     `*scratch*' buffer (using Lisp Interaction mode) is a sparse keymap
+     in which the entry for ESC, ASCII code 27, is another sparse
+     keymap.
+
+          (current-local-map)
+          => (keymap
+              (10 . eval-print-last-sexp)
+              (9 . lisp-indent-line)
+              (127 . backward-delete-char-untabify)
+              (27 keymap
+                  (24 . eval-defun)
+                  (17 . indent-sexp)))
+
+ - Function: current-minor-mode-maps
+     This function returns a list of the keymaps of currently enabled
+     minor modes.
+
+ - Function: use-global-map KEYMAP
+     This function makes KEYMAP the new current global keymap.  It
+     returns `nil'.
+
+     It is very unusual to change the global keymap.
+
+ - Function: use-local-map KEYMAP
+     This function makes KEYMAP the new current local keymap of the
+     current buffer.  If KEYMAP is `nil', then there will be no local
+     keymap.  It returns `nil'.  Most major modes use this function.
+
+ - Variable: minor-mode-map-alist
+     This variable is an alist describing keymaps that may or may not be
+     active according to the values of certain variables.  Its elements
+     look like this:
+
+          (VARIABLE . KEYMAP)
+
+     The keymap KEYMAP is active whenever VARIABLE has a non-`nil'
+     value.  Typically VARIABLE is the variable which enables or
+     disables a minor mode.  *Note Keymaps and Minor Modes::.
+
+     When more than one minor mode keymap is active, their order of
+     priority is the order of `minor-mode-map-alist'.
+
+     See also `minor-mode-key-binding' in *Note Functions for Key
+     Lookup::.
+
+
+File: lispref.info,  Node: Key Lookup,  Next: Functions for Key Lookup,  Prev: Active Keymaps,  Up: Keymaps
+
+Key Lookup
+==========
+
+   "Key lookup" is the process of finding the binding of a key sequence
+from a given keymap.  Actual execution of the binding is not part of
+key lookup.
+
+   Key lookup uses just the event types of each event in the key
+sequence; the rest of the event is ignored.  In fact, a key sequence
+used for key lookup may designate mouse events with just their types
+(symbols) instead of with entire mouse events (lists).  *Note Input
+Events::.  Such a pseudo-key-sequence is insufficient for
+`command-execute', but it is sufficient for looking up or rebinding a
+key.
+
+   When the key sequence consists of multiple events, key lookup
+processes the events sequentially: the binding of the first event is
+found, and must be a keymap; then the second event's binding is found in
+that keymap, and so on until all the events in the key sequence are used
+up.  (The binding thus found for the last event may or may not be a
+keymap.)  Thus, the process of key lookup is defined in terms of a
+simpler process for looking up a single event in a keymap.  How that is
+done depends on the type of object associated with the event in that
+keymap.
+
+   Let's use the term "keymap entry" to describe the value directly
+associated with an event type in a keymap.  While any Lisp object may be
+stored as a keymap entry, not all make sense for key lookup.  Here is a
+list of the meaningful kinds of keymap entries:
+
+`nil'
+     `nil' means that the events used so far in the lookup form an
+     undefined key.  When a keymap fails to mention an event type at
+     all, that is equivalent to an entry of `nil' for that type.
+
+KEYMAP
+     The events used so far in the lookup form a prefix key.  The next
+     event of the key sequence is looked up in KEYMAP.
+
+COMMAND
+     The events used so far in the lookup form a complete key, and
+     COMMAND is its binding.
+
+STRING
+VECTOR
+     The events used so far in the lookup form a complete key, whose
+     binding is a keyboard macro.  See *Note Keyboard Macros::, for more
+     information.
+
+LIST
+     The meaning of a list depends on the types of the elements of the
+     list.
+
+        * If the CAR of LIST is the symbol `keymap', then the list is a
+          keymap, and is treated as a keymap (see above).
+
+        * If the CAR of LIST is `lambda', then the list is a lambda
+          expression.  This is presumed to be a command, and is treated
+          as such (see above).
+
+        * If the CAR of LIST is a keymap and the CDR is an event type,
+          then this is an "indirect entry":
+
+               (OTHERMAP . OTHERTYPE)
+
+          When key lookup encounters an indirect entry, it looks up
+          instead the binding of OTHERTYPE in OTHERMAP and uses that.
+
+          This feature permits you to define one key as an alias for
+          another key.  For example, an entry whose CAR is the keymap
+          called `esc-map' and whose CDR is 32 (the code for space)
+          means, "Use the global binding of `Meta-SPC', whatever that
+          may be."
+
+SYMBOL
+     The function definition of SYMBOL is used in place of SYMBOL.  If
+     that too is a symbol, then this process is repeated, any number of
+     times.  Ultimately this should lead to an object which is a
+     keymap, a command or a keyboard macro.  A list is allowed if it is
+     a keymap or a command, but indirect entries are not understood
+     when found via symbols.
+
+     Note that keymaps and keyboard macros (strings and vectors) are not
+     valid functions, so a symbol with a keymap, string or vector as its
+     function definition is also invalid as a function.  It is, however,
+     valid as a key binding.  If the definition is a keyboard macro,
+     then the symbol is also valid as an argument to `command-execute'
+     (*note Interactive Call::.).
+
+     The symbol `undefined' is worth special mention: it means to treat
+     the key as undefined.  Strictly speaking, the key is defined, and
+     its binding is the command `undefined'; but that command does the
+     same thing that is done automatically for an undefined key: it
+     rings the bell (by calling `ding') but does not signal an error.
+
+     `undefined' is used in local keymaps to override a global key
+     binding and make the key "undefined" locally.  A local binding of
+     `nil' would fail to do this because it would not override the
+     global binding.
+
+ANYTHING ELSE
+     If any other type of object is found, the events used so far in the
+     lookup form a complete key, and the object is its binding, but the
+     binding is not executable as a command.
+
+   In short, a keymap entry may be a keymap, a command, a keyboard
+macro, a symbol which leads to one of them, or an indirection or `nil'.
+Here is an example of a sparse keymap with two characters bound to
+commands and one bound to another keymap.  This map is the normal value
+of `emacs-lisp-mode-map'.  Note that 9 is the code for TAB, 127 for
+DEL, 27 for ESC, 17 for `C-q' and 24 for `C-x'.
+
+     (keymap (9 . lisp-indent-line)
+             (127 . backward-delete-char-untabify)
+             (27 keymap (17 . indent-sexp) (24 . eval-defun)))
+
+
+File: lispref.info,  Node: Functions for Key Lookup,  Next: Changing Key Bindings,  Prev: Key Lookup,  Up: Keymaps
+
+Functions for Key Lookup
+========================
+
+   Here are the functions and variables pertaining to key lookup.
+
+ - Function: lookup-key KEYMAP KEY &optional ACCEPT-DEFAULTS
+     This function returns the definition of KEY in KEYMAP.  If the
+     string or vector KEY is not a valid key sequence according to the
+     prefix keys specified in KEYMAP (which means it is "too long" and
+     has extra events at the end), then the value is a number, the
+     number of events at the front of KEY that compose a complete key.
+
+     If ACCEPT-DEFAULTS is non-`nil', then `lookup-key' considers
+     default bindings as well as bindings for the specific events in
+     KEY.  Otherwise, `lookup-key' reports only bindings for the
+     specific sequence KEY, ignoring default bindings except when an
+     element of KEY is `t'.
+
+     All the other functions described in this chapter that look up
+     keys use `lookup-key'.
+
+          (lookup-key (current-global-map) "\C-x\C-f")
+              => find-file
+          (lookup-key (current-global-map) "\C-x\C-f12345")
+              => 2
+
+     If KEY contains a meta character, that character is implicitly
+     replaced by a two-character sequence: the value of
+     `meta-prefix-char', followed by the corresponding non-meta
+     character.  Thus, the first example below is handled by conversion
+     into the second example.
+
+          (lookup-key (current-global-map) "\M-f")
+              => forward-word
+          (lookup-key (current-global-map) "\ef")
+              => forward-word
+
+     This function does not modify the specified events in ways that
+     discard information as `read-key-sequence' does (*note Key
+     Sequence Input::.).  In particular, it does not convert letters to
+     lower case and it does not change drag events to clicks.
+
+ - Command: undefined
+     Used in keymaps to undefine keys.  It calls `ding', but does not
+     cause an error.
+
+ - Function: key-binding KEY &optional ACCEPT-DEFAULTS
+     This function returns the binding for KEY in the current keymaps,
+     trying all the active keymaps.  The result is `nil' if KEY is
+     undefined in the keymaps.
+
+     The argument ACCEPT-DEFAULTS controls checking for default
+     bindings, as in `lookup-key'.
+
+     An error is signaled if KEY is not a string or a vector.
+
+          (key-binding "\C-x\C-f")
+              => find-file
+
+ - Function: local-key-binding KEY &optional ACCEPT-DEFAULTS
+     This function returns the binding for KEY in the current local
+     keymap, or `nil' if it is undefined there.
+
+     The argument ACCEPT-DEFAULTS controls checking for default
+     bindings, as in `lookup-key' (above).
+
+ - Function: global-key-binding KEY &optional ACCEPT-DEFAULTS
+     This function returns the binding for command KEY in the current
+     global keymap, or `nil' if it is undefined there.
+
+     The argument ACCEPT-DEFAULTS controls checking for default
+     bindings, as in `lookup-key' (above).
+
+ - Function: minor-mode-key-binding KEY &optional ACCEPT-DEFAULTS
+     This function returns a list of all the active minor mode bindings
+     of KEY.  More precisely, it returns an alist of pairs `(MODENAME .
+     BINDING)', where MODENAME is the the variable which enables the
+     minor mode, and BINDING is KEY's binding in that mode.  If KEY has
+     no minor-mode bindings, the value is `nil'.
+
+     If the first binding is a non-prefix, all subsequent bindings from
+     other minor modes are omitted, since they would be completely
+     shadowed.  Similarly, the list omits non-prefix bindings that
+     follow prefix bindings.
+
+     The argument ACCEPT-DEFAULTS controls checking for default
+     bindings, as in `lookup-key' (above).
+
+ - Variable: meta-prefix-char
+     This variable is the meta-prefix character code.  It is used when
+     translating a meta character to a two-character sequence so it can
+     be looked up in a keymap.  For useful results, the value should be
+     a prefix event (*note Prefix Keys::.).  The default value is 27,
+     which is the ASCII code for ESC.
+
+     As long as the value of `meta-prefix-char' remains 27, key lookup
+     translates `M-b' into `ESC b', which is normally defined as the
+     `backward-word' command.  However, if you set `meta-prefix-char'
+     to 24, the code for `C-x', then Emacs will translate `M-b' into
+     `C-x b', whose standard binding is the `switch-to-buffer' command.
+
+          meta-prefix-char                    ; The default value.
+               => 27
+
+          (key-binding "\M-b")
+               => backward-word
+
+          ?\C-x                               ; The print representation
+               => 24                          ;   of a character.
+
+          (setq meta-prefix-char 24)
+               => 24
+
+          (key-binding "\M-b")
+               => switch-to-buffer            ; Now, typing `M-b' is
+                                              ;   like typing `C-x b'.
+          
+          (setq meta-prefix-char 27)          ; Avoid confusion!
+               => 27                          ; Restore the default value!
+
+
+File: lispref.info,  Node: Changing Key Bindings,  Next: Key Binding Commands,  Prev: Functions for Key Lookup,  Up: Keymaps
+
+Changing Key Bindings
+=====================
+
+   The way to rebind a key is to change its entry in a keymap.  You can
+change the global keymap, so that the change is effective in all buffers
+(except those that override the global binding with a local one).  Or
+you can change the current buffer's local map, which usually affects all
+buffers using the same major mode.  The `global-set-key' and
+`local-set-key' functions are convenient interfaces for these
+operations.  Or you can use `define-key' and specify explicitly which
+map to change.
+
+   People often use `global-set-key' in their `.emacs' file for simple
+customization.  For example,
+
+     (global-set-key "\C-x\C-\\" 'next-line)
+
+or
+
+     (global-set-key [?\C-x ?\C-\\] 'next-line)
+
+redefines `C-x C-\' to move down a line.
+
+     (global-set-key [M-mouse-1] 'mouse-set-point)
+
+redefines the first (leftmost) mouse button, typed with the Meta key, to
+set point where you click.
+
+   In writing the key sequence to rebind, it is useful to use the
+special escape sequences for control and meta characters (*note String
+Type::.).  The syntax `\C-' means that the following character is a
+control character and `\M-' means that the following character is a meta
+character.  Thus, the string `"\M-x"' is read as containing a single
+`M-x', `"\C-f"' is read as containing a single `C-f', and `"\M-\C-x"'
+and `"\C-\M-x"' are both read as containing a single `C-M-x'.
+
+   For the functions below, an error is signaled if KEYMAP is not a
+keymap or if KEY is not a string or vector representing a key sequence.
+However, you can use event types (symbols) as shorthand for events
+that are lists.
+
+ - Function: define-key KEYMAP KEY BINDING
+     This function sets the binding for KEY in KEYMAP.  (If KEY is more
+     than one event long, the change is actually made in another keymap
+     reached from KEYMAP.)  The argument BINDING can be any Lisp
+     object, but only certain types are meaningful.  (For a list of
+     meaningful types, see *Note Key Lookup::.) The value returned by
+     `define-key' is BINDING.
+
+     Every prefix of KEY must be a prefix key (i.e., bound to a keymap)
+     or undefined; otherwise an error is signaled.
+
+     If some prefix of KEY is undefined, then `define-key' defines it
+     as a prefix key so that the rest of KEY may be defined as
+     specified.
+
+     The following example creates a sparse keymap and makes a number of
+     bindings:
+
+          (setq map (make-sparse-keymap))
+              => (keymap)
+
+          (define-key map "\C-f" 'forward-char)
+              => forward-char
+
+          map
+              => (keymap (6 . forward-char))
+
+          ;; Build sparse submap for `C-x' and bind `f' in that.
+          (define-key map "\C-xf" 'forward-word)
+              => forward-word
+
+          map
+          => (keymap
+              (24 keymap                ; `C-x'
+                  (102 . forward-word)) ;      `f'
+              (6 . forward-char))       ; `C-f'
+
+          ;; Bind `C-p' to the `ctl-x-map'.
+          (define-key map "\C-p" ctl-x-map)
+          ;; `ctl-x-map'
+          => [nil ... find-file ... backward-kill-sentence]
+
+          ;; Bind `C-f' to `foo' in the `ctl-x-map'.
+          (define-key map "\C-p\C-f" 'foo)
+          => 'foo
+
+          map
+          => (keymap     ; Note `foo' in `ctl-x-map'.
+              (16 keymap [nil ... foo ... backward-kill-sentence])
+              (24 keymap
+                  (102 . forward-word))
+              (6 . forward-char))
+
+     Note that storing a new binding for `C-p C-f' actually works by
+     changing an entry in `ctl-x-map', and this has the effect of
+     changing the bindings of both `C-p C-f' and `C-x C-f' in the
+     default global map.
+
+ - Function: substitute-key-definition OLDDEF NEWDEF KEYMAP &optional
+          OLDMAP
+     This function replaces OLDDEF with NEWDEF for any keys in KEYMAP
+     that were bound to OLDDEF.  In other words, OLDDEF is replaced
+     with NEWDEF wherever it appears.  The function returns `nil'.
+
+     For example, this redefines `C-x C-f', if you do it in an Emacs
+     with standard bindings:
+
+          (substitute-key-definition
+           'find-file 'find-file-read-only (current-global-map))
+
+     If OLDMAP is non-`nil', then its bindings determine which keys to
+     rebind.  The rebindings still happen in NEWMAP, not in OLDMAP.
+     Thus, you can change one map under the control of the bindings in
+     another.  For example,
+
+          (substitute-key-definition
+            'delete-backward-char 'my-funny-delete
+            my-map global-map)
+
+     puts the special deletion command in `my-map' for whichever keys
+     are globally bound to the standard deletion command.
+
+     Here is an example showing a keymap before and after substitution:
+
+          (setq map '(keymap
+                      (?1 . olddef-1)
+                      (?2 . olddef-2)
+                      (?3 . olddef-1)))
+          => (keymap (49 . olddef-1) (50 . olddef-2) (51 . olddef-1))
+
+          (substitute-key-definition 'olddef-1 'newdef map)
+          => nil
+
+          map
+          => (keymap (49 . newdef) (50 . olddef-2) (51 . newdef))
+
+ - Function: suppress-keymap KEYMAP &optional NODIGITS
+     This function changes the contents of the full keymap KEYMAP by
+     replacing the self-insertion commands for numbers with the
+     `digit-argument' function, unless NODIGITS is non-`nil', and by
+     replacing the functions for the rest of the printing characters
+     with `undefined'.  This means that ordinary insertion of text is
+     impossible in a buffer with a local keymap on which
+     `suppress-keymap' has been called.
+
+     `suppress-keymap' returns `nil'.
+
+     The `suppress-keymap' function does not make it impossible to
+     modify a buffer, as it does not suppress commands such as `yank'
+     and `quoted-insert'.  To prevent any modification of a buffer, make
+     it read-only (*note Read Only Buffers::.).
+
+     Since this function modifies KEYMAP, you would normally use it on
+     a newly created keymap.  Operating on an existing keymap that is
+     used for some other purpose is likely to cause trouble; for
+     example, suppressing `global-map' would make it impossible to use
+     most of Emacs.
+
+     Most often, `suppress-keymap' is used to initialize local keymaps
+     of modes such as Rmail and Dired where insertion of text is not
+     desirable and the buffer is read-only.  Here is an example taken
+     from the file `emacs/lisp/dired.el', showing how the local keymap
+     for Dired mode is set up:
+
+          ...
+            (setq dired-mode-map (make-keymap))
+            (suppress-keymap dired-mode-map)
+            (define-key dired-mode-map "r" 'dired-rename-file)
+            (define-key dired-mode-map "\C-d" 'dired-flag-file-deleted)
+            (define-key dired-mode-map "d" 'dired-flag-file-deleted)
+            (define-key dired-mode-map "v" 'dired-view-file)
+            (define-key dired-mode-map "e" 'dired-find-file)
+            (define-key dired-mode-map "f" 'dired-find-file)
+            ...
 

@@ -916,10 +916,10 @@ It is known that olwm and olvwm are buggy, and in different ways.  If you're
 using click-to-type mode, try using point-to-type, or vice versa.
 
 In older versions of NCDwm, one could not even type at Lemacs windows.  This
-seems to have been fixed in newer versions.
+has been fixed in newer versions (2.4.3, and possibly earlier).
 
 (Many people suggest that Lemacs should warp the mouse when focusing on
-another screen in point-to-type mode.  This is not ICCCM-legal behavior.
+another screen in point-to-type mode.  This is not ICCCM-compliant behavior.
 Implementing such policy is the responsibility of the window manager itself,
 it is not legal for a client to do this.)
 
@@ -947,3 +947,20 @@ LD_LIBRARY_PATH unset.
 
 You can get these standard X tools by anonymous FTP to hpcvaaz.cv.hp.com.
 Essentially all X programs need these.
+
+* When emacs starts up, I get lots of warnings about unknown keysyms.
+
+If you are running the prebuilt binaries, the Motif library expects to find
+certain thing in the XKeysymDB file.  This file is normally in /usr/lib/X11/
+or in /usr/openwin/lib/.  If you keep yours in a different place, set the
+environment variable $XKEYSYMDB to point to it before starting emacs.  If 
+you still have the problem after doing that, perhaps your version of X is 
+too old.  There is a copy of the MIT X11R5 XKeysymDB file in the emacs `etc'
+directory.  Try using that one.
+
+* My X resources used to work, and now some of them are being ignored.
+
+Check the resources in .../etc/Emacs.ad (which is the same as the file
+sample.Xdefaults).  Perhaps some of the default resources built in to 
+emacs are now overriding your existing resources.  Copy and edit the
+resources in Emacs.ad as necessary.

@@ -1,0 +1,124 @@
+-----------------------------------------------------------------------
+                                                         Jamie Zawinski
+                                                          jwz@lucid.com
+                                                      810 San Luis Road
+                                               Berkeley, CA  94707-2053
+                                                         (510) 527-2369
+-----------------------------------------------------------------------
+
+EMPLOYMENT OBJECTIVE
+     To improve people's lives through software.  My interests include
+     user interface design, programming tools, graphics, information
+     management, privacy, security, and the net in general.
+
+EXPERIENCE
+   * Scientist, Lucid, Inc., Menlo Park, CA
+     June 1990 - present.
+
+     Primary developer and maintainer of Lucid Emacs, a popular version
+     of the GNU Emacs text editor for Unix.  Lucid Emacs has much
+     better integration with the X window system, and many user
+     interface improvements, including multiple fonts, multiple
+     windows, and inline graphics.  Designed and implemented an
+     extensible menubar, popup menu, and dialog box facility;
+     redesigned and reimplemented the underlying command loop for more
+     general keyboard and mouse handling; integrated with the Motif,
+     Xt, and Open Look Intrinsics toolkits.
+
+     Coordinated and directed the testing of Lucid Emacs by nearly a
+     hundred beta testers across the network.  Handled the release and
+     distribution of Lucid Emacs both through Lucid's release process
+     and to the network at large.
+
+     Managed mailing lists and USENET newsgroups devoted to user
+     discussion of the editor (best estimates place these newsgroups at
+     30,000-40,000 readers.) Tracked user bugs and worked closely with
+     users to integrate their fixes and improvements back into the
+     distribution.
+
+     Integrated Lucid Emacs with the Energize Programming System, a
+     development environment for C and C++.  Lucid Emacs comprises the
+     primary user interface to Energize.
+
+     Implemented an optimizing byte-compiler for Emacs Lisp.
+
+     Wrote and distributed numerous X programs, including: xkeycaps, a
+     graphical utility that lets the user interactively re-map their
+     keyboard without having to learn the complex syntax of the
+     standard X keyboard-remapping tool; xdaliclock, a morphing digital
+     clock; xscreensaver, a highly extensible screen saver and locker,
+     and a number of graphics demos to go with it.
+
+     Implemented BBDB (the Insidious Big Brother Database), a
+     rolodex-like system for tracking names, phone numbers, addresses,
+     and email addresses, and any other person-oriented information.
+     BBDB tightly integrates with the various Emacs-based mail and news
+     readers, and is highly automatable and extensible - it tends to
+     silently "notice" information that passes by without explicit
+     interaction by the user, so that the information is readily
+     available later.
+
+     Wrote audio-tape.ps, a popular program for printing labels for the
+     boxes of audio tapes of all varieties, implemented entirely in
+     PostScript.  It includes dozens of options, complicated automatic
+     text-sizing features, and the ability to include arbitrary
+     graphics on the labels.
+
+     Worked on QLISP, a futures-based multiprocessor version of Lucid
+     Common Lisp running on an 8 processor Alliant Concentrix.
+     Implemented a more efficient kind of process object to take better
+     advantage of parallelism.
+
+     Worked on porting Lucid Common Lisp to new architectures.
+
+     Represented Lucid at several trade shows.
+
+   * Programmer/Analyst, University of California, Berkeley, CA
+     August 1989 - June 1990.
+
+     Member of a small research group developing a natural language
+     help system.  Implemented a relation-based knowledge
+     representation language, and performed various system software
+     maintenance and tools development tasks on Texas Instruments
+     Explorer Lisp Machines.
+
+   * Software Engineer, Expert Technologies Inc., Pittsburgh, PA
+     May 1986 - August 1989.
+
+     Member of the team that designed and implemented an expert system
+     for the automatic pagination of the Yellow Pages on TI Explorers.
+
+     Designed and implemented a window toolkit which allowed the use of
+     a Macintosh-like user interface on top of the Explorer "tiled"
+     window system.
+
+     Designed and implemented a hierarchical frames system for use as a
+     general purpose database.  Built on this an application which
+     allowed the pagination system to store its hierarchy of rules and
+     parameters.  Implemented a complex frame and tree editor,
+     including an undo facility, and a mechanism for editing the source
+     code of rules.
+
+     Implemented a device-independent document processing system
+     similar to the Scribe document processing language.  This was
+     written in portable Common Lisp and included support for
+     PostScript output, as well as the ability to generate hypertext
+     documents for the Explorer online manual browsing system.
+
+   * Programmer, Spice Lisp Project, Carnegie Mellon University,
+     Pittsburgh, PA
+     April 1985 - May 1986.
+
+     Worked on the implementation of Hemlock, an Emacs-like text editor
+     implemented in Spice Lisp (now CMU Common Lisp) on a Perq Systems
+     workstation.
+
+SKILLS
+     Very experienced with C, Lisp, PostScript, and the Flavors and
+     CLOS object systems.  Some experience with assembly languages.
+
+     Very knowledgeable about UNIX, X, Emacs, Lisp Machines, and lisp
+     internals in general.
+
+     Efficiency, modularity, robustness.  Purity of Essence.
+

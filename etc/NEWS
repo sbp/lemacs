@@ -1,8 +1,11 @@
-This is Lucid GNU Emacs.  It is based on an early version of Emacs version 19
-from the Free Software Foundation.
+This product is an extension of GNU Emacs, known to some as "Lucid Emacs" and
+to others as "Xemacs".  It is based on an early version of Emacs version 19
+from the Free Software Foundation, and stems from a collaboration of Lucid, 
+Inc. with SunPro (a division of Sun Microsystems, Inc.) and the University of
+Illinois.
 
-Why Another Version of Emacs?
-=============================
+Why Another Version of Emacs?  (The Lucid, Inc. Point of View):
+==============================================================
 
 Lucid's latest product, Energize, is a C/C++ development environment.  Rather
 than invent (and force our users to learn) a new user-interface, we chose to
@@ -15,7 +18,7 @@ the ability to mark sections of a buffer as read-only, the ability to detect
 which parts of a buffer has been modified, and many other features.
 
 Why Not Epoch or FSF19?
-=======================
+-----------------------
 
 For our purposes, the existing version of Epoch was not sufficient; it did
 not allow us to put arbitrary pixmaps/icons in buffers, `undo' did not
@@ -56,6 +59,60 @@ a compatibility package which will allow Epoch 4 code to run in Lemacs with
 little or no change.  (As of 19.8, Lucid Emacs is running a descendant of
 the Epoch redisplay engine.)
 
+Why Another Version of Emacs?  (The SunPro Point of View):
+=========================================================
+
+Emacs 18 has been around for a long, long time.  Version 19 was supposed to be
+the successor to v18 with X support.  It was going to be available "real soon"
+for a long time (some people remember hearing about v19 as early as 1984!),
+but it never came out.  v19 development was going very, very slowly, and from
+the outside it seemed that it was not moving at all.  In the meantime other
+people gave up waiting for v19 and decided to build their own X-aware Emacsen.
+The most important of these was probably Epoch, which came from University of
+Illinois ("UofI") and was based on v18.
+
+Around two years ago SunPro decided that we wanted an integrated editor.  We
+contracted with UofI to provide a number of basic enhancements to the
+functionality in Epoch.  UofI initially was planning to deliver this on top of
+Epoch code.
+
+In the meantime (actually some time before we talked with UofI) Lucid had
+decided that it also wanted to provide an integrated environment with an
+integrated editor.  Lucid decided that the v19 basis was a better one than v18
+and thus decided not to use Epoch but instead work with Richard Stallman, the
+head of the Free Software Foundation and principle author of Emacs, on getting
+v19 out.  At some point Stallman and Lucid parted ways.  Lucid kept working
+and got a v19 out that they called Lucid Emacs 19.
+
+After Lucid's v19 came out it became clear to us (UofI and SunPro) that the
+right thing to do was to push for an integration of both Lucid Emacs and
+Epoch, and to get the deliverables that we were asking from UofI on top of
+this integrated platform.  Through the last two years, SunPro has been
+actively supporting this product and has been investing a comparable amount of
+effort into it as Lucid has.  Substantial portions of the current code have
+originated under the support of SunPro, either directly in SunPro, or in UofI
+but paid for by us.  This code was kept away from Lucid for a while, but later
+was made available to them.  Initially Lucid didn't know that we were
+supporting UofI, but later we were open about it.
+
+Around 6 months ago the SunPro-related code started showing up in Lucid Emacs.
+This started with the infusion of the Epoch redisplay code.
+
+At this moment there is basically no difference in the source trees between
+what is at UofI, SunPro, or Lucid.  All the development sites are in sync.
+
+SunPro originally called the integrated product ERA, for "Emacs Rewritten
+Again".  SunPro and Lucid recently came to an agreement to find a name for the
+product that was not specific to either company.  An additional constraint
+that Lucid placed on the name was that it must contain the word "Emacs" in it
+-- thus "ERA" is not acceptable.  The tentatively agreed-upon name is
+"XEmacs", and, if all goes according to plan, this is what the product will be
+called after the release of 19.10.  (SunPro is already calling the product
+XEmacs, but Lucid is still calling it Lucid Emacs.)
+
+NOTE: In the rest of the text, we refer to this product as "Lucid Emacs"
+
+
 No Warranty
 ===========
 
@@ -78,11 +135,9 @@ Lucid Emacs *currently* requires an X Window System environment to run,
 though it will not be much work to make it run on dumb ttys again.  We plan
 to do this eventually.  If you would like to volunteer to help, send us mail.
 
-Because of our functionality requirements and manpower constraints, we have
-not been able to spend as much time on portability issues as we would like;
-consequently, Lucid Emacs is not necessarily as easy to bring up on other
-systems as the other branches of Emacs are.  We are very eager to get feedback
-about portability problems from those who compile it on other systems.
+Auto-configure support has been added, so it should be fairly easy to compile
+Lucid Emacs on different systems.  If you have any problems or feedback about
+compiling on your system, please let us know.
 
 We have reimplemented the basic input model in a more general way; instead of
 X input being a special-case of the normal ASCII input stream, Emacs has a
@@ -112,6 +167,8 @@ is viewed from a different X window.
 The display attributes of faces may be specified either in lisp or through
 the X resource manager.
 
+Pixmaps of arbitrary size can be embedded in a buffer.
+
 Variable width fonts work.
 
 The height of a line is the height of the tallest font on that line, instead
@@ -126,6 +183,8 @@ Emacs understands the X11 "Selection" mechanism; it's possible to define
 and customize selection converter functions and new selection types from 
 elisp, without having to recompile Emacs.
 
+Emacs provides support for ToolTalk on systems that have it.
+
 Emacs now supports the Zmacs/Lispm style of region highlighting, where the
 region between the point and mark is highlighted when in its "active" state.
 
@@ -138,6 +197,8 @@ OpenWindows-like menubar.
 Emacs can ask questions using popup dialog boxes.  Any command executed from
 a menu will ask yes/no questions with dialog boxes, while commands executed
 via the keyboard will use the minibuffer.
+
+Emacs has vertical scrollbars.
 
 The initial load-path is computed at run-time, instead of at compile-time.
 This means that if you move the Emacs executable and associated directories
@@ -160,6 +221,12 @@ If you're running on a machine with audio hardware, you can specify sound
 files for Emacs to play instead of the default X beep.  See the documentation
 of the function load-sound-file and the variable sound-alist.
 
+An Emacs screen can be placed within an "external client widget" managed by
+another application.  This allows an application to use an Emacs screen as its
+text pane rather than the standard Text widget that is provided with Motif or
+Athena.  Emacs supports Motif applications, generic Xt (e.g. Athena)
+applications, and raw XLib applications.
+
 Random changes to the emacs-lisp library: (some of this was not written by
 us, but is included because it's free software and we think it's good stuff)
 
@@ -170,11 +237,14 @@ us, but is included because it's free software and we think it's good stuff)
   - there is a new VI-emulation mode (evi)
   - there is a new implementation of Dired
   - there is a new implementation of Isearch
+  - the VM package for reading mail is provided
+  - the W3 package for browsing the World Wide Web hypertext information
+    system is provided
 
 There are many more specifics in the "Miscellaneous Changes" section, below.
 
-The online Emacs Manual is relatively up-to-date, but the Emacs-Lisp Manual
-is not.
+The online Emacs Manual and Emacs-Lisp Manual are now both relatively
+up-to-date.
 
 Differences between Lucid Emacs 19 and FSF Emacs 19
 ===================================================
@@ -290,7 +360,7 @@ well to a number of window systems.
 			exist.
 
 The function `next-event' blocks and returns one of the above-described 
-event objects.  The function `dispatch-event' takes an event  and processes
+event objects.  The function `dispatch-event' takes an event and processes
 it in the appropriate way.
 
 For a process-event, dispatch-event calls the process's handler; for a
@@ -477,8 +547,7 @@ Menubars and Dialog Boxes
 Here is an example of a menubar definition:
 
 (defvar default-menubar
-  '(("File"	["New Screen"		x-new-screen		t]
-		["Open File..."		find-file		t]
+  '(("File"	["Open File..."		find-file		t]
 		["Save Buffer"		save-buffer		t]
 		["Save Buffer As..."	write-file		t]
 		["Revert Buffer"	revert-buffer		t]
@@ -578,11 +647,16 @@ computed at startup time.
 
 First, Emacs looks at the directory in which its executable file resides:
 
-  o  If that directory contains subdirectories named "lisp" and "etc", then
-     those directories are used as the lisp library and exec directory.
+  o  If that directory contains subdirectories named "lisp" and "lib-src",
+     then those directories are used as the lisp library and exec directory.
 
   o  If the parent of the directory in which the emacs executable is located
-     contains "lisp" and "etc" subdirectories, then those are used.
+     contains "lisp" and "lib-src" subdirectories, then those are used.
+
+  o  If ../lib/lemacs-<version> (starting from the directory in which the
+     emacs executable is located) contains a "lisp" subdirectory and either
+     a "lib-src" subdirectory or a <configuration-name> subdirectory, then
+     those are used.
 
   o  If the emacs executable that was run is a symbolic link, then the link
      is chased, and the resultant directory is checked as above.
@@ -590,9 +664,10 @@ First, Emacs looks at the directory in which its executable file resides:
 (Actually, it doesn't just look for "lisp/", it looks for "lisp/prim/",
 which reduces the chances of a false positive.)
 
-Finally, if the lisp directory contains subdirectories, they are added to
-the default load-path as well.  Subdirectories whose names begin with a dot
-or a hyphen are not added to the load-path.
+If the lisp directory contains subdirectories, they are added to the default
+load-path as well.  If the site-lisp directory exists and contains
+subdirectories, they are then added.  Subdirectories whose names begin with
+a dot or a hyphen are not added to the load-path.
 
 These heuristics fail if the Emacs binary was copied from the main Emacs
 tree to some other directory, and links for the lisp directory were not put
@@ -651,6 +726,21 @@ If Emacs can't find the requisite directories, it writes a message like this
   Without lock-directory set, file locking won't work.  Consider
   creating /cadillac-th/jwz/somewhere/lock as a directory or symbolic
   link for use as the lock directory.
+
+The default installation tree is the following:
+
+    /usr/local/bin/b2m		     		;
+    		   ctags			; executables that
+		   emacsclient			; should be in
+		   etags			; user's path
+		   lemacs -> lemacs-<version>	;
+		   lemacs			;
+    /usr/local/lib/lemacs/site-lisp
+    /usr/local/lib/lemacs/lock
+    /usr/local/lib/lemacs-<version>/etc		; architecture ind. files
+    /usr/local/lib/lemacs-<version>/info
+    /usr/local/lib/lemacs-<version>/lisp
+    /usr/local/lib/lemacs-<version>/<configuration>  ; binaries emacs may run
 
 
 X Resources
@@ -773,6 +863,10 @@ Emacs screens accept the following resources:
 	These resources are used to initialize the variables 
 	`x-pointer-foreground-color' and `x-pointer-background-color'.
 
+  scrollBarWidth (class ScrollBarWidth): pixels
+	How wide the scrollbars should be; 0 means no scrollbars.
+	You can also use the usual toolkit scrollbar resources for this:
+	"*XmScrollBar.width" (Motif) or "*Scrollbar.thickness" (Athena).
 
 The attributes of faces are also per-screen.  They may be specified as
 
@@ -962,9 +1056,6 @@ The `mouse-motion-hook' should be called whenever a buffer scrolls or the
 sizes of windows change, so that it can correctly frob the mouse-cursor based
 on the text that the mouse is now over.
 
-We should use the configure system for emacs and lwlib, and should not use
-imake.  (Won't someone please volunteer to do this?)
-
 We need to implement a non-Xt event_stream, based on select() and/or timer
 signals, so that emacs can be *compiled* without support for X.  (Note that
 this is different than emacs *running* without X.)
@@ -1056,10 +1147,7 @@ MENU-PATH identifies the menu under which the new menu should be inserted.
  If MENU-PATH is nil, then the menu will be added to the menubar itself.
 MENU-NAME is the string naming the menu to be added.
 MENU-ITEMS is a list of menu item descriptions.
- Each menu item should be a vector of three elements:
-   - a string, the name of the menu item;
-   - a symbol naming a command, or a form to evaluate;
-   - and t or nil, whether this item is selectable.
+ See documentation of variable `current-menubar' for the syntax.
 BEFORE, if provided, is the name of a menu before which this menu should
  be added, if this menu is not on its parent already.  If the menu is already
  present, it will not be moved.
@@ -1549,8 +1637,20 @@ extent will precede that extent.  This feature allows `extent-at' to be used
 by a loop over extents.
 
 ------------------------------
+extent-begin-glyph: (extent)
+
+Return the glyph object displayed at the beginning of EXTENT.
+Returns nil, a pixmap, or a string.
+
+------------------------------
 extent-buffer: (extent_obj)
 Return buffer of EXTENT.
+
+------------------------------
+extent-end-glyph: (extent)
+
+Return the glyph object displayed at the end of EXTENT.
+Returns nil, a pixmap, or a string.
 
 ------------------------------
 extent-end-position: (extent)
@@ -1560,12 +1660,6 @@ Return first position after EXTENT.
 extent-face: (extent)
 Returns the name of the face in which EXTENT is displayed, or nil
 if the extent's face is unspecified.
-
-------------------------------
-extent-glyph: (extent)
-
-Return the glyph object associated with EXTENT.
-Returns nil, a pixmap, or a string.
 
 ------------------------------
 extent-in-region-p: (extent &optional from to closed-end)
@@ -1691,9 +1785,16 @@ If SCREEN is the symbol t, then the global, non-screen face is returned.
 If NAME is already a face, it is simply returned.
 
 ------------------------------
-find-file-new-screen: (filename)
+find-file-other-screen: (filename)
 
-Just like find-file, but creates a new screen for it first.
+Edit file FILENAME, in a newly-created screen.
+
+------------------------------
+find-file-read-only-other-screen: (filename)
+
+Edit file FILENAME in another screen but don't allow changes.
+Like C-x 5 f but marks buffer as read-only.
+Use M-x toggle-read-only to permit editing.
 
 ------------------------------
 float: (arg)
@@ -1802,11 +1903,20 @@ key-press-event-p: (obj)
 True if the argument is a key-press event object.
 
 ------------------------------
-keymap-parent: (keymap)
+keymap-default-binding: (keymap)
 
-Returns the `parent' keymap of the given keymap, or nil.
-The parent of a keymap is searched for keybindings when a key sequence
-isn't bound in this one.  The (current-global-map) is the default parent
+Returns the default binding of KEYMAP, or `nil' if it has none.
+The default-binding is returned when no other binding for a key-sequence
+is found in the keymap.
+If a keymap has a non-nil default-binding, neither the keymap's
+parents nor the current global map are searched for key bindings.
+
+------------------------------
+keymap-parents: (keymap)
+
+Returns the `parent' keymaps of the given keymap, or nil.
+The parents of a keymap are searched for keybindings when a key sequence
+isn't bound in this one.  `(current-global-map)' is the default parent
 of all keymaps.
 
 ------------------------------
@@ -2043,6 +2153,22 @@ you drop all pointers to it and allow it to be garbage collected.  When
 these objects are GCed, the underlying X data is deallocated as well.
 
 ------------------------------
+make-screen: (&optional parameters)
+
+Create a new screen, displaying the current buffer.
+
+Optional argument PARAMETERS is an alist of parameters for the new
+screen.  Specifically, PARAMETERS is a list of pairs, each having one
+of the following forms:
+
+ (name . STRING)       - The screen should be named STRING.
+ (height . NUMBER)     - The screen should be NUMBER text lines high.
+ (width . NUMBER)      - The screen should be NUMBER columns wide.
+
+The documentation for the function `x-create-screen' describes
+additional screen parameters that Emacs recognizes for X window screens.
+
+------------------------------
 make-screen-invisible: (screen)
 
 Unconditionally removes screen from the display (assuming it is an X-window).
@@ -2110,10 +2236,11 @@ the function inserts new elements into the keymap, it may or may not
 be called with them later.  No element of the keymap will ever be passed to
 the function more than once.
 
-The function will not be called on elements of this keymap's parent (see the
-function `keymap-parent') or upon keymaps which are contained within this
-keymap (multi-character definitions).  It will be called on "meta"
-characters, however, since they are not really two-character sequences.
+The function will not be called on elements of this keymap's parent
+(see the function `keymap-parents') or upon keymaps which are contained
+within this keymap (multi-character definitions).
+It will be called on "meta" characters since they are not really
+two-character sequences.
 
 If the optional third argument SORT-FIRST is non-nil, then the elements of
 the keymap will be passed to the mapper function in a canonical order.
@@ -2217,8 +2344,7 @@ point of the initial click and the point at which you release the button.
 These positions need not be ordered.
 
 If you click-and-release without moving the mouse, then the point is moved,
-and the selection is disowned (there will be no selection owner.)  The mark
-will be set to the previous position of point.
+and the selection is disowned (there will be no selection owner.)
 
 If you double-click, the selection will extend by symbols instead of by
 characters.  If you triple-click, the selection will extend by lines.
@@ -2385,12 +2511,20 @@ popup-dialog-box: (dbox_desc)
 Pop up a dialog box.
 A dialog box description is a list.
 
- - The first element of the list is a string to display in the dialog box.
- - The rest of the elements are descriptions of the dialog box's buttons.
-   Each one is a vector of three elements:
-   - The first element is the text of the button.
-   - The second element is the `callback'.
-   - The third element is t or nil, whether this button is selectable.
+The first element of a dialog box must be a string, which is the title or
+question.
+
+The rest of the elements are descriptions of the dialog box's buttons.
+Each of these is a vector, the syntax of which is essentially the same as
+that of popup menu items.  They may have any of the following forms:
+
+ [ "name" callback <active-p> ]
+ [ "name" callback <active-p> "suffix" ]
+ [ "name" callback :<keyword> <value>  :<keyword> <value> ... ]
+
+The name is the string to display on the button; it is filtered through the
+resource database, so it is possible for resources to override what string
+is actually displayed.
 
 If the `callback' of a button is a symbol, then it must name a command.
 It will be invoked with `call-interactively'.  If it is a list, then it is
@@ -2399,42 +2533,20 @@ evaluated with `eval'.
 One (and only one) of the buttons may be `nil'.  This marker means that all
 following buttons should be flushright instead of flushleft.
 
-The syntax, more precisely:
-
-   form		:=  <something to pass to `eval'>
-   command	:=  <a symbol or string, to pass to `call-interactively'>
-   callback 	:=  command | form
-   active-p	:=  <t, nil, or a form to evaluate to decide whether this
-		    button should be selectable>
-   name		:=  <string>
-   partition	:=  'nil'
-   button	:=  '['  name callback active-p ']'
-   dialog	:=  '(' name [ button ]+ [ partition [ button ]+ ] ')'
+Though the keyword/value syntax is supported for dialog boxes just as in 
+popup menus, the only keyword which is both meaningful and fully implemented
+for dialog box buttons is `:active'.
 
 ------------------------------
-popup-menu: (menu_desc)
+popup-menu: (menu-description)
 
 Pop up the given menu.
 A menu description is a list of menu items, strings, and submenus.
 
-The first element of a menu must be a string, which is the name of the
-menu.  This is the string that will be displayed in the parent menu, if
-any.  For toplevel menus, it is ignored.  This string is not displayed
-in the menu itself.
-
-A menu item is a vector of three or four elements:
-
- - the name of the menu item (a string);
- - the `callback' of that item;
- - whether this item is active (selectable);
- - and an optional string to append to the name.
-
-If the `callback' of a menu item is a symbol, then it must name a command.
-It will be invoked with `call-interactively'.  If it is a list, then it is
-evaluated with `eval'.
-
-The fourth element of a menu item is a convenient way of adding the name
-of a command's ``argument'' to the menu, like ``Kill Buffer NAME''.
+The first element of a menu must be a string, which is the name of the menu.
+This is the string that will be displayed in the parent menu, if any.  For
+toplevel menus, it is ignored.  This string is not displayed in the menu
+itself.
 
 If an element of a menu is a string, then that string will be presented in
 the menu as unselectable text.
@@ -2446,18 +2558,65 @@ If an element of a menu is a list, it is treated as a submenu.  The name of
 that submenu (the first element in the list) will be used as the name of the
 item representing this menu on the parent.
 
-The syntax, more precisely:
+Otherwise, the element must be a vector, which describes a menu item.
+A menu item can have any of the following forms:
 
-   form		:=  <something to pass to `eval'>
-   command	:=  <a symbol or string, to pass to `call-interactively'>
-   callback 	:=  command | form
-   active-p	:=  <t, nil, or a form to evaluate to decide whether this
-		    item should be selectable>
-   text		:=  <string, non selectable>
-   name		:=  <string>
-   argument	:=  <string>
-   menu-item	:=  '['  name callback active-p [ argument ]  ']'
-   menu		:=  '(' name [ menu-item | menu | text ]+ ')'
+ [ "name" callback <active-p> ]
+ [ "name" callback <active-p> "suffix" ]
+ [ "name" callback :<keyword> <value>  :<keyword> <value> ... ]
+
+The name is the string to display on the menu; it is filtered through the
+resource database, so it is possible for resources to override what string
+is actually displayed.
+
+If the `callback' of a menu item is a symbol, then it must name a command.
+It will be invoked with `call-interactively'.  If it is a list, then it is
+evaluated with `eval'.
+
+The possible keywords are this:
+
+ :active   <form>    Same as <active-p> in the first two forms: the
+                     expression is evaluated just before the menu is
+                     displayed, and the menu will be selectable only if
+                     the result is non-nil.
+
+ :suffix   "string"  Same as "suffix" in the second form: the suffix is
+                     appended to the displayed name, providing a convenient
+                     way of adding the name of a command's ``argument'' to
+                     the menu, like ``Kill Buffer NAME''.
+
+ :keys     "string"  Normally, the keyboard equivalents of commands in
+                     menus are displayed when the `callback' is a symbol.
+                     This can be used to specify keys for more complex menu
+                     items.  It is passed through `substitute-command-keys'
+                     first.
+
+ :style    <style>   Specifies what kind of object this menu item is:
+
+                        nil     A normal menu item.
+                        toggle  A toggle button.
+                        radio   A radio button.
+
+                     The only difference between toggle and radio buttons is
+                     how they are displayed.  But for consistency, a toggle
+                     button should be used when there is one option whose
+                     value can be turned on or off, and radio buttons should
+                     be used when there is a set of mutally exclusive
+                     options.  When using a group of radio buttons, you
+                     should arrange for no more than one to be marked as
+                     selected at a time.
+
+ :selected <form>    Meaningful only when STYLE is `toggle' or `radio'.
+                     This specifies whether the button will be in the
+                     selected or unselected state.
+
+For example:
+
+ [ "Save As..."    write-file  t ]
+ [ "Revert Buffer" revert-buffer (buffer-modified-p) ]
+ [ "Read Only"     toggle-read-only :style toggle :selected buffer-read-only ]
+
+See menubar.el for many more examples.
 
 ------------------------------
 process-event-p: (obj)
@@ -2557,6 +2716,10 @@ The meaningful PARMs depend on the kind of screen.
 ------------------------------
 screen-root-window: (&optional screen)
 Returns the root-window of SCREEN.
+
+------------------------------
+screen-scrollbar-width: (&optional screen)
+Return the width in pixels of the scrollbars of SCREEN.
 
 ------------------------------
 screen-selected-window: (&optional screen)
@@ -2790,11 +2953,20 @@ If the optional SCREEN argument is provided, this face will be changed only
 in that screen; otherwise it will be changed in all screens.
 
 ------------------------------
-set-keymap-parent: (keymap parent)
+set-keymap-default-binding: (keymap command)
 
-Sets the `parent' keymap of the given keymap.
-The parent of a keymap is searched for keybindings when a key sequence
-isn't bound in this one.  The (current-global-map) is the default parent
+Sets the default binding of KEYMAP to COMMAND, or `nil'
+if no default is desired.  The default-binding is returned when
+no other binding for a key-sequence is found in the keymap.
+If a keymap has a non-nil default-binding, neither the keymap's
+parents nor the current global map are searched for key bindings.
+
+------------------------------
+set-keymap-parents: (keymap parent)
+
+Sets the `parent' keymaps of the given keymap.
+The parents of a keymap are searched for keybindings when a key sequence
+isn't bound in this one.  `(current-global-map)' is the default parent
 of all keymaps.
 
 ------------------------------
@@ -2840,6 +3012,11 @@ Sets position of SCREEN in pixels to XOFFSET by YOFFSET.
 If XOFFSET or YOFFSET are negative, they are interpreted relative to
 the leftmost or bottommost position SCREEN could occupy without going
 off the screen.
+
+------------------------------
+set-screen-scrollbar-width: (screen width)
+
+Specify that the scrollbars on SCREEN are WIDTH pixels wide.
 
 ------------------------------
 set-screen-size: (screen cols rows &optional pretend)
@@ -2910,9 +3087,9 @@ Optional fourth arg RESTART non-nil means that this itimer should be
 Returns the newly created itimer.
 
 ------------------------------
-switch-to-buffer-new-screen: (buffer)
+switch-to-buffer-other-screen: (buffer)
 
-Just like switch-to-buffer, but creates a new screen for it first.
+Switch to buffer BUFFER in a newly-created screen.
 
 ------------------------------
 switch-to-other-buffer: (arg)
@@ -3028,9 +3205,15 @@ of default parameters which apply when not overridden by ALIST.
 ------------------------------
 x-debug-mode: (arg)
 
-With a true arg, put the connection to the X server in synchronous
-mode; this is slower.  False turns it off.
-Do not simply call XSynchronize() from gdb; that won't work.
+With a true arg, make the connection to the X server synchronous.
+With false, make it asynchronous.  Synchronous connections are much slower,
+but are useful for debugging (if you get X errors, make the connection
+synchronous, and use a debugger to set a breakpoint on `x_error_handler'.
+Your backtrace of the C stack will now be useful.  In asynchronous mode, 
+the stack above `x_error_handler' isn't helpful because of buffering.)
+
+Calling this function is the same as calling the C function `XSynchronize',
+or starting the program with the `-sync' command line argument.
 
 ------------------------------
 x-delete-primary-selection: ()
@@ -3145,6 +3328,15 @@ If the second optional argument MOUSE-ONLY is non-nil, ignore all keyboard
 Returns t if the grab is successful, nil otherwise.
 
 ------------------------------
+x-grab-keyboard: (&optional screen)
+
+Grab the keyboard on the given screen (defaulting to the selected one).
+So long as the keyboard is grabbed, all keyboard events will be delivered
+to emacs - it is not possible for other X clients to evesdrop on them.
+Ungrab the keyboard with `x-ungrab-keyboard' (use unwind-protect.)
+Returns t if the grab was successful; nil otherwise.
+
+------------------------------
 x-insert-selection: (&optional check-cutbuffer-p move-point-event)
 Insert the current selection into buffer at point.
 
@@ -3162,10 +3354,6 @@ x-mouse-kill: (event)
 
 Kill the text between the point and mouse and copy it to the clipboard and
 to the cut buffer
-
-------------------------------
-x-new-screen: (&optional screen-name)
-Creates a new Emacs screen (that is, a new X window.)
 
 ------------------------------
 x-own-clipboard: (string)
@@ -3250,6 +3438,10 @@ x-ungrab-pointer: ()
 Release a pointer grab made with `x-grab-pointer.'
 
 ------------------------------
+x-ungrab-keyboard: (&optional screen)
+Release a keyboard grab made with `x-grab-keyboard.'
+
+------------------------------
 x-yank-clipboard-selection: ()
 Insert the current Clipboard selection at point.
 
@@ -3303,7 +3495,7 @@ not changed is not so bad; more computation will be done, but redisplay of
 the menubar will still be performed optimally.
 
 ------------------------------
-after-change-function
+after-change-functions
 
 Function to call after each text change.
 Three arguments are passed to the function: the positions of
@@ -3313,8 +3505,8 @@ and the length of the pre-change text replaced by that range.
 for a deletion, that length is the number of characters deleted,
 and the post-change beginning and end are at the same place.)
 
-While executing the `after-change-function', changes to buffers do not
-cause calls to any `before-change-function' or `after-change-function'.
+While executing the `after-change-functions', changes to buffers do not
+cause calls to any `before-change-functions' or `after-change-functions'.
 
 ------------------------------
 after-init-hook
@@ -3342,13 +3534,6 @@ after-save-hook
 List of functions to be called after writing out a buffer to a file.
 These hooks are considered to pertain to the visited file.
 So this list is cleared if you change the visited file name.
-
-------------------------------
-allow-deletion-of-last-visible-screen
-
-*If nil, the last visible screen may not be deleted by `delete-window'
-You can never delete the last screen, but setting this to t will allow you
-to delete the last non-iconified screen.
 
 ------------------------------
 auto-fill-inhibit-regexp
@@ -3397,7 +3582,7 @@ On most systems, changing this value will affect the amount of padding
 and the other strategic decisions made during redisplay.
 
 ------------------------------
-before-change-function
+before-change-functions
 
 Function to call before each text change.
 Two arguments are passed to the function: the positions of
@@ -3406,8 +3591,8 @@ the beginning and end of the range of old text to be changed.
 No information is given about the length of the text after the change.
 position of the change
 
-While executing the `before-change-function', changes to buffers do not
-cause calls to any `before-change-function' or `after-change-function'.
+While executing the `before-change-functions', changes to buffers do not
+cause calls to any `before-change-functions' or `after-change-functions'.
 
 ------------------------------
 before-init-hook's value is nil
@@ -3472,59 +3657,89 @@ and `set-buffer-menubar'.
 A menubar is a list of menus and menu-items.
 A menu is a list of menu items, strings, and submenus.
 
-The first element of a menu must be a string, which is the name of the
-menu.  This is the string that will be displayed in the menubar, or in
-the parent menu.  This string is not displayed in the menu itself.
-
-A menu item is a vector of three or four elements:
-
- - the name of the menu item (a string);
- - the `callback' of that item;
- - whether this item is active (selectable);
- - and an optional string to append to the name.
-
-If the `callback' of a menu item is a symbol, then it must name a command.
-It will be invoked with `call-interactively'.  If it is a list, then it is
-evaluated with `eval'.
-
-The fourth element of a menu item is a convenient way of adding the name
-of a command's ``argument'' to the menu, like ``Kill Buffer NAME''.
+The first element of a menu must be a string, which is the name of the menu.
+This is the string that will be displayed in the parent menu, if any.  For
+toplevel menus, it is ignored.  This string is not displayed in the menu
+itself.
 
 If an element of a menu (or menubar) is a string, then that string will be
-presented in the menu (or menubar) as unselectable text.
+presented as unselectable text.
 
 If an element of a menu is a string consisting solely of hyphens, then that
 item will be presented as a solid horizontal line.
 
 If an element of a menu is a list, it is treated as a submenu.  The name of
-that submenu (the first element in the list) will be used as the name of
-the item representing this menu on the parent.
+that submenu (the first element in the list) will be used as the name of the
+item representing this menu on the parent.
 
 If an element of a menubar is `nil', then it is used to represent the
 division between the set of menubar-items which are flushleft and those
-which are flushright.  (Note: this isn't completely implemented yet.)
+which are flushright.
+
+Otherwise, the element must be a vector, which describes a menu item.
+A menu item can have any of the following forms:
+
+ [ "name" callback <active-p> ]
+ [ "name" callback <active-p> "suffix" ]
+ [ "name" callback :<keyword> <value>  :<keyword> <value> ... ]
+
+The name is the string to display on the menu; it is filtered through the
+resource database, so it is possible for resources to override what string
+is actually displayed.
+
+If the `callback' of a menu item is a symbol, then it must name a command.
+It will be invoked with `call-interactively'.  If it is a list, then it is
+evaluated with `eval'.
+
+The possible keywords are this:
+
+ :active   <form>    Same as <active-p> in the first two forms: the
+                     expression is evaluated just before the menu is
+                     displayed, and the menu will be selectable only if
+                     the result is non-nil.
+
+ :suffix   "string"  Same as "suffix" in the second form: the suffix is
+                     appended to the displayed name, providing a convenient
+                     way of adding the name of a command's ``argument'' to
+                     the menu, like ``Kill Buffer NAME''.
+
+ :keys     "string"  Normally, the keyboard equivalents of commands in
+                     menus are displayed when the `callback' is a symbol.
+                     This can be used to specify keys for more complex menu
+                     items.  It is passed through `substitute-command-keys'
+                     first.
+
+ :style    <style>   Specifies what kind of object this menu item is:
+
+                        nil     A normal menu item.
+                        toggle  A toggle button.
+                        radio   A radio button.
+
+                     The only difference between toggle and radio buttons is
+                     how they are displayed.  But for consistency, a toggle
+                     button should be used when there is one option whose
+                     value can be turned on or off, and radio buttons should
+                     be used when there is a set of mutally exclusive
+                     options.  When using a group of radio buttons, you
+                     should arrange for no more than one to be marked as
+                     selected at a time.
+
+ :selected <form>    Meaningful only when STYLE is `toggle' or `radio'.
+                     This specifies whether the button will be in the
+                     selected or unselected state.
+
+For example:
+
+ [ "Save As..."    write-file  t ]
+ [ "Revert Buffer" revert-buffer (buffer-modified-p) ]
+ [ "Read Only"     toggle-read-only :style toggle :selected buffer-read-only ]
+
+See menubar.el for many more examples.
 
 After the menubar is clicked upon, but before any menus are popped up,
 the functions on the `activate-menubar-hook' are invoked to make changes
 to the menus and menubar.  This is intended to implement lazy alteration
 of the sensitivity of menu items.
-
-The syntax, more precisely:
-
-   form		:=  <something to pass to `eval'>
-   command	:=  <a symbol or string, to pass to `call-interactively'>
-   callback 	:=  command | form
-   active-p	:=  <t, nil, or a form to evaluate to decide whether this
-		    item should be selectable>
-   text		:=  <string, non selectable>
-   name		:=  <string>
-   argument	:=  <string>
-   menu-item	:=  '['  name callback active-p [ argument ]  ']'
-   menu		:=  '(' name [ menu-item | menu | text ]+ ')'
-   partition	:=  'nil'
-   menubar	:=  '(' [ menu-item | menu | text ]* [ partition ]
-		        [ menu-item | menu | text ]*
-		     ')'
 
 ------------------------------
 current-mouse-event
@@ -3779,6 +3994,15 @@ compare to enable-recursive-minibuffers, which is only consulted when the
 minibuffer is reinvoked while it is the selected window.
 
 ------------------------------
+minor-mode-map-alist
+
+Alist of keymaps to use for minor modes.
+Each element looks like (VARIABLE . KEYMAP); KEYMAP is used to read
+key sequences and look up bindings iff VARIABLE's value is non-nil.
+If two active keymaps bind the same key, the keymap appearing earlier
+in the list takes precedence.
+
+------------------------------
 mode-line-map
 
 Keymap consulted for mouse-clicks on the modeline of a window.
@@ -3941,11 +4165,6 @@ Controls the title of the X window corresponding to the selected screen.
 This is the same format as `mode-line-format'.
 
 ------------------------------
-scrollbar-width
-
-The width (in pixels) of the scrollbars.
-
-------------------------------
 search-caps-disable-folding
 
 *If non-nil, upper case chars disable case fold searching.
@@ -3971,32 +4190,36 @@ Keymap for commands shared by all sorts of Lisp modes.
 ------------------------------
 sound-alist
 
-An alist associating symbols with strings of audio-data.
-When `beep' or `ding' is called with one of the symbols, the associated
-sound data will be played instead of the standard beep.  This only works
-if you are running emacs on the console of a Sun SparcStation, SGI machine,
-or HP9000s700.
+An alist associating names with sounds.
+When `beep' or `ding' is called with one of the name symbol, the associated
+sound will be generated instead of the standard beep.
 
-Elements of this list should be of one of the following forms:
+Each element of `sound-alist' is a list describing a sound.
+The first element of the list is the name of the sound being defined.
+Subsequent elements of the list are alternating keyword/value pairs:
 
-   ( symbol . string-or-symbol )
-   ( symbol integer string-or-symbol )
+   Keyword:	Value:
+   -------	-----
+   sound	A string of raw sound data, or the name of another sound to
+		play.   The symbol `t' here means use the default X beep.
+   volume	An integer from 0-100, defaulting to `bell-volume'
+   pitch	If using the default X beep, the pitch (Hz) to generate.
+   duration	If using the default X beep, the duration (milliseconds).
 
-If the `string-or-symbol' is a string, then it should contain raw sound data,
-the contents of a `.au' file.  If it is a symbol, then that means that this
-element is an alias for some other element, and the sound-player will look
-for that next.  If the integer is provided, it is the volume at which the
-sound should be played, from 0 to 100.  
+For compatibility, elements of `sound-alist' may also be:
 
-If an element of this alist begins with the symbol `default', then that sound
-will be used when no other sound is appropriate.
-
-The symbol `t' in place of a sound-string means to use the default X beep.
-In this way, you can define beep-types to have different volumes even when
-not running on the console.
+   ( sound-name . <sound> )
+   ( sound-name <volume> <sound> )
 
 You should probably add things to this list by calling the function
 load-sound-file.
+
+Caveats:
+ - You can only play audio data if running on the console screen of a
+   Sun SparcStation, SGI, or HP9000s700.
+
+ - The pitch, duration, and volume options are available everywhere, but
+   many X servers ignore the `pitch' option.
 
 The following beep-types are used by emacs itself:
 
@@ -4007,9 +4230,10 @@ The following beep-types are used by emacs itself:
     no-completion	during completing-read
     y-or-n-p		when you type something other than 'y' or 'n'
     yes-or-no-p  	when you type something other than 'yes' or 'no'
+    default		used when nothing else is appropriate.
 
 Other lisp packages may use other beep types, but these are the ones that
-the C kernel of Emacs uses.
+the C kernel of emacs uses.
 
 ------------------------------
 split-window-keep-point
@@ -4991,6 +5215,90 @@ So this list is cleared if you change the visited file name.
 See also `write-contents-hooks'.
 
 
+Major Differences Between 19.9 and 19.10
+========================================
+
+The GNU `configure' system is now used to build lemacs.
+
+The Emacs Manual and Emacs Lisp Reference Manual now document version 19.10.
+If you notice any errors, please let us know.
+
+When pixmaps are displayed in a buffer, they contribute to the line height -
+that is, if the glyph is taller than the rest of the text on the line, the
+line will be as tall as necessary to display the glyph.
+
+In addition to using arbitrary sound files as emacs beeps, one can control
+the pitch and duration of the standard X beep, on X servers which allow that
+(Note: most don't.)
+
+There is support for playing sounds on systems with NetAudio servers.
+
+Minor modes may have mode-specific keybindings; keymaps may have an arbitrary
+number of parent maps.
+
+Menus can have toggle and radio buttons in them.
+
+There is a font selection menu.
+
+Some default keybindings have changed to match FSF19; the new bindings are
+
+  Screen-related commands:
+	C-x 5 2			make-screen
+	C-x 5 0			delete-screen
+	C-x 5 b			switch-to-buffer-other-screen
+	C-x 5 f			find-file-other-screen
+	C-x 5 C-f		find-file-other-screen
+	C-x 5 m			mail-other-screen
+	C-x 5 o			other-screen
+	C-x 5 r			find-file-read-only-other-screen
+  Abbrev-related commands:
+	C-x a l			add-mode-abbrev
+	C-x a C-a		add-mode-abbrev
+	C-x a g			add-global-abbrev
+	C-x a +			add-mode-abbrev
+	C-x a i g		inverse-add-global-abbrev
+	C-x a i l		inverse-add-mode-abbrev
+	C-x a -			inverse-add-global-abbrev
+	C-x a e			expand-abbrev
+	C-x a '			expand-abbrev
+  Register-related commands:
+	C-x r C-SPC		point-to-register
+	C-x r SPC		point-to-register
+	C-x r j			jump-to-register
+	C-x r s			copy-to-register
+	C-x r x			copy-to-register
+	C-x r i			insert-register
+	C-x r g			insert-register
+	C-x r r			copy-rectangle-to-register
+	C-x r c			clear-rectangle
+	C-x r k			kill-rectangle
+	C-x r y			yank-rectangle
+	C-x r o			open-rectangle
+	C-x r t			string-rectangle
+	C-x r w			window-configuration-to-register
+  Narrowing-related commands:
+	C-x n n			narrow-to-region
+	C-x n w			widen
+  Other changes:
+	C-x 3			split-window-horizontally (was undefined)
+	C-x -			shrink-window-if-larger-than-buffer
+	C-x +			balance-windows
+
+The variable allow-deletion-of-last-visible-screen has been removed, since 
+it was widely hated.  You can now always delete the last visible screen if
+there are other iconified screens in existence.
+
+ToolTalk support is provided.
+
+An Emacs screen can be placed within an "external client widget" managed
+by another application.  This allows an application to use an Emacs screen
+as its text pane rather than the standard Text widget that is provided
+with Motif or Athena.
+
+Additional compatibility with Epoch is provided (though this is not yet
+complete.)
+
+
 Major Differences Between 19.8 and 19.9
 =======================================
 
@@ -5158,6 +5466,10 @@ GC performance is improved.
 
 Various X objects (fonts, colors, cursors, pixmaps) are accessible as first-
 class lisp objects, with finalization.
+
+An alternate interface to embedding images in the text is provided, called
+"annotations."  You may create an "annotation margin" which is whitespace at
+the left side of the screen that contains only annotations, not buffer text.
 
 When using XPM files, one can specify the values of logical color names to be
 used when loading the files.
@@ -5341,11 +5653,8 @@ pending-del.el:	Certain commands implicitly delete the highlighted region:
 		Typing a character when there is a highlighted region replaces
 		that region with the typed character.
 
-lhilit.el:	Attaches fonts/colors to patterns matching regular expressions.
-
-font-lock.el:	Yet Another code-highlighting package, but this one is driven
-		off of syntax tables, so that it understands block comments,
-		strings, etc.  The insertion hook is used to fontify text as
-		you type it in.  (This is fast now.)
+font-lock.el:	A code-highlighting package, driven off of syntax tables, so
+		that it understands block comments, strings, etc.  The 
+		insertion hook is used to fontify text as you type it in.
 
 shell-font.el:	Displays your shell-buffer prompt in boldface.

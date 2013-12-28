@@ -1,6 +1,6 @@
 							-*- text -*-
 
-     Lucid GNU Emacs availability information.  Last Modified: 20-dec-93.
+     Lucid GNU Emacs availability information.  Last Modified: 31-jan-94.
 
 Lucid Emacs is available via anonymous FTP from lucid.com (192.43.175.3)
 in the directory /pub/lemacs/.
@@ -15,13 +15,16 @@ at other sites as well.  Some sites to try include:
 	self.stanford.edu	     /pub/lemacs/
 	ftp.uu.net		     /systems/gnu/lucid/
 	ftp.ai.mit.edu		     /pub/lemacs/
+	src.doc.ic.ac.uk	     /gnu/lucid/
 	ftp.germany.eu.net	     /pub/packages/lucid-emacs/
 	ftp.uni-erlangen.de	     /pub/lemacs/
 	ftp.th-darmstadt.de	     /pub/editors/GNU-Emacs/unix/Lucid-Emacs/
-	ftp.cenatls.cena.dgac.fr     /pub/Emacs/
+	ftp.cenatls.cena.dgac.fr     /pub/Emacs/lemacs/
 	liasun3.epfl.ch		     /pub/gnu/lemacs/
 	ftp.sunet.se		     /pub/gnu/lucid/lemacs/
-	audrey.levels.unisa.edu.au   /src/lucid/
+	ftp.technion.ac.il	     /pub/unsupported/gnu/lucid-emacs/
+	audrey.levels.unisa.edu.au   /lemacs/
+	ftp.center.osaka-u.ac.jp     /lucid-emacs/
 
 Try to pick a site that is networkologically close to you.  If you know of
 other mirrors of the Lucid archives, please send us mail and we will list
@@ -36,8 +39,8 @@ As of 17 march 93, the price is $400 for a bound Lucid Emacs manual and
 a cartridge tape with sources and SunOS 4.x binaries, and $150 for the
 manual alone.
 
-To order, get current pricing information, or inquire about about other
-media or platforms, call (800) 223-9322, or send electronic mail to
+To order, get current pricing information, or inquire about other media
+or platforms, call (800) 223-9322, or send electronic mail to
 lucid-info@lucid.com.
 
 Your input on what formats and architectures are desired will have an

@@ -1,23 +1,21 @@
-Info file elisp, produced by Makeinfo, -*- Text -*- from input file
-elisp.texi.
+This is Info file ../../info/lispref.info, produced by Makeinfo-1.56
+from the input file lispref.texinfo.
 
-   This file documents GNU Emacs Lisp.
+   This version is newer than the second printed edition of the GNU
+Emacs Lisp Reference Manual.  It corresponds to Emacs Version 19.19.
 
-   This is edition 1.03 of the GNU Emacs Lisp Reference Manual,   for
-Emacs Version 18.
+   Published by the Free Software Foundation 675 Massachusetts Avenue
+Cambridge, MA 02139 USA
 
-   Published by the Free Software Foundation, 675 Massachusetts
-Avenue,  Cambridge, MA 02139 USA
+   Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
 
-   Copyright (C) 1990 Free Software Foundation, Inc.
-
-   Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
 
    Permission is granted to copy and distribute modified versions of
-this manual under the conditions for verbatim copying, provided that
-the entire resulting derived work is distributed under the terms of a
+this manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
 permission notice identical to this one.
 
    Permission is granted to copy and distribute translations of this
@@ -25,1160 +23,1155 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be stated in a
 translation approved by the Foundation.
 
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the Free Software
+Foundation instead of in the original English.
 
 
-File: elisp,  Node: Minor Modes,  Next: Mode Line Format,  Prev: Major Modes,  Up: Modes
+File: lispref.info,  Node: Minibuffer History,  Next: Completion,  Prev: Object from Minibuffer,  Up: Minibuffers
 
-Minor Modes
-===========
+Minibuffer History
+==================
 
-   A "minor mode" provides features that users may enable or disable
-independently of the choice of major mode.  Minor modes can be
-enabled individually or in combination.  Minor modes would be better
-named "Generally available, optional feature modes" except that such
-a name is unwieldy.
+   A minibuffer history list records previous minibuffer inputs so the
+user can reuse them conveniently.  There are many separate history lists
+which contain different kinds of inputs.  The Lisp programmer's job is
+to specify the right history list for each use of the minibuffer.
 
-   A minor mode is not usually a modification of single major mode. 
-For example, `auto-fill-mode' and `auto-justify-mode' may be used in
-any major mode that permits text insertion.  To be general, a minor
-mode must be effectively independent of the things major modes do.
+   The basic minibuffer input functions `read-from-minibuffer' and
+`completing-read' both accept an optional argument named HIST which is
+how you specify the history list.  Here are the possible values:
 
-   A minor mode is often much more difficult to implement than a
-major mode.  One reason is that you should be able to deactivate a
-minor mode and restore the environment of the major mode to the state
-it was in before the minor mode was activated.
+VARIABLE
+     If you specify a variable (a symbol), that variable is the history
+     list.
 
-   Often the biggest problem in implementing a minor mode is finding
-a way to insert the necessary hook into the rest of Emacs.  For
-example, some minor modes, such as Auto Fill mode, change how text is
-inserted into a buffer.  Without `auto-fill-hook', Auto Fill mode
-would be implementable only at great pain and great cost in editing
-efficiency.
+(VARIABLE . STARTPOS)
+     If you specify a cons cell of this form, then VARIABLE is the
+     history list variable, and STARTPOS specifies the initial history
+     position (an integer, counting from zero which specifies the most
+     recent element of the history).
+
+     If you specify STARTPOS, then you should also specify that element
+     of the history as INITIAL, for consistency.
+
+   If you don't specify HIST, then the default history list
+`minibuffer-history' is used.  For other standard history lists, see
+below.  You can also create your own history list variable; just
+initialize it to `nil' before the first use.  The value of the history
+list variable is a list of strings, most recent first.
+
+   Both `read-from-minibuffer' and `completing-read' add new elements
+to the history list automatically, and provide commands to allow the
+user to reuse items on the list.  The only thing your program needs to
+do to use a history list is to initialize it and to pass its name to
+the input functions when you wish.  But it is safe to modify the list
+by hand when the minibuffer input functions are not using it.
+
+ - Variable: minibuffer-history
+     The default history list for minibuffer history input.
+
+ - Variable: query-replace-history
+     A history list for arguments to `query-replace' (and similar
+     arguments to other commands).
+
+ - Variable: file-name-history
+     A history list for file name arguments.
+
+
+File: lispref.info,  Node: Completion,  Next: Yes-or-No Queries,  Prev: Minibuffer History,  Up: Minibuffers
+
+Completion
+==========
+
+   "Completion" is a feature that fills in the rest of a name starting
+from an abbreviation for it.  Completion works by comparing the user's
+input against a list of valid names and determining how much of the
+name is determined uniquely by what the user has typed.
+
+   For example, when you type `C-x b' (`switch-to-buffer') and then
+type the first few letters of the name of the buffer to which you wish
+to switch, and then type TAB (`minibuffer-complete'), Emacs extends the
+name as far as it can.  Standard Emacs commands offer completion for
+names of symbols, files, buffers, and processes; with the functions in
+this section, you can implement completion for other kinds of names.
+
+   The `try-completion' function is the basic primitive for completion:
+it returns the longest determined completion of a given initial string,
+with a given set of strings to match against.
+
+   The function `completing-read' provides a higher-level interface for
+completion.  A call to `completing-read' specifies how to determine the
+list of valid names.  The function then activates the minibuffer with a
+local keymap that binds a few keys to commands useful for completion.
+Other functions provide convenient simple interfaces for reading
+certain kinds of names with completion.
 
 * Menu:
 
-* Minor Mode Conventions::      Tips for writing a minor mode.
-* Limits of Minor Modes::       Minor modes are of limited generality.
-
- 
-
-File: elisp,  Node: Minor Mode Conventions,  Next: Limits of Minor Modes,  Prev: Minor Modes,  Up: Minor Modes
-
-Conventions for Writing Minor Modes
------------------------------------
-
-   There are conventions for writing minor modes just as there are
-for major modes.  Several of the major mode conventions apply to
-minor modes as well: those regarding the name of the mode
-initialization function, the names of global symbols, and the use of
-keymaps and other tables.
-
-   In addition, there are several conventions that are specific to
-minor modes.
-
-   * The minor mode should be represented by a symbol whose name ends
-     in `-mode'.  This symbol should be both a command to turn the
-     mode on or off and a variable which records whether the mode is
-     on.
-
-     This variable is used in conjunction with the `minor-mode-alist'
-     to display the minor mode name in the mode line.  It may also be
-     directly responsible for controlling the features of the minor
-     mode.
-
-     If you want the minor mode to be enabled separately in each
-     buffer, make the variable buffer-local.
-
-   * A minor mode command should accept one optional argument.  If
-     the argument is `nil', the function should toggle the mode (turn
-     it on if it is off, and off if it is on).  Otherwise, the
-     function should turn the mode on if the argument is a positive
-     integer, a symbol, or a list whose CAR is a positive integer; it
-     should turn the mode off otherwise.  (This convention has not
-     been implemented with full consistency in Emacs version 18.)
-
-     Here is an example taken from the definition of `overwrite-mode':
-
-          (setq overwrite-mode
-                (if (null arg) (not overwrite-mode)
-                  (> (prefix-numeric-value arg) 0)))
-
-   * Add an element to `minor-mode-alist' for each minor mode (*note
-     Mode Line Variables::.).  This element should be a list of the
-     following form:
-
-          (MODE-VARIABLE STRING)
-
-     Here MODE-VARIABLE is the variable that indicates the enablement
-     of the minor mode, and STRING is a short string, starting with a
-     space, to represent the mode in the mode line.  These strings
-     must be short so that there is room for several of them at once.
-
-     When you add an element to `minor-mode-alist', use `assq' to
-     check for an existing element, to avoid duplication.  For example:
-
-          (or (assq 'leif-mode minor-mode-alist)
-              (setq minor-mode-alist
-                    (cons '(leif-mode " Leif") minor-mode-alist)))
-
-   * If the minor mode adds new key bindings to the local keymap, you
-     should be able to restore the keymap to its original value when
-     you deactivate the minor mode.
-
+* Basic Completion::       Low-level functions for completing strings.
+                             (These are too low level to use the minibuffer.)
+* Programmed Completion::  Finding the completions for a given file name.
+* Minibuffer Completion::  Invoking the minibuffer with completion.
+* Completion Commands::    Minibuffer commands that do completion.
+* High-Level Completion::  Convenient special cases of completion
+                             (reading buffer name, file name, etc.)
+* Reading File Names::     Using completion to read file names.
+* Lisp Symbol Completion:: Completing the name of a symbol.
 
 
-File: elisp,  Node: Limits of Minor Modes,  Prev: Minor Mode Conventions,  Up: Minor Modes
+File: lispref.info,  Node: Basic Completion,  Next: Programmed Completion,  Up: Completion
 
-Limitations of Minor Modes
+Basic Completion Functions
 --------------------------
 
-   It is very difficult to write a minor mode that responds to
-arbitrary self-inserting characters.  The principal problem is that
-`self-insert-command', the command to insert the last key typed, is a
-primitive function written in C.  It does not call any hooks, except
-in special cases.
+ - Function: try-completion STRING COLLECTION &optional PREDICATE
+     This function returns the longest common substring of all possible
+     completions of STRING in COLLECTION.  The value of COLLECTION must
+     be an alist, an obarray, or a function which implements a virtual
+     set of strings.
 
-   Unfortunately, you cannot simply substitute your own definition of
-`self-insert-command' for the existing one, as you can with most
-functions.  This is a consequence of the way the editor command loop
-works: it checks whether a key is bound to `self-insert-command' and,
-if so, it calls the primitive `self-insert-command' function
-directly.  It does not check to see whether you have written another
-version of the function to substitute for it.  This is done for speed.
-(In general, if you substitute a Lisp function for a primitive, the C
-code within Emacs will continue to call the original primitive, but
-Lisp code will call your substitute Lisp function.)
+     If COLLECTION is an alist (*note Association Lists::.), completion
+     compares the CAR of each cons cell in it against STRING; if the
+     beginning of the CAR equals STRING, the cons cell matches.  If no
+     cons cells match, `try-completion' returns `nil'.  If only one
+     cons cell matches, and the match is exact, then `try-completion'
+     returns `t'.  Otherwise, the value is the longest initial sequence
+     common to all the matching strings in the alist.
 
-   Instead of attempting to replace the function definition for
-`self-insert-command', you could rebind certain keys that call
-`self-insert-command'.  This can be made to work as long as no two
-minor modes try to rebind the same key.  In a minor mode that is
-global (affects all buffers), do the rebinding in the global map.  In
-a minor mode that is local to individual buffers, you will need to
-copy the local keymap (since it is usually shared with all the other
-buffers in the same major mode) and then make the change.
+     If COLLECTION is an obarray (*note Creating Symbols::.), the names
+     of all symbols in the obarray form the space of possible
+     completions.  They are tested and used just like the CARs of the
+     elements of an association list.  (The global variable `obarray'
+     holds an obarray containing the names of all interned Lisp
+     symbols.)
 
+     Note that the only valid way to make a new obarray is to create it
+     empty and then add symbols to it one by one using `intern'.  Also,
+     you cannot intern a given symbol in more than one obarray.
 
-
-File: elisp,  Node: Mode Line Format,  Next: Hooks,  Prev: Minor Modes,  Up: Modes
+     If the argument PREDICATE is non-`nil', then it must be a function
+     of one argument.  It is used to test each possible match, and the
+     match is accepted only if PREDICATE returns non-`nil'.  The
+     argument given to PREDICATE is either a cons cell from the alist
+     (the CAR of which is a string) or else it is a symbol (*not* a
+     symbol name) from the obarray.
 
-Mode Line Format
-================
+     It is also possible to use a function symbol as COLLECTION.  Then
+     the function is solely responsible for performing completion;
+     `try-completion' returns whatever this function returns.  The
+     function is called with three arguments: STRING, PREDICATE and
+     `nil'.  (The reason for the third argument is so that the same
+     function can be used in `all-completions' and do the appropriate
+     thing in either case.)  *Note Programmed Completion::.
 
-   Each Emacs window includes a mode line which displays status
-information about the buffer displayed in the window.  The mode line
-contains information about the buffer such as its name, associated
-file, depth of recursive editing, and the major and minor modes of
-the buffer.  This section describes how the contents of the mode line
-are controlled.  It is in the chapter on modes because much of the
-information displayed in the mode line relates to the enabled major
-and minor modes.
+     In the first of the following examples, the string `foo' is
+     matched by three of the alist CARs.  All of the matches begin with
+     the characters `fooba', so that is the result.  In the second
+     example, there is only one possible match, and it is exact, so the
+     value is `t'.
 
-   `mode-line-format' is a buffer-local variable that holds a
-template used to display the mode line of the current buffer.  All
-windows for the same buffer use the same `mode-line-format' and the
-mode lines will appear the same (except perhaps for the percentage of
-the file scrolled off the top).
+          (try-completion
+           "foo"
+           '(("foobar1" 1) ("barfoo" 2) ("foobaz" 3) ("foobar2" 4)))
+               => "fooba"
 
-   The mode line of a window is normally updated whenever a different
-buffer is shown in the window, or when the buffer's modified-status
-changes from `nil' to `t' or vice-versa.  If you modify any of the
-variables referenced by `mode-line-format', you may want to force an
-update of the mode line so as to display the new information.  You
-can do this with the following expression:
+          (try-completion "foo" '(("barfoo" 2) ("foo" 3)))
+               => t
 
-     (set-buffer-modified-p (buffer-modified-p))
+     In the following example, numerous symbols begin with the
+     characters `forw', and all of them begin with the word `forward'.
+     In most of the symbols, this is followed with a `-', but not in
+     all, so no more than `forward' can be completed.
 
-   The mode line is usually displayed in inverse video; see
-`mode-line-inverse-video' in *Note Screen Attributes::.
+          (try-completion "forw" obarray)
+               => "forward"
 
-* Menu:
+     Finally, in the following example, only two of the three possible
+     matches pass the predicate `test' (the string `foobaz' is too
+     short).  Both of those begin with the string `foobar'.
 
-* Mode Line Data::        The data structure that controls the mode line.
-* Mode Line Variables::   Variables used in that data structure.
-* %-Constructs::          Putting information into a mode line.
+          (defun test (s)
+            (> (length (car s)) 6))
+               => test
 
- 
-
-File: elisp,  Node: Mode Line Data,  Next: Mode Line Variables,  Prev: Mode Line Format,  Up: Mode Line Format
+          (try-completion
+           "foo"
+           '(("foobar1" 1) ("barfoo" 2) ("foobaz" 3) ("foobar2" 4))
+               'test)
+               => "foobar"
 
-The Data Structure of the Mode Line
------------------------------------
+ - Function: all-completions STRING COLLECTION &optional PREDICATE
+     This function returns a list of all possible completions, instead
+     of the longest substring they share.  The parameters to this
+     function are the same as to `try-completion'.
 
-   The mode line contents are controlled by a data structure of
-lists, strings, symbols and numbers kept in the buffer-local variable
-`mode-line-format'.  The data structure is called a "mode line
-construct", and it is built in recursive fashion out of simpler mode
-line constructs.
+     If COLLECTION is a function, it is called with three arguments:
+     STRING, PREDICATE and `t', and `all-completions' returns whatever
+     the function returns.  *Note Programmed Completion::.
 
- * Variable: mode-line-format
-     The value of this variable is a mode line construct with overall
-     responsibility for the mode line format.  The value of this
-     variable controls which other variables are used to form the
-     mode line text, and where they appear.
+     Here is an example, using the function `test' shown in the example
+     for `try-completion':
 
-   A mode line construct may be as simple as a fixed string of text,
-but it usually specifies how to use other variables to construct the
-text.  Many of these variables are themselves defined to have mode
-line constructs as their values.
+          (defun test (s)
+            (> (length (car s)) 6))
+               => test
 
-   The default value of `mode-line-format' incorporates the values of
-variables such as `mode-name' and `minor-mode-alist'.  Because of
-this, very few modes need to alter `mode-line-format'.  For most
-purposes, it is sufficient to alter the variables referenced by
-`mode-line-format'.
+          (all-completions
+           "foo"
+           '(("foobar1" 1) ("barfoo" 2) ("foobaz" 3) ("foobar2" 4))
+           (function test))
+               => ("foobar1" "foobar2")
 
-   A mode line construct may be a list, cons cell, symbol, or string.
-If the value is a list, each element may be a list, a cons cell, a
-symbol, or a string.
+ - Variable: completion-ignore-case
+     If the value of this variable is non-`nil', Emacs does not
+     consider case significant in completion.
 
-`STRING'
-     A string as a mode line construct is displayed verbatim in the
-     mode line except for "`%'-constructs".  Decimal digits after the
-     `%' specify the field width for space filling on the right
-     (i.e., the data is left justified).  *Note %-Constructs::.
-
-`SYMBOL'
-     A symbol as a mode line construct stands for its value.  The
-     value of SYMBOL is used in place of SYMBOL unless SYMBOL is `t'
-     or `nil', or is void, in which case SYMBOL is ignored.
-
-     There is one exception: if the value of SYMBOL is a string, it
-     is processed verbatim in that the `%'-constructs are not
-     recognized.
-
-`(STRING REST...) or (LIST REST...)'
-     A list whose first element is a string or list, means to
-     concatenate all the elements.  This is the most common form of
-     mode line construct.
-
-`(SYMBOL THEN ELSE)'
-     A list whose first element is a symbol is a conditional.  Its
-     meaning depends on the value of SYMBOL.  If the value is
-     non-`nil', the second element of the list (THEN) is processed
-     recursively as a mode line element.  But if the value of SYMBOL
-     is `nil', the third element of the list (if there is one) is
-     processed recursively.
-
-`(WIDTH REST...)'
-     A list whose first element is an integer specifies truncation or
-     padding of the results of REST.  The remaining elements REST are
-     processed recursively as mode line constructs and concatenated
-     together.  Then the result is space filled (if WIDTH is
-     positive) or truncated (to -WIDTH columns, if WIDTH is negative)
-     on the right.
-
-     For example, the usual way to show what percentage of a buffer
-     is above the top of the window is to use a list like this: `(-3
-     .  "%p")'.
-
-   If you do alter `mode-line-format' itself, the new value should
-use all the same variables that are used by the default value, rather
-than duplicating their contents or displaying the information in
-another fashion.  This permits customizations made by the user, by
-libraries (such as `display-time') or by major modes via changes to
-those variables remain effective.
-
-   Here is an example of a `mode-line-format' that might be useful
-for `shell-mode' since it contains the hostname and default directory.
-
-     (setq mode-line-format
-       (list ""
-        'mode-line-modified
-        "%b--" 
-        (getenv "HOST")      ; One element is not constant.
-        ":" 
-        'default-directory
-        "   "
-        'global-mode-string
-        "   %[(" 'mode-name 
-        'minor-mode-alist 
-        "%n" 
-        'mode-line-process  
-        ")%]----"
-        '(-3 . "%p")
-        "-%-"))
-
+   The two functions `try-completion' and `all-completions' have
+nothing in themselves to do with minibuffers.  However, completion is
+most often used there, which is why it is described in this chapter.
 
 
-File: elisp,  Node: Mode Line Variables,  Next: %-Constructs,  Prev: Mode Line Data,  Up: Mode Line Format
+File: lispref.info,  Node: Programmed Completion,  Next: Minibuffer Completion,  Prev: Basic Completion,  Up: Completion
 
-Variables Used in the Mode Line
--------------------------------
+Programmed Completion
+---------------------
 
-   This section describes variables incorporated by the standard
-value of `mode-line-format' into the text of the mode line.  There is
-nothing inherently special about these variables; any other variables
-could have the same effects on the mode line if `mode-line-format'
-were changed to use them.
+   Sometimes it is not possible to create an alist or an obarray
+containing all the intended possible completions.  In such a case, you
+can supply your own function to compute the completion of a given
+string.  This is called "programmed completion".
 
- * Variable: mode-line-modified
-     This variable holds the mode-line construct for displaying
-     whether the current buffer is modified.
+   To use this feature, pass a symbol with a function definition as the
+COLLECTION argument to `completing-read'.  This command arranges to
+pass the function along to `try-completion' and `all-completions',
+which will then let your function do all the work.
 
-     The default value `mode-line-modified' is `("--%1*%1*-")'.  This
-     means that the mode line displays `--**-' if the buffer is
-     modified, `----' if the buffer is not modified, and `--%%-' if
-     the buffer is read only.
+   The completion function should accept three arguments:
 
-     Changing this variable does not force an update of the mode line.
+   * The string to be completed.
 
- * Variable: mode-line-buffer-identification
-     This variable identifies the buffer being displayed in the window.
-     Its default value is `Emacs: %17b', which means that it displays
-     `Emacs:' followed by the buffer name.  You may want to change
-     this in modes such as Rmail that do not behave like a "normal"
-     Emacs.
+   * The predicate function to filter possible matches, or `nil' if
+     none.  Your function should call the predicate for each possible
+     match and ignore the possible match if the predicate returns `nil'.
 
- * Variable: global-mode-string
-     This variable holds a string that is displayed in the mode line
-     for the use of `display-time'.  The `%M' construct substitutes
-     the value of `global-mode-string', but this is obsolete, since
-     the variable is included directly in the mode line.
+   * A flag specifying the type of operation.
 
- * Variable: mode-name
-     This buffer-local variable holds the "pretty" name of the
-     current buffer's major mode.  Each major mode should set this
-     variable so that the mode name will appear in the mode line.
+   There are three flag values for three operations:
 
- * Variable: minor-mode-alist
-     This variable holds an association list whose elements specify
-     how the mode line should indicate that a minor mode is active. 
-     Each element of the `minor-mode-alist' should be a two-element
-     list:
+   * `nil' specifies `try-completion'.  The completion function should
+     return the completion of the specified string, or `t' if the
+     string is an exact match already, or `nil' if the string matches no
+     possibility.
 
-          (MINOR-MODE-VARIABLE MODE-LINE-STRING)
+   * `t' specifies `all-completions'.  The completion function should
+     return a list of all possible completions of the specified string.
 
-     The string MODE-LINE-STRING is included in the mode line when
-     the value of MINOR-MODE-VARIABLE is non-`nil' and not otherwise.
-     These strings should begin with spaces so that they don't run
-     together.  Conventionally, the MINOR-MODE-VARIABLE for a
-     specific mode is set to a non-`nil' value when that minor mode
-     is activated.
+   * `lambda' specifies a test for an exact match.  The completion
+     function should return `t' if the specified string is an exact
+     match for some possibility; `nil' otherwise.
 
-     The default value of `minor-mode-alist' is:
+   It would be consistent and clean for completion functions to allow
+lambda expressions (lists which are functions) as well as function
+symbols as COLLECTION, but this is impossible.  Lists as completion
+tables are already assigned another meaning--as alists.  It would be
+unreliable to fail to handle an alist normally because it is also a
+possible function.  So you must arrange for any function you wish to
+use for completion to be encapsulated in a symbol.
 
-          minor-mode-alist
-          => ((abbrev-mode " Abbrev") 
-              (overwrite-mode " Ovwrt") 
-              (auto-fill-hook " Fill")         
-              (defining-kbd-macro " Def"))
-
-     (Note that in version 19, `auto-fill-hook' will be renamed to
-     `auto-fill-function'.)
-
-     `minor-mode-alist' is not buffer-local.  The variables mentioned
-     in the alist should be buffer-local if the minor mode can be
-     enabled separately in each buffer.
-
- * Variable: mode-line-process
-     This buffer-local variable contains the mode line information on
-     process status in modes used for communicating with
-     subprocesses.  It is displayed immediately following the major
-     mode name, with no intervening space.  For example, its value in
-     the `*shell*' buffer is `(": %s")', which allows the shell to
-     display its status along with the major mode as: `(Shell: run)'.
-     Normally this variable is `nil'.
-
- * Variable: default-mode-line-format
-     This variable holds the default `mode-line-format' for buffers
-     that do not override it.  This is the same as `(default-value
-     'mode-line-format)'.
-
-     The default value of `default-mode-line-format' is:
-
-          (""
-           mode-line-modified
-           mode-line-buffer-identification
-           "   "
-           global-mode-string
-           "   %[("
-           mode-name 
-           minor-mode-alist 
-           "%n" 
-           mode-line-process
-           ")%]----"
-           (-3 . "%p")
-           "-%-")
-
+   Emacs uses programmed completion when completing file names.  *Note
+File Name Completion::.
 
 
-File: elisp,  Node: %-Constructs,  Prev: Mode Line Variables,  Up: Mode Line Format
+File: lispref.info,  Node: Minibuffer Completion,  Next: Completion Commands,  Prev: Programmed Completion,  Up: Completion
 
-`%'-Constructs in the Mode Line
--------------------------------
+Completion and the Minibuffer
+-----------------------------
 
-   The following table lists the recognized `%'-constructs and what
-they mean.
+   This section describes the basic interface for reading from the
+minibuffer with completion.
 
-`%b'
-     the current buffer name, using the `buffer-name' function.
+ - Function: completing-read PROMPT COLLECTION &optional PREDICATE
+          REQUIRE-MATCH INITIAL HIST
+     This function reads a string in the minibuffer, assisting the user
+     by providing completion.  It activates the minibuffer with prompt
+     PROMPT, which must be a string.  If INITIAL is non-`nil',
+     `completing-read' inserts it into the minibuffer as part of the
+     input.  Then it allows the user to edit the input, providing
+     several commands to attempt completion.
 
-`%f'
-     the visited file name, using the `buffer-file-name' function.
+     The actual completion is done by passing COLLECTION and PREDICATE
+     to the function `try-completion'.  This happens in certain
+     commands bound in the local keymaps used for completion.
 
-`%*'
-     `%' if the buffer is read only (see `buffer-read-only'); 
-      `*' if the buffer is modified (see `buffer-modified-p'); 
-      `-' otherwise.
+     If REQUIRE-MATCH is `t', the user is not allowed to exit unless
+     the input completes to an element of COLLECTION.  If REQUIRE-MATCH
+     is neither `nil' nor `t', then `completing-read' does not exit
+     unless the input typed is itself an element of COLLECTION.  To
+     accomplish this, `completing-read' calls `read-minibuffer'.  It
+     uses the value of `minibuffer-local-completion-map' as the keymap
+     if REQUIRE-MATCH is `nil', and uses
+     `minibuffer-local-must-match-map' if REQUIRE-MATCH is non-`nil'.
 
-`%s'
-     the status of the subprocess belonging to the current buffer,
-     using `process-status'.
+     The argument HIST specifies which history list variable to use for
+     saving the input and for minibuffer history commands.  It defaults
+     to `minibuffer-history'.  *Note Minibuffer History::.
 
-`%p'
-     the percent of the buffer above the top of window, or `Top',
-     `Bottom' or `All'.
-
-`%n'
-     `Narrow' when narrowing is in effect; nothing otherwise (see
-     `narrow-to-region' in *Note Narrowing::).
-
-`%['
-     an indication of the depth of recursive editing levels (not
-     counting minibuffer levels): one `[' for each editing level.
-
-`%]'
-     one `]' for each recursive editing level (not counting
-     minibuffer levels).
-
-`%%'
-     the character `%'--this is how to include a literal `%' in a
-     string in which `%'-constructs are allowed.
-
-`%-'
-     dashes sufficient to fill the remainder of the mode line.
-
-   The following two `%'-constructs are still supported but are
-obsolete since use of the `mode-name' and `global-mode-string'
-variables will produce the same results.
-
-`%m'
-     the value of `mode-name'.
-
-`%M'
-     the value of `global-mode-string'.  Currently, only
-     `display-time' modifies `global-mode-string'.
-
-
-
-File: elisp,  Node: Hooks,  Prev: Mode Line Format,  Up: Modes
-
-Hooks
-=====
-
-   A "hook" is a variable whose value is a "hook function" (or a list
-of hook functions) to be called by parts of Emacs on certain defined
-occasions.  The purpose of hooks is to facilitate customization, and
-the value of a hook is most often set up in the `.emacs' file, but it
-may be changed by programs.  The function or functions used in a hook
-may be any of the valid kinds of functions that `funcall' accepts
-(*note What Is a Function::.).
-
-   Most modes run hooks as the last step of initialization.  This
-makes it easy for a user to customize the behavior of the mode, by
-overriding the local variable assignments already made by the mode. 
-But hooks may also be used in other contexts.  For example, the
-functions named by `find-file-not-found-hooks' are called whenever a
-file is not found by `find-file'.
-
-   For example, you can put the following expression in your `.emacs'
-file if you want to turn on Auto Fill mode when in Lisp Interaction
-mode:
-
-     (setq lisp-interaction-mode-hook 'turn-on-auto-fill)
-
-   The next example shows how to use a hook to customize the way
-Emacs formats C code.  (People often have strong personal preferences
-for one format compared to another.)  Here the hook function is an
-anonymous lambda expression.
-
-     (setq c-mode-hook 
-           (function (lambda ()
-                       (setq c-indent-level 4
-                             c-argdecl-indent 0
-                             c-label-offset -4
-                             c-continued-statement-indent 0
-                             c-brace-offset 0
-                             comment-column 40))))
-     
-     (setq c++-mode-hook c-mode-hook)
-
-   Finally, here is an example of how to use the Text mode hook to
-provide a customized mode line for buffers in Text mode, displaying
-the default directory in addition to the standard components of the
-mode line.  (This may cause the mode line to run out of space if you
-have very long path names or display the time and load.)
-
-     (setq text-mode-hook
-           (function (lambda ()
-                       (setq mode-line-format
-                             '(mode-line-modified
-                               "Emacs: %14b"
-                               "  "  
-                               default-directory
-                               " "
-                               global-mode-string
-                               "%[(" 
-                               mode-name 
-                               minor-mode-alist 
-                               "%n" 
-                               mode-line-process  
-                               ") %]---"
-                               (-3 . "%p")
-                               "-%-")))))
-
-   *Note Standard Hooks::, for a list of standard hook variables.
-
-   Most hook variables are initially void.  This has no effect on
-examples such as the previous ones, where the hook variable is set
-without reference to any previous value.  However, if you want to add
-an element to a hook variable which you use as a list of functions,
-you need to make sure the variable is not void.  Here is how to do it
-using `defvar':
-
-     (defvar foo-hook nil)
-     (or (memq 'my-hook foo-hook)
-         (setq foo-hook (cons 'my-hook foo-hook)))
-
-   At the appropriate time, Emacs uses the `run-hooks' function to
-run the hooks you have specified.
-
- * Function: run-hooks &rest HOOKVAR
-     This function takes one or more hook names as arguments and runs
-     each one in turn.  Each HOOKVAR argument should be a symbol that
-     is a hook variable.  These arguments are processed in the order
-     specified.
-
-     If a hook variable has a non-`nil' value, that value may be a
-     function or a list of functions.  If the value is a function
-     (either a lambda expression or a symbol with a function
-     definition), it is called.  If it is a list, the elements are
-     called, in order.  The hook functions are called with no
-     arguments.
+     Case is ignored when comparing the input against the possible
+     matches if the built-in variable `completion-ignore-case' is
+     non-`nil'.  *Note Basic Completion::.
 
      For example:
 
-          (run-hooks 'emacs-lisp-mode-hook)
+          (completing-read
+           "Complete a foo: "
+           '(("foobar1" 1) ("barfoo" 2) ("foobaz" 3) ("foobar2" 4))
+           nil t "fo")
 
-     Major mode functions use this function to call any hooks defined
-     by the user.
+          ;; After evaluating the preceding expression,
+          ;;   the following appears in the minibuffer:
+          
+          ---------- Buffer: Minibuffer ----------
+          Complete a foo: fo-!-
+          ---------- Buffer: Minibuffer ----------
 
+     If the user then types `DEL DEL b RET', `completing-read' returns
+     `barfoo'.
+
+     The `completing-read' function binds three variables to pass
+     information to the commands which actually do completion.  Here
+     they are:
+
+    `minibuffer-completion-table'
+          This variable is bound to the COLLECTION argument.  It is
+          passed to the `try-completion' function.
+
+    `minibuffer-completion-predicate'
+          This variable is bound to the PREDICATE argument.  It is
+          passed to the `try-completion' function.
+
+    `minibuffer-completion-confirm'
+          This variable is bound to the REQUIRE-MATCH argument.  It is
+          used in the `minibuffer-complete-and-exit' function.
 
 
-File: elisp,  Node: Documentation,  Next: Files,  Prev: Modes,  Up: Top
+File: lispref.info,  Node: Completion Commands,  Next: High-Level Completion,  Prev: Minibuffer Completion,  Up: Completion
 
-Documentation
-*************
+Minibuffer Commands That Do Completion
+--------------------------------------
 
-   GNU Emacs Lisp has convenient on-line help facilities, most of
-which derive their information from the documentation strings
-associated with functions and variables.  This chapter describes how
-to write good documentation strings for your Lisp programs, as well
-as how to write programs to access documentation.
+   This section describes the keymaps, commands and user options used in
+the minibuffer to do completion.
 
-   Note that the documentation strings for Emacs are not the same
-thing as the Emacs manual.  Manuals have their own source files,
-written in the Texinfo language; documentation strings are specified
-in the definitions of the functions and variables they apply to.  A
-collection of documentation strings is not sufficient as a manual
-because a good manual is not organized in that fashion; it is
-organized in terms of topics of discussion.
+ - Variable: minibuffer-local-completion-map
+     `completing-read' uses this value as the local keymap when an
+     exact match of one of the completions is not required.  By
+     default, this keymap makes the following bindings:
+
+    `?'
+          `minibuffer-completion-help'
+
+    SPC
+          `minibuffer-complete-word'
+
+    TAB
+          `minibuffer-complete'
+
+     with other characters bound as in `minibuffer-local-map'.
+
+ - Variable: minibuffer-local-must-match-map
+     `completing-read' uses this value as the local keymap when an
+     exact match of one of the completions is required.  Therefore, no
+     keys are bound to `exit-minibuffer', the command which exits the
+     minibuffer unconditionally.  By default, this keymap makes the
+     following bindings:
+
+    `?'
+          `minibuffer-completion-help'
+
+    SPC
+          `minibuffer-complete-word'
+
+    TAB
+          `minibuffer-complete'
+
+    LFD
+          `minibuffer-complete-and-exit'
+
+    RET
+          `minibuffer-complete-and-exit'
+
+     with other characters bound as in `minibuffer-local-map'.
+
+ - Variable: minibuffer-completion-table
+     The value of this variable is the alist or obarray used for
+     completion in the minibuffer.  This is the global variable that
+     contains what `completing-read' passes to `try-completion'.  It is
+     used by all the minibuffer completion functions, such as
+     `minibuffer-complete-word'.
+
+ - Variable: minibuffer-completion-predicate
+     This variable's value is the predicate that `completing-read'
+     passes to `try-completion'.  The variable is also used by the other
+     minibuffer completion functions.
+
+ - Command: minibuffer-complete-word
+     This function completes the minibuffer contents by at most a single
+     word.  Even if the minibuffer contents have only one completion,
+     `minibuffer-complete-word' does not add any characters beyond the
+     first character that is not a word constituent.  *Note Syntax
+     Tables::.
+
+ - Command: minibuffer-complete
+     This function completes the minibuffer contents as far as possible.
+
+ - Command: minibuffer-complete-and-exit
+     This function completes the minibuffer contents, and exits if
+     confirmation is not required, i.e., if
+     `minibuffer-completion-confirm' is non-`nil'.  If confirmation
+     *is* required, it is given by repeating this command immediately.
+
+ - Variable: minibuffer-completion-confirm
+     When the value of this variable is non-`nil', Emacs asks for
+     confirmation of a completion before exiting the minibuffer.  The
+     function `minibuffer-complete-and-exit' checks the value of this
+     variable before it exits.
+
+ - Command: minibuffer-completion-help
+     This function creates a list of the possible completions of the
+     current minibuffer contents.  It works by calling `all-completions'
+     using the value of the variable `minibuffer-completion-table' as
+     the COLLECTION argument, and the value of
+     `minibuffer-completion-predicate' as the PREDICATE argument.  The
+     list of completions is displayed as text in a buffer named
+     `*Completions*'.
+
+ - Function: display-completion-list COMPLETIONS
+     This function displays COMPLETIONS to the stream in
+     `standard-output', usually a buffer.  (*Note Streams::, for more
+     information about streams.)  The argument COMPLETIONS is normally
+     a list of completions just returned by `all-completions', but it
+     does not have to be.  Each element may be a symbol or a string,
+     either of which is simply printed, or a list of two strings, which
+     is printed as if the strings were concatenated.
+
+     This function is called by `minibuffer-completion-help'.  The most
+     common way to use it is together with
+     `with-output-to-temp-buffer', like this:
+
+          (with-output-to-temp-buffer " *Completions*"
+            (display-completion-list
+              (all-completions (buffer-string) my-alist)))
+
+ - User Option: completion-auto-help
+     If this variable is non-`nil', the completion commands
+     automatically display a list of possible completions whenever
+     nothing can be completed because the next character is not
+     uniquely determined.
+
+
+File: lispref.info,  Node: High-Level Completion,  Next: Reading File Names,  Prev: Completion Commands,  Up: Completion
+
+High-Level Completion  Functions
+--------------------------------
+
+   This section describes the higher-level convenient functions for
+reading certain sorts of names with completion.
+
+ - Function: read-buffer PROMPT &optional DEFAULT EXISTING
+     This function reads the name of a buffer and returns it as a
+     string.  The argument DEFAULT is the default name to use, the
+     value to return if the user exits with an empty minibuffer.  If
+     non-`nil', it should be a string.  It is mentioned in the prompt,
+     but is not inserted in the minibuffer as initial input.
+
+     If EXISTING is non-`nil', then the name specified must be that of
+     an  existing buffer.  The usual commands to exit the minibuffer do
+     not exit if the text is not valid, and RET does completion to
+     attempt to find a valid name.  (However, DEFAULT is not checked
+     for this; it is returned, whatever it is, if the user exits with
+     the minibuffer empty.)
+
+     In the following example, the user enters `minibuffer.t', and then
+     types RET.  The argument EXISTING is `t', and the only buffer name
+     starting with the given input is `minibuffer.texi', so that name
+     is the value.
+
+          (read-buffer "Buffer name? " "foo" t)
+          ;; After evaluating the preceding expression,
+          ;;   the following prompt appears,
+          ;;   with an empty minibuffer:
+
+          ---------- Buffer: Minibuffer ----------
+          Buffer name? (default foo) -!-
+          ---------- Buffer: Minibuffer ----------
+
+          ;; The user types `minibuffer.t RET'.
+          
+               => "minibuffer.texi"
+
+ - Function: read-command PROMPT
+     This function reads the name of a command and returns it as a Lisp
+     symbol.  The argument PROMPT is used as in `read-from-minibuffer'.
+     Recall that a command is anything for which `commandp' returns
+     `t', and a command name is a symbol for which `commandp' returns
+     `t'.  *Note Interactive Call::.
+
+          (read-command "Command name? ")
+          ;; After evaluating the preceding expression,
+          ;;   the following appears in the minibuffer:
+
+          ---------- Buffer: Minibuffer ----------
+          Command name?
+          ---------- Buffer: Minibuffer ----------
+
+     If the user types `forward-c RET', then this function returns
+     `forward-char'.
+
+     The `read-command' function is a simplified interface to the
+     `completing-read' function.  It uses the `commandp' predicate to
+     allow only commands to be entered, and it uses the variable
+     `obarray' so as to be able to complete all extant Lisp symbols:
+
+          (read-command PROMPT)
+          ==
+          (intern (completing-read PROMPT obarray 'commandp t nil))
+
+ - Function: read-variable PROMPT
+     This function reads the name of a user variable and returns it as a
+     symbol.
+
+          (read-variable "Variable name? ")
+          
+          ;; After evaluating the preceding expression,
+          ;;   the following prompt appears,
+          ;;   with an empty minibuffer:
+
+          ---------- Buffer: Minibuffer ----------
+          Variable name? -!-
+          ---------- Buffer: Minibuffer ----------
+
+     If the user then types `fill-p RET', `read-variable' will return
+     `fill-prefix'.
+
+     This function is similar to `read-command', but uses the predicate
+     `user-variable-p' instead of `commandp':
+
+          (read-variable PROMPT)
+          ==
+          (intern
+           (completing-read PROMPT obarray 'user-variable-p t nil))
+
+
+File: lispref.info,  Node: Reading File Names,  Next: Lisp Symbol Completion,  Prev: High-Level Completion,  Up: Completion
+
+Reading File Names
+------------------
+
+   Here is another high-level completion function, designed for reading
+a file name.  It provides special features including automatic insertion
+of the default directory.
+
+ - Function: read-file-name PROMPT &optional DIRECTORY DEFAULT EXISTING
+          INITIAL
+     This function reads a file name in the minibuffer, prompting with
+     PROMPT and providing completion.  If DEFAULT is non-`nil', then
+     the function returns DEFAULT if the user just types RET.
+
+     If EXISTING is non-`nil', then the name must refer to an existing
+     file; then RET performs completion to make the name valid if
+     possible, and then refuses to exit if it is not valid.  If the
+     value of EXISTING is neither `nil' nor `t', then RET also requires
+     confirmation after completion.
+
+     The argument DIRECTORY specifies the directory to use for
+     completion of relative file names.  Usually it is inserted in the
+     minibuffer as initial input as well.  It defaults to the current
+     buffer's default directory.
+
+     If you specify INITIAL, that is an initial file name to insert in
+     the buffer along with DIRECTORY.  In this case, point goes after
+     DIRECTORY, before INITIAL.  The default for INITIAL is
+     `nil'--don't insert any file name.  To see what INITIAL does, try
+     the command `C-x C-v'.
+
+     Here is an example:
+
+          (read-file-name "The file is ")
+          
+          ;; After evaluating the preceding expression,
+          ;;   the following appears in the minibuffer:
+
+          ---------- Buffer: Minibuffer ----------
+          The file is /gp/gnu/elisp/-!-
+          ---------- Buffer: Minibuffer ----------
+
+     Typing `manual TAB' results in the following:
+
+          ---------- Buffer: Minibuffer ----------
+          The file is /gp/gnu/elisp/manual.texi-!-
+          ---------- Buffer: Minibuffer ----------
+
+     If the user types RET, `read-file-name' returns the string
+     `"/gp/gnu/elisp/manual.texi"'.
+
+ - User Option: insert-default-directory
+     This variable is used by `read-file-name'.  Its value controls
+     whether `read-file-name' starts by placing the name of the default
+     directory in the minibuffer, plus the initial file name if any.
+     If the value of this variable is `nil', then `read-file-name' does
+     not place any initial input in the minibuffer.  In that case, the
+     default directory is still used for completion of relative file
+     names, but is not displayed.
+
+     For example:
+
+          ;; Here the minibuffer starts out containing the default directory.
+          
+          (let ((insert-default-directory t))
+            (read-file-name "The file is "))
+
+          ---------- Buffer: Minibuffer ----------
+          The file is ~lewis/manual/-!-
+          ---------- Buffer: Minibuffer ----------
+
+          ;; Here the minibuffer is empty and only the prompt
+          ;;   appears on its line.
+          
+          (let ((insert-default-directory nil))
+            (read-file-name "The file is "))
+
+          ---------- Buffer: Minibuffer ----------
+          The file is -!-
+          ---------- Buffer: Minibuffer ----------
+
+
+File: lispref.info,  Node: Lisp Symbol Completion,  Prev: Reading File Names,  Up: Completion
+
+Lisp Symbol Completion
+----------------------
+
+   If you type a part of a symbol, and then type `M-TAB'
+(`lisp-complete-symbol'), this command attempts to fill in as much more
+of the symbol name as it can.  Not only does this save typing, but it
+can help you with the name of a symbol that you have partially
+forgotten.
+
+ - Command: lisp-complete-symbol
+     This function performs completion on the symbol name preceding
+     point.  The name is completed against the symbols in the global
+     variable `obarray', and characters from the completion are
+     inserted into the buffer, making the name longer.  If there is
+     more than one completion, a list of all possible completions is
+     placed in the `*Help*' buffer.  The bell rings if there is no
+     possible completion in `obarray'.
+
+     If an open parenthesis immediately precedes the name, only symbols
+     with function definitions are considered.  (By reducing the number
+     of alternatives, this may succeed in completing more characters.)
+     Otherwise, symbols with either a function definition, a value, or
+     at least one property are considered.
+
+     `lisp-complete-symbol' returns `t' if the symbol had an exact, and
+     unique, match; otherwise, it returns `nil'.
+
+     In the following example, the user has already inserted `(forwa'
+     into the buffer `foo.el'.  The command `lisp-complete-symbol' then
+     completes the name to `(forward-'.
+
+          ---------- Buffer: foo.el ----------
+          (forwa-!-
+          ---------- Buffer: foo.el ----------
+
+          (lisp-complete-symbol)
+               => nil
+
+          ---------- Buffer: foo.el ----------
+          (forward--!-
+          ---------- Buffer: foo.el ----------
+
+
+File: lispref.info,  Node: Yes-or-No Queries,  Next: Multiple Queries,  Prev: Completion,  Up: Minibuffers
+
+Yes-or-No Queries
+=================
+
+   This section describes functions used to ask the user a yes-or-no
+question.  The function `y-or-n-p' can be answered with a single
+character; it is useful for questions where an inadvertent wrong answer
+will not have serious consequences.  `yes-or-no-p' is suitable for more
+momentous questions, since it requires three or four characters to
+answer.  Variations of these functions can be used to ask a yes-or-no
+question using a dialog box, or optionally using one.
+
+   Strictly speaking, not all of these functions use the minibuffer; but
+it seems best to describe them together.
+
+ - Function: y-or-n-p PROMPT
+     This function asks the user a question, expecting input in the echo
+     area.  It returns `t' if the user types `y', `nil' if the user
+     types `n'.  This function also accepts SPC to mean yes and DEL to
+     mean no.  It accepts `C-]' to mean "quit", like `C-g', because the
+     question might look like a minibuffer and for that reason the user
+     might try to use `C-]' to get out.  The answer is a single
+     character, with no RET needed to terminate it.  Upper and lower
+     case are equivalent.
+
+     "Asking the question" means printing PROMPT in the echo area,
+     followed by the string `(y or n) '.  If the input is not one of
+     the expected answers (`y', `n', `SPC', `DEL', or something that
+     quits), the function responds `Please answer y or n.', and repeats
+     the request.
+
+     This function does not actually use the minibuffer, since it does
+     not allow editing of the answer.  It actually uses the echo area
+     (*note The Echo Area::.), which uses the same screen space as the
+     minibuffer.  The cursor moves to the echo area while the question
+     is being asked.
+
+     The meanings of answers, even `y' and `n', are not hardwired.
+     They are controlled by the keymap `query-replace-map'.  *Note
+     Replacement::.
+
+     In the following example, the user first types `q', which is
+     invalid.  At the next prompt the user types `n'.
+
+          (y-or-n-p "Do you need a lift? ")
+          
+          ;; After evaluating the preceding expression,
+          ;;   the following prompt appears in the echo area:
+
+          ---------- Echo area ----------
+          Do you need a lift? (y or n)
+          ---------- Echo area ----------
+          
+          ;; If the user then types `q', the following appears:
+          ---------- Echo area ----------
+          Please answer y or n.  Do you need a lift? (y or n)
+          ---------- Echo area ----------
+          
+          ;; When the user types a valid answer,
+          ;;   it is displayed after the question:
+          ---------- Echo area ----------
+          Do you need a lift? (y or n) y
+          ---------- Echo area ----------
+
+     Note that we show successive lines of echo area messages here.
+     Only one actually appears on the screen at a time.
+
+ - Function: yes-or-no-p PROMPT
+     This function asks the user a question, expecting input in
+     minibuffer.  It returns `t' if the user enters `yes', `nil' if the
+     user types `no'.  The user must type RET to finalize the response.
+     Upper and lower case are equivalent.
+
+     `yes-or-no-p' starts by displaying PROMPT in the echo area,
+     followed by `(yes or no) '.  The user must type one of the
+     expected responses; otherwise, the function responds `Please answer
+     yes or no.', waits about two seconds and repeats the request.
+
+     `yes-or-no-p' requires more work from the user than `y-or-n-p' and
+     is appropriate for more crucial decisions.
+
+     Here is an example:
+
+          (yes-or-no-p "Do you really want to remove everything? ")
+          
+          ;; After evaluating the preceding expression,
+          ;;   the following prompt appears,
+          ;;   with an empty minibuffer:
+
+          ---------- Buffer: minibuffer ----------
+          Do you really want to remove everything? (yes or no)
+          ---------- Buffer: minibuffer ----------
+
+     If the user first types `y RET', which is invalid because this
+     function demands the entire word `yes', it responds by displaying
+     these prompts, with a brief pause between them:
+
+          ---------- Buffer: minibuffer ----------
+          Please answer yes or no.
+          Do you really want to remove everything? (yes or no)
+          ---------- Buffer: minibuffer ----------
+
+ - Function: yes-or-no-p-dialog-box PROMPT
+     This function asks the user a "y or n" question with a popup dialog
+     box.  It returns `t' if the answer is "yes".  PROMPT is the string
+     to display to ask the question.
+
+   The following functions ask a question either in the minibuffer or a
+dialog box, depending on whether the last user event (which presumably
+invoked this command) was a keyboard or mouse event.  When Emacs is
+running on a window system, the functions `y-or-n-p' and `yes-or-no-p'
+are replaced with the following functions, so that menu items bring up
+dialog boxes instead of minibuffer questions.
+
+ - Function: y-or-n-p-maybe-dialog-box PROMPT
+     This function asks user a "y or n" question, using either a dialog
+     box or the minibuffer, as appropriate.
+
+ - Function: yes-or-no-p-maybe-dialog-box PROMPT
+     This function asks user a "yes or no" question, using either a
+     dialog box or the minibuffer, as appropriate.
+
+
+File: lispref.info,  Node: Multiple Queries,  Next: Minibuffer Misc,  Prev: Yes-or-No Queries,  Up: Minibuffers
+
+Asking Multiple Y-or-N Queries
+==============================
+
+ - Function: map-y-or-n-p PROMPTER ACTOR LIST &optional HELP
+          ACTION-ALIST
+     This function, new in Emacs 19, asks the user a series of
+     questions, reading a single-character answer in the echo area for
+     each one.
+
+     The value of LIST specifies what varies from question to question
+     within the series.  It should be either a list of objects or a
+     generator function.  If it is a function, it should expect no
+     arguments, and should return either the next object or `nil'
+     meaning there are no more questions.
+
+     The argument PROMPTER specifies how to ask each question.  If
+     PROMPTER is a string, the question text is computed like this:
+
+          (format PROMPTER OBJECT)
+
+     where OBJECT is the next object to ask about (as obtained from
+     LIST).
+
+     If not a string, PROMPTER should be a function of one argument
+     (the next object to ask about) and should return the question text.
+
+     The argument ACTOR says how to act on the answers that the user
+     gives.  It should be a function of one argument, and it is called
+     with each object that the user says yes for.  Its argument is
+     always an object obtained from LIST.
+
+     If the argument HELP is given, it should be a list of this form:
+
+          (SINGULAR PLURAL ACTION)
+
+     where SINGULAR is a string containing a singular noun that
+     describes the objects conceptually being acted on, PLURAL is the
+     corresponding plural noun, and ACTION is a transitive verb
+     describing what ACTOR does.
+
+     If you don't specify HELP, the default is `("object" "objects"
+     "act on")'.
+
+     Each time a question is asked, the user may enter `y', `Y', or SPC
+     to act on that object; `n', `N', or DEL to skip that object; `!'
+     to act on all following objects; ESC or `q' to exit (skip all
+     following objects); `.' (period) to act on the current object and
+     then exit; or `C-h' to get help.  These are the same answers that
+     `query-replace' accepts.  The keymap `query-replace-map' defines
+     their meaning for `map-y-or-n-p' as well as for `query-replace';
+     see *Note Replacement::.
+
+     You can use ACTION-ALIST to specify additional possible answers
+     and what they mean.  It is an alist of elements of the form `(CHAR
+     FUNCTION HELP)', each of which defines one additional answer.  In
+     this element, CHAR is a character (the answer); FUNCTION is a
+     function of one argument (an object from LIST); HELP is a string.
+
+     When the user responds with CHAR, `map-y-or-n-p' calls FUNCTION.
+     If it returns non-`nil', the object is considered "acted upon",
+     and `map-y-or-n-p' advances to the next object in LIST.  If it
+     returns `nil', the prompt is repeated for the same object.
+
+     The return value of `map-y-or-n-p' is the number of objects acted
+     on.
+
+
+File: lispref.info,  Node: Minibuffer Misc,  Prev: Multiple Queries,  Up: Minibuffers
+
+Minibuffer Miscellany
+=====================
+
+   This section describes some basic functions and variables related to
+minibuffers.
+
+ - Command: exit-minibuffer
+     This command exits the active minibuffer.  It is normally bound to
+     keys in minibuffer local keymaps.
+
+ - Command: self-insert-and-exit
+     This command exits the active minibuffer after inserting the last
+     character typed on the keyboard (found in `last-command-char';
+     *note Command Loop Info::.).
+
+ - Command: previous-history-element N
+     This command replaces the minibuffer contents with the value of the
+     Nth previous (older) history element.
+
+ - Command: next-history-element N
+     This command replaces the minibuffer contents with the value of the
+     Nth more recent history element.
+
+ - Command: previous-matching-history-element PATTERN
+     This command replaces the minibuffer contents with the value of the
+     previous (older) history element that matches PATTERN.  At the
+     time of printing, we have not made a final decision about how to
+     get the pattern interactively or how to match it against history
+     elements.
+
+ - Command: next-matching-history-element PATTERN
+     This command replaces the minibuffer contents with the value of the
+     next (newer) history element that matches PATTERN.
+
+ - Variable: minibuffer-setup-hook
+     This is a normal hook that is run whenever the minibuffer is
+     entered.
+
+ - Variable: minibuffer-help-form
+     The current value of this variable is used to rebind `help-form'
+     locally inside the minibuffer (*note Help Functions::.).
+
+ - Function: minibuffer-window &optional SCREEN
+     This function returns the window that is used for the minibuffer.
+     In Emacs 18, there is one and only one minibuffer window; this
+     window always exists and cannot be deleted.  In Emacs 19, each
+     screen can have its own minibuffer, and this function returns the
+     minibuffer window used for screen SCREEN (which defaults to the
+     currently selected screen).
+
+ - Function: window-minibuffer-p WINDOW
+     This function returns non-`nil' if WINDOW is a minibuffer window.
+
+   It is not correct to determine whether a given window is a
+minibuffer by comparing it with the result of `(minibuffer-window)',
+because there can be more than one minibuffer window there is more than
+one screen.
+
+ - Function: minibuffer-window-active-p WINDOW
+     This function returns non-`nil' if WINDOW, assumed to be a
+     minibuffer window, is currently active.
+
+ - Variable: minibuffer-scroll-window
+     If the value of this variable is non-`nil', it should be a window
+     object.  When the function `scroll-other-window' is called in the
+     minibuffer, it scrolls this window.
+
+   Finally, some functions and variables deal with recursive minibuffers
+(*note Recursive Editing::.):
+
+ - Function: minibuffer-depth
+     This function returns the current depth of activations of the
+     minibuffer, a nonnegative integer.  If no minibuffers are active,
+     it returns zero.
+
+ - User Option: enable-recursive-minibuffers
+     If this variable is non-`nil', you can invoke commands (such as
+     `find-file') which use minibuffers even while in the minibuffer
+     window.  Such invocation produces a recursive editing level for a
+     new minibuffer.  The outer-level minibuffer is invisible while you
+     are editing the inner one.
+
+     This variable only affects invoking the minibuffer while the
+     minibuffer window is selected.   If you switch windows while in the
+     minibuffer, you can always invoke minibuffer commands while some
+     other window is selected.
+
+   If a command name has a property `enable-recursive-minibuffers'
+which is non-`nil', then the command can use the minibuffer to read
+arguments even if it is invoked from the minibuffer.  The minibuffer
+command `next-matching-history-element' (normally bound to `M-s' in the
+minibuffer) uses this feature.
+
+
+File: lispref.info,  Node: Command Loop,  Next: Keymaps,  Prev: Minibuffers,  Up: Top
+
+Command Loop
+************
+
+   When you run Emacs, it enters the "editor command loop" almost
+immediately.  This loop reads key sequences, executes their definitions,
+and displays the results.  In this chapter, we describe how these things
+are done, and the subroutines that allow Lisp programs to do them.
 
 * Menu:
 
-* Documentation Basics::      Good style for doc strings.
-                                Where to put them.  How Emacs stores them.
-* Accessing Documentation::   How Lisp programs can access doc strings.
-* Keys in Documentation::     Substituting current key bindings.
-* Describing Characters::     Making printable descriptions of
-                                non-printing characters and key sequences.
-* Help Functions::            Subroutines used by Emacs help facilities.
-
- 
-
-File: elisp,  Node: Documentation Basics,  Next: Accessing Documentation,  Prev: Documentation,  Up: Documentation
-
-Documentation Basics
-====================
-
-   A documentation string is written using the Lisp syntax for
-strings, with double-quote characters surrounding the text of the
-string.  This is because it really is a Lisp string object.  The
-string serves as documentation when it is written in the proper place
-in the definition of a function or variable.  In a function
-definition, the documentation string follows the argument list.  In a
-variable definition, the documentation string follows the initial
-value of the variable.
-
-   When you write a documentation string, make the first line a
-complete sentence (or two complete sentences) since some commands,
-such as `apropos', print only the first line of a multi-line
-documentation string.  Also, you should not indent the second line of
-a documentation string, if you have one, because that looks odd when
-you use `C-h f' (`describe-function') or `C-h v' (`describe-variable').
-
-   Documentation strings may contain several special substrings,
-which stand for key bindings to be looked up in the current keymaps
-when the documentation is displayed.  This allows documentation
-strings to refer to the keys for related commands and be accurate
-even when a user rearranges the key bindings.  (*Note Accessing
-Documentation::.)
-
-   Within the Lisp world, a documentation string is kept with the
-function or variable that it describes:
-
-   * The documentation for a function is stored in the function
-     definition itself (*note Lambda Expressions::.).  The function
-     `documentation' knows how to extract it.
-
-   * The documentation for a variable is stored on the variable's
-     property list under the property name `variable-documentation'. 
-     The function `documentation-property' knows how to extract it.
-
-   However, to save space, the documentation for preloaded functions
-and variables (including primitive functions and autoloaded
-functions) are stored in the `emacs/etc/DOC-VERSION' file.  Both the
-`documentation' and the `documentation-property' functions know how
-to access `emacs/etc/DOC-VERSION', and the process is transparent to
-the user.  In this case, the documentation string is replaced with an
-integer offset into the `emacs/etc/DOC-VERSION' file.  Keeping the
-documentation strings out of the Emacs core image saves a significant
-amount of space.  *Note Building Emacs::.
-
-   For information on the uses of documentation strings, see
-`where-is-internal' and `describe-bindings' in *Note Global and Local
-Keymaps::.  Also, see *Note : (emacs)Help.
-
-   The `emacs/etc' directory contains two utilities for printing the
-`emacs/etc/DOC-VERSION' file in hardcopy.  These are `sorted-doc.c'
-and `digest-doc.c'.
-
+* Command Overview::    How the command loop reads commands.
+* Defining Commands::   Specifying how a function should read arguments.
+* Interactive Call::    Calling a command, so that it will read arguments.
+* Command Loop Info::   Variables set by the command loop for you to examine.
+* Input Events::	What input looks like when you read it.
+* Reading Input::       How to read input events from the keyboard or mouse.
+* Waiting::             Waiting for user input or elapsed time.
+* Quitting::            How `C-g' works.  How to catch or defer quitting.
+* Prefix Command Arguments::    How the commands to set prefix args work.
+* Recursive Editing::   Entering a recursive edit,
+                          and why you usually shouldn't.
+* Disabling Commands::  How the command loop handles disabled commands.
+* Command History::     How the command history is set up, and how accessed.
+* Keyboard Macros::     How keyboard macros are implemented.
 
 
-File: elisp,  Node: Accessing Documentation,  Next: Keys in Documentation,  Prev: Documentation Basics,  Up: Documentation
+File: lispref.info,  Node: Command Overview,  Next: Defining Commands,  Up: Command Loop
 
-Access to Documentation Strings
-===============================
+Command Loop Overview
+=====================
 
- * Function: documentation-property SYMBOL PROPERTY
-     This function returns the documentation string that is recorded
-     SYMBOL's property list under property PROPERTY.  This uses the
-     function `get', but does more than that: it also retrieves the
-     string from the file `emacs/etc/DOC-VERSION' if necessary, and
-     runs `substitute-command-keys' to substitute the actual
-     (current) key bindings.
+   The command loop in Emacs is a standard event loop, reading events
+one at a time with `next-event' and handling them with
+`dispatch-event'.  An event is typically a single user action, such as
+a keypress, mouse movement, or menu selection; but they can also be
+notifications from the window system, informing Emacs that (for example)
+part of its window was just uncovered and needs to be redrawn.  *Note
+Input Events::.  Pending events are held in a first-in, first-out list
+called the "event queue": events are read from the head of the list,
+and newly arriving events are added to the tail.  In this way, events
+are always processed in the order in which they arrive.
 
-          (documentation-property 'command-line-processed
-             'variable-documentation)
-               => "t once command line has been processed"
-          (symbol-plist 'command-line-processed)
-               => (variable-documentation 188902)
+   `dispatch-event' does most of the work of handling user actions.
+The first thing it must do is put the events together into a key
+sequence, which is a sequence of events that translates into a command.
+It does this by consulting the active keymaps, which specify what the
+valid key sequences are and how to translate them into commands.  *Note
+Key Lookup::, for information on how this is done.  The result of the
+translation should be a keyboard macro or an interactively callable
+function.  If the key is `M-x', then it reads the name of another
+command, which is used instead.  This is done by the command
+`execute-extended-command' (*note Interactive Call::.).
 
- * Function: documentation FUNCTION
-     This function returns the documentation string of FUNCTION.  If
-     the documentation string is stored in the
-     `emacs/etc/DOC-VERSION' file, this function will access it there.
+   Once the command is chosen, it must be executed, which includes
+reading arguments to be given to it.  This is done by calling
+`command-execute' (*note Interactive Call::.).  For commands written in
+Lisp, the `interactive' specification says how to read the arguments.
+This may use the prefix argument (*note Prefix Command Arguments::.) or
+may read with prompting in the minibuffer (*note Minibuffers::.).  For
+example, the command `find-file' has an `interactive' specification
+which says to read a file name using the minibuffer.  The command's
+function body does not use the minibuffer; if you call this command
+from Lisp code as a function, you must supply the file name string as
+an ordinary Lisp function argument.
 
-     In addition, `documentation' runs `substitute-command-keys' on
-     the resulting string, so the value contains the actual (current)
-     key bindings.
+   If the command is a string or vector (i.e., a keyboard macro) then
+`execute-kbd-macro' is used to execute it.  You can call this function
+yourself (*note Keyboard Macros::.).
 
-     The function `documentation' signals a `void-function' error
-     unless FUNCTION has a function definition.  However, FUNCTION
-     does not need to have a documentation string.  If there is no
-     documentation string, `documentation' returns `nil'.
+   If a command runs away, typing `C-g' terminates its execution
+immediately.  This is called "quitting" (*note Quitting::.).
 
-     Here is an example of using `documentation' and
-     `documentation-property' to display the documentation strings
-     for several symbols in a `*Help*' buffer.
+ - Variable: pre-command-hook
+     The editor command loop runs this normal hook before each command.
+     This may examine the `this-command' variable to find out what
+     command is about to be run, or may change it to cause a different
+     command to run.  Function on this hook must be careful to avoid
+     signalling errors!
 
-          (defun describe-symbols (pattern)
-            "Describe the Emacs Lisp symbols matching PATTERN.
-          All symbols that have PATTERN in their name are described
-          in the *Help* buffer."
-            (interactive "sDescribe symbols matching: ")
-            (let ((describe-func
-                   (function 
-                    (lambda (s)
-                      ;; Print description of symbol.
-                      (if (fboundp s)             ; It is a function.
-                          (princ
-                           (format "%s\t%s\n%s\n\n" s
-                                   (if (commandp s) 
-                                       (concat "Command: "
-                                               (or (mapconcat 
-                                                    'key-description 
-                                                    (where-is-internal s) 
-                                                    " ")))
-                                     "Function")
-                                   (or (documentation s) 
-                                       "not documented"))))
-          
-                      (if (boundp s)              ; It is a variable.
-                          (princ
-                           (format "%s\t%s\n%s\n\n" s
-                                   (if (user-variable-p s) 
-                                       "Option " "Variable")
-                                   (or (documentation-property 
-                                         s 'variable-documentation)
-                                       "not documented")))))))
-                   sym-list)
-          
-              ;; Build a list of symbols that match pattern.
-              (mapatoms (function 
-                         (lambda (sym)
-                           (if (string-match pattern (symbol-name sym))
-                               (setq sym-list (cons sym sym-list))))))
-          
-              ;; Display the data.
-              (with-output-to-temp-buffer "*Help*"
-                (mapcar describe-func (sort sym-list 'string<))
-                (print-help-return-message))))
-
-     The `describe-symbols' function works like `apropos', but
-     provides more information.
-
-          (describe-symbols "goal")
-          
-          ---------- Buffer: *Help* ----------
-          goal-column     Option 
-          *Semipermanent goal column for vertical motion, 
-          as set by C-x C-n, or nil.
-          
-          set-goal-column Command: C-x C-n
-          Set the current horizontal position as a goal for C-n and C-p.
-          Those commands will move to this position in the line moved to
-          rather than trying to keep the same horizontal position.
-          With a non-nil argument, clears out the goal column
-          so that C-n and C-p resume vertical motion.
-          
-          temporary-goal-column   Variable
-          Current goal column for vertical motion.
-          It is the column where point was at the start of current run 
-          of vertical motion commands.
-          ---------- Buffer: *Help* ----------
-
- * Function: Snarf-documentation FILENAME
-     This function is used only during Emacs initialization, just
-     before the runnable Emacs is dumped.  It finds the file offsets
-     of the documentation strings stored in the file FILENAME, and
-     records them in the in-core function definitions and variable
-     property lists in place of the actual strings.  *Note Building
-     Emacs::.
-
-     The file FILENAME is found in the `emacs/etc' directory (usually
-     FILENAME is `"DOC-VERSION"').  When the dumped Emacs is later
-     executed, the same file is found in the `exec-directory' (*note
-     Subprocess Creation::.).
-
+ - Variable: post-command-hook
+     The editor command loop runs this normal hook after each command.
+     (In FSF Emacs 19, it is also run when the command loop is entered,
+     or reentered after an error or quit.)  This may examine the
+     `this-command' variable to find out what command was just executed.
 
 
-File: elisp,  Node: Keys in Documentation,  Next: Describing Characters,  Prev: Accessing Documentation,  Up: Documentation
+File: lispref.info,  Node: Defining Commands,  Next: Interactive Call,  Prev: Command Overview,  Up: Command Loop
 
-Substituting Key Bindings in Documentation
-==========================================
+Defining Commands
+=================
 
- * Function: substitute-command-keys STRING
-     This function returns STRING with certain special substrings
-     replaced by the actual (current) key bindings are listed.  This
-     permits the documentation to be displayed with accurate
-     information about key bindings.  (The key bindings may be
-     changed by the user between the time Emacs is built and the time
-     that the documentation is asked for.)
-
-     This table lists the forms of the special substrings and what
-     they are replaced with:
-
-    `\[COMMAND]'
-          is replaced either by a keystroke sequence that will invoke
-          COMMAND, or by `M-x COMMAND' if COMMAND is not bound to any
-          key sequence.
-
-    `\{MAPVAR}'
-          is replaced by a summary (made by `describe-bindings') of
-          the value of MAPVAR, taken as a keymap.
-
-    `\<MAPVAR>'
-          makes this call to `substitute-command-keys' use the value
-          of MAPVAR as the keymap for future `\[COMMAND]' substrings.
-          This special string does not produce any replacement text
-          itself; it only affects the replacements done later.
-
-     *Note:* each `\' must be doubled when written in a string in
-     Emacs Lisp.
-
-     Here are examples of the special substrings:
-
-          (substitute-command-keys 
-             "To abort recursive edit, type: \\[abort-recursive-edit]")
-          
-          => "To abort recursive edit, type: C-]"
-          
-          (substitute-command-keys 
-             "The keys that are defined for the minibuffer here are:
-            \\{minibuffer-local-must-match-map}")
-          
-          => "The keys that are defined for the minibuffer here are:
-          
-          ?               minibuffer-completion-help
-          SPC             minibuffer-complete-word
-          TAB             minibuffer-complete
-          LFD             minibuffer-complete-and-exit
-          RET             minibuffer-complete-and-exit
-          C-g             abort-recursive-edit
-          "
-          
-          (substitute-command-keys
-             "To abort a recursive edit from the minibuffer, type\
-           \\<minibuffer-local-must-match-map>\\[abort-recursive-edit].")
-          => "To abort a recursive edit from the minibuffer, type C-g."
-
-
-
-File: elisp,  Node: Describing Characters,  Next: Help Functions,  Prev: Keys in Documentation,  Up: Documentation
-
-Describing Characters for Help Messages
-=======================================
-
-   These functions convert characters or strings to textual
-descriptions.  These descriptions are useful for including arbitrary
-text characters or key sequences in messages, because they convert
-non-printing characters to sequences of printing characters.  The
-description of a printing character is the character itself.
-
- * Function: key-description STRING
-     This function returns a string containing the Emacs standard
-     notation for the keyboard characters in STRING.  See the
-     examples for `single-key-description'.
-
- * Function: single-key-description CHARACTER
-     This function returns a string describing CHARACTER in the
-     standard Emacs notation for keyboard input.  A normal printing
-     character is represented by itself, but a control character
-     turns into a string starting with `C-', a meta character turns
-     into a string starting with `M-', and space, linefeed, etc. are
-     transformed to `SPC', `LFD', etc.
-
-          (single-key-description ?\C-x)
-               => "C-x"
-          (key-description "\C-x \M-y \n \t \r \f123")
-               => "C-x SPC M-y SPC LFD SPC TAB SPC RET SPC C-l 1 2 3"
-
- * Function: text-char-description CHARACTER
-     This function returns a string describing CHARACTER in the
-     standard Emacs notation for characters that appear in text--like
-     `single-key-description', except that that control characters
-     are represented with a leading caret (which is how control
-     characters in Emacs buffers are usually displayed).
-
-          (text-char-description ?\C-c)
-               => "^C"
-          (text-char-description ?\M-m)
-               => "M-m"
-          (text-char-description ?\C-\M-m)
-               => "M-^M"
-
-
-
-File: elisp,  Node: Help Functions,  Prev: Describing Characters,  Up: Documentation
-
-Help Functions
-==============
-
-   Emacs provides a variety of on-line help functions, all accessible
-to the user as subcommands of the prefix `C-h'.  For more information
-about them, see *Note : (emacs)Help.  Here we describe some
-program-level interfaces to the same information.
-
- * Command: apropos REGEXP &optional PREDICATE NOPRINT
-     This function finds all symbols whose names contain a match for
-     the regular expression REGEXP, and returns a list of them. 
-     Normally it displays the symbols in a buffer named `*Help*',
-     each with a one-line description.  If NOPRINT is non-`nil', it
-     does not display them, but just returns the list.
-
-     If PREDICATE is non-`nil', it should be a function to be called
-     on each symbol that has matched REGEXP.  Only symbols for which
-     PREDICATE returns a non-`nil' value are listed or displayed.
-
-     When you call `apropos' interactively, it prompts for REGEXP in
-     the minibuffer.
-
-     In the first of the following examples, `apropos' finds all the
-     symbols with names containing `exec'.  They are returned but not
-     displayed.  In the second example, it finds and returns only
-     those symbols that are also commands; in addition, they are then
-     displayed in the `*Help*' buffer.
-
-          (apropos "exec" nil t)
-               => (Buffer-menu-execute command-execute exec-directory
-              exec-path execute-extended-command execute-kbd-macro
-              executing-kbd-macro executing-macro)
-          
-          (apropos "exec" 'commandp)
-               => (Buffer-menu-execute execute-extended-command)
-          
-          ---------- Buffer: *Help* ----------
-          Buffer-menu-execute
-            Function: Save and/or delete buffers marked with
-            M-x Buffer-menu-save or M-x Buffer-menu-delete commands.
-          execute-extended-command      ESC x
-            Function: Read function name, then read its arguments and call it.
-          ---------- Buffer: *Help* ----------
-
-     The command `C-h a' (`command-apropos') calls `apropos', but
-     specifies a PREDICATE to restrict the output to symbols that are
-     commands.  The call to `apropos' looks like this:
-
-          (apropos string 'commandp)
-
- * Command: help-command
-     This command is not a function, but rather a symbol which is
-     equivalent to the keymap called `help-map'.  It is defined in
-     `help.el' as follows:
-
-          (define-key global-map "\C-h" 'help-command)
-          (fset 'help-command help-map)
-
- * Variable: help-map
-     The value of this variable is a local keymap for characters
-     following the Help key, `C-h'.
-
- * Function: print-help-return-message &optional FUNCTION
-     This function builds a string which is a message explaining how
-     to restore the previous state of the windows after a help
-     command.  After building the message, it applies FUNCTION to it
-     if FUNCTION is non-`nil'.  Otherwise it calls `message' to
-     display it in the echo area.
-
-     This function expects to be called inside a
-     `with-output-to-temp-buffer' special form, and expects
-     `standard-output' to have the value bound by that special form. 
-     For an example of its use, see the example in the section
-     describing the `documentation' function (*note Accessing
-     Documentation::.).
-
-     The constructed message will have one of the forms shown below.
-
-          ---------- Echo Area ----------
-          Type C-x 1 to remove help window.
-          ---------- Echo Area ----------
-          
-          ---------- Echo Area ----------
-          Type C-x 4 b RET to restore old contents of help window.
-          ---------- Echo Area ----------
-
- * Variable: help-char
-     The value of this variable is the character that Emacs
-     recognizes as meaning Help.  When Emacs reads this character
-     (which is usually 8, the value of `C-h'), Emacs evaluates `(eval
-     help-form)', and displays the result if it is a string.  If
-     `help-form''s value is `nil', this character is read normally.
-
- * Variable: help-form
-     The value of this variable is a form to execute when the
-     character `help-char' is read.  If the form returns a string,
-     that string is displayed.  If `help-form' is `nil', then the
-     help character is not recognized.
-
-     Entry to the minibuffer binds this variable to the value of
-     `minibuffer-help-form'.
-
-   The following two functions are found in the library `helper'. 
-They are for modes that want to provide help without relinquishing
-control, such as the "electric" modes.  You must load that library
-with `(require 'helper)' in order to use them.  Their names begin
-with `Helper' to distinguish them from the ordinary help functions.
-
- * Command: Helper-describe-bindings
-     This command pops up a window displaying a help buffer
-     containing a listing of all of the key bindings from both the
-     local and global keymaps.  It works by calling
-     `describe-bindings'.
-
- * Command: Helper-help
-     This command provides help for the current mode.  It prompts the
-     user in the minibuffer with the message `Help (Type ? for
-     further options)', and then provides assistance in finding out
-     what the key bindings are, and what the mode is intended for. 
-     It returns `nil'.
-
-     This can be customized by changing the map `Helper-help-map'.
-
-
-
-File: elisp,  Node: Files,  Next: Backups and Auto-Saving,  Prev: Documentation,  Up: Top
-
-Files
-*****
-
-   In Emacs, you can find, create, view, save, and otherwise work
-with files and file directories.  This chapter describes most of the
-file-related functions of Emacs Lisp, but a few others are described
-in *Note Buffers::, and those related to backups and auto-saving are
-described in *Note Backups and Auto-Saving::.
+   A Lisp function becomes a command when its body contains, at top
+level, a form which calls the special form `interactive'.  This form
+does nothing when actually executed, but its presence serves as a flag
+to indicate that interactive calling is permitted.  Its argument
+controls the reading of arguments for an interactive call.
 
 * Menu:
 
-* Visiting Files::           Reading files into Emacs buffers for editing.
-* Saving Buffers::           Writing changed buffers back into files.
-* Reading from Files::       Reading files into other buffers.
-* Writing to Files::         Writing new files from parts of buffers.
-* File Locks::               Locking and unlocking files, to prevent
-                               simultaneous editing by two people.
-* Information about Files::  Testing existence, accessibility, size of files.
-* Contents of Directories::  Getting a list of the files in a directory.
-* Changing File Attributes:: Renaming files, changing protection, etc.
-* File Names::               Decomposing and expanding file names.
+* Using Interactive::     General rules for `interactive'.
+* Interactive Codes::     The standard letter-codes for reading arguments
+                             in various ways.
+* Interactive Examples::  Examples of how to read interactive arguments.
 
- 
 
-File: elisp,  Node: Visiting Files,  Next: Saving Buffers,  Prev: Files,  Up: Files
+File: lispref.info,  Node: Using Interactive,  Next: Interactive Codes,  Up: Defining Commands
 
-Visiting Files
-==============
+Using `interactive'
+-------------------
 
-   Visiting a file means reading a file into a buffer.  Once this is
-done, we say that the buffer is "visiting" that file, and call the
-file "the visited file" of the buffer.
+   This section describes how to write the `interactive' form that
+makes a Lisp function an interactively-callable command.
 
-   A file and a buffer are two different things.  A file is
-information recorded permanently in the computer (unless you delete
-it).  A buffer, on the other hand, is information inside of Emacs
-that will vanish at the end of the editing session (or when you kill
-the buffer).  Usually, a buffer contains information that you have
-copied from a file; then we say the buffer is visiting that file. 
-The copy in the buffer is what you modify with editing commands. 
-Such changes to the buffer do not change the file; therefore, to make
-the changes permanent, you must "save" the buffer, which means
-copying the altered buffer contents back into the file.
+ - Special Form: interactive ARG-DESCRIPTOR
+     This special form declares that the function in which it appears
+     is a command, and that it may therefore be called interactively
+     (via `M-x' or by entering a key sequence bound to it).  The
+     argument ARG-DESCRIPTOR declares the way the arguments to the
+     command are to be computed when the command is called
+     interactively.
 
-   In spite of the distinction between files and buffers, people
-often refer to a file when they mean a buffer and vice-versa. 
-Indeed, we say, "I am editing a file," rather than, "I am editing a
-buffer which I will soon save as a file of the same name."  Humans do
-not usually need to make the distinction explicit.  When dealing with
-a computer program, however, it is good to keep the distinction in
-mind.
+     A command may be called from Lisp programs like any other
+     function, but then the arguments are supplied by the caller and
+     ARG-DESCRIPTOR has no effect.
 
-* Menu:
+     The `interactive' form has its effect because the command loop
+     (actually, its subroutine `call-interactively') scans through the
+     function definition looking for it, before calling the function.
+     Once the function is called, all its body forms including the
+     `interactive' form are executed, but at this time `interactive'
+     simply returns `nil' without even evaluating its argument.
 
-* Visiting Functions::         The usual interface functions for visiting.
-* Subroutines of Visiting::    Lower-level subroutines that they use.
+   There are three possibilities for the argument ARG-DESCRIPTOR:
 
- 
-
-File: elisp,  Node: Visiting Functions,  Next: Subroutines of Visiting,  Prev: Visiting Files,  Up: Visiting Files
+   * It may be omitted or `nil'; then the command is called with no
+     arguments.  This leads quickly to an error if the command requires
+     one or more arguments.
 
-Functions for Visiting Files
-----------------------------
+   * It may be a Lisp expression that is not a string; then it should
+     be a form that is evaluated to get a list of arguments to pass to
+     the command.
 
-   This section describes the functions normally used to visit files.
-For historical reasons, these functions have names starting with
-`find-' rather than `visit-'.  *Note Buffer File Name::, for
-functions and variables that access the visited file name of a buffer
-or that find an existing buffer by its visited file name.
+   * It may be a string; then its contents should consist of a code
+     character followed by a prompt (which some code characters use and
+     some ignore).  The prompt ends either with the end of the string
+     or with a newline.  Here is a simple example:
 
- * Command: find-file FILENAME
-     This function reads the file FILENAME into a buffer and displays
-     that buffer in the selected window so that the user can edit it.
+          (interactive "bFrobnicate buffer: ")
 
-     The body of the `find-file' function is very simple and looks
-     like this:
+     The code letter `b' says to read the name of an existing buffer,
+     with completion.  The buffer name is the sole argument passed to
+     the command.  The rest of the string is a prompt.
 
-          (switch-to-buffer (find-file-noselect filename))
+     If there is a newline character in the string, it terminates the
+     prompt.  If the string does not end there, then the rest of the
+     string should contain another code character and prompt,
+     specifying another argument.  You can specify any number of
+     arguments in this way.
 
-     (See `switch-to-buffer' in *Note Displaying Buffers::.)
+     The prompt string can use `%' to include previous argument values
+     in the prompt.  This is done using `format' (*note Formatting
+     Strings::.).  For example, here is how you could read the name of
+     an existing buffer followed by a new name to give to that buffer:
 
-     When `find-file' is called interactively, it prompts for
-     FILENAME in the minibuffer.
+          (interactive "bBuffer to rename: \nsRename buffer %s to: ")
 
- * Function: find-file-noselect FILENAME
-     This function is the guts of all the file-visiting functions. 
-     It reads a file into a buffer and returns the buffer.  You may
-     then make the buffer current or display it in a window if you
-     wish, but this function does not do so.
+     If the first character in the string is `*', then an error is
+     signaled if the buffer is read-only.
 
-     If no buffer is currently visiting FILENAME, then one is created
-     and the file is visited.  If FILENAME does not exist, the buffer
-     is left empty, and `find-file-noselect' displays the message
-     `New file' in the echo area.
+     If the first character in the string is `@', and if the key
+     sequence used to invoke the command includes any mouse events, then
+     the window associated with the first of those events is selected
+     before the command is run.
 
-     If a buffer is already visiting FILENAME, then
-     `find-file-noselect' uses that buffer rather than creating a new
-     one.  However, it does verify that the file has not changed
-     since it was last visited or saved in that buffer.  If the file
-     has changed, then this function asks the user whether to reread
-     the changed file.  If the user says `yes', any changes
-     previously made in the buffer will be lost.
+     If the first character in the string is `_', then this command will
+     not cause the region to be deactivated when it completes; that is,
+     `zmacs-region-stays' will be set to `t' when the command exits
+     successfully.
 
-     The `find-file-noselect' function calls `after-find-file' after
-     the file is read in (*note Subroutines of Visiting::.).  The
-     `after-find-file' function sets the buffer major mode, parses
-     local variables, warns the user if there exists an auto-save
-     file more recent than the file just visited, and finishes by
-     running the functions in `find-file-hooks'.
-
-     The `find-file-noselect' function returns the buffer that is
-     visiting the file FILENAME.
-
-          (find-file-noselect "/etc/fstab")
-               => #<buffer fstab>
-
- * Command: find-alternate-file FILENAME
-     This function reads the file FILENAME into a buffer and selects
-     it, killing the buffer current at the time the command is run. 
-     It is useful if you have visited the wrong file by mistake, so
-     that you can get rid of the buffer that you did not want to
-     create, at the same time as you visit the file you intended.
-
-     When this function is called interactively, it prompts for
-     FILENAME.
-
- * Command: find-file-other-window FILENAME
-     This function visits the file FILENAME and displays its buffer
-     in a window other than the selected window.  If there are two or
-     more windows on the screen, then the window that is not selected
-     is used.  If there is only one window, it is split.  The
-     function returns `nil'.
-
-     When this function is called interactively, it prompts for
-     FILENAME.
-
- * Command: find-file-read-only FILENAME
-     This function visits the file named FILENAME and selects its
-     buffer, just like `find-file', but it marks the buffer as
-     read-only.  *Note Read Only Buffers::, for related functions and
-     variables.
-
-     When this function is called interactively, it prompts for
-     FILENAME.
-
- * Command: view-file FILENAME
-     This function views FILENAME in View mode, returning to the
-     previous buffer when done.  View mode is a mode that allows you
-     to skim rapidly through the file but does not let you modify it.
-
-     After loading the file, `view-file' calls the value of
-     `view-hook' if that is non-`nil'.
-
-     When this function is called interactively, it prompts for
-     FILENAME.
-
- * Variable: find-file-hooks
-     The value of this variable is a list of functions to be called
-     after a file is visited.  The file's local-variables
-     specification (if any) will have been processed before the hooks
-     are run.  The buffer visiting the file is current when the hook
-     functions are run.
-
- * Variable: find-file-not-found-hooks
-     The value of this variable is a list of functions to be called
-     when `find-file' or `find-file-noselect' is passed a nonexistent
-     FILENAME.  These functions are called as soon as the error is
-     detected.  `buffer-file-name' is already set up.  The functions
-     are called in the order given, until one of them returns
-     non-`nil'.
-
+     You can use `*', `@', and `_' together; the order does not matter.
+     Actual reading of arguments is controlled by the rest of the
+     prompt string (starting with the first character that is not `*',
+     `@', or `_').
 

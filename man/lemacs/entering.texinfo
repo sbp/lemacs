@@ -1,0 +1,101 @@
+
+@node Entering Emacs, Exiting, Pull-down Menus, Top
+@chapter Entering and Exiting Emacs
+@cindex entering Emacs
+@cindex entering Lucid Emacs
+
+  The usual way to invoke Emacs is to type @kbd{emacs @key{RET}} at
+the shell.  To invoke Lucid Emacs, type @kbd{lemacs @key{RET}}.
+Emacs clears the screen and then displays an initial advisory message and
+copyright notice.  You can begin typing Emacs commands immediately
+afterward.
+
+  Some operating systems insist on discarding all type-ahead when Emacs
+starts up; they give Emacs no way to prevent this.  Therefore, it is
+wise to wait until Emacs clears the screen before typing the first
+editing command.
+
+@vindex initial-major-mode
+  Before Emacs reads the first command, you have not had a chance to
+give a command to specify a file to edit.  Since Emacs must always have a
+current buffer for editing, it presents a buffer, by default, a buffer named
+@samp{*scratch*}.  The buffer is in Lisp Interaction
+mode; you can use it to type Lisp expressions and evaluate them, or you
+can ignore that capability and simply doodle.  You can specify a
+different major mode for this buffer by setting the variable
+@code{initial-major-mode} in your init file.  @xref{Init File}.
+
+  It is possible to give Emacs arguments in the shell command line to
+specify files to visit, Lisp files to load, and functions to call.
+
+@node Exiting, Command Switches, Entering Emacs, Top
+@section Exiting Emacs
+@cindex exiting
+@cindex killing Emacs
+@cindex suspending
+@cindex shrinking Lucid Emacs screen
+
+  There are two commands for exiting Emacs because there are two kinds
+of exiting: @dfn{suspending} Emacs and @dfn{killing} Emacs.
+@dfn{Suspending} means stopping Emacs temporarily and returning control
+to its superior (usually the shell), allowing you to resume editing
+later in the same Emacs job, with the same files, same kill ring, same
+undo history, and so on.  This is the usual way to exit.  @dfn{Killing}
+Emacs means destroying the Emacs job.  You can run Emacs again later,
+but you will get a fresh Emacs; there is no way to resume the same
+editing session after it has been killed.
+
+@table @kbd
+@item C-z
+Suspend Emacs (@code{suspend-emacs}).  If used under the X window system,
+shrink the X window containing the Emacs screen to an icon (see below).
+@item C-x C-c
+Kill Emacs (@code{save-buffers-kill-emacs}).
+@end table
+
+If you use Lucid Emacs under the X window system, @kbd{C-z} shrinks
+the X window containing the Emacs screen to an icon.  The Emacs process
+is stopped temporarily, and control is returned to the window manager.
+If more than one screen is associated with the Emacs process, only the
+screen from which you used @kbd{C-z} is retained.  The X windows
+containing the other Emacs screens are closed. 
+
+To activate the "suspended" Emacs, use the appropriate window manager
+mouse gestures.  Usually left-clicking on the icon reactivates and
+reopens the X window containing the Emacs screen, but the window manager
+you use determines what exactly happens.  To actually kill the Emacs
+process, use @kbd{C-x C-c} or the @b{Exit Emacs} item on the @b{File}
+menu.
+
+@kindex C-z
+@findex suspend-emacs
+  On systems that do not permit programs to be suspended, @kbd{C-z} runs
+an inferior shell that communicates directly with the terminal, and
+Emacs waits until you exit the subshell.  On these systems, the only way
+to return to the shell from which Emacs was started (to log out, for
+example) is to kill Emacs.  @kbd{C-d} or @code{exit} are typical
+commands to exit a subshell.
+
+@kindex C-x C-c
+@findex save-buffers-kill-emacs
+  To kill Emacs, type @kbd{C-x C-c} (@code{save-buffers-kill-emacs}).  A
+two-character key is used for this to make it harder to type.  In Lucid
+Emacs, selecting the @b{Exit Emacs} option of the @b{File} menu is an
+alternate way of issuing the command.
+
+Unless a numeric argument is used, this command first offers to save any
+modified buffers.  If you do not save all buffers, you are asked for
+reconfirmation with @kbd{yes} before killing Emacs, since any changes
+not saved will be lost.  If any subprocesses are still running, @kbd{C-x
+C-c} asks you to confirm killing them, since killing Emacs kills the
+subprocesses simultaneously.
+
+  In most programs running on Unix, certain characters may instantly
+suspend or kill the program.  (In Berkeley Unix these characters are
+normally @kbd{C-z} and @kbd{C-c}.)  @i{This Unix feature is turned off
+while you are in Emacs.} The meanings of @kbd{C-z} and @kbd{C-x C-c} as
+keys in Emacs were inspired by the standard Berkeley Unix meanings of
+@kbd{C-z} and @kbd{C-c}, but that is their only relationship with Unix.
+You could customize these keys to do anything (@pxref{Keymaps}).
+
+@c ??? What about system V here?

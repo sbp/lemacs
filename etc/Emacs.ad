@@ -1,0 +1,198 @@
+! This file specifies the default resources used by Lucid Emacs.
+! 
+! You can use the examples below as a basis for your own customizations:
+! copy and modify any of the resources below into your own ~/.Xdefaults file.
+! .Xdefaults specifies defaults for all applications, not just Emacs; it is
+! normally used to customize fonts, colors, and the like, while ~/.emacs is
+! used to change other sorts of (Emacs-specific) behavior.
+! 
+! In general, changes to your .Xdefaults file will not take effect until the
+! next time you restart the window system.  To reload your resources
+! explicitly, use the shell command
+! 
+! 	xrdb -load ~/.Xdefaults
+! 
+! The resources will take effect the next time you restart Emacs.  (Simply
+! creating a new emacs screen is not enough - you must restart the editor
+! for the changes to take effect.)
+! 
+! The resources below are loaded into the emacs executable at compile-time:
+! changes to .../etc/Emacs.ad made after emacs has been built will have no
+! effect.
+! 
+! However, you may copy .../etc/Emacs.ad to /usr/lib/X11/app-defaults/Emacs
+! (or whatever the standard app-defaults directory is at your site) to cause
+! it to be consulted at run-time.  (Do this only for site-wide customizations:
+! personal customizations should be put into ~/.Xdefaults instead.)
+! 
+! See the NEWS file (C-h n) or Emacs manual (C-h i) for a description of
+! the various resources and the syntax for setting them.
+! 
+! Energize users: note that this is not the same app-defaults file that is
+! used with the Energize-specific version of lemacs.
+
+
+! Colors and backgrounds.
+! ======================
+! The contrasts of these colors will cause them to map to the appropriate
+! one of "black" or "white" on monochrome systems.
+! 
+! The valid color names on your system can be found by looking in the file
+! `rgb.txt', usually found in /usr/lib/X11/ or /usr/openwin/lib/X11/.
+
+
+! Set the foreground and background colors.  This will apply to all
+! elements of Emacs, except those that specifically override them.
+Emacs*Foreground:			Black
+Emacs*Background:			WhiteSmoke
+
+! Set the color of the text cursor.
+Emacs*cursorColor:			Red3
+
+! Set the color of the mouse pointer.
+Emacs*pointerColor:			Black
+
+! Set the menubar colors.  This overrides the default foreground and
+! background colors specified above.
+Emacs*menubar*Foreground:		Gray30
+Emacs*menubar*Background:		Gray75
+
+! Specify the colors of popup menus.
+Emacs*popup*Foreground:			Black
+Emacs*popup*Background:			Gray75
+
+! Specify the colors of the various sub-widgets of the dialog boxes.
+Emacs*dialog*Foreground:		Black
+! #A5C0C1 is a shade of blue
+Emacs*dialog*Background:		#A5C0C1
+Emacs*dialog*XmTextField*Background:	WhiteSmoke
+Emacs*dialog*XmText*Background:		WhiteSmoke
+Emacs*dialog*XmList*Background:		WhiteSmoke
+
+
+! If you want to turn off scrollbars, or change the default pixel width
+! of the scrollbars, do it like this (0 width means no scrollbars):
+! 
+! Emacs*scrollBarWidth: 0
+! 
+! To change it for a particular screen, do this:
+! 
+! Emacs*SCREEN-NAME.scrollBarWidth: 0
+
+
+! To have the Motif scrollbars on the left instead of the right, do this:
+! 
+! Emacs*scrollBarPlacement: BOTTOM_LEFT
+! 
+! The default is BOTTOM_RIGHT.  There is no way to change the placement of
+! the Athena scrollbars (all Athena programs put the scrollbars on the left.)
+
+
+! Fonts.
+! ======
+! Emacs requires the use of XLFD (X Logical Font Description) format font
+! names, which look like
+! 
+! 	*-courier-medium-r-*-*-*-120-*-*-*-*-*-*
+! 
+! if you use any of the other, less strict font name formats, some of which
+! look like
+! 		lucidasanstypewriter-12
+! and		fixed
+! and		9x13
+! 
+! then Emacs won't be able to guess the names of the bold and italic versions.
+! All X fonts can be referred to via XLFD-style names, so you should use those
+! forms.  See the man pages for X(1), xlsfonts(1), and xfontsel(1).
+
+
+! The default font for the text area of lemacs is chosen at run-time
+! by lisp code which tries a number of different possibilities in order
+! of preference.  If you wish to override it, use this:
+! 
+! Emacs*default.attributeFont:  -*-courier-medium-r-*-*-*-120-*-*-*-*-iso8859-*
+
+! If you choose a font which does not have an italic version, you can specify
+! some other font to use for it here:
+! 
+! Emacs*italic.attributeFont:  -*-courier-medium-o-*-*-*-120-*-*-*-*-iso8859-*
+!
+! And here is how you would set the background color of the `highlight' face,
+! but only on the screen named `debugger':
+! 
+! Emacs*debugger.highlight.attributeBackground:		PaleTurquoise
+! 
+! See the NEWS file (C-h n) for a more complete description of the resource
+! syntax of faces.
+
+
+! Font of the menubar and pop-up menus.
+! Note that these do not use the `face' syntax, since they are outside the
+! domain of Emacs proper, and in the domain of the X toolkit widgets:
+! 
+Emacs*menubar*Font: 		-*-helvetica-bold-r-*-*-*-120-*-*-*-*-iso8859-*
+Emacs*popup*Font:		-*-helvetica-bold-r-*-*-*-120-*-*-*-*-iso8859-*
+
+! Font in the Motif dialog boxes.
+! (Motif uses `fontList' while most other things use `font' - if you don't
+! know why you probably don't want to.)
+! 
+Emacs*XmDialogShell*FontList:	-*-helvetica-bold-r-*-*-*-120-*-*-*-*-iso8859-*
+Emacs*XmTextField*FontList:	-*-courier-medium-r-*-*-*-120-*-*-*-*-iso8859-*
+Emacs*XmText*FontList:		-*-courier-medium-r-*-*-*-120-*-*-*-*-iso8859-*
+Emacs*XmList*FontList:		-*-courier-medium-r-*-*-*-120-*-*-*-*-iso8859-*
+
+
+! Dialog box translations.
+! =======================
+
+! This accelerator binds <return> in a dialog box to <activate> on button1
+Emacs*dialog*button1.accelerators:#override\
+<KeyPress>Return: ArmAndActivate()\n\
+<KeyPress>KP_Enter: ArmAndActivate()\n\
+Ctrl<KeyPress>m: ArmAndActivate()\n
+
+! Translations to make the TextField widget behave more like Emacs
+Emacs*XmTextField.translations: #override\n\
+	!<Key>osfBackSpace:	delete-previous-character()\n\
+	!<Key>osfDelete:	delete-previous-character()\n\
+	!Ctrl<Key>h: 		delete-previous-character()\n\
+	!Ctrl<Key>d: 		delete-next-character()\n\
+	!Meta<Key>osfDelete:	delete-previous-word()\n\
+	!Meta<Key>osfBackSpace:	delete-previous-word()\n\
+	!Meta<Key>d:		delete-next-word()\n\
+	!Ctrl<Key>k:		delete-to-end-of-line()\n\
+	!Ctrl<Key>g:		process-cancel()\n\
+	!Ctrl<Key>b:		backward-character()\n\
+	!<Key>osfLeft:		backward-character()\n\
+	!Ctrl<Key>f:		forward-character()\n\
+	!<Key>osfRight:		forward-character()\n\
+	!Meta<Key>b:		backward-word()\n\
+	!Meta<Key>osfLeft:	backward-word()\n\
+	!Meta<Key>f:		forward-word()\n\
+	!Meta<Key>osfRight:	forward-word()\n\
+	!Ctrl<Key>e:		end-of-line()\n\
+	!Ctrl<Key>a:		beginning-of-line()\n\
+	!Ctrl<Key>w:		cut-clipboard()\n\
+	!Meta<Key>w:		copy-clipboard()\n\
+	<Btn2Up>:		copy-primary()\n
+
+! With the Emacs typeahead it's better to not have space be bound to
+! ArmAndActivate() for buttons that appear in dialog boxes.  This is
+! not 100% Motif compliant but the benefits far outweight the
+! compliancy problem.  
+Emacs*dialog*XmPushButton.translations:#override\n\
+    <Btn1Down>:         Arm()\n\
+    <Btn1Down>,<Btn1Up>: Activate()\
+			Disarm()\n\
+    <Btn1Down>(2+):     MultiArm()\n\
+    <Btn1Up>(2+):       MultiActivate()\n\
+    <Btn1Up>:           Activate()\
+		        Disarm()\n\
+    <Key>osfSelect:  	ArmAndActivate()\n\
+    <Key>osfActivate:   ArmAndActivate()\n\
+    <Key>osfHelp:	Help()\n\
+    ~Shift ~Meta ~Alt <Key>Return:	ArmAndActivate()\n\
+    <EnterWindow>:      Enter()\n\
+    <LeaveWindow>:      Leave()\n
+

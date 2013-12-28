@@ -1,0 +1,586 @@
+This is Info file ../info/info.info, produced by Makeinfo-1.55 from the
+input file info.texinfo.
+
+   This file describes how to use Info, the on-line, menu-driven GNU
+documentation system.
+
+   Copyright (C) 1989, 1992 Free Software Foundation, Inc.
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be stated in a
+translation approved by the Free Software Foundation.
+
+
+File: info.info,  Node: Parts of an Xref,  Next: Selecting Xrefs,  Up: Xref Commands
+
+Parts of an Xref
+----------------
+
+  Cross references have two major parts: the first part is called the
+"label"; it is the name that you can use to refer to the cross
+reference, and the second is the "target"; it is the full name of the
+node that the cross reference points to.
+
+  The target is separated from the label by a colon `:'; first the
+label appears, and then the target.  For example, in the sample menu
+cross reference below, the single colon separates the label from the
+target.
+
+     * Foo Label: Foo Target.	More information about Foo.
+
+  Note the `.' which ends the name of the target.  The `.' is not part
+of the target; it serves only to let Info know where the target name
+ends.
+
+  A shorthand way of specifying references allows two adjacent colons to
+stand for a target name which is the same as the label name:
+
+     * Foo Commands::		Commands pertaining to Foo.
+
+  In the above example, the name of the target is the same as the name
+of the label, in this case `Foo Commands'.
+
+  You will normally see two types of cross references while viewing
+nodes: "menu" references, and "note" references.  Menu references
+appear within a node's menu; they begin with a `*' at the beginning of
+a line, and continue with a label, a target, and a comment which
+describes what the contents of the node pointed to contains.
+
+  Note references appear within the body of the node text; they begin
+with `*Note', and continue with a label and a target.
+
+  Like `Next', `Prev' and `Up' pointers, cross references can point to
+any valid node.  They are used to refer you to a place where more
+detailed information can be found on a particular subject.  Here is a
+cross reference which points to a node within the Texinfo
+documentation:  *Note Writing an Xref: (texinfo)xref, for more
+information on creating your own texinfo cross references.
+
+
+File: info.info,  Node: Selecting Xrefs,  Prev: Parts of an Xref,  Up: Xref Commands
+
+Selecting Xrefs
+---------------
+
+  The following table lists the Info commands which operate on menu
+items.
+
+`1' (`menu-digit')
+`2' ... `9'
+     Within an Info window, pressing a single digit, (such as `1'),
+     selects that menu item, and places its node in the current window.
+     For convenience, there is one exception; pressing `0' selects the
+     *last* item in the node's menu.
+
+`0' (`last-menu-item')
+     Select the last item in the current node's menu.
+
+`m' (`menu-item')
+     Reads the name of a menu item in the echo area and selects its
+     node.  Completion is available while reading the menu label.
+
+`M-x find-menu'
+     Moves the cursor to the start of this node's menu.
+
+  This table lists the Info commands which operate on note cross
+references.
+
+`f' (`xref-item')
+`r'
+     Reads the name of a note cross reference in the echo area and
+     selects its node.  Completion is available while reading the cross
+     reference label.
+
+  Finally, the next few commands operate on menu or note references
+alike:
+
+`TAB' (`move-to-next-xref')
+     Moves the cursor to the start of the next nearest menu item or note
+     reference in this node.  You can then use RET
+     (`select-reference-this-line' to select the menu or note reference.
+
+`M-TAB' (`move-to-prev-xref')
+     Moves the cursor the start of the nearest previous menu item or
+     note reference in this node.
+
+`RET' (`select-reference-this-line')
+     Selects the menu item or note reference appearing on this line.
+
+
+File: info.info,  Node: Window Commands,  Next: Printing Nodes,  Prev: Xref Commands,  Up: Using Stand-alone Info
+
+Manipulating Multiple Windows
+=============================
+
+  A "window" is a place to show the text of a node.  Windows have a
+view area where the text of the node is displayed, and an associated
+"mode line", which briefly describes the node being viewed.
+
+  GNU Info supports multiple windows appearing in a single screen; each
+window is separated from the next by its modeline.  At any time, there
+is only one "active" window, that is, the window in which the cursor
+appears.  There are commands available for creating windows, changing
+the size of windows, selecting which window is active, and for deleting
+windows.
+
+* Menu:
+
+* The Mode Line::	What appears in the mode line?
+* Basic Windows::	Manipulating windows in Info.
+* The Echo Area::	Used for displaying errors and reading input.
+
+
+File: info.info,  Node: The Mode Line,  Next: Basic Windows,  Up: Window Commands
+
+The Mode Line
+-------------
+
+  A "mode line" is a line of inverse video which appears at the bottom
+of an info window.  It describes the contents of the window just above
+it; this information includes the name of the file and node appearing in
+that window, the number of screen lines it takes to display the node,
+and the percentage of text that is above the top of the window.  It can
+also tell you if the indirect tags table for this info file needs to be
+updated, and whether or not the info file was compressed when stored on
+disk.
+
+  Here is a sample mode line for a window containing an uncompressed
+file named `dir', showing the node `Top'.
+
+     -----Info: (dir)Top, 40 lines --Top---------------------------------------
+                 ^^   ^   ^^^        ^^
+               (file)Node #lines    where
+
+  When a node comes from a file which is compressed on disk, this is
+indicated in the mode line with two small `z''s.  In addition, if the
+info file containing the node has been split into subfiles, the name of
+the subfile containing the node appears in the modeline as well:
+
+     --zz-Info: (emacs)Top, 291 lines --Top-- Subfile: emacs-1.Z---------------
+
+  When Info makes a node internally, such that there is no corresponding
+info file on disk, the name of the node is surrounded by asterisks
+(`*').  The name itself tells you what the contents of the window are;
+the sample mode line below shows an internally constructed node showing
+possible completions:
+
+     -----Info: *Completions*, 7 lines --All-----------------------------------
+
+
+File: info.info,  Node: Basic Windows,  Next: The Echo Area,  Prev: The Mode Line,  Up: Window Commands
+
+Window Commands
+---------------
+
+  It can be convenient to view more than one node at a time.  To allow
+this, Info can display more than one "window".  Each window has its own
+mode line (*note The Mode Line::.) and history of nodes viewed in that
+window (*note `history-node': Node Commands.).
+
+`C-x o' (`next-window')
+     Selects the next window on the screen.  Note that the echo area
+     can only be selected if it is already in use, and you have left it
+     temporarily.  Normally, `C-x o' simply moves the cursor into the
+     next window on the screen, or if you are already within the last
+     window, into the first window on the screen.  Given a numeric
+     argument, `C-x o' moves over that many windows.  A negative
+     argument causes `C-x o' to select the previous window on the
+     screen.
+
+`M-x prev-window'
+     Selects the previous window on the screen.  This is identical to
+     `C-x o' with a negative argument.
+
+`C-x 2' (`split-window')
+     Splits the current window into two windows, both showing the same
+     node.  Each window is one half the size of the original window,
+     and the cursor remains in the original window.  The variable
+     `automatic-tiling' can cause all of the windows on the screen to
+     be resized for you automatically, please *note automatic-tiling:
+     Variables. for more information.
+
+`C-x 0' (`delete-window')
+     Deletes the current window from the screen.  If you have made too
+     many windows and your screen appears cluttered, this is the way to
+     get rid of some of them.
+
+`C-x 1' (`keep-one-window')
+     Deletes all of the windows excepting the current one.
+
+`ESC C-v' (`scroll-other-window')
+     Scrolls the other window, in the same fashion that `C-v' might
+     scroll the current window.  Given a negative argument, the "other"
+     window is scrolled backward.
+
+`C-x ^' (`grow-window')
+     Grows (or shrinks) the current window.  Given a numeric argument,
+     grows the current window that many lines; with a negative numeric
+     argument, the window is shrunk instead.
+
+`C-x t' (`tile-windows')
+     Divides the available screen space among all of the visible
+     windows.  Each window is given an equal portion of the screen in
+     which to display its contents.  The variable `automatic-tiling'
+     can cause `tile-windows' to be called when a window is created or
+     deleted.  *Note `automatic-tiling': Variables.
+
+
+File: info.info,  Node: The Echo Area,  Prev: Basic Windows,  Up: Window Commands
+
+The Echo Area
+-------------
+
+  The "echo area" is a one line window which appears at the bottom of
+the screen.  It is used to display informative or error messages, and to
+read lines of input from you when that is necessary.  Almost all of the
+commands available in the echo area are identical to their Emacs
+counterparts, so please refer to that documentation for greater depth of
+discussion on the concepts of editing a line of text.  The following
+table briefly lists the commands that are available while input is being
+read in the echo area:
+
+`C-f' (`echo-area-forward')
+     Moves forward a character.
+
+`C-b' (`echo-area-backward')
+     Moves backward a character.
+
+`C-a' (`echo-area-beg-of-line')
+     Moves to the start of the input line.
+
+`C-e' (`echo-area-end-of-line')
+     Moves to the end of the input line.
+
+`M-f' (`echo-area-forward-word')
+     Moves forward a word.
+
+`M-b' (`echo-area-backward-word')
+     Moves backward a word.
+
+`C-d' (`echo-area-delete')
+     Deletes the character under the cursor.
+
+`DEL' (`echo-area-rubout')
+     Deletes the character behind the cursor.
+
+`C-g' (`echo-area-abort')
+     Cancels or quits the current operation.  If completion is being
+     read, `C-g' discards the text of the input line which does not
+     match any completion.  If the input line is empty, `C-g' aborts
+     the calling function.
+
+`RET' (`echo-area-newline')
+     Accepts (or forces completion of) the current input line.
+
+`C-q' (`echo-area-quoted-insert')
+     Inserts the next character verbatim.  This is how you can insert
+     control characters into a search string, for example.
+
+PRINTING CHARACTER (`echo-area-insert')
+     Inserts the character.
+
+`M-TAB' (`echo-area-tab-insert')
+     Inserts a TAB character.
+
+`C-t' (`echo-area-transpose-chars')
+     Transposes the characters at the cursor.
+
+  The next group of commands deal with "killing", and "yanking" text.
+For an in depth discussion of killing and yanking, *note Killing and
+Deleting: (emacs)Killing.
+
+`M-d' (`echo-area-kill-word')
+     Kills the word following the cursor.
+
+`M-DEL' (`echo-area-backward-kill-word')
+     Kills the word preceding the cursor.
+
+`C-k' (`echo-area-kill-line')
+     Kills the text from the cursor to the end of the line.
+
+`C-x DEL' (`echo-area-backward-kill-line')
+     Kills the text from the cursor to the beginning of the line.
+
+`C-y' (`echo-area-yank')
+     Yanks back the contents of the last kill.
+
+`M-y' (`echo-area-yank-pop')
+     Yanks back a previous kill, removing the last yanked text first.
+
+  Sometimes when reading input in the echo area, the command that needed
+input will only accept one of a list of several choices.  The choices
+represent the "possible completions", and you must respond with one of
+them.  Since there are a limited number of responses you can make, Info
+allows you to abbreviate what you type, only typing as much of the
+response as is necessary to uniquely identify it.  In addition, you can
+request Info to fill in as much of the response as is possible; this is
+called "completion".
+
+  The following commands are available when completing in the echo area:
+
+`TAB' (`echo-area-complete')
+`SPC'
+     Inserts as much of a completion as is possible.
+
+`?' (`echo-area-possible-completions')
+     Displays a window containing a list of the possible completions of
+     what you have typed so far.  For example, if the available choices
+     are:
+          bar
+          foliate
+          food
+          forget
+     and you have typed an `f', followed by `?', the possible
+     completions would contain:
+          foliate
+          food
+          forget
+     i.e., all of the choices which begin with `f'.  Pressing SPC or
+     TAB would result in `fo' appearing in the echo area, since all of
+     the choices which begin with `f' continue with `o'.  Now, typing
+     `l' followed by `TAB' results in `foliate' appearing in the echo
+     area, since that is the only choice which begins with `fol'.
+
+`ESC C-v' (`echo-area-scroll-completions-window')
+     Scrolls the completions window, if that is visible, or the "other"
+     window if not.
+
+
+File: info.info,  Node: Printing Nodes,  Next: Miscellaneous Commands,  Prev: Window Commands,  Up: Using Stand-alone Info
+
+Printing Out Nodes
+==================
+
+  You may wish to print out the contents of a node as  a quick reference
+document for later use.  Info provides you with a command for doing
+this.  In general, we recommend that you use TeX to format the document
+and print sections of it, by running `tex' on the texinfo source file.
+
+`M-x print-node'
+     Pipes the contents of the current node through the command in the
+     environment variable `INFO_PRINT_COMMAND'.  If the variable doesn't
+     exist, the node is simply piped to `lpr'.
+
+
+File: info.info,  Node: Miscellaneous Commands,  Next: Variables,  Prev: Printing Nodes,  Up: Using Stand-alone Info
+
+Miscellaneous Commands
+======================
+
+  GNU Info contains several commands which self-document GNU Info:
+
+`M-x describe-command'
+     Reads the name of an Info command in the echo area and then
+     displays a brief description of what that command does.
+
+`M-x describe-key'
+     Reads a key sequence in the echo area, and then displays the name
+     and documentation of the Info command that the key sequence
+     invokes.
+
+`M-x describe-variable'
+     Reads the name of a variable in the echo area and then displays a
+     brief description of what the variable affects.
+
+`M-x where-is'
+     Reads the name of an Info command in the echo area, and then
+     displays a key sequence which can be typed in order to invoke that
+     command.
+
+`C-h' (`get-help-window')
+`?'
+     Creates (or moves into) the window displaying `*Help*', and places
+     a node containing a quick reference card into it.  This window
+     displays the most concise information about GNU Info available.
+
+`h' (`get-info-help-node')
+     Tries hard to visit the node `(info)Help'.  The info file
+     `info.texi' distributed with GNU Info contains this node.  Of
+     course, the file must first be processed with `makeinfo', and then
+     placed into the location of your info directory.
+
+  Here are the commands for creating a numeric argument:
+
+`C-u' (`universal-argument')
+     Starts (or multiplies by 4) the current numeric argument.  `C-u' is
+     a good way to give a small numeric argument to cursor movement or
+     scrolling commands; `C-u C-v' scrolls the screen 4 lines, while
+     `C-u C-u C-n' moves the cursor down 16 lines.
+
+`M-1' (`add-digit-to-numeric-arg')
+`M-2' ... `M-9'
+     Adds the digit value of the invoking key to the current numeric
+     argument.  Once Info is reading a numeric argument, you may just
+     type the digits of the argument, without the Meta prefix.  For
+     example, you might give `C-l' a numeric argument of 32 by typing:
+
+          `C-u 3 2 C-l'
+     or
+          `M-3 2 C-l'
+
+  `C-g' is used to abort the reading of a multi-character key sequence,
+to cancel lengthy operations (such as multi-file searches) and to
+cancel reading input in the echo area.
+
+`C-g' (`abort-key')
+     Cancels current operation.
+
+  The `q' command of Info simply quits running Info.
+
+`q' (`quit')
+     Exits GNU Info.
+
+  If the operating system tells GNU Info that the screen is 60 lines
+tall, and it is actually only 40 lines tall, here is a way to tell Info
+that the operating system is correct.
+
+`M-x set-screen-height'
+     Reads a height value in the echo area and sets the height of the
+     displayed screen to that value.
+
+  Finally, Info provides a convenient way to display footnotes which
+might be associated with the current node that you are viewing:
+
+`ESC C-f' (`show-footnotes')
+     Shows the footnotes (if any) associated with the current node in
+     another window.  You can have Info automatically display the
+     footnotes associated with a node when the node is selected by
+     setting the variable `automatic-footnotes'.  *Note
+     `automatic-footnotes': Variables.
+
+
+File: info.info,  Node: Variables,  Prev: Miscellaneous Commands,  Up: Using Stand-alone Info
+
+Manipulating Variables
+======================
+
+  GNU Info contains several "variables" whose values are looked at by
+various Info commands.  You can change the values of these variables,
+and thus change the behaviour of Info to more closely match your
+environment and info file reading manner.
+
+`M-x set-variable'
+     Reads the name of a variable, and the value for it, in the echo
+     area and then sets the variable to that value.  Completion is
+     available when reading the variable name; often, completion is
+     available when reading the value to give to the variable, but that
+     depends on the variable itself.  If a variable does *not* supply
+     multiple choices to complete over, it expects a numeric value.
+
+`M-x describe-variable'
+     Reads the name of a variable in the echo area and then displays a
+     brief description of what the variable affects.
+
+  Here is a list of the variables that you can set in Info.
+
+`automatic-footnotes'
+     When set to `On', footnotes appear and disappear automatically.
+     This variable is `On' by default.  When a node is selected, a
+     window containing the footnotes which appear in that node is
+     created, and the footnotes are displayed within the new window.
+     The window that Info creates to contain the footnotes is called
+     `*Footnotes*'.  If a node is selected which contains no footnotes,
+     and a `*Footnotes*' window is on the screen, the `*Footnotes*'
+     window is deleted.  Footnote windows created in this fashion are
+     not automatically tiled so that they can use as little of the
+     display as is possible.
+
+`automatic-tiling'
+     When set to `On', creating or deleting a window resizes other
+     windows.  This variable is `Off' by default.  Normally, typing
+     `C-x 2' divides the current window into two equal parts.  When
+     `automatic-tiling' is set to `On', all of the windows are resized
+     automatically, keeping an equal number of lines visible in each
+     window.  There are exceptions to the automatic tiling;
+     specifically, the windows `*Completions*' and `*Footnotes*' are
+     *not* resized through automatic tiling; they remain their original
+     size.
+
+`visible-bell'
+     When set to `On', GNU Info attempts to flash the screen instead of
+     ringing the bell.  This variable is `Off' by default.  Of course,
+     Info can only flash the screen if the terminal allows it; in the
+     case that the terminal does not allow it, the setting of this
+     variable has no effect.  However, you can make Info perform
+     quietly by setting the `errors-ring-bell' variable to `Off'.
+
+`errors-ring-bell'
+     When set to `On', errors cause the bell to ring.  The default
+     setting of this variable is `On'.
+
+`gc-compressed-files'
+     When set to `On', Info garbage collects files which had to be
+     uncompressed.  The default value of this variable is `Off'.
+     Whenever a node is visited in Info, the info file containing that
+     node is read into core, and Info reads information about the tags
+     and nodes contained in that file.  Once the tags information is
+     read by Info, it is never forgotten.  However, the actual text of
+     the nodes does not need to remain in core unless a particular info
+     window needs it.  For non-compressed files, the text of the nodes
+     does not remain in core when it is no longer in use.  But
+     de-compressing a file can be a time consuming operation, and so
+     Info tries hard not to do it twice.  `gc-compressed-files' tells
+     Info it is okay to garbage collect the text of the nodes of a file
+     which was compressed on disk.
+
+`show-index-match'
+     When set to `On', the portion of the matched search string is
+     highlighted in the message which explains where the matched search
+     string was found.  The default value of this variable is `On'.
+     When Info displays the location where an index match was found,
+     (*note `next-index-match': Searching Commands.), the portion of the
+     string that you had typed is highlighted by displaying it in the
+     inverse case from its surrounding characters.
+
+`scroll-behaviour'
+     Controls what happens when forward scrolling is requested at the
+     end of a node, or when backward scrolling is requested at the
+     beginning of a node.  The default value for this variable is
+     `Continuous'.  There are three possible values for this variable:
+
+    `Continuous'
+          Tries to get the first item in this node's menu, or failing
+          that, the `Next' node, or failing that, the `Next' of the
+          `Up'.  This behaviour is identical to using the `]'
+          (`global-next-node') and `[' (`global-prev-node') commands.
+
+    `Next Only'
+          Only tries to get the `Next' node.
+
+    `Page Only'
+          Simply gives up, changing nothing.  If `scroll-behaviour' is
+          `Page Only', no scrolling command can change the node that is
+          being viewed.
+
+`scroll-step'
+     The number of lines to scroll when the cursor moves out of the
+     window.  Scrolling happens automatically if the cursor has moved
+     out of the visible portion of the node text when it is time to
+     display.  Usually the scrolling is done so as to put the cursor on
+     the center line of the current window.  However, if the variable
+     `scroll-step' has a nonzero value, Info attempts to scroll the
+     node text by that many lines; if that is enough to bring the
+     cursor back into the window, that is what is done.  The default
+     value of this variable is 0, thus placing the cursor (and the text
+     it is attached to) in the center of the window.  Setting this
+     variable to 1 causes a kind of "smooth scrolling" which some
+     people prefer.
+
+`ISO-Latin'
+     When set to `On', Info accepts and displays ISO Latin-1 characters.
+     By default, Info assumes an ASCII character set.  `ISO-Latin' tells
+     Info that it is running in an environment where the European
+     standard character set is in use, and allows you to input such
+     characters to Info, as well as display them.
+
+

@@ -435,6 +435,7 @@ to read a file name from the minibuffer."
 	(switch-to-buffer "*info*")
       (Info-directory))))
 
+;;;###autoload
 (defun Info-query (file)
   "Enter Info, the documentation browser.  Prompt for name of Info file."
   (interactive "sInfo topic (default = menu): ")
@@ -1601,6 +1602,7 @@ This command is designed to be used whether you are already in Info or not."
 	   (Info-index key))
 	 (pop-to-buffer "*info*"))))
 
+;;;###autoload
 (defun Info-elisp-ref (func)
   "Look up an Emacs Lisp function in the Elisp manual in the Info system.
 This command is designed to be used whether you are already in Info or not."
@@ -1920,6 +1922,20 @@ At end of the node's text, moves to the next node."
 		   (event-point event))
 		 (1+ (point-min)))))
       (error "click on a cross-reference to follow")))
+
+;; addition by Ben Wing.
+(defun Info-follow-clicked-node-or-track (event)
+  "Follow a node reference near clicked point, or just set point.
+Works like either `Info-follow-clicked-node' or `mouse-track',
+depending on context."
+  (interactive "@e")
+  (or (and (event-point event)
+	   (Info-follow-nearest-node
+	    (max (progn
+		   (select-window (event-window event))
+		   (event-point event))
+		 (1+ (point-min)))))
+      (mouse-track event)))
 
 (defun Info-find-nearest-node (point)
   (let (node)

@@ -1,6 +1,6 @@
 ;;; tabify.el --- tab conversion commands for Emacs
 
-;; Copyright (C) 1985 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1994 Free Software Foundation, Inc.
 
 ;; Maintainer: FSF
 
@@ -40,11 +40,11 @@ The variable `tab-width' controls the spacing of tab stops."
       (narrow-to-region (point-min) end)
       (goto-char start)
       (while (search-forward "\t" nil t)	; faster than re-search
-	(let ((start (point))
+	(let ((tab-beg (point))
 	      (column (current-column))
 	      (indent-tabs-mode nil))
-	  (skip-chars-backward "\t")
-	  (delete-region start (point))
+	  (skip-chars-backward "\t" start)
+	  (delete-region tab-beg (point))
 	  (indent-to column))))))
 
 ;;;###autoload
@@ -65,5 +65,7 @@ The variable `tab-width' controls the spacing of tab stops."
 	      (indent-tabs-mode t))
 	  (delete-region (match-beginning 0) (point))
 	  (indent-to column))))))
+
+(provide 'tabify)
 
 ;;; tabify.el ends here

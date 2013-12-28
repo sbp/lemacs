@@ -125,6 +125,8 @@ memory_warnings (void *start, void (*warnfun) (CONST char *))
   else
     data_space_start = start_of_data ();
 
+#ifndef _NO_MALLOC_WARNING_
   warn_function = warnfun;
   __after_morecore_hook = check_memory_limits;
+#endif
 }

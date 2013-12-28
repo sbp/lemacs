@@ -937,7 +937,7 @@ Committing changes
      (`kill-region').
 
      If you are editing the files in your emacs an automatic
-     `revert-buffer' will be performed.  (If the file contains `$Id: pcl-cvs.info-1,v 1.1 1993/12/21 23:52:57 jwz Exp $'
+     `revert-buffer' will be performed.  (If the file contains `$Id $'
      keywords `cvs commit' will write a new file with the new values
      substituted.  The auto-revert makes sure that you get them into
      your buffer). The revert will not occur if you have modified your

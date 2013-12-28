@@ -21,7 +21,7 @@
 (eval-when-compile
  ;; these used to be defsubsts, now they're subrs.  Avoid losing if we're
  ;; being compiled with an emacs that has the old interpretation.
- ;; (Warning, proclaim-notinline seems to be broken in 19.8.)
+ ;; (Warning, proclaim-notinline was broken prior to 19.10.)
  (remprop 'facep 'byte-optimizer)
  (remprop 'face-name 'byte-optimizer)
  (remprop 'face-id 'byte-optimizer)
@@ -98,38 +98,6 @@ to the cut buffer"
 			 (extent-end-position primary-selection-extent)))))))
 
 
-;;; OpenWindows-like "find" processing.
-
-;; #### This keybinding is a Sun-ism, but it's hard to isolate it...
-;; #### It's totally bogus that we're binding `f19' to this intead of `Find'
-;; #### but that's what the X server calls that key; once key-translation-map
-;; #### exists, this should change.
-(global-set-key 'f19 'ow-find)
-(global-set-key '(shift f19) 'ow-find-backward)
-
-(defvar ow-find-last-string nil)
-
-(defun ow-find (&optional backward-p)
-  "Search forward the next occurence of the text of the selection."
-  (interactive)
-  (let ((text (or (condition-case () (x-get-selection) (error nil))
-		  ow-find-last-string
-		  (error "No selection"))))
-    (setq ow-find-last-string text)
-    (cond (backward-p
-	   (search-backward text)
-	   (set-mark (+ (point) (length text))))
-	  (t
-	   (search-forward text)
-	   (set-mark (- (point) (length text)))))
-    (zmacs-activate-region)))
-
-(defun ow-find-backward ()
-  "Search backward the previous occurence of the text of the selection."
-  (interactive)
-  (ow-find t))
-
-
 ;;; Pointer shape.
 ;;; This code doesn't allow the mouse cursor and mouse color to be per-screen,
 ;;; but that wouldn't be hard to do.
@@ -189,6 +157,9 @@ will be used.")
     pointer))
 
 (defun x-track-pointer (event)
+  "For use as the value of `mouse-motion-handler'.
+This implements `x-pointer-shape' and related variables,
+as well as extent highlighting, and `mode-motion-hook'."
   (let* ((window (event-window event))
 	 (screen (if window
 		     (window-screen window)
@@ -238,15 +209,19 @@ will be used.")
     (if buffer
 	(save-excursion
 	  (set-buffer buffer)
-	  (let ((rest (and (boundp 'mode-motion-hook)
-			   (symbol-value 'mode-motion-hook))))
-	    (if (or (not (listp rest))
-		    (eq (car-safe rest) 'lambda))
-		(funcall rest event)
-	      (while rest
-		(funcall rest event)
-		(setq rest (cdr rest)))))))
-    ))
+	  (run-hook-with-args 'mode-motion-hook event)
+
+	  ;; If the mode-motion-hook created a highlightable extent around
+	  ;; the mouse-point, highlight it right away.  Otherwise it wouldn't
+	  ;; be highlighted until the *next* motion event came in.
+	  (if (and point
+		   (null extent)
+		   (setq extent (extent-at point
+					   (window-buffer window) ; not buffer
+					   'highlight)))
+	      (highlight-extent extent t)))))
+  nil)
+
 
 (defun x-track-pointer-damage-control (c var)
   ;; When x-set-screen-pointer signals an error, this function tries to figure
@@ -265,7 +240,16 @@ will be used.")
 	       (setq var 'x-pointer-background-color)
 	     (error "got %S and I don't know why!" c)))
 	 (set var nil)
-	 (error "%S was %S, which is an invalid color name.  Reset."
+	 (error "%S was %S, which was an invalid color name.  Reset."
+		var (nth 2 c)))
+	((string= (nth 1 c) "couldn't allocate color")
+	 (cond ((string= (nth 2 c) x-pointer-foreground-color)
+		(setq var 'x-pointer-foreground-color))
+	       ((string= (nth 2 c) x-pointer-background-color)
+		(setq var 'x-pointer-background-color))
+	       (t (error "got %S and I don't know why!" c)))
+	 (set var nil)
+	 (error "%S was %S, which cannot be allocated.  Reset."
 		var (nth 2 c)))
 	((eq (car c) 'wrong-type-argument)
 	 (let ((rest '(x-pointer-foreground-color x-pointer-background-color
@@ -285,8 +269,14 @@ will be used.")
 
 ;;; GC pointer shape
 
+;; For the mystified out there, the GC pointer is stored in the variable
+;; `gc-message', which is defined in alloc.c.  If the value of this is
+;; a cursor, the function x_show_gc_cursor(), defined in xfns.c, is called
+;; at the beginning of garbage collection.
+
 (defun x-set-pointer-for-gc ()
-  (if (null x-gc-pointer-shape)
+  (if (or (not (eq window-system 'x))
+	  (null x-gc-pointer-shape))
       (setq gc-message nil)
     ;; else
     (condition-case error
@@ -295,8 +285,16 @@ will be used.")
 					  x-pointer-background-color
 					  (selected-screen)))
       (error
-       ;;(beep)
-       (setq gc-message "Garbage collecting... ERROR setting GC pointer!")))))
+       ;; This conses a little bit but not much.  Should be ok.
+       (setq gc-message nil)
+       (let ((b (get-buffer-create " *gc-pointer-error*")))
+	 (save-excursion
+	   (set-buffer b)
+	   (erase-buffer)
+	   (insert "Garbage collecting... ERROR setting GC pointer: ")
+	   (display-error error b)
+	   (setq gc-message (buffer-string)))
+	 (kill-buffer b))))))
 
 (add-hook 'pre-gc-hook 'x-set-pointer-for-gc)
 
@@ -330,7 +328,8 @@ database."
 	  (x-get-resource "pointerColor" "Foreground" 'string screen))
     (setq x-pointer-background-color
 	  (x-get-resource "pointerBackground" "Background" 'string screen))
-    (setq x-pointers-initialized t)))
+    (setq x-pointers-initialized t))
+  nil)
 
 
 (provide 'x-mouse)

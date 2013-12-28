@@ -22,6 +22,7 @@
 This variable controls how long each phase of the blink lasts in seconds.
 This should be a fractional part of a second (a float.)")
 
+;;;###autoload
 (defvar highlight-paren-expression nil
   "*If true, highlight the whole expression of the paren under the cursor
 instead of blinking (or highlighting) the matching paren.  This will highlight
@@ -134,11 +135,33 @@ the expression using the `highlight-expression' face.")
      (message "blink paren error! %s" c))))
 
 
-(defun blink-paren-init ()
-  (add-hook 'pre-command-hook 'blink-paren-pre-command)
-  (add-hook 'post-command-hook 'blink-paren-post-command)
-  (setq blink-matching-paren nil)  ; don't need this loser any more
-  )
+;;;###autoload
+(defun blink-paren (&optional arg)
+  "Toggles paren blinking on and off.
+With a positive argument, turns it on.
+With a non-positive argument, turns it off."
+  (interactive "P")
+  (let* ((was-on (not (not (memq 'blink-paren-pre-command pre-command-hook))))
+	 (on-p (if (null arg)
+		   (not was-on)
+		(> (prefix-numeric-value arg) 0))))
+    (cond ((eq on-p was-on)
+	   nil)
+	  (on-p
+	   (add-hook 'pre-command-hook 'blink-paren-pre-command)
+	   (add-hook 'post-command-hook 'blink-paren-post-command)
+	   (setq blink-matching-paren nil))
+	  (t
+	   (remove-hook 'pre-command-hook 'blink-paren-pre-command)
+	   (remove-hook 'post-command-hook 'blink-paren-post-command)
+	   (and blink-paren-extent (detach-extent blink-paren-extent))
+	   (setq blink-matching-paren t)))
+    on-p))
 
-;; go go go johnny go
-(blink-paren-init)
+(defun blink-paren-init ()
+  "obsolete - use `blink-paren' instead."
+  (blink-paren 1))
+
+(provide 'blink-paren)
+
+(blink-paren 1)

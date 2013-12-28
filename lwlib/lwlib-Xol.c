@@ -1,3 +1,22 @@
+/* The lwlib interface to Open-Look widgets.
+   Copyright (C) 1992, 1993, 1994 Lucid, Inc.
+
+This file is part of the Lucid Widget Library.
+
+The Lucid Widget Library is free software; you can redistribute it and/or 
+modify it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+The Lucid Widget Library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of 
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GNU Emacs; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
 #include "lwlib-Xol.h"
 #include <X11/StringDefs.h>
 #include <X11/IntrinsicP.h>
@@ -8,10 +27,11 @@
 #include <Xol/MenuButton.h>
 #include <Xol/OblongButt.h>
 #include <Xol/ControlAre.h>
+#include <Xol/OpenLookP.h>      /* so ControlArP.h can be included */
 #include <Xol/ControlArP.h>
 #include <Xol/Stub.h>
 #include <Xol/StaticText.h>
-#include "Menubar.h"
+#include "lwlib-Xol-mb.h"
 
 extern int olit_menu_up_flag;
 
@@ -196,6 +216,7 @@ pre_hook (Widget w, caddr_t client_data, caddr_t call_data)
     }
 }
 
+#if 0 /* Unused */
 static void
 post_hook (Widget w, caddr_t client_data, caddr_t call_data)
 {
@@ -207,6 +228,7 @@ post_hook (Widget w, caddr_t client_data, caddr_t call_data)
   if (instance->info->post_activate_cb)
     instance->info->post_activate_cb (w, instance->info->id, NULL);
 }
+#endif
 
 static void
 pick_hook (Widget w, caddr_t client_data, caddr_t call_data)
@@ -254,7 +276,7 @@ static Widget
 xol_create_menubar (widget_instance* instance)
 {
   Widget widget =
-    XtVaCreateWidget (instance->info->name, MenubarWidgetClass,
+    XtVaCreateWidget (instance->info->name, lwMenubarWidgetClass,
 		      instance->parent, 0);
 
   return widget;
@@ -466,8 +488,6 @@ static void
 update_one_menu_entry (widget_instance* instance, Widget widget,
 		       widget_value* val)
 {
-  Arg al [256];
-  int ac;
   Widget menu;
   widget_value* contents;
 
@@ -478,7 +498,6 @@ update_one_menu_entry (widget_instance* instance, Widget widget,
   XtVaSetValues (widget, XtNsensitive, val->enabled, 0);
 
   /* update the pulldown/pullaside as needed */
-  ac = 0;
   menu = NULL;
   XtVaGetValues (widget, XtNmenuPane, &menu, 0);
   contents = val->contents;
@@ -523,7 +542,7 @@ update_menu_widget (widget_instance* instance, Widget widget,
       Widget* children;
       unsigned int num_children;
       int i;
-      widget_value* cur;
+      widget_value* cur = 0;
       
       children = (Widget *) XtCompositeChildren (widget, &num_children);
       if (children)

@@ -20,7 +20,7 @@ manual into another language, under the same conditions as for modified
 versions.
 
 
-File: vip.info,  Node: Commands in Insert Mode,  Next: Ex Commands,  Prev: Other Vi Commands,  Up: Vi Commands
+File: vip.info,  Node: Commands in Insert Mode,  Prev: Other Vi Commands,  Up: Vi Commands
 
 Insert Mode
 ===========
@@ -87,7 +87,7 @@ repeat command will not really repeat insertion if you move point by
 emacs commands while in insert mode.
 
 
-File: vip.info,  Node: Ex Commands,  Next: Ex Command Reference,  Prev: Commands in Insert Mode,  Up: Top
+File: vip.info,  Node: Ex Commands,  Next: Ex Command Reference,  Prev: Vi Commands,  Up: Top
 
 Ex Commands
 ***********

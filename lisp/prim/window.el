@@ -1,5 +1,5 @@
 ;; GNU Emacs window commands aside from those written in C.
-;; Copyright (C) 1985, 1989, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1989, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -175,3 +175,9 @@ or if the window is the only window of its frame."
 	    ;; Make sure we unbind buffer-read-only
 	    ;; with the proper current buffer.
 	    (set-buffer buffer))))))
+
+(defun backward-other-window (arg &optional all-screens invisible-too)
+  "Select the ARG'th different window on this screen, going backwards.
+This is just like calling `other-window' with the arg negated."
+  (interactive "p")
+  (other-window (- arg) all-screens invisible-too))

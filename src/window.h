@@ -110,6 +110,8 @@ struct window
        This exists so that when multiple windows show one buffer
        each one can have its own value of point.  */
     Lisp_Object pointm;
+    /* A marker pointing to where in the text the scrollbar is pointing */
+    Lisp_Object sb_point;
     /* Number of columns display within the window is scrolled to the left. */
     Lisp_Object hscroll;
     /* Number saying how recently window was selected */
@@ -159,23 +161,49 @@ struct window
     /* Non-nil means window is marked as dedicated.  */
     Lisp_Object dedicated;
 
-    /* Display structures for this window. */
-    struct line_header *lines;
-
-    /* Display structure for modeline */
-    struct line_header *modeline;
-
     /* # of lines in window; only meaningful if window is "full" */
     int used_height;
   };
 
+struct window_mirror
+{
+  /* Screen this mirror is on. */
+  struct screen *screen;
+
+  /* Following child (to right or down) at same level of tree */
+  struct window_mirror *next;
+
+  /* There is no prev field because we never traverse this structure
+     backwards.  Same goes for the parent field. */
+
+  /* First child of this window. */
+  /* vchild is used if this is a vertical combination,
+     hchild if this is a horizontal combination. */
+  struct window_mirror *hchild, *vchild;
+
+  /* Display structures for this window. */
+  struct line_header *lines;
+
+  /* Display structure for modeline */
+  struct line_header *modeline;
+
+  /* Flag indicating whether a subwindow is currently being displayed. */
+  int subwindows_being_displayed;
+};
+
 #ifdef emacs  /* some things other than emacs want the structs */
 
 extern CONST struct lrecord_implementation lrecord_window[];
+extern CONST struct lrecord_implementation lrecord_window_mirror[];
 
 #define XWINDOW(a) ((struct window *) XPNTR(a))
 #define CHECK_WINDOW(x, i) CHECK_RECORD ((x), lrecord_window, Qwindowp, (i))
 #define WINDOWP(x) RECORD_TYPEP ((x), lrecord_window)
+
+#define XWINDOW_MIRROR(a) ((struct window *) XPNTR(a))
+#define CHECK_WINDOW_MIRROR(x, i) CHECK_RECORD ((x), lrecord_window_mirror, \
+						Qwindow_mirror_p, (i))
+#define WINDOW_MIRROR_P(x) RECORD_TYPEP ((x), lrecord_window_mirror)
 
 /* 1 if W is a minibuffer window.  */
 #define MINI_WINDOW_P(W)  (!EQ ((W)->mini_p, Qnil))
@@ -249,10 +277,6 @@ extern int unchanged_modified;
  since last redisplay that finished */
 extern int clip_changed;
 
-/* Nonzero if window sizes or contents have changed
- since last redisplay that finished */
-extern int windows_or_buffers_changed;
-
 /* Number of windows displaying the selected buffer.
    Normally this is 1, but it can be more.  */
 extern int buffer_shared;
@@ -264,15 +288,22 @@ extern Lisp_Object Fset_window_point (Lisp_Object window, Lisp_Object pos);
 extern Lisp_Object Fset_window_start (Lisp_Object window, Lisp_Object pos,
 				      Lisp_Object noforce);
 
-extern int window_char_left (struct window *);
-extern int window_char_top (struct window *);
 extern int window_char_width (struct window *);
 extern int window_char_height (struct window *);
-extern int window_displayed_height (struct window *);
+extern int window_displayed_height (struct window *, int not_display_structs);
 extern int window_real_width (struct window *);
+extern int window_needs_vertical_divider (struct window *);
 
 extern void scroll_command (register Lisp_Object n, int direction,
 			    int no_error);
+
+/* new functions to handle the window mirror */
+extern void free_window_mirror (struct window_mirror *mir);
+extern Lisp_Object real_window (struct window_mirror *mir, int no_abort);
+extern struct window_mirror *find_window_mirror (struct window *w);
+extern struct line_header *window_display_lines (struct window *w);
+extern struct line_header *window_display_modeline (struct window *w);
+extern void update_screen_window_mirror (struct screen *s);
 
 #endif /* emacs */
 

@@ -24,7 +24,7 @@ General Public License" may be included in a translation approved by
 the author instead of in the original English.
 
 
-File: gnus.info,  Node: Top,  Next: Introduction,  Up: (DIR)
+File: gnus.info,  Node: Top,  Next: Distribution,  Up: (DIR)
 
    The GNUS Newsreader *******************
 
@@ -292,7 +292,7 @@ sent comments, suggestions, and bug fixes.  Thanks also go to Richard
 Stallman and the Free Software Foundation for their good work.
 
 
-File: gnus.info,  Node: Introduction,  Next: Installation,  Prev: Top,  Up: Top
+File: gnus.info,  Node: Introduction,  Next: Installation,  Prev: Acknowledgments,  Up: Top
 
 Introduction
 ************

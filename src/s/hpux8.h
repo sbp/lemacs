@@ -1,74 +1,85 @@
-/* Definitions file for GNU Emacs running on HP-UX 8.0 (only).
-   Copyright (C) 1992, 1993 Free Software Foundation, Inc.
-  
-This file is part of GNU Emacs.
-
-GNU Emacs is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
-any later version.
-
-GNU Emacs is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with GNU Emacs; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+/* system description file for hpux version 8.
+   This contains changes that were suggested "for the hp700".
+   They were not needed for the 800.
+   Our conjecture that they are needed for hpux version 8,
+   which is what runs on the 700.  */
 
 #include "hpux.h"
 
+#define HPUX8
+
+/* lemacs change -- suggested by hamish@bnr.ca */
+#undef static
 #undef HPUX_PRE_8_0
 
-/*
- * Ugly, nasty kludge to prevent X11R4 Xos.h from redefining struct timeval
- * and struct timezone.
- */
+/* lemacs change -- Ugly, nasty kludge to prevent X11R4 Xos.h from
+   redefining struct timeval and struct timezone. */
 #define __TIMEVAL__
 
-/* kludge no longer necessary (at least on 9000/300 with hpux 8.0) */
-#undef static
+/* lemacs change -- changed LIBX11_SYSTEM and C_SWITCH_X_SYSTEM */
+#define C_SWITCH_X_SYSTEM -I/usr/include/X11R4 -I/usr/include/Motif1.1
+#define LD_SWITCH_X_SYSTEM -L/usr/lib/X11R4 -L/usr/lib/Motif1.1
+
+/* No need to specify roundabout way of linking temacs.  */
+#define ORDINARY_LINK
 
 #ifdef __GNUC__
-#define HAVE_ALLOCA
+/* lemacs change */
+#ifndef HPUX_USE_SHLIBS
+#define LD_SWITCH_SYSTEM -Xlinker -a -Xlinker archive
+#else
+#define LD_SWITCH_SYSTEM
+#endif
+#else
+/* lemacs change */
+#if !defined (LD_SWITCH_SYSTEM)
+#if !defined (HPUX_USE_SHLIBS)
+#define LD_SWITCH_SYSTEM -Wl,-a,archive
+#endif
+#endif
 #endif
 
-/* HPUX 8 has TERMIOS and POSIX signals */
-#undef  HAVE_TERMIO
-#define HAVE_TERMIOS
-#define POSIX_SIGNALS
-#define I18N2
+/* lemacs change */
+#ifndef __GNUC__
+#define C_SWITCH_SYSTEM -Aa -D_HPUX_SOURCE
+#endif
 
-#define HAVE_WAIT_HEADER
-#define WAITTYPE int
-#define WRETCODE(X) WEXITSTATUS(X)
+#if 0 /* This should no longer be necessary now that
+	 C_SWITCH_... are passed down when compiling oldXMenu.  */
+/* Specify compiler options for compiling oldXMenu.  */
+#define OLDXMENU_OPTIONS CFLAGS="-I/usr/include/X11R5 -I/usr/include/X11R4"
+#endif
 
+/* Some hpux 8 machines seem to have TIOCGWINSZ,
+   and none have sioctl.h, so might as well define this.  */
+#define NO_SIOCTL_H
+
+#if 0 /* autoconf should be detecting the presence or absence of 
+	 random and srandom now.  */
 /* If you use X11R4 you must define this.  If you use
    X11R5 you must comment this out */
 /* #define HAVE_RANDOM */
+#define random foo_random
+#define srandom foo_srandom
+#endif
 
-/* ymakefile definitions for HPUX 8 (X11R4) */
-#ifdef THIS_IS_YMAKEFILE
-# define START_FILES
-#define LD_CMD $(CC)
+#if 0  /* This seems to be spurious.  */
+/* "X11R5" on hpux8 doesn't have this function, which is supposed to exist
+   in X11R5.  Maybe things will work if we just don't call it.  */
+#define NO_XRM_SET_DATABASE
+#endif
 
-# ifdef __GNUC__
-#  define C_SWITCH_SYSTEM -I/usr/include/X11R4 -I/usr/include/Motif1.1
-# else
-#  define C_SWITCH_SYSTEM -Aa -D_HPUX_SOURCE  -I/usr/include/X11R4 -I/usr/include/Motif1.1
-# endif
+/* Enable a special hack in XTread_socket.  */
+/* lemacs change:  we don't use this. */
+#if 0
+#define X_IO_BUG
+#endif
 
-/* point the linker at the X libs, and tell it to link statically */
-# ifndef LD_SWITCH_SYSTEM
-#  ifdef __GNUC__ 
-#   if defined(__HPUX_ASM__) || !defined(__hp9000s300)
-#    define LD_SWITCH_SYSTEM -Xlinker -a -Xlinker archive -L/usr/lib/X11R4 -L/usr/lib/Motif1.1
-#   else
-#    define LD_SWITCH_SYSTEM -L/usr/lib/X11R4 -L/usr/lib/Motif1.1
-#   endif /* HPUX_ASM */
-#  else
-#   define LD_SWITCH_SYSTEM -a archive -L/usr/lib/X11R4 -L/usr/lib/Motif1.1
-#  endif /* GNUC */
-# endif /* LD_SWITCH_SYSTEM */
-#endif /* THIS IS YMAKEFILE */
+/* lemacs change */
+#undef HAVE_TERMIO
+#define HAVE_TERMIOS
+#define POSIX_SIGNALS
+#define I18N2
+#define HAVE_WAIT_HEADER
+#define WAITTYPE int
+#define WRETCODE(x) WEXITSTATUS(x)

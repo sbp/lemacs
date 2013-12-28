@@ -1,5 +1,5 @@
 /* Updating of data structures for redisplay.
-   Copyright (C) 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -29,38 +29,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#if 0 /* this stuff looks a lot like systty.h --jwz */
-
-#ifdef HAVE_TERMIO
-#include <termio.h>
-#ifdef TCOUTQ
-#undef TIOCOUTQ
-#define TIOCOUTQ TCOUTQ
-#endif /* TCOUTQ defined */
-#else
-#ifdef HAVE_TERMIOS
-#include <termios.h>
-#else
-#ifndef VMS
-#include <sys/ioctl.h>
-#endif /* not VMS */
-#endif /* not HAVE_TERMIOS */
-#endif /* not HAVE_TERMIO */
-
-/* Allow m- file to inhibit use of FIONREAD.  */
-#ifdef BROKEN_FIONREAD
-#undef FIONREAD
-#endif
-
-/* Interupt input is not used if there is no FIONREAD.  */
-#ifndef FIONREAD
-#undef SIGIO
-#endif
-
-#else /* !0 */
+#include <errno.h>
 #include "systty.h"
-#endif /* !0 */
 
 #include "termchar.h"
 #include "termopts.h"
@@ -192,6 +162,7 @@ extern int list_ptr;
 struct char_block old_cur_char;
 struct line_header old_cur_line;
 
+struct pixel_translation_cache t_g_cache;
 
 /*
  *
@@ -199,6 +170,7 @@ struct line_header old_cur_line;
 int
 scroll_screen_lines (int from, int end, int amount, struct window *w)
 {
+  struct window_mirror *mir = find_window_mirror (w);
   register struct line_header *l,*l1,*l2;
   register int i;
 
@@ -207,7 +179,7 @@ scroll_screen_lines (int from, int end, int amount, struct window *w)
   list_ptr++;
 
   /* Find start and end of region */
-  l = w->lines;
+  l = window_display_lines (w);
 
   i = from;
   while (l && i--) l = l->next;
@@ -247,7 +219,7 @@ scroll_screen_lines (int from, int end, int amount, struct window *w)
 	  else
 	    {
 	      /* New first line in window */
-	      w->lines = l;
+	      mir->lines = l;
 	    }
 	  
 	  l->next = l1;
@@ -268,8 +240,8 @@ scroll_screen_lines (int from, int end, int amount, struct window *w)
 	    {
 	      l->prev->next = l1;
 	    }
-	  if (l == w->lines)	  
-	    w->lines =l1;
+	  if (l == mir->lines)	  
+	    mir->lines =l1;
 	  free_line(l);
 	}
 
@@ -302,22 +274,25 @@ void
 update_window (struct window *w)
 {
   struct screen *s = XSCREEN(w->screen);
-  struct line_header *l,*start,*end;
-  struct char_block *cb,*endc;
   int i = 0;
 
   if (list_ptr > -1)
     {
+      t_g_cache.valid = 0;
+
       if (BLOCK_TYPE(0) != AREA)
 	CXTupdate_begin(w);
 
       for (i = 0; i <= list_ptr; i++)
 	if ((BLOCK_TYPE(i) == BODY_LINE || BLOCK_TYPE(i) == MARGIN_LINE) &&
 	    BLOCK_LINE(i)->shifted && !BLOCK_LINE(i)->changed) break;
-      if (i < list_ptr)
+      /* subwindows cause the blit scrolling to fail, at least when there
+	 are horizontally split windows */
+      if ((i < list_ptr) && !find_window_mirror(w)->subwindows_being_displayed)
 	{
+          struct line_header *end = 0;
 	  /* Found start, now find end of region */
-	  start = BLOCK_LINE(i);
+	  struct line_header *start = BLOCK_LINE(i);
 	  BLOCK_DONE(i) = 1;	/* Mark line as done */
 	  for (; i <= list_ptr; i++)
 	    {
@@ -327,6 +302,7 @@ update_window (struct window *w)
 	      end = BLOCK_LINE(i);
 	      BLOCK_DONE(i) = 1; /* Mark line as done */
 	    }
+          if (!end) abort ();
 	  shift_region(w,start,end);
 	}
   
@@ -338,19 +314,25 @@ update_window (struct window *w)
 	    switch (BLOCK_TYPE(i))
 	      {
 	      case BODY_LINE:	/* A regular line */
-		l = BLOCK_LINE(i);
-		cb = BLOCK_LINE_START(i);
-		endc = BLOCK_LINE_END(i);
-		update_line(w,l,cb,endc,BLOCK_LINE_CLEAR(i),BODY);
-		l->new = l->changed = l->shifted = 0; /* Line is up to date */
-		break;
+                {
+                  struct line_header *l = BLOCK_LINE(i);
+                  struct char_block *cb = BLOCK_LINE_START(i);
+                  struct char_block *endc = BLOCK_LINE_END(i);
+                  update_line(w,l,cb,endc,BLOCK_LINE_CLEAR(i),BODY);
+                  /* Line is up to date */
+                  l->new = l->changed = l->shifted = 0;
+                  break;
+                }
 	      case MARGIN_LINE:	/* A margin line */
-		l = BLOCK_LINE(i);
-		cb = BLOCK_LINE_START(i);
-		endc = BLOCK_LINE_END(i);
-		update_line(w,l,cb,endc,BLOCK_LINE_CLEAR(i),MARGIN);
-		l->new = l->changed = l->shifted = 0; /* Line is up to date */
-		break;
+                {
+                  struct line_header *l = BLOCK_LINE(i);
+                  struct char_block *cb = BLOCK_LINE_START(i);
+                  struct char_block *endc = BLOCK_LINE_END(i);
+                  update_line(w,l,cb,endc,BLOCK_LINE_CLEAR(i),MARGIN);
+                  /* Line is up to date */
+                  l->new = l->changed = l->shifted = 0;
+                  break;
+                }
 	      case AREA:	/* Region to blank */
 		clear_window_end(w,BLOCK_AREA_TOP(i),BLOCK_AREA_BOTTOM(i));
 		break;
@@ -394,7 +376,7 @@ update_window (struct window *w)
 void
 update_cursor (struct screen *s, int blit)
 {
-  if (redisplay_lock)
+  if (redisplay_lock == REDISPLAY_LOCK_CURSOR)
     return;
 
   /*
@@ -410,7 +392,7 @@ update_cursor (struct screen *s, int blit)
 		s->new_cur_char,
 		s->cursor_y,
 		s->cursor_x,
-		s->new_cur_w,s);
+		s->new_cur_mir, s);
     }
   else if (cursor_in_echo_area)
     {
@@ -421,7 +403,7 @@ update_cursor (struct screen *s, int blit)
 		s->new_cur_char,
 		s->cursor_y,
 		s->cursor_x,
-		s->new_cur_w,s);
+		s->new_cur_mir, s);
     }
   else 
     {
@@ -429,7 +411,7 @@ update_cursor (struct screen *s, int blit)
 	{
 	  s->cur_char = s->new_cur_char;
 	  s->cur_line = s->new_cur_line;
-	  s->cur_w = s->new_cur_w;
+	  s->cur_mir = s->new_cur_mir;
 	  s->phys_cursor_y = s->cursor_y;
 	  s->phys_cursor_x = s->cursor_x;
 
@@ -440,10 +422,12 @@ update_cursor (struct screen *s, int blit)
 		  s->new_cur_char,
 		  s->cursor_y,
 		  s->cursor_x,
-		  s->new_cur_w,s);
+		  s->new_cur_mir, s);
     }
 }
 
+/* not used at the moment */
+#if 0
 /*
  * Handle forward and backward cursor movement on current line
  */
@@ -472,7 +456,7 @@ direct_output_forward_char(int n)
     }
   while (s->new_cur_char->char_b == False);
 
-  s->new_cur_w = w;
+  s->new_cur_mir = find_window_mirror (w);
 
 #ifdef DEFINE_CHANGE_FUNCTIONS
   if (w != XWINDOW(s->minibuffer_window))
@@ -484,8 +468,8 @@ direct_output_forward_char(int n)
   w->last_point_x = make_number (s->cursor_x);
   w->last_point = make_number (PT);
 
-  cursor_to(s->new_cur_line,s->new_cur_char,
-	    s->cursor_y,s->cursor_x,s->new_cur_w,s);
+  cursor_to (s->new_cur_line, s->new_cur_char,
+	     s->cursor_y, s->cursor_x, s->new_cur_mir, s);
   
   return 1;
 }
@@ -635,6 +619,7 @@ pixel_insert_ok (int c, int fill)
   return (((l->lwidth + text_width (FACE_FONT (face), a, 1)) <= fill) 
           ? 1 : 0);
 }
+#endif /* 0 - not being used */
 
 
 /* Change the screen height and/or width.  Values may be given as zero to
@@ -673,29 +658,16 @@ change_screen_size_1 (screen, newheight, newwidth, pretend)
   if (in_display)
     abort ();
 
-  if (NILP (SCREEN_DEFAULT_FONT (screen)))
-    {
-      SCREEN_HEIGHT (screen) = newheight;
-      SCREEN_WIDTH (screen) = newwidth;
-      return;
-    }
-
-  font = XFONT (SCREEN_DEFAULT_FONT (screen));
+  if (NILP (SCREEN_DEFAULT_FONT (screen)) ||
+      !(font = XFONT (SCREEN_DEFAULT_FONT (screen))))
+    abort ();
 
   /* This size-change overrides any pending one for this screen.  */
   SCREEN_NEW_HEIGHT (screen) = 0;
   SCREEN_NEW_WIDTH (screen) = 0;
 
-  if (font == 0)
-    {
-      font_height = 13;
-      font_width = 6;
-    }
-  else
-    {
-      font_height = font->height;
-      font_width = font->width;
-    }
+  font_height = font->height;
+  font_width = font->width;
 
   new_pixheight = newheight * font_height;
   new_pixwidth = (newwidth - 1) * font_width +
@@ -718,7 +690,7 @@ change_screen_size_1 (screen, newheight, newwidth, pretend)
 	  set_window_height (SCREEN_ROOT_WINDOW (screen),
 			     new_pixheight - font_height, 0);
 	  XWINDOW (SCREEN_MINIBUF_WINDOW (screen))->pixtop
-	    = new_pixheight - font_height + INT_BORDER (screen);
+	    = new_pixheight - font_height + SCREEN_INT_BORDER (screen);
 	  set_window_height (SCREEN_MINIBUF_WINDOW (screen), font_height, 0);
 	}
       else
@@ -813,7 +785,93 @@ window_change_signal ()
     request_sigio ();
 }
 #endif /* SIGWINCH */
+
+/* GC-marking the data in redisplay
+ */
 
+/* kludge (see faces.c) */
+extern void mark_external_face (struct face *, void (*markobj) (Lisp_Object));
+
+static void
+mark_redisplay_structs (struct line_header *l, void (*markobj) (Lisp_Object))
+{
+  while (l)
+    {
+      int loop;
+      struct char_block *cb, *end_block;
+
+      for (loop = 0; loop < 2; loop++)
+	{
+	  if (loop)
+	    {
+	      cb = l->body;
+	      end_block = l->end;
+	    }
+	  else
+	    {
+	      cb = l->margin_start;
+	      end_block = l->margin_end;
+	    }
+
+	  while (cb && cb != end_block)
+	    {
+	      if (cb->e)
+		{
+		  Lisp_Object extent;
+
+		  XSETEXTENT (extent, cb->e);
+		  ((markobj) (extent));
+		}
+
+	      /* #### This should work in the more obvious way once both
+		 kinds of faces are real lisp objects. */
+	      if (cb->face)
+		  mark_external_face (cb->face, markobj);
+
+	      if (!cb->char_b)
+		{
+		  ((markobj) (glyph_to_pixmap (cb->glyph)));
+		}
+	      cb = cb->next;
+	    }
+	}
+
+      l = l->next;
+    }
+}
+
+static void
+mark_window_mirror (struct window_mirror *mir, void (*markobj)(Lisp_Object))
+{
+  mark_redisplay_structs (mir->lines, markobj);
+  mark_redisplay_structs (mir->modeline, markobj);
+
+  if (mir->next)
+    mark_window_mirror (mir->next, markobj);
+
+  if (mir->hchild)
+    mark_window_mirror (mir->hchild, markobj);
+  else if (mir->vchild)
+    mark_window_mirror (mir->vchild, markobj);
+}
+
+void
+mark_redisplay (void (*markobj)(Lisp_Object))
+{
+  Lisp_Object rest;
+  for (rest = Vscreen_list; !NILP (rest); rest = XCONS (rest)->cdr)
+    {
+      Lisp_Object screen = XCONS (rest)->car;
+      struct screen *s;
+      if (! gc_record_type_p (screen, lrecord_screen))
+	abort ();
+      s = XSCREEN (XCONS (rest)->car);
+      update_screen_window_mirror (s);
+      mark_window_mirror (s->root_mirror, markobj);
+    }
+}
+
+
 
 char *terminal_type;
 
@@ -931,13 +989,38 @@ pixel_to_glyph_translation (struct screen *s, register unsigned int pix_x,
      2:  not over text, not in a window, or over an inactive minibuffer.
    */
 
-  *x = 0;
-  *y = 0;
-  *w = 0;
-  *bufp = 0;
-  *class = Qnil;
+  if (t_g_cache.valid &&
+      (s == t_g_cache.screen) &&
+      (t_g_cache.lowx <= pix_x && pix_x < t_g_cache.highx) &&
+      (t_g_cache.lowy <= pix_y && pix_y < t_g_cache.highy))
+    {
+      *x = t_g_cache.x;
+      *y = t_g_cache.y;
+      *w = t_g_cache.w;
+      *bufp = t_g_cache.bufp;
+      *class = t_g_cache.class;
 
-  if ((pix_y < INT_BORDER(s)) || (pix_y > INT_BORDER(s) + PIXH(s)))
+      return t_g_cache.retval;
+    }
+  else
+    {
+      *x = 0;
+      *y = 0;
+      *w = 0;
+      *bufp = 0;
+      *class = Qnil;
+
+      t_g_cache.valid = 0;
+      t_g_cache.screen = s;
+      t_g_cache.lowx = t_g_cache.highx = t_g_cache.x = 0;
+      t_g_cache.lowy = t_g_cache.highy = t_g_cache.y = 0;
+      t_g_cache.w = 0;
+      t_g_cache.bufp = 0;
+      t_g_cache.class = Qnil;
+      t_g_cache.retval = 2;
+    }
+
+  if ((pix_y < SCREEN_INT_BORDER(s)) || (pix_y > SCREEN_INT_BORDER(s) + PIXH(s)))
     return 2;
 
   /*
@@ -945,12 +1028,14 @@ pixel_to_glyph_translation (struct screen *s, register unsigned int pix_x,
    * change this later if we need to.
    */
   *y = (pix_y * s->height) / SCREEN_PIXHEIGHT(s);
+  t_g_cache.y = *y;
 
   win = s->root_window;
   win_x = pix_x;
-  if (win_x < INT_BORDER(s)) win_x = INT_BORDER(s);
-  if (win_x > INT_BORDER(s) + PIXW(s)) win_x = INT_BORDER(s) + PIXW(s);
+  if (win_x < SCREEN_INT_BORDER(s)) win_x = SCREEN_INT_BORDER(s);
+  if (win_x > SCREEN_INT_BORDER(s) + PIXW(s)) win_x = SCREEN_INT_BORDER(s) + PIXW(s);
   *w = find_window_by_pixel_pos (win_x, pix_y, win);
+  t_g_cache.w = *w;
 
   if (!*w)
     return 2;
@@ -961,24 +1046,28 @@ pixel_to_glyph_translation (struct screen *s, register unsigned int pix_x,
       return 2;
     }
 
-  if (pix_x < INT_BORDER(s))
+  if (pix_x < SCREEN_INT_BORDER(s))
     return 2;
 
   buffer = (*w)->buffer;
   b = XBUFFER(buffer);
 
-  if ((*w)->modeline)
-    l = (*w)->modeline;
+  if (window_display_modeline (*w))
+    l = window_display_modeline (*w);
   if (l)
     ypos = (*w)->pixtop + (*w)->pixheight - l->descent;
 
   if (!EQ(win,s->minibuffer_window) &&
       l && ypos - l->ascent <= pix_y && pix_y <= ypos + l->descent)
     {
+      Lisp_Object window, edges;
+      XSETR (window, Lisp_Window, *w);
       /* In mode line. */
-      *w = 0;
       *x = ((pix_x * PIXW(s)) /
 	    (XFONT (SCREEN_DEFAULT_FONT (s))->width * SCREEN_PIXWIDTH(s)));
+      edges = Fwindow_edges (window);
+      *y = XINT(XCONS (XCONS (XCONS (XCONS (edges)->cdr)->cdr)->cdr)->car) - 1;
+      *w = 0;
       return 2;
     }
   else
@@ -990,14 +1079,18 @@ pixel_to_glyph_translation (struct screen *s, register unsigned int pix_x,
       Vinhibit_quit = Qt;		/* don't allow quits out of here */
       current_buffer = b;
       *y = 0;
-/*      *y = (XINT((*w)->pixtop) - INT_BORDER(s)) /
-	FONT_HEIGHT(SCREEN_NORMAL_FACE(s).font);*/
-      l = (*w)->lines;
+      t_g_cache.y = 0;
+      l = window_display_lines (*w);
 
       while (l)
 	{
 	  if (l->ypos - l->ascent <= pix_y && pix_y < l->ypos + l->descent)
-	    break;
+	    {
+	      t_g_cache.lowy = l->ypos - l->ascent;
+	      t_g_cache.highy = l->ypos + l->descent;
+	      t_g_cache.y = *y;
+	      break;
+	    }
 	  l = l->next; (*y)++;
 	}
       /* Check for any glyphs at the pointer position. */
@@ -1011,8 +1104,15 @@ pixel_to_glyph_translation (struct screen *s, register unsigned int pix_x,
 	      cb = cb->next;
 	    }
 	  if (cb != l->margin_end)
-	    if (cb->e)
-	      XSETEXTENT (*class, cb->e);
+	    {
+	      if (cb->e)
+		{
+		  XSETEXTENT (*class, cb->e);
+		  XSETEXTENT (t_g_cache.class, cb->e);
+		}
+	      t_g_cache.lowx = cb->xpos;
+	      t_g_cache.highx = cb->xpos + cb->width;
+	    }
 	}
 
       /* Determine the character position of the pointer. */
@@ -1020,6 +1120,7 @@ pixel_to_glyph_translation (struct screen *s, register unsigned int pix_x,
 	{
 	  if (pix_x < ((*w)->pixleft + LEFT_MARGIN (b, s, *w)))
 	    {
+	      t_g_cache.x = 0;
 	      *x = 0;
 	    }
 	  else
@@ -1028,36 +1129,57 @@ pixel_to_glyph_translation (struct screen *s, register unsigned int pix_x,
 	      while (cb != l->end)
 		{
 		  if (cb->xpos <= pix_x && pix_x  < cb->xpos + cb->width)
-		    break;
+		    {
+		      t_g_cache.lowx = cb->xpos;
+		      t_g_cache.highx = cb->xpos + cb->width;
+		      t_g_cache.x = *x;
+		      break;
+		    }
 		  if (cb->char_b) (*x)++;
 		  cb = cb->next;
 		}
 	      if (cb->e)
-		XSETEXTENT (*class, cb->e);
+		{
+		  XSETEXTENT (*class, cb->e);
+		  XSETEXTENT (t_g_cache.class, cb->e);
+		}
 	      while (!cb->char_b && cb != l->end)
 		cb = cb->next;
 	      if (cb == l->end ||
 		  (cb == l->body && cb->ch == '|'
 		   && cb->face == &SCREEN_MODELINE_FACE(s)))
 		{
-		  *y += (((*w)->pixtop - INT_BORDER (s)) /
+		  *y += (((*w)->pixtop - SCREEN_INT_BORDER (s)) /
 			 XFONT (SCREEN_DEFAULT_FONT (s))->height);
+		  t_g_cache.y = *y;
 
                   current_buffer = old_current_buffer;
                   Vinhibit_quit = old_inhibit_quit;
 
+		  t_g_cache.valid = 1;
 		  if (cb != l->end)
 		    {
+		      t_g_cache.w = 0;
+		      t_g_cache.retval = 2;
 		      *w = 0;
 		      return 2;
 		    }
 		  else if (!NILP (*class))
-		    return 1;
+		    {
+		      t_g_cache.retval = 1;
+		      return 1;
+		    }
 		  else
-		    return 2;
+		    {
+		      t_g_cache.retval = 2;
+		      return 2;
+		    }
 		}
-	      if ((*w)->pixleft != (INT_BORDER (s)))
-		(*x)--;
+	      if (window_needs_vertical_divider (*w))
+		{
+		  (*x)--;
+		  t_g_cache.x = *x;
+		}
 	    }
 	}
 
@@ -1076,30 +1198,47 @@ pixel_to_glyph_translation (struct screen *s, register unsigned int pix_x,
       current_buffer = old_current_buffer;
       Vinhibit_quit = old_inhibit_quit;
 	
-      *y = cy + (((*w)->pixtop - INT_BORDER(s)) /
+      *y = cy + (((*w)->pixtop - SCREEN_INT_BORDER(s)) /
 		 XFONT (SCREEN_DEFAULT_FONT (s))->height);
+      t_g_cache.y = *y;
       /*
        *could have gone 1 line to far, if the correct line wasn't long enough
        */
       if (pos->vpos == pix_y+1) pos->bufpos -= 1; /* backup over newline */
     }
 
-  if (pos->bufpos > BUF_Z (XBUFFER((*w)->buffer)))
+  t_g_cache.valid = 1;
+  if (pos->bufpos >= BUF_Z (XBUFFER((*w)->buffer)))
     {
       *y = (pix_y * s->height) / SCREEN_PIXHEIGHT(s);
+      t_g_cache.y = *y;
+
       if (!NILP(*class))
-	return 1;
+	{
+	  t_g_cache.retval = 1;
+	  return 1;
+	}
       else
-	return 2;
+	{
+	  t_g_cache.retval = 2;
+	  return 2;
+	}
     }
   else
     {
       *bufp = pos->bufpos;
+      t_g_cache.bufp = *bufp;
 
       if (NILP(*class) && pix_x < ((*w)->pixleft + LEFT_MARGIN (b, s, *w)))
-	return 2;
+	{
+	  t_g_cache.retval = 2;
+	  return 2;
+	}
       else
-	return 1;
+	{
+	  t_g_cache.retval = 1;
+	  return 1;
+	}
     }
 }
 
@@ -1175,25 +1314,12 @@ bitch_at_user (sound)
   fflush (stdout);
 }
 
-
-/* so that .emacs can be loaded after screen is created */
-DEFUN ("initialize-first-screen", Finitialize_first_screen,
-       Sinitialize_first_screen,
-  0, 0, 0, "Make redisplay work on the first screen (do this early.)")
-  ()
-{
-  /* defined in xdisp.c because it needs to use "static void" functions */
-  initialize_first_screen ();
-  return Qnil;
-}
-
 void
 syms_of_display ()
 {
   defsubr (&Sopen_termscript);
   defsubr (&Sding);
   defsubr (&Ssend_string_to_terminal);
-  defsubr (&Sinitialize_first_screen);
 
   defsymbol (&Qcursor_in_echo_area, "cursor-in-echo-area");
 
@@ -1245,4 +1371,7 @@ See `buffer-display-table' for more information.");
   if (noninteractive)
 #endif
     Vwindow_system = Qnil;
+
+  /* this should probably be in init_display to be technically correct */
+  t_g_cache.valid = 0;
 }

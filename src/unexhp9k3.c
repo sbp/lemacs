@@ -44,6 +44,13 @@ Modified Jan 93 by Hamish Macdonald for HPUX
 
 #include "sysdep.h"
 
+/* lemacs: Richard Cognot <cognot@ensg.u-nancy.fr> says we need these */
+extern void perror(const char*);
+extern int sys_nerr;
+extern char *sys_errlist[];
+extern char *strerror (int);
+
+
 /********************** Macros *************************************/
 
 #define SYS_ERR \

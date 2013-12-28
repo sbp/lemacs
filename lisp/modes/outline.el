@@ -1,5 +1,8 @@
-;; Outline mode commands for Emacs
-;; Copyright (C) 1986, 1993 Free Software Foundation, Inc.
+;;; outline.el --- outline mode commands for Emacs
+
+;; Copyright (C) 1986, 1993, 1994 Free Software Foundation, Inc.
+
+;; Maintainer: Tim Bradshaw <tfb@ed.ac.uk>
 
 ;; This file is part of GNU Emacs.
 
@@ -17,31 +20,38 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-;; Jan '86, Some new features added by Peter Desnoyers and rewritten by RMS.
+;;; Commentary:
 
-;;;###autoload
+;; This package is a major mode for editing outline-format documents.
+;; An outline can be `abstracted' to show headers at any given level,
+;; with all stuff below hidden.  See the Emacs manual for details.
+
+;; This is taken from the FSF 19.19 outline.el and modified to work
+;; with lucid Emacs 19.10+.  Changes are marked with a comment with
+;; `#+Lucid' in it. --tfb
+
+;;; Code:
+
+;; Jan '86, Some new features added by Peter Desnoyers and rewritten by RMS.
+  
 (defvar outline-regexp (purecopy "[*\^L]+")
   "*Regular expression to match the beginning of a heading.
 Any line whose beginning matches this regexp is considered to start a heading.
 The recommended way to set this is with a Local Variables: list
 in the file it applies to.  See also outline-heading-end-regexp.")
   
-;;;###autoload
 (defvar outline-heading-end-regexp (purecopy "[\n\^M]")
   "*Regular expression to match the end of a heading line.
-You can assume that point is at the beginning of a heading
-when this regexp is searched for.  The heading ends at the end of the match.
-The recommended way to set this is with a Local Variables: list
+You can assume that point is at the beginning of a heading when this
+regexp is searched for.  The heading ends at the end of the match.
+The recommended way to set this is with a \"Local Variables:\" list
 in the file it applies to.")
-
-;;	(setq outline-regexp "[ \t]*/\\*")
-;;	(setq outline-heading-end-regexp "\\*/[^\n\^M]*[\n\^M]")
-
 
 (defvar outline-mode-map nil "")
 
 (if outline-mode-map
     nil
+  ;; #+Lucid: this replaces some horrid nconcing in FSF
   (setq outline-mode-map (make-sparse-keymap))
   (set-keymap-name outline-mode-map 'outline-mode-map)
   (set-keymap-parent outline-mode-map text-mode-map)
@@ -54,8 +64,56 @@ in the file it applies to.")
   (define-key outline-mode-map "\C-c\C-f" 'outline-forward-same-level)
   (define-key outline-mode-map "\C-c\C-b" 'outline-backward-same-level))
 
+;;; #+Lucid
+(defvar outline-mode-menu
+  ;; This is the RB menu which also makes 3 menus in the menubar (like
+  ;; FSF rather than because it's good)
+  '("Outline"
+    ("Headings"
+     ["Previous same level" outline-backward-same-level t]
+     ["Next same level" outline-forward-same-level t]
+     ["Previous" outline-previous-visible-heading t]
+     ["Next" outline-next-visible-heading t]
+     ["Up" outline-up-heading t])
+    ("Show"
+     ["Subtree" show-subtree t]
+     ["Children" show-children t]
+     ["Branches" show-branches t]
+     ["Entry" show-entry t]
+     ["All" show-all t])
+    ("Hide" 
+     ["Subtree" hide-subtree t]
+     ["Entry" hide-entry t]
+     ["Body" hide-body t]
+     ["Leaves" hide-leaves t])))
+
+;;; #+Lucid
+(defun outline-mode-menu ()
+  (interactive)
+  (popup-menu outline-mode-menu))
+  
+;;; #+Lucid
+;;; ?? Is this OK & if so should it be in minor mode too?
+(define-key outline-mode-map [button3] 'outline-mode-menu)
+
+;;; #+Lucid
+(defun outline-install-menubar (&optional remove)
+  ;; install or remove the outline menus
+  (let ((menus (cdr outline-mode-menu)) path)
+    (while menus
+      (setq path (list (car (car menus))))
+      (if (and remove (find-menu-item current-menubar path))
+	  (delete-menu-item path)
+	(or (car (find-menu-item current-menubar path))
+	    (progn
+	      (set-buffer-menubar (copy-sequence current-menubar))
+	      (add-menu nil (car (car menus)) (cdr (car menus)) nil))))
+      (setq menus (cdr menus)))))
+
 (defvar outline-minor-mode nil
   "Non-nil if using Outline mode as a minor mode of some other mode.")
+(make-variable-buffer-local 'outline-minor-mode)
+(put 'outline-minor-mode 'permanent-local t)
 (setq minor-mode-alist (append minor-mode-alist
 			       (list '(outline-minor-mode " Outl"))))
 
@@ -70,21 +128,21 @@ invisible, or visible again.  Invisible lines are attached to the end
 of the heading, so they move with it, if the line is killed and yanked
 back.  A heading with text hidden under it is marked with an ellipsis (...).
 
-Commands:
-C-c C-n   outline-next-visible-heading      move by visible headings
-C-c C-p   outline-previous-visible-heading
-C-c C-f   outline-forward-same-level        similar but skip subheadings
-C-c C-b   outline-backward-same-level
-C-c C-u   outline-up-heading		    move from subheading to heading
+Commands:\\<outline-mode-map>
+\\[outline-next-visible-heading]   outline-next-visible-heading      move by visible headings
+\\[outline-previous-visible-heading]   outline-previous-visible-heading
+\\[outline-forward-same-level]   outline-forward-same-level        similar but skip subheadings
+\\[outline-backward-same-level]   outline-backward-same-level
+\\[outline-up-heading]   outline-up-heading		    move from subheading to heading
 
-Meta-x hide-body	make all text invisible (not headings).
-Meta-x show-all		make everything in buffer visible.
+M-x hide-body	make all text invisible (not headings).
+M-x show-all	make everything in buffer visible.
 
 The remaining commands are used when point is on a heading line.
 They apply to some of the body or subheadings of that heading.
-C-c C-h   hide-subtree	make body and subheadings invisible.
-C-c C-s   show-subtree	make body and subheadings visible.
-C-c C-i   show-children	make direct subheadings visible.
+\\[hide-subtree]   hide-subtree	make body and subheadings invisible.
+\\[show-subtree]   show-subtree	make body and subheadings visible.
+\\[show-children]   show-children	make direct subheadings visible.
 		 No effect on body, or subheadings 2 or more levels down.
 		 With arg N, affects subheadings N levels down.
 M-x hide-entry	   make immediately following body invisible.
@@ -93,12 +151,12 @@ M-x hide-leaves	   make body under heading and under its subheadings invisible.
 		     The subheadings remain visible.
 M-x show-branches  make all subheadings at all levels visible.
 
-The variable outline-regexp can be changed to control what is a heading.
-A line is a heading if outline-regexp matches something at the
+The variable `outline-regexp' can be changed to control what is a heading.
+A line is a heading if `outline-regexp' matches something at the
 beginning of the line.  The longer the match, the deeper the level.
 
-Turning on outline mode calls the value of text-mode-hook and then of
-outline-mode-hook, if they are non-nil."
+Turning on outline mode calls the value of `text-mode-hook' and then of
+`outline-mode-hook', if they are non-nil."
   (interactive)
   (kill-all-local-variables)
   (setq selective-display t)
@@ -117,9 +175,30 @@ outline-mode-hook, if they are non-nil."
   (make-local-variable 'paragraph-separate)
   (setq paragraph-separate (concat paragraph-separate "\\|^\\("
 				   outline-regexp "\\)"))
+  ;; #+Lucid
+  (outline-install-menubar)
   (run-hooks 'text-mode-hook 'outline-mode-hook))
 
+(defvar outline-minor-mode-prefix "\C-c"
+  "*Prefix key to use for Outline commands in Outline minor mode.")
+
+(defvar outline-minor-mode-map nil)
+(if outline-minor-mode-map
+    nil
+  (setq outline-minor-mode-map (make-sparse-keymap))
+  (define-key outline-minor-mode-map outline-minor-mode-prefix
+    (lookup-key outline-mode-map "\C-c")))
+
+(or (assq 'outline-minor-mode minor-mode-map-alist)
+    (setq minor-mode-map-alist
+	  (cons (cons 'outline-minor-mode outline-minor-mode-map)
+		minor-mode-map-alist)))
+
+;;;###autoload
 (defun outline-minor-mode (&optional arg)
+  "Toggle Outline minor mode.
+With arg, turn Outline minor mode on if arg is positive, off otherwise.
+See the command `outline-mode' for more information on this mode."
   (interactive "P")
   (setq outline-minor-mode
 	(if (null arg) (not outline-minor-mode)
@@ -127,23 +206,21 @@ outline-mode-hook, if they are non-nil."
   (if outline-minor-mode
       (progn
 	(setq selective-display t)
-	(make-local-variable 'outline-old-map)
-	(setq outline-old-map (current-local-map))
-	(let ((new-map (copy-keymap outline-old-map)))
-	  (define-key new-map "\C-c"
-	    (lookup-key outline-mode-map "\C-c"))
-	  (use-local-map new-map))
-	(make-local-variable 'outline-regexp)
-	(make-local-variable 'outline-heading-end-regexp)
+	;; #+Lucid
+	(outline-install-menubar)
 	(run-hooks 'outline-minor-mode-hook))
-    (progn
-      (setq selective-display nil)
-      (use-local-map outline-old-map))))
+    (setq selective-display nil)
+    ;; #+Lucid
+    (outline-install-menubar 'remove)))
 
+(defvar outline-level 'outline-level
+  "Function of no args to compute a header's nesting level in an outline.
+It can assume point is at the beginning of a header line.")
+
 (defun outline-level ()
   "Return the depth to which a statement is nested in the outline.
-Point must be at the beginning of a header line.
-This is actually the column-number of the end of what outline-regexp matches."
+Point must be at the beginning of a header line.  This is actually
+the column number of the end of what `outline-regexp matches'."
   (save-excursion
     (looking-at outline-regexp)
     (save-excursion (goto-char (match-end 0)) (current-column))))
@@ -165,34 +242,17 @@ This is actually the column-number of the end of what outline-regexp matches."
 
 (defun outline-back-to-heading ()
   "Move to previous (possibly invisible) heading line,
-or to beginning of this line if it is a heading line."
+or to the beginning of this line if it is a heading line."
   (beginning-of-line)
   (or (outline-on-heading-p)
       (re-search-backward (concat "^\\(" outline-regexp "\\)") nil 'move)))
 
-(defun outline-hidden-p ()
-  "Return t if point is on the header of a hidden subtree."
-  (save-excursion
-    (let ((end-of-entry (save-excursion (outline-next-heading))))
-      ;; Make sure that the end of the entry really exists.
-      (if (not end-of-entry)
-	  (setq end-of-entry (point-max)))
-      (outline-back-to-heading)
-      ;; If there are ANY ^M's, the entry is hidden.
-      (search-forward "\^M" end-of-entry t))))
-
-(defun outline-toggle-subtree ()
-  "Show a hidden subtree, or hide a shown subtree."
-  (interactive)
-  (if (outline-hidden-p)
-      (show-subtree)
-    (hide-subtree)))
-
 (defun outline-on-heading-p ()
-  "Return t if point is on a heading line."
+  "Return T if point is on a header line."
   (save-excursion
     (beginning-of-line)
-    (and (bolp) (looking-at outline-regexp))))
+    (and (bolp) ;(eq (preceding-char) ?\n) lemacs change
+	 (looking-at outline-regexp))))
 
 (defun outline-end-of-heading ()
   (if (re-search-forward outline-heading-end-regexp nil 'move)
@@ -201,10 +261,9 @@ or to beginning of this line if it is a heading line."
 (defun outline-next-visible-heading (arg)
   "Move to the next visible heading line.
 With argument, repeats or can move backward if negative.
-A heading line is one that starts with a `*' (or that outline-regexp matches)."
+A heading line is one that starts with a `*' (or that
+`outline-regexp' matches)."
   (interactive "p")
-  (if (null arg)
-      (setq arg 1))
   (if (< arg 0)
       (beginning-of-line)
     (end-of-line))
@@ -214,22 +273,21 @@ A heading line is one that starts with a `*' (or that outline-regexp matches)."
 (defun outline-previous-visible-heading (arg)
   "Move to the previous heading line.
 With argument, repeats or can move forward if negative.
-A heading line is one that starts with a `*' (or that outline-regexp matches)."
+A heading line is one that starts with a `*' (or that
+`outline-regexp' matches)."
   (interactive "p")
-  (if (null arg)
-      (setq arg 1))
   (outline-next-visible-heading (- arg)))
 
 (defun outline-flag-region (from to flag)
   "Hides or shows lines from FROM to TO, according to FLAG.
 If FLAG is `\\n' (newline character) then text is shown,
 while if FLAG is `\\^M' (control-M) the text is hidden."
-  (let ((modp (buffer-modified-p)))
-    (unwind-protect
-        (subst-char-in-region from to
-			      (if (= flag ?\n) ?\^M ?\n)
-			      flag)
-     (set-buffer-modified-p modp))))
+  (let (buffer-read-only)
+    (subst-char-in-region from to
+			  (if (= flag ?\n) ?\^M ?\n)
+			  flag t))
+  (if (string-match "Lucid" emacs-version)
+      (set-buffer-modified-p (buffer-modified-p))))
 
 (defun hide-entry ()
   "Hide the body directly following this heading."
@@ -302,9 +360,9 @@ while if FLAG is `\\^M' (control-M) the text is hidden."
   (outline-back-to-heading)
   (let ((opoint (point))
 	(first t)
-	(level (outline-level)))
+	(level (funcall outline-level)))
     (while (and (not (eobp))
-		(or first (> (outline-level) level)))
+		(or first (> (funcall outline-level) level)))
       (setq first nil)
       (outline-next-heading))
     (forward-char -1)
@@ -325,13 +383,13 @@ Default is enough to cause the following heading to appear."
 	(if level (prefix-numeric-value level)
 	  (save-excursion
 	    (beginning-of-line)
-	    (let ((start-level (outline-level)))
+	    (let ((start-level (funcall outline-level)))
 	      (outline-next-heading)
-	      (max 1 (- (outline-level) start-level))))))
+	      (max 1 (- (funcall outline-level) start-level))))))
   (save-excursion
    (save-restriction
     (beginning-of-line)
-    (setq level (+ level (outline-level)))
+    (setq level (+ level (funcall outline-level)))
     (narrow-to-region (point)
 		      (progn (outline-end-of-subtree) (1+ (point))))
     (goto-char (point-min))
@@ -339,7 +397,7 @@ Default is enough to cause the following heading to appear."
 		(progn
 		 (outline-next-heading)
 		 (not (eobp))))
-      (if (<= (outline-level) level)
+      (if (<= (funcall outline-level) level)
 	  (save-excursion
 	    (outline-flag-region (save-excursion
 				   (forward-char -1)
@@ -354,13 +412,13 @@ Default is enough to cause the following heading to appear."
 With argument, move up ARG levels."
   (interactive "p")
   (outline-back-to-heading)
-  (if (eq (outline-level) 1)
+  (if (eq (funcall outline-level) 1)
       (error ""))
-    (while (and (> (outline-level) 1)
+    (while (and (> (funcall outline-level) 1)
 		(> arg 0)
 		(not (bobp)))
-      (let ((present-level (outline-level)))
-	(while (not (< (outline-level) present-level))
+      (let ((present-level (funcall outline-level)))
+	(while (not (< (funcall outline-level) present-level))
 	  (outline-previous-visible-heading 1))
 	(setq arg (- arg 1)))))
 
@@ -383,12 +441,12 @@ present one. It stops at the first and last subheadings of a superior heading."
 (defun outline-get-next-sibling ()
   "Position the point at the next heading of the same level, 
 and return that position or nil if it cannot be found."
-  (let ((level (outline-level)))
+  (let ((level (funcall outline-level)))
     (outline-next-visible-heading 1)
-    (while (and (> (outline-level) level)
+    (while (and (> (funcall outline-level) level)
 		(not (eobp)))
       (outline-next-visible-heading 1))
-    (if (< (outline-level) level)
+    (if (< (funcall outline-level) level)
 	nil
       (point))))
 	
@@ -411,13 +469,15 @@ present one. It stops at the first and last subheadings of a superior heading."
 (defun outline-get-last-sibling ()
   "Position the point at the previous heading of the same level, 
 and return that position or nil if it cannot be found."
-  (let ((level (outline-level)))
+  (let ((level (funcall outline-level)))
     (outline-previous-visible-heading 1)
-    (while (and (> (outline-level) level)
+    (while (and (> (funcall outline-level) level)
 		(not (bobp)))
       (outline-previous-visible-heading 1))
-    (if (< (outline-level) level)
+    (if (< (funcall outline-level) level)
 	nil
         (point))))
 
 (provide 'outline)
+
+;;; outline.el ends here

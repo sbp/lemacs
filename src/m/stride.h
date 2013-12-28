@@ -1,5 +1,5 @@
 /* Definitions file for GNU Emacs running on Stride Micro System-V.2.2
-   Copyright (C) 1985, 1986, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -30,10 +30,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define INTBITS 32		/* Number of bits in an int */
 
 #define LONGBITS 32		/* Number of bits in a long */
-
-/* 68000 has lowest-numbered byte as most significant */
-
-#define BIG_ENDIAN
 
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
@@ -96,7 +92,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define HAVE_PTYS
 #define HAVE_TIMEVAL
 #define HAVE_SELECT
-#define HAVE_GETTIMEOFDAY
 #define BSTRING
 #define SKTPAIR
 #define HAVE_SOCKETS
@@ -110,7 +105,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    signals without losing them.  So, I've gone back to non-SIGIO mode, so
    please append this line to the file "stride.h":
  */
-/* #undef SIGIO		use BROKEN_SIGIO instead of this kludge -- jwz */
 #define BROKEN_SIGIO
 
 /* Specify alignment requirement for start of text and data sections
@@ -122,10 +116,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  * UniStride has this in /lib/libc.a.
  */
 #undef NONSYSTEM_DIR_LIBRARY
-
-/* UniStride defines getwd.  */
-
-#define HAVE_GETWD
 
 /* Define this macro if system defines a type `union wait'.  */
 

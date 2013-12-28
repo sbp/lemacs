@@ -3,20 +3,20 @@
 
 This file is part of GNU Emacs.
 
-GNU Emacs is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY.  No author or distributor
-accepts responsibility to anyone for the consequences of using it
-or for whether it serves any particular purpose or works at all,
-unless he says so in writing.  Refer to the GNU Emacs General Public
-License for full details.
+GNU Emacs is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
-Everyone is granted permission to copy, modify and redistribute
-GNU Emacs, but only under the conditions described in the
-GNU Emacs General Public License.   A copy of this license is
-supposed to have been given to you along with GNU Emacs so you
-can know your rights and responsibilities.  It should be in a
-file named COPYING.  Among other things, the copyright notice
-and this notice must be preserved on all copies.  */
+GNU Emacs is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GNU Emacs; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
 
 /* The following line tells the configuration script what sort of 
    operating system this machine is likely to run.
@@ -31,11 +31,6 @@ and this notice must be preserved on all copies.  */
 #define INTBITS 32		/* Number of bits in an int */
 
 #define LONGBITS 32		/* Number of bits in a long */
-
-/* Define BIG_ENDIAN iff lowest-numbered byte in a word
-   is the most significant byte.  */
-
-#define BIG_ENDIAN 
 
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
@@ -142,14 +137,18 @@ and this notice must be preserved on all copies.  */
 /*
  * we have the wrong name for networking libs
  */
+#ifdef USG5_4
+/* rms: not needed; LIB_X11_LIB deals with this.  */
+/* #define LIBX11_SYSTEM -lX11 */
+#else
 #undef LIBX11_SYSTEM
 #define LIBX11_SYSTEM -lnsl -lbsd
+#endif /* USG5_4 */
 
 /* 
  * we have Berkeley style <sys/time.h>
  */
 #define HAVE_TIMEVAL
-#define HAVE_GETTIMEOFDAY
 
 /* SysV88 has select(). */
 #define HAVE_SELECT
@@ -160,8 +159,26 @@ and this notice must be preserved on all copies.  */
  */
 #define USE_UTIME
 
+/* previously defined in usg5-4, if we choose to use that.  */
+/* lemacs: smarch@quaver.urbana.mcd.mot.com (Steve March) says
+   we always need -lgen and usg5-4.h doesn't use it. */
+#undef LIBS_SYSTEM
+#ifdef USG5_4
+#define LIBS_SYSTEM -lsocket -lnsl -lelf -lgen
+#else
 #define LIBS_SYSTEM -lbsd -lg
+#endif /* USG5_4 */
 
 #define NEED_TERMIOS
 
 #define NO_SIOCTL_H
+
+/* lemacs change -- removed crap about random and bstring */
+
+#define NO_PTY_H
+
+/* lemacs change -- smarch@quaver.urbana.mcd.mot.com */
+#ifndef NOT_C_CODE
+#include <dirent.h>
+#undef SIGWINCH
+#endif

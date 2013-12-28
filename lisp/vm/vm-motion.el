@@ -1,5 +1,5 @@
 ;;; Commands to move around in a VM folder
-;;; Copyright (C) 1989, 1990 Kyle E. Jones
+;;; Copyright (C) 1989, 1990, 1993, 1994 Kyle E. Jones
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 ;;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 (defun vm-record-and-change-message-pointer (old new)
-  (sets-set-insert vm-buffers-needing-display-update (current-buffer))
+  (intern (buffer-name) vm-buffers-needing-display-update)
   (setq vm-last-message-pointer old
 	vm-message-pointer new
 	vm-need-summary-pointer-update t))
@@ -26,28 +26,30 @@
 Interactively N is the prefix argument.  If no prefix arg is provided
 N is prompted for in the minibuffer.
 
-If vm-follow-summary-cursor is non-nil this command first tries
-to follow the summary cursor to a new message.  If a new message
-is selected in this way, no further action is taken.  I.e. you can move
-the cursor in the summary buffer, press RETURN and select a new
-message without typing in a message number."
+If vm-follow-summary-cursor is non-nil this command will go to
+the message under the cursor in the summary buffer if the summary
+window is selected.  This only happens if no prefix argument is
+given."
   (interactive
    (list
-    (cond ((vm-follow-summary-cursor) nil)
-	  (current-prefix-arg (prefix-numeric-value current-prefix-arg))
-	  (t (vm-read-number "Go to message: ")))))
+    (cond (current-prefix-arg (prefix-numeric-value current-prefix-arg))
+	  ((vm-follow-summary-cursor) nil)
+	  (t
+	   (let ((last-command last-command)
+		 (this-command this-command))
+	     (vm-read-number "Go to message: "))))))
   (if (null n)
       ()				; nil means work has been done already
     (vm-select-folder-buffer)
     (vm-check-for-killed-summary)
     (vm-error-if-folder-empty)
+    (vm-display nil nil '(vm-goto-message) '(vm-goto-message))
     (let ((cons (nthcdr (1- n) vm-message-list)))
       (if (null cons)
 	  (error "No such message."))
       (if (eq vm-message-pointer cons)
 	  (vm-preview-current-message)
 	(vm-record-and-change-message-pointer vm-message-pointer cons)
-	(setq vm-need-summary-pointer-update t)
 	(vm-preview-current-message)))))
 
 (defun vm-goto-message-last-seen ()
@@ -56,17 +58,58 @@ message without typing in a message number."
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
   (vm-error-if-folder-empty)
+  (vm-display nil nil '(vm-goto-message-last-seen)
+	      '(vm-goto-message-last-seen))
   (if vm-last-message-pointer
       (progn
 	(vm-record-and-change-message-pointer vm-message-pointer
 					      vm-last-message-pointer)
-	(setq vm-need-summary-pointer-update t)
 	(vm-preview-current-message))))
 
-(put 'beginning-of-folder 'error-conditions '(beginning-of-folder error))
-(put 'beginning-of-folder 'error-message "Beginning of folder")
-(put 'end-of-folder 'error-conditions '(end-of-folder error))
-(put 'end-of-folder 'error-message "End of folder")
+(defun vm-goto-parent-message ()
+  "Go to the parent of the current message."
+  (interactive)
+  (vm-follow-summary-cursor)
+  (vm-select-folder-buffer)
+  (vm-check-for-killed-summary)
+  (vm-error-if-folder-empty)
+  (vm-build-threads-if-unbuilt)
+  (vm-display nil nil '(vm-goto-parent-message)
+	      '(vm-goto-parent-message))
+  (let ((list (vm-th-thread-list (car vm-message-pointer)))
+	message)
+    (if (null (cdr list))
+	(message "Message has no parent.")
+      (while (cdr (cdr list))
+	(setq list (cdr list)))
+      (setq message (car (get (car list) 'messages)))
+      (if (null message)
+	  (message "Parent message is not in this folder.")
+	(vm-record-and-change-message-pointer vm-message-pointer
+					      (memq message vm-message-list))
+	(vm-preview-current-message)))))
+
+(defun vm-goto-message-id (id)
+  "Select the message with the given message ID."
+  ;; TODO: if it's not in the current folder, look in all buffers in vm-mode.
+  (interactive "sMessage ID: ")
+  ;;(vm-follow-summary-cursor) ; not needed or appropriate, I think.
+  (vm-select-folder-buffer)
+  (vm-check-for-killed-summary)
+  (vm-error-if-folder-empty)
+  (vm-display nil nil '(vm-goto-message-id) '(vm-goto-message-id))
+  (let ((rest vm-message-list)
+	ptr)
+    (while rest
+      (if (equal id (vm-su-message-id (car rest)))
+	  (setq ptr rest
+		rest nil))
+      (setq rest (cdr rest)))
+    (if (null ptr)
+	(error "Message id not found in this folder: %s" id)
+      (vm-record-and-change-message-pointer vm-message-pointer ptr)
+      (setq vm-need-summary-pointer-update t)
+      (vm-preview-current-message))))
 
 (defun vm-check-count (count)
   (if (>= count 0)
@@ -133,8 +176,18 @@ this command 'sees' marked messages as it moves."
   ;; Note that interactively all args are 1, so error signaling
   ;; and retries apply to all interactive moves.
   (interactive "p\np\np")
+  (if (interactive-p)
+      (vm-follow-summary-cursor))
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
+  ;; include other commands that call vm-next-message so that the
+  ;; correct window configuration is applied for these particular
+  ;; non-interactive calls.
+  (vm-display nil nil '(vm-next-message
+			vm-delete-message
+			vm-undelete-message
+			vm-scroll-forward)
+	      (list this-command))
   (and signal-errors (vm-error-if-folder-empty))
   (or count (setq count 1))
   (let ((oldmp vm-message-pointer)
@@ -217,7 +270,6 @@ this command 'sees' marked messages as it moves."
     (if (not (eq vm-message-pointer oldmp))
 	(progn
 	  (vm-record-and-change-message-pointer oldmp vm-message-pointer)
-	  (setq vm-need-summary-pointer-update t)
 	  (vm-preview-current-message)))
     (and error signal-errors
 	 (signal error nil))))
@@ -230,50 +282,121 @@ variables vm-skip-deleted-messages and vm-skip-read-messages are
 ignored."
   (interactive "p\np\np")
   (or count (setq count 1))
+  (if (interactive-p)
+      (vm-follow-summary-cursor))
   (vm-select-folder-buffer)
+  (vm-display nil nil '(vm-previous-message) '(vm-previous-message))
   (vm-next-message (- count) retry signal-errors))
 
-(defun vm-Next-message (&optional count)
+(defun vm-next-message-no-skip (&optional count)
   "Like vm-next-message but will not skip deleted or read messages."
   (interactive "p")
+  (if (interactive-p)
+      (vm-follow-summary-cursor))
   (vm-select-folder-buffer)
+  (vm-display nil nil '(vm-Next-message) '(vm-Next-message))
   (let ((vm-skip-deleted-messages nil)
 	(vm-skip-read-messages nil))
     (vm-next-message count nil t)))
+;; backward compatibility
+(fset 'vm-Next-message 'vm-next-message-no-skip)
 
-(defun vm-Previous-message (&optional count)
+(defun vm-previous-message-no-skip (&optional count)
   "Like vm-previous-message but will not skip deleted or read messages."
   (interactive "p")
+  (if (interactive-p)
+      (vm-follow-summary-cursor))
   (vm-select-folder-buffer)
+  (vm-display nil nil '(vm-Previous-message) '(vm-Previous-message))
   (let ((vm-skip-deleted-messages nil)
 	(vm-skip-read-messages nil))
     (vm-previous-message count)))
+;; backward compatibility
+(fset 'vm-Previous-message 'vm-previous-message-no-skip)
 
 (defun vm-next-unread-message ()
   "Move forward to the nearest new or unread message, if there is one."
   (interactive)
+  (if (interactive-p)
+      (vm-follow-summary-cursor))
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
+  (vm-display nil nil '(vm-next-unread-message) '(vm-next-unread-message))
   (condition-case ()
       (let ((vm-skip-read-messages t)
 	    (oldmp vm-message-pointer))
 	(vm-next-message 1 nil t)
-	;; in case vm-circular-folder is non-nil
+	;; in case vm-circular-folders is non-nil
 	(and (eq vm-message-pointer oldmp) (signal 'end-of-folder nil)))
     (end-of-folder (message "No next unread message"))))
 
 (defun vm-previous-unread-message ()
   "Move backward to the nearest new or unread message, if there is one."
   (interactive)
+  (if (interactive-p)
+      (vm-follow-summary-cursor))
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
+  (vm-display nil nil '(vm-previous-unread-message)
+	      '(vm-previous-unread-message))
   (condition-case ()
       (let ((vm-skip-read-messages t)
 	    (oldmp vm-message-pointer))
 	(vm-previous-message)
-	;; in case vm-circular-folder is non-nil
+	;; in case vm-circular-folders is non-nil
 	(and (eq vm-message-pointer oldmp) (signal 'beginning-of-folder nil)))
     (beginning-of-folder (message "No previous unread message"))))
+
+(defun vm-next-message-same-subject ()
+  "Move forward to the nearest message with the same subject.
+vm-subject-ignored-prefix and vm-subject-ignored-suffix will apply
+to the subject comparisons."
+  (interactive)
+  (if (interactive-p)
+      (vm-follow-summary-cursor))
+  (vm-select-folder-buffer)
+  (vm-check-for-killed-summary)
+  (vm-display nil nil '(vm-next-message-same-subject)
+	      '(vm-next-message-same-subject))
+  (condition-case ()
+      (let ((oldmp vm-message-pointer)
+	    (done nil)
+	    (subject (vm-so-sortable-subject (car vm-message-pointer))))
+	(while (not done)
+	  (vm-move-message-pointer 'forward)
+	  (if (eq oldmp vm-message-pointer)
+	      (signal 'end-of-folder nil))
+	  (if (equal subject (vm-so-sortable-subject (car vm-message-pointer)))
+	      (setq done t)))
+	(vm-record-and-change-message-pointer oldmp vm-message-pointer)
+	(vm-preview-current-message))
+    (end-of-folder (message "No next message with the same subject"))))
+
+(defun vm-previous-message-same-subject ()
+  "Move backward to the nearest message with the same subject.
+vm-subject-ignored-prefix and vm-subject-ignored-suffix will apply
+to the subject comparisons."
+  (interactive)
+  (if (interactive-p)
+      (vm-follow-summary-cursor))
+  (vm-select-folder-buffer)
+  (vm-check-for-killed-summary)
+  (vm-display nil nil '(vm-previous-message-same-subject)
+	      '(vm-previous-message-same-subject))
+  (condition-case ()
+      (let ((oldmp vm-message-pointer)
+	    (done nil)
+	    (subject (vm-so-sortable-subject (car vm-message-pointer))))
+	(while (not done)
+	  (vm-move-message-pointer 'backward)
+	  (if (eq oldmp vm-message-pointer)
+	      (signal 'beginning-of-folder nil))
+	  (if (equal subject (vm-so-sortable-subject (car vm-message-pointer)))
+	      (setq done t)))
+	(vm-record-and-change-message-pointer oldmp vm-message-pointer)
+	(vm-preview-current-message))
+    (beginning-of-folder
+     (message "No previous message with the same subject"))))
 
 (defun vm-find-first-unread-message (new)
   (let (mp unread-mp)
@@ -296,7 +419,7 @@ ignored."
 		     (vm-find-first-unread-message nil)))
 	fix mp)
     (if (null vm-message-pointer)
-	(setq fix vm-message-list))
+	(setq fix (vm-last vm-message-list)))
     (setq mp (or new unread fix))
     (if (and mp (not (eq mp vm-message-pointer)))
 	(progn
@@ -304,3 +427,30 @@ ignored."
 	  mp )
       nil )))
 
+(defun vm-follow-summary-cursor ()
+  (and vm-follow-summary-cursor (eq major-mode 'vm-summary-mode)
+       (let ((point (point))
+	     message-pointer message-list mp)
+	 (save-excursion
+	   (set-buffer vm-mail-buffer)
+	   (setq message-pointer vm-message-pointer
+		 message-list vm-message-list))
+	 (if (or (null message-pointer)
+		 (and (>= point (vm-su-start-of (car message-pointer)))
+		      (< point (vm-su-end-of (car message-pointer)))))
+	     ()
+	   (if (< point (vm-su-start-of (car message-pointer)))
+	       (setq mp message-list)
+	     (setq mp (cdr message-pointer) message-pointer nil))
+	   (while (and (not (eq mp message-pointer))
+		       (>= point (vm-su-end-of (car mp))))
+	     (setq mp (cdr mp)))
+	   (if (not (eq mp message-pointer))
+	       (save-excursion
+		 (set-buffer vm-mail-buffer)
+		 (vm-record-and-change-message-pointer
+		  vm-message-pointer mp)
+		 (vm-preview-current-message)
+		 ;; return non-nil so the caller will know that
+		 ;; a new message was selected.
+		 t ))))))

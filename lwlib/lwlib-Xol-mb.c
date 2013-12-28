@@ -30,7 +30,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 static void		Initialize();
 static void		Resize();
 static void		ChangeManaged();
-static Boolean		SetValues();
 static XtGeometryResult	GeometryManager();
 static XtGeometryResult	PreferredSize();
 static void		do_layout();
@@ -328,7 +327,6 @@ try_layout (parent)
   int		cnt;
   int		managed_children = 0;
   int		managed_width = 0;
-  int		new_pos = 0;
 
   /*
    * Determine number of children which will fit on one line.

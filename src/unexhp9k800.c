@@ -45,10 +45,23 @@
 #include <a.out.h>
 
 /*
- * Dynamically loaded executable-aware ``unexec'' borrows heavily from
- * Oliver Laumann's ELK interpreter. 
-
- * Dipankar Gupta (dg@hplb.hpl.hp.com)
+ * Minor modification to enable dumping with shared libraries added by
+ * Dipankar Gupta (dg@hplb.hpl.hp.com). I studied Oliver Laumann's
+ * more elaborate dynamic loading scheme in ELK while implementing
+ * this, but don't use any of his machinery.
+ *
+ * Stores the BRK value at dump time, and uses the RUN_TIME_REMAP hook
+ * to break back to the stored value when the dumped executable is restarted.
+ *
+ * CAVEATS (addenda):
+ * 1. Text area of the shlibs are not stored. Thus, if a shared library is
+ *    replaced between the time of dump and execution, all bets are off.
+ *
+ * 2. Assumes that the data and bss area are adjacent, which is true of the
+ *    current VM implementation.
+ *
+ * 3. Any setup that defines HPUX_USE_SHLIBS *must* also define
+ *    RUN_TIME_REMAP.  
  */
 
 #ifdef HPUX_USE_SHLIBS
@@ -94,7 +107,7 @@ unexec(new_name, old_name, new_end_of_text, dummy1, dummy2)
   read_header(old, &hdr, &auxhdr);
   
 #ifdef HPUX_USE_SHLIBS
-  Save_Shared_Data();
+  Save_Shared_Data(); /* Save break value (added: dg@hplb.hpl.hp.com) */
 #endif
   /* Decide how large the new and old data areas are */
   old_size = auxhdr.exec_dsize;
@@ -313,8 +326,9 @@ display_header(hdr, auxhdr)
 #endif /* DEBUG */
 
 #ifdef HPUX_USE_SHLIBS
+/* Added machinery for shared libs... see comments at the beginning of this file. */
 
-void *Brk_On_Dump = 0;		/* Brk value to restore... */
+void *Brk_On_Dump = 0;		/* Brk value to restore... stored as a global */
 
 void Save_Shared_Data () {
   Brk_On_Dump = sbrk( 0 );
@@ -327,4 +341,8 @@ void Restore_Shared_Data () {
 int run_time_remap (int d) {
   Restore_Shared_Data();
 }
+
+/* run_time_remap is the magic called by startup code in the dumped executable
+ * if RUN_TIME_REMAP is set. 
+ */
 #endif /* HPUX_USE_SHLIBS */

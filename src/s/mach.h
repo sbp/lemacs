@@ -37,12 +37,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Don't send signals to subprocesses by "typing" special chars at them. */
 #undef SIGNALS_VIA_CHARACTERS
 
-/* We don't have a built-in realpath() function */
-#define NEED_REALPATH
-
-/* We have an rint() function (this should probably go in bsd4-3.h) */
-#define HAVE_RINT
-
 #ifndef THIS_IS_YMAKEFILE
 typedef int pid_t;
 #endif THIS_IS_YMAKEFILE

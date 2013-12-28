@@ -1,5 +1,5 @@
 /* Opaque Lisp objects.
-   Copyright (C) 1993 Sun Microsystems, Inc.
+   Copyright (C) 1993, 1994 Sun Microsystems, Inc.
 
 This file is part of GNU Emacs.
 
@@ -43,11 +43,11 @@ Written by Ben Wing, October 1993.
 Lisp_Object Qopaquep;
 static Lisp_Object mark_opaque (Lisp_Object, void (*) (Lisp_Object));
 static void print_opaque (Lisp_Object, Lisp_Object, int);
-static int sizeof_opaque (void *header);
+static unsigned int sizeof_opaque (CONST void *header);
 static int opaque_equal (Lisp_Object, Lisp_Object, int depth);
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_opaque,
-			       mark_opaque, print_opaque, 0,
-			       sizeof_opaque, opaque_equal);
+DEFINE_LRECORD_SEQUENCE_IMPLEMENTATION ("opaque", lrecord_opaque,
+					mark_opaque, print_opaque, 0,
+					opaque_equal, sizeof_opaque);
 
 static Lisp_Object
 mark_opaque (Lisp_Object obj, void (*markobj) (Lisp_Object))
@@ -59,17 +59,17 @@ static void
 print_opaque (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 {
   struct Lisp_Opaque *p = XOPAQUE (obj);
-  char buf[50];
+  char buf[200];
 
   if (print_readably)
-    error (GETTEXT ("printing unreadable object #<opaque 0x%x>"),
-	   p->header.uid);
+    error (GETTEXT ("printing unreadable object #<opaque 0x%x>"), (long) p);
 
-  sprintf (buf, "#<opaque 0x%x>", p->header.uid);
+  sprintf (buf, "#<opaque 0x%x>", (long) p);
   writeit (buf);
 }
 
-static int sizeof_opaque (void *header)
+static unsigned int
+sizeof_opaque (CONST void *header)
 {
   struct Lisp_Opaque *p = (struct Lisp_Opaque *) header;
   return sizeof (*p) + p->size - 1;

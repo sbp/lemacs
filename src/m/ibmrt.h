@@ -5,7 +5,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -31,11 +31,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define LONGBITS 32		/* Number of bits in a long */
 
-/* Define BIG_ENDIAN iff lowest-numbered byte in a word
-   is the most significant byte.  */
-
-#define BIG_ENDIAN
-
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
 
@@ -49,8 +44,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Now define a symbol for the cpu type, if your compiler
    does not define it automatically.  */
 
+/* lemacs change */
+#ifndef ibmrt
 #define ibmrt
+#endif
+#ifndef romp
 #define romp /* unfortunately old include files are hanging around.  */
+#endif
 
 /* Use type int rather than a union, to represent Lisp_Object */
 /* This is desirable for most machines.  */
@@ -108,10 +108,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    This way we don't need to have a label _start defined.  */
 #define TEXT_START 0
 
-/* lemacs has fewer tags than v18, so let lisp.h take care of this */
-/* #define VALBITS 26 */
-/* #define GCTYPEBITS 5 */
-
 /* Taking a pointer to a char casting it as int pointer */
 /* and then taking the int which the int pointer points to */
 /* is practically guaranteed to give erroneous results */
@@ -126,10 +122,23 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Special switches to give the C compiler.  */
 
+#ifndef __GNUC__
 #define C_SWITCH_MACHINE -Dalloca=_Alloca
+#endif
+
+/* Under Mach at least, gcc doesn't seem to work as the linker. */
+#ifdef MACH
+#define START_FILES pre-crt0.o
+#ifdef __GNUC__
+#define LINKER pcc
+#endif
+#endif
 
 /* Don't attempt to relabel some of the data as text when dumping.
    It does not work because their virtual addresses are not consecutive.
    This enables us to use the standard crt0.o.  */
 
 #define NO_REMAP
+
+/* Use the bitmap files that come with Emacs.  */
+#define EMACS_BITMAP_FILES

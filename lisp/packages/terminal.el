@@ -20,8 +20,6 @@
 
 ;;>>TODO
 ;;>> terminfo?
-;;>> ** Nothing can be done about emacs' meta-lossage **
-;;>>  (without redoing keymaps `sanely' -- ask Mly for details)
 
 ;;>> One probably wants to do setenv MORE -c when running with
 ;;>>   more-processing enabled.
@@ -65,24 +63,26 @@ performance.")
 (defvar terminal-more-break-map nil)
 (if terminal-map
     nil
-  (let ((map (make-keymap))
-	(i 0))
-    (while (< i 128)
-      (define-key map (make-string 1 i) 'te-pass-through)
-      (setq i (1+ i)))
+  (let ((map (make-keymap)))
+    (set-keymap-name map 'terminal-map)
+
+    (let ((meta-prefix-char -1)
+          (s (make-string 1 0))
+          (i 0))
+      (while (< i 256)
+        (aset s 0 i)
+        (define-key map s 'te-pass-through)
+        (setq i (1+ i))))
+
     ;(define-key map "\C-l"
     ;  '(lambda () (interactive) (te-pass-through) (redraw-display)))
     (setq terminal-map map)))
 
-;(setq terminal-escape-map nil)
 (if terminal-escape-map
     nil
-  (let ((map (make-keymap))
-	(i 0))
-    (while (< i 128)
-      (define-key map (make-string 1 i) 'undefined)
-      (setq i (1+ i)))
-    (let ((s "0"))
+  (let ((map (make-keymap)))
+    (set-keymap-name map 'terminal-escape-map)
+    (let ((s (make-string 1 ?0)))
       (while (<= (aref s 0) ?9)
 	(define-key map s 'digit-argument)
 	(aset s 0 (1+ (aref s 0)))))
@@ -97,8 +97,7 @@ performance.")
     (define-key map (char-to-string help-char) 'te-escape-help)
     (setq terminal-escape-map map)))
 
-(defvar te-escape-command-alist ())
-;(setq te-escape-command-alist ())
+(defvar te-escape-command-alist '())
 (if te-escape-command-alist
     nil
   (setq te-escape-command-alist
@@ -123,11 +122,17 @@ performance.")
 ;(setq terminal-more-break-map nil)
 (if terminal-more-break-map
     nil
-  (let ((map (make-keymap))
-	(i 0))
-    (while (< i 128)
-      (define-key map (make-string 1 i) 'te-more-break-unread)
-      (setq i (1+ i)))
+  (let ((map (make-keymap)))
+    (set-keymap-name map 'terminal-more-break-map)
+
+    (let ((meta-prefix-char -1)
+          (s (make-string 1 0))
+          (i 0))
+      (while (< i 256)
+        (aset s 0 i)
+        (define-key map s 'te-more-break-unwind)
+        (setq i (1+ i))))
+
     (define-key map (char-to-string help-char) 'te-more-break-help)
     (define-key map " " 'te-more-break-resume)
     (define-key map "\C-l" 'redraw-display)
@@ -138,32 +143,66 @@ performance.")
 
     (setq terminal-more-break-map map)))
   
+(defvar te-width)
+(defvar te-height)
+(defvar te-process)
+(defvar te-pending-output)
+(defvar te-saved-point)
+(defvar te-pending-output-info)
+(defvar te-log-buffer)
+(defvar te-more-count)
+(defvar te-redisplay-count)
+
+
 
 ;;;;  escape map
 
+(defun te-escape-p (event)
+  (cond ((eventp terminal-escape-char)
+         (cond ((key-press-event-p event)
+                (and (key-press-event-p terminal-escape-char)
+                     (= (event-modifier-bits event)
+                        (event-modifier-bits terminal-escape-char))
+                     (eq (event-key event)
+                         (event-key terminal-escape-char))))
+               ((button-press-event-p event)
+                (and (button-press-event-p terminal-escape-char)
+                     (= (event-modifier-bits event)
+                        (event-modifier-bits terminal-escape-char))
+                     (eq (event-button event)
+                         (event-button terminal-escape-char))))
+               (t nil)))
+        ((numberp terminal-escape-char)
+         (let ((c (event-to-character event nil t nil)))
+           (and c (= c terminal-escape-char))))
+        (t
+         nil)))
+
+
 (defun te-escape ()
   (interactive)
-  (let (s 
-	(local (current-local-map))
-	(global (current-global-map)))
-    (unwind-protect
-	(progn
-	  (use-global-map terminal-escape-map)
-	  (use-local-map terminal-escape-map)
-	  (setq s (read-key-sequence
-		    (if prefix-arg
-			(format "Emacs Terminal escape> %d "
-				(prefix-numeric-value prefix-arg))
-		        "Emacs Terminal escape> "))))
-      (use-global-map global)
-      (use-local-map local))
-    (message "")
-    (cond ((string= s (make-string 1 terminal-escape-char))
-	   (setq last-command-char terminal-escape-char)
-	   (let ((terminal-escape-char -259))
-	     (te-pass-through)))
-	  ((setq s (lookup-key terminal-escape-map s))
-	   (call-interactively s)))))
+  (let ((c (let ((cursor-in-echo-area t)
+                 (prompt (if prefix-arg
+                             (format "Emacs Terminal escape> %d "
+                                     (prefix-numeric-value prefix-arg))
+                             "Emacs Terminal escape> ")))
+             (message "%s" prompt)
+             (let ((e (next-command-event)))
+               (while (button-release-event-p e)
+                 (setq e (next-command-event e)))
+               (if (te-escape-p e)
+                   e
+                   (progn
+                     (setq unread-command-event e)
+                     (lookup-key terminal-escape-map
+                                 (read-key-sequence prompt))))))))
+    (cond ((eventp c)
+           (message nil)
+           (copy-event c last-command-event)
+           (let ((terminal-escape-char -259))
+             (te-pass-through)))
+          (c
+           (call-interactively c)))))
 
 (defun te-escape-help ()
   "Provide help on commands available after terminal-escape-char is typed."
@@ -223,19 +262,31 @@ Other chars following \"%s\" are interpreted as follows:\n"
 ;; not used.
 (defun te-escape-extended-command-unread ()
   (interactive)
-  (setq unread-command-event last-command-event) ; ## last-input-event?
+  (setq unread-command-event last-command-event)
   (te-escape-extended-command))
 
 (defun te-set-escape-char (c)
   "Change the terminal-emulator escape character."
-  (interactive "cSet escape character to: ")
-  (let ((o terminal-escape-char))
-    (message (if (= o c)
-		 "\"%s\" is escape char"
-	         "\"%s\" is now escape; \"%s\" passes though")
-	     (single-key-description c)
-	     (single-key-description o))
-    (setq terminal-escape-char c)))
+  (interactive (list (let ((cursor-in-echo-area t))
+                       (message "Set escape character to: ")
+                       (let ((e (next-command-event)))
+                         (while (button-release-event-p e)
+                           (setq e (next-command-event e)))
+                         e))))
+  (cond ((te-escape-p c)
+         (message "\"%s\" is escape char"))
+        ((and (eventp terminal-escape-char)
+              (event-to-character terminal-escape-char nil t nil))
+         (message "\"%s\" is now escape; \"%s\" passes though"
+                  (single-key-description c)
+                  (single-key-description terminal-escape-char)))
+        (t
+         (message "\"%s\" is now escape"
+                  (single-key-description c))
+         ;; Let mouse-events, for example, go back to looking at global map
+         (local-unset-key (vector terminal-escape-char))))
+  (local-set-key (vector c) 'te-escape) ;ensure it's defined
+  (setq terminal-escape-char c))
 
 
 (defun te-stuff-string (string)
@@ -329,10 +380,10 @@ set it smaller for more frequent updates (but overall slower performance."
 (put 'te-more-break-unread 'suppress-keymap t)
 (defun te-more-break-unread ()
   (interactive)
-  (if (= last-input-char terminal-escape-char)
+  (if (te-escape-p last-command-event)
       (call-interactively 'te-escape)
     (message "Continuing from more break (\"%s\" typed, %d chars output pending...)"
-	     (single-key-description last-input-char)
+	     (single-key-description last-command-event)
 	     (te-pending-output-length))
     (setq te-more-count 259259)
     (te-more-break-unwind)
@@ -400,13 +451,14 @@ the terminal emulator."
   "Send the last character typed through the terminal-emulator
 without any interpretation"
   (interactive)
-  (if (eq last-input-char terminal-escape-char)
+  (if (te-escape-p last-command-event)
       (call-interactively 'te-escape)
     (and terminal-more-processing
 	 (null (cdr te-pending-output))
 	 (te-set-more-count nil))
-    (send-string te-process (make-string 1 last-input-char))
-    (te-process-output t))) 
+    (let ((c (event-to-character last-command-event nil t nil)))
+      (if c (process-send-string te-process (make-string 1 c))))
+    (te-process-output t)))
 
 (defun te-set-window-start ()
   (let* ((w (get-buffer-window (current-buffer)))
@@ -712,8 +764,7 @@ move to start of new line, clear to end of line."
 
 
 (defun te-filter (process string)
-  (let* ((obuf (current-buffer))
-	 (m meta-flag))
+  (let* ((obuf (current-buffer)))
     ;; can't use save-excursion, as that preserves point, which we don't want
     (unwind-protect
 	(progn
@@ -729,13 +780,8 @@ move to start of new line, clear to end of line."
 		 (set-buffer (process-buffer process))))
 	  (setq te-pending-output (nconc te-pending-output (list string)))
 	  (te-update-pending-output-display)
-	  ;; this binding is needed because emacs looks at meta-flag when
-	  ;;  the keystroke is read from the keyboard, not when it is about
-	  ;;  to be fed into a keymap (or returned by read-char)
-	  ;; There still could be some screws, though.
-	  (let ((meta-flag m))
-	    (te-process-output (eq (current-buffer)
-				   (window-buffer (selected-window)))))
+          (te-process-output (eq (current-buffer)
+                                 (window-buffer (selected-window))))
 	  (set-buffer (process-buffer process))
 	  (setq te-saved-point (point)))
       (set-buffer obuf))))
@@ -955,12 +1001,12 @@ work with `terminfo' we will try to use it."
 			 (getenv "ESHELL")
 			 (getenv "SHELL")
 			 "/bin/sh"))
-		   (s (read-string
+		   (s (read-shell-command
 		       (format "Run program in emulator: (default %s) "
 			       default-s))))
 	      (if (equal s "")
 		  (list default-s '())
-		(te-parse-program-and-args s))))))
+                  (te-parse-program-and-args s))))))
   (switch-to-buffer buffer)
   (if (null width) (setq width (- (window-width (selected-window)) 1)))
   (if (null height) (setq height (- (window-height (selected-window)) 1)))
@@ -982,7 +1028,7 @@ work with `terminfo' we will try to use it."
              ;;  the terminal type of a running process, and so
              ;;  terminal size and scrollability are wired-down
              ;;  at this point.  ("Detach?  What's that?")
-             (concat (format "emacs-virtual:co#%d:li#%d:%s"
+             (concat (format "emacs-virtual:co#%d:li#%d:%s:km:"
                              ;; Sigh.  These can't be dynamically changed.
                              te-width te-height (if terminal-scrolling
                                                     "" "ns:"))
@@ -1036,10 +1082,6 @@ work with `terminfo' we will try to use it."
     (error (fundamental-mode)
 	   (signal (car err) (cdr err))))
   ;; sigh
-  (if (default-value 'meta-flag)
-      (progn (message
- "Note:  Meta key disabled due to maybe-eventually-reparable braindamage")
-	     (sit-for 1)))
   (setq inhibit-quit t)			;sport death
   (use-local-map terminal-map)
   (run-hooks 'terminal-mode-hook)
@@ -1112,12 +1154,10 @@ of the terminal-emulator"
   (setq te-more-count -1)
   (make-local-variable 'te-redisplay-count)
   (setq te-redisplay-count terminal-redisplay-interval)
-  ;;>> Nothing can be done about this without decruftifying
-  ;;>>  emacs keymaps.
-  (make-local-variable 'meta-flag) ;sigh
-  (setq meta-flag nil)
   ;(use-local-map terminal-mode-map)
   ;; terminal-mode-hook is called above in function terminal-emulator
+  (make-local-variable 'meta-prefix-char)
+  (setq meta-prefix-char -1)            ;death to ASCII lossage
   )
 
 ;;;; what a complete loss

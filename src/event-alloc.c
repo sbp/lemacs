@@ -1,5 +1,5 @@
 /* Event allocation and memory management.
-   Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -43,11 +43,10 @@ clear_event_resource (void)
 
 static Lisp_Object mark_event (Lisp_Object, void (*) (Lisp_Object));
 extern void print_event (Lisp_Object, Lisp_Object, int);
-static int sizeof_event (void *h) { return (sizeof (struct Lisp_Event)); }
 static int event_equal (Lisp_Object, Lisp_Object, int);
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_event,
-                               mark_event, print_event, 
-                               0, sizeof_event, event_equal);
+DEFINE_LRECORD_IMPLEMENTATION ("event", lrecord_event,
+                               mark_event, print_event, 0, event_equal,
+			       sizeof (struct Lisp_Event));
 
 /* Make sure we lose quickly if we try to use this event */
 static void
@@ -58,7 +57,10 @@ deinitialize_event (struct Lisp_Event *event)
   for (i = 0; i < ((sizeof (struct Lisp_Event)) / sizeof (int)); i++)
     ((int *) event) [i] = 0xdeadbeef;
   event->event_type = dead_event;
-  event->lheader.implementation = lrecord_event;
+#ifdef EPOCH
+  event->epoch_event = Qnil;
+#endif
+  set_lheader_implementation (&(event->lheader), lrecord_event);
   event_next (event) = 0;
 }
 
@@ -70,7 +72,7 @@ mark_event (Lisp_Object obj, void (*markobj) (Lisp_Object))
   switch (event->event_type)
     {
     case key_press_event:
-      ((markobj) (event->event.key.key));
+      ((markobj) (event->event.key.keysym));
       break;
     case process_event:
       ((markobj) (event->event.process.process));
@@ -123,7 +125,8 @@ event_equal (Lisp_Object o1, Lisp_Object o2, int depth)
       return 1;
     
     case key_press_event:
-      return ((EQ (XEVENT (o1)->event.key.key, XEVENT (o2)->event.key.key)
+      return ((EQ (XEVENT (o1)->event.key.keysym,
+                   XEVENT (o2)->event.key.keysym)
                && (XEVENT (o1)->event.key.modifiers
                    == XEVENT (o2)->event.key.modifiers)));
 
@@ -192,6 +195,9 @@ WARNING, the event object returned may be a reused one; see the function\n\
   set_event_next (e, 0);
   e->timestamp = 0;
   e->channel = Qnil;
+#ifdef EPOCH
+  e->epoch_event = Qnil;
+#endif
   return event;
 }
 
@@ -211,7 +217,7 @@ explicitly deallocate events when you are sure that that is safe.")
   if (e->event_type == dead_event)
     error (GETTEXT ("this event is already deallocated!"));
 
-  if (e->event_type < first_event_type || e->event_type > last_event_type)
+  if (e->event_type > last_event_type)
     abort ();
 
 #if 0
@@ -269,10 +275,8 @@ be made as with `allocate-event.'  See also the function `deallocate-event'.")
   e1 = XEVENT (event1);
   e2 = XEVENT (event2);
 
-  if ((e1->event_type < first_event_type)
-      || (e1->event_type > last_event_type)
-      || (e2->event_type < first_event_type)
-      || (e2->event_type > last_event_type))
+  if (e1->event_type > last_event_type ||
+      e2->event_type > last_event_type)
     abort ();
   if ((e1->event_type == dead_event) ||
       (e2->event_type == dead_event))

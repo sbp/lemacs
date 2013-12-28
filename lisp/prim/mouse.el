@@ -253,9 +253,7 @@ Display cursor at that position for a second."
 
 (defun mouse-scroll-absolute-horizontally (event)
   (interactive "@e")
-  (let* ((position (event-x event))
-	 (length (event-y event)))
-  (set-window-hscroll (selected-window) 33)))
+  (set-window-hscroll (selected-window) 33))
 
 
 
@@ -442,6 +440,12 @@ Display cursor at that position for a second."
 ;;	((eq type 'buffer) 'char)
 	))
 
+;; This remembers the last position at which the user clicked, for the
+;; benefit of mouse-track-adjust (for example, button1; scroll until the
+;; position of the click is off the screen; then Sh-button1 to select the
+;; new region.
+(defvar mouse-track-previous-point nil)
+
 (defun mouse-track-select (event adjust face)
   (or (button-press-event-p event)
       (error (gettext "%s must be invoked by a mouse-press") this-command))
@@ -449,6 +453,9 @@ Display cursor at that position for a second."
 	 (extent (make-extent 1 1 (window-buffer window)))
 	 (mouse-down t)
 	 min-anchor max-anchor result previous-point)
+    ;; Note that the extent used in this function is NOT the extent which
+    ;; ends up as the value of primary-selection-extent - this one is used
+    ;; just during mouse-dragging.  
     (set-extent-face extent face)
     ;; While the selection is being dragged out, give the selection extent
     ;; slightly higher priority than any mouse-highlighted extent, so that
@@ -468,9 +475,21 @@ Display cursor at that position for a second."
 	  ((not adjust)
 	   (setq mouse-track-type 'char)))
     (select-window window)
-    (setq previous-point (point))
+
+    (setq previous-point
+	  (if (and adjust
+		   (markerp mouse-track-previous-point)
+		   (eq (current-buffer)
+		       (marker-buffer mouse-track-previous-point)))
+	      (marker-position mouse-track-previous-point)
+	    (point)))
 
     (mouse-track-set-point-and-timeout event window)
+
+    (if (not adjust)
+	(if (markerp mouse-track-previous-point)
+	    (set-marker mouse-track-previous-point (point))
+	  (setq mouse-track-previous-point (point-marker))))
     ;;
     ;; adjust point to a word or line boundary if appropriate
     (let ((anchor (mouse-track-anchor adjust previous-point)))
@@ -586,8 +605,7 @@ point of the initial click and the point at which you release the button.
 These positions need not be ordered.
 
 If you click-and-release without moving the mouse, then the point is moved,
-and the selection is disowned (there will be no selection owner.)  The mark
-will be set to the previous position of point.
+and the selection is disowned (there will be no selection owner.)
 
 If you double-click, the selection will extend by symbols instead of by
 characters.  If you triple-click, the selection will extend by lines.
@@ -604,15 +622,18 @@ See also the `mouse-track-adjust' command, on \\[mouse-track-adjust]."
   (interactive "e")
   (or (event-window event) (error (gettext "not in a window")))
   (select-screen (window-screen (event-window event)))
-  (let ((p (point))
-	(b (current-buffer))
+  (let (;(p (point))
+	;(b (current-buffer))
 	(pair (mouse-track-select event nil 'primary-selection)))
     ;; if no region was selected, but point has changed, but current
     ;; buffer has not, push a mark at the previous point.
-    (if (and (equal (car pair) (cdr pair))
-	     (eq b (current-buffer))
-	     (not (equal p (car pair))))
-	(push-mark p))
+    ;; (This has been disabled because it interacts badly with scrollbars -
+    ;; the mark tends to get pushed at window-start or window-end instead of
+    ;; the previous position of point.  So don't bother.)
+;    (if (and (equal (car pair) (cdr pair))
+;	     (eq b (current-buffer))
+;	     (not (equal p (car pair))))
+;	(push-mark p))
     (mouse-track-maybe-own-selection pair 'PRIMARY)))
 
 (defun mouse-track-adjust (event)
@@ -673,10 +694,29 @@ This should be bound to a mouse button in `mode-line-map'."
 ;      (and (motion-event-p event)
 ;	   (message "%S %S %S" event (event-y event) (event-y-pixel event)))
       (cond ((motion-event-p event)
-	     (setq ny (event-y event))
+	     ;; window-edges and event-y both count lines starting from 0.
+	     ;; But, window-edges actually returns one more than the
+	     ;; bottommost row used by a window including its modeline.
+	     ;; Thus, we have to normalize the values which is why we
+	     ;; add 1 to the return value of event-y.
+	     (setq ny (+ 1 (event-y event)))
 	     (if (and (= ny 0) (>= (event-y-pixel event) 20)) ;kludgoriffic
 		 (setq ny 999))
-	     (setq delta (- ny (nth 3 (window-edges window))))
+	     (if (eq nil (event-window event))
+		 (setq delta 0)
+	       (setq delta (- ny (nth 3 (window-edges window)))))
+	     ;; cough sputter hack kludge.  It shouldn't be possible
+	     ;; to get in here when we are over the minibuffer.  But
+	     ;; it is happening and that cause next-vertical-window to
+	     ;; return nil which does not lead to window-height returning
+	     ;; anything remotely resembling a sensible value.  So catch
+	     ;; the situation and die a happy death.
+	     ;;
+	     ;; Oh, and the BLAT FOOP error messages suck as well but
+	     ;; I don't know what should be there.  This should be
+	     ;; looked at again when the new redisplay is done.
+	     (if (not (next-vertical-window window))
+		 (error (gettext "BLAT FOOP")))
 	     (cond ((and (> delta 0)
 			 (<= (- (window-height (next-vertical-window window))
 				delta)

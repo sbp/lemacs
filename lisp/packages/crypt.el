@@ -4,11 +4,12 @@
 ;;	Rod Whitby <rwhitby@research.canon.oz.au>
 ;;	Kyle E. Jones <kyle@uunet.uu.net>
 ;; Maintainer: Lawrence R. Dodd <dodd@roebling.poly.edu>
-;;	Rod Whitby <rwhitby@research.canon.oz.au>
 ;; Created: crypt.el in 1988, crypt++.el on 18 Jan 1993
-;; Version: 2.77
+;; Version: 2.82
+;; Date: 1994/03/31 12:30:17
 ;; Keywords: extensions
 
+;;; Copyright (C) 1994 Lawrence R. Dodd
 ;;; Copyright (C) 1993 Lawrence R. Dodd and Rod Whitby
 ;;; Copyright (C) 1988, 1989, 1990 Kyle E. Jones
 ;;;  
@@ -28,10 +29,12 @@
 
 ;;; Commentary:
 
+;;; Please see notes on INSTALLATION and USAGE on the pages below.
+
 ;;; LCD Archive Entry:
 ;;; crypt++|Rod Whitby and Lawrence R. Dodd|dodd@roebling.poly.edu|
 ;;; Code for handling all sorts of compressed and encrypted files.|
-;;; 1993/12/07 14:28:36|2.77|~/misc/crypt++.el.Z|
+;;; 1994/03/31 12:30:17|2.82|~/misc/crypt++.el.Z|
 
 ;;; AVAILABLE: 
 ;;; 
@@ -46,44 +49,30 @@
 ;;; Type M-x crypt-submit-report to generate a bug report template or put your
 ;;; cursor at the end of this line and type C-x C-e: (crypt-submit-report)
 ;;; 
-;;; Requires Barry Warsaw's reporter.el which can be obtained at
-;;; /roebling.poly.edu:/pub/reporter.el and the elisp-archive and is part of
-;;; GNU Emacs 19.
+;;; Please note that this bug-report facility (crypt-submit-report) uses Barry
+;;; Warsaw's reporter.el which is part of GNU Emacs v19 and bundled with many
+;;; other packages.  If needed, you can obtain a copy of reporter.el at
+;;; /roebling.poly.edu:/pub/reporter.el or the elisp-archive.  In fact,
+;;; crypt-submit-report will attempt to ange-ftp a copy for you from roebling
+;;; if you do not have one accessible.
 
-;;; Please see notes on INSTALLATION and USAGE below.
-
-;;; RESPONSIBLE PARTIES:
-;;;
-;;;   /Northern Hemisphere/
-;;;  
-;;;     Lawrence R. Dodd <dodd@roebling.poly.edu>   -  _    ,__o
-;;;     Department of Chemical Engineering         -  _   , \_<,
-;;;     Polymer Research Institute                  -    (*)/'(*)
-;;;     Polytechnic University                     ~~~~~~~~~~~~~~~~~~ 
-;;;     Six Metrotech
-;;;     Brooklyn, New York, 11201 USA                        
-;;;
-;;;   /Southern Hemisphere/ 
-;;;                                                   _--_|\  
-;;;     Rod Whitby <rwhitby@research.canon.oz.au>    /      \ 
-;;;     Canon Information Systems Research Australia \_.--._/ 
-;;;     1 Thomas Holt Drive                                v 
-;;;     North Ryde, N.S.W., 2113 Australia
-;;; 
-;;;   World-wide coverage!!  Bugs fixed while you sleep!!
+;;; Lawrence R. Dodd <dodd@roebling.poly.edu>
+;;; Polytechnic University
+;;; Brooklyn, New York USA
 
 ;;; VERSION:
 ;;;  
-;;; Version: 2.77
-;;; Ident: crypt++.el,v 2.77 1993/12/07 14:28:36 dodd Posted
-;;; Date: 1993/12/07 14:28:36
+;;; Version: 2.82
+;;; Ident: crypt++.el,v 2.82 1994/03/31 12:30:17 dodd Exp
+;;; Date: 1994/03/31 12:30:17
 
 
 ;;; INSTALLATION:
 ;;;
 ;;; To use this package, simply put it in a file called "crypt.el" in a Lisp
-;;; directory known to Emacs (see `load-path'), byte-compile it, and put the 
-;;; line:
+;;; directory known to Emacs (see `load-path'), byte-compile it (you may get a
+;;; warning saying that the function reporter-submit-bug-report is not known
+;;; to be defined -- ignore it), and put the line:
 ;;;
 ;;;                      (require 'crypt)
 ;;;
@@ -94,9 +83,10 @@
 ;;; one that appends something to `write-file-hooks' will not be executed
 ;;; because this package writes out the file.  Other packages that append to
 ;;; `write-file-hooks' should either be modified to prepend to that hook or be
-;;; loaded before this one (preferably the former).  Requires Barry Warsaw's
-;;; reporter.el for submitting bug reports, available from roebling.poly.edu.
-;;; Also bundled with GNU emacs 19.
+;;; loaded before this one (preferably the former).
+
+;;; NOTE: encryption users should set `crypt-encryption-type' to one of the
+;;; values in `crypt-encryption-alist' (see USAGE below).
 
 ;;; SEE ALSO: /roebling.poly.edu:/pub/crypt++-fnf.el for file-not-found 
 ;;; support for GNU Emacs.
@@ -125,6 +115,7 @@
 ;;;        crypt-never-ever-decrypt
 ;;;        crypt-auto-write-buffer-encrypted
 ;;;        crypt-confirm-password
+;;;        crypt-encrypted-disable-auto-save
 ;;;        crypt-encryption-alist
 ;;;  
 ;;;     controlling ENCODING are
@@ -137,6 +128,7 @@
 ;;;        crypt-compact-vs-C++
 ;;;        crypt-ignored-filenames
 ;;;        crypt-default-encoding
+;;;        crypt-encoded-disable-auto-save
 ;;;        crypt-encoding-alist
 ;;; 
 ;;;     controlling file insertion are
@@ -672,11 +664,33 @@
 ;;;   file. Variable crypt-bind-insert-file: Doc mod.  Remove
 ;;;   crypt-old-binding.  Replace `M-x foobar' in doc strings with
 ;;;   `\\[foobar]'.
+;;; 2.78 - 
+;;;   lrd: (crypt-auto-write-answer-local): New internal variable.  Holds
+;;;   answer to query about file-extension tricks question per buffer.  Thanks
+;;;   to George Forman <forman@cs.washington.edu>.  Remove Rod from list of
+;;;   maintainers...he's busy enough.  Merge multiple setq forms into single
+;;;   setq forms.
+;;; 2.79 -
+;;;   lrd: (crypt-y-or-n-p): New internal function for querying.  Tests the
+;;;   internal variable crypt-auto-write-answer-local to ensure single query.
+;;;   (crypt-check-extension-for-encoding): Replace all occurrences of queries
+;;;   involving y-or-no-p constructs with crypt-y-or-n-p.
+;;; 2.80 - [posted to gnu.emacs.sources]
+;;;   lrd: (crypt-set-encryption-key): Shorten interactive prompt.  Change
+;;;   documentation.
+;;; 2.81 - 
+;;;   lrd: (crypt-variable-list): Add shell and path variables.
+;;;   (crypt-confirm-password): Fix spelling error in doc.
+;;; 2.82 - 
+;;;   lrd: Applied patch from Noah Friedman <friedman@prep.ai.mit.edu>. 
+;;;   (crypt-encoded-disable-auto-save, crypt-encrypted-disable-auto-save):
+;;;   New user-defined variables. (crypt-encoded-mode, crypt-encrypted-mode):
+;;;   Use them.
 
 
 ;;; Code:
 
-;;;; user definable variables
+;;;; User definable variables.
 
 (defvar crypt-encryption-type 'crypt
   "*Method of encryption.  Must be an element of `crypt-encryption-alist.'
@@ -696,7 +710,34 @@ Should be of the form \"\\\\(\\\\.foo\\\\)$\".  nil says use default values in
 nil says query.  See `crypt-auto-write-buffer.'")
 
 (defvar crypt-confirm-password nil
-  "*t says confirm news passwords and when writing a newly encrypted buffer.")
+  "*t says confirm new passwords and when writing a newly encrypted buffer.")
+
+(defvar crypt-encoded-disable-auto-save t
+  "*If t, turn off auto-save-mode for buffers which are encoded.
+If non-nil but not t, then no message is displayed.
+
+The default is t is because there isn't any way to tell emacs to encode the
+autosave file, so the autosave would be in a different format from the
+original.  The disadvantage of turning off autosaves is that any work you
+do in that buffer will be completely lost if the changes are not explicitly
+saved.
+
+It is probably best to set this variable to nil and use buffer-local
+variables in files for which you don't actually care about autosaves.
+Unencoded recovery data is better than none at all.")
+
+(defvar crypt-encrypted-disable-auto-save t
+  "*If t, turn off auto-save-mode for buffers which are encrypted.
+If non-nil but not t, then no message is displayed.
+
+The default is t is because there isn't any way to tell emacs to encrypt
+the autosave file, so the autosave would be in cleartext form.  The
+disadvantage of turning off autosaves is that any work you do in that
+buffer will be completely lost if the changes are not explicitly saved.
+
+You might consider setting this variable to nil and use buffer-local
+variables in files for which security is more important than data
+recovery.")
 
 ;;; ENCRYPTION
 
@@ -844,6 +885,22 @@ nil says to ask before doing this encoding.  Similarly, buffers originating
 from encoded files to be written to files not ending in `crypt-encoding-alist'
 file extensions will be written in plain format automatically.  nil says to
 ask before doing this decoding.")
+
+;; This is an internal variable documented here and not in a DOCSTRING in
+;; order to save memory.  If this variable's value has been changed from its
+;; default, then it contains the answer to the question "Write out buffer
+;; foobar using `compression-type'?".  This question is asked only if *plain*
+;; buffer foobar is being written to disk *and* it has a provocative
+;; `compression-type' file-name extension (see DOCSTRING for variable
+;; crypt-auto-write-buffer).  The variable is local to all buffers with a
+;; default value of 'ask so if the situation described above arises, then the
+;; question is asked at least once, unless the user-defined variable
+;; crypt-auto-write-buffer is non-nil.
+(defvar crypt-auto-write-answer-local 'ask)
+(make-variable-buffer-local 'crypt-auto-write-answer-local)
+(setq-default crypt-auto-write-answer-local 'ask)
+(put 'crypt-auto-write-answer-local 'permanent-local t) ; for v19 Emacs
+(put 'crypt-auto-write-answer-local 'preserved t)       ; for kill-fix.el
 
 (defvar crypt-query-if-interactive t
   "*t says ask when saving buffers where `crypt-encoded-mode' was toggled.
@@ -1396,9 +1453,8 @@ Derived from variable `crypt-encoding-alist' and function
 
                     ;; Can play tricks.
                     ;; Change the method of encoding?
-                    (if (or crypt-auto-write-buffer
-                            (y-or-n-p
-                             (format "Write %s using %s? " (buffer-name) (nth 4 elt))))
+                    (if (crypt-y-or-n-p (format "Write %s using %s? "
+                                         (buffer-name) (nth 4 elt)))
                 
                         ;; Case one.
                         ;; Turn off original encoding and turn on new encoding.
@@ -1407,30 +1463,31 @@ Derived from variable `crypt-encoding-alist' and function
                                (crypt-encoded-mode 1)))
 
                   ;; Can not play tricks - maybe wants a plain file?
-                  (if (or crypt-auto-write-buffer
-                          (y-or-n-p
-                           (format "Write %s a plain file? " (buffer-name))))
+                  (if (crypt-y-or-n-p (format "Write %s a plain file? "
+                                              (buffer-name)))
 
                       ;; Case three.
                       ;; Turn off the minor mode and _then_ the flags.
-                      (progn (crypt-encoded-mode -1)
-                             (setq crypt-buffer-save-encoded nil)
-                             (setq crypt-buffer-encoding-type nil)))))
+                      (progn
+                        (crypt-encoded-mode -1)
+                        (setq crypt-buffer-save-encoded nil
+                              crypt-buffer-encoding-type nil)))))
           
           ;; Was a plain file.
           (if (and
                ;; Can we play some filename extension tricks?
                ;; If not then we must abort.
                (crypt-get-extension-tricks (nth 0 elt))
-               (or crypt-auto-write-buffer
-                   (y-or-n-p
-                    (format "Write %s using %s? " (buffer-name) (nth 4 elt)))))
+
+               (crypt-y-or-n-p (format "Write %s using %s? "
+                                       (buffer-name) (nth 4 elt))))
               
               ;; Case two.
               ;; Turn on encoding flags and _then_ the minor mode.
-              (progn (setq crypt-buffer-save-encoded t)
-                     (setq crypt-buffer-encoding-type (nth 0 elt))
-                     (crypt-encoded-mode 1))))
+              (progn 
+                (setq crypt-buffer-save-encoded t
+                      crypt-buffer-encoding-type (nth 0 elt))
+                (crypt-encoded-mode 1))))
       
       ;; No match - a plain-jane file extension - but if the encoded flag is
       ;; non-nil then the user may really want it written out in plain
@@ -1469,16 +1526,32 @@ Derived from variable `crypt-encoding-alist' and function
                  ;; Non-interactive but still may want encoded format.
                  crypt-no-extension-implies-plain)
 
-               (or crypt-auto-write-buffer
-                   (y-or-n-p
-                    (format "Write %s as a plain file? " (buffer-name)))))
+               (crypt-y-or-n-p (format "Write %s as a plain file? "
+                                       (buffer-name))))
 
           ;; Case three.
           ;; Turn off the minor mode and _then_ the flags.
-          (progn (crypt-encoded-mode -1)
-                 (setq crypt-buffer-save-encoded nil)
-                 (setq crypt-buffer-encoding-type nil))))))
- 
+          (progn
+            (crypt-encoded-mode -1)
+            (setq crypt-buffer-save-encoded nil
+                  crypt-buffer-encoding-type nil))))))
+
+
+(defun crypt-y-or-n-p (prompt)
+  ;; Queries user based on `crypt-auto-write-buffer' and internal buffer-local
+  ;; variable `crypt-auto-write-answer-local'.  Returns value of
+  ;; `crypt-auto-write-answer-local', which is t or nil.
+
+  ;; Check if we need to ask user.  Should be 'ask, nil, or t.
+  (if (eq crypt-auto-write-answer-local 'ask) ; Default value.
+      ;; We may need to ask.
+      (or crypt-auto-write-buffer
+          ;; Ask and store the answer.  
+          ;; Note: we only store if we asked.
+          (setq crypt-auto-write-answer-local (y-or-n-p prompt)))
+    ;; Use previous answer.
+    crypt-auto-write-answer-local)) ; Will be nil or t.
+
 
 ;;; This function should be called ONLY as a write-file hook.
 ;;; Odd things will happen if it is called elsewhere.
@@ -1868,15 +1941,23 @@ encrypted."
     (if crypt-buffer-save-encrypted
         ;; We are going to save as encrypted, we will turn off auto-saving.
         (progn
-          ;; If an auto-save file already exists, then delete it.
-          (if (and (stringp buffer-auto-save-file-name)
-                   (file-exists-p buffer-auto-save-file-name))
-              (delete-file buffer-auto-save-file-name))
+;; NEVER do this.  Turning off auto-saving is one thing.  But if there's
+;; already an autosave for some other reason, what business does this
+;; package have tampering with it?
+;          ;; If an auto-save file already exists, then delete it.
+;          (if (and (stringp buffer-auto-save-file-name)
+;                   (file-exists-p buffer-auto-save-file-name))
+;              (delete-file buffer-auto-save-file-name))
           ;; If the key is not set then ask for it.
           (if (not crypt-buffer-encryption-key)
               (call-interactively 'crypt-set-encryption-key))
-          ;; Turn-off auto-saving.
-          (auto-save-mode 0))
+          ;; Turn-off auto-saving if crypt-encrypted-disable-auto-save non-nil.
+          (and crypt-encrypted-disable-auto-save
+               auto-save-default
+               (progn
+                 (auto-save-mode 0)
+                 (if (eq crypt-encrypted-disable-auto-save t)
+                     (message "Auto-save off (in this buffer)")))))
 
       ;; We are not going to save as encrypted, we will turn on auto-saving
       ;; but only if we are editing a file and the default says we should.
@@ -1888,6 +1969,75 @@ encrypted."
         ;; Modification suggested by: Gerd Hillebrand <ggh@cs.brown.edu>
         (if (not (eq oldval crypt-buffer-save-encrypted))
             (set-buffer-modified-p t)))))
+
+
+;;; Forgetting encryption keys (by jwz)
+;;; This is really kind of bogus.  Good behavior would be:
+;;; - If a crypted buffer has not been "accessed" (edited? selected?
+;;;   viewed?) in N minutes, kill the buffer (since the plaintext is valuable.)
+;;; - If a crypted buffer is modified, but "idle", just forget the password
+;;;   instead of killing the buffer (though the plaintext is valuable, it's
+;;;   also unsaved...)
+;;; - The "idleness" of a modified buffer should be reset with every mod, so
+;;;   that an unsaved buffer that you have been constantly typing at for an
+;;;   hour doesn't lose its password.
+;;; - But, if a password for a buffer has been discarded, and then an attempt
+;;;   is made to save that buffer, then we should confirm that the newly-
+;;;   typed password is the same as the password used in the file on disk. 
+;;;   with PGP, we could check that by attempting to decrypt the file on
+;;;   disk into a scratch buffer and seeing if it contains the PGP error
+;;;   message.
+;;; - BUG: if a password has been forgotten, and you save, and are prompted,
+;;;   the old file has already been renamed to a backup!!  so if you ^G, the
+;;;   real file name no longer exists on disk - only as a ~ file.
+
+(defun crypt-forget-encryption-key ()
+  (cond (crypt-buffer-encryption-key
+	 (let ((inhibit-quit t))
+	   (fillarray crypt-buffer-encryption-key 0)
+	   (setq crypt-buffer-encryption-key nil))
+	 t)
+	(t nil)))
+
+(add-hook 'kill-buffer-hook 'crypt-forget-encryption-key)
+
+(defvar crypt-forget-passwd-timeout (* 60 60)
+  "*Do not retain passwords for encrypted buffers more than this many seconds.
+If nil, keep them indefinitely.")
+
+(defun crypt-reset-passwd-timer ()
+  (if (fboundp 'get-itimer)	; lemacs, or anything with itimer.el loaded.
+      (let ((name "crypt-forget-passwds"))
+	(if (get-itimer name)
+	    (delete-itimer name))
+	(if crypt-forget-passwd-timeout
+	    (start-itimer name
+			  'crypt-reset-passwds-timeout
+			  crypt-forget-passwd-timeout)))))
+
+(defun crypt-reset-passwds-timeout ()
+  ;; run by the timer code to forget all passwords
+  (let ((buffers (buffer-list))
+	(inhibit-quit t)
+	(keep-going nil))
+    (while buffers
+      (save-excursion
+	(set-buffer (car buffers))
+	(cond ((and crypt-buffer-encryption-key
+		    (buffer-modified-p))
+	       ;; don't forget the password in modified buffers, but
+	       ;; do check again later (maybe it will be unmodified.)
+	       (setq keep-going t))
+	      (crypt-buffer-encryption-key
+	       ;; forget the password in unmodified buffers.
+	       (crypt-forget-encryption-key)
+	       (message "Password discarded in buffer %s"
+			(buffer-name (car buffers))))
+	      ))
+      (setq buffers (cdr buffers)))
+    (if keep-going
+	(crypt-reset-passwd-timer))
+    nil))
 
 
 ;;; Originally `tek-symbol-alist-to-table' from tek-highlight.el.
@@ -1957,14 +2107,22 @@ encoded."
                   crypt-buffer-save-encoded)
 
     (if crypt-buffer-save-encoded
-        ;; We are going to save as encoded, we will turn off auto-saving.
+        ;; We are going to save as encoded, we might turn off auto-saving.
         (progn
-          ;; If an auto-save file already exists, then delete it.
-          (if (and (stringp buffer-auto-save-file-name)
-                   (file-exists-p buffer-auto-save-file-name))
-              (delete-file buffer-auto-save-file-name))
-          ;; Turn-off auto-saving.
-          (auto-save-mode 0))
+;; NEVER do this.  Turning off auto-saving is one thing.  But if there's
+;; already an autosave for some other reason, what business does this
+;; package have tampering with it?
+;          ;; If an auto-save file already exists, then delete it.
+;          (if (and (stringp buffer-auto-save-file-name)
+;                   (file-exists-p buffer-auto-save-file-name))
+;              (delete-file buffer-auto-save-file-name))
+          ;; Turn-off auto-saving if crypt-encoded-disable-auto-save non-nil.
+          (and crypt-encoded-disable-auto-save
+               auto-save-default
+               (progn
+                 (auto-save-mode 0)
+                 (if (eq crypt-encoded-disable-auto-save t)
+                     (message "Auto-save off (in this buffer)")))))
 
       ;; We are not going to save as encoded, we will turn on auto-saving but
       ;; only if we are editing a file and the default says we should.
@@ -1992,97 +2150,99 @@ encoded."
      (fboundp 'buffer-flush-undo)
      (fset 'buffer-disable-undo 'buffer-flush-undo))
 
-(defun crypt-read-string-no-echo (prompt &optional confirm)
+(fset 'crypt-read-string-no-echo 'read-passwd)
 
-  ;; Read a string from minibuffer, prompting with PROMPT, echoing periods.
-  ;; Optional second argument CONFIRM non-nil means that the user will be
-  ;; asked to type the string a second time for confirmation and if there is a
-  ;; mismatch, the whole process is repeated.
-  ;;
-  ;;         Line editing keys are --
-  ;;           C-h, DEL      rubout
-  ;;           C-u, C-x      line kill
-  ;;           C-q, C-v      literal next
-  
-  (catch 'return-value
-    (save-excursion
-
-      (let ((input-buffer (get-buffer-create (make-temp-name " *password*")))
-            char hold-password help-form kill-ring)
-
-        (set-buffer input-buffer)
-        ;; Don't add to undo ring.
-        (buffer-disable-undo input-buffer)
-
-        (let ((cursor-in-echo-area t)
-              (echo-keystrokes 0))
-
-          (unwind-protect
-
-              ;; BODYFORM 
-              ;; Repeat until we get a `throw'.
-              (while t
-                (erase-buffer)
-                (message prompt)
-
-                ;; Read string.
-                (while (not (memq (setq char (read-char)) '(?\C-m ?\C-j)))
-                  (if (setq help-form
-                            (cdr
-                             (assq char
-                                   '((?\C-h . (delete-char -1))
-                                     (?\C-? . (delete-char -1))
-                                     (?\C-u . (delete-region 1 (point)))
-                                     (?\C-x . (delete-region 1 (point)))
-                                     (?\C-q . (quoted-insert 1))
-                                     (?\C-v . (quoted-insert 1))))))
-                      (condition-case error-data
-                          (eval help-form)
-                        (error t))
-                    ;; Just a plain character - insert into password buffer.
-                    (insert char))
-
-                  ;; I think crypt-read-string-no-echo should echo asterisks.
-                  ;; -- Jamie. How about periods like in ange-ftp? -- lrd
-                  ;;
-                  (message "%s%s" prompt (make-string (buffer-size) ?.)))
-                
-                ;; Do we have to confirm password?
-                (cond
-
-                 ;; No confirmation requested - terminate.
-                 ((not confirm)
-                  (throw 'return-value (buffer-string)))
-                 
-                 ;; Can we compare (confirm) password values yet?
-                 (hold-password
-                  (if (string= hold-password (buffer-string))
-                      ;; The two passwords match - terminate.
-                      (throw 'return-value hold-password)
-
-                    ;; Mismatch - start over.
-                    (progn
-                      (message (concat prompt "[Mismatch. Start over]"))
-                      (beep)
-                      (sit-for 2)
-                      (fillarray hold-password 0) ; destroy extra copy now
-                      (setq hold-password nil))))
-                 
-                 ;; Store password and read again.
-                 (t
-                  (setq hold-password (buffer-string))
-                  (message (concat prompt "[Retype to confirm]"))
-                  (sit-for 2))))
-            
-            ;; UNWINDFORMS
-            ;; Clean up.
-            (set-buffer input-buffer)
-            (set-buffer-modified-p nil)
-            (buffer-disable-undo input-buffer) ; redundant, but why not be safe.
-            (widen)
-            (goto-char (point-min))
-            (while (not (eobp)) (delete-char 1) (insert "*")) ; destroy now
-            (kill-buffer input-buffer)))))))
+;(defun crypt-read-string-no-echo (prompt &optional confirm)
+;
+;  ;; Read a string from minibuffer, prompting with PROMPT, echoing periods.
+;  ;; Optional second argument CONFIRM non-nil means that the user will be
+;  ;; asked to type the string a second time for confirmation and if there is a
+;  ;; mismatch, the whole process is repeated.
+;  ;;
+;  ;;         Line editing keys are --
+;  ;;           C-h, DEL      rubout
+;  ;;           C-u, C-x      line kill
+;  ;;           C-q, C-v      literal next
+;  
+;  (catch 'return-value
+;    (save-excursion
+;
+;      (let ((input-buffer (get-buffer-create (make-temp-name " *password*")))
+;            char hold-password help-form kill-ring)
+;
+;        (set-buffer input-buffer)
+;        ;; Don't add to undo ring.
+;        (buffer-disable-undo input-buffer)
+;
+;        (let ((cursor-in-echo-area t)
+;              (echo-keystrokes 0))
+;
+;          (unwind-protect
+;
+;              ;; BODYFORM 
+;              ;; Repeat until we get a `throw'.
+;              (while t
+;                (erase-buffer)
+;                (message prompt)
+;
+;                ;; Read string.
+;                (while (not (memq (setq char (read-char)) '(?\C-m ?\C-j)))
+;                  (if (setq help-form
+;                            (cdr
+;                             (assq char
+;                                   '((?\C-h . (delete-char -1))
+;                                     (?\C-? . (delete-char -1))
+;                                     (?\C-u . (delete-region 1 (point)))
+;                                     (?\C-x . (delete-region 1 (point)))
+;                                     (?\C-q . (quoted-insert 1))
+;                                     (?\C-v . (quoted-insert 1))))))
+;                      (condition-case error-data
+;                          (eval help-form)
+;                        (error t))
+;                    ;; Just a plain character - insert into password buffer.
+;                    (insert char))
+;
+;                  ;; I think crypt-read-string-no-echo should echo asterisks.
+;                  ;; -- Jamie. How about periods like in ange-ftp? -- lrd
+;                  ;;
+;                  (message "%s%s" prompt (make-string (buffer-size) ?.)))
+;                
+;                ;; Do we have to confirm password?
+;                (cond
+;
+;                 ;; No confirmation requested - terminate.
+;                 ((not confirm)
+;                  (throw 'return-value (buffer-string)))
+;                 
+;                 ;; Can we compare (confirm) password values yet?
+;                 (hold-password
+;                  (if (string= hold-password (buffer-string))
+;                      ;; The two passwords match - terminate.
+;                      (throw 'return-value hold-password)
+;
+;                    ;; Mismatch - start over.
+;                    (progn
+;                      (message (concat prompt "[Mismatch. Start over]"))
+;                      (beep)
+;                      (sit-for 2)
+;                      (fillarray hold-password 0) ; destroy extra copy now
+;                      (setq hold-password nil))))
+;                 
+;                 ;; Store password and read again.
+;                 (t
+;                  (setq hold-password (buffer-string))
+;                  (message (concat prompt "[Retype to confirm]"))
+;                  (sit-for 2))))
+;            
+;            ;; UNWINDFORMS
+;            ;; Clean up.
+;            (set-buffer input-buffer)
+;            (set-buffer-modified-p nil)
+;            (buffer-disable-undo input-buffer) ; redundant, but why not be safe.
+;            (widen)
+;            (goto-char (point-min))
+;            (while (not (eobp)) (delete-char 1) (insert "*")) ; destroy now
+;            (kill-buffer input-buffer)))))))
 
 (defun crypt-set-encryption-key (key &optional buffer)
 
@@ -2094,8 +2254,7 @@ needs to be saved with the new key."
    (progn
      (barf-if-buffer-read-only)
      (list (crypt-read-string-no-echo
-            (format "Encryption key for %s? [Hit return to ignore]: "
-                    (buffer-name))
+            (format "Encryption key for %s? [RET to ignore]: " (buffer-name))
             crypt-confirm-password))))
 
   ;; For security reasons we remove `(crypt-set-encryption-key "password")' 
@@ -2111,13 +2270,18 @@ needs to be saved with the new key."
         (message "Key is identical to original, no change.")
 
       (progn
-        ;; #### Smash contents of old crypt-buffer-encryption-key string here?
-        ;; That wouldn't be ok if some other buffer held a pointer to it.
+	;; jwz: destroy old string
+	(if (and crypt-buffer-encryption-key
+		 (not (eq crypt-buffer-encryption-key key)))
+	    (fillarray crypt-buffer-encryption-key 0))
         (setq crypt-buffer-encryption-key key)
-        
+
         ;; Don't touch the modify flag unless we're in `(crypt-encrypted-mode)'.
         (if crypt-buffer-save-encrypted
-            (set-buffer-modified-p t))))))
+            (set-buffer-modified-p t))
+
+	(crypt-reset-passwd-timer)
+	))))
 
 
 ;;;; Install hooks and mode indicators.
@@ -2306,7 +2470,7 @@ see variable `crypt-auto-decode-insert'."
 ;;; This section is provided for reports.
 ;;; Using Barry A. Warsaw's reporter.el
 
-(defconst crypt-version "2.77"
+(defconst crypt-version "2.82"
   "Revision number of crypt++.el -- handles compressed and encrypted files.
 Type \\[crypt-submit-report] to send a bug report.  Available via anonymous
 ftp in
@@ -2315,22 +2479,25 @@ ftp in
    /archive.cis.ohio-state.edu:/pub/gnu/emacs/elisp-archive/misc/crypt++.el.Z")
 
 (defconst crypt-help-address
-  "dodd@roebling.poly.edu, rwhitby@research.canon.oz.au"
+  "dodd@roebling.poly.edu"
   "Address(es) accepting submission of reports on crypt++.el.")
 
-(defconst crypt-maintainer "Larry and Rod"
+(defconst crypt-maintainer "Larry"
   "First name(s) of people accepting submission of reports on crypt++.el.")
 
 (defconst crypt-file "crypt++.el"
   "Name of file containing emacs lisp code.")
 
 (defconst crypt-variable-list
-  (list 'crypt-encryption-type 
+  (list 'shell-file-name ; These
+        'load-path       ; are
+        'exec-path       ; useful.
+        'crypt-encryption-type 
         'crypt-encryption-file-extension
         'crypt-never-ever-decrypt
         'crypt-auto-write-buffer-encrypted
         'crypt-confirm-password
-        'crypt-encryption-alist
+        'crypt-encrypted-disable-auto-save
         'crypt-auto-decode-buffer
         'crypt-auto-write-buffer
         'crypt-query-if-interactive
@@ -2339,9 +2506,11 @@ ftp in
         'crypt-compact-vs-C++
         'crypt-ignored-filenames
         'crypt-default-encoding
-        'crypt-encoding-alist
+        'crypt-encoded-disable-auto-save
         'crypt-bind-insert-file
         'crypt-auto-decode-insert
+        'crypt-encoding-alist
+        'crypt-encryption-alist
         )
   "List of variables to be appended to reports sent by `crypt-submit-report.'")
 

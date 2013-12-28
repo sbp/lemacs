@@ -47,7 +47,8 @@
    because it defines BIG_ENDIAN and LITTLE_ENDIAN (ugh!.)  Instead
    we'll just define WNOHANG right here.
    (An implicit decl is good enough for wait3.)  */
-
+/* [Now that we don't use BIG_ENDIAN/LITTLE_ENDIAN, it's safe to include
+    wait.h.  Should something change here?] */
 /* #define WNOHANG		0x1 */
 
 /* No need to use sprintf to get the tty name--we get that from _getpty.  */
@@ -103,7 +104,10 @@ char *_getpty();
 #define POSIX_SIGNALS
 #define I18N2
 
+/* lemacs change */
+#if 0
 #define LD_SWITCH_SYSTEM -elf "-_SYSTYPE_SVR4" -require_dynamic_link _rld_new_interface -no_unresolved -Wx,-G 0 -L. -L./lwlib -g0 -call_shared -transitive_link
+#endif
 
 /* By Tor Arntsen <tor@spacetec.no> for lemacs.
    With the following kludge the above LD_SWITCH_SYSTEM will still work just 
@@ -111,9 +115,9 @@ char *_getpty();
    is avoided. */
 #ifdef NOT_C_CODE
 # ifdef USE_GCC
-#  undef LD_CMD
+#  undef LINKER
 #  undef LIB_GCC
-#  define LD_CMD ld
+#  define LINKER ld
 #  define LIB_GCC `gcc --print`
 #  endif
 #endif

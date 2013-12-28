@@ -1,6 +1,6 @@
 ;;; lisp.el --- Lisp editing commands for Emacs
 
-;; Copyright (C) 1985, 1986, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1993, 1994 Free Software Foundation, Inc.
 
 ;; Maintainer: FSF
 ;; Keywords: lisp, languages
@@ -28,7 +28,9 @@
 ;;; Code:
 
 (defvar defun-prompt-regexp nil
-  "Non-nil => regexp to ignore, before the `(' that starts a defun.")
+  "*Non-nil => regexp to ignore, before the character that starts a defun.
+This is only necessary if the opening paren or brace is not in column 0.
+See `beginning-of-defun'.")
 
 (defvar parens-require-spaces t
   "Non-nil => `insert-parentheses' should insert whitespace as needed.")

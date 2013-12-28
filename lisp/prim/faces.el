@@ -233,14 +233,12 @@ its foreground and background are set to the background and
 foreground of the default face."
   (interactive (list (read-face-name (gettext "Invert face: "))))
   (setq face (get-face face screen))
-  (let ((fg (face-foreground face screen))
-	(bg (face-background face screen)))
-    (if (or fg bg)
-	(progn
-	  (set-face-foreground face bg screen)
-	  (set-face-background face fg screen))
-      (set-face-foreground face (face-background 'default screen) screen)
-      (set-face-background face (face-foreground 'default screen) screen)))
+  (let ((fg (or (face-foreground face screen)
+		(face-foreground 'default screen)))
+	(bg (or (face-background face screen)
+		(face-background 'default screen))))
+    (set-face-foreground face bg screen)
+    (set-face-background face fg screen))
   face)
 
 

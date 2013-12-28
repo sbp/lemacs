@@ -112,7 +112,7 @@ end_of_defun (int pt)
      of different major modes giving this a different binding.
    */
   if (EQ (current_buffer->major_mode, Qcplusplus_mode))
-    call0 (Qcplusplus_end_of_defun);
+    call1 (Qcplusplus_end_of_defun, make_number (1));
   else
     /* This is the same thing that end-of-defun does in all modes but C++ */
     Fre_search_forward (Vend_of_defun_string, Qnil, Qlambda, Qnil);

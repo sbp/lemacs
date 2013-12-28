@@ -1,0 +1,1285 @@
+This is Info file ../../info/lispref.info, produced by Makeinfo-1.56
+from the input file lispref.texinfo.
+
+   This version is newer than the second printed edition of the GNU
+Emacs Lisp Reference Manual.  It corresponds to Emacs Version 19.19.
+
+   Published by the Free Software Foundation 675 Massachusetts Avenue
+Cambridge, MA 02139 USA
+
+   Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be stated in a
+translation approved by the Foundation.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the Free Software
+Foundation instead of in the original English.
+
+
+File: lispref.info,  Node: Creating Font Objects,  Next: Font Names,  Up: Fonts
+
+Creating Font Objects
+.....................
+
+ - Function: make-font NAME &optional SCREEN
+
+ - Function: try-font NAME &optional SCREEN
+
+
+File: lispref.info,  Node: Font Names,  Next: Font Size,  Prev: Creating Font Objects,  Up: Fonts
+
+Font Names
+..........
+
+ - Function: x-list-fonts PATTERN &optional SCREEN
+
+ - Function: font-name FONT
+
+ - Function: font-truename FONT
+
+
+File: lispref.info,  Node: Font Size,  Next: Font Characteristics,  Prev: Font Names,  Up: Fonts
+
+Font Size
+.........
+
+ - Function: x-font-size FONT
+
+ - Function: x-find-larger-font FONT &optional SCREEN
+
+ - Function: x-find-smaller-font FONT &optional SCREEN
+
+
+File: lispref.info,  Node: Font Characteristics,  Prev: Font Size,  Up: Fonts
+
+Font Characteristics
+....................
+
+ - Function: x-font-properties FONT
+
+ - Function: x-make-font-bold FONT &optional SCREEN
+
+ - Function: x-make-font-demibold FONT &optional SCREEN
+
+ - Function: x-make-font-unbold FONT &optional SCREEN
+
+ - Function: x-make-font-italic FONT &optional SCREEN
+
+ - Function: x-make-font-oblique FONT &optional SCREEN
+
+ - Function: x-make-font-unitalic FONT &optional SCREEN
+
+
+File: lispref.info,  Node: Pixels,  Next: Pixmaps,  Prev: Fonts,  Up: Window System Objects
+
+Pixels
+------
+
+ - Function: pixelp OBJECT
+
+ - Function: make-pixel NAME &optional SCREEN
+
+ - Function: pixel-name PIXEL
+
+
+File: lispref.info,  Node: Pixmaps,  Prev: Pixels,  Up: Window System Objects
+
+Pixmaps
+-------
+
+ - Function: pixmapp OBJECT
+
+ - Function: make-pixmap NAME &optional SCREEN
+
+ - Variable: x-bitmap-file-path
+
+ - Function: colorize-pixmap
+
+ - Function: pixmap-contributes-to-line-height-p
+
+ - Function: pixmap-depth
+
+ - Function: pixmap-file-name
+
+ - Function: pixmap-height
+
+ - Function: pixmap-hotspot-x
+
+ - Function: pixmap-width
+
+ - Function: set-pixmap-contributes-to-line-height
+
+ - Function: set-pixmap-data
+
+ - Function: set-pixmap-hotspot
+
+ - Function: set-pixmap-mask
+
+
+File: lispref.info,  Node: Blinking,  Next: Inverse Video,  Prev: Window System Objects,  Up: Display
+
+Blinking
+========
+
+   This section describes the mechanism by which Emacs shows a matching
+open parenthesis when the user inserts a close parenthesis.
+
+ - Variable: blink-paren-function
+     The value of this variable should be a function (of no arguments)
+     to be called whenever a char with close parenthesis syntax is
+     inserted.  The value of `blink-paren-function' may be `nil', in
+     which case nothing is done.
+
+          *Please note:* this variable was named `blink-paren-hook' in
+          older Emacs versions, but since it is not called with the
+          standard convention for hooks, it was renamed to
+          `blink-paren-function' in version 19.
+
+ - Variable: blink-matching-paren
+     If this variable is `nil', then `blink-matching-open' does nothing.
+
+ - Variable: blink-matching-paren-distance
+     This variable specifies the maximum distance to scan for a matching
+     parenthesis before giving up.
+
+ - Function: blink-matching-open
+     This function is the default value of `blink-paren-function'.  It
+     assumes that point follows a character with close parenthesis
+     syntax and moves the cursor momentarily to the matching opening
+     character.  If that character is not already on the screen, then
+     its context is shown by displaying it in the echo area.  To avoid
+     long delays, this function does not search farther than
+     `blink-matching-paren-distance' characters.
+
+     Here is an example of calling this function explicitly.
+
+          (defun interactive-blink-matching-open ()
+            "Indicate momentarily the start of sexp before point."
+            (interactive)
+
+          (let ((blink-matching-paren-distance
+                   (buffer-size))
+                  (blink-matching-paren t))
+              (blink-matching-open)))
+
+
+File: lispref.info,  Node: Inverse Video,  Next: Usual Display,  Prev: Blinking,  Up: Display
+
+Inverse Video
+=============
+
+ - User Option: inverse-video
+     This variable controls whether Emacs uses inverse video for all
+     text on the screen.  Non-`nil' means yes, `nil' means no.  The
+     default is `nil'.
+
+ - User Option: mode-line-inverse-video
+     This variable controls the use of inverse video for mode lines.
+     If it is non-`nil', then mode lines are displayed in inverse video
+     (under X, this uses the face named `modeline', which you can set
+     as you wish).  Otherwise, mode lines are displayed normally, just
+     like text.  The default is `t'.
+
+
+File: lispref.info,  Node: Usual Display,  Next: Display Tables,  Prev: Inverse Video,  Up: Display
+
+Usual Display Conventions
+=========================
+
+   The usual display conventions define how to display each character
+code.  You can override these conventions by setting up a display table
+(*note Display Tables::.).  Here are the usual display conventions:
+
+   * Character codes 32 through 126 map to glyph codes 32 through 126.
+     Normally this means they display as themselves.
+
+   * Character code 9 is a horizontal tab.  It displays as whitespace
+     up to a position determined by `tab-width'.
+
+   * Character code 10 is a newline.
+
+   * All other codes in the range 0 through 31, and code 127, display
+     in one of two ways according to the value of `ctl-arrow'.  If it
+     is is non-`nil', these codes map to sequences of two glyphs, where
+     the first glyph is the ASCII code for `^'.  Otherwise, these codes
+     map just like the codes in the range 128 to 255.
+
+   * Character codes 128 through 255 map to sequences of four glyphs,
+     where the first glyph is the ASCII code for `\', and the others
+     are digit characters representing the code in octal.
+
+   The usual display conventions apply even when there is a display
+table, for any character whose entry in the active display table is
+`nil'.  Thus, when you set up a display table, you need only specify
+the the characters for which you want unusual behavior.
+
+   These variables affect the way certain characters are displayed on
+the screen.  Since they change the number of columns the characters
+occupy, they also affect the indentation functions.
+
+ - User Option: ctl-arrow
+     This buffer-local variable controls how control characters are
+     displayed.  If it is non-`nil', they are displayed as a caret
+     followed by the character: `^A'.  If it is `nil', they are
+     displayed as a backslash followed by three octal digits: `\001'.
+
+ - Variable: default-ctl-arrow
+     The value of this variable is the default value for `ctl-arrow' in
+     buffers that do not override it.  This is the same as executing the
+     following expression:
+
+          (default-value 'ctl-arrow)
+
+     *Note Default Value::.
+
+ - User Option: tab-width
+     The value of this variable is the spacing between tab stops used
+     for displaying tab characters in Emacs buffers.  The default is 8.
+     Note that this feature is completely independent from the
+     user-settable tab stops used by the command `tab-to-tab-stop'.
+     *Note Indent Tabs::.
+
+
+File: lispref.info,  Node: Display Tables,  Next: Beeping,  Prev: Usual Display,  Up: Display
+
+Display Tables
+==============
+
+   Display tables are not currently implemented.
+
+
+File: lispref.info,  Node: Beeping,  Next: Window Systems,  Prev: Display Tables,  Up: Display
+
+Beeping
+=======
+
+   You can make Emacs ring a bell (or blink the screen) to attract the
+user's attention.  Be conservative about how often you do this; frequent
+bells can become irritating.  Also be careful not to use beeping alone
+when signaling an error is appropriate.  (*Note Errors::.)
+
+ - Function: ding &optional DONT-TERMINATE SOUND
+     This function beeps, or flashes the screen (see `visible-bell'
+     below).  It also terminates any keyboard macro currently executing
+     unless DONT-TERMINATE is non-`nil'.  If SOUND is specified, it
+     should be a symbol specifying which sound to make.  This sound
+     will be played if `visible-bell' is `nil'. (This only works if
+     sound support was compiled into the executable and you are running
+     on the console of a Sun SparcStation, SGI, or HP9000s700.
+     Otherwise you just get a beep.)
+
+ - Function: beep &optional DONT-TERMINATE SOUND
+     This is a synonym for `ding'.
+
+ - User Option: visible-bell
+     This variable determines whether Emacs should flash the screen to
+     represent a bell.  Non-`nil' means yes, `nil' means no.  This is
+     effective only if the Termcap entry for the terminal in use has the
+     visible bell flag (`vb') set.
+
+ - Variable: sound-alist
+     This variable holds an alist associating names with sounds.  When
+     `beep' or `ding' is called with one of the name symbols, the
+     associated sound will be generated instead of the standard beep.
+
+     Each element of `sound-alist' is a list describing a sound.  The
+     first element of the list is the name of the sound being defined.
+     Subsequent elements of the list are alternating keyword/value
+     pairs:
+
+    `sound'
+          A string of raw sound data, or the name of another sound to
+          play.  The symbol `t' here means use the default X beep.
+
+    `volume'
+          An integer from 0-100, defaulting to `bell-volume'.
+
+    `pitch'
+          If using the default X beep, the pitch (Hz) to generate.
+
+    `duration'
+          If using the default X beep, the duration (milliseconds).
+
+     For compatibility, elements of `sound-alist' may also be:
+
+        * `( sound-name . <sound> )'
+
+        * `( sound-name <volume> <sound> )'
+
+     You should probably add things to this list by calling the function
+     `load-sound-file'.
+
+     Caveats:
+
+        - You can only play audio data if running on the console screen
+          of a Sun SparcStation, SGI, or HP9000s700.
+
+        - The pitch, duration, and volume options are available
+          everywhere, but many X servers ignore the `pitch' option.
+
+     The following beep-types are used by emacs itself:
+
+    `auto-save-error'
+          when an auto-save does not succeed
+
+    `command-error'
+          when the emacs command loop catches an error
+
+    `undefined-key'
+          when you type a key that is undefined
+
+    `undefined-click'
+          when you use an undefined mouse-click combination
+
+    `no-completion'
+          during completing-read
+
+    `y-or-n-p'
+          when you type something other than 'y' or 'n'
+
+    `yes-or-no-p'
+          when you type something other than 'yes' or 'no'
+
+    `default'
+          used when nothing else is appropriate.
+
+     Other lisp packages may use other beep types, but these are the
+     ones that the C kernel of Emacs uses.
+
+ - User Option: bell-volume
+     This variable specifies the default volume for sounds, from 0 to
+     100.
+
+ - Command: load-default-sounds
+     This function loads and installs some sound files as beep-types.
+
+ - Command: load-sound-file FILENAME SOUND-NAME &optional VOLUME
+     This function reads in an audio file and adds it to `sound-alist'.
+     The sound file must be in the Sun/NeXT U-LAW format.  SOUND-NAME
+     should be a symbol, specifying the name of the sound.  If VOLUME
+     is specified, the sound will be played at that volume; otherwise,
+     the value of BELL-VOLUME will be used.
+
+ - Function: play-sound SOUND &optional VOLUME
+     This function plays sound SOUND, which should be a symbol
+     mentioned in `sound-alist'.  If VOLUME is specified, it overrides
+     the value (if any) specified in `sound-alist'.
+
+ - Command: play-sound-file FILE &optional VOLUME
+     This function plays the named sound file at volume VOLUME, which
+     defaults to `bell-volume'.
+
+
+File: lispref.info,  Node: Window Systems,  Prev: Beeping,  Up: Display
+
+Window Systems
+==============
+
+   Emacs works with several window systems, most notably the X Window
+System.  Note that both Emacs and X use the term "window", but use it
+differently.  An Emacs screen is a single window as far as X is
+concerned; the individual Emacs windows are not known to X at all.
+
+ - Variable: window-system
+     This variable tells Lisp programs what window system Emacs is
+     running under.  Its value should be a symbol such as `x' (if Emacs
+     is running under X) or `nil' (if Emacs is running on an ordinary
+     terminal).
+
+ - Variable: window-system-version
+     This variable distinguishes between different versions of the X
+     Window System.  Its value is 10 or 11 when using X; `nil'
+     otherwise.
+
+ - Variable: window-setup-hook
+     This variable is a normal hook which Emacs runs after loading your
+     `.emacs' file and the default initialization file (if any), after
+     loading terminal-specific Lisp code, and after running the hook
+     `term-setup-hook'.
+
+     This hook is used for internal purposes: setting up communication
+     with the window system, and creating the initial window.  Users
+     should not interfere with it.
+
+
+File: lispref.info,  Node: Extents,  Next: Annotations,  Prev: Display,  Up: Top
+
+Extents
+*******
+
+   An "extent" is a region of text (a start position and an end
+position) that is displayed in a particular face and can have certain
+other properties such as being read-only.  Extents can overlap each
+other.  Lucid Emacs efficiently handles buffers with large numbers of
+extents in them.
+
+ - Function: extentp OBJECT
+     This returns `t' if OBJECT is an extent.
+
+* Menu:
+
+* Intro to Extents::
+* Creating and Modifying Extents::
+* Extent Endpoints::
+* Finding Extents::
+* Extent Properties::
+* Detached Extents::
+* Duplicable Extents::
+* Extent Replicas::
+* Extents and Events::
+* Atomic Extents::
+
+
+File: lispref.info,  Node: Intro to Extents,  Next: Creating and Modifying Extents,  Up: Extents
+
+Introduction to Extents
+=======================
+
+   An extent is a region of text within a buffer that has certain
+properties associated with it.  The properties of an extent primarily
+affect the way the text contained in the extent is displayed.  Extents
+can freely overlap each other in a buffer.  Extents are invisible to
+functions that merely examine the text of a buffer.
+
+   An extent is logically a Lisp object consisting of a start position,
+an end position, a buffer to which these positions refer, and a property
+list.  As text is inserted into the buffer, the start and end positions
+of the extent are automatically adjusted as necessary to keep the extent
+referring to the same text in the buffer.  If text is inserted at the
+boundary of an extent, the extent's `start-open' and `end-open'
+properties control whether the text is included as part of the extent.
+If the text bounded by an extent is deleted, the extent becomes
+"detached"; its start and end positions are no longer meaningful, but
+it maintains all its other properties and can later be reinserted into
+a buffer.
+
+   Each extent has a face associated with it, which controls the way in
+which the text bounded by the extent is displayed .  If an extent's face
+is `nil' or its properties are partially undefined, the corresponding
+properties from the default face for the screen is used.  If two or
+more extents overlap, the corresponding faces are merged to determine
+the text's displayed properties.  Every extent has a "priority" that
+determines which face takes precedence if the faces conflict. (If two
+extents have the same priority, the one that comes later in the display
+order takes precedence.  *Note display order: Extent Endpoints.)
+Higher-numbered priority values correspond to a higher priority, and
+priority values can be negative.  Every extent is created with a
+priority of 0, but this can be changed with `set-extent-priority'.
+
+   Extents can be set to respond specially to key and mouse events
+within the extent.  An extent's `keymap' property controls the effect of
+key and mouse strokes within the extent's text, and the `highlight'
+property controls whether the extent is highlighted when the mouse moves
+over it.  *Note Extents and Events::.
+
+   An extent can optionally have a "start-glyph" or "end-glyph" (but
+not both at one time) associated with it.  A start-glyph or end-glyph
+is a pixmap or string that will be displayed either at the start or end
+of an extent or in the margin of the line that the start or end of the
+extent lies in, depending on the extent's layout policy.  Start-glyphs
+and end-glyphs are used to implement annotations, and you should use
+the annotation API functions in preference to the lower-level extent
+functions.  For more information, *Note Annotations::.
+
+   If an extent has its `duplicable' property set, it will be
+remembered when a string is created from text bounded by the extent.
+When the string is re-inserted into a buffer, the extent will also be
+re-inserted.  This mechanism is used in the kill, yank, and undo
+commands.  *Note Duplicable Extents::.
+
+
+File: lispref.info,  Node: Creating and Modifying Extents,  Next: Extent Endpoints,  Prev: Intro to Extents,  Up: Extents
+
+Creating and Modifying Extents
+==============================
+
+ - Function: make-extent FROM TO &optional BUFFER
+     This function makes an extent for the range [FROM, TO) in BUFFER.
+     bUFFER defaults to the current buffer.  Insertions at point TO
+     will be outside of the extent; insertions at FROM will be inside
+     the extent, causing the extent to grow (*note Extent
+     Endpoints::.).  This is the same way that markers behave.  The
+     extent is initially detached if both FROM and TO are `nil', and in
+     this case BUFFER defaults to `nil', meaning the extent is in no
+     buffer (*note Detached Extents::.).
+
+ - Function: delete-extent EXTENT
+     This function removes EXTENT from its buffer and destroys it.
+     This does not modify the buffer's text, only its display
+     properties.  The extent cannot be used thereafter.  To remove an
+     extent in such a way that it can be re-inserted later, use
+     `detach-extent'.  *Note Detached Extents::.
+
+ - Function: extent-buffer EXTENT
+     This function returns the buffer of EXTENT.  If the return value
+     is `nil', this means that the extent is detached; however, a
+     detached extent will not necessarily return a value of `nil'.
+
+
+File: lispref.info,  Node: Extent Endpoints,  Next: Finding Extents,  Prev: Creating and Modifying Extents,  Up: Extents
+
+Extent Endpoints
+================
+
+   Every extent has a start position and an end position, and logically
+affects the characters between those positions.  Normally the start and
+end positions must both be valid positions in the extent's buffer.
+However, both endpoints can be `nil', meaning the extent is detached.
+*Note Detached Extents::.
+
+   Whether the extent overlaps its endpoints is governed by its
+`start-open' and `end-open' properties.  Insertion of a character at a
+closed endpoint will expand the extent to include that character;
+insertion at an open endpoint will not.  Similarly, functions such as
+`extent-at' that scan over all extents overlapping a particular
+position will include extents with a closed endpoint at that position,
+but not extents with an open endpoint.
+
+   Note that the `start-closed' and `end-closed' properties are
+equivalent to `start-open' and `end-open' with the opposite sense.
+
+   Both endpoints can be equal, in which case the extent includes no
+characters but still exists in the buffer.  Zero-length extents are used
+primarily to represent annotations (*note Annotations::.).  Zero-length
+extents must be created as such: Deletion of the last character in an
+extent of length one will cause the extent to become detached rather
+than zero-length.  Insertion at the position of a zero-length extent
+expands the extent if both endpoints are closed; goes before the extent
+if it has the `start-open' property; and goes after the extent if it
+has the `start-closed' and `end-open' properties.  Deletion of a
+character on a side of a zero-length extent whose corresponding
+endpoint is closed causes the extent to be detached; if the
+corresponding endpoint is open, the extent remains in the buffer, moving
+as necessary.
+
+   Extents are ordered within a buffer by increasing start position, and
+then by decreasing end position (this is called the "display order").
+Note that `start-open' and `end-closed' extents are treated as if 1/2
+were added to the corresponding endpoint; thus, e.g., all `start-open'
+extents with a particular start position will be ordered after all
+`start-closed' extents with the same start position.
+
+ - Function: extent-start-position EXTENT
+     This function returns the start position of EXTENT.
+
+ - Function: extent-end-position EXTENT
+     This function returns the end position of EXTENT.
+
+ - Function: extent-length EXTENT
+     This function returns the length of EXTENT in characters.  If the
+     extent is detached, this returns `0'.  If the extent is not
+     detached, this is equivalent to
+          (- (extent-end-position EXTENT) (extent-start-position EXTENT))
+
+ - Function: set-extent-endpoints EXTENT START END
+     This function sets the start and end position of EXTENT to START
+     and END.  If both are `nil', this is equivalent to `detach-extent'.
+
+
+File: lispref.info,  Node: Finding Extents,  Next: Extent Properties,  Prev: Extent Endpoints,  Up: Extents
+
+Finding Extents
+===============
+
+   The following functions allow for scanning over the extents in a
+buffer or searching for extents in a particular range of a buffer.
+Keep in mind the way that extents are ordered in a buffer (*note Extent
+Endpoints::.).
+
+ - Function: next-extent EXTENT
+     Given an extent EXTENT, this function returns the next extent in
+     the buffer's display order.  If EXTENT is a buffer, this returns
+     the first extent in the buffer.
+
+ - Function: extent-at POS &optional BUFFER PROPERTY BEFORE
+     This function finds the "smallest" extent (i.e., the last one in
+     the display order) at (i.e., overlapping) POS in BUFFER having
+     PROPERTY set.  BUFFER defaults to the current buffer.  PROPERTY
+     defaults to `nil', meaning that any extent will do.  Returns `nil'
+     if there is no matching extent at POS.  If the fourth argument
+     BEFORE is not `nil', it must be an extent; any returned extent
+     will precede that extent.  This feature allows `extent-at' to be
+     used by a loop over extents.
+
+ - Function: map-extents FUNCTION &optional BUFFER FROM TO MAPARG
+          CLOSED-END
+     This function maps FUNCTION over the extents which overlap the
+     region `[FROM, TO)' (or `[FROM, TO]' if CLOSED-END is non-`nil')
+     in BUFFER.  FUNCTION is called with the arguments `(extent,
+     MAPARG)'.  The arguments FROM, TO, MAPARG, and BUFFER default to
+     the beginning of BUFFER, the end of BUFFER, `nil', and
+     `(current-buffer)', respectively.  `map-extents' returns the first
+     non-`nil' result produced by FUNCTION, and no more calls to
+     FUNCTION are made after that.  If BUFFER is an extent, FROM and TO
+     default to the extent's endpoints, and the mapping omits that
+     extent and its predecessors.  This feature supports restarting a
+     loop based on `map-extents'.
+
+     The effect of CLOSED-END is that, if an extent and the map region
+     overlap only at a start and end position, the extent is visited by
+     `map-extents' only if both positions are closed.
+
+ - Function: map-extent-children FUNCTION &optional BUFFER FROM TO
+          MAPARG CLOSED-END
+     This function is similar to `map-extents', but differs in that:
+
+        * It only visits extents which start in the given region.
+
+        * After visiting an extent E, it skips all other extents which
+          start inside E but end before E's end.
+
+     Thus, this function may be used to walk a tree of extents in a
+     buffer:
+          (defun walk-extents (buffer &optional ignore)
+            (map-extent-children 'walk-extents buffer))
+
+ - Function: extent-in-region-p EXTENT &optional FROM TO CLOSED-END
+     This function returns T if `map-extents' would visit EXTENT if
+     called with the given arguments.
+
+
+File: lispref.info,  Node: Extent Properties,  Next: Detached Extents,  Prev: Finding Extents,  Up: Extents
+
+Properties of Extents
+=====================
+
+   Each extent has a property list associating property names with
+values.  Some property names have predefined meanings, and can usually
+only assume particular values.  Assigning other values to such a
+property either cause the value to be converted into a legal value
+(e.g., assigning anything but `nil' to a Boolean property will cause
+the value of `t' to be assigned to the property) or will cause an
+error.  Property names without predefined meanings can be assigned any
+value.  An undefined property is equivalent to a property with a value
+of `nil', or with a particular default value in the case of properties
+with predefined meanings.
+
+   Note: Although the "default" value of the `end-open' property is
+`nil', extents are created with this property having a value of `t'.
+
+ - Function: extent-property EXTENT PROPERTY
+     This function returns the value of PROPERTY in EXTENT.  If
+     PROPERTY is undefined, `nil' is returned.
+
+ - Function: extent-properties EXTENT
+     This function returns a list of all of EXTENT's properties that do
+     not have the value of `nil' (or the default value, for properties
+     with predefined meanings).
+
+ - Function: set-extent-property EXTENT PROPERTY VALUE
+     This function sets PROPERTY to VALUE in EXTENT. (If PROPERTY has a
+     predefined meaning, only certain values are allowed, and some
+     values may be converted to others before being stored.)
+
+   The following table lists the properties with predefined meanings,
+along with their allowable values.
+
+`detached'
+     (Boolean) Whether the extent is detached.   Setting this is the
+     same as calling `detach-extent'.  *Note Detached Extents::.
+
+`destroyed'
+     (Boolean) Whether the extent has been deleted.  Setting this is
+     the same as calling `delete-extent'.
+
+`priority'
+     (integer) The extent's redisplay priority.  Defaults to 0.  *Note
+     priority: Intro to Extents.  This property can also be set with
+     `set-extent-priority' and accessed with `extent-priority'.
+
+`start-open'
+     (Boolean) Whether the start position of the extent is open,
+     meaning that characters inserted at that position go outside of
+     the extent.  *Note Extent Endpoints::.
+
+`start-closed'
+     (Boolean) Same as `start-open' but with the opposite sense.
+     Setting this property clears `start-open' and vice-versa.
+
+`end-open'
+     (Boolean) Whether the end position of the extent is open, meaning
+     that characters inserted at that position go outside of the extent.
+     *Note Extent Endpoints::.
+
+`end-closed'
+     (Boolean) Same as `end-open' but with the opposite sense.  Setting
+     this property clears `end-open' and vice-versa.
+
+`read-only'
+     (Boolean) Whether text within this extent will be unmodifiable.
+
+`face'
+     (face, face name, or `nil') The face in which to display the
+     extent's text.  This property can also be set with
+     `set-extent-face' and accessed with `extent-face'.
+
+`highlight'
+     (Boolean) Whether to highlight the extent when the mouse moves
+     over it.  *Note Extents and Events::.
+
+`duplicable'
+     (Boolean) Whether this extent should be copied into strings, so
+     that kill, yank, and undo commands will restore or copy it.  *Note
+     Duplicable Extents::.
+
+`unique'
+     (Boolean) Meaningful only in conjunction with `duplicable'.  When
+     this is set, there may be only one instance of this extent
+     attached at a time.  *Note Duplicable Extents::.
+
+`invisible'
+     (Boolean) If `t', text under this extent will not be displayed.
+     (This is not yet implemented.)
+
+`keymap'
+     (keymap or `nil') This keymap is consulted for mouse clicks on this
+     extent or keypresses made while `point' is within the extent.
+     *Note Extents and Events::.
+
+`copy-function'
+     This is a hook that is run when a duplicable extent is about to be
+     copied from a buffer to a string (or the kill ring).  *Note
+     Duplicable Extents::.
+
+`paste-function'
+     This is a hook that is run when a duplicable extent is about to be
+     copied from a string (or the kill ring) into a buffer.  *Note
+     Duplicable Extents::.
+
+`glyph-layout'
+     ('text, 'whitespace, 'inside-margin, or 'outside-margin) The layout
+     policy for this extent's glyph.  Defaults to `text'.  *Note
+     Annotations::.
+
+`begin-glyph'
+     (pixmap, string, or `nil') This extent's begin-glyph.  Cannot be
+     non-`nil' at the same time as `end-glyph'.  *Note Annotations::.
+
+`end-glyph'
+     (pixmap, string, or `nil') This extent's end-glyph.  Cannot be
+     non-`nil' at the same time as `begin-glyph'.  *Note Annotations::.
+
+   The following convenience functions are provided for accessing
+particular properties of an extent.
+
+ - Function: extent-priority EXTENT
+     This function returns the `priority' property of EXTENT.
+
+ - Function: extent-face EXTENT
+     This function returns the `face' property of EXTENT.
+
+ - Function: extent-layout EXTENT
+     This function returns the `glyph-layout' property of EXTENT.
+
+ - Function: extent-glyph EXTENT
+     This function returns the glyph associated with EXTENT.  This is
+     the value of the `begin-glyph' or `end-glyph' property, if either
+     one is non-`nil'. (It is not possible for both to be non-`nil' at
+     the same time.)
+
+ - Function: extent-data EXTENT
+     This function returns the `data' property of EXTENT.  The `data'
+     property has no special meaning; this function is retained for
+     compatibility purposes.
+
+   The following convenience functions are provided for setting
+particular properties of an extent.
+
+ - Function: set-extent-priority EXTENT PRI
+     This function sets the `priority' property of EXTENT to PRI.
+
+ - Function: set-extent-face EXTENT FACE
+     This function sets the `face' property of EXTENT to FACE.
+
+ - Function: set-extent-layout EXTENT LAYOUT
+     This function sets the `glyph-layout' property of EXTENT to LAYOUT.
+
+ - Function: set-extent-begin-glyph EXTENT BEGIN-GLYPH &optional LAYOUT
+     This function sets the `begin-glyph' and `glyph-layout' properties
+     of EXTENT to BEGIN-GLYPH and LAYOUT, respectively. (LAYOUT
+     defaults to `text' if not specified.) This function will fail if
+     EXTENT already has an END-GLYPH property.
+
+ - Function: set-extent-end-glyph EXTENT END-GLYPH &optional LAYOUT
+     This function sets the `end-glyph' and `glyph-layout' properties
+     of EXTENT to END-GLYPH and LAYOUT, respectively. (LAYOUT defaults
+     to `text' if not specified.) This function will fail if EXTENT
+     already has a BEGIN-GLYPH property.
+
+ - Function: set-extent-data EXTENT DATA
+     This function sets the `data' property of EXTENT to DATA.  The
+     `data' property has no special meaning; this function is retained
+     for compatibility purposes.
+
+
+File: lispref.info,  Node: Detached Extents,  Next: Duplicable Extents,  Prev: Extent Properties,  Up: Extents
+
+Detached Extents
+================
+
+   A detached extent is an extent that is not attached to a buffer but
+can be re-inserted.  Detached extents have a start position and end
+position of `nil'.  Extents can be explicitly detached using
+`detach-extent'; an extent is also detached when all of its characters
+are all killed by a deletion. (Zero-length extents behave specially.
+*Note zero-length extents: Extent Endpoints.)
+
+ - Function: detach-extent EXTENT
+     This function detaches EXTENT from its buffer.  If EXTENT has the
+     `duplicable' property, its detachment is tracked by the undo
+     mechanism.  *Note Duplicable Extents::.
+
+ - Function: copy-extent EXTENT &optional BUFFER
+     This function makes a copy of EXTENT.  It is initially detached.
+     Optional argument BUFFER defaults to EXTENT's buffer.
+
+ - Function: insert-extent EXTENT &optional START END NO-HOOKS
+     This function inserts EXTENT from START to END in the current
+     buffer.  If EXTENT is detached from a different buffer, or in most
+     cases when EXTENT is already attached, the extent will first be
+     copied as if with `copy-extent'.  This function operates the same
+     as if `insert' were called on a string whose extent data calls for
+     EXTENT to be inserted, except that if NO-HOOKS is non-`nil',
+     EXTENT's `paste-function' will not be invoked.  *Note Duplicable
+     Extents::.
+
+
+File: lispref.info,  Node: Duplicable Extents,  Next: Extent Replicas,  Prev: Detached Extents,  Up: Extents
+
+Duplicable Extents
+==================
+
+   If an extent has the `duplicable' property, it will be copied into
+strings, so that kill, yank, and undo commands will restore or copy it.
+Note that the extent is not actually copied; rather, a pointer to it is
+stored, along with the start and end positions of the extent. (This
+combination is called an "extent replica".) This means that, e.g., if
+you copy a duplicable extent into the kill ring, then change the
+properties of the extent, then paste the kill-ring text back into the
+buffer, the newly-inserted extent will have the property changes you
+just made to the original extent, and not the property values at the
+time the text was copied into the kill ring.
+
+   Specifically:
+
+   * When a string is created using `buffer-substring' or
+     `buffer-string', any duplicable extents in the region corresponding
+     to the string will be remembered in the string (*note Buffer
+     Contents::.).  When the string in inserted into a buffer using
+     `insert', `insert-before-markers', `insert-buffer' or
+     `insert-buffer-substring', the remembered extents will be inserted
+     back into the buffer (*note Insertion::.).  The extents can also be
+     retrieved explicitly using `string-extent-data' (*note Extent
+     Replicas::.).
+
+   * Similarly, when text is copied or cut into the kill ring, any
+     duplicable extents will be remembered and reinserted later when
+     the text is pasted back into a buffer.
+
+   * An extent replica consists of a pointer to an extent and a range
+     within the string.  When an extent replica is inserted into a
+     buffer:
+
+        - If the original extent was detached from this buffer, it is
+          reattached at the new range.
+
+        - If the original extent is attached to this buffer and is
+          contiguous with or overlaps the new range, it is simply
+          extended to include that range.  Note that in this case the
+          extent's `paste-function' is not called (see below).
+
+        - If the original extent was detached from another buffer, it
+          is copied as if by `copy-extent' and attached at the new
+          range.
+
+        - If the original extent is attached to another buffer, or is
+          attached to this buffer and does not overlap the new range,
+          it is copied as if by `copy-extent' and attached at the new
+          range.  However, if the extent has the `unique' property,
+          this action is inhibited and nothing happens.
+
+   * When `concat' is called on strings, the extent replicas remembered
+     in the strings are merged together and placed into the resulting
+     string.
+
+   * When `substring' is called on a string, the relevant extent
+     replicas are placed into the resulting string.
+
+   * When a duplicable extent is detached by `detach-extent' or string
+     deletion, or inserted by `insert-extent' or string insertion, the
+     action is recorded by the undo mechanism so that it can be undone
+     later.
+
+   * Extent motion, face changes, and attachment via `make-extent' are
+     not recorded by the undo mechanism.  This means that extent changes
+     which are to be undo-able must be performed by character editing,
+     or by insertion and detachment of duplicable extents.
+
+   * A duplicable extent's `copy-function' property, if non-`nil',
+     should be a function, and will be run when a duplicable extent is
+     about to be copied from a buffer to a string (or the kill ring).
+     It is called with three arguments: the extent and the buffer
+     positions within it which are being copied.  If this function
+     returns `nil', then the extent will not be copied; otherwise it
+     will.
+
+   * A duplicable extent's `paste-function' property, if non-`nil',
+     should be a function, and will be run when a duplicable extent is
+     about to be copied from a string (or the kill ring) into a buffer.
+     It is called with three arguments: the original extent and the
+     buffer positions which the copied extent will occupy. (This hook
+     is run after the corresponding text has already been inserted into
+     the buffer.) Note that the extent argument may be detached when
+     this function is run.  If this function returns `nil', no extent
+     will be inserted.  Otherwise, there will be an extent covering the
+     range in question.
+
+     Note: if the extent to be copied is already attached to the buffer
+     and overlaps the new range, the extent will simply be extended and
+     the `paste-function' will not be called.
+
+
+File: lispref.info,  Node: Extent Replicas,  Next: Extents and Events,  Prev: Duplicable Extents,  Up: Extents
+
+Extent Replicas
+===============
+
+   The following primitives for manipulating extent replicas are
+available.  An extent replica is used to store extent data in a string
+and is a primitive data type encapsulating an extent and start and end
+positions within the string.  New extent replicas can be created but
+there are no mutator functions for modifying existing extent replicas.
+*Note Duplicable Extents::.
+
+   Note: Lisp-visible extent replicas may disappear in the future
+(replaced by allowing `map-extents' to take a string argument).  Avoid
+using the following functions if at all possible.
+
+ - Function: string-extent-data STRING
+     This function returns the extent data stored along with STRING.
+     The value returned is a list of extent replica objects.
+
+ - Function: set-string-extent-data STRING DATA
+     This function sets the extent data stored along with a string.
+     `data' should be `nil' or a list of extent replicas.
+
+ - Function: make-extent-replica EXTENT START END
+     This function makes an extent replica for EXTENT in the range from
+     `start' to `end'.
+
+ - Function: extent-replica-extent DUP
+     This function returns the extent to which extent replica DUP
+     refers.
+
+ - Function: extent-replica-start DUP
+     This function returns the start position of extent replica DUP.
+
+ - Function: extent-replica-end DUP
+     This function returns the end position of extent replica DUP.
+
+
+File: lispref.info,  Node: Extents and Events,  Next: Atomic Extents,  Prev: Extent Replicas,  Up: Extents
+
+Interaction of Extents with Keyboard and Mouse Events
+=====================================================
+
+   If an extent has the `highlight' property set, it will be
+highlighted when the mouse passes over it.  Highlighting is accomplished
+by merging the extent's face with the `highlight' face.  The effect is
+as if a pseudo-extent with the `highlight' face were inserted after the
+extent in the display order (*note Extent Endpoints::., display order).
+
+ - Variable: mouse-highlight-priority
+     This variable holds the priority to use when merging in the
+     highlighting pseudo-extent.  The default is 10.
+
+   You can also explicitly cause an extent to be highlighted.  Only one
+extent at a time can be highlighted in this fashion, and any other
+highlighted extent will be de-highlighted.
+
+ - Function: highlight-extent EXTENT &optional HIGHLIGHT-P
+     This function highlights (if HIGHLIGHT-P is non-`nil') or
+     de-highlights (if HIGHLIGHT-P is `nil') EXTENT, if EXTENT has the
+     `highlight' property. (Nothing happens if EXTENT does not have the
+     `highlight' property.)
+
+ - Function: force-highlight-extent EXTENT &optional HIGHLIGHT-P
+     This function is similar to `highlight-extent' but highlights or
+     de-highlights the extent regardless of whether it has the
+     `highlight' property.
+
+   If an extent has a `keymap' property, this keymap will be consulted
+for mouse clicks on the extent and keypresses made while `point' is
+within the extent.  The behavior of mouse clicks and keystrokes not
+defined in the keymap is as normal for the buffer.
+
+
+File: lispref.info,  Node: Atomic Extents,  Prev: Extents and Events,  Up: Extents
+
+Atomic Extents
+==============
+
+   If the Lisp file `atomic-extents' is loaded, then the atomic extent
+facility is available.  An "atomic extent" is an extent for which
+`point' cannot be positioned anywhere within it.  This ensures that
+when selecting text, either all or none of the extent is selected.
+
+   To make an extent atomic, set its `atomic' property.
+
+
+File: lispref.info,  Node: Annotations,  Next: Processes,  Prev: Extents,  Up: Top
+
+Annotations
+***********
+
+   An "annotation" is a pixmap or string that is not part of a buffer's
+text but is displayed next to a particular location in a buffer.
+Annotations are implemented using extents (*note Extents::.); but you
+can work with annotations without knowing how extents work.
+
+* Menu:
+
+* Annotation Basics::
+* Annotation Primitives::
+* Margin Primitives::
+* Annotation Hooks::
+
+
+File: lispref.info,  Node: Annotation Basics,  Next: Annotation Primitives,  Prev: Annotations,  Up: Annotations
+
+Annotation Basics
+=================
+
+   Marginal annotations are notes associated with a particular location
+in a buffer.  They may be displayed in a margin created on the left-hand
+side of the screen, in any whitespace at the beginning of a line, or
+inside of the text itself.  Every annotation may have an associated
+action to be performed when the annotation is selected.  The term
+"annotation" is used to refer to an individual note.  The term "margin"
+is generically used to refer to the whitespace before the first
+character on a line.
+
+`annotation'
+     Each annotation has the following characteristics:
+    GLYPH
+          This may be either a bitmap/pixmap object or a string.
+
+    FACE
+          The face with which to display the glyph.
+
+    ACTION
+          If non-nil this field must contain a function capable of
+          being the first argument to `funcall'.  This function is
+          evaluated with a single argument, the value of the DATA
+          field, each time the annotation is selected.
+
+    DATA
+          Not used internally.  This field can contain any Elisp
+          object.  It is passed as the lone argument to ACTION
+          described above.
+
+    TYPE
+          Valid types are: `bitmap', `pixmap' and `string'.
+
+   The margin is divided into "outside" and "inside".  The outside
+margin is space on the left side of the screen which normal text cannot
+be displayed in.  The inside margin is that space between the leftmost
+point text can be displayed and where the first character actually is.
+
+   There are four different "layout types" which affect the exact
+location an annotation appears.
+
+`outside-margin'
+     The annotation is placed, left-justified, into the outside margin
+     area.  If the outside margin is not wide enough for an annotation
+     to fit it is not displayed.
+
+`inside-margin'
+     The annotation is placed, left-justified, into the inside margin
+     area.  If the inside margin is not wide enough for the annotation
+     to fit it will be displayed using any available outside margin
+     space if and only if the variable `use-left-overflow' is non-`nil'.
+
+`whitespace'
+     The annotation is placed, right-justified, into the inside margin
+     area.  This puts the annotation as close as possible to the first
+     non-whitespace character on a line.  If the inside margin is not
+     wide enough for the annotation to fit it will be displayed if and
+     only if the variable `use-left-overflow' is non-`nil'.
+
+`text'
+     The annotation is placed at the position it is inserted.  It will
+     create enough space for itself inside of the text area.  It does
+     not take up a place in the logical buffer, only in the display of
+     the buffer.
+
+   The current layout policy is that all `whitespace' annotations are
+displayed first.  Next, all `inside-margin' annotations are displayed
+using any remaining space.  Finally as many `outside-margin'
+annotations are displayed as possible.  The `text' annotations will
+always display as they create their own space to display in.
+
+
+File: lispref.info,  Node: Annotation Primitives,  Next: Margin Primitives,  Prev: Annotation Basics,  Up: Annotations
+
+Annotation Primitives
+=====================
+
+ - Function: make-annotation GLYPH &optional POSITION LAYOUT BUFFER
+     Create a marginal annotation with GLYPH, which may be a
+     bitmap/pixmap or a string at position POS.  Use layout policy
+     LAYOUT and place the annotation in buffer BUFFER.  If POS is
+     `nil', point is used.  If LAYOUT is `nil', `whitespace' is used.
+     If BUFFER is `nil', the current buffer is used.  Returns the newly
+     created annotation.
+
+ - Function: delete-annotation ANNOTATION
+     Remove ANNOTATION from its buffer.  This does not modify the
+     buffer text.  Returns the annotation deleted.
+
+ - Function: annotationp ANNOTATION
+     Return `t' if ANNOTATION is an annotation, `nil' otherwise.
+
+ - Function: annotation-visible ANNOTATION
+     Return `t' if there is enough available space to display
+     ANNOTATION, `nil' otherwise.
+
+ - Function: annotation-at &optional POSITION BUFFER
+     Return the annotation at POSITION in BUFFER.  If POSITION is `nil'
+     point is used.  If BUFFER is `nil' the current buffer is used.
+
+ - Function: annotation-layout ANNOTATION
+     Return the layout policy of ANNOTATION.
+
+ - Function: set-annotation-layout ANNOTATION LAYOUT
+     Set the layout policy of ANNOTATION to LAYOUT.
+
+ - Function: annotation-type ANNOTATION
+     Returns the display type of ANNOTATION.  The type will be one of
+     following symbols:
+    `'
+          pixmap
+
+    `'
+          bitmap
+
+    `'
+          string
+
+    `'
+          nil (object is not an annotation)
+
+ - Function: annotation-width ANNOTATION
+     Return the width of ANNOTATION in pixels.
+
+ - Function: annotation-glyph ANNOTATION
+     If ANNOTATION is of type `string' return the string.  Otherwise
+     return the bitmap or pixmap object of the glyph representing
+     ANNOTATION.
+
+ - Function: set-annotation-glyph ANNOTATION GLYPH &optional LAYOUT
+     Set the glyph image of ANNOTATION to GLYPH.  If LAYOUT is
+     non-`nil' set the layout policy of ANNOTATION to LAYOUT.  Returns
+     the new value of `annotation-glyph'.
+
+ - Function: annotation-data ANNOTATION
+     Return the data associated with ANNOTATION.
+
+ - Function: set-annotation-data ANNOTATION DATA
+     Set the data field of ANNOTATION to DATA.  Returns DATA.
+
+ - Function: annotation-action ANNOTATION
+     Return the action associated with ANNOTATION.
+
+ - Function: set-annotation-action ANNOTATION ACTION
+     Set the action field of ANNOTATION to ACTION.  Returns ACTION.
+
+ - Function: annotation-face ANNOTATION
+     Return the face associated with ANNOTATION.
+
+ - Function: set-annotation-face ANNOTATION FACE
+     Set the face associated with ANNOTATION to FACE.
+
+ - Function: annotations-in-region START END BUFFER
+     Return a list of all annotations in BUFFER which are between START
+     and END inclusively.
+
+ - Function: annotation-at &optional POSITION BUFFER
+     Return a list of all annotations at POSITION in BUFFER.  If
+     POSITION is `nil' point is used.  If BUFFER is `nil' the current
+     buffer is used.
+
+ - Function: annotation-list &optional BUFFER
+     Returns a list of all annotations in BUFFER.  If BUFFER is `nil',
+     the current buffer is used.
+
+ - Function: all-annotations
+     Returns a list of all annotations in all buffers in existence.
+
+
+File: lispref.info,  Node: Margin Primitives,  Next: Annotation Hooks,  Prev: Annotation Primitives,  Up: Annotations
+
+Margin Primitives
+=================
+
+   It is possible to set values for both a left and a right hand side
+margin.  Only the left side has been implemented.  All margin settings
+are buffer-local at the moment.
+
+ - Function: set-buffer-left-margin-width WIDTH &optional BUFFER
+     Set the width, in characters, of the left outside margin of BUFFER
+     to WIDTH.  If BUFFER is `nil', the current buffer is used.
+     Returns the new width.
+
+ - Function: set-buffer-right-margin-width WIDTH &optional BUFFER
+     Set the width, in characters, of the right outside margin of
+     BUFFER to WIDTH.  If BUFFER is `nil', the current buffer is used.
+     Returns the new width.
+
+ - Function: buffer-left-margin-width &optional BUFFER
+     Return the width of the left outside margin, in characters, of
+     BUFFER.  If BUFFER is `nil', the current buffer is used.
+
+ - Function: buffer-right-margin-width &optional BUFFER
+     Return the width of the right outside margin, in characters, of
+     BUFFER.  If BUFFER is `nil', the current buffer is used.
+
+ - Function: buffer-left-margin-pixwidth &optional BUFFER
+     Return the width of the left outside margin, in pixels, of BUFFER.
+     If BUFFER is `nil', the current buffer is used.
+
+ - Function: buffer-right-margin-pixwidth &optional BUFFER
+     Return the width of the right outside margin, in pixels, of
+     BUFFER.  If BUFFER is `nil', the current buffer is used.
+
+ - Variable: use-left-overflow
+     If non-`nil' use the left outside margin as extra whitespace when
+     displaying `whitespace' and `inside-margin' annotations.  Defaults
+     to `nil'.
+
+   The margin colors are controlled by the faces `left-margin' and
+`right-margin'.  These can be set using the X resources
+`Emacs*left-margin*background' and `Emacs*left-margin*foreground'.
+Likewise for the right margin.
+

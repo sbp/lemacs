@@ -223,13 +223,10 @@ Defined flags are the characters 1, 2, 3, 4, 5, 6, 7, 8, p, a, and b.
 	(if prefix (write-char ?p))
 
         (princ (gettext "\tmeaning: "))
-        (princ (aref #((gettext "whitespace") (gettext "punctuation")
-		       (gettext "word-constituent")
-		       (gettext "symbol-constituent") (gettext "open-paren")
-		       (gettext "close-paren") (gettext "expression-prefix")
-		       (gettext "string-quote") (gettext "paired-delimiter")
-                       (gettext "escape") (gettext "character-quote")
-		       (gettext "comment-begin") (gettext "comment-end"))
+        (princ (aref ["whitespace" "punctuation" "word-constituent"
+		      "symbol-constituent" "open-paren" "close-paren"
+		      "expression-prefix" "string-quote" "paired-delimiter"
+		      "escape" "character-quote" "comment-begin" "comment-end"]
 		     (logand code 127)))
 
         (if (/= 0 match)

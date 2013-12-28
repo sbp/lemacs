@@ -1,5 +1,5 @@
 /* The lwlib interface to Athena widgets.
-   Copyright (C) 1993 Chuck Thompson <cthomp@cs.uiuc.edu>
+   Copyright (C) 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of the Lucid Widget Library.
 
@@ -54,7 +54,7 @@ xaw_update_scrollbar (widget_instance *instance, Widget widget,
       scrollbar_values *data = val->scrollbar_data;
       Dimension height, width;
       Dimension pos_x, pos_y;
-      int widget_shown, widget_topOfThumb;
+      float widget_shown, widget_topOfThumb;
       float new_shown, new_topOfThumb;
 
       XtVaGetValues (widget,
@@ -85,11 +85,11 @@ xaw_update_scrollbar (widget_instance *instance, Widget widget,
       /*
        * Now the size the scrollbar's slider.
        */
-      new_shown = (float) data->slider_size /
-	(float) (data->maximum - data->minimum);
+      new_shown = (double) data->slider_size /
+	(double) (data->maximum - data->minimum);
 
-      new_topOfThumb = (float) (data->slider_position - data->minimum) /
-	(float) (data->maximum - data->minimum);
+      new_topOfThumb = (double) (data->slider_position - data->minimum) /
+	(double) (data->maximum - data->minimum);
 
       if (new_shown > 1.0)
 	new_shown = 1.0;
@@ -198,7 +198,7 @@ xaw_pop_instance (widget_instance *instance, Boolean up)
 	     life easier?
 	   */
 	  {
-	    int x, y, w, h;
+	    unsigned int x, y, w, h;
 	    Widget topmost = instance->parent;
 	    w = shell->core.width;
 	    h = shell->core.height;
@@ -270,6 +270,7 @@ make_dialog (char* name, Widget parent, Boolean pop_up_p,
   ac = 0;
   XtSetArg (av[ac], XtNtitle, shell_title); ac++;
   XtSetArg (av[ac], XtNallowShellResize, True); ac++;
+  XtSetArg (av[ac], XtNtransientFor, parent); ac++;
   shell = XtCreatePopupShell ("dialog", transientShellWidgetClass,
 			      parent, av, ac);
   XtOverrideTranslations (shell, override);
@@ -490,7 +491,7 @@ xaw_scrollbar_scroll (Widget widget, XtPointer closure, XtPointer call_data)
     return;
 
   id = instance->info->id;
-  event_data.slider_value = 0;
+  event_data.slider_value = (int) call_data;
   event_data.time = 0;
 
   if ((int) call_data > 0)

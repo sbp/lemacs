@@ -175,7 +175,7 @@ emacs_doprnt_1 (char *buffer, int bufsize,
 		int minlen = 0;
 
 		if (cnt == nargs)
-		  error (GETTEXT ("Format string wants too many arguments"));
+		  error (GETTEXT ("Too few arguments for format string"));
               
 		if (ch == 'S') fmtcpy[flen - 1] = 's'; /* printf wants this */
 
@@ -184,7 +184,7 @@ emacs_doprnt_1 (char *buffer, int bufsize,
 		    Lisp_Object a = largs[cnt];
 		    if (!STRINGP (a))
 		      {
-			/*abort ();*/
+                        error (GETTEXT ("format specifier doesn't match argument type"));
 			bufsize = doprnt_1 ("[not a string]", -1, 0,
 					    &bufptr, bufsize);
 			goto punt;

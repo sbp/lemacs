@@ -1,5 +1,5 @@
 /* Definitions file for GNU Emacs running on Silicon Graphics Irix system 3.3.
-   Copyright (C) 1987, 1990, 1993, 1994 Free Software Foundation, Inc.
+   Copyright (C) 1987,1990 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -141,14 +141,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define _setjmp setjmp
 #define _longjmp longjmp
 
-/* On USG systems the system calls are interruptable by signals
+/* On USG systems the system calls are interruptible by signals
  that the user program has elected to catch.  Thus the system call
- must be retried in these cases.  All calls to read, write, and open
- in emacs are really calls to emacs_read, etc.  We define emacs_read
- to be sys_read (which is defined in sysdep.c for this system.)  If
- these were not defined, they would be defined to be open, etc.
- We can't just "#define open sys_open" because of prototype problems.
- */
+ must be retried in these cases.  To handle this without massive
+ changes in the source code, we remap the standard system call names
+ to names for our own functions in sysdep.c that do the system call
+ with retries. */
+
 #define emacs_read sys_read
 #define emacs_open sys_open
 #define emacs_write sys_write
@@ -161,15 +160,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define index strchr
 #define rindex strrchr
 
-
 /* lemacs change -- SGI apparently has a bogus version of memmove,
-   which causes ralloc.c great pain.  Howver bcopy works so use that.
+   which causes ralloc.c great pain.  However, bcopy works, so use that.
    From Paul Flinders <ptf@delcam.co.uk>
    (Resist the temptation to put parens around the args in the expansion.
    Existence is suffering.)
  */
 #define memmove(to, from, len) bcopy(from, to, len)
-
 
 /* USG systems tend to put everything declared static
    into the initialized data area, which becomes pure after dumping Emacs.
@@ -182,17 +179,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  	    sprintf (ptyname, "/dev/ttyq%d", minor (stb.st_rdev));
 
 
-/* getwd is defined.  */
-
-#define HAVE_GETWD
-
 #define HAVE_SYSVIPC
 
-/* Use setsid to handle terminals for subprocesses.  */
-#define HAVE_SETSID
+/* sioctl.h should be included where appropriate.  */
 
-/* Implementation of uname is broken on Irix as of version 3.3 */
-#define HAVE_GETHOSTNAME
+#define NEED_SIOCTL
 
-#define HAVE_RINT
-#define NO_MATHERR
+/* This affects child_setup.  */
+
+#define SETPGRP_RELEASES_CTTY

@@ -107,9 +107,9 @@ Lisp_Object Vdebugger;
 
 
 static void print_subr (Lisp_Object, Lisp_Object, int);
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_subr,
-                               0, print_subr, 
-                               0, 0, 0);
+DEFINE_LRECORD_IMPLEMENTATION ("subr", lrecord_subr,
+                               0, print_subr, 0, 0,
+			       sizeof (struct Lisp_Subr));
 
 static void
 print_subr (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
@@ -132,11 +132,11 @@ print_subr (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 
 static Lisp_Object mark_bytecode (Lisp_Object, void (*) (Lisp_Object));
 extern void print_bytecode (Lisp_Object, Lisp_Object, int);
-static int sizeof_bytecode (void *h) {return (sizeof (struct Lisp_Bytecode));}
 static int bytecode_equal (Lisp_Object, Lisp_Object, int);
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_bytecode,
-                               mark_bytecode, print_bytecode, 
-                               0, sizeof_bytecode, bytecode_equal);
+DEFINE_LRECORD_IMPLEMENTATION ("compiled-function", lrecord_bytecode,
+                               mark_bytecode, print_bytecode, 0,
+			       bytecode_equal,
+			       sizeof (struct Lisp_Bytecode));
 
 static Lisp_Object
 mark_bytecode (Lisp_Object obj, void (*markobj) (Lisp_Object))
@@ -231,7 +231,10 @@ call_debugger (Lisp_Object arg)
 static Lisp_Object
 do_debug_on_exit (Lisp_Object val)
 {
+  /* This is falsified by call_debugger */
+  int old_debug_on_next_call = debug_on_next_call;
   Lisp_Object v = call_debugger (list2 (Qexit, val));
+  debug_on_next_call = old_debug_on_next_call;
   return ((!EQ (v, Qunbound)) ? v : val);
 }
 
@@ -538,6 +541,8 @@ whose values are discarded.")
   return val;
 }
 
+Lisp_Object Qsetq;
+
 DEFUN ("setq", Fsetq, Ssetq, 0, UNEVALLED, 0,
   "(setq SYM VAL SYM VAL ...): set each SYM to the value of its VAL.\n\
 The SYMs are not evaluated.  Thus (setq x y) sets x to the value of y.\n\
@@ -551,6 +556,10 @@ Each SYM is set before the next VAL is computed.")
 
   if (NILP (args))
     return Qnil;
+
+  val = Flength (args);
+  if (XINT (val) & 1 != 0)
+    Fsignal (Qwrong_number_of_arguments, list2 (Qsetq, val));
 
   args_left = args;
   GCPRO1 (args);
@@ -1233,11 +1242,14 @@ See also the function `condition-case'.")
   Lisp_Object conditions;
 
   immediate_quit = 0;
-  if (gc_in_progress || waiting_for_input)
+  if (gc_in_progress || waiting_for_input || in_display)
+    /* This is one of many reasons why you can't run lisp code from redisplay.
+       There is no sensible way to handle errors there. */
     abort ();
 
-  in_display = 0;		/* Otherwise, we are hosed */
-  TOTALLY_UNBLOCK_INPUT;
+  /* lemacs: don't do this here, because if code is running inside of
+     condition-case under a widget callback, it will screw input blocking! */
+  /* TOTALLY_UNBLOCK_INPUT; */
 
   conditions = Fget (sig, Qerror_conditions, Qnil);
 
@@ -2114,7 +2126,7 @@ apply1 (fn, arg)
 
   if (NILP (arg))
     return (Ffuncall (1, &fn));
-  GCPRO1 (fn);
+  GCPRO1 (args[0]);
   gcpro1.nvars = 2;
   args[0] = fn;
   args[1] = arg;
@@ -2605,6 +2617,7 @@ before making `inhibit-quit' nil.");
   defsymbol (&Qand_optional, "&optional");
   /* Note that the process handling also uses Qexit */
   defsymbol (&Qexit, "exit");
+  defsymbol (&Qsetq, "setq");
 #ifndef standalone
   defsymbol (&Qinteractive, "interactive");
   defsymbol (&Qcommandp, "commandp");

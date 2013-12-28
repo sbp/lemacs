@@ -188,7 +188,10 @@ MODE is the major mode."
 						   auto-fill-hook)))))
 			       (point)
 			       (if postv18
-				   (list 'quote (mark t) mark-active)
+				   (list 'quote (mark t)
+					 ;; mark-active
+					 (not (null (mark))) ; lemacs
+					 )
 				 (mark))
 			       buffer-read-only
 			       truncate-lines
@@ -333,7 +336,9 @@ autoloaded files."
 	  (if (consp mk)
 	      (progn
 		(set-mark (car mk))
-		(setq mark-active (car (cdr mk))))
+		;;(setq mark-active (car (cdr mk)))
+		(if (car (cdr mk)) (zmacs-activate-region)) ; lemacs
+		)
 	    (set-mark mk))
 	  ;; Never override file system if the file really is read-only marked.
 	  (if ro (setq buffer-read-only ro))

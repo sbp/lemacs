@@ -24,15 +24,31 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "screen.h"
 #include "events.h"
 
+#include "extents.h"	/* Just for the EXTENTP abort check... */
+
 #include <stdio.h>              /* for sprintf */
 
 Lisp_Object QKbackspace, QKtab, QKlinefeed, QKreturn, QKescape,
  QKspace, QKdelete, QKnosymbol;
 
+int
+command_event_p (struct Lisp_Event *event)
+{
+  switch (event->event_type)
+  {
+  case key_press_event:
+  case button_press_event:
+  case button_release_event:
+  case menu_event:
+    return (1);
+  default:
+    return (0);
+  }
+}
+
+
 void
-character_to_event (c, event)
-     unsigned int c;
-     struct Lisp_Event *event;
+character_to_event (unsigned int c, struct Lisp_Event *event)
 {
   Lisp_Object k = Qnil;
   unsigned int m = 0;
@@ -63,7 +79,7 @@ character_to_event (c, event)
   event->event_type		= key_press_event;
   event->channel		= Qnil;
   event->timestamp		= 0;
-  event->event.key.key		= (!NILP (k) ? k : make_number (c));
+  event->event.key.keysym	= (!NILP (k) ? k : make_number (c));
   event->event.key.modifiers	= m;
 }
 
@@ -91,21 +107,22 @@ event_to_character (struct Lisp_Event *event,
   if (!allow_extra_modifiers &&
       event->event.key.modifiers & (MOD_SUPER|MOD_HYPER|MOD_SYMBOL))
     return -1;
-  if (FIXNUMP (event->event.key.key))	    c = XINT (event->event.key.key);
-  else if (EQ (event->event.key.key, QKbackspace))	c = '\b';
-  else if (EQ (event->event.key.key, QKtab))		c = '\t';
-  else if (EQ (event->event.key.key, QKlinefeed))	c = '\n';
-  else if (EQ (event->event.key.key, QKreturn))		c = '\r';
-  else if (EQ (event->event.key.key, QKescape))		c = 27;
-  else if (EQ (event->event.key.key, QKspace))		c = ' ';
-  else if (EQ (event->event.key.key, QKdelete))		c = 127;
+  if (FIXNUMP (event->event.key.keysym))   c = XINT (event->event.key.keysym);
+  else if (EQ (event->event.key.keysym, QKbackspace))	c = '\b';
+  else if (EQ (event->event.key.keysym, QKtab))		c = '\t';
+  else if (EQ (event->event.key.keysym, QKlinefeed))	c = '\n';
+  else if (EQ (event->event.key.keysym, QKreturn))	c = '\r';
+  else if (EQ (event->event.key.keysym, QKescape))	c = 27;
+  else if (EQ (event->event.key.keysym, QKspace))	c = ' ';
+  else if (EQ (event->event.key.keysym, QKdelete))	c = 127;
 
-  else if (!SYMBOLP (event->event.key.key))
+  else if (!SYMBOLP (event->event.key.keysym))
     abort ();
   else if (allow_non_ascii && !NILP (Vcharacter_set_property))
     {
       /* Allow window-system-specific extensibility of keysym->code mapping */
-      Lisp_Object code = Fget (event->event.key.key, Vcharacter_set_property,
+      Lisp_Object code = Fget (event->event.key.keysym,
+                               Vcharacter_set_property,
 			       Qnil);
       if (!FIXNUMP (code))
 	return -1;
@@ -175,6 +192,8 @@ Note that specifying both ALLOW-META and ALLOW-NON-ASCII is ambiguous, as\n\
 }
 
 
+extern void key_desc_list_to_event (); /* from keymap.c */
+
 DEFUN ("character-to-event", Fcharacter_to_event, Scharacter_to_event, 1, 2, 0,
   "Converts a numeric ASCII value to an event structure, replete with\n\
 bucky bits.  The character is the first argument, and the event to fill\n\
@@ -191,12 +210,16 @@ ASCII character set can encode.")
      (ch, event)
      Lisp_Object ch, event;
 {
-  CHECK_FIXNUM (ch, 0);
   if (NILP (event))
     event = Fallocate_event ();
   else
     CHECK_EVENT (event, 0);
-  character_to_event (XINT (ch), XEVENT (event));
+  if (FIXNUMP (ch))
+    character_to_event (XINT (ch), XEVENT (event));
+  else if (CONSP (ch) || SYMBOLP (ch))
+    key_desc_list_to_event (ch, event, 1);
+  else
+    CHECK_FIXNUM (ch, 0);
   return event;
 }
 
@@ -206,21 +229,21 @@ extern char* x_event_name ();
 #endif
 
 void
-format_event_object (buf, event, brief)
-     char *buf;
-     struct Lisp_Event *event;
-     int brief;
+format_event_object (char *buf, struct Lisp_Event *event, int brief)
 {
-  int mod, mouse_p = 0;
+  int mouse_p = 0;
+  int mod;
   Lisp_Object key;
+
   switch (event->event_type)
     {
     case key_press_event:
-      mod = event->event.key.modifiers;
-      key = event->event.key.key;
-      /* Hack. */
-      if (! brief && FIXNUMP (key) &&
-	  mod & (MOD_CONTROL|MOD_META|MOD_SUPER|MOD_HYPER))
+      {
+        mod = event->event.key.modifiers;
+        key = event->event.key.keysym;
+        /* Hack. */
+        if (! brief && FIXNUMP (key) &&
+            mod & (MOD_CONTROL|MOD_META|MOD_SUPER|MOD_HYPER))
 	{
 	  int k = XINT (key);
 	  if (k >= 'a' && k <= 'z')
@@ -228,14 +251,18 @@ format_event_object (buf, event, brief)
 	  else if (k >= 'A' && k <= 'Z')
 	    mod |= MOD_SHIFT;
 	}
-      break;
+        break;
+      }
     case button_release_event:
       mouse_p++;
+      /* Fall through */
     case button_press_event:
-      mouse_p++;
-      mod = event->event.button.modifiers;
-      key = make_number (event->event.button.button + '0');
-      break;
+      {
+        mouse_p++;
+        mod = event->event.button.modifiers;
+        key = make_number (event->event.button.button + '0');
+        break;
+      }
     case magic_event:
       {
 	char *name =
@@ -405,8 +432,7 @@ Lisp_Object Qprocess_event_p;
 
 #define CHECK_EVENT_SAFE(e, i) \
 { CHECK_EVENT ((e),(i)); \
-  if ((XEVENT (e)->event_type < first_event_type) \
-      || (XEVENT (e)->event_type > last_event_type) \
+  if ((XEVENT (e)->event_type > last_event_type) \
       || (XEVENT (e)->event_type == dead_event)) \
     dead_event_error ((e)); \
 }
@@ -415,8 +441,7 @@ static void
 dead_event_error (Lisp_Object event)
 {
   struct Lisp_Event *e = XEVENT (event);
-  if ((e->event_type < first_event_type)
-      || (e->event_type > last_event_type))
+  if (e->event_type > last_event_type)
     abort ();
   /* >>> better error??? */
   signal_error (Qerror, (list2 (build_string ("deallocated event"),
@@ -581,7 +606,7 @@ ASCII code of a printing character, or a symbol.")
   Lisp_Object event;
 {
   CHECK_EVENT_TYPE (event, key_press_event, Qkey_press_event_p);
-  return (XEVENT (event)->event.key.key);
+  return (XEVENT (event)->event.key.keysym);
 }
 
 DEFUN ("event-button", Fevent_button, Sevent_button, 1, 1, 0,
@@ -706,29 +731,16 @@ event_pixel_translation (event, char_x, char_y, w, bufp, class)
   if (res == 2)
     *bufp = 0;
   else if (*w && NILP ((*w)->buffer))
-    *w = 0; /* Why does this happen? */
+    /* Why does this happen?  (Does it still happen?)
+       I guess the window has gotten reused as a non-leaf... */
+    *w = 0;
 
-
-  /* #### Kludge Kludge Kludge
-     pixel_to_glyph_translation() sometimes returns these bogus objects
-     that are supposed to be extents but are pointers to blocks of memory
-     that are all 0, like
-
-       (gdb) p *((struct extent*)v2.gu.val)
-       $1 = {
-	  lheader = {
-	    implementation = 0x0;
-	  }; 
-	  ehead = {
-	    start = 0; 
-	    end = 0; 
-       ...
-
-     I don't understand how to fix this, but for now, just avoid a crash.
-     If `class' is an lrecord, but has no `implementation', set it to nil.
+  /* #### pixel_to_glyph_translation() sometimes returns garbage...
+     The word has type Lisp_Record (presumably meaning `extent') but the
+     pointer points to random memory, often filled with 0, sometimes not.
    */
-  if (RECORD_TYPEP (*class, 0))
-    *class = Qnil;
+  if (!NILP (*class) && !EXTENTP (*class))
+    abort ();
 }
 
 
@@ -831,7 +843,7 @@ on top of a glyph, this returns it; else nil.")
 
 
 DEFUN ("event-process", Fevent_process, Sevent_process, 1, 1, 0,
- "Returns the process of the given proces-output event.")
+ "Returns the process of the given process-output event.")
      (event)
   Lisp_Object event;
 {

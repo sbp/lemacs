@@ -70,6 +70,10 @@
     (modify-syntax-entry ?\%  "<"     ps-mode-syntax-table)
     (modify-syntax-entry ?\n  ">"     ps-mode-syntax-table)
     (modify-syntax-entry ?\\  "\\"    ps-mode-syntax-table)
+    (modify-syntax-entry ??   "_"     ps-mode-syntax-table)
+    (modify-syntax-entry ?_   "_"     ps-mode-syntax-table)
+    (modify-syntax-entry ?.   "_"     ps-mode-syntax-table)
+    (modify-syntax-entry ?/   "'"     ps-mode-syntax-table)
     (if ps-balanced-string-syntax-p
         (progn
           (modify-syntax-entry ?\(  "\"\)"  ps-mode-syntax-table)
@@ -111,17 +115,19 @@ with no args, if that value is non-nil."
   (use-local-map ps-mode-map)
   (set-syntax-table ps-mode-syntax-table)
   (make-local-variable 'comment-start)
+  (setq comment-start "% ")
   (make-local-variable 'comment-start-skip)
+  (setq comment-start-skip "%+ *")
   (make-local-variable 'comment-column)
+  (setq comment-column 40)
   (make-local-variable 'indent-line-function)
+  (setq indent-line-function 'ps-indent-line)
   (make-local-variable 'tab-stop-list)
+  (setq tab-stop-list ps-tab-stop-list)
   (make-local-variable 'page-delimiter)
-  (setq comment-start "% "
-	comment-start-skip "% *"
-	comment-column 40
-	indent-line-function 'ps-indent-line
-	page-delimiter "^showpage"
-	tab-stop-list ps-tab-stop-list)
+  (setq page-delimiter "^showpage")
+  (make-local-variable 'parse-sexp-ignore-comments)
+  (setq parse-sexp-ignore-comments t)
   (setq mode-name "PostScript")
   (setq major-mode 'postscript-mode)
   (run-hooks 'ps-mode-hook) ; bad name!  Kept for compatibility.
@@ -146,7 +152,7 @@ with no args, if that value is non-nil."
       (if (and (< (point) (point-max))
 	       (eq ?\) (char-syntax (char-after (point)))))
 	  (ps-indent-close)		; indent close-delimiter
-	(if (looking-at "\\(dict\\|class\\)?end\\|cdef\\|grestore")
+	(if (looking-at "\\(dict\\|class\\)?end\\|cdef\\|grestore\\|>>")
 	    (ps-indent-end)		; indent end token
 	  (ps-indent-in-block)))))	; indent line after open delimiter
   
@@ -215,24 +221,23 @@ with no args, if that value is non-nil."
   "Returns the character position of the character following the nearest
 enclosing `[' `{' or `begin' keyword."
   (save-excursion
-    (let (open (skip 0))
-      (setq open (condition-case nil
-		     (save-excursion
-		       (backward-up-list 1)
-		       (1+ (point)))
-		   (error nil)))
+    (let ((open (condition-case nil
+                    (save-excursion
+                      (backward-up-list 1)
+                      (1+ (point)))
+                  (error nil))))
       (ps-begin-end-hack open))))
 
 (defun ps-begin-end-hack (start)
   "Search backwards from point to START for enclosing `begin' and returns the
 character number of the character following `begin' or START if not found."
   (save-excursion
-    (let ((depth 1) match)
+    (let ((depth 1))
       (while (and (> depth 0)
 		  (or (re-search-backward
- "^[ \t]*\\(dict\\|class\\)?\\(end\\|grestore\\)\\|\\(begin\\|gsave\\)[ \t]*\\(%.*\\)*$" start t)
+ "^[ \t]*\\(dict\\|class\\)?\\(end\\|grestore\\|>>\\)\\|\\(begin\\|gsave\\|<<\\)[ \t]*\\(%.*\\)*$" start t)
 		      (re-search-backward "^[ \t]*cdef.*$" start t)))
- 	(setq depth (if (looking-at "[ \t]*\\(dict\\|class\\)?\\(end\\|grestore\\)")
+ 	(setq depth (if (looking-at "[ \t]*\\(dict\\|class\\)?\\(end\\|grestore\\|>>\\)")
 			(1+ depth) (1- depth))))
       (if (not (eq 0 depth))
 	  start
@@ -296,7 +301,7 @@ PostScript text to be executed in that process."
            nil
            (cdr ps-postscript-command)))
   (make-local-variable 'shell-prompt-pattern)
-;  (setq shell-prompt-pattern "PS>")
+; (setq shell-prompt-pattern "PS>")
   (setq shell-prompt-pattern "GS>")
-;  (process-send-string "PostScript" "executive\n")
+; (process-send-string "PostScript" "executive\n")
   )

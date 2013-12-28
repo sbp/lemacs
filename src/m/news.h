@@ -5,7 +5,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -41,13 +41,11 @@ NOTE-END  */
 
 #define LONGBITS 32		/* Number of bits in a long */
 
-/* 68000 has lowest-numbered byte as most significant */
-
-#define BIG_ENDIAN
-
 /* One CRT0 Dummy variable */
 
+#if 0 /* larry@mitra.com says Sony's as doesn't like this.  */
 #define CRT0_DUMMIES one_dummy,
+#endif
 
 /* Use type int rather than a union, to represent Lisp_Object */
 

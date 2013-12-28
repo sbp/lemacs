@@ -109,7 +109,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
     /* Non-nil means show ... at end of line followed by invisible lines.  */
     MARKED_SLOT (selective_display_ellipses);
     /* Alist of (FUNCTION . STRING) for each minor mode enabled in buffer. */
-    MARKED_SLOT (minor_modes);
+    /* Unused: MARKED_SLOT (minor_modes); */
     /* t if "self-insertion" should overwrite */
     MARKED_SLOT (overwrite_mode);
     /* non-nil means abbrev mode is on.  Expand abbrevs automatically. */

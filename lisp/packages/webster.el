@@ -470,17 +470,17 @@ Use webster-mode-hook for customization."
   (if (string-match "Lucid" emacs-version)
       (define-key webster-mode-map 'button2 'webster-xref-word)))
 
-;; Snatched from unix-apropos by Henry Kautz
-(defun current-word ()
-   "Word cursor is over, as a string."
-   (save-excursion
-      (let (beg end)
-	 (re-search-backward "\\w" nil 2)
-	 (re-search-backward "\\b" nil 2)
-	 (setq beg (point))
-	 (re-search-forward "\\w*\\b" nil 2)
-	 (setq end (point))
-	 (buffer-substring beg end))))
+;; now in simple.el
+;(defun current-word ()
+;   "Word cursor is over, as a string."
+;   (save-excursion
+;      (let (beg end)
+;	 (re-search-backward "\\w" nil 2)
+;	 (re-search-backward "\\b" nil 2)
+;	 (setq beg (point))
+;	 (re-search-forward "\\w*\\b" nil 2)
+;	 (setq end (point))
+;	 (buffer-substring beg end))))
 
 (defun webster-xref-word (event)
   "Define the highlighted word under the mouse.

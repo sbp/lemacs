@@ -68,8 +68,13 @@
 (require 'gnus)
 
 (define-key gnus-summary-mode-map "@" 'gnus-summary-mark-article)
-(define-key gnus-summary-mode-map "\C-F" 'gnus-forward-marked-articles)
 (define-key gnus-summary-mode-map "\M-@" 'gnus-summary-mark-regexp)
+
+(substitute-key-definition 'gnus-summary-mail-forward
+			   'gnus-forward-marked-articles
+			   gnus-summary-mode-map)
+;(define-key gnus-summary-mode-map "\C-F" 'gnus-forward-marked-articles)
+
 ;;; See also gnus-uudecode-marked-messages and gnus-unshar-marked-articles.
 
 (defvar gnus-default-mark-char ?@
@@ -111,7 +116,9 @@ mark them as unread or enter SPC RET to remove all kinds of marks."
 (defun gnus-summary-mark-map-articles (mark function)
   (save-excursion
     (set-buffer gnus-summary-buffer)
-    (let ((str (concat "^" (make-string 1 mark) " +\\([0-9]+\\):"))
+    (let ((str (concat "^"
+		       (regexp-quote (make-string 1 mark))
+		       "[^-0-9]*\\([-0-9]+\\):"))
 	  got-one)
       (save-excursion
 	(goto-char (point-min))
@@ -270,7 +277,7 @@ invokes gnus-uudecode-picture-viewer with the filename as an argument.
 After doing this, it asks you if you want to keep the picture or delete it.")
 
 (defvar gnus-uudecode-picture-viewer "xv"
-  "*The picture viewer that gnus-uudecode-marked-messages uses.  See doc of
+  "*The picture viewer that gnus-uudecode-marked-articles uses.  See doc of
 variable gnus-uudecode-picture-pattern.")
 
 (defvar gnus-uudecode-default-directory nil "*")
@@ -334,7 +341,7 @@ gnus-uudecode-file-mode, gnus-uudecode-auto-chmod, and
 		  (error "couldn't find beginning of data."))))
 	    (beginning-of-line)
 	    (delete-region p (point))
-	    (let (c len tmp)
+	    (let (c tmp)
 	      ;; This could be sped up a lot, but then we'd lose the
 	      ;; error checking it does; maybe that's ok.
 	      (while (progn
@@ -363,7 +370,7 @@ gnus-uudecode-file-mode, gnus-uudecode-auto-chmod, and
 	      (final-file (concat directory base-file))
 	      (command (concat "cd " directory " ; uudecode"))
 	      tar-p)
-	 (cond ((string-match "\\.tar\\.Z$" base-file)
+	 (cond ((string-match "\\.tar\\.\\(Z\\|z\\|gz\\)$" base-file)
 		(if (y-or-n-p "uncompress/untar? ")
 		    (setq command (concat command " && zcat "
 					  base-file " | tar -vxf -")
@@ -374,7 +381,7 @@ gnus-uudecode-file-mode, gnus-uudecode-auto-chmod, and
 		    (setq command (concat command " && tar -vxf " base-file)
 			  final-file nil
 			  tar-p t)))
-	       ((string-match "\\.Z$" base-file)
+	       ((string-match "\\.\\(Z\\|z\\|gz\\)$" base-file)
 		(if (y-or-n-p "uncompress? ")
 		    (setq command (concat command " ; uncompress " base-file)
 			  final-file (substring base-file 0

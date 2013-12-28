@@ -81,6 +81,7 @@ extern void insert_buffer_string (struct buffer *b, int index, int length);
 
 /* Delete characters in current buffer
    from FROM up to (but not including) TO.  */
-extern void del_range (int from, int to);
+#define del_range(from,to) del_range_1((from),(to),1)
+extern void del_range_1 (int from, int to, int call_prepare_to_modify_buffer);
 
 #endif /* _EMACS_INSDEL_H_ */

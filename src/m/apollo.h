@@ -5,7 +5,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -30,10 +30,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define INTBITS 32		/* Number of bits in an int */
 
 #define LONGBITS 32		/* Number of bits in a long */
-
-/* 68000 has lowest-numbered byte as most significant */
-
-#define BIG_ENDIAN
 
 /* Say this machine is a 68000 */
 
@@ -68,12 +64,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define HAVE_ALLOCA
 
-/* DN460 has a 28 bit virtual address space, and 26 bits are often used */
-
-/* lemacs has fewer tags than v18, so let lisp.h take care of this */
-/* #define VALBITS 26 */
-/* #define GCTYPEBITS 5 */
-
 /* Prevent -lg from being used for debugging.  Not needed.  */
 
 #define LIBS_DEBUG
@@ -95,3 +85,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef APOLLO_SR10
 #undef BSTRING
 #endif
+
+/* The function x_destroy_database doesn't exist in the version of X
+   on the Apollo.  */
+#define NO_X_DESTROY_DATABASE

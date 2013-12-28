@@ -426,6 +426,10 @@ Filesz      Memsz       Flags       Align
 extern void fatal (char *, ...);
 #endif
 
+#ifndef ELF_BSS_SECTION_NAME
+#define ELF_BSS_SECTION_NAME ".bss"
+#endif
+
 /* Get the address of a particular section or program header entry,
  * accounting for the size of the entries.
  */
@@ -492,7 +496,7 @@ unexec (new_name, old_name, data_start, bss_start, entry_address)
   Elf32_Off  new_data2_offset;
   Elf32_Addr new_data2_addr;
 
-  int n, nn, old_bss_index, old_data_index;
+  int n, nn, old_bss_index, old_data_index, new_data2_index;
   struct stat stat_buf;
 
   /* Open the old file & map it into the address space. */
@@ -536,7 +540,7 @@ unexec (new_name, old_name, data_start, bss_start, entry_address)
 	       old_section_names + OLD_SECTION_H (old_bss_index).sh_name);
 #endif
       if (!strcmp (old_section_names + OLD_SECTION_H (old_bss_index).sh_name,
-		   ".bss"))
+		   ELF_BSS_SECTION_NAME))
 	break;
     }
   if (old_bss_index == old_file_h->e_shnum)
@@ -641,10 +645,10 @@ unexec (new_name, old_name, data_start, bss_start, entry_address)
 #endif /*  __mips */
 
       if (NEW_PROGRAM_H (n).p_type == PT_LOAD
-	  && (round_up ((NEW_PROGRAM_H (n)).p_vaddr
-			+ (NEW_PROGRAM_H (n)).p_filesz,
+	  && (round_up ((int) ((NEW_PROGRAM_H (n)).p_vaddr
+			       + (NEW_PROGRAM_H (n)).p_filesz),
 			alignment)
-	      == round_up (old_bss_addr, alignment)))
+	      == round_up ((int) old_bss_addr, alignment)))
 	break;
     }
   if (n < 0)

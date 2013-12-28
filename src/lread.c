@@ -27,6 +27,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <ctype.h>
+#include <fcntl.h>
 
 #ifndef standalone
 #include "buffer.h"
@@ -40,12 +41,15 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif /* lint */
 
 #ifndef X_OK
-#define X_OK 01
+# define X_OK 01
+#endif
+
+#ifndef FD_CLOEXEC
+# define FD_CLOEXEC 1
 #endif
 
 #ifdef LISP_FLOAT_TYPE
-#include <stdlib.h>
-#include <math.h>
+# include <math.h>
 #endif /* LISP_FLOAT_TYPE */
 
 Lisp_Object Qread_char, Qstandard_input;
@@ -62,9 +66,15 @@ int load_in_progress;
 int load_warn_when_source_newer;
 /* Whether Fload() should check whether the .elc doesn't exist */
 int load_warn_when_source_only;
+/* Whether Fload() should ignore .elc files when no suffix is given */
+/* #### This is worthless */
+int load_ignore_elc_files;
 
 /* Search path for files to be loaded. */
 Lisp_Object Vload_path;
+
+/* Search path for files when dumping. */
+/* Lisp_Object Vdump_load_path; */
 
 /* This is the user-visible association list that maps features to
    lists of defs in their load files. */
@@ -92,10 +102,10 @@ struct input_stream
 static Lisp_Object mark_input_stream (Lisp_Object, void (*) (Lisp_Object));
 static void print_input_stream (Lisp_Object, Lisp_Object, int);
 static void finalise_input_stream (void *header, int);
-static int sizeof_istream (void *h) { return (sizeof (struct input_stream)); }
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_input_stream,
+DEFINE_LRECORD_IMPLEMENTATION ("input-stream", lrecord_input_stream,
                                mark_input_stream, print_input_stream, 
-                               finalise_input_stream, sizeof_istream, 0);
+                               finalise_input_stream, 0,
+			       sizeof (struct input_stream));
 #define INPUTSTREAMP(s) RECORD_TYPEP ((s), lrecord_input_stream)
 #define XINPUTSTREAM(s) ((struct input_stream *)XRECORD(s))
 
@@ -108,9 +118,8 @@ mark_input_stream (Lisp_Object obj, void (*markobj) (Lisp_Object))
 static void
 print_input_stream (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 {
-  char buf[30];
-  sprintf (buf, GETTEXT ("#<input-stream 0x%x>"),
-	   XINPUTSTREAM (obj)->header.uid); 
+  char buf[200];
+  sprintf (buf, GETTEXT ("#<input-stream 0x%x>"), (long) XINPUTSTREAM (obj)); 
   write_string_1 (buf, -1, printcharfun);
 }
 
@@ -127,24 +136,26 @@ finalise_input_stream (void *header, int for_disksave)
 /* Handle unreading and rereading of characters. */
 
 static int
-readchar (readcharfun)
-     Lisp_Object readcharfun;
+readchar (Lisp_Object readcharfun)
 {
   Lisp_Object tem;
   register int c, mpos;
 
   if (BUFFERP (readcharfun))
     {
-      struct buffer *inbuffer = XBUFFER (readcharfun);
+      struct buffer *b = XBUFFER (readcharfun);
+ 
+      if (b == 0 || NILP (b->name))
+        error (GETTEXT ("Reading from killed buffer"));
 
-      if (BUF_PT (inbuffer) >= BUF_ZV (inbuffer))
-	return -1;
+      if (BUF_PT (b) >= BUF_ZV (b))
+        return -1;
 #ifdef I18N4
-      c = *BUF_CHAR_ADDRESS (inbuffer, BUF_PT (inbuffer));
+      c = *BUF_CHAR_ADDRESS (b, BUF_PT (b));
 #else
-      c = *(unsigned char *) BUF_CHAR_ADDRESS (inbuffer, BUF_PT (inbuffer));
+      c = *(unsigned char *) BUF_CHAR_ADDRESS (b, BUF_PT (b));
 #endif
-      SET_BUF_PT (inbuffer, BUF_PT (inbuffer) + 1);
+      SET_BUF_PT (b, BUF_PT (b) + 1);
 
       return c;
     }
@@ -196,9 +207,7 @@ readchar (readcharfun)
    If the stream is a user function, call it with the char as argument.  */
 
 static void
-unreadchar (readcharfun, c)
-     Lisp_Object readcharfun;
-     int c;
+unreadchar (Lisp_Object readcharfun, int c)
 {
   if (BUFFERP (readcharfun))
     {
@@ -307,7 +316,7 @@ Return t if file exists.")
   str = Fsubstitute_in_file_name (str);
 
   /* If file name is magic, call the handler.  */
-  handler = Ffind_file_name_handler (str);
+  handler = Ffind_file_name_handler (str, Qload);
   if (!NILP (handler))
     {
       UNGCPRO;
@@ -322,7 +331,10 @@ Return t if file exists.")
       Lisp_Object found;
 
       fd = locate_file (Vload_path, str, 
-                        ((!NILP (nosuffix)) ? "" : ".elc:.el:"),
+                        ((!NILP (nosuffix)) ? "" :
+			 /* #### This is worthless */
+			 load_ignore_elc_files ? ".el:" :
+			 ".elc:.el:"),
                         &found,
                         -1);
 
@@ -337,6 +349,14 @@ Return t if file exists.")
 	      UNGCPRO;
 	      return Qnil;
 	    }
+	}
+      /* #### This is worthless */
+      else if (load_ignore_elc_files)
+	{
+	  struct gcpro gcpro1;
+	  GCPRO1 (found);
+	  newer = Ffile_name_nondirectory (found);
+	  UNGCPRO;
 	}
       else if (load_warn_when_source_newer &&
 	       !memcmp (".elc",
@@ -387,7 +407,13 @@ Return t if file exists.")
 	     XSTRING (str)->data);
     }
 
-  if (!NILP (newer))
+  /* #### This is worthless */
+  if (load_ignore_elc_files)
+    {
+      if (NILP (nomessage))
+	message (GETTEXT ("Loading %s..."), XSTRING (newer)->data);
+    }
+  else if (!NILP (newer))
     {
       message (GETTEXT ("Loading %s...  (file %s is newer)"),
 	       XSTRING (str)->data, XSTRING (newer)->data);
@@ -559,6 +585,13 @@ locate_file (path, str, suffix, storeptr, mode)
 		  if (storeptr)
 		    *storeptr = build_string (fn);
                   UNGCPRO;
+
+                  /* If we actually opened the file, set close-on-exec flag
+		     on the new descriptor so that subprocesses can't whack
+		     at it.  */
+		  if (mode < 0)
+		    (void) fcntl (fd, F_SETFD, FD_CLOEXEC);
+
 		  return fd;
 		}
 	    }
@@ -887,10 +920,9 @@ static int read_buffer_size;
 static char *read_buffer;
 
 static int
-read_escape (readcharfun)
-     Lisp_Object readcharfun;
+read_escape (Lisp_Object readcharfun)
 {
-  register int c = readchar (readcharfun);
+  int c = readchar (readcharfun);
   switch (c)
     {
     case 'a':
@@ -1000,15 +1032,16 @@ read_escape (readcharfun)
 }
 
 
-static Lisp_Object
-read_atom (register Lisp_Object readcharfun,
-           int firstchar,
-           int uninterned_symbol)
+
+/* read symbol-constituent stuff into `read_buffer'. */
+static int
+read_atom_0 (Lisp_Object readcharfun, int firstchar, int *saw_a_backslash)
 {
-  register char *p = read_buffer;
-  register char *end = read_buffer + read_buffer_size;
-  int saw_a_backslash = 0;      /* if there were backslashes in token */
-  register int c = firstchar;
+  char *p = read_buffer;
+  char *end = read_buffer + read_buffer_size;
+  int c = ((firstchar) >= 0 ? firstchar : readchar (readcharfun));
+
+  *saw_a_backslash = 0;
 
   while (c > 040 
          && !(c == '\"' || c == '\'' || c == ';'
@@ -1028,7 +1061,7 @@ read_atom (register Lisp_Object readcharfun,
       if (c == '\\')
 	{
 	  c = readchar (readcharfun);
-	  saw_a_backslash = 1;
+	  *saw_a_backslash = 1;
 	}
       *p++ = c;
       c = readchar (readcharfun);
@@ -1045,6 +1078,19 @@ read_atom (register Lisp_Object readcharfun,
   if (c >= 0)
     unreadchar (readcharfun, c);
 
+  return (p - read_buffer);
+}
+
+static Lisp_Object parse_integer (CONST char *buf, int len, int base);
+
+static Lisp_Object
+read_atom (register Lisp_Object readcharfun,
+           int firstchar,
+           int uninterned_symbol)
+{
+  int saw_a_backslash;
+  int len = read_atom_0 (readcharfun, firstchar, &saw_a_backslash);
+
   /* Is it an integer? */
   if (! (saw_a_backslash || uninterned_symbol))
     {
@@ -1053,58 +1099,126 @@ read_atom (register Lisp_Object readcharfun,
 	 symbol, as is \123 (which is the way (intern "123") prints.)
 	 Also, if token was preceeded by #:, it's always a symbol.
        */
-      register char *p1;
-      p1 = read_buffer;
+      char *p = read_buffer + len;
+      char *p1 = read_buffer;
+
       if (*p1 == '+' || *p1 == '-') p1++;
       if (p1 != p)
 	{
-	  while (p1 != p && (c = *p1) >= '0' && c <= '9') p1++;
-	  if (p1 == p)
-	    /* It is. */
-	    {
-	      int number = 0;
+          int c;
 
+          while (p1 != p && (c = *p1) >= '0' && c <= '9')
+            p1++;
+          if (p1 == p)
+            {
+              /* It is an integer. */
 #if 0
-	      /* This change breaks many elisp applications. */
-	      if (read_buffer[0] == '0')
-		{
-		  p = read_buffer;
-		  /* Lucid fix */
-		  while (p1 != p) 
-		    {
-		      if (*p < '0' || *p > '7')
-			return Fsignal (Qinvalid_read_syntax,
-					list1 (build_string (GETTEXT ("non-octal digit"))));
-		      number = (number << 3) + *p++ - '0';
-		    }
-		}
-	      else
-#endif
-		number = atoi (read_buffer);
-
+	      int number = 0;
+              number = atoi (read_buffer);
 	      return (make_number (number));
+#else
+              return (parse_integer (read_buffer, len, 10));
+#endif
 	    }
 	}
 #ifdef LISP_FLOAT_TYPE
-      if (isfloat_string (read_buffer))
+      if (isfloat_string ((unsigned char *) read_buffer))
 	return make_float (atof (read_buffer));
 #endif
     }
 
-  {
-    int len = p - read_buffer;
-
-    if (uninterned_symbol)
-      return (Fmake_symbol ((purify_flag) 
-                            ? make_pure_pname (read_buffer, len, 0)
-                            : make_string (read_buffer, len)));
-    else
-      /* intern will purecopy pname if necessary */
-      return (Fintern (make_string (read_buffer, len), Qnil));
-  }
+  if (uninterned_symbol)
+    return (Fmake_symbol ((purify_flag) 
+                          ? make_pure_pname (read_buffer, len, 0)
+                          : make_string (read_buffer, len)));
+  else
+    /* intern will purecopy pname if necessary */
+    return (Fintern (make_string (read_buffer, len), Qnil));
 }
 
 
+static Lisp_Object
+parse_integer (CONST char *buf, int len, int base)
+{
+  CONST char *lim = buf + len;
+  CONST char *p = buf;
+  unsigned LISP_WORD_TYPE num = 0;
+  int negativland = 0;
+
+  if (*p == '-')
+  {
+    negativland = 1;
+    p++;
+  }
+  else if (*p == '+')
+  {
+    p++;
+  }
+
+  if (p == lim)
+    goto loser;
+
+  for (; p < lim; p++)
+  {
+    int c = *p;
+    unsigned LISP_WORD_TYPE onum;
+
+    if (isdigit (c))
+      c = c - '0';
+    else if (isupper (c))
+      c = c - 'A';
+    else if (islower (c))
+      c = c - 'a';
+    else
+      goto loser;
+    
+    if (c < 0 || c >= base)
+      goto loser;
+
+    onum = num;
+    num = num * base + c;
+    if (num < onum)
+      goto overflow;
+  }
+
+  {
+    Lisp_Object result = make_number ((negativland) ? -num : num);
+    if ((XINT (result) < 0) != negativland)
+      goto overflow;
+    if (XINT (result) != ((negativland) ? -num : num))
+      goto overflow;
+    return (result);
+  }
+ overflow:
+  return Fsignal (Qinvalid_read_syntax, 
+                  list3 (build_string (GETTEXT ("Integer constant overflow"
+                                                " in reader")),
+                         make_string (read_buffer, (lim - read_buffer)),
+                         make_number (base)));
+ loser:
+  return Fsignal (Qinvalid_read_syntax, 
+                  list3 (build_string (GETTEXT ("Invalid integer constant"
+                                                " in reader")),
+                         make_string (read_buffer, (lim - read_buffer)),
+                         make_number (base)));
+}
+
+
+static Lisp_Object
+read_integer (Lisp_Object readcharfun, int base)
+{
+  int saw_a_backslash;
+  int len = read_atom_0 (readcharfun, -1, &saw_a_backslash);
+  return (parse_integer (read_buffer,
+                         ((saw_a_backslash)
+                          ? 0 /* make parse_integer signal error */
+                          : len),
+                         base));
+}
+
+
+
+
 static Lisp_Object read_bytecode (Lisp_Object readcharfun, int terminator);
 static Lisp_Object read_vector (Lisp_Object readcharfun, int terminator);
 
@@ -1210,17 +1324,37 @@ read1 (Lisp_Object readcharfun)
 	case ':':
           {
             /* "#:"-- quasi-implemented gensym syntax */
-            return (read_atom (readcharfun, readchar (readcharfun), 1));
+            return (read_atom (readcharfun, -1, 1));
           }
         case '\'':
           {
             /* #'x => (function x) */
             return (list2 (Qfunction, read0 (readcharfun)));
           }
+#if 0
+	  /* RMS uses this syntax for fat-strings.
+	     If we use it for vectors, then obscure bugs happen.
+	   */
         case '(':
           {
             /* "#(" -- Scheme/CL vector syntax */
             return (read_vector (readcharfun, ')'));
+          }
+#endif
+        case 'o':
+          {
+            /* #o10 => 8 -- octal constant syntax */
+            return (read_integer (readcharfun, 8));
+          }
+        case 'x':
+          { 
+            /* #xdead => 57005 -- hex constant syntax */
+           return (read_integer (readcharfun, 16));
+          }
+        case 'b':
+          { 
+            /* #b010 => 2 -- binary constant syntax */
+           return (read_integer (readcharfun, 2));
           }
 
         default:
@@ -1283,7 +1417,7 @@ read1 (Lisp_Object readcharfun)
 
 	/* If purifying, and string starts with \ newline,
 	   return zero instead.  This is for doc strings
-	   that we are really going to find in etc/DOC.nn.nn  */
+	   that we are really going to find in lib-src/DOC.nn.nn  */
 	if (purify_flag && NILP (Vdoc_file_name) && cancel)
 	  return (Qzero);
 
@@ -1312,15 +1446,14 @@ read1 (Lisp_Object readcharfun)
 #define EXP_INT 16
 
 int
-isfloat_string (register CONST char *cp)
+isfloat_string (CONST unsigned char *cp)
 {
-  register state;
+  int state = 0;
   
-  state = 0;
   if (*cp == '+' || *cp == '-')
     cp++;
 
-  if (isdigit(*cp))
+  if (isdigit (*cp))
     {
       state |= LEAD_INT;
       while (isdigit (*cp))
@@ -1331,7 +1464,7 @@ isfloat_string (register CONST char *cp)
       state |= DOT_CHAR;
       cp++;
     }
-  if (isdigit(*cp))
+  if (isdigit (*cp))
     {
       state |= TRAIL_INT;
       while (isdigit (*cp))
@@ -1558,8 +1691,12 @@ void
 init_lread ()
 {
 #ifdef PATH_LOADSEARCH
-  char *normal = PATH_LOADSEARCH;
+  CONST char *normal = PATH_LOADSEARCH;
 
+/* Don't print this warning.  If the hardcoded paths don't exist, then
+   startup.el will try and deduce one.  If it fails, it knows how to
+   handle things. */
+#if 0
   /* Warn if dirs in the *standard* path don't exist.  */
   {
     Lisp_Object normal_path = decode_env_path (0, normal);
@@ -1576,19 +1713,23 @@ init_lread ()
           }
       }
   }
-#else
-  char *normal = 0;
-#endif
+#endif /* 0 */
+#else /* !PATH_LOADSEARCH */
+  CONST char *normal = 0;
+#endif /* !PATH_LOADSEARCH */
   Vvalues = Qnil;
 
   /* further frobbed by startup.el if nil. */
   Vload_path = decode_env_path ("EMACSLOADPATH", normal);
 
+/*  Vdump_load_path = Qnil; */
 #ifndef CANNOT_DUMP
-  if (purify_flag)
-    /* loadup.el will frob this some more */
-    /* >>> unix-specific */
-    Vload_path = Fcons (build_string ("../lisp/prim"), Vload_path);
+  if (purify_flag && NILP (Vload_path))
+    {
+      /* loadup.el will frob this some more. */
+      /* >>> unix-specific */
+      Vload_path = Fcons (build_string ("../lisp/prim"), Vload_path);
+    }
 #endif /* not CANNOT_DUMP */
   load_in_progress = 0;
 }
@@ -1625,6 +1766,9 @@ If there were no paths specified in `paths.h', then emacs chooses a default\n\
 value for this variable by looking around in the file-system near the\n\
 directory in which the emacs executable resides.");
 
+/*  xxxDEFVAR_LISP ("dump-load-path", &Vdump_load_path,
+    "*Location of lisp files to be used when dumping ONLY."); */
+
   DEFVAR_BOOL ("load-in-progress", &load_in_progress,
     "Non-nil iff inside of `load'.");
 
@@ -1652,6 +1796,12 @@ an extension, and the .elc version doesn't exist but the .el version does,\n\
 then a message will be printed.  If an explicit extension is passed to load,\n\
 no warning will be printed.");
   load_warn_when_source_only = 0;
+
+  /* #### This is worthless */
+  DEFVAR_BOOL ("load-ignore-elc-files", &load_ignore_elc_files,
+    "*Whether `load' should ignore `.elc' files when a suffix is not given.\n\
+If this variable is false (the normal state of affairs) and");
+  load_ignore_elc_files = 0;
 
 #ifdef LOADHIST
   DEFVAR_LISP ("load-history", &Vload_history,

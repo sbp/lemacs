@@ -1,5 +1,5 @@
 /* Definitions file for GNU Emacs running on AT&T's System V Release 4
-   Copyright (C) 1987, 1990, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1990 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -18,7 +18,8 @@ along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* This file written by James Van Artsdalen of Dell Computer Corporation.
- * james@bigtex.cactus.org.
+ * james@bigtex.cactus.org.  Subsequently improved for Dell 2.2 by Eric
+ * S. Raymond <esr@snark.thyrsus.com>.
  */
 
 /* Use the SysVr3 file for at least base configuration. */
@@ -27,10 +28,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define USG5_4
 
-#undef sigsetmask
-
-#define POSIX_SIGNALS
-
 /* We do have multiple jobs.  Handle ^Z. */
 
 #undef NOMULTIPLEJOBS
@@ -38,10 +35,27 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define LIBS_SYSTEM -lsocket -lnsl -lelf
 #define ORDINARY_LINK
 
-#if 0 /* These should be unnecessary now because of ORDINARY_LINK.  */
+#if 0
+#ifdef ORDINARY_LINK
+#define LIB_STANDARD -lc /usr/ucblib/libucb.a
+#else
 #define START_FILES pre-crt0.o /usr/ccs/lib/crt1.o /usr/ccs/lib/crti.o /usr/ccs/lib/values-Xt.o
 #define LIB_STANDARD -lc /usr/ucblib/libucb.a /usr/ccs/lib/crtn.o
 #endif
+#else
+
+#ifdef ORDINARY_LINK
+#define LIB_STANDARD
+#else
+#define START_FILES pre-crt0.o /usr/ccs/lib/crt1.o /usr/ccs/lib/crti.o /usr/ccs/lib/values-Xt.o
+#define LIB_STANDARD -lc /usr/ccs/lib/crtn.o
+#endif
+#endif
+
+/* there are no -lg libraries on this system, and no libPW */
+
+#define LIBS_DEBUG
+#define LIBS_STANDARD -lc
 
 /* No <sioctl.h> */
 
@@ -67,18 +81,22 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <sys/stream.h>
 #include <sys/stropts.h>
 #include <sys/termios.h>
-/* #undef SIGIO		use BROKEN_SIGIO instead of this kludge -- jwz */
 #define BROKEN_SIGIO
+#endif
+
+/* Some SVr4s don't define NSIG in sys/signal.h for ANSI environments;
+ * instead, there's a system variable _sys_nsig.  Unfortunately, we need the
+ * constant to dimension an array.  So wire in the appropriate value here.
+ */
+
+#ifndef NSIG
+#define NSIG	32
 #endif
 
 /* libc has this stuff, but not utimes. */
 
-#define HAVE_RENAME
 #define HAVE_SELECT
 #define HAVE_TIMEVAL
-#define HAVE_CLOSEDIR
-#define HAVE_GETTIMEOFDAY
-#define HAVE_DUP2
 
 /* <sys/stat.h> *defines* stat(2) as a static function.  If "static"
  * is blank, then many files will have a public definition for stat(2).
@@ -97,8 +115,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define CLASH_DETECTION
 
 #define HAVE_PTYS
-#define HAVE_SETSID
-#define HAVE_TCATTR
+#define HAVE_TERMIOS
+#undef BROKEN_TIOCGWINSZ
+#undef BROKEN_TIOCGETC
 
 /* It is possible to receive SIGCHLD when there are no children
    waiting, because a previous waitsys(2) cleaned up the carcass of child
@@ -132,9 +151,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    intercepting that death.  If any child but grantpt's should die
    within, it should be caught after sigrelse(2). */
 
+/* lemacs change */
+#ifndef NOT_C_CODE
+# if !__STDC__ && !defined(STDC_HEADERS)
+char *ptsname();
+# endif
+#endif
+
 #define PTY_TTY_NAME_SPRINTF			\
   {						\
-    char *ptsname(), *ptyname;			\
+    char *ptyname;				\
 						\
     sighold(SIGCLD);				\
     if (grantpt(fd) == -1)			\
@@ -158,6 +184,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
   if (ioctl (xforkin, I_PUSH, "ttcompat") == -1) \
     fatal ("ioctl I_PUSH ttcompat", errno);
 
+/* Undo the SVr3 X11 library definition */
+#undef LIB_X11_LIB
+
 /* The definition of this in s-usg5-3.h is not needed in 5.4.  */
 /* liblnsl_s should never be used.  The _s suffix implies a shared
    library, as opposed to a DLL.  Share libraries were used in SVR3, and are
@@ -172,3 +201,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* This definition was suggested for next release.
    So give it a try.  */
 #define HAVE_SOCKETS
+
+#define bcopy(src,dst,n)	memmove(dst,src,n)
+#define bcmp(src,dst,n)		memcmp(src,dst,n)
+#define bzero(s,n)		memset(s,0,n)

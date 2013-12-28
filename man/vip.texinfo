@@ -705,7 +705,7 @@ Query replace.
 Replace.
 @end table
 
-@node Vi Commands, Numeric Arguments, Misc Commands, Top
+@node Vi Commands, Ex Commands, Misc Commands, Top
 @chapter Vi Commands
 
 This chapter describes Vi commands other than Ex commands implemented in
@@ -720,7 +720,12 @@ commands described in this chapter are to be used in vi mode.
 * Viewing the Buffer::	How you can view the current buffer.
 * Mark Commands::	Marking positions in a buffer.
 * Motion Commands::	Commands for moving point.
+* Searching and Replacing::
+                        Looking for text in a buffer.
 * Modifying Commands::	Commands for modifying the buffer.
+* Other Vi Commands::   Miscellaneous commands.
+* Commands in Insert Mode::
+                        Commands available while inserting text.
 @end menu
 
 @node Numeric Arguments, Important Keys, Vi Commands, Vi Commands
@@ -1296,7 +1301,7 @@ count, replace that many characters by @var{ch} (@code{vip-replace-char}).
 The commands @kbd{/} and @kbd{?} mark point before move, so that you can
 return to the original point by @w{@kbd{` `}}.
 
-@node Modifying Commands, Delete Commands, Searching and Replacing, Vi Commands
+@node Modifying Commands, Other Vi Commands, Searching and Replacing, Vi Commands
 @section Modifying Commands
 
 In this section, commands for modifying the content of a buffer are
@@ -1332,6 +1337,8 @@ command.
 * Yank Commands::	Commands for yanking text in Vi's sense.
 * Put Back Commands::	Commands for putting bake deleted/yanked text.
 * Change Commands::	Commands for changing text.
+* Repeating and Undoing Modifications::
+                        Commands for repeating and undoing textual changes.
 @end menu
 @node Delete Commands, Yank Commands, Modifying Commands, Modifying Commands
 @subsection Delete Commands
@@ -1485,7 +1492,7 @@ Change current region.
 Expand current region and change it.
 @end table
 
-@node Repeating and Undoing Modifications, Other Vi Commands, Change Commands, Modifying Commands
+@node Repeating and Undoing Modifications,, Change Commands, Modifying Commands
 @subsection Repeating and Undoing Modifications
 
 VIP records the previous modifying command, so that it is easy to repeat
@@ -1505,7 +1512,7 @@ count for the repeated command.  Otherwise, the count for the last
 modifying command is used again (@code{vip-repeat}).
 @end table
 
-@node Other Vi Commands, Commands in Insert Mode, Repeating and Undoing Modifications, Vi Commands
+@node Other Vi Commands, Commands in Insert Mode, Modifying Commands, Vi Commands
 @section Other Vi Commands
 
 Miscellaneous Vi commands are collected here.
@@ -1626,7 +1633,7 @@ command @kbd{P} or @kbd{p} can retrieve it from kill ring
 (@code{kill-region}).
 @end table
 
-@node Commands in Insert Mode, Ex Commands, Other Vi Commands, Vi Commands
+@node Commands in Insert Mode,, Other Vi Commands, Vi Commands
 @section Insert Mode
 
 You can enter insert mode by one of the following commands.  In addition to
@@ -1694,7 +1701,7 @@ start point is saved for later use by repeat command etc.  Therefore, repeat
 command will not really repeat insertion if you move point by emacs
 commands while in insert mode.
 
-@node Ex Commands, Ex Command Reference, Commands in Insert Mode, Top
+@node Ex Commands, Ex Command Reference, Vi Commands, Top
 @chapter Ex Commands
 
 @kindex 072 @kbd{:} (@code{vip-ex})

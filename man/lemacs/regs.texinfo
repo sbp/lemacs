@@ -1,0 +1,110 @@
+
+@node Registers, Display, Rectangles, Top
+@chapter Registers
+@cindex registers
+
+  Emacs @dfn{registers} are places in which you can save text or
+positions for later use.  Text saved in a register can be copied into
+the buffer once or many times; a position saved in a register is used by
+moving point to that position.  Rectangles can also be copied into and
+out of registers (@pxref{Rectangles}).
+
+  Each register has a name, which is a single character.  A register can
+store either a piece of text, a position, or a rectangle, but only one
+thing at any given time.  Whatever you store in a register remains
+there until you store something else in that register.
+
+@menu
+* RegPos::    Saving positions in registers.
+* RegText::   Saving text in registers.
+* RegRect::   Saving rectangles in registers.
+@end menu
+
+@table @kbd
+@item M-x view-register @key{RET} @var{r}
+Display a description of what register @var{r} contains.
+@end table
+
+@findex view-register
+  @kbd{M-x view-register} reads a register name as an argument and then
+displays the contents of the specified register.
+
+@node RegPos, RegText, Registers, Registers
+@section Saving Positions in Registers
+
+  Saving a position records a spot in a buffer so you can move
+back there later.  Moving to a saved position re-selects the buffer
+and moves point to the spot.
+
+@table @kbd
+@item C-x r SPC @var{r}
+Save the location of point in register @var{r} (@code{point-to-register}).
+@item C-x r j @var{r}
+Jump to the location saved in register @var{r} (@code{register-to-point}).
+@end table
+
+@kindex C-x r SPC
+@findex point-to-register
+  To save the current location of point in a register, choose a name
+@var{r} and type @kbd{C-x r SPC @var{r}}.  The register @var{r} retains
+the location thus saved until you store something else in that
+register.@refill
+
+@kindex C-x r j
+@findex register-to-point
+  The command @kbd{C-x r j @var{r}} moves point to the location recorded
+in register @var{r}.  The register is not affected; it continues to
+record the same location.  You can jump to the same position using the
+same register as often as you want.
+
+@node RegText, RegRect, RegPos, Registers
+@section Saving Text in Registers
+
+  When you want to insert a copy of the same piece of text many times, it
+can be impractical to use the kill ring, since each subsequent kill moves
+the piece of text further down on the ring.  It becomes hard to keep
+track of the argument needed to retrieve the same text with @kbd{C-y}.  An
+alternative is to store the text in a register with @kbd{C-x r s}
+(@code{copy-to-register}) and then retrieve it with @kbd{C-x r g}
+(@code{insert-register}).
+
+@table @kbd
+@item C-x r s @var{r}
+Copy region into register @var{r} (@code{copy-to-register}).
+@item C-x r g @var{r}
+Insert text contents of register @var{r} (@code{insert-register}).
+@end table
+
+@kindex C-x r s
+@kindex C-x r g
+@findex copy-to-register
+@findex insert-register
+  @kbd{C-x r s @var{r}} stores a copy of the text of the region into the
+register named @var{r}.  Given a numeric argument, @kbd{C-x r s} deletes the
+text from the buffer as well.
+
+  @kbd{C-x r g @var{r}} inserts the text from register @var{r} in the buffer.
+By default it leaves point before the text and places the mark after it. 
+With a numeric argument, it puts point after the text and the mark
+before it.
+
+@node RegRect,, RegText, Registers
+@section Saving Rectangles in Registers
+@cindex rectangle
+@findex copy-region-to-rectangle
+
+  A register can contain a rectangle instead of lines of text.  The rectangle
+is represented as a list of strings.  @xref{Rectangles}, for basic
+information on rectangles and how to specify rectangles in a buffer.
+
+@table @kbd
+@item C-x r r @var{r}
+Copy the region-rectangle into register @var{r}(@code{copy-rectangle-to-register}).
+With a numeric argument, delete it as well.
+@item C-x r g @var{r}
+Insert the rectangle stored in register @var{r} (if it contains a
+rectangle) (@code{insert-register}).
+@end table
+
+  The @kbd{C-x r g} command inserts linear text if the register contains
+that, or inserts a rectangle if the register contains one.

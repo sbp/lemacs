@@ -7,11 +7,6 @@
 
 #define LONGBITS 64L		/* Number of bits in a long */
 
-/* Define BIG_ENDIAN iff lowest-numbered byte in a word
-   is the most significant byte.  */
-
-/* #define BIG_ENDIAN */
-
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
 
@@ -103,4 +98,4 @@
  */
 #define PNTR_COMPARISON_TYPE unsigned long
 
-#define PURESIZE 	530000
+#define PURESIZE 	550000

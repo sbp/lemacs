@@ -1,29 +1,26 @@
-;;; Pending delete selection
-;;; Copyright (C) 1992 Free Software Foundation, Inc.
-;;; Created: 14 Jul 92, Matthieu Devin <devin@lucid.com>
-;;; Last change  30-dec-93., devin.
+;; pending-del.el --- Making insertions replace any selected text.
 
-;;; This file is part of GNU Emacs.
+;; Copyright (C) 1992, 1994 Free Software Foundation, Inc.
 
-;;; GNU Emacs is free software; you can redistribute it and/or modify
-;;; it under the terms of the GNU General Public License as published by
-;;; the Free Software Foundation; either version 2, or (at your option)
-;;; any later version.
+;; Author: Matthieu Devin <devin@lucid.com>, 14 Jul 92.
 
-;;; GNU Emacs is distributed in the hope that it will be useful,
-;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;;; GNU General Public License for more details.
+;; This file is part of GNU Emacs.
 
-;;; You should have received a copy of the GNU General Public License
-;;; along with GNU Emacs; see the file COPYING.  If not, write to
-;;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+;; GNU Emacs is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 2, or (at your option)
+;; any later version.
 
-;;; This files makes the active region be pending delete, meaning that
-;;; text inserted while the region is active will replace the region contents.
-;;; This is a popular behavior of personal computers text editors.
+;; GNU Emacs is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
 
-(provide 'pending-del)
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs; see the file COPYING.  If not, write to
+;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+
+;;; Code:
 
 (defvar pending-delete-verbose
   1
@@ -91,19 +88,30 @@ When it is OFF typed text is just inserted at point."
   (and verbose (message "pending delete is OFF")))
 
 ;;;###autoload
-(defun pending-delete ()
-  "Toggle the state of pending-delete mode.
-When it is ON typed text replaces the selection if the selection is active.
-When it is OFF typed text is just inserted at point."
-  (interactive)
-  (if (memq 'pending-delete-pre-hook pre-command-hook)
-      (pending-delete-off pending-delete-verbose)
-    (pending-delete-on pending-delete-verbose)))
+(defun pending-delete (&optional arg)
+  "Toggle automatic deletion of the selected region.
+With a positive argument, turns it on.
+With a non-positive argument, turns it off.
+When active, typed text replaces the selection."
+  (interactive "P")
+  (let* ((was-on (not (not (memq 'pending-delete-pre-hook pre-command-hook))))
+	 (on-p (if (null arg)
+		   (not was-on)
+		(> (prefix-numeric-value arg) 0))))
+    (cond ((eq on-p was-on)
+	   nil)
+	  (on-p
+	   (pending-delete-on pending-delete-verbose))
+	  (t
+	   (pending-delete-off pending-delete-verbose)))))
   
 ;; Add pending-del mode.  Assume that if we load it then we obviously wanted
 ;; it on, even if it is already on.
-(pending-delete-on (equal pending-delete-verbose t))
-  
+(pending-delete-on (eq pending-delete-verbose t))
+
+(provide 'pending-del)
+
+  
 ;; This new definition of control-G makes the first control-G disown the 
 ;; selection and the second one signal a QUIT.
 ;; This is very useful for cancelling a selection in the minibuffer without 
@@ -137,5 +145,4 @@ If `zmacs-regions' is true, and the zmacs region is active, then this
 
 (define-key minibuffer-local-map '(control g) 'minibuffer-keyboard-quit) 
 
-
-
+;;; pending-del.el ends here

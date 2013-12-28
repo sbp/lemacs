@@ -5,7 +5,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -51,7 +51,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    Define INTERRUPT_INPUT to make interrupt_input = 1 the default (use SIGIO)
 
    SIGIO can be used only on systems that implement it (4.2 and 4.3).
-   CBREAK mode has two disadvatages
+   CBREAK mode has two disadvantages:
      1) At least in 4.2, it is impossible to handle the Meta key properly.
         I hear that in system V this problem does not exist.
      2) Control-G causes output to be discarded.
@@ -180,14 +180,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define _setjmp setjmp
 #define _longjmp longjmp
 
-/* On USG systems the system calls are interruptable by signals
+/* On USG systems the system calls are interruptible by signals
  that the user program has elected to catch.  Thus the system call
- must be retried in these cases.  All calls to read, write, and open
- in emacs are really calls to emacs_read, etc.  We define emacs_read
- to be sys_read (which is defined in sysdep.c for this system.)  If
- these were not defined, they would be defined to be open, etc.
- We can't just "#define open sys_open" because of prototype problems.
- */
+ must be retried in these cases.  To handle this without massive
+ changes in the source code, we remap the standard system call names
+ to names for our own functions in sysdep.c that do the system call
+ with retries. */
+
 #define emacs_read sys_read
 #define emacs_open sys_open
 #define emacs_write sys_write

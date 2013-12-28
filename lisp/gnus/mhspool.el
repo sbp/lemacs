@@ -92,6 +92,14 @@ mhspool-retrieve-headers (which see).")
 (defvar mhspool-article-header-read-size 1024
   "Number of bytes to read when processing headers from MHSPOOL.")
 
+;;; lemacs change: from Chris Davis <ckd@kei.com>
+;;; UNIMPLEMENTED!  Probably can be implemented based on 
+;;; mhspool-find-article-by-message-id (you may need to fiddle
+;;; together a "history file" for MH archives)
+(defun mhspool-retrieve-headers-by-id (message-id)
+  "UNIMPLEMENTED.  Should return same things mhspool-retrieve-headers does."
+  (error "Unimplemented function, sorry."))
+
 ;;; lemacs change: from Rick Sladkey <jrs@world.std.com>
 (defun mhspool-retrieve-headers (sequence)
   "Return list of article headers specified by SEQUENCE of article id.

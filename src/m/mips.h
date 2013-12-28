@@ -1,5 +1,5 @@
 /* m- file for Mips machines.
-   Copyright (C) 1987, 1992, 1993, 1994 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -35,11 +35,6 @@ NOTE-END  */
 #define INTBITS 32		/* Number of bits in an int */
 
 #define LONGBITS 32		/* Number of bits in a long */
-
-/* Define BIG_ENDIAN iff lowest-numbered byte in a word
-   is the most significant byte.  */
-
-#define BIG_ENDIAN
 
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
@@ -84,6 +79,11 @@ NOTE-END  */
 /* Convert that into an integer that is 100 for a load average of 1.0  */
 
 #define LOAD_AVE_CVT(x) (int) (((double) (x)) * 100.0 / 256.0)
+
+/* CDC EP/IX 1.4.3 uses /unix */
+
+#undef KERNEL_FILE
+#define KERNEL_FILE "/unix"
 
 /* Define CANNOT_DUMP on machines where unexec does not work.
    Then the function dump-emacs will not be defined
@@ -132,6 +132,7 @@ NOTE-END  */
 
 /* Alter some of the options used when linking.  */
 
+#ifndef NEWSOS5
 #ifdef BSD
 
 /* DECstations don't have this library.
@@ -143,23 +144,6 @@ NOTE-END  */
 #define LINKER /bsd43/bin/ld
   
 #else /* not BSD */
-#ifdef NEWSOS5
-
-#define LIBS_MACHINE -lmld
-#define START_FILES pre-crt0.o /usr/ccs/lib/crt1.o
-#define LIB_STANDARD -lsocket -lnsl -lc /usr/ccs/lib/crtn.o /usr/ccs/lib/values-Xt.o
-
-#ifdef __GNUC__
-#define C_DEBUG_SWITCH -g
-#define C_OPTIMIZE_SWITCH -g -O
-#define LD_SWITCH_MACHINE -g -Xlinker -D -Xlinker 800000
-#else
-#define C_DEBUG_SWITCH -g3
-#define C_OPTIMIZE_SWITCH -g3
-#define LD_SWITCH_MACHINE -g3 -D 800000
-#endif
-
-#else /* not NEWSOS5 */
 
 #define LIBS_MACHINE -lmld
 #define LD_SWITCH_MACHINE -D 800000 -g3
@@ -170,12 +154,12 @@ NOTE-END  */
 #define C_SWITCH_MACHINE -I/usr/include/bsd
 #define C_DEBUG_SWITCH -O -g3
 
-#if defined(HAVE_X_WINDOWS) && defined(HAVE_X11)
+#if defined(HAVE_X_WINDOWS)
 #define HAVE_VFORK		/* Graciously provided by libX.a */
 #endif
 
-#endif /* not NEWSOS5 */
 #endif /* not BSD */
+#endif /* not NEWSOS5 */
 
 #ifndef NEWSOS5
 #ifdef USG
@@ -186,7 +170,6 @@ NOTE-END  */
 #undef static
 
 /* Don't try to use SIGIO or FIONREAD even though they are defined.  */
-/* #undef SIGIO		use BROKEN_SIGIO instead of this kludge -- jwz */
 #define BROKEN_SIGIO
 #define BROKEN_FIONREAD
 
@@ -195,19 +178,13 @@ NOTE-END  */
 #define HAVE_SYSVIPC
 
 #define HAVE_TIMEVAL
-#ifdef emacs /* Don't do this when making xmakefile! */
-#ifndef INHIBIT_BSD_TIME
+#if defined(emacs) && !defined(INHIBIT_BSD_TIME)
 #include <bsd/sys/time.h>
-#endif /* !INHIBIT_BSD_TIME */
-#endif /* emacs */
+#endif
 
 /* #define HAVE_SELECT
    The `select' in the system won't work for pipes,
    so don't use it.  */
-
-#define HAVE_DUP2
-#define HAVE_GETWD
-#define HAVE_GETTIMEOFDAY
 
 #define HAVE_PTYS
 #define HAVE_SOCKETS

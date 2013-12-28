@@ -110,7 +110,7 @@ With positive ARG, a non-empty line at the end counts as one line\n\
     }
 
   negp = count <= 0;
-  pos = scan_buffer (current_buffer, '\n', pos2, count - negp, &shortage);
+  pos = scan_buffer (current_buffer, '\n', pos2, count - negp, &shortage, 1);
   if (shortage > 0
       && (negp
 	  || (ZV > BEGV
@@ -306,7 +306,8 @@ internal_self_insert (int c1, int noautofill)
   /* No, this is very bad, it makes undo *always* undo a character at a time
      instead of grouping consecutive self-inserts together.  Nasty nasty.
    */
-  if (!NILP (Vbefore_change_function) || !NILP (Vafter_change_function))
+  if (!NILP (Vbefore_change_functions) || !NILP (Vafter_change_functions)
+      || !NILP (Vbefore_change_function) || !NILP (Vafter_change_function))
     hairy = 1;
 #endif
 

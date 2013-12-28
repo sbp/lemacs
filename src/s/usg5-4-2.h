@@ -6,11 +6,11 @@
    #define HAVE_VFORK */
 /* fnf@cygnus.com says these exist.  */
 #define HAVE_TCATTR
-#define HAVE_GETHOSTNAME
 #if 0 /* autoconf should take care of this.  */
+#define HAVE_GETHOSTNAME
 #define HAVE_RANDOM
 #endif
-/* #define HAVE_GETWD  (appears to be buggy on SVR4.2) */
+#undef HAVE_GETWD  /* (appears to be buggy on SVR4.2) */
 
 /* Info from fnf@cygnus.com suggests this is appropriate.  */
 #define POSIX_SIGNALS
@@ -31,7 +31,7 @@
 #undef PTY_TTY_NAME_SPRINTF
 #define PTY_TTY_NAME_SPRINTF			\
   {						\
-    char *ptsname(), *ptyname;			\
+    char *ptyname;				\
 						\
     sigblock(sigmask(SIGCLD));			\
     if (grantpt(fd) == -1)			\

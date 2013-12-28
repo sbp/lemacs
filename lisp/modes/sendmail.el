@@ -72,8 +72,8 @@ nil means let mailer mail back a message to report errors.")
        "NF-ID:" "NF-From:" "Posting-Version:" "Posted:" "Posted-Date:"
        "Date-Received:" "Relay-Version:" "Article-I\\.D\\.:" "NNTP-Version:"
        "NNTP-Posting-Host:" "X-Mailer:" "X-Newsreader:" "News-Software:"
-       "X-Received:" "X-References:"
-       "Remailed-"
+       "X-Received:" "X-References:" "X-Envelope-To:"
+       "X-VMS-" "Remailed-"
        )
      "\\|")
     "\\)"))
@@ -679,9 +679,13 @@ Just \\[universal-argument] as argument means don't indent, insert no prefix,
 and don't delete any header fields."
   (interactive "P")
   (if mail-reply-buffer
-      (let ((start (point)))
-	(delete-windows-on mail-reply-buffer)
-	(insert-buffer mail-reply-buffer)
+      (let ((start (point))
+	    (reader-buf mail-reply-buffer)
+	    (reader-window (get-buffer-window mail-reply-buffer
+					      (selected-screen))))
+	(if reader-window
+	    (delete-windows-on reader-buf))
+	(insert-buffer reader-buf)
 	(if (consp arg)
 	    nil
 	  (goto-char start)
@@ -797,8 +801,7 @@ and don't delete any header fields."
 (defun mail-do-fcc-insert-date-header ()
   ;; Convert the ctime() format that `current-time-string' returns into
   ;; an RFC-822-legal date.  
-  (let ((s (current-time-string))
-	zone)
+  (let ((s (current-time-string)))
     (string-match "\\`\\([A-Z][a-z][a-z]\\) +\\([A-Z][a-z][a-z]\\) +\\([0-9][0-9]?\\) *\\([0-9][0-9]?:[0-9][0-9]:[0-9][0-9]\\) *[0-9]?[0-9]?\\([0-9][0-9]\\)"
 		  s)
     (insert "Date: "
@@ -863,6 +866,7 @@ and don't delete any header fields."
 (eval-when-compile
  (or (and (boundp 'loading-vm-kludge) loading-vm-kludge)
      ;; nastiness to avoid circular provide/require dependency nonsense
+     (fboundp 'vm-spool-files)
      (let ((loading-vm-kludge t))
        (require 'vm))))
 
@@ -1017,13 +1021,13 @@ The seventh argument ACTIONS is a list of actions to take
     (pop-to-buffer "*mail*"))
   (mail noerase to subject in-reply-to cc replybuffer sendactions))
 
-;;;;###autoload
-;(defun mail-other-frame (&optional noerase to subject in-reply-to cc replybuffer sendactions)
-;  "Like `mail' command, but display mail buffer in another frame."
-;  (interactive "P")
-;  (let ((pop-up-frames t))
-;    (pop-to-buffer "*mail*"))
-;  (mail noerase to subject in-reply-to cc replybuffer sendactions))
+;;;###autoload
+(defun mail-other-screen (&optional noerase to subject in-reply-to cc
+				    replybuffer sendactions)
+  "Like `mail' command, but display mail buffer in another screen."
+  (interactive "P")
+  (switch-to-buffer-other-screen (get-buffer-create "*mail*"))
+  (mail noerase to subject in-reply-to cc replybuffer sendactions))
 
 ;;; Do not add anything but external entries on this page.
 

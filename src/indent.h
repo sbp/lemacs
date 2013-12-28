@@ -31,6 +31,9 @@ struct position
     int pixpos;
     /* hpos in buffer (not window) columns */
     int column;
+    int height;			/* actual displayed height ; only valid if
+				   compute_motion called properly (see
+				   window-displayed-height */
   };
 
 struct position *compute_motion (struct window *w,

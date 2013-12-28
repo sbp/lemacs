@@ -1,49 +1,37 @@
-/* Configuration file for the NeXT machine. */
-/*    Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+/* Configuration file for the NeXT machine.
+   Copyright (C) 1990 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
-GNU Emacs is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY.  No author or distributor
-accepts responsibility to anyone for the consequences of using it
-or for whether it serves any particular purpose or works at all,
-unless he says so in writing.  Refer to the GNU Emacs General Public
-License for full details.
+GNU Emacs is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
-Everyone is granted permission to copy, modify and redistribute
-GNU Emacs, but only under the conditions described in the
-GNU Emacs General Public License.   A copy of this license is
-supposed to have been given to you along with GNU Emacs so you
-can know your rights and responsibilities.  It should be in a
-file named COPYING.  Among other things, the copyright notice
-and this notice must be preserved on all copies.  */
+GNU Emacs is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GNU Emacs; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
 
 /* Say this machine is a next if not previously defined */
-  
+
 #ifndef NeXT
 #define NeXT
 #endif
 
 /* The following three symbols give information on
- the size of various data types.  */
+   the size of various data types.  */
 
 #define SHORTBITS 16		/* Number of bits in a short */
 
 #define INTBITS 32		/* Number of bits in an int */
 
 #define LONGBITS 32		/* Number of bits in a long */
-
-/* Let the compiler tell us what byte order architecture we're compiling for */
-
-#ifdef __BIG_ENDIAN__
-#define BIG_ENDIAN
-#endif
-
-/* Say this machine is a 68000 */
-
-#ifndef m68000
-#define m68000
-#endif
 
 /* Define how to take a char and sign-extend into an int.
    On machines where char is signed, this is a no-op.  */
@@ -65,7 +53,6 @@ and this notice must be preserved on all copies.  */
 /* Convert that into an integer that is 100 for a load average of 1.0  */
 
 #define LOAD_AVE_CVT(x) (int) (((double) (x)) * 100.0 / FSCALE)
-#define LDAV_CVT(x) (int) (((double) (x)) / FSCALE)
 
 /* Say that the text segment of a.out includes the header;
    the header actually occupies the first few bytes of the text segment
@@ -90,6 +77,9 @@ and this notice must be preserved on all copies.  */
 
 #define LIB_X11_LIB -L/usr/lib/X11 -lX11
 
+/* This avoids a problem in Xos.h when using co-Xist 3.01.  */
+#define X_NOT_POSIX
+
 /* Conflicts in process.c between ioctl.h & tty.h use of t_foo fields */
 
 #define NO_T_CHARS_DEFINES
@@ -99,10 +89,18 @@ and this notice must be preserved on all copies.  */
 #define UNEXEC unexnext.o
 
 /* We don't have a g library either, so override the -lg LIBS_DEBUG switch */
+
 #define LIBS_DEBUG
 
 /* We don't have a libgcc.a, so we can't let LIB_GCC default to -lgcc */
+
 #define LIB_GCC
+
+#if 0  /* ohl@chico.harvard.edu says to do this.  */
+/* Compile "strict bsd" to avoid warnings from include files */
+
+#define C_SWITCH_MACHINE	-bsd
+#endif
 
 /* Link this program just by running cc.  */
 #define ORDINARY_LINK
@@ -114,19 +112,15 @@ and this notice must be preserved on all copies.  */
 /* This seems to be right for end_of_data, but it may not be used anyway.  */
 #define DATA_END get_edata ()
 
-#define LD_SWITCH_MACHINE -noseglinkedit
+/* Defining KERNEL_FILE causes lossage because sys/file.h
+   stupidly gets confused by it.  */
+#undef KERNEL_FILE
 
-#define LIB_STANDARD -lenv -lsys_s 
-#define LD_SWITCH_SYSTEM
+#define LD_SWITCH_MACHINE -X -noseglinkedit
 
 #define environ _environ
 
+#if 0 /* This is ok for NeXT system version 3.0 or above.  */
 /* Where to find the kernel, for load average.  */
-#undef KERNEL_FILE
 #define KERNEL_FILE "/mach"
-
-#define NO_REMAP
-
-#ifdef NeXT
-#undef __STRICT_BSD__ /* ick */
 #endif

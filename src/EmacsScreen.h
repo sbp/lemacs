@@ -7,6 +7,8 @@
 #define XtCUnsplittable "Unsplittable"
 #define XtNinternalBorderWidth "internalBorderWidth"
 #define XtCInternalBorderWidth "InternalBorderWidth"
+#define XtNscrollBarWidth "scrollBarWidth"
+#define XtCScrollBarWidth "ScrollBarWidth"
 #define XtNinterline "interline"
 #define XtCInterline "Interline"
 
@@ -21,6 +23,12 @@
 #endif
 #ifndef XtCForeground
 #define XtCForeground "Foreground"
+#endif
+#ifndef XtNiconic
+#define XtNiconic "iconic"
+#endif
+#ifndef XtCIconic
+#define XtCIconic "Iconic"
 #endif
 
 #define XtNcursorColor "cursorColor"
@@ -55,7 +63,19 @@
 #define XtCInitialGeometry "InitialGeometry"
 
 #define XtNmenubar "menubar"
-#define XtCMenubar "menubar"
+#define XtCMenubar "Menubar"
+
+#define XtNinitiallyUnmapped "initiallyUnmapped"
+#define XtCInitiallyUnmapped "InitiallyUnmapped"
+
+#define XtNpreferredWidth "preferredWidth"
+#define XtCPreferredWidth "PreferredWidth"
+
+#define XtNpreferredHeight "preferredHeight"
+#define XtCPreferredHeight "PreferredHeight"
+
+#define XtNuseBackingStore "useBackingStore"
+#define XtCUseBackingStore "UseBackingStore"
 
 /* structures
  */
@@ -67,6 +87,7 @@ extern WidgetClass emacsScreenClass;
 extern struct _DisplayContext* display_context;
 
 /* Special entrypoints */
+void EmacsScreenRecomputeCellSize (Widget widget);
 void EmacsScreenSetCharSize (Widget widget, int rows, int cols);
 
 #endif /* _EmacsScreen_h */

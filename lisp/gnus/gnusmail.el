@@ -171,7 +171,7 @@ The command \\[mh-yank-cur-msg] yank the original message into current buffer."
       (setq mh-show-buffer buffer)
       (setq to (or reply-to from))
       (mh-find-path)
-      (mh-send to (or cc "") subject)
+      (mh-send to (or cc "") (or subject ""))
       (save-excursion
 	(mh-insert-fields
 	 "In-reply-to:"

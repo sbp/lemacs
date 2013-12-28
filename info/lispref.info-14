@@ -1,23 +1,21 @@
-Info file elisp, produced by Makeinfo, -*- Text -*- from input file
-elisp.texi.
+This is Info file ../../info/lispref.info, produced by Makeinfo-1.56
+from the input file lispref.texinfo.
 
-   This file documents GNU Emacs Lisp.
+   This version is newer than the second printed edition of the GNU
+Emacs Lisp Reference Manual.  It corresponds to Emacs Version 19.19.
 
-   This is edition 1.03 of the GNU Emacs Lisp Reference Manual,   for
-Emacs Version 18.
+   Published by the Free Software Foundation 675 Massachusetts Avenue
+Cambridge, MA 02139 USA
 
-   Published by the Free Software Foundation, 675 Massachusetts
-Avenue,  Cambridge, MA 02139 USA
+   Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
 
-   Copyright (C) 1990 Free Software Foundation, Inc.
-
-   Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
 
    Permission is granted to copy and distribute modified versions of
-this manual under the conditions for verbatim copying, provided that
-the entire resulting derived work is distributed under the terms of a
+this manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
 permission notice identical to this one.
 
    Permission is granted to copy and distribute translations of this
@@ -25,1223 +23,1233 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be stated in a
 translation approved by the Foundation.
 
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the Free Software
+Foundation instead of in the original English.
 
 
-File: elisp,  Node: Subroutines of Visiting,  Prev: Visiting Functions,  Up: Visiting Files
+File: lispref.info,  Node: Interactive Codes,  Next: Interactive Examples,  Prev: Using Interactive,  Up: Defining Commands
 
-Subroutines of Visiting
------------------------
+Code Characters for `interactive'
+---------------------------------
 
-   The `find-file-noselect' function uses the `create-file-buffer'
-and `after-find-file' functions as subroutines.  Sometimes it is
-useful to call them directly.
+   The code character descriptions below contain a number of key words,
+defined here as follows:
 
- * Function: create-file-buffer FILENAME
-     This function creates a suitably named buffer for visiting
-     FILENAME, and returns it.  The string FILENAME (sans directory)
-     is used unchanged if that name is free; otherwise, a string such
-     as `<2>' is appended to get an unused name.  See also *Note
-     Creating Buffers::.
+Completion
+     Provide completion.  TAB, SPC, and RET perform name completion
+     because the argument is read using `completing-read' (*note
+     Completion::.).  `?' displays a list of possible completions.
 
-     *Note:* `create-file-buffer' does *not* associate the new buffer
-     with a file and does not make it the current buffer.
+Existing
+     Require the name of an existing object.  An invalid name is not
+     accepted; the commands to exit the minibuffer do not exit if the
+     current input is not valid.
 
-          (create-file-buffer "foo")
-               => #<buffer foo>
-          (create-file-buffer "foo")
-               => #<buffer foo<2>>
-          (create-file-buffer "foo")
-               => #<buffer foo<3>>
+Default
+     A default value of some sort is used if the user enters no text in
+     the minibuffer.  The default depends on the code character.
 
-     This function is used by `find-file-noselect'.
+No I/O
+     This code letter computes an argument without reading any input.
+     Therefore, it does not use a prompt string, and any prompt string
+     you supply is ignored.
 
- * Function: after-find-file &optional ERROR WARN
-     This function is called by `find-file-noselect' and by the
-     default revert function (*note Reverting::.).  It sets the
-     buffer major mode, and parses local variables (*note Auto Major
-     Mode::.).
+Prompt
+     A prompt immediately follows the code character.  The prompt ends
+     either with the end of the string or with a newline.
 
-     If there was an error in opening the file, the calling function
-     should pass ERROR a non-`nil' value.  In that case,
-     `after-find-file' issues a warning: `(New File)'.  Note that,
-     for serious errors, you would not even call `after-find-file'. 
-     Only "file not found" errors get here with a non-`nil' ERROR.
+Special
+     This code character is meaningful only at the beginning of the
+     interactive string, and it does not look for a prompt or a newline.
+     It is a single, isolated character.
 
-     If WARN is non-`nil', then this function issues a warning if an
-     auto-save file exists and is more recent than the visited file.
+   Here are the code character descriptions for use with `interactive':
 
-     The last thing `after-find-file' does is call all the functions
-     in `find-file-hooks'.
+`*'
+     Signal an error if the current buffer is read-only.  Special.
 
+`@'
+     Select the window mentioned in the first mouse event in the key
+     sequence that invoked this command.  Special.
 
-
-File: elisp,  Node: Saving Buffers,  Next: Reading from Files,  Prev: Visiting Files,  Up: Files
+`_'
+     Do not cause the region to be deactivated when this command
+     completes.  Special.
 
-Saving Buffers
-==============
+`a'
+     A function name (i.e., a symbol which is `fboundp').  Existing,
+     Completion, Prompt.
 
-   When you edit a file in Emacs, you are actually working on a
-buffer that is visiting that file--that is, the contents of the file
-are copied into the buffer and the copy is what you edit.  Changes to
-the buffer do not change the file until you "save" the buffer, which
-means copying the contents of the buffer into the file.
+`b'
+     The name of an existing buffer.  By default, uses the name of the
+     current buffer (*note Buffers::.).  Existing, Completion, Default,
+     Prompt.
 
- * Command: save-buffer &optional BACKUP-OPTION
-     This function saves the contents of the current buffer in its
-     visited file if the buffer has been modified since it was last
-     visited or saved.  Otherwise it does nothing.
+`B'
+     A buffer name.  The buffer need not exist.  By default, uses the
+     name of a recently used buffer other than the current buffer.
+     Completion, Prompt.
 
-     `save-buffer' is responsible for making backup files.  Normally,
-     BACKUP-OPTION is `nil', and `save-buffer' makes a backup file
-     only if this is the first save or if the buffer was previously
-     modified.  Other values for BACKUP-OPTION request the making of
-     backup files in other circumstances:
+`c'
+     A character.  The cursor does not move into the echo area.  Prompt.
 
-        * With an argument of 4 or 64, reflecting 1 or 3 `C-u''s, the
-          `save-buffer' function marks this version of the file to be
-          backed up when the buffer is next saved.
+`C'
+     A command name (i.e., a symbol satisfying `commandp').  Existing,
+     Completion, Prompt.
 
-        * With an argument of 16 or 64, reflecting 2 or 3 `C-u''s,
-          the `save-buffer' function unconditionally backs up the
-          previous version of the file before saving it.
+`d'
+     The position of point as a number (*note Point::.).  No I/O.
 
- * Command: save-buffers-kill-emacs &optional KILL-SILENTLY-P
-     This function offers to save each buffer that needs to be saved,
-     and then kills the Emacs job.  With a non-`nil' value of the
-     optional KILL-SILENTLY-P argument, it unconditionally and
-     silently saves all the file-visiting buffers, and then kills the
-     job.
+`D'
+     A directory name.  The default is the current default directory of
+     the current buffer, `default-directory' (*note System
+     Environment::.).  Existing, Completion, Default, Prompt.
 
-     The `save-buffers-kill-emacs' function is defined as follows:
+`e'
+     The last mouse event in the key sequence that invoked the command.
+     No I/O.
 
-          (defun save-buffers-kill-emacs (&optional arg)
-            "Offer to save each buffer, then kill this Emacs fork..."
-            (interactive "P")
-            (save-some-buffers arg t)
-            (kill-emacs))
+`f'
+     A file name of an existing file (*note File Names::.).  The default
+     directory is `default-directory'.  Existing, Completion, Default,
+     Prompt.
 
- * Command: save-some-buffers &optional SAVE-SILENTLY-P EXITING
-     This command saves some modified file-visiting buffers. 
-     Normally it asks the user about each buffer.  If the function is
-     called with a non-`nil' value of the optional SAVE-SILENTLY-P
-     argument, this function saves all the file-visiting buffers
-     without querying the user.
+`F'
+     A file name.  The file need not exist.  Completion, Default,
+     Prompt.
 
-     The optional EXITING argument, if non-`nil', requests this
-     function to offer also to save certain other buffers that are
-     not visiting files.  These are buffers that have a non-`nil'
-     local value of `buffer-offer-save'.  (A user who says yes to
-     saving one of these will be asked to specify a file name to
-     use.)  The `save-buffers-kill-emacs' function passes a non-`nil'
-     value for this argument.
+`k'
+     A key sequence (*note Keymap Terminology::.).  This keeps reading
+     events until a command (or undefined command) is found in the
+     current key maps.  The key sequence argument is represented as a
+     vector of events.  The cursor does not move into the echo area.
+     Prompt.
 
- * Variable: buffer-offer-save
-     When this variable is non-`nil' in a buffer, Emacs offers to
-     save the buffer on exit even if the buffer is not visiting a
-     file.  The variable is automatically local in all buffers. 
-     Normally, Mail mode (used for editing outgoing mail) sets this
-     to `t'.
+     This kind of input is used by commands such as `describe-key' and
+     `global-set-key'.
 
- * Command: write-file FILENAME
-     This function writes the current buffer into file FILENAME,
-     makes the buffer visit that file, and marks it not modified. 
-     The buffer is renamed to correspond to FILENAME unless that name
-     is already in use.
+`m'
+     The position of the mark as a number.  No I/O.
 
- * Variable: write-file-hooks
-     The value of this variable is a list of functions to be called
-     before writing out a buffer to its visited file.  If one of them
-     returns non-`nil', the file is considered already written and
-     the rest of the functions are not called, nor is the usual code
-     for writing the file executed.
+`n'
+     A number read with the minibuffer.  If the input is not a number,
+     the user is asked to try again.  The prefix argument, if any, is
+     not used.  Prompt.
 
-     If the `file-precious-flag' variable is `nil', the file is moved
-     to the backup file before any of the hooks are called.  If none
-     of the hooks actually write the file, but one does return
-     non-`nil', the file will not exist, although the backup will.
+`N'
+     The raw prefix argument.  If the prefix argument is `nil', then a
+     number is read as with `n'.  Requires a number.  Prompt.
 
-     Here is an example showing how to add an element to
-     `write-file-hooks' but avoid adding it twice:
+`p'
+     The numeric prefix argument.  (Note that this `p' is lower case.)
+     No I/O.
 
-          (or (memq 'my-write-file-hook write-file-hooks)
-              (setq write-file-hooks 
-                    (cons 'my-write-file-hook write-file-hooks)))
+`P'
+     The raw prefix argument.  (Note that this `P' is upper case.)
+     *Note Prefix Command Arguments::.  No I/O.
 
- * Variable: file-precious-flag
-     If this variable is non-`nil', then `save-buffer' protects
-     against I/O errors while saving by renaming the original file to
-     a temporary name before writing the new contents of the file. 
-     If the new contents are successfully written, the renamed
-     original file is deleted.  Otherwise, it is renamed back to the
-     original name.  This procedure prevents problems such as a lack
-     of disk space from resulting in an invalid file.
+`r'
+     Point and the mark, as two numeric arguments, smallest first.
+     This is the only code letter that specifies two successive
+     arguments rather than one.  No I/O.
 
-     Some modes set this non-`nil' locally in particular buffers.
+`s'
+     Arbitrary text, read in the minibuffer and returned as a string
+     (*note Text from Minibuffer::.).  Terminate the input with either
+     LFD or RET.  (`C-q' may be used to include either of these
+     characters in the input.)  Prompt.
 
- * User Option: require-final-newline
-     This variable determines whether files may be written out that
-     do *not* end with a newline.  If the value of the variable is
-     `t', then Emacs silently puts a newline at the end of the file
-     whenever the buffer being saved does not already end in one.  If
-     the value of the variable is non-`nil', but not `t', then Emacs
-     asks the user whether to add a newline each time the case arises.
+`S'
+     An interned symbol whose name is read in the minibuffer.  Any
+     whitespace character terminates the input.  (Use `C-q' to include
+     whitespace in the string.)  Other characters that normally
+     terminate a symbol (e.g., parentheses and brackets) do not do so
+     here.  Prompt.
 
-     If the value of the variable is `nil', then Emacs doesn't add
-     newlines at all.  `nil' is the default value, but a few major
-     modes change it to `t'.
+`v'
+     A variable declared to be a user option (i.e., satisfying the
+     predicate `user-variable-p').  *Note High-Level Completion::.
+     Existing, Completion, Prompt.
 
+`x'
+     A Lisp object specified in printed representation, terminated with
+     a LFD or RET.  The object is not evaluated.  *Note Object from
+     Minibuffer::.  Prompt.
+
+`X'
+     A Lisp form is read as with `x', but then evaluated so that its
+     value becomes the argument for the command.  Prompt.
 
 
-File: elisp,  Node: Reading from Files,  Next: Writing to Files,  Prev: Saving Buffers,  Up: Files
+File: lispref.info,  Node: Interactive Examples,  Prev: Interactive Codes,  Up: Defining Commands
 
-Reading from Files
-==================
-
-   You can copy a file directly from the disk and insert it into a
-buffer using the `insert-file-contents' function, or its interactive
-variant, `insert-file'.
-
- * Command: insert-file FILENAME
-     This function inserts the contents of file FILENAME into the
-     current buffer after point, and sets the mark at the end of the
-     inserted text.  An error is signaled if FILENAME is not the name
-     of a file that can be read.  This function is for interactive
-     use and does little more than call `insert-file-contents'.
-
- * Function: insert-file-contents FILENAME &optional VISIT
-     This function inserts the contents of file FILENAME into the
-     current buffer after point. It returns a list of the absolute
-     file name and the length of the data inserted.  An error is
-     signaled if FILENAME is not the name of a file that can be read.
-
-     If VISIT is non-`nil', it also marks the buffer as unmodified
-     and sets up various fields in the buffer so that it is visiting
-     the file FILENAME: these include the buffer's visited file name
-     and its last save file modtime.  This feature is used by
-     `find-file-noselect' and you should probably not use it yourself.
-
-
-
-File: elisp,  Node: Writing to Files,  Next: File Locks,  Prev: Reading from Files,  Up: Files
-
-Writing to Files
-================
-
-   You can write the contents of a buffer, or part of a buffer,
-directly to a file on disk using the `append-to-file' and
-`write-region' functions.  Don't use these functions to write to
-files that are being visited; that could cause confusion in the
-mechanisms for visiting.
-
- * Command: append-to-file START END FILENAME
-     This function appends the contents of the region delimited by
-     START and END in the current buffer to the end of file FILENAME.
-     If that file does not exist, it is created.  This function
-     returns `nil'.
-
-     An error is signaled if FILENAME specifies a nonwritable file,
-     or a nonexistent file in a directory where files cannot be
-     created.
-
- * Command: write-region START END FILENAME &optional APPEND VISIT
-     This function writes the region (of the current buffer)
-     delimited by START and END into the file specified by FILENAME.
-
-     If APPEND is non-`nil', then the region is appended to the
-     existing file contents (if any).
-
-     If VISIT is `t', then Emacs establishes an association between
-     the buffer and the file: the buffer is then visiting that file. 
-     It also sets the last file modification time for the current
-     buffer to FILENAME's modtime, and marks the buffer as not
-     modified.  This feature is used by `write-file' and you should
-     probably not use it yourself.
-
-     Normally, this function displays a message `Wrote file FILENAME'
-     in the echo area.  If VISIT is neither `t' nor `nil', then this
-     message is inhibited.  This feature is useful for programs that
-     use files for internal purposes, files which the user does not
-     need to know about.
-
-
-
-File: elisp,  Node: File Locks,  Next: Information about Files,  Prev: Writing to Files,  Up: Files
-
-File Locks
-==========
-
-   When two users edit the same file at the same time, they are
-likely to interfere with each other.  Emacs tries to prevent this
-situation from arising by recording a "file lock" when a file is
-being modified.  Emacs can then detect the first attempt to modify a
-buffer visiting a file that is locked by another Emacs job, and ask
-the user what to do.
-
-   File locks do not work properly when multiple machines can share
-filesystems, such as with NFS.  Perhaps a better file locking system
-will be implemented in the future.  When file locks do not work, it
-is possible for two users to make changes simultaneously, but Emacs
-will still be able to warn the user who saves second.  Also, the
-detection of modification of a buffer visiting a file changed on disk
-catches some cases of simultaneous editing; see *Note Modification
-Time::.
-
- * Function: file-locked-p FILENAME
-     This function returns `nil' if the file FILENAME is not locked
-     by this Emacs process.  It returns `t' if it is locked by this
-     Emacs, and it returns the name of the user who has locked it if
-     it is locked by someone else.
-
-          (file-locked-p "foo")
-               => nil
-
- * Function: lock-buffer &optional FILENAME
-     This function locks the file FILENAME, if the current buffer is
-     modified.  The argument FILENAME defaults to the current
-     buffer's visited file.  Nothing is done if the current buffer is
-     not visiting a file, or is not modified.
-
- * Function: unlock-buffer
-     This function unlocks the file being visited in the current
-     buffer, if the buffer is modified.  If the buffer is not
-     modified, then the file should not be locked, so this function
-     does nothing.  It also does nothing if the current buffer is not
-     visiting a file.
-
- * Function: ask-user-about-lock FILE OTHER-USER
-     This function is called when the user tries to modify FILE, but
-     it is locked by another user name OTHER-USER.  The value it
-     returns controls what Emacs will do with the file:
-
-        * A value of `t' tells Emacs to grab the lock on the file. 
-          Then this user may edit the file and OTHER-USER loses the
-          lock.
-
-        * A value of `nil' tells Emacs to ignore the lock and let
-          this user edit the file anyway.
-
-        * This function may instead signal a `file-locked' error, in
-          which case the change to the buffer which the user was
-          about to make does not take place.
-
-          The error message for this error looks like this:
-
-               error--> File is locked: FILE OTHER-USER
-
-          where `file' is the name of the file and OTHER-USER is the
-          name of the user who has locked the file.
-
-     The default definition of this function asks the user to choose
-     what to do.  If you wish, you can replace the
-     `ask-user-about-lock' function with your own version that
-     decides in another way.  The code for its usual definition is in
-     `userlock.el'.
-
-
-
-File: elisp,  Node: Information about Files,  Next: Contents of Directories,  Prev: File Locks,  Up: Files
-
-Information about Files
-=======================
-
-   The functions described in this section are similar in as much as
-they all operate on strings which are interpreted as file names.  All
-have names that begin with the word `file'.  These functions all
-return information about actual files or directories, so their
-arguments must all exist as actual files or directories unless
-otherwise noted.
-
-   Most of the file-oriented functions take a single argument,
-FILENAME, which must be a string.  The file name is expanded using
-`expand-file-name', so `~' is handled correctly, as are relative file
-names (including `../').  Environment variable substitutions, such as
-`$HOME', are not recognized by these functions.
-
-* Menu:
-
-* Testing Accessibility::   Is a given file readable?  Writable?
-* Kinds of Files::          Is it a directory?  A link?
-* File Attributes::         How large is it?  Any other names?  Etc.
-
- 
-
-File: elisp,  Node: Testing Accessibility,  Next: Kinds of Files,  Prev: Information about Files,  Up: Information about Files
-
-Testing Accessibility
----------------------
-
-   These functions test for permission to access a file in specific
-ways.
-
- * Function: file-exists-p FILENAME
-     This function returns `t' if a file named FILENAME appears to
-     exist.  This does not mean you can necessarily read the file,
-     only that you can find out its attributes.  (On Unix, this is
-     true if the file exists and you have execute permission on the
-     containing directories, regardless of the protection of the file
-     itself.)
-
-     If the file does not exist, or if fascist access control
-     policies prevent you from finding the attributes of the file,
-     this function returns `nil'.
-
- * Function: file-readable-p FILENAME
-     This function returns `t' if a file named FILENAME exists and
-     you can read it.  It returns `nil' otherwise.
-
-          (file-readable-p "files.texi")
-               => t
-          (file-exists-p "/usr/spool/mqueue")
-               => t
-          (file-readable-p "/usr/spool/mqueue")
-               => nil
-
- * Function: file-writable-p FILENAME
-     This function returns `t' if FILENAME can be written or created
-     by you.  It is writable if the file exists and you can write it.
-     It is creatable if the file does not exist, but the specified
-     directory does exist and you can write in that directory. 
-     `file-writable-p' returns `nil' otherwise.
-
-     In the third example below, `foo' is not writable because the
-     parent directory does not exist, even though the user could
-     create it.
-
-          (file-writable-p "~rms/foo")
-               => t
-          (file-writable-p "/foo")
-               => nil
-          (file-writable-p "~rms/no-such-dir/foo")
-               => nil
-
- * Function: file-newer-than-file-p FILENAME1 FILENAME2
-     This functions returns `t' if the file FILENAME1 is newer than
-     file FILENAME2.  If FILENAME1 does not exist, it returns `nil'. 
-     If FILENAME2 does not exist, it returns `t'.
-
-     In the following example, assume that the file `aug-19' was
-     written on the 19th, and `aug-20' was written on the 20th.  The
-     file `no-file' doesn't exist at all.
-
-          (file-newer-than-file-p "aug-19" "aug-20")
-               => nil
-          (file-newer-than-file-p "aug-20" "aug-19")
-               => t
-          (file-newer-than-file-p "aug-19" "no-file")
-               => t
-          (file-newer-than-file-p "no-file" "aug-19")
-               => nil
-
-
-
-File: elisp,  Node: Kinds of Files,  Next: File Attributes,  Prev: Testing Accessibility,  Up: Information about Files
-
-Distinguishing Kinds of Files
------------------------------
-
-   This section describes how to distinguish directories and symbolic
-links from ordinary files.
-
- * Function: file-symlink-p FILENAME
-     If FILENAME is a symbolic link, the `file-symlink-p' function
-     returns the file name to which it is linked.  This may be the
-     name of a text file, a directory, or even another symbolic link,
-     or of no file at all.
-
-     If FILENAME is not a symbolic link (or there is no such file),
-     `file-symlink-p' returns `nil'.
-
-          (file-symlink-p "foo")
-               => nil
-          (file-symlink-p "sym-link")
-               => "foo"
-          (file-symlink-p "sym-link2")
-               => "sym-link"
-          (file-symlink-p "/bin")
-               => "/pub/bin"
-
- * Function: file-directory-p FILENAME
-     This function returns `t' if FILENAME is the name of an existing
-     directory, `nil' otherwise.
-
-          (file-directory-p "~rms")
-               => t
-          (file-directory-p "~rms/lewis/files.texi")
-               => nil
-          (file-directory-p "~rms/lewis/no-such-file")
-               => nil
-          (file-directory-p "$HOME")
-               => nil
-          (file-directory-p (substitute-in-file-name "$HOME"))
-               => t
-
-
-
-File: elisp,  Node: File Attributes,  Prev: Kinds of Files,  Up: Information about Files
-
-Other Information about Files
------------------------------
-
-   This section describes the functions for getting detailed
-information about a file, other than its contents.  This information
-includes the mode bits that control access permission, the owner and
-group numbers, the number of names, the inode number, the size, and
-the times of access and modification.
-
- * Function: file-modes FILENAME
-     This function returns the mode bits of FILENAME, as an integer. 
-     The mode bits are also called the file permissions, and they
-     specify access control in the usual Unix fashion.  If the
-     low-order bit is 1, then the file is executable by all users, if
-     the second lowest-order bit is 1, then the file is writable by
-     all users, etc.
-
-     The highest value returnable is 4095 (7777 octal), meaning that
-     everyone has read, write, and execute permission, that the SUID
-     bit is set for both others and group, and that the sticky bit is
-     set.
-
-          (file-modes "~/junk/diffs")
-               => 492               ; decimal integer
-          (format "%o" 492)
-               => 754               ; convert to octal
-          
-          (set-file-modes "~/junk/diffs" 438)
-               => nil
-          
-          (format "%o" 438)
-               => 666               ; convert to octal
-          
-          % ls -l diffs
-            -rw-rw-rw-  1 lewis    0    3063 Oct 30 16:00 diffs
-
- * Function: file-nlinks FILENAME
-     This functions returns the number of names (i.e., hard links)
-     that file FILENAME has.  If the file does not exist, then this
-     function returns `nil'.  Note that symbolic links have no effect
-     on this function, because they are not considered to be names of
-     the files they link to.
-
-          % ls -l foo*
-          -rw-rw-rw-  2 rms             4 Aug 19 01:27 foo
-          -rw-rw-rw-  2 rms             4 Aug 19 01:27 foo1
-          
-          (file-nlinks "foo")
-               => 2
-          (file-nlinks "doesnt-exist")
-               => nil
-
- * Function: file-attributes FILENAME
-     This function returns a list of attributes of file FILENAME.  If
-     the specified file cannot be opened, it returns `nil'.
-
-     The elements of the list, in order, are:
-
-       1. `t' for a directory, a string for a symbolic link (the name
-          linked to), or `nil' for a text file.
-
-       2. The number of names the file has.  Alternate names, also
-          known as hard links, can be created with `add-name-to-file'
-          (*note Changing File Attributes::.).
-
-       3. The file's UID.
-
-       4. The file's GID.
-
-       5. The time of last access, as a list of two integers.  The
-          first integer has the high-order 16 bits of time, the
-          second has the low 16 bits.
-
-       6. The time of last modification as a list of two integers (as
-          above).
-
-       7. The time of last status change as a list of two integers
-          (as above).
-
-       8. The size of the file in bytes.
-
-       9. The file's modes, as a string of ten letters or dashes as
-          in `ls -l'.
-
-      10. `t' if the file's GID would change if file were deleted and
-          recreated; `nil' otherwise.
-
-      11. The file's inode number.
-
-     For example, here are the file attributes for `files.texi':
-
-          (file-attributes "files.texi")
-               =>  (nil 
-                    1 
-                    2235 
-                    75 
-                    (8489 20284) 
-                    (8489 20284) 
-                    (8489 20285)
-                    14906 
-                    "-rw-rw-rw-" 
-                    nil 
-                    20920)
-
-     and here is how the result is interpreted:
-
-    `nil'
-          is neither a directory nor a symbolic link.
-
-    `1'
-          has only one name (the name `files.texi' in the current
-          default directory).
-
-    `2235'
-          is owned by the user with UID 2235.
-
-    `75'
-          is in the group with GID 75.
-
-    `(8489 20284)'
-          was last accessed on Aug 19 00:09.  Unfortunately, you
-          cannot convert this number into a time string in Emacs.
-
-    `(8489 20284)'
-          was last accessed on Aug 19 00:09.
-
-    `(8489 20285)'
-          last had its inode changed on Aug 19 00:09.
-
-    `14906'
-          is 14906 characters long.
-
-    `"-rw-rw-rw-"'
-          has a mode of read and write access for the owner, group,
-          and world.
-
-    `nil'
-          would retain the same GID if it were recreated.
-
-    `20920'
-          has an inode number of 20920.
-
-
-
-File: elisp,  Node: Contents of Directories,  Next: Changing File Attributes,  Prev: Information about Files,  Up: Files
-
-Contents of Directories
-=======================
-
-   A directory is a kind of file that contains other files entered
-under various names.  Directories are a feature of the file system.
-
-   Emacs can list the names of the files in a directory as a Lisp
-list, or display the names in a buffer using the `ls' shell command. 
-In the latter case, it can optionally display information about each
-file, depending on the value of switches passed to the `ls' command.
-
- * Function: directory-files DIRECTORY &optional FULL-NAME MATCH-REGEXP
-     This function returns a list of the names of the files in the
-     directory DIRECTORY.
-
-     If FULL-NAME is non-`nil', the function returns the files'
-     absolute file names.  Otherwise, it returns just the names
-     relative to the specified directory.
-
-     If MATCH-REGEXP is non-`nil', function returns only those file
-     names that contain that regular expression--the other file names
-     are discarded from the list.
-
-          (directory-files "~lewis")
-               => ("#foo#" "#foo.el#" "." ".."
-                   "dired-mods.el" "files.texi" "files.texi.~1~")
-
-     An error is signaled if DIRECTORY is not the name of a directory
-     that can be read.
-
- * Function: file-name-all-versions FILE DIRNAME
-     This function returns a list of all versions of the file named
-     FILE in directory DIRNAME.
-
- * Command: list-directory FILESPEC &optional VERBOSE
-     This command displays a list of files in or matching FILESPEC. 
-     It calls the shell command `ls', passing it options under the
-     control of VERBOSE.
-
-     The argument FILESPEC may be either a directory name or a file
-     name containing optional wildcards.  Wildcards are processed by
-     the shell.
-
-     The options passed to `ls' are the value of
-     `list-directory-verbose-switches' if VERBOSE is non-`nil';
-     `list-directory-brief-switches' otherwise.  Interactively, the
-     raw prefix argument is used for VERBOSE.
-
- * Variable: list-directory-brief-switches
-     This variable contains switches for `list-directory' to pass to
-     `ls' for a short or "brief" listing.  The default value is
-     `"-CF"'.
-
- * Variable: list-directory-verbose-switches
-     This variable contains switches for `list-directory' to pass to
-     `ls' for a verbose or "long" listing.  The default value is
-     `"-l"'.
-
-
-
-File: elisp,  Node: Changing File Attributes,  Next: File Names,  Prev: Contents of Directories,  Up: Files
-
-Changing File Names and Attributes
-==================================
-
-   The functions in this section rename, copy, delete, link, and set
-the modes of files.
-
-   In the functions that have an argument NEWNAME, if a file by the
-name of NEWNAME already exists, the actions taken depend on the value
-of the argument OK-IF-ALREADY-EXISTS:
-
-   * A `file-already-exists' error is signaled if
-     OK-IF-ALREADY-EXISTS is `nil'.
-
-   * Confirmation is requested if OK-IF-ALREADY-EXISTS is a number.
-
-   * No confirmation is requested if OK-IF-ALREADY-EXISTS is any
-     other value, in which case the old file is removed.
-
- * Function: add-name-to-file OLDNAME NEWNAME &optional
-          OK-IF-ALREADY-EXISTS
-     This function gives the file named OLDNAME the additional name
-     NEWNAME.  This means that NEWNAME will be a new "hard link" to
-     OLDNAME.
-
-     In the first part of the following example, we list two files,
-     `foo' and `foo3'.
-
-          % ls -l fo*
-          -rw-rw-rw-  1 rms            29 Aug 18 20:32 foo
-          -rw-rw-rw-  1 rms            24 Aug 18 20:31 foo3
-
-     Then we evaluate the form `(add-name-to-file "~/lewis/foo"
-     "~/lewis/foo2")'.  Again we list the files.  This shows two
-     names, `foo' and `foo2'.
-
-          (add-name-to-file "~/lewis/foo1" "~/lewis/foo2")
-               => nil
-          
-          % ls -l fo*
-          -rw-rw-rw-  2 rms            29 Aug 18 20:32 foo
-          -rw-rw-rw-  2 rms            29 Aug 18 20:32 foo2
-          -rw-rw-rw-  1 rms            24 Aug 18 20:31 foo3
-
-     Finally, we evaluate `(add-name-to-file "~/lewis/foo"
-     "~/lewis/foo3" t)', and list the files again.  Now there are
-     three names for one file: `foo', `foo2', and `foo3'.  The old
-     contents of `foo3' are lost.
-
-          (add-name-to-file "~/lewis/foo1" "~/lewis/foo3")
-               => nil
-          
-          % ls -l fo*
-          -rw-rw-rw-  3 rms            29 Aug 18 20:32 foo
-          -rw-rw-rw-  3 rms            29 Aug 18 20:32 foo2
-          -rw-rw-rw-  3 rms            29 Aug 18 20:32 foo3
-
-     This function is meaningless on VMS, where multiple names for
-     one file are not allowed.
-
-     See also `file-nlinks' in *Note Information about Files::.
-
- * Command: rename-file FILENAME NEWNAME &optional OK-IF-ALREADY-EXISTS
-     This command renames the file FILENAME as NEWNAME.
-
-     If FILENAME has additional names aside from FILENAME, it
-     continues to have those names.  In fact, adding the name NEWNAME
-     with `add-name-to-file' and then deleting FILENAME has the same
-     effect as renaming, aside from momentary intermediate states.
-
-     In an interactive call, this function prompts for FILENAME and
-     NEWNAME in the minibuffer; also, it requests confirmation if
-     NEWNAME already exists.
-
- * Command: copy-file OLDNAME NEWNAME &optional OK-IF-EXISTS TIME
-     This command copies the file OLDNAME to NEWNAME.  An error is
-     signaled if OLDNAME does not exist.
-
-     If TIME is non-`nil', then this functions gives the new file the
-     same last-modified time that the old one has.  (This works on
-     only some operating systems.)
-
-     In an interactive call, this function prompts for FILENAME and
-     NEWNAME in the minibuffer; also, it requests confirmation if
-     NEWNAME already exists.
-
- * Command: delete-file FILENAME
-     This command deletes the file FILENAME, like the shell command
-     `rm FILENAME'.  If the file has multiple names, it continues to
-     exist under the other names.
-
-     A suitable kind of `file-error' error is signaled if the file
-     does not exist, or is not deletable.  (In Unix, a file is
-     deletable if its directory is writable.)
-
- * Command: make-symbolic-link FILENAME NEWNAME &optional OK-IF-EXISTS
-     This command makes a symbolic link to FILENAME, named NEWNAME. 
-     This is like the shell command `ln -s FILENAME NEWNAME'.
-
-     In an interactive call, FILENAME and NEWNAME are read in the
-     minibuffer, and OK-IF-EXISTS is set to the numeric prefix
-     argument.
-
- * Function: set-file-modes FILENAME MODE
-     This function sets mode bits of FILENAME to MODE (which must be
-     a integer).  Only the 12 low bits of MODE are used.
-
-
-
-File: elisp,  Node: File Names,  Prev: Changing File Attributes,  Up: Files
-
-File Names
-==========
-
-   Files are generally referred to by their names, in Emacs as
-elsewhere.  File names in Emacs are represented as strings.  The
-functions that operate on a file all expect a file name argument.
-
-   In addition to operating on files themselves, Emacs Lisp programs
-often need to operate on the names; i.e., to take them apart and to
-use part of a name to construct related file names.  This section
-describes how to manipulate file names.
-
-   The functions in this section do not actually access files, so
-they can operate on file names that do not refer to an existing file
-or directory.
-
-   On VMS, all these functions understand both VMS file name syntax
-and Unix syntax.  This is so that all the standard Lisp libraries can
-specify file names in Unix syntax and work properly on VMS without
-change.
-
-* Menu:
-
-* File Name Components::  The directory part of a file name, and the rest.
-* Directory Names::       A directory's name as a directory
-                            is different from its name as a file.
-* Relative File Names::   Some file names are relative to a current directory.
-* File Name Expansion::   Converting relative file names to absolute ones.
-* Unique File Names::     Generating names for temporary files.
-* File Name Completion::  Finding the completions for a given file name.
-
- 
-
-File: elisp,  Node: File Name Components,  Next: Directory Names,  Up: File Names
-
-File Name Components
---------------------
-
-   The operating system groups files into directories.  To specify a
-file, you must specify the directory, and the file's name in that
-directory.  Therefore, a file name in Emacs is considered to have two
-main parts: the "directory name" part, and the "nondirectory" part
-(or "file name within the directory").  Either part may be empty. 
-Concatenating these two parts reproduces the original file name.
-
-   On Unix, the directory part is everything up to and including the
-last slash; the nondirectory part is the rest.  The rules in VMS
-syntax are complicated.
-
-   For some purposes, the nondirectory part is further subdivided
-into the name and the version number.  On Unix, only backup files
-have version numbers in their names; on VMS, every file has a version
-number, but most of the time the file name actually used in Emacs
-omits the version number.  Version numbers are found mostly in
-directory lists.
-
- * Function: file-name-directory FILENAME
-     This function returns the directory part of FILENAME (or `nil'
-     if FILENAME does not include a directory part).  On Unix, the
-     function returns a string ending in a slash.  On VMS, it returns
-     a string ending in one of the three characters `:', `]', or `>'.
-
-          (file-name-directory "lewis/foo")     ; Unix example
-               => "lewis/"
-          (file-name-directory "foo")           ; Unix example
-               => nil
-          (file-name-directory "[X]FOO.TMP")    ; VMS example
-               => "[X]"
-
- * Function: file-name-nondirectory FILENAME
-     This function returns the nondirectory part of FILENAME.
-
-          (file-name-nondirectory "lewis/foo")
-               => "foo"
-          (file-name-nondirectory "foo")
-               => "foo"
-          ;; The following example is accurate only on VMS.
-          (file-name-nondirectory "[X]FOO.TMP")
-               => "FOO.TMP"
-
- * Function: file-name-sans-versions FILENAME
-     This function returns FILENAME without any file version numbers,
-     backup version numbers, or trailing tildes.
-
-          (file-name-sans-versions "~rms/foo.~1~")
-               => "~rms/foo"
-          (file-name-sans-versions "~rms/foo~")
-               => "~rms/foo"
-          (file-name-sans-versions "~rms/foo")
-               => "~rms/foo"
-          ;; The following example applies to VMS only.
-          (file-name-sans-versions "foo;23")
-               => "foo"
-
-
-
-File: elisp,  Node: Directory Names,  Next: Relative File Names,  Prev: File Name Components,  Up: File Names
-
-Directory Names
----------------
-
-   A "directory name" is the name of a directory.  A directory is a
-kind of file, and it has a file name, which is related to the
-directory name but not identical to it.  (This is not quite the same
-as the usual Unix terminology.)  These two different names for the
-same entity are related by a syntactic transformation.  On Unix, this
-is simple: a directory name ends in a slash, whereas the directory's
-name as a file lacks that slash.  On VMS, the relationship is more
-complicated.
-
-   The difference between a directory name and its name as a file is
-subtle but crucial.  When an Emacs variable or function argument is
-described as being a directory name, a file name of a directory is
-not acceptable.
-
-   All of these functions take a single argument, FILENAME, which
-must be a string.  Environment variable substitutions such as
-`$HOME', and the symbols `~', and `..', are *not* expanded.  Use
-`expand-file-name' or `substitute-in-file-name' for that (*note File
-Name Expansion::.).
-
- * Function: file-name-as-directory FILENAME
-     This function returns a string representing FILENAME in a form
-     that the operating system will interpret as the name of a
-     directory.  In Unix, this means that a slash is appended to the
-     string.  On VMS, the function converts a string of the form
-     `[X]Y.DIR.1' to the form `[X.Y]'.
-
-          (file-name-as-directory "~rms/lewis")
-               => "~rms/lewis/"
-
- * Function: directory-file-name DIRNAME
-     This function returns a string representing DIRNAME in a form
-     that the operating system will interpret as the name of a file. 
-     On Unix, this means that a final slash is removed from the
-     string.  On VMS, the function converts a string of the form
-     `[X.Y]' to `[X]Y.DIR.1'.
-
-          (directory-file-name "~lewis/")
-               => "~lewis"
-
-
-
-File: elisp,  Node: Relative File Names,  Next: File Name Expansion,  Prev: Directory Names,  Up: File Names
-
-Absolute and Relative File Names
---------------------------------
-
-   All the directories in the file system form a tree starting at the
-root directory.  A file name can specify all the directory names
-starting from the root of the tree; then it is called an "absolute"
-file name.  Or it can specify the position of the file in the tree
-relative to a default directory; then it is called an "relative" file
-name.  On Unix, an absolute file name starts with a slash or a tilde
-(`~'), and a relative one does not.  The rules on VMS are complicated.
-
- * Function: file-name-absolute-p FILENAME
-     This function returns `t' if file FILENAME is an absolute file
-     name, `nil' otherwise.  On VMS, this function understands both
-     Unix syntax and VMS syntax.
-
-          (file-name-absolute-p "~rms/foo")
-               => t
-          (file-name-absolute-p "rms/foo")
-               => nil
-          (file-name-absolute-p "$HOME")
-               => nil
-          (file-name-absolute-p "/user/rms/foo")
-               => t
-
-
-
-File: elisp,  Node: File Name Expansion,  Next: Unique File Names,  Prev: Relative File Names,  Up: File Names
-
-Functions that Expand Filenames
+Examples of Using `interactive'
 -------------------------------
 
-   "Expansion" of a file name means converting a relative file name
-to an absolute one.  Since this is done relative to a default
-directory, you must specify the default directory name as well as the
-file name to be expanded.  Expansion also canonicalizes file names by
-eliminating redundancies such as `./' and `NAME/../'.
+   Here are some examples of `interactive':
 
- * Function: expand-file-name FILENAME &optional DIRECTORY
-     This function converts FILENAME to an absolute file name.  If
-     DIRECTORY is supplied, it is the directory to start with if
-     FILENAME is relative.  Otherwise, the current buffer's value of
-     `default-directory' is used.  For example:
-
-          (expand-file-name "foo")
-               => "/xcssun/users/rms/lewis/foo"
-          (expand-file-name "../foo")
-               => "/xcssun/users/rms/foo"
-          (expand-file-name "foo" "/usr/spool")
-               => "/usr/spool/foo"
-          (expand-file-name "$HOME/foo")
-               => "/xcssun/users/rms/lewis/$HOME/foo"
-
-     Filenames containing `.' or `..' are simplified to their
-     canonical form:
-
-          (expand-file-name "bar/../foo")
-               => "/xcssun/users/rms/lewis/foo"
-
-     `~/' is expanded into the user's home directory.  A `/' or `~'
-     following a `/' is taken to be the start of an absolute file
-     name that overrides what precedes it, so everything before that
-     `/' or `~' is deleted.  For example:
-
-          (expand-file-name "/a1/gnu//usr/local/lib/emacs/etc/MACHINES")
-               => "/usr/local/lib/emacs/etc/MACHINES"
-          (expand-file-name "/a1/gnu/~/foo")
-               => "/xcssun/users/rms/foo"
-
-     In both cases, `/a1/gnu/' has been discarded because an absolute
-     file name follows it.
-
-     Note that `expand-file-name' does *not* expand environment
-     variables; that is done only by `substitute-in-file-name'.
-
- * Variable: default-directory
-     The value of this buffer-local variable is the default directory
-     for the current buffer.  It is local in every buffer. 
-     `expand-file-name' uses the default directory when its second
-     argument is `nil'.
-
-     On Unix systems, the value is always a string ending with a slash.
-
-          default-directory
-               => "/user/lewis/manual/"
-
- * Function: substitute-in-file-name FILENAME
-     This function replaces environment variables names in FILENAME
-     with the values to which they are set by the operating system. 
-     Following standard Unix shell syntax, `$' is the prefix to
-     substitute an environment variable value.
-
-     The environment variable name is the series of alphanumeric
-     characters (including underscores) that follow the `$'.  If the
-     character following the `$' is a `{', then the variable name is
-     everything up to the matching `}'.
-
-     Here we assume that the environment variable `HOME', which holds
-     the user's home directory name, has the value `/xcssun/users/rms'.
-
-          (substitute-in-file-name "$HOME/foo")
-               => "/xcssun/users/rms/foo"
-
-     If a `~' or a `/' appears following a `/', after substitution,
-     everything before the following `/' is discarded:
-
-          (substitute-in-file-name "bar/~/foo")
-               => "~/foo"
-          (substitute-in-file-name "/usr/local/$HOME/foo")
-               => "/xcssun/users/rms/foo"
-
-     On VMS, `$' substitution is not done, so this function does
-     nothing on VMS except discard superfluous initial components as
-     shown above.
-
+     (defun foo1 ()              ; `foo1' takes no arguments,
+         (interactive)           ;   just moves forward two words.
+         (forward-word 2))
+          => foo1
+     
+     (defun foo2 (n)             ; `foo2' takes one argument,
+         (interactive "p")       ;   which is the numeric prefix.
+         (forward-word (* 2 n)))
+          => foo2
+     
+     (defun foo3 (n)             ; `foo3' takes one argument,
+         (interactive "nCount:") ;   which is read with the Minibuffer.
+         (forward-word (* 2 n)))
+          => foo3
+     
+     (defun three-b (b1 b2 b3)
+       "Select three existing buffers.
+     Put them into three windows, selecting the last one."
+         (interactive "bBuffer1:\nbBuffer2:\nbBuffer3:")
+         (delete-other-windows)
+         (split-window (selected-window) 8)
+         (switch-to-buffer b1)
+         (other-window 1)
+         (split-window (selected-window) 8)
+         (switch-to-buffer b2)
+         (other-window 1)
+         (switch-to-buffer b3))
+          => three-b
+     (three-b "*scratch*" "declarations.texi" "*mail*")
+          => nil
 
 
-File: elisp,  Node: Unique File Names,  Next: File Name Completion,  Prev: File Name Expansion,  Up: File Names
+File: lispref.info,  Node: Interactive Call,  Next: Command Loop Info,  Prev: Defining Commands,  Up: Command Loop
 
-Generating Unique File Names
-----------------------------
+Interactive Call
+================
 
-   Some programs need to write temporary files.  Here is the usual
-way to construct a name for such a file:
+   After the command loop has translated a key sequence into a
+definition, it invokes that definition using the function
+`command-execute'.  If the definition is a function that is a command,
+`command-execute' calls `call-interactively', which reads the arguments
+and calls the command.  You can also call these functions yourself.
 
-     (concat "/tmp/" (make-temp-name NAME-OF-APPLICATION))
+ - Function: commandp OBJECT
+     Returns `t' if OBJECT is suitable for calling interactively; that
+     is, if OBJECT is a command.  Otherwise, returns `nil'.
 
-The directory `/tmp/' is chosen because that is the standard place on
-Unix for temporary files.  The task of `make-temp-name' is to prevent
-two different users or two different jobs from trying to use the same
-name.
+     The interactively callable objects include strings and vectors
+     (treated as keyboard macros), lambda expressions that contain a
+     top-level call to `interactive', byte-code function objects,
+     autoload objects that are declared as interactive (non-`nil'
+     fourth argument to `autoload'), and some of the primitive
+     functions.
 
- * Function: make-temp-name STRING
-     This function generates string that can be used as a unique name.
-     The name will start with the prefix STRING, and finish with a
-     number that is different in each Emacs job.
+     A symbol is `commandp' if its function definition is `commandp'.
 
-          (make-temp-name "foo")
-               => "foo021304"
-          (make-temp-name "foo")
-               => "foo021304"
+     Keys and keymaps are not commands.  Rather, they are used to look
+     up commands (*note Keymaps::.).
 
-     To prevent conflicts among different application libraries run
-     in the same Emacs, each application should have its own STRING. 
-     The number added to the end of the name distinguishes between
-     the same application running in different Emacses.
+     See `documentation' in *Note Accessing Documentation::, for a
+     realistic example of using `commandp'.
 
+ - Function: call-interactively COMMAND &optional RECORD-FLAG
+     This function calls the interactively callable function COMMAND,
+     reading arguments according to its interactive calling
+     specifications.  An error is signaled if COMMAND cannot be called
+     interactively (i.e., it is not a command).  Note that keyboard
+     macros (strings and vectors) are not accepted, even though they
+     are considered commands.
 
-
-File: elisp,  Node: File Name Completion,  Prev: Unique File Names,  Up: File Names
+     If RECORD-FLAG is the symbol `lambda', the interactive calling
+     arguments for `command' are read and returned as a list, but the
+     function is not called on them.
 
-File Name Completion
---------------------
+     If RECORD-FLAG is `t', then this command and its arguments are
+     unconditionally added to the list `command-history'.  Otherwise,
+     the command is added only if it uses the minibuffer to read an
+     argument.  *Note Command History::.
 
-   This section describes low-level subroutines for completing a file
-name.  For other completion functions, see *Note Completion::.
+ - Function: command-execute COMMAND &optional RECORD-FLAG
+     This function executes COMMAND as an editing command.  The
+     argument COMMAND must satisfy the `commandp' predicate; i.e., it
+     must be an interactively callable function or a string.
 
- * Function: file-name-all-completions PARTIAL-FILENAME DIRECTORY
-     This function returns a list of all possible completions for a
-     file whose name starts with PARTIAL-FILENAME in directory
-     DIRECTORY.  The order of the completions is the order of the
-     files in the directory, which is unpredictable and conveys no
-     useful information.
+     A string or vector as COMMAND is executed with
+     `execute-kbd-macro'.  A function is passed to
+     `call-interactively', along with the optional RECORD-FLAG.
 
-     The argument PARTIAL-FILENAME must be a file name containing no
-     directory part and no slash.  The current buffer's default
-     directory is prepended to DIRECTORY, if DIRECTORY is not an
-     absolute file name.
+     A symbol is handled by using its function definition in its place.
+     A symbol with an `autoload' definition counts as a command if it
+     was declared to stand for an interactively callable function.
+     Such a definition is handled by loading the specified library and
+     then rechecking the definition of the symbol.
 
-     In the following example, suppose that the current default
-     directory, `~rms/lewis', has five files whose names begin with
-     `f': `foo', `file~', `file.c', `file.c.~1~', and `file.c.~2~'.
+ - Command: execute-extended-command PREFIX-ARGUMENT
+     This function reads a command name from the minibuffer using
+     `completing-read' (*note Completion::.).  Then it uses
+     `command-execute' to call the specified command.  Whatever that
+     command returns becomes the value of `execute-extended-command'.
 
-          (file-name-all-completions "f" "")
-               => ("foo" "file~" "file.c.~2~" "file.c.~1~" "file.c")
-          
-          (file-name-all-completions "fo" "")  
-               => ("foo")
+     If the command asks for a prefix argument, the value
+     PREFIX-ARGUMENT is supplied.  If `execute-extended-command' is
+     called interactively, the current raw prefix argument is used for
+     PREFIX-ARGUMENT, and thus passed on to whatever command is run.
 
- * Function: file-name-completion FILENAME DIRECTORY
-     This function completes the file name FILENAME in directory
-     DIRECTORY.  It returns the longest prefix common to all file
-     names in directory DIRECTORY that start with FILENAME.
+     `execute-extended-command' is the normal definition of `M-x', so
+     it uses the string `M-x ' as a prompt.  (It would be better to
+     take the prompt from the events used to invoke
+     `execute-extended-command', but that is painful to implement.)  A
+     description of the value of the prefix argument, if any, also
+     becomes part of the prompt.
 
-     If only one match exists and FILENAME matches it exactly, the
-     function returns `t'.  The function returns `nil' if directory
-     DIRECTORY contains no name starting with FILENAME.
-
-     In the following example, suppose that the current default
-     directory has five files whose names begin with `f': `foo',
-     `file~', `file.c', `file.c.~1~', and `file.c.~2~'.
-
-          (file-name-completion "fi" "")
-               => "file"
-          
-          (file-name-completion "file.c.~1" "")
-               => "file.c.~1~"
-          
-          (file-name-completion "file.c.~1~" "")
+          (execute-extended-command 1)
+          ---------- Buffer: Minibuffer ----------
+          M-x forward-word RET
+          ---------- Buffer: Minibuffer ----------
                => t
+
+ - Function: interactive-p
+     This function returns `t' if the containing function (the one that
+     called `interactive-p') was called interactively, with the function
+     `call-interactively'.  (It makes no difference whether
+     `call-interactively' was called from Lisp or directly from the
+     editor command loop.)  Note that if the containing function was
+     called by Lisp evaluation (or with `apply' or `funcall'), then it
+     was not called interactively.
+
+     The usual application of `interactive-p' is for deciding whether to
+     print an informative message.  As a special exception,
+     `interactive-p' returns `nil' whenever a keyboard macro is being
+     run.  This is to suppress the informative messages and speed
+     execution of the macro.
+
+     For example:
+
+          (defun foo ()
+            (interactive)
+            (and (interactive-p)
+                 (message "foo")))
+               => foo
           
-          (file-name-completion "file.c.~3" "")
-               => nil
-
- * User Option: completion-ignored-extensions
-     `file-name-completion' usually ignores file names that end in
-     any string in this list.  It does not ignore them when all the
-     possible completions end in one of these suffixes or when a
-     buffer showing all possible completions is displayed.
-
-     A typical value might look like this:
-
-          completion-ignored-extensions
-               => (".o" ".elc" "~" ".dvi")
-
+          (defun bar ()
+            (interactive)
+            (setq foobar (list (foo) (interactive-p))))
+               => bar
+          
+          ;; Type `M-x foo'.
+               -| foo
+          
+          ;; Type `M-x bar'.
+          ;; This does not print anything.
+          
+          foobar
+               => (nil t)
 
 
-File: elisp,  Node: Backups and Auto-Saving,  Next: Buffers,  Prev: Files,  Up: Top
+File: lispref.info,  Node: Command Loop Info,  Next: Input Events,  Prev: Interactive Call,  Up: Command Loop
 
-Backups and Auto-Saving
-***********************
+Information from the Command Loop
+=================================
 
-   Backup files and auto-save files are two methods by which Emacs
-tries to protect the user from the consequences of crashes or of the
-user's own errors.  Auto-saving preserves the text from earlier in
-the current editing session; backup files preserve file contents
-prior to the current session.
+   The editor command loop sets several Lisp variables to keep status
+records for itself and for commands that are run.
 
-* Menu:
+ - Variable: last-command
+     This variable records the name of the previous command executed by
+     the command loop (the one before the current command).  Normally
+     the value is a symbol with a function definition, but this is not
+     guaranteed.
 
-* Backup Files::   How backup files are made; how their names are chosen.
-* Auto-Saving::    How auto-save files are made; how their names are chosen.
-* Reverting::      `revert-buffer', and how to customize what it does.
+     The value is set by copying the value of `this-command' when a
+     command returns to the command loop, except when the command
+     specifies a prefix argument for the following command.
 
- 
+ - Variable: this-command
+     This variable records the name of the command now being executed by
+     the editor command loop.  Like `last-command', it is normally a
+     symbol with a function definition.
+
+     This variable is set by the command loop just before the command
+     is run, and its value is copied into `last-command' when the
+     command finishes (unless the command specifies a prefix argument
+     for the following command).
+
+     Some commands change the value of this variable during their
+     execution, simply as a flag for whatever command runs next.  In
+     particular, the functions that kill text set `this-command' to
+     `kill-region' so that any kill commands immediately following will
+     know to append the killed text to the previous kill.
+
+ - Function: this-command-keys
+     This function returns a vector containing the key and mouse events
+     that invoked the present command, plus any previous commands that
+     generated the prefix argument for this command. (Note: this is not
+     the same as in FSF Emacs 19, which can return a string.)  *Note
+     Input Events::.
+
+     This function copies the vector and the events; it is safe to keep
+     and modify them.
+
+          (this-command-keys)
+          ;; Now type `C-u C-x C-e'.
+               => [#<keypress-event control-U> #<keypress-event control-X> #<keypress-event control-E>]
+
+ - Variable: last-command-event
+     This variable is set to the last input event that was read by the
+     command loop as part of a command.  The principal use of this
+     variable is in `self-insert-command', which uses it to decide which
+     character to insert.
+
+     This variable is off limits: you may not set its value or modify
+     the event that is its value, as it is destructively modified by
+     `read-key-sequence'.  If you want to keep a pointer to this value,
+     you must use `copy-event'.
+
+     Note that this variable is an alias for `last-command-char' in FSF
+     Emacs 19.
+
+          last-command-event
+          ;; Now type `C-u C-x C-e'.
+               => #<keypress-event control-E>
+
+ - Variable: last-command-char
+     If the value of `last-command-event' is a keyboard event, then this
+     is the nearest ASCII equivalent to it.  This the the value that
+     `self-insert-command' will put in the buffer.  Remember that there
+     is *not* a 1:1 mapping between keyboard events and ASCII
+     characters: the set of keyboard events is much larger, so writing
+     code that examines this variable to determine what key has been
+     typed is bad practice, unless you are certain that it will be one
+     of a small set of characters.
+
+     This function exists for compatibility with Emacs version 18.
+
+          last-command-char
+          ;; Now type `C-u C-x C-e'.
+               => 5
+
+     The value is 5 because that is the ASCII code for `C-e'.
+
+ - Variable: current-mouse-event
+     This variable holds the mouse-button event which invoked this
+     command, or `nil'.  This is what `(interactive "e")' returns.
+
+ - Variable: echo-keystrokes
+     This variable determines how much time should elapse before command
+     characters echo.  Its value must be an integer, which specifies the
+     number of seconds to wait before echoing.  If the user types a
+     prefix key (say `C-x') and then delays this many seconds before
+     continuing, the key `C-x' is echoed in the echo area.  Any
+     subsequent characters in the same command will be echoed as well.
+
+     If the value is zero, then command input is not echoed.
+
 
-File: elisp,  Node: Backup Files,  Next: Auto-Saving,  Prev: Backups and Auto-Saving,  Up: Backups and Auto-Saving
+File: lispref.info,  Node: Input Events,  Next: Reading Input,  Prev: Command Loop Info,  Up: Command Loop
 
-Backup Files
+Input Events
 ============
 
-   A "backup file" is a copy of the old contents of a file you are
-editing.  Emacs makes a backup file the first time you save a buffer
-into its visited file.  Normally, this means that the backup file
-contains the contents of the file as it was before the current
-editing session.  The contents of the backup file normally remain
-unchanged once it exists.
+   The Emacs command loop reads a sequence of "input events" that
+represent keyboard or mouse activity.  Unlike in Emacs 18 and in FSF
+Emacs 19, events are a primitive Lisp type that must be manipulated
+using their own accessor and settor primitives.  This section describes
+the representation and meaning of input events in detail.
 
-   Backups are usually made by renaming the visited file to a new name.
-Optionally, you can specify that backup files should be made by
-copying the visited file.  This choice makes a difference for files
-with multiple names; it also can affect whether the edited file
-remains owned by the original owner or becomes owned by the user
-editing it.
+   A key sequence that starts with a mouse event is read using the
+keymaps of the buffer in the window that the mouse was in, not the
+current buffer.  This does not imply that clicking in a window selects
+that window or its buffer--that is entirely under the control of the
+command binding of the key sequence.
 
-   By default, Emacs makes a single backup file for each file edited.
-You can alternatively request numbered backups; then each new backup
-file gets a new name.  You can delete old numbered backups when you
-don't want them any more, or Emacs can delete them automatically.
+   For information about how exactly the Emacs command loop works,
+*Note Reading Input::.
+
+ - Function: eventp OBJECT
+     This function returns non-`nil' if EVENT is an input event.
 
 * Menu:
 
-* Making Backups::     How Emacs makes backup files, and when.
-* Rename or Copy::     Two alternatives: renaming the old file or copying it.
-* Numbered Backups::   Keeping multiple backups for each source file.
-* Backup Names::       How backup file names are computed; customization.
+* Event Types::
+* Event Contents::
+* Event Predicates::
+* Accessing Events::
+* Working With Events::
+* Converting Events::
 
- 
 
-File: elisp,  Node: Making Backups,  Next: Rename or Copy,  Prev: Backup Files,  Up: Backup Files
+File: lispref.info,  Node: Event Types,  Next: Event Contents,  Up: Input Events
 
-Making Backup Files
+Event Types
+-----------
+
+   Events represent keyboard or mouse activity or status changes of
+various sorts, such as process input being available or a timeout being
+triggered.  The different event types are as follows:
+
+key_press_event
+     A key was pressed.  Note that modifier keys such as "control",
+     "shift", and "alt" do not generate events; instead, they are
+     tracked internally by Emacs, and non-modifier key presses generate
+     events that specify both the key pressed and the modifiers that
+     were held down at the time.
+
+button_press_event
+button_release_event
+     A button was pressed or released.  Along with the button that was
+     pressed or released, button events specify the modifier keys that
+     were held down at the time and the position of the pointer at the
+     time.
+
+pointer_motion_event
+     The pointer was moved.  Along with the position of the pointer,
+     these events also specify the modifier keys that were held down at
+     the time.
+
+menu_event
+     A menu item was selected.
+
+process_event
+     Input is available on a process.
+
+timeout_event
+     A timeout has triggered.
+
+magic_event
+     Some window-system-specific action (such as a screen being resized
+     or a portion of a screen needing to be redrawn) has occurred.  The
+     contents of this event are not accessible at the E-Lisp level, but
+     `dispatch-event' knows what to do with an event of this type.
+
+eval_event
+     This is a special kind of event specifying that a particular
+     function needs to be called when this event is dispatched.  An
+     event of this type is sometimes placed in the event queue when a
+     magic event is processed.  This kind of event should generally
+     just be passed off to `dispatch-event'.  *Note Dispatching an
+     Event::.
+
+
+File: lispref.info,  Node: Event Contents,  Next: Event Predicates,  Prev: Event Types,  Up: Input Events
+
+Contents of the Different Types of Events
+-----------------------------------------
+
+   Every event, no matter what type it is, contains a timestamp (which
+is typically an offset in milliseconds from when the X server was
+started) indicating when the event occurred.  In addition, many events
+contain a "channel", which specifies which screen the event occurred on,
+and/or a value indicating which modifier keys (shift, control, etc.)
+were held down at the time of the event.
+
+   The contents of each event are as follows:
+
+key_press_event
+    channel
+    timestamp
+    key
+          Which key was pressed.  This is an integer (in the printing
+          ASCII range: >32 and <127) or a symbol such as `left' or
+          `right'.  Note that many physical keys are actually treated
+          as two separate keys, depending on whether the shift key is
+          pressed; for example, the "a" key is treated as either "a" or
+          "A" depending on the state of the shift key, and the "1" key
+          is similarly treated as either "1" or "!" on most keyboards.
+          In such cases, the shift key does not show up in the modifier
+          list.  For other keys, such as `backspace', the shift key
+          shows up as a regular modifier.
+
+    modifiers
+          Which modifier keys were pressed.  As mentioned above, the
+          shift key is not treated as a modifier for many keys and will
+          not show up in this list in such cases.
+
+button_press_event
+button_release_event
+    channel
+    timestamp
+    button
+          What button went down or up.  Buttons are numbered starting
+          at 1.
+
+    modifiers
+          Which modifier keys were pressed.  The special business
+          mentioned above for the shift key does *not* apply to mouse
+          events.
+
+    x
+    y
+          The position of the pointer (in pixels) at the time of the
+          event.
+
+pointer_motion_event
+    channel
+    timestamp
+    x
+    y
+          The position of the pointer (in pixels) after it moved.
+
+    modifiers
+          Which modifier keys were pressed.  The special business
+          mentioned above for the shift key does *not* apply to mouse
+          events.
+
+menu_event
+    timestamp
+    function
+          The E-Lisp function to call for this event.  This is normally
+          either `eval' or `call-interactively'.
+
+    object
+          The object to pass to the function.  This is normally the
+          callback that was specified in the menu description.
+
+process_event
+    timestamp
+    process
+          The Emacs "process" object in question.
+
+timeout_event
+    timestamp
+    function
+          The E-Lisp function to call for this timeout.  It is called
+          with one argument, the event.
+
+    object
+          Some Lisp object associated with this timeout, to make it
+          easier to tell them apart.  The function and object for this
+          event were specified when the timeout was set.
+
+magic_event
+    timestamp
+     (The rest of the information in this event is not user-accessible.)
+
+eval_event
+    timestamp
+    function
+          An E-Lisp function to call when this event is dispatched.
+
+    object
+          The object to pass to the function.  The function and object
+          are set when the event is created.
+
+
+File: lispref.info,  Node: Event Predicates,  Next: Accessing Events,  Prev: Event Contents,  Up: Input Events
+
+Event Predicates
+----------------
+
+   The following predicates return whether an object is an event of a
+particular type.
+
+ - Function: button-event-p OBJECT OBJECT
+     This is true if OBJECT is a button-press or button-release event.
+
+ - Function: button-press-event-p OBJECT
+     This is true if OBJECT is a mouse-button-press event.
+
+ - Function: button-release-event-p OBJECT
+     This is true if OBJECT is a mouse-button-release event.
+
+ - Function: eval-event-p OBJECT
+     This is true if OBJECT is an eval or menu event.
+
+ - Function: key-press-event-p OBJECT
+     This is true if OBJECT is a key-press event.
+
+ - Function: menu-event-p OBJECT
+     This is true if OBJECT is a menu event.
+
+ - Function: motion-event-p OBJECT
+     This is true if OBJECT is a mouse-motion event.
+
+ - Function: process-event-p OBJECT
+     This is true if OBJECT is a process event.
+
+ - Function: timeout-event-p OBJECT
+     This is true if OBJECT is a timeout event.
+
+
+File: lispref.info,  Node: Accessing Events,  Next: Working With Events,  Prev: Event Predicates,  Up: Input Events
+
+Accessing the Contents of Events
+--------------------------------
+
+   The following functions allow access to the contents of events.
+
+ - Function: event-timestamp EVENT
+     This function returns the timestamp of the given event object.
+
+ - Function: event-screen EVENT
+     This function returns the "channel" or screen that the given mouse
+     motion, button press, or button release event occurred in.  This
+     will be `nil' for non-mouse events. (Note that, although a
+     keyboard event has a screen associated with it, it is not
+     currently user-accessible.)
+
+ - Function: event-x-pixel EVENT
+     This function returns the X position in pixels of the given
+     mouse-motion, button-press, or button-release event.
+
+ - Function: event-y-pixel EVENT
+     This function returns the Y position in pixels of the given
+     mouse-motion, button-press, or button-release event.
+
+ - Function: event-key EVENT
+     This function returns the KeySym of the given key-press event.
+     This will be the ASCII code of a printing character, or a symbol.
+
+ - Function: event-button EVENT
+     This function returns the button-number of the given
+     mouse-button-press event.
+
+ - Function: event-modifiers EVENT
+     This function returns a list of symbols, the names of the modifier
+     keys which were down when the given mouse or keyboard event was
+     produced.
+
+ - Function: event-modifier-bits EVENT
+     This function returns a number representing the modifier keys
+     which were down when the given mouse or keyboard event was
+     produced.
+
+ - Function: event-function EVENT
+     This function returns the callback function of the given timeout,
+     menu, or eval event.
+
+ - Function: event-object EVENT
+     This function returns the callback function argument of the given
+     timeout, menu, or eval event.
+
+ - Function: event-process EVENT
+     This function returns the process of the given process event.
+
+   The following functions return information about the position that a
+mouse event occurred at, in an alternative form that may be more useful
+than the raw (x,y) pixel value.
+
+ - Function: event-glyph EVENT
+     If the given mouse-motion, button-press, or button-release event
+     happened on top of a glyph, this returns it; else `nil'.
+
+ - Function: event-point EVENT
+     This function returns the character position of the given
+     mouse-motion, button-press, or button-release event.  If the event
+     did not occur over a window, or did not occur over text, then this
+     returns `nil'.  Otherwise, it returns an index into the buffer
+     visible in the event's window.
+
+ - Function: event-window EVENT
+     Given a mouse-motion, button-press, or button-release event,
+     compute and return the window on which that event occurred.  This
+     may be `nil' if the event did not occur in an Emacs window (in the
+     border or modeline).
+
+ - Function: event-x EVENT
+     This function returns the X position of the given mouse-motion,
+     button-press, or button-release event in characters.
+
+ - Function: event-y EVENT
+     This function returns the Y position of the given mouse-motion,
+     button-press, or button-release event in characters.
+
+
+File: lispref.info,  Node: Working With Events,  Next: Converting Events,  Prev: Accessing Events,  Up: Input Events
+
+Working With Events
 -------------------
 
- * Function: backup-buffer
-     This function makes a backup of the file visited by the current
-     buffer, if appropriate.  It is called by `save-buffer' before
-     saving the buffer the first time.
+   Emacs provides primitives for creating, copying, and destroying event
+objects.  Many functions that return events take an event object as an
+argument and fill in the fields of this event; or they make accept
+either an event object or `nil', creating the event object first in the
+latter case.
 
- * Variable: buffer-backed-up
-     This buffer-local variable indicates whether this buffer's file
-     has been backed up on account of this buffer.  If it is
-     non-`nil', then the backup file has been written.  Otherwise,
-     the file should be backed up when it is next saved (if backup
-     files are enabled).
+ - Function: allocate-event
+     This function returns an empty event structure.  WARNING: The event
+     object returned may be a reused one; see the function
+     `deallocate-event'.
 
- * Variable: make-backup-files
-     This variable determines whether or not backup files will be
-     created.  If it is non-`nil', then Emacs will create a backup of
-     each file when it is saved for the first time.
+ - Function: copy-event EVENT1 &optional EVENT2
+     This function makes a copy of the given event object.  If a second
+     argument is given, the first event is copied into the second and
+     the second is returned.  If the second argument is not supplied
+     (or is `nil') then a new event will be made as with
+     `allocate-event'.
 
-     The following example shows how to change the
-     `make-backup-files' variable only in the `RMAIL' buffer and not
-     elsewhere.  Setting it `nil' stops Emacs from making backups of
-     the `RMAIL' file, which may save disk space.  (You would put
-     this code in your `.emacs' file.)
+ - Function: deallocate-event EVENT
+     This function allows the given event structure to be reused.  You
+     MUST NOT use this event object after calling this function with
+     it.  You will lose.  It is not necessary to call this function, as
+     event objects are garbage-collected like all other objects;
+     however, it may be more efficient to explicitly deallocate events
+     when you are sure that that is safe.
 
-          (setq rmail-mode-hook 
-                (function (lambda ()
-                            (make-local-variable 'make-backup-files)
-                            (setq make-backup-files nil)))
+
+File: lispref.info,  Node: Converting Events,  Prev: Working With Events,  Up: Input Events
 
+Converting Events
+-----------------
+
+   Emacs provides some auxiliary functions for converting between events
+and other ways of representing keys.  These are useful when working with
+ASCII strings and with keymaps.
+
+ - Function: character-to-event CH &optional EVENT
+     This function converts a numeric ASCII value to an event structure,
+     replete with modifier bits.  CH is the character to convert, and
+     EVENT is the event object to fill in.  This function contains
+     knowledge about what the codes "mean" - for example, the number 9
+     is converted to the character Tab, not the distinct character
+     Control-I.
+
+     If `event' is not `nil', it is modified; otherwise, a new event
+     object is created.  In both cases, the event is returned.
+
+     Beware that `character-to-event' and `event-to-character' are not
+     strictly inverse functions, since events contain much more
+     information than the ASCII character set can encode.
+
+ - Function: event-to-character EVENT &optional ALLOW-EXTRA-MODIFIERS
+          ALLOW-META ALLOW-NON-ASCII
+     This function returns the closest ASCII approximation to EVENT.
+     If the event isn't a keypress, this returns `nil'.
+
+     If ALLOW-EXTRA-MODIFIERS is non-`nil', then this is lenient in its
+     translation; it will ignore modifier keys other than control and
+     meta, and will ignore the shift modifier on those characters which
+     have no shifted ASCII equivalent (Control-Shift-A for example,
+     will be mapped to the same ASCII code as Control-A).
+
+     If ALLOW-META is non-`nil', then the Meta modifier will be
+     represented by turning on the high bit of the byte returned;
+     otherwise, `nil' will be returned for events containing the Meta
+     modifier.
+
+     If ALLOW-NON-ASCII is non-`nil', then characters which are present
+     in the prevailing character set (*note variable
+     `character-set-property': Keymaps.) will be returned as their code
+     in that character set, instead of the return value being
+     restricted to ASCII.
+
+     Note that specifying both ALLOW-META and ALLOW-NON-ASCII is
+     ambiguous, as both use the high bit; M-x and oslash will be
+     indistinguishable.
+
+ - Function: events-to-keys EVENTS &optional NO-MICE
+     Given a vector of event objects, this function returns a vector of
+     key descriptors, or a string (if they all fit in the ASCII range).
+     Optional arg NO-MICE means that button events are not allowed.
+
+
+File: lispref.info,  Node: Reading Input,  Next: Waiting,  Prev: Input Events,  Up: Command Loop
+
+Reading Input
+=============
+
+   The editor command loop reads keyboard input using the function
+`next-event' and constructs key sequences out of the events using
+`dispatch-event'.  Lisp programs can also use the function
+`read-key-sequence', which reads input a key sequence at a time.  See
+also `momentary-string-display' in *Note Temporary Displays::, and
+`sit-for' in *Note Waiting::.  *Note Terminal Input::, for functions
+and variables for controlling terminal input modes and debugging
+terminal input.
+
+   For higher-level input facilities, see *Note Minibuffers::.
+
+* Menu:
+
+* Key Sequence Input::		How to read one key sequence.
+* Reading One Event::		How to read just one event.
+* Dispatching an Event::        What to do with an event once it has been read.
+* Quoted Character Input::	Asking the user to specify a character.
+* Peeking and Discarding::	How to reread or throw away input events.
+
+
+File: lispref.info,  Node: Key Sequence Input,  Next: Reading One Event,  Up: Reading Input
+
+Key Sequence Input
+------------------
+
+   Lisp programs can read input a key sequence at a time by calling
+`read-key-sequence'; for example, `describe-key' uses it to read the
+key to describe.
+
+ - Function: read-key-sequence PROMPT
+     This function reads a sequence of keystrokes or mouse clicks and
+     returns it as a vector of events.  It keeps reading events until
+     it has accumulated a full key sequence; that is, enough to specify
+     a non-prefix command using the currently active keymaps.
+
+     The vector and the event objects it contains are freshly created,
+     and will not be side-effected by subsequent calls to this function.
+
+     Quitting is suppressed inside `read-key-sequence'.  In other words,
+     a `C-g' typed while reading with this function is treated like any
+     other character, and does not set `quit-flag'.  *Note Quitting::.
+
+     The argument PROMPT is either a string to be displayed in the echo
+     area as a prompt, or `nil', meaning not to display a prompt.
+
+     If the user selects a menu item while we are prompting for a key
+     sequence, the returned value will be a vector of a single
+     menu-selection event.  An error will be signalled if you pass this
+     value to `lookup-key' or a related function.
+
+     In the example below, the prompt `?' is displayed in the echo area,
+     and the user types `C-x C-f'.
+
+          (read-key-sequence "?")
+          
+          ---------- Echo Area ----------
+          ?`C-x C-f'
+          ---------- Echo Area ----------
+          
+               => [#<keypress-event control-X> #<keypress-event control-F>]
+
+   If an input character is an upper case letter and has no key binding,
+but the lower case equivalent has one, then `read-key-sequence'
+converts the character to lower case.  Note that `lookup-key' does not
+perform case conversion in this way.
+
+
+File: lispref.info,  Node: Reading One Event,  Next: Dispatching an Event,  Prev: Key Sequence Input,  Up: Reading Input
+
+Reading One Event
+-----------------
+
+   The lowest level functions for command input are those which read a
+single event.  These functions often make a distinction between
+"command events", which are user actions (keystrokes and mouse
+actions), and other events, which serve as communication between Emacs
+and the window system.
+
+ - Function: next-event &optional EVENT PROMPT
+     This function reads and returns the next available event from the
+     window system or terminal driver, waiting if necessary until an
+     event is available.  Pass this object to `dispatch-event' to
+     handle it. If an event object is supplied, it is filled in and
+     returned; otherwise a new event object will be created.
+
+     Events can come directly from the user, from a keyboard macro, or
+     from `unread-command-event'.
+
+     In most cases, the function `next-command-event' is more
+     appropriate.
+
+ - Function: next-command-event &optional EVENT
+     This function returns the next available "user" event from the
+     window system or terminal driver.  Pass this object to
+     `dispatch-event' to handle it.  If an event object is supplied, it
+     is filled in and returned, otherwise a new event object will be
+     created.
+
+     The event returned will be a keyboard, mouse press, or mouse
+     release event.  If there are non-command events available (mouse
+     motion, sub-process output, etc) then these will be executed (with
+     `dispatch-event') and discarded.  This function is provided as a
+     convenience; it is equivalent to the Lisp code
+
+          	(while (progn
+          		 (next-event event)
+          	         (not (or (key-press-event-p event)
+          	                  (button-press-event-p event)
+          	                  (button-release-event-p event)
+          	                  (menu-event-p event))))
+          	   (dispatch-event event))
+
+     Here is what happens if you call `next-command-event' and then
+     press the right-arrow function key:
+
+          (next-command-event)
+               => #<keypress-event right>
+
+ - Function: read-char
+     This function reads and returns a character of command input.  If a
+     mouse click is detected, an error is signalled.  The character
+     typed is returned as an ASCII value.  This function is retained for
+     compatibility with Emacs 18, and is most likely the wrong thing
+     for you to be using: consider using `next-command-event' instead.
+
+ - Function: enqueue-eval-event FUNCTION OBJECT
+     This function adds an eval event to the back of the queue.  The
+     eval event will be the next event read after all pending events.
+
+
+File: lispref.info,  Node: Dispatching an Event,  Next: Quoted Character Input,  Prev: Reading One Event,  Up: Reading Input
+
+Dispatching an Event
+--------------------
+
+ - Function: dispatch-event EVENT
+     Given an event object returned by `next-event', this function
+     executes it.  This is the basic function that makes Emacs respond
+     to user input; it also deals with notifications from the window
+     system (such as Expose events).
+
+
+File: lispref.info,  Node: Quoted Character Input,  Next: Peeking and Discarding,  Prev: Dispatching an Event,  Up: Reading Input
+
+Quoted Character Input
+----------------------
+
+   You can use the function `read-quoted-char' when you want the user
+to specify a character, and allow the user to specify a control or meta
+character conveniently with quoting or as an octal character code.  The
+command `quoted-insert' calls this function.
+
+ - Function: read-quoted-char &optional PROMPT
+     This function is like `read-char', except that if the first
+     character read is an octal digit (0-7), it reads up to two more
+     octal digits (but stopping if a non-octal digit is found) and
+     returns the character represented by those digits as an octal
+     number.
+
+     Quitting is suppressed when the first character is read, so that
+     the user can enter a `C-g'.  *Note Quitting::.
+
+     If PROMPT is supplied, it specifies a string for prompting the
+     user.  The prompt string is always printed in the echo area and
+     followed by a single `-'.
+
+     In the following example, the user types in the octal number 177
+     (which is 127 in decimal).
+
+          (read-quoted-char "What character")
+          
+          ---------- Echo Area ----------
+          What character-`177'
+          ---------- Echo Area ----------
+          
+               => 127
+
+
+File: lispref.info,  Node: Peeking and Discarding,  Prev: Quoted Character Input,  Up: Reading Input
+
+Peeking and Discarding
+----------------------
+
+   See also the variables `last-command-event' and `last-command-char'
+(*Note Command Loop Info::).
+
+ - Variable: unread-command-event
+     Set this to an event object to simulate the receipt of an event
+     from the user.  Normally this is `nil'. (Under FSF Emacs 19, this
+     variable is called `unread-command-events' and is a list of
+     events.)
+
+     The variable is used because in some cases a function reads a
+     event and then decides not to use it.  Storing the event in this
+     variable causes it to be processed normally by the command loop or
+     when the functions to read command input are called.
+
+     For example, the function that implements numeric prefix arguments
+     reads any number of digits.  When it finds a non-digit event, it
+     must unread the event so that it can be read normally by the
+     command loop.  Likewise, incremental search uses this feature to
+     unread events it does not recognize.
+
+ - Function: input-pending-p
+     This function determines whether any command input is currently
+     available to be read.  It returns immediately, with value `t' if
+     there is input, `nil' otherwise.  On rare occasions it may return
+     `t' when no input is available.
+
+ - Variable: last-input-event
+     This variable is set to the last keyboard or mouse button event
+     received.
+
+     This variable is off limits: you may not set its value or modify
+     the event that is its value, as it is destructively modified by
+     `read-key-sequence'.  If you want to keep a pointer to this value,
+     you must use `copy-event'.
+
+     Note that this variable is an alias for `last-input-char' in FSF
+     Emacs 19.
+
+     In the example below, a character is read (the character `1').  It
+     becomes the value of `last-input-event', while `C-e' (from the
+     `C-x C-e' command used to evaluate this expression) remains the
+     value of `last-command-event'.
+
+          (progn (print (next-command-event))
+                 (print last-command-event)
+                 last-input-event)
+               -| #<keypress-event 1>
+               -| #<keypress-event control-E>
+               => #<keypress-event 1>
+
+ - Variable: last-input-char
+     If the value of `last-input-event' is a keyboard event, then this
+     is the nearest ASCII equivalent to it.  Remember that there is
+     *not* a 1:1 mapping between keyboard events and ASCII characters:
+     the set of keyboard events is much larger, so writing code that
+     examines this variable to determine what key has been typed is bad
+     practice, unless you are certain that it will be one of a small
+     set of characters.
+
+     This function exists for compatibility with Emacs version 18.
+
+ - Function: discard-input
+     This function discards the contents of the terminal input buffer
+     and cancels any keyboard macro that might be in the process of
+     definition.  It returns `nil'.
+
+     In the following example, the user may type a number of characters
+     right after starting the evaluation of the form.  After the
+     `sleep-for' finishes sleeping, any characters that have been typed
+     are discarded.
+
+          (progn (sleep-for 2)
+            (discard-input))
+               => nil
+
+
+File: lispref.info,  Node: Waiting,  Next: Quitting,  Prev: Reading Input,  Up: Command Loop
+
+Waiting for Elapsed Time or Input
+=================================
+
+   The waiting commands are designed to make Emacs wait for a certain
+amount of time to pass or until there is input.  For example, you may
+wish to pause in the middle of a computation to allow the user time to
+view the display.  `sit-for' pauses and updates the screen, and returns
+immediately if input comes in, while `sleep-for' pauses without
+updating the screen.
+
+   Note that in FSF Emacs, the commands `sit-for' and `sleep-for' take
+two arguments to specify the time (one integer and one float value),
+instead of a single argument that can be either an integer or a float.
+
+ - Function: sit-for SECONDS &optional NODISP
+     This function performs redisplay (provided there is no pending
+     input from the user), then waits SECONDS seconds, or until input is
+     available.  SECONDS may be a float, meaning a fractional part of a
+     second.  The result is `t' if `sit-for' waited the full time with
+     no input arriving (see `input-pending-p' in *Note Peeking and
+     Discarding::).  Otherwise, the value is `nil'.
+
+     Redisplay is normally preempted if input arrives, and does not
+     happen at all if input is available before it starts. (You can
+     force screen updating in such a case by using `force-redisplay'.
+     *Note Refresh Screen::.) If there is no input pending, you can
+     force an update with no delay by using `(sit-for 0)'.
+
+     If NODISP is non-`nil', then `sit-for' does not redisplay, but it
+     still returns as soon as input is available (or when the timeout
+     elapses).
+
+     The usual purpose of `sit-for' is to give the user time to read
+     text that you display.
+
+ - Function: sleep-for SECONDS
+     This function simply pauses for SECONDS seconds without updating
+     the display.  SECONDS may be a float, meaning pause for some
+     fractional part of a second.  This function pays no attention to
+     available input.  It returns `nil'.
+
+     Use `sleep-for' when you wish to guarantee a delay.
+
+   *Note Time of Day::, for functions to get the current time.
+
+
+File: lispref.info,  Node: Quitting,  Next: Prefix Command Arguments,  Prev: Waiting,  Up: Command Loop
+
+Quitting
+========
+
+   Typing `C-g' while the command loop has run a Lisp function causes
+Emacs to "quit" whatever it is doing.  This means that control returns
+to the innermost active command loop.
+
+   Typing `C-g' while the command loop is waiting for keyboard input
+does not cause a quit; it acts as an ordinary input character.  In the
+simplest case, you cannot tell the difference, because `C-g' normally
+runs the command `keyboard-quit', whose effect is to quit.  However,
+when `C-g' follows a prefix key, the result is an undefined key.  The
+effect is to cancel the prefix key as well as any prefix argument.
+
+   In the minibuffer, `C-g' has a different definition: it aborts out
+of the minibuffer.  This means, in effect, that it exits the minibuffer
+and then quits.  (Simply quitting would return to the command loop
+*within* the minibuffer.)  The reason why `C-g' does not quit directly
+when the command reader is reading input is so that its meaning can be
+redefined in the minibuffer in this way.  `C-g' following a prefix key
+is not redefined in the minibuffer, and it has its normal effect of
+canceling the prefix key and prefix argument.  This too would not be
+possible if `C-g' quit directly.
+
+   `C-g' causes a quit by setting the variable `quit-flag' to a
+non-`nil' value.  Emacs checks this variable at appropriate times and
+quits if it is not `nil'.  Setting `quit-flag' non-`nil' in any way
+thus causes a quit.
+
+   At the level of C code, quits cannot happen just anywhere; only at
+the special places which check `quit-flag'.  The reason for this is
+that quitting at other places might leave an inconsistency in Emacs's
+internal state.  Because quitting is delayed until a safe place,
+quitting cannot make Emacs crash.
+
+   Certain functions such as `read-key-sequence' or `read-quoted-char'
+prevent quitting entirely even though they wait for input.  Instead of
+quitting, `C-g' serves as the requested input.  In the case of
+`read-key-sequence', this serves to bring about the special behavior of
+`C-g' in the command loop.  In the case of `read-quoted-char', this is
+so that `C-q' can be used to quote a `C-g'.
+
+   You can prevent quitting for a portion of a Lisp function by binding
+the variable `inhibit-quit' to a non-`nil' value.  Then, although `C-g'
+still sets `quit-flag' to `t' as usual, the usual result of this--a
+quit--is prevented.  Eventually, `inhibit-quit' will become `nil'
+again, such as when its binding is unwound at the end of a `let' form.
+At that time, if `quit-flag' is still non-`nil', the requested quit
+happens immediately.  This behavior is ideal for a "critical section",
+where you wish to make sure that quitting does not happen within that
+part of the program.
+
+   In some functions (such as `read-quoted-char'), `C-g' is handled in
+a special way which does not involve quitting.  This is done by reading
+the input with `inhibit-quit' bound to `t' and setting `quit-flag' to
+`nil' before `inhibit-quit' becomes `nil' again.  This excerpt from the
+definition of `read-quoted-char' shows how this is done; it also shows
+that normal quitting is permitted after the first character of input.
+
+     (defun read-quoted-char (&optional prompt)
+       "...DOCUMENTATION..."
+       (let ((count 0) (code 0) char)
+         (while (< count 3)
+           (let ((inhibit-quit (zerop count))
+                 (help-form nil))
+             (and prompt (message "%s-" prompt))
+             (setq char (read-char))
+             (if inhibit-quit (setq quit-flag nil)))
+           ...)
+         (logand 255 code)))
+
+ - Variable: quit-flag
+     If this variable is non-`nil', then Emacs quits immediately,
+     unless `inhibit-quit' is non-`nil'.  Typing `C-g' sets `quit-flag'
+     non-`nil', regardless of `inhibit-quit'.
+
+ - Variable: inhibit-quit
+     This variable determines whether Emacs should quit when `quit-flag'
+     is set to a value other than `nil'.  If `inhibit-quit' is
+     non-`nil', then `quit-flag' has no special effect.
+
+ - Command: keyboard-quit
+     This function signals the `quit' condition with `(signal 'quit
+     nil)'.  This is the same thing that quitting does.  (See `signal'
+     in *Note Errors::.)
+
+   You can specify a character other than `C-g' to use for quitting.
+See the function `set-input-mode' in *Note Terminal Input::.
 

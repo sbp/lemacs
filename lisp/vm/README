@@ -1,19 +1,17 @@
 How to setup VM:
 
-0) Look at the Makefile and change the values of EMACS_VERSION, EMACS,
-   INFODIR and LISPDIR if they are not right for your system.
+0) Look at the Makefile and change the values of EMACS_VERSION,
+   EMACS, INFODIR, LISPDIR, SUPPORT_EL and SUPPORT_ELC if they
+   are not right for your system.
 
-1) `make'.
-   `make vm.info' to build the Info online help document.
-   `make all' to make everything.
-   The byte compiler will spew a lot of warnings which you should
-   ignore unless something doesn't get built.  After a `make' you
-   should have vm.elc, sets.elc and tapestry.elc.  `make all'
-   creates a vm.info file as well.
+1) Do one of these:
+     `make'.
+     `make vm.info' to build the Info online help document.
+     `make all' to make everything.
+   Ignore the compiler warnings.
 
-2) Put the vm.elc, sets.elc and tapestry.elc file in a Lisp
-   directory that Emacs knows about.  (see load-path).  You don't
-   need to install the other .elc files.
+2) Put all the .elc files into a Lisp directory that Emacs knows
+   about.  (see load-path).
 
 3) If you built the Info document, copy the file vm.info file into
    the Emacs' info directory under the name "vm".  Edit the "dir"
@@ -23,16 +21,22 @@ How to setup VM:
 4) Put these lines in your .emacs file if they aren't there
    already:
 
-   (autoload 'vm "vm" "Start VM mail reader" t)
+   (autoload 'vm "vm" "Start VM on your primary inbox." t)
+   (autoload 'vm-visit-folder "vm" "Start VM on an arbitrary folder." t)
+   (autoload 'vm-visit-virtual-folder "vm" "Visit a VM virtual folder." t)
    (autoload 'vm-mode "vm" "Run VM major mode on a buffer" t)
+   (autoload 'vm-mail "vm" "Send a mail message using VM." t)
+   (autoload 'vm-submit-bug-report "vm" "Send a bug report about VM." t)
 
 You're now ready to use VM.  C-h i should start up the Emacs Info
 system and if you've installed the Info document properly you can
 use the online documentation to teach yourself how to use VM.
+(Note: the Info document is currently only completely accurate for
+version 4 of VM.)
 
 Please use M-x vm-submit-bug-report to report bugs.  The bug report
 will be sent to bug-vm@uunet.uu.net and be gatewayed from there to
 gnu.emacs.vm.bug.
 
 The latest version of VM can usually be found at ftp.uu.net in
-the mail/vm directory.
+the networking/mail/vm directory.

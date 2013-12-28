@@ -1,12 +1,4 @@
 \input texinfo
-@c
-@c Things to add:
-@c 1. Comparisons against other browsers (Mosaic, Lynx, tkWWW, violaWWW)
-@c 2. Using under Dos/Windows/OS/2
-@c 3. HTML+ Compatibility
-@c 4. Enhancements above and beyond HTML+
-@c 5. Data structures used
-@c
 @setfilename ../info/w3.info
 @settitle W3 User's Manual
 @iftex
@@ -40,9 +32,9 @@ notice identical to this one except for the removal of this paragraph
 @sp 6
 @center @titlefont{W3 User's Manual}
 @sp 4
-@center First Edition, W3 Version 2
+@center Second Edition, W3 Version 2.1
 @sp 1
-@center January 1994
+@center April 1994
 @sp 5
 @center William M. Perry
 @center @t{wmperry@@indiana.edu}
@@ -58,30 +50,27 @@ are preserved on all copies.
 @page
 @ifinfo
 @node Top, Introduction,, (DIR)
-
 This manual documents the W3 World Wide Web browser, a Lisp program
 which runs as a subsystem under Emacs.  The manual is divided into the
 following chapters.
 
 @menu
-* License::                     License
-* Introduction::                Overview of the W3 interface
-* Mosaic Compatibility::        Support for NCSA Mosaic features
-* Hyperbole Compatibility::     How to use W3 with Hyperbole
-* Internals of W3::             How to use W3 from your own programs
-* Customizing Formatting::      How to change document display
-* Printing::                    How to print WWW documents
-* Saving Files::                How to save WWW documents
-* Using W3 behind a firewall::  How to use W3 behind a firewall.
-* Hook Variables::              Different hooks to use in W3
-* Miscellaneous::               Other configuration variables
-* More Help::                   How to get more help - mailing lists,
+* Introduction::                What exactly is W3?
+* Setting Up::                       How to set up and install W3.
+* Basic Usage::                 Basic movement and usage of W3.
+* Compatibility w/Mosaic::      Explanation of how W3 is compatible with
+                                NCSA Mosaic for Xwindows.
+* Controlling Formatting::	How to control how W3 formats lists,
+				paragraphs, links, etc.
+* HTTP/1.0 Support::		A detailed explanation of the HTTP/1.0
+				and MIME support in W3.
+* Advanced Features::           Some of the more arcane features.
+* More Help::                   How to get more help -- mailing lists,
                                 newsgroups, etc
-* HTML::                        Hypertext Markup Language Introduction
-* WWW::                         Introduction to the World Wide Web
+* Future Directions::           What is planned for future revisions of W3
+* Programming Interface::       How to use w3 from your own programs.
 
 Indices:
-
 * Concept Index::               Concept Index
 * Key Index::                   Menus of command keys and their references
 * Command Index::               Menus of commands and their references
@@ -89,322 +78,16 @@ Indices:
 @end menu
 @end ifinfo
 
-@node License, Introduction, Variable Index, Top
-@unnumbered License
-
-@unnumbered GNU GENERAL PUBLIC LICENSE
-@center Version 1, February 1989
-@cindex license to copy Emacs
-@cindex General Public License
-
-@display
-Copyright @copyright{} 1989 Free Software Foundation, Inc.
-675 Mass Ave, Cambridge, MA 02139, USA
-
-Everyone is permitted to copy and distribute verbatim copies
-of this license document, but changing it is not allowed.
-@end display
-
-@unnumberedsec Preamble
-
-  The license agreements of most software companies try to keep users
-at the mercy of those companies.  By contrast, our General Public
-License is intended to guarantee your freedom to share and change free
-software---to make sure the software is free for all its users.  The
-General Public License applies to the Free Software Foundation's
-software and to any other program whose authors commit to using it.
-You can use it for your programs, too.
-
-  When we speak of free software, we are referring to freedom, not
-price.  Specifically, the General Public License is designed to make
-sure that you have the freedom to give away or sell copies of free
-software, that you receive source code or can get it if you want it,
-that you can change the software or use pieces of it in new free
-programs; and that you know you can do these things.
-
-  To protect your rights, we need to make restrictions that forbid
-anyone to deny you these rights or to ask you to surrender the rights.
-These restrictions translate to certain responsibilities for you if you
-distribute copies of the software, or if you modify it.
-
-  For example, if you distribute copies of a such a program, whether
-gratis or for a fee, you must give the recipients all the rights that
-you have.  You must make sure that they, too, receive or can get the
-source code.  And you must tell them their rights.
-
-  We protect your rights with two steps: (1) copyright the software, and
-(2) offer you this license which gives you legal permission to copy,
-distribute and/or modify the software.
-
-  Also, for each author's protection and ours, we want to make certain
-that everyone understands that there is no warranty for this free
-software.  If the software is modified by someone else and passed on, we
-want its recipients to know that what they have is not the original, so
-that any problems introduced by others will not reflect on the original
-authors' reputations.
-
-  The precise terms and conditions for copying, distribution and
-modification follow.
-
-@iftex
-@unnumberedsec TERMS AND CONDITIONS
-@end iftex
-@ifinfo
-@center TERMS AND CONDITIONS
-@end ifinfo
-
-@enumerate
-@item
-This License Agreement applies to any program or other work which
-contains a notice placed by the copyright holder saying it may be
-distributed under the terms of this General Public License.  The
-``Program'', below, refers to any such program or work, and a ``work based
-on the Program'' means either the Program or any work containing the
-Program or a portion of it, either verbatim or with modifications.  Each
-licensee is addressed as ``you''.
-
-@item
-@cindex Distribution
-You may copy and distribute verbatim copies of the Program's source
-code as you receive it, in any medium, provided that you conspicuously and
-appropriately publish on each copy an appropriate copyright notice and
-disclaimer of warranty; keep intact all the notices that refer to this
-General Public License and to the absence of any warranty; and give any
-other recipients of the Program a copy of this General Public License
-along with the Program.  You may charge a fee for the physical act of
-transferring a copy.
-
-@item
-You may modify your copy or copies of the Program or any portion of
-it, and copy and distribute such modifications under the terms of Paragraph
-1 above, provided that you also do the following:
-
-@itemize @bullet
-@item
-cause the modified files to carry prominent notices stating that
-you changed the files and the date of any change; and
-
-@item
-cause the whole of any work that you distribute or publish, that
-in whole or in part contains the Program or any part thereof, either
-with or without modifications, to be licensed at no charge to all
-third parties under the terms of this General Public License (except
-that you may choose to grant warranty protection to some or all
-third parties, at your option).
-
-@item
-If the modified program normally reads commands interactively when
-run, you must cause it, when started running for such interactive use
-in the simplest and most usual way, to print or display an
-announcement including an appropriate copyright notice and a notice
-that there is no warranty (or else, saying that you provide a
-warranty) and that users may redistribute the program under these
-conditions, and telling the user how to view a copy of this General
-Public License.
-
-@item
-You may charge a fee for the physical act of transferring a
-copy, and you may at your option offer warranty protection in
-exchange for a fee.
-@end itemize
-
-Mere aggregation of another independent work with the Program (or its
-derivative) on a volume of a storage or distribution medium does not bring
-the other work under the scope of these terms.
-
-@item
-You may copy and distribute the Program (or a portion or derivative of
-it, under Paragraph 2) in object code or executable form under the terms of
-Paragraphs 1 and 2 above provided that you also do one of the following:
-
-@itemize @bullet
-@item
-accompany it with the complete corresponding machine-readable
-source code, which must be distributed under the terms of
-Paragraphs 1 and 2 above; or,
-
-@item
-accompany it with a written offer, valid for at least three
-years, to give any third party free (except for a nominal charge
-for the cost of distribution) a complete machine-readable copy of the
-corresponding source code, to be distributed under the terms of
-Paragraphs 1 and 2 above; or,
-
-@item
-accompany it with the information you received as to where the
-corresponding source code may be obtained.  (This alternative is
-allowed only for noncommercial distribution and only if you
-received the program in object code or executable form alone.)
-@end itemize
-
-Source code for a work means the preferred form of the work for making
-modifications to it.  For an executable file, complete source code means
-all the source code for all modules it contains; but, as a special
-exception, it need not include source code for modules which are standard
-libraries that accompany the operating system on which the executable
-file runs, or for standard header files or definitions files that
-accompany that operating system.
-
-@item
-You may not copy, modify, sublicense, distribute or transfer the
-Program except as expressly provided under this General Public License.
-Any attempt otherwise to copy, modify, sublicense, distribute or transfer
-the Program is void, and will automatically terminate your rights to use
-the Program under this License.  However, parties who have received
-copies, or rights to use copies, from you under this General Public
-License will not have their licenses terminated so long as such parties
-remain in full compliance.
-
-@item
-By copying, distributing or modifying the Program (or any work based
-on the Program) you indicate your acceptance of this license to do so,
-and all its terms and conditions.
-
-@item
-Each time you redistribute the Program (or any work based on the
-Program), the recipient automatically receives a license from the original
-licensor to copy, distribute or modify the Program subject to these
-terms and conditions.  You may not impose any further restrictions on the
-recipients' exercise of the rights granted herein.
-
-@item
-The Free Software Foundation may publish revised and/or new versions
-of the General Public License from time to time.  Such new versions will
-be similar in spirit to the present version, but may differ in detail to
-address new problems or concerns.
-
-Each version is given a distinguishing version number.  If the Program
-specifies a version number of the license which applies to it and ``any
-later version'', you have the option of following the terms and conditions
-either of that version or of any later version published by the Free
-Software Foundation.  If the Program does not specify a version number of
-the license, you may choose any version ever published by the Free Software
-Foundation.
-
-@item
-If you wish to incorporate parts of the Program into other free
-programs whose distribution conditions are different, write to the author
-to ask for permission.  For software which is copyrighted by the Free
-Software Foundation, write to the Free Software Foundation; we sometimes
-make exceptions for this.  Our decision will be guided by the two goals
-of preserving the free status of all derivatives of our free software and
-of promoting the sharing and reuse of software generally.
-
-@iftex
-@heading NO WARRANTY
-@end iftex
-@ifinfo
-@center NO WARRANTY
-@end ifinfo
-
-@item
-BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
-FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.  EXCEPT WHEN
-OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
-PROVIDE THE PROGRAM ``AS IS'' WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED
-OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS
-TO THE QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE
-PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING,
-REPAIR OR CORRECTION.
-
-@item
-IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING WILL
-ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
-REDISTRIBUTE THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES,
-INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES
-ARISING OUT OF THE USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT
-LIMITED TO LOSS OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES
-SUSTAINED BY YOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE
-WITH ANY OTHER PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN
-ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
-@end enumerate
-
-@iftex
-@heading END OF TERMS AND CONDITIONS
-@end iftex
-@ifinfo
-@center END OF TERMS AND CONDITIONS
-@end ifinfo
-
-@page
-@unnumberedsec Appendix: How to Apply These Terms to Your New Programs
-
-  If you develop a new program, and you want it to be of the greatest
-possible use to humanity, the best way to achieve this is to make it
-free software which everyone can redistribute and change under these
-terms.
-
-  To do so, attach the following notices to the program.  It is safest to
-attach them to the start of each source file to most effectively convey
-the exclusion of warranty; and each file should have at least the
-``copyright'' line and a pointer to where the full notice is found.
-
-@smallexample
-@var{one line to give the program's name and a brief idea of what it does.}
-Copyright (C) 19@var{yy}  @var{name of author}
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
-any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-@end smallexample
-
-Also add information on how to contact you by electronic and paper mail.
-
-If the program is interactive, make it output a short notice like this
-when it starts in an interactive mode:
-
-@smallexample
-Gnomovision version 69, Copyright (C) 19@var{yy} @var{name of author}
-Gnomovision comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
-This is free software, and you are welcome to redistribute it
-under certain conditions; type `show c' for details.
-@end smallexample
-
-The hypothetical commands `show w' and `show c' should show the
-appropriate parts of the General Public License.  Of course, the
-commands you use may be called something other than `show w' and `show
-c'; they could even be mouse-clicks or menu items---whatever suits your
-program.
-
-You should also get your employer (if you work as a programmer) or your
-school, if any, to sign a ``copyright disclaimer'' for the program, if
-necessary.  Here a sample; alter the names:
-
-@example
-Yoyodyne, Inc., hereby disclaims all copyright interest in the
-program `Gnomovision' (a program to direct compilers to make passes
-at assemblers) written by James Hacker.
-
-@var{signature of Ty Coon}, 1 April 1989
-Ty Coon, President of Vice
-@end example
-
-That's all there is to it!
-
-@ifinfo
-@node Introduction, Setting Up, License, Top
-@end ifinfo
-@iftex
+@node Introduction, Setting Up, Top, Top
 @unnumbered Introduction
-@end iftex
 @cindex World Wide Web
-
 W3 is an Emacs subsystem that allows the user to browse the wonderful
-World Wide Web.  The World Wide Web was started at the CERN physics
-institute in Switzerland in 1991.  The project was initially started by
-Tim Berners-Lee (@i{timbl@@info.cern.ch}) for distributing data between
-different research groups effectively.
+World Wide Web.@refill
+
+The World Wide Web was started at the CERN physics institute in
+Switzerland in 1991.  The project was initially started by Tim
+Berners-Lee (@i{timbl@@info.cern.ch}) for distributing data between
+different research groups effectively.@refill
 
 The Web has since grown into the most advanced information system
 currently on the internet.  It is now a global hypertext system with
@@ -413,80 +96,269 @@ language and display it correctly, and allow the user to follow links)
 exist for all major platforms (VMS, Windows, DOS, Unix, VM, NeXTstep,
 and Macintosh).@refill
 
-The basic concepts used in the Web are @b{hypertext}, which is text
-which is not constrained to be linear, and @b{hypermedia}, which is
-information that is not constrained to be text.  With hypertext,
-documents can contain @b{links} to other documents, or another reference
-within the same document.  With hypermedia, documents can contain links
-to objects that are not necessarily text - sounds, movies, and
-interactive sessions are all possible.@refill
+The basic concepts used in the Web are @b{hypertext} and @b{hypermedia}.
+Hypertext is the same as regular text, with one exception - it can
+contain links (cross-references) to other textual documents.  Hypermedia
+is slightly different - it can contain links to other forms of media
+(movies, sounds, interactive programs, etc).
 
 WWW also allows searches of indices that are located anywhere on the
 network; in this respect, it mirrors certain capabilities found in both
 WAIS and Gopher.@refill
+@iftex
+@heading Client Side View of WWW
+@end iftex
+@ifinfo
+@center ----------------
+@center CLIENT SIDE VIEW
+@center ----------------
+@end ifinfo
+The WWW world consists of documents, and links.  Indexes are special
+documents which, rather than being read, may be searched.  The result of
+such a search is another @i{virtual} document containing links to the
+documents found.  A simple protocol, @i{HTTP} is used to allow a browser
+program to request a keyword search by a remote information
+server.@refill
 
-Here are a few references to other documents.
+The web contains documents in many formats.  Those documents which are
+hypertext, (real or virtual) contain links to other documents, or places
+within documents.  All documents, whether real, virtual or indexes, look
+similar to the reader and are contained within the same addressing
+scheme.@refill
+@iftex
+@heading Information Provider View of WWW
+@end iftex
+@ifinfo
+@center -------------------------
+@center INFORMATION PROVIDER VIEW
+@center -------------------------
+@end ifinfo
+The WWW browsers can access many existing data systems via existing
+protocols (FTP, NNTP) or via HTTP and a gateway.  In this way, the
+critical mass of data is quickly exceeded, and the increasing use of the
+system by readers and information suppliers encourage each other.@refill
+
+Providing information is as simple as running the WWW server and
+pointing it at an existing directory structure.  The server
+automatically generates the a hypertext view of your files to guide the
+user around.@refill
+
+To personalize it, you can write a few @b{SGML} hypertext files to give
+an even more friendly view.  Also, any file available by anonymous FTP,
+or any internet newsgroup can be immediately linked into the web.  The
+very small start-up effort is designed to allow small contributions.  At
+the other end of the scale, large information providers may provide an
+HTTP server with full text or keyword indexing.  This may allow access
+to a large existing database without changing the way that database is
+managed.  Such gateways have already been made into Oracle(tm), WAIS,
+and Digital's VMS/Help systems, to name but a few.@refill
+
+The WWW model gets over the frustrating incompatibilities of data format
+between suppliers and reader by allowing negotiation of format between a
+smart browser and a smart server.  This should provide a basis for
+extension into multimedia, and allow those who share application
+standards to make full use of them across the web.@refill
+
+@ifinfo
+Here is some more specific information about what W3 does and does not
+understand:
+@menu
+* Markup Languages Supported::	The different markup languages that
+				W3 understands natively.
+* Supported Protocols::		The different network protocols that
+				W3 speaks to.
+@end menu
+@end ifinfo
+@node Markup Languages Supported, Supported Protocols, Introduction, Introduction
+@unnumbered Supported Markup Languages
+Two different markup languages are supported by W3.
+@ifinfo
+@center ----------
+@center HTML
+@center ----------
+@end ifinfo
+@iftex
+@unnumberedsec HTML
+@end iftex
+HTML is composed of a set of elements that define a document and guide
+its display.  An HTML element may include a name, some attributes and
+some text or hypertext, and will appear in an HTML document as
+<tag_name> text </tag_name>,<tag_name attribute_name=argument> text
+</tag_name>, or just <tag_name>.@refill
+
+For example: @samp{<title> My Useful Document </title>}, and @samp{<pre
+width=60> A lot of text here.  </pre>}. @refill
+
+An HTML document is composed of a single element: <html>...</html>, that
+is, in turn, composed of head and body elements: <head>...</head>, and
+<body>...</body>.  To allow older HTML documents to remain readable,
+<html>, <head>, and <body> are actually optional within HTML
+documents.@refill
+
+All the tags and attributes of HTML are fully supported in W3.@refill
+
+@ifinfo
+@center ----------
+@center HTML+
+@center ----------
+@end ifinfo
+@iftex
+@unnumberedsec HTML+
+@end iftex
+@cindex HTML+
+The HTML+ language is an extension of HTML, with a large degree of
+backwards compatibility.  See the internet draft by Dave Raggett for
+more information.  The following HTML+ language elements are supported
+by W3:@refill
 
 @itemize @bullet
 @item
-<A HREF="http://info.cern.ch/">CERN's Web site, birthplace of WWW.</A>
+FORMS -- forms are one of the most powerful aspects of HTML+.  They allow
+the author of an HTML document to request information from the person
+viewing the document.  Passwords, checkboxes, radio buttons, and many
+more types of entry fields are possible.  W3 supports @b{all} the input
+tags, as well as GET and POST submission methods.  W3 also supports the
+Mosaic 2.0 hack of automatically submitting forms with a NAME of
+isindex.@refill
 @item
-<A HREF="http://www.ncsa.uiuc.edu/SDG/Software/Mosaic/StartingPoints/NetworkStartingPoints.html">NCSA's Network Starting Points Page.</A>
+ID tags for headers and paragraphs.  This makes it possible to reference
+points within a document and not require empty hypertext links to do
+it.@refill
 @item
-<A HREF="http://www.ncsa.uiuc.edu/SDG/Software/Mosaic/Docs/whats-new.html">NCSA's What's New Page</A>
+LINK support.  LINKs allow you to specify the relevance between
+documents easily.  This makes it possible to point to dictionaries,
+glossaries, or indices, or to specify the author of a document.@refill
 @item
-<A HREF="/usr/local/www/home-page.html">Indiana University Home Page</A>
+Annotations.  Can have <footnote> and <margin> notes that show up as
+footnotes at the bottom of a document.@refill
 @item
-<A HREF="forms.html">Demo of the forms support.</A>
+BR tag for explicit line breaks
 @item
-<A HREF="file://cs.indiana.edu/pub/elisp/w3">Latest version of W3</A>
+Notes and admonishments.  A way to specify a warning or other standard
+information.  Shows appropriate bitmap if possible.  Similar to warning
+dialogs in Windows/Macintosh.@refill
+@item
+Infinitely nested lists, and use of paragraphs and headers within
+lists.@refill
 @end itemize
-
 @ifinfo
-@menu
-* Setting Up::                  Getting and installing W3
-* Starting Up::                 How to get into the Web
-* Basic Movement::              Basics of navigating the Web with W3
-@end menu
-@end ifinfo
-
-
-@ifinfo
-@node Setting Up, Starting Up, Introduction, Introduction
+@center ----------
+@center Extras
+@center ----------
 @end ifinfo
 @iftex
-@unnumberedsec Setting Up
+@unnumberedsec Extra Markup
 @end iftex
+There are several different markup elements that are not officially part
+of HTML or HTML+ that W3 supports.  These are either items that have
+been dropped from HTML+ because they would be too difficult for other
+browsers to implement or have been moved into another tag.
+@itemize @bullet
+@item
+RENDER support.  The render tag can be used to convert one tag into
+another.  Syntax is <RENDER TAG="PROPNAME" STYLE="I">, which will
+replace all <PROPNAME> tags with <I>, and all </PROPNAME> tags with
+</I>.@refill
+@item
+Entity definitions within documents.  This allows you to define
+per-document macros.  Syntax is <!ENTITY TAG "Expansion of Tag">, which
+will replace all occurences of &TAG; with Expansion of Tag.@refill
+@item
+Roman numerals for ordered lists.  If an ordered list has an optional
+ROMAN attribute (@samp{<OL ROMAN>}, then roman numerals will be used
+instead of normal arabic numbers.@refill
+@item
+IMG and ALT support for list items.  If a list item has an IMG or ALT
+tag (@samp{<LI IMG="some.gif" ALT="text"}), then the list character will
+be replaced with either an icon or the ALT text.@refill
+@item
+Specifying the hostname and port of an NNTP server in a news URL.  URLs
+of the form news://hostname:port/messageID will work.@refill
+@end itemize
+@node Supported Protocols, , Markup Languages Supported, Introduction
+@unnumbered Supported Protocols
+@cindex Network Protocols
+@cindex Protocols Supported
+@cindex Supported Protocols
+W3 supports the following protocols
+@table @b
+@item Usenet News
+Can either display an entire newsgroup or specific articles by
+Message-ID: header.  No parsing of your .newsrc is done, so beware of
+heavily trafficed newsgroups.@refill
+@item HTTP
+Supports both HTTP/0.9 and HTTP/1.0 protocols.  Fully MIME-compliant
+with regards to HTTP/1.0. @xref{HTTP/1.0 Support}@refill
+@item Gopher
+Support for all gopher types, include CSO searches.@refill
+@item Gopher+
+Support for Gopher+ retrievals. Support for converting ASK blocks into
+HTML+ FORMS and submitting them back to the server.@refill
+@item FTP
+FTP is handled by either ange-ftp or efs, the choice is up to the
+individual user.@refill
+@item Local files
+Local files are handled, and MIME content-types are derived from the
+file extensions.@refill
+@item Telnet
+Telnet is handled by running the emacs-lisp function @code{telnet}, or
+spawning an xterm running telnet.@refill
+@item TN3270
+TN3270 is handled by running a tn3270 program in an Emacs buffer, or
+spawning an xterm running tn3270.@refill
+@item Mail
+W3 supports the mailto: url scheme that causes a mail message to be
+started to a specific address.@refill
+@end table
 
+@node Setting Up, Retrieving W3, Introduction, Top
+@comment  node-name,  next,  previous,  up
+@unnumbered Setting Up
+@cindex Setting Up W3
+@cindex Retrieving W3
+This section of the manual will deal with getting, compiling, and
+configuring @i{Emacs-W3} for your site.@refill
+@ifinfo
+@menu
+* Retrieving W3::               Retrieving W3 via anonymous ftp
+* Compiling W3::                Compiling W3 and its associated files
+* Basic Setup::                 Basic setup that everyone will need to do
+* Firewalls::                   How to set W3 up to use your particular
+                                firewall setup.
+* Proxy Gateways::              Using CERN's proxy HTTP server
+@end menu
+@end ifinfo
+@node Retrieving W3, Compiling W3, Setting Up, Setting Up
+@comment  node-name,  next,  previous,  up
+@unnumberedsec Retrieving W3
 If you are using Lucid Emacs 19.9, you should be able to safely skip to
 the section on starting W3.  W3 comes standard with all versions of
 Lucid Emacs from 19.9 onwards.@refill
 
 First off, you will need the file w3.tar.gz, which is available from
-cs.indiana.edu:/pub/elisp/w3 via anonymous ftp.  If you do not have
+cs.indiana.edu:/pub/elisp/w3 via anonymous ftp.  You will also need the
+icons.tar.gz file.  This file contains approximately fifty small icons
+that w3 uses, and that are available to HTML authors. If you do not have
 ange-ftp, html-mode, or the nntp package by Masanobu Umeda, then you
-will also need the extras.tar.gz.@refill
+will also need the extras.tar.gz file.@refill
 
 After you have retrieved the files unpack them with the following
-commands: @kbd{zcat w3.tar.gz | tar xvvf -} and @kbd{zcat extras.tar.gz
-| tar xvvf -}.  This will unpack distribution into two subdirectories
-@file{w3} and @file{extras}.  To compile and install all the packages in
-the extras directory, please see the comments at the top of each lisp
+commands: @kbd{zcat w3.tar.gz | tar xvvf -}, @kbd{zcat icons.tar.gz |
+tar xvvf -}, and @kbd{zcat extras.tar.gz | tar xvvf -}.  This will
+unpack distribution into three subdirectories @file{w3}, @file{icons},
+and @file{extras}.  To compile and install all the packages in the
+extras directory, please see the comments at the top of each lisp
 file.@refill
-
+@node Compiling W3, Basic Setup, Retrieving W3, Setting Up
+@comment  node-name,  next,  previous,  up
+@unnumberedsec Compiling W3
 To install W3, go into the @file{w3} subdirectory and edit the
 @file{Makefile}.  You need to change three variables:@refill
-
-@iftex
-@table @asis
-@end iftex
-@ifinfo
-@table @var
-@end ifinfo
+@table @code
 @item EMACS
-This variable controls what version of emacs is used to compile the
-programs.  It should be the full path to the emacs executable on your
-system.  Te default is to use Lucid Emacs (@file{lemacs}).@refill
+This variable controls what version of Emacs is used to compile the
+programs.  It should be the full path to the Emacs executable on your
+system.  The default is to use Lucid Emacs (@file{lemacs}).@refill
 @item LISPDIR
 This variable controls where the lisp code will be copied to when it is
 installed (with @code{make install}).  This will usually be your
@@ -494,20 +366,22 @@ personal lisp code directory (I prefer @file{~/lisp}).  The value will
 be run through @dfn{expand-file-name} and then added to your
 load-path.@refill
 @item DOTEMACS
-This variable points to your emacs customization file, usually
+This variable points to your Emacs customization file, usually
 @file{~/.emacs}.  If you keep yours in a different place, you must
 change this variable.  Otherwise @code{make emacs} will not work.@refill
+@item INFODIR
+This variable points to your local info directory (usually
+@file{/usr/local/info}).  This can be any valid directory, as long as it
+is in @code{Info-default-directory-list} so that info-mode can find
+it.@refill
+@item MAKEINFO
+This variables controls how the info files are built.  Possible values
+are @code{makeinfo} or @code{emacs -batch -q -f
+batch-texinfo-format}.@refill
 @end table
-
 Once you have modified the @file{Makefile}, you should be able to build
 several different targets.@refill
-
-@iftex
-@table @asis
-@end iftex
-@ifinfo
 @table @code
-@end ifinfo
 @item make w3
 This will compile all the .el files into the much faster .elc files.  If
 you are using Jamie Zawinski's optimizing byte compiler (standard in
@@ -517,184 +391,644 @@ finishes compiling.  This is the default target for @code{make} with no
 arguments.@refill
 @item make install
 This will compile all the .el files and then copy .el and .elc files
-into the directory specified by @var{LISPDIR}.@refill
+into the directory specified by @code{LISPDIR}.@refill
 @item make emacs
-This will modify the file specified by @var{DOTEMACS}.  A statement
+This will modify the file specified by @code{DOTEMACS}.  A statement
 modifying the load-path variable and size autoload statements will be
 added to the end of the file.@refill
 @item make all
 This will compile and install the .el files, and also modify/create the
-@var{DOTEMACS} file.@refill
+@code{DOTEMACS} file.@refill
+@item make w3.info
+This will create the emacs-readable info files.  They will be created in
+the directory specified by @code{INFODIR}.  The makefile variable
+@code{MAKEINFO} determines how the info file is built.@refill
+@item make w3.dvi
+This will create the printable documentation, using tex and texindex to
+properly generate the indices.  The w3.dvi file is left in the current
+directory.@refill
 @end table
+@node Basic Setup, Firewalls, Compiling W3, Setting Up
+@comment  node-name,  next,  previous,  up
+@unnumberedsec Basic Setup
+There are a few variables that almost all people will need to
+change.@refill
 
-Once you have done a @code{make intall} and a @code{make emacs} you
-should be ready to start up W3.  @xref{Starting Up}.@refill
+@table @code
+@item w3-bad-port-list
+@vindex w3-bad-port-list
+List of ports to warn the user about connecting to.  Defaults to just
+the mail and NNTP ports so you cannot be tricked into sending fake mail
+or forging messages by a malicious HTML document.@refill
+@item w3-be-asynchronous
+@vindex w3-be-asynchronous
+Controls whether document retrievals over HTTP should be done in
+the background.  This allows you to keep working in other windows
+while large downloads occur.@refill
+@item w3-confirmation-func
+@vindex w3-confirmation-func
+What function to use for asking yes or no functions.  Possible
+values are 'yes-or-no-p or 'y-or-n-p, or any function that takes a
+single argument (the prompt), and returns t only if a positive answer
+is gotten.@refill
+@item w3-default-action
+@vindex w3-default-action
+A lisp symbol specifying what action to take for files with
+extensions that are not in the w3-mime-extensions assoc list.
+This is useful in case you ever run across files with weird extensions
+(.foo, .README, .READMEFIRST, etc).  This should not be required
+anymore.@refill
 
-@ifinfo
-@node Starting Up, Basic Movement, Setting Up, Introduction
-@end ifinfo
-@iftex
-@unnumberedsec Starting Up
-@end iftex
+Possible values: any lisp symbol.  Should be a function that takes no
+arguments.  The return value does not matter, it is ignored.  Some examples
+are 
 
-There are several ways to start W3: @kbd{M-x w3}, @kbd{M-x
-w3-open-local}, @kbd{M-x w3-fetch}, @kbd{M-x w3-use-hotlist}, @kbd{M-x
-w3-follow-url-at-point} and @kbd{M-x w3-preview-this-buffer}.@refill
-
-@iftex
-@table @asis
-@end iftex
-@ifinfo
-@table @kbd
-@end ifinfo
-@findex w3
+@example
+Action			Value
+----------------------------------------------
+Parse as HTML		'w3-prepare-buffer
+View as text		'indented-text-mode
+@end example
+@refill
+@item w3-default-homepage
 @vindex w3-default-homepage
-@cindex URL
-@cindex Uniform Resource Locator
-@item M-x w3
-Causes W3 to try and retrieve the file specified by
-@var{w3-default-homepage}.  @var{w3-default-homepage} defaults to the
-beginning of a hypertext documentation tree for W3 here at IU.  This
-variable can be any valid @dfn{URL}.@refill
-
-@findex w3-open-local
-@item M-x w3-open-local
-Will prompt for a filename on the local system.  W3 will open this file
-and attempt to parse it as an HTML document.  Filename completion is
-used.@refill
-
-@findex w3-fetch
-@item M-x w3-fetch
-Will prompt for a valid URL.  W3 will attempt to parse this url and
-retrieve the document specified.@refill
-
-@findex w3-use-hotlist
-@item M-x w3-use-hotlist
-Will do a completing-read on w3-hotlist.  If a valid hotlist entry is
-chosen, that URL is retrieved and parsed.@refill
-
-@findex w3-follow-url-at-point
-@item M-x w3-follow-url-at-point
-Will attempt to find a url under the cursor and follow it.  Essentially
-a w3-fetch on a buffer-substring.@refill
-
-@findex w3-preview-this-buffer
-@item M-x w3-preview-this-buffer
-Will try to parse out the current buffers contents as an HTML document
-and display them.@refill
+The url to open at startup.  It can be any valid URL.  This will
+default to the environment variable WWW_HOME if you do not set it in
+your .emacs file. If WWW_HOME is undefined, then it will default to
+the hypertext documentation for W3 at Indiana University.@refill
+@item w3-delay-image-loads
+@vindex w3-delay-image-loads
+Whether to delay loading inlined images.  If non-@code{nil}, images are
+not loaded.  If you are on a slow network link, I would recommend
+setting this to @code{t}.@refill
+@item w3-delimit-emphasis
+@vindex w3-delimit-emphasis
+@vindex w3-style-chars-assoc
+Whether to use characters at the start and end of each bold/italic
+region.  Types of characters are specified in
+@code{w3-style-chars-assoc}.@refill
+@item w3-delimit-links
+@vindex w3-delimit-links
+Put brackets around links?  If this variable is eq to 'linkname, then it
+will put the link # in brackets after the link text.  If it is nil, then
+it will not put anything.  If it is non-nil and not eq to 'linkname,
+then it will put [[ & ]] around the entire text of the link.  Is
+initially set to be t iff in normal emacs.  Nil if in epoch or lucid
+emacs, since links should be in different colors/fonts.@refill
+@item w3-global-history-file
+@vindex w3-global-history-file
+The global history file used by both Mosaic/X and W3.  This file
+contains a list of all the URLs you have visited.  This file is parsed
+at startup and used to provide URL completion.@refill
+@item w3-hotlist-file
+@vindex w3-hotlist-file
+Hotlist filename.  This should be the name of a file that is stored in
+NCSA's Mosaic/X format (ncsa-mosaic-hotlist-format-1).  It is used to
+keep a listing of commonly accessed URL's without having to go through
+20 levels of menus to get to them.@refill
+@item w3-personal-annotation-directory
+@vindex w3-personal-annotation-directory
+Directory where w3 looks for personal annotations.  This is a directory
+that should hold the personal annotations stored in a Mosaic-compatible
+format. (ncsa-mosaic-personal-annotation-log-format-1)@refill
+@item w3-personal-mail-address
+@vindex w3-personal-mail-address
+@findex user-real-login-name
+@findex system-name
+Your full email address.  This is what is sent to HTTP/1.0 servers as
+the FROM field.  If not set when w3-do-setup is run, it defaults to
+@code{(user-real-login-name)}@@@code{(system-name)}, which can often be
+wrong.@refill
+@item w3-right-border
+@vindex w3-right-border
+@findex window-width
+Amount of space to leave on right margin of WWW buffers.  This amount is
+subtracted from @code{(window-width)} for each new WWW buffer and used
+as the new fill-column.@refill
+@item w3-track-mouse
+@vindex w3-track-mouse
+@vindex w3-link-cursor
+Whether to track the mouse and message the url under the mouse.  This
+also changes the mouse cursor to be the cursor specified by
+w3-link-cursor.@refill
+@item w3-use-forms-index
+@vindex w3-use-forms-index
+@cindex ISINDEX handling
+@cindex Forms based searching
+@cindex Searching with forms
+Non-nil means translate <ISINDEX> tags into a hypertext form.  A single
+text entry box will be drawn where the ISINDEX tag appears.  If t, the
+isindex handling will be the same as Mosaic for X.@refill
+@item w3-use-hypertext-gopher
+@vindex w3-use-hypertext-gopher
+@cindex Gopher+
+Controls how gopher documents are retrieved.  If non-@code{nil}, the
+gopher pages will be converted into HTML and parsed just like any other
+page.  If nil, the requests will be passed off to the @file{gopher.el}
+package by Scott Snyder.  Using the @file{gopher.el} package will lose
+the gopher+ support, and inlined searching.@refill
+@item w3-wais-gateway-port
+@vindex w3-wais-gateway-port
+The port # of the WAIS gateway to pass all wais:// requests to.
+@xref{Native WAIS Support}@refill
+@item w3-wais-gateway-server
+@vindex w3-wais-gateway-server
+The machine name where the WAIS gateway lives.  @xref{Native WAIS
+Support}@refill
+@item w3-xterm-command
+@vindex w3-xterm-command
+Command used to start an xterm window@refill
 @end table
+@node Firewalls, Proxy Gateways, Basic Setup, Setting Up
+@comment  node-name,  next,  previous,  up
+@unnumberedsec Firewalls
+@cindex Gateways
+There are several different reasons why you may need to use the gateway
+support in W3.
+@enumerate
+@cindex Firewalls
+@item
+You are behind a firewall.  This is usually the case at large
+corporations with moderately paranoid system-administrators.@refill
+@cindex TERM
+@item
+You are using TERM @footnote{TERM is a user-level protocol for emulating
+IP over a serial line.  More information is available at
+sunsite.unc.edu:/pub/Linux/apps/comm/term} for slip-like access to the
+internet.  NOTE: Emacs 19.22 has patches to enable native TERM
+networking, mail me for details.@refill
+@item
+@cindex Faulty hostname resolvers
+@cindex Broken SUN libc
+@cindex Can't resolve hostnames
+For some reason your version of emacs can't resolve hostnames.  This
+happens quite often on Sun workstations and some ultrix machines.  Some
+C libraries do not include the hostname resolver routines in their
+static libraries.  If emacs was linked statically, this means it won't
+be able to get to any machines off your local net.  This is
+characterized by being able to reach someplace with a raw ip number, but
+not its hostname (ie: http://129.79.254.191/ works, but
+http://cs.indiana.edu/ doesn't).@refill
 
-@ifinfo
-@node Basic Movement, Mosaic Compatibility, Starting Up, Introduction
-@end ifinfo
-@iftex
-@unnumberedsec Basic Movement
-@end iftex
+If for some reason your system administrator will not recompile emacs
+with the @file{-lresolv} library or dynamic linking, you will need to
+act as if you were behind a firewall.@refill
+@cindex Connections hanging with lemacs & solaris
+@cindex Solaris networking problems
+@cindex Lucid Emacs & Solaris network problems
+@item
+You are running Lucid Emacs 19.x and Solaris 2.x (SunOS 5.x).  For some
+reason, network processes under Solaris and Lucid Emacs never get a
+status of @code{exit} or @code{closed}.  This will cause retrieval of
+HTTP and gopher pages to hang indefinitely, with emacs chewing up large
+amounts of your CPU time.@refill
 
-Once you have started W3, there are a few basic keystrokes that should
-get you started.  First, some terminology used within this
-documentation.@refill
+The fix is to wait until we figure out what is wrong with Lucid Emacs
+and Solaris, and use either the @code{tcp} or @code{program} gateway
+methods until then.@refill
+@end enumerate
 
-@iftex
-@heading Basic W3 Terminology
-@end iftex
-@ifinfo
-@center --------------------
-@center Basic W3 Terminology
-@center --------------------
-@end ifinfo
+@vindex w3-gateway-local-host-regexp
+W3 has support for using the gateway mechanism only for certain domains.
+To use this, you must change the value of
+@code{w3-gateway-local-host-regexp}.  This should be a regular
+expression @footnote{Please see the full emacs distribution for a
+description of regular expressions} that matches local hosts that do not
+require the use of a gateway.  If @code{nil}, then all connections will
+be made through the gateway.@refill
 
-@iftex
-@table @asis
-@end iftex
-@ifinfo
+@vindex w3-gateway-method
+W3 supports several methods of getting around gateways.  The variable
+@code{w3-gateway-method} controls which of these methods is used.  This
+variable can have several values (use these as symbol names, not
+strings):@refill
 @table @dfn
-@end ifinfo
-
-@item link
-Is a hypertext link, either within this document, to another document,
-or a forms-based entry area.@refill
-
-@item hotlist
-A hotlist is a list of items that you have marked for future quick
-reference. @xref{Hotlist Handling}.@refill
-
+@item program
+Run a program in a subprocess to connect to remote hosts (examples are
+@i{itelnet}@footnote{Itelnet is a standard name for a telnet executable
+that is capable of escaping the firewall.  Check with your system
+administrators to see if you have anything similar}, an
+@i{expect}@footnote{Expect is a scripting language that allows you to
+control interactive programs (like telnet) very easily.  It is available
+from gatekeeper.dec.com:/pub/GNU/expect-3.24.0.tar.gz} script,
+etc).@refill
+@item host
+This allows you to log into another local computer that has access to
+the internet, and run a telnet-like program from there.
+@item tcp
+Masanobu UMEDA @i{<umerin@@mse.kyutech.ac.jp>} has written a very nice
+replacement for the standard networking in emacs.  This does basically
+the same thing that a method of @code{program} does, but is slightly
+more transparent to the user.
+@item native
+This means that W3 should use the builtin networking code of emacs.
+This should be used only if there is no firewall, or someone at your
+site has already hacked the emacs source to get around your
+firewall.@refill
 @end table
+Two of these need a bit more explanation than that:@refill
+@vindex w3-gateway-telnet-ready-regexp
+@vindex w3-gateway-telnet-program
+If you are running a program in a subprocess to emulate a network
+connection, you will need to set a few extra variables.  The variable
+@code{w3-gateway-telnet-program} should point to an executable that
+accepts a hostname and port # as its arguments, and passes standard
+input to the remote host.  This can be either the full path to the
+executable or just the basename.  The variable
+@code{w3-gateway-telnet-ready-regexp} controls how long W3 should wait
+after spawning the subprocess to start sending to its standard input.
+This gets around a bug where telnet would miss the beginning of requests
+becausse it did not buffer its input before opening a connection.  This
+should be a regular expression to watch for that signifies the end of
+the setup of @code{w3-gateway-telnet-program}.  The default should work
+fine for telnet.@refill
 
-@iftex
-@heading Movement within the buffer
-@end iftex
+@cindex Host-based gateways
+@cindex Hair-pulling gateway-headaches
+@vindex w3-gateway-host
+If you are using the @code{host}-based gatway method, things get a bit
+more complicated.  This is basically my attempt to do some of the basic
+stuff of @i{expect} within elisp.  First off, set the variable
+@code{w3-gateway-host} to be the name of your gateway machine.@refill
+
+@vindex w3-gateway-host-program
+The variable @code{w3-gateway-host-program} controls how the host is
+reached.  The easiest way is to have a program that does not require a
+username and password to allow you to login.  The most common of these
+is the @dfn{rsh} command.@refill
+
+@vindex w3-gateway-program-interactive
+@vindex w3-gateway-handholding-password-regexp
+@vindex w3-gateway-handholding-login-regexp
+@vindex w3-gateway-host-username
+@vindex w3-gateway-host-password
+If you do not have @i{rsh}, then things get very ugly.  First, set the
+variable @code{w3-gateway-program-interactive} to non-@code{nil}.  Then
+you need to define the variables @code{w3-gateway-host-username} and
+@code{w3-gateway-host-password} to be the username and password
+necessary to log into the gateway machine.  The regular expressions in
+the variables @code{w3-gateway-handholding-login-regexp} and
+@code{w3-gateway-handholding-password-regexp} should match the login and
+password prompts on the gateway system respectively.  For
+example:@refill
+
+@example
+(setq w3-gateway-host-program "telnet"
+      w3-gateway-program-interactive t
+      w3-gateway-host-username "wmperry"
+      w3-gateway-host-password "yeahrightkeepdreaming"
+      w3-gateway-host "moose.cs.indiana.edu"
+      w3-gateway-host-program-ready-regexp "Escape character is .*"
+      w3-gateway-handholding-login-regexp "ogin:"
+      w3-gateway-handholding-password-regexp "ord:")
+@end example
+
+@vindex w3-gateway-host-prompt-pattern
+This should take care of you logging into the remote system.  The
+variable @code{w3-gateway-host-prompt-pattern} should contain a regular
+expression that matches the shell prompt on the remote machine.  This
+should appear @b{no where} in the login banner/setup, or things could
+get very confused.@refill
+
+@vindex w3-gateway-host-program-ready-regexp
+@vindex w3-gateway-host-program
+Now you are ready to actually get off of your local network!  The
+variable @code{w3-gateway-host-program-ready-regexp} should contain a
+regular expression that matches the end of the setup of
+@code{w3-gateway-host-program} when it tries to make a connection to an
+off-firewall machine.  (Basically the same as
+@code{w3-gateway-telnet-ready-regexp}.@refill
+
+Now you should be all set up to get outside your local network.  If none
+of this makes sense, its probably my fault.  Please check with your
+network administrators to see if they have a program that does most of
+this for you already, since somebody somewhere at your company has
+probably been through something similar to this before, and would be
+much more helpful/knowledgeable about your local setup than I would be.
+But feel free to mail me as a last resort.@refill
+@node Proxy Gateways, Basic Usage, Firewalls, Setting Up
+@comment  node-name,  next,  previous,  up
+@unnumberedsec Proxy Gateways
+In late January, Kevin Altis and Lou Montulli proposed and implemented a
+new proxy service.  This service requires the use of environment
+variables to specify a gateway server/port # to send protocol requests
+to.  Each protocol (http, wais, gopher, ftp, etc) can have a different
+gateway server.  The environment variables are @var{PROTOCOL}_proxy,
+where @var{PROTOCOL} is one of gopher, telnet, file, http, ftp, tn3270,
+news, mailto, www, or wais.@refill
+
+The main thing to understand about the proxy gateway is that instead of
+a partial URL being sent to the HTTP server, which is what we do today
+when a client talks directly to an HTTP server, a client must send a
+full URL (http://..., gopher://..., ftp://...) to the proxy gateway
+server, the rest of the HTTP message is the same. For gopher and ftp,
+the proxy gateway server will return the data encapsulated as a MIME
+content type to the client like a normal HTTP message. HTTP MIME content
+types are returned for all URL requests, regardless of the protocol type
+of the URL. FTP directories, Gopher directories, etc. are returned as
+text/html.@refill
+
+@node Basic Usage, , Proxy Gateways, Top
+@comment  node-name,  next,  previous,  up
+@unnumbered Basic Usage
+W3 is similar to the Info package all emacs users hold near and dear to
+their heart (@xref{Top,,Info,info, The Info Manual}, for a description
+of Info).  Basically, @kbd{space} and @kbd{backspace} control scrolling,
+and @kbd{return} or @kbd{mouse2} will follow a hypertext link.  The
+@kbd{f} and @kbd{b} keys maneuver around the various links on the
+page.@refill
+
+On non-graphic terminals (vt100, DOS, etc), or with a graphics terminal
+and old versions (18.xx) of emacs, hypertext links will be surrounded by
+'[[' and ']]' by default.  On a graphics terminal with newer versions of
+emacs (epoch, lucid, or FSF 19), the links will be in bold print.
+@xref{Controlling Formatting} for information on how to change this, or
+for help on getting the highlighting to work on graphics
+terminals.@refill
+
+There are approximately 50 keys bound to special W3 functions.  The
+basic rule of thumb regarding keybindings in W3 is that a lowercase key
+will take an action on the @b{current document}, and an uppercase key
+will take an action on the document pointed to by the hypertext link
+@b{under the cursor}.@refill
+
+There are several areas that the keybindings fall into: movement,
+information, action, and miscellaneous.@refill
+
 @ifinfo
-@center --------------------
-@center Movement, within the buffer, to other documents
-@center --------------------
+@menu
+* Movement::		Moving around in a W3 buffer
+* Information::		Getting information about the W3 document you
+			are viewing, and/or links within that document.
+* Action::		Taking actions in a W3 buffer (following links,
+			printing, etc)
+* Miscellaneous::	Miscellaneous keybindings
+@end menu
 @end ifinfo
-
-@iftex
-@table @asis
-@end iftex
-@ifinfo
+@node Movement, Information, Basic Usage, Basic Usage
+@unnumberedsec Movement
 @table @kbd
-@end ifinfo
-
 @kindex SPC
 @item SPC
 Scroll downward in the buffer.  With prefix arg, scroll down that many
 screenfuls. @refill
-
 @kindex DEL
 @item DEL
 Scroll upward in the buffer.  With prefix arg, scroll up that many
 screenfuls. @refill
-
 @kindex <
 @findex w3-start-of-document
 @item <, M-x w3-start-of-document
 Go to start of document
-
 @kindex >
 @findex w3-end-of-document
 @item >, M-x w3-end-of-document
 Go to end of document
-
 @kindex b
 @findex w3-back-link
 @item b, M-x w3-back-link
-Will attempt to move backward one link area in the current document.
+Attempts to move backward one link area in the current document.
 Signals an error if no previous links are found.@refill
-
+@findex w3-show-hotlist
+@item M-x w3-show-hotlist
+Possibly go to a link in the hotlist.  A hypertext listing of the items
+in the hotlist is generated on the fly, and the links can be followed
+normally.@refill
+@kindex H
+@findex w3-use-hotlist
+@item H, M-x w3-use-hotlist
+Possibly go to a link in the hotlist.  A new buffer is created for the
+new document.@refill
 @kindex m
 @findex w3-complete-link
 @item m, M-x w3-complete-link
 Choose a link from the current buffer and follow it.  A completing-read
 is done on all the links, so @kbd{space} and @kbd{TAB} can be used for
 completion.@refill
-
 @kindex f
+@kindex n
 @findex w3-forward-link
-@item f, M-x w3-forward-link
-Will attempt to move forward one link area in the current document.
-Signals an error if no more links are found.@refill
+@item f, n, M-x w3-forward-link
+Attempts to move forward one link area in the current document.  Signals
+an error if no more links are found.@refill
+@end table
+@node Information, Action, Movement, Basic Usage
+@unnumberedsec Information
+These functions relate information about one or more links on the
+current document.@refill
+@table @kbd
+@kindex v
+@findex w3-view-url
+@item v, M-x w3-view-url
+This will show the URL of the current document in the minibuffer.@refill
+@kindex V
+@findex w3-view-this-url
+@item V, M-x w3-view-this-url
+This will show the URL of the hypertext link under point in the
+minibuffer.  If there is not a hypertext link under point, then it will
+show the type of form entry area under point.  If there is no form entry
+area under point, thn it will show the inlined image's URL that is under
+point, if any.
+@kindex s
+@findex w3-source-document
+@item s, M-x w3-source-document
+This will show the HTML source of the current document in a separate
+buffer.  The buffer-name will be based on the document's URL.@refill
+@kindex S
+@findex w3-source-document-at-point
+@item S, M-x w3-source-document-at-point
+This will show the HTML source of the hypertext link under point in a
+separate buffer.  The buffer-name will be based on the document's
+URL.@refill
+@kindex k
+@kindex C-k
+@findex w3-save-url
+@item k, C-k, M-x w3-save-url
+This will store the current document's URL in the kill ring, and also in
+the current window-system's clipboard, if possible.@refill
+@kindex K
+@findex w3-save-this-url
+@item K, M-x w3-save-this-url
+This will store the URL of the document under point in the kill ring,
+and also in the current window-system's clipboard, if possible.@refill
+@end table
+@node Action, Miscellaneous, Information, Basic Usage
+@unnumberedsec Action
+First, here are the keys and functions that will bring up a new
+hypertext page, usually creating a new buffer.@refill
+@table @kbd
+@kindex return
+@findex w3-follow-link
+@item return 
+Pressing return attempts to follow the link under the cursor.@refill
+@kindex button2
+@findex w3-follow-mouse
+@item button2, M-x w3-follow-mouse
+This function expects to be bound to a mouse button.  It movess to
+the point under mouse and try to fetch the link that was clicked on.  If
+no link is found, a message is displayed in the minibuffer.@refill
+@kindex C-button2
+@kindex M-return
+@findex w3-follow-inlined-image
+@item C-button2, M-return, M-x w3-follow-inlined-image
+This function tries to retrieve the inlined image that is under point.
+It ignores any form entry areas or hyperlinks, and blindly follows any
+inlined image.  Useful for seeing images that are meant to be used as
+hyperlinks when you are not on a terminal capable of displaying
+graphics.@refill
+@kindex m
+@findex w3-complete-link
+@item m, M-x w3-complete-link
+This will do a completing-read on all the hypertext links in the current
+buffer.  You can use @kbd{space} and @kbd{tab} to complete on the
+links.@refill
+@kindex r
+@kindex g
+@findex w3-reload-document
+@item r, g, M-x w3-reload-document
+This reloads the current document -- the current buffer is killed, and
+the URL it was visiting is fetched and redisplayed.  Your position
+within the buffer remains the same (unless the document has changed
+since you last retrieved it, in which case it should be relatively
+close). @refill
+@kindex C-o
+@findex w3-fetch
+@item C-o, M-x w3-fetch
+This function prompts for a URL in the minibuffer, and attempts to fetch
+it.  If there are any errors, or W3 cannot understand the type of link
+you requested, the errors are displayed in a hypertext buffer.@refill
+@kindex o
+@findex w3-open-local
+@vindex w3-directory-format
+@item o, M-x w3-open-local
+Find a local file, interactively.  This prompts you for a local file
+name to open.  The file must exist, and may be a directory.  If the
+requested file is a directory and @code{w3-directory-format} is
+@code{'dired}, then a dired-mode buffer is displayed.  If
+@code{'hypertext}, then W3 automatically generates a hypertext listing
+of the directory.  @code{'hypertext} is the default, so that all the
+keys and functions remain the same.@refill
+@kindex M-s
+@findex w3-search
+@item M-s, M-x w3-search
+Perform a search, if this is a searchable index.  This sends a string of
+the type @samp{'URL?search-terms'} to the server this document was
+retrieved from.  Searching requires a server, W3 can not do local file
+searching, as there are too many possible types of searches people could
+want to do.@refill
+@kindex C-c C-b
+@findex w3-show-history-list
+@vindex w3-keep-history
+@item C-c C-b, M-x w3-show-history-list
+If @code{w3-keep-history} is non-@code{nil}, then W3 keeps track of all
+the URLs you visit in an Emacs session.  This function takes all the
+links that are in that internal list, and formats them as hypertext
+links in a list.@refill
+@end table
 
+And here are the commands to move around between W3 buffers:
+
+@table @kbd
 @kindex l
 @findex w3-goto-last-buffer
 @item l, M-x w3-goto-last-buffer
-Go to last WWW buffer visited
+Go to last WWW buffer visited@refill
+@kindex q
+@findex w3-quit
+@item q, M-x w3-quit
+Quits WWW mode.  This kills the current buffer and goes to the most
+recently visited buffer.@refill
+@kindex u
+@findex w3-leave-buffer
+@item u, M-x w3-leave-buffer
+This is similar to w3-quit, but the buffer is not killed, it is moved to
+the bottom of the buffer list (so it is the least likely to show up as
+the default with switch-to-buffer).@refill
+@kindex B
+@findex w3-backward-in-history
+@item B, M-x w3-backward-in-history
+This will take you one step back along the path in the current history.
+Will have no effect if you are at the beginning of your history
+list.@refill
+@kindex F
+@findex w3-forward-in-history
+@item F, M-x w3-forward-in-history
+This will take you one step forward along the path in the current
+history.  Will have no effect if you are at the end of your history
+list.@refill
+@end table
 
-@kindex RET
-@findex w3-follow-link
-@item RET 
-Pressing return will attempt to follow the link under the cursor.@refill
+@node Miscellaneous, , Action, Basic Usage
+@unnumberedsec Miscellaneous
+@table @kbd
+@kindex M-m
+@findex w3-mail-current-document
+@item M-m, M-x w3-mail-current-document
+This will mail the current document to someone.  You can choose from 3
+different formats to mail: formatted text, HTML source, or LaTeX source.
+If you mail the HTML source, then an appropriate <base> tag is inserted
+at the beginning of the document so that relative links may be followed
+correctly by whoever receives the mail.@refill
+@kindex M-M
+@findex w3-mail-document-under-point
+@item M-M, M-x w3-mail-document-under-point
+This will mail document pointed to by the hypertext link under point to
+someone.  You can choose from 3 different formats to mail: formatted
+text, HTML source, or LaTeX source.  If you mail the HTML source, then
+an appropriate <base> tag is inserted at the beginning of the document
+so that relative links may be followed correctly by whoever receives the
+mail.@refill
+@kindex p
+@findex w3-print-this-url
+@item p, M-x w3-print-this-url
+This will print the current document.  You can choose from 3 different
+formats to mail: formatted text, HTML source, or postscript (by using
+LaTeX and dvips).@refill
 
-@kindex H
-@findex w3-use-hotlist
-@vindex w3-keep-old-buffers
-@item H, M-x w3-use-hotlist
-Possibly go to a link in the hotlist.  A new buffer will be created for
-the new document.  If the variable @var{w3-keep-old-buffers} is
-non-@code{nil}, the current buffer will be kept.  If @code{nil}, then
-the current buffer will be killed.@refill
+@findex lpr-buffer
+@vindex lpr-command
+@vindex lpr-switches
+If you print the formatted text, the normal @code{lpr-buffer} function
+is called, and the variables @code{lpr-command} and @code{lpr-switches}
+will control how the document is printed.@refill
 
+If you print the HTML source, then an appropriate <base> tag is inserted
+at the beginning of the document.@refill
+@vindex w3-use-html2latex
+@vindex w3-html2latex-prog
+@vindex w3-html2latex-args
+@vindex w3-print-commnad
+@vindex w3-latex-docstyle
+If postscript is chosen, then the HTML source of the document is
+converted into LaTeX source.  If the variable @code{w3-use-html2latex}
+is non-@code{nil}, then the program specified by
+@code{w3-html2latex-prog} is run in a subprocess with the arguments in
+@code{w3-html2latex-args}.  The @code{w3-html2latex-prog} should accept
+HTML source on its standard input and send the LaTeX output to standard
+output.  If @code{w3-use-html2latex} is @code{nil}, then an emacs lisp
+function will use regular expressions to replace the HTML code with
+LaTeX markup.  The variable @code{w3-latex-docstyle} controls how the
+document will be laid out in this case, and postscript figures will be
+printed as well.@refill
+@kindex P
+@findex w3-print-url-under-point
+@item P, M-x w3-print-url-under-point
+This will print the document pointed to by the hypertext link under
+point.  Please see the documentation for @code{w3-print-this-url}
+directly above for more information.@refill
+@kindex M-x w3-insert-formatted-url
+@findex w3-insert-formatted-url
+@item M-x w3-insert-formatted-url
+This will insert a fully formatted HTML link into another buffer.  This
+will get the name and URL of either the current buffer, or, with a
+prefix arg, of the link under point, and construct the appropriate
+<a...>...</a> markup and insert it into the desired buffer.@refill
+@kindex M-tab
+@findex w3-insert-this-url
+@item M-tab, M-x w3-insert-this-url
+This will insert the URL of the current document into another buffer.
+Buffer is prompted for in the minibuffer.  With prefix arg, uses the URL
+of the link under point.@refill
 @kindex U
 @findex w3-use-links
 @item U, M-x w3-use-links
@@ -702,295 +1036,109 @@ Select one of the <LINK> tags from this document and fetch it.  Links
 are attributes of a specific document, and can tell such things as who
 made the document, where a table of contents is located, etc.@refill
 
-@kindex r
-@findex w3-reload-document
-@item r, M-x w3-reload-document
-This will reload the current document - the current buffer is killed,
-and the URL it was visiting is fetched and redisplayed.  Your position
-within the buffer will remain the same (unless the document has changed
-since you last retrieved it, in which case it should be relatively
-close). @refill
-
-@kindex o
-@findex w3-open-local
-@vindex w3-directory-format
-@item o, M-x w3-open-local
-Find a local file, interactively.  This will prompt you for a local file
-name to open.  The file must exist, and may be a directory.  If the
-requested file is a directory and @var{w3-directory-format} is
-@code{'dired}, then a dired-mode buffer is displayed.  If
-@code{'hypertext}, then W3 automatically generates a hypertext listing
-of the directory.  @code{'hypertext} is the default, so that all the
-keys and functions remain the same.@refill
-
-@kindex s
-@findex w3-search
-@item s, M-x w3-search
-Perform a search, if this is a searchable index.  This will send a
-string of the type @samp{'URL?search-terms'} to the server this document
-was retrieved from.  Searching requires a server, W3 can not do local
-file searching, as there are too many possible types of searches people
-could want to do.@refill
-
-@kindex C-c C-b
-@findex w3-show-history-list
-@vindex w3-keep-history
-@item C-c C-b, M-x w3-show-history-list
-If @var{w3-keep-history} is non-@code{nil}, then W3 will keep track of
-all the URLs you visit in an emacs session.  This function will take all
-the links that are in that internal list, and format them as hypertext
-links in a list.@refill
-
-@kindex u
-@kindex q
-@findex w3-quit
-@item u, q, M-x w3-quit
-Quit WWW mode.  This kills the current buffer and goes to the most
-recently visited buffer.@refill
-
-@kindex button2
-@findex w3-follow-mouse
-@item button2, M-x w3-follow-mouse
-This function expects to be bound to a mouse button.  It will move to
-the point under mouse and try to fetch the link that was clicked on.  If
-no link is found, a message is displayed in the minibuffer.@refill
-
-@kindex C-o
-@findex w3-fetch
-@item C-o, M-x w3-fetch
-This function prompts for a URL in the minibuffer, and attempts to fetch
-it.  If there are any errors, or W3 cannot understand the type of link
-you requested, the errors are displayed in a hypertext buffer.@refill
-
+This will allow you to follow the <link...> tags in the current
+document.  Link tags specify relationships between documents in two
+ways.  Normal (forward) relationships (where the link has a REL="xxx"
+attribute), and reverse relationships (where the link has a REV="xxx"
+attribute).  This will first ask what type of link you want to follow
+(Normal or Reverse), then will do a completing-read on only the links
+that have that type of relationship.@refill
 @end table
 
-@iftex
-@heading Information on links
-@end iftex
-@ifinfo
-@center --------------------
-@center Information
-@center --------------------
-@end ifinfo
-
-@iftex
-@table @asis
-@end iftex
-@ifinfo
-@table @kbd
-@end ifinfo
-
-@kindex v
-@findex w3-view-url
-@item v, M-x w3-view-url
-View the current document's URL in the minibuffer.@refill
-
-@kindex V
-@findex w3-view-this-url
-@item V, M-x w3-view-this-url
-This will display the URL of the link under point in the minibuffer.  If
-no link is found, an error message is displayed in the
-minibuffer.@refill
-
-@kindex C-k
-@findex w3-save-url
-@item C-k, M-x w3-save-url
-Save current url in the kill ring, and copy it to the Xwindows clipboard
-if necessary.  With prefix-arg, this function operates on the URL under
-point instead.@refill
-
-@kindex M-TAB
-@findex w3-insert-this-url
-@item M-TAB, M-x w3-insert-this-url
-Insert the current url in another buffer, with prefix ARG, insert URL
-under point.  Prompts for a buffer to insert into.  Point and
-current-buffer are not affected.@refill
-
-@kindex C-q
-@findex w3-write-global-history
-@vindex w3-global-history-file
-@vindex w3-keep-history
-@item C-q, M-x w3-write-global-history
-Write the global history file into @var{w3-global-history-file}.  This
-will only work if @var{w3-keep-history} is non-@code{nil} so that W3 has
-been keeping track of the URLs that have been visited.
-
-@kindex C-c C-v
-@findex w3-version
-@item C-c C-v, M-x w3-version
-Show the version number of W3 in the minibuffer.
-
-@end table
-
-@iftex
-@heading Miscellaneous Keys
-@end iftex
-@ifinfo
-@center --------------------
-@center Miscellaneous Keys
-@center --------------------
-@end ifinfo
-
-@iftex
-@table @asis
-@end iftex
-@ifinfo
-@table @code
-@end ifinfo
-
-@kindex M
-@findex w3-mail-current-document
-@item M, M-x w3-mail-current-document
-Mail the current-document to someone.  You can mail several different
-formats, including LaTeX, HTML source, or formatted text.@refill
-
-@kindex P
-@findex w3-print-this-url
-@item P, M-x w3-print-this-url
-Print out the current document.  You can print out several different
-formats, including Postscript (via conversion to LaTeX), HTML source, or
-formatted text.  @xref{Printing}.@refill
-
-@kindex h
-@findex w3-help
-@item h, M-x w3-help
-Display documentation on W3 mode - this is a hypertext document
-generated automatically by W3 from a list of functions and
-variables.@refill
-
-@kindex w
-@findex w3-submit-bug
-@item w, M-x w3-submit-bug
-Function to submit a bug to the programs maintainer.  Will include the
-version of W3 and emacs that you are using automatically. @refill
-
-@kindex button3
-@findex w3-popup-menu
-@item button3, M-x w3-popup-menu
-Pop up a menu of common W3 commands.  Expects to be bound to a mouse
-key.@refill
-
-@kindex M-s
-@findex w3-document-source
-@item M-s, M-x w3-document-source
-View this documents source.
-
-@end table
-
-@ifinfo
-@node Mosaic Compatibility, Hyperbole Compatibility, Basic Movement, Top
-@end ifinfo
-@iftex
-@unnumbered Mosaic Compatibility
-@end iftex
-
+@node Compatibility w/Mosaic, , , Top
+@comment  node-name,  next,  previous,  up
+@unnumbered Compatibility with NCSA Mosaic
 Since NCSA Mosaic is the de-facto hypertext browser at most sites, W3 is
 compatible with it in several ways.@refill
 
 @ifinfo
 @menu
-* Hotlist Handling::            Hotlist Handling
-* History::                     History
-* Annotations::                 Annotations
+* Hotlist Handling::            A hotlist is an easy way to keep track of
+				interesting Web pages without having to
+				remember the exact path to get there.
+* Session History::             Keeping a history of where you have been
+				in one emacs sessions allows the use of
+				'forward' and 'back' buttons easily.
+* Global History::		Keeping a history of all the places you
+				have visited on the web.
+* Annotations::                 Annotations allow you to write comments
+				on other people's Web documents without
+				needing to change their document.  Your
+				comments can be local, or made available
+				to all other Web users.
 @end menu
 @end ifinfo
-
-@ifinfo
-@node Hotlist Handling, History, Mosaic Compatibility, Mosaic Compatibility
-Compatibility
-@end ifinfo
-@iftex
+@node Hotlist Handling, Session History, Compatibility w/Mosaic, Compatibility w/Mosaic
 @unnumberedsec Hotlist Handling
-@end iftex
-
 In order to avoid having to traverse many documents to get to the same
 document over and over, W3 supports a ``hotlist'' like Mosaic.  This is
-a file that contains URLS and aliases.  You can quickly go to any
+a file that contains URLs and aliases.  You can quickly go to any
 document in the Web, providing you've been there before and added it to
-your hotlist.  The variable @var{w3-hotlist-file} determines where this
+your hotlist.  The variable @code{w3-hotlist-file} determines where this
 information is saved.  The structure of the file is compatible with
 Mosaic's hotlist file, so this defaults to
-~/.mosaic-hotlist-default.@refill
+@file{~/.mosaic-hotlist-default}.@refill
 
 Hotlist commands are:
-
-@itemize @bullet
-@item
+@table @kbd
 @kindex a
-@findex w3-add-document-to-hotlist
+@findex w3-hotlist-add-document
 @vindex w3-hotlist-file
-To add a document to your hotlist, just hit @kbd{a} or @kbd{M-x
-w3-add-document-to-hotlist} in any W3 buffer.  This will add the current
-document to your hotlist, with the buffer name as its identifier.  This
-function will modify the file specified by @var{w3-hotlist-file}.@refill
-
-@item
-@findex w3-remove-from-hotlist
+@item a, M-x w3-hotlist-add-document
+This adds the current document to your hotlist, with the buffer name as
+its identifier.  Modifies the file specified by
+@code{w3-hotlist-file}.@refill
+@findex w3-hotlist-refresh
+@vindex w3-hotlist-file
+@kindex M-x w3-hotlist-refresh
+@item M-x w3-hotlist-refresh
+This will reread the default hostlist file specified by
+@code{w3-hotlist-file}.@refill
+@findex w3-hotlist-delete
 @vindex w3-hotlist-file
 @kindex d
-To kill a hotlist entry, hit @kbd{d} in a W3 buffer, or @kbd{M-x
-w3-remove-from-hotlist} in any buffer.  You will be prompted for the
-alias of the entry to kill.  You may press the spacebar or tab key for
-partial completions.  Once you select the item to delete, the internal
-representation of the hotlist is updated, and the file specified by
-@var{w3-hotlist-file}.@refill
-
-@item
-@kindex H
-@findex w3-use-hotlist
-To jump to a hotlist entry, type @kbd{H} in any W3 buffer, or @kbd{M-x
-w3-use-hotlist} from anywhere will prompt you for the alias to jump to.
-You may press the spacebar or tab key for partial completions.@refill
-
-@item
-@findex w3-show-hotlist
-To see a list of all your hotlist entries in a W3 buffer, type
-@kbd{M-x w3-show-hotlist} from any buffer.  This will convert your
-hotlist into an ordered list and parse it as HTML.@refill
-
-@item
-@findex w3-rename-hotlist-entry
+@item d, M-x w3-hotlist-delete
+You will be prompted for the alias of the entry to kill.  You may press
+the spacebar or tab key for partial completions.  Once you select the
+item to delete, the internal representation of the hotlist is updated,
+and the file specified by @code{w3-hotlist-file} is updated.@refill
+@item M-x w3-hotlist-rename-entry
+@findex w3-hotlist-rename-entry
 @vindex w3-hotlist-file
 Some hotlist item names can be very unwieldy (`Mosaic for X level 2 fill
 out form support'), or uninformative (`Index of /').  If you are not
 satisfied with how a specific item is labeled, you may change it by
 typing @kbd{M-x w3-rename-hotlist-entry}.  You will be prompted for the
-item to rename in the minibuffer - you may use the spacebar or tab key
+item to rename in the minibuffer -- you may use the spacebar or tab key
 for completion.  After you have chosen an item to rename, you will be
 prompted for a new title until you enter one that does not already
 exists in the hotlist.  This function modifies the  file specified by
-@var{w3-hotlist-file}.@refill
-
-@end itemize
-
-@ifinfo
-@node History, Annotations, Hotlist Handling, Mosaic Compatibility
-@end ifinfo
-@iftex
+@code{w3-hotlist-file}.@refill
+@item H, M-x w3-use-hotlist
+@kindex H
+@findex w3-use-hotlist
+Prompts you for the alias to jump to.  You may press the spacebar or tab
+key for partial completions.@refill
+@item M-x w3-show-hotlist
+@findex w3-show-hotlist
+This converts your hotlist into an ordered list and parse it as
+HTML.@refill
+@end table
+@node Session History, Global History, Hotlist Handling, Compatibility w/Mosaic
 @unnumberedsec History
-@end iftex
 @cindex History Lists
-
-Mosaic supports the idea of a ``history'' of URLs you have visited, and
-it displays them in a different style than normal URLs so you will not
-visit someplace again on accident.@refill
-
+NCSA Mosaic keeps track of the URLs you have followed from a page, so
+that it can provide @b{forward} and @b{back} buttons to keep a @i{path}
+of URLs that you can review easily.@refill
 @vindex w3-keep-history
-@kindex C-q
-@vindex w3-global-history-file
+If you set the variable @code{w3-keep-history} to @code{t}, then W3 will
+keeep a list of all the URLs you visit in a session.@refill
 @findex w3-write-global-history
-If you set the variable @var{w3-keep-history} to @code{t}, then W3 will
-keeep a list of all the URLS you visit in a session.  To write the file
-out, you will have to hit @kbd{C-q} in a W3 buffer, or @kbd{M-x
-w3-write-global-history} then the list will be added to those already in
-the file specified by @var{w3-global-history-file}, which defaults to
-~/.mosaic-global-history.  If any URL in the list is found in the file,
-it is not saved, but new ones are added at the end of the file.@refill
-
+@kindex C-q
 @findex w3-show-history
 To see a listing of your history for this session of W3, you can type
-@var{M-x w3-show-history} from any buffer, and W3 will generate an HTML
-document showing every URL you have visited since you started emacs (or
+@code{M-x w3-show-history} from any buffer, and W3 will generate an HTML
+document showing every URL you have visited since you started Emacs (or
 cleared the history list), and then format it.  Any of the links can be
 chosen and followed to the original document.  To clear the history
 list, you can choose 'Clear History' from the 'Options' menu.@refill
@@ -1011,37 +1159,52 @@ if it matches the item in the history list you are looking for, then it
 is brought forward.  If no buffer containing the desired URL is found,
 then the URL is fetched.  Then the desired position in the buffer is
 searched for. @refill
+@node Global History, Annotations, Session History, Compatibility w/Mosaic
+@unnumberedsec Global History
+Mosaic supports the idea of a ``history'' of URLs you have visited, and
+it displays them in a different style than normal URLs so you will not
+visit someplace again on accident.@refill
+@vindex w3-keep-history
+@vindex w3-global-history-file
+If you set the variable @code{w3-keep-history} to @code{t}, then W3 will
+keeep a list of all the URLs you visit in a session.  To write the file
+out, you can press @kbd{C-q} in a W3 buffer, or @kbd{M-x
+w3-write-global-history} in any buffer.  The list will be added to those
+already in the file specified by @code{w3-global-history-file}, which
+defaults to @file{~/.mosaic-global-history}.@refill
 
-@ifinfo
-@node Annotations, Group Annotations, History, Mosaic Compatibility
-@end ifinfo
-@iftex
+You no longer have to explicitly save the history file -- w3 uses the
+@code{kill-emacs-hook} to write it out whenever you exit emacs.@refill
+
+If any URL in the list is found in the file, it is not saved, but new
+ones are added at the end of the file.@refill
+
+@cindex Completion of URLs
+@cindex Usefulness of global history
+One of the nice things about keeping a global history files is that W3
+can use it as a completion table.  When doing @kbd{M-x w3-fetch}, you
+can hit the @kbd{tab} or @kbd{space} keys to complete on a partial URL.
+This is very useful, especially for very long URLs that you didn't add
+to your hotlist, or for seeing all the pages from a particular web
+server before choosing which you want to see.@refill
+@node Annotations, Group Annotations, Global History, Compatibility w/Mosaic
 @unnumberedsec Annotations
-@end iftex
 @cindex Annotations
 Mosaic allows you to @i{annotate} documents.  You can type in comments
 about the current document, and these annotations will appear as a link
 to your comments at the end of the document when you browse it in
 Mosaic.  The original file is not changed.@refill
-
 There are two types of annotations supported in Mosaic, and both are
 supported by W3 as well.@refill
-
 @ifinfo
 @menu
-Group Annotations::             Annotations accessible by everyone
-Personal Annotations::          Private annotations only you see
+* Group Annotations::             Annotations accessible by everyone
+* Personal Annotations::          Private annotations only you see
 @end menu
 @end ifinfo
-
-@ifinfo
 @node Group Annotations, Personal Annotations, Annotations, Annotations
-@end ifinfo
-@iftex
 @unnumberedsubsec Group Annotations
-@end iftex
 @cindex Group Annotations
-
 @b{@i{NOTE}}: The group annotation experiment has been terminated.  NCSA
 is running the annotation server temporarily, but it will not be around
 much longer.  It will be replaced with support on the server side for
@@ -1054,13 +1217,13 @@ Mosaic*annotationServer to hoohoo.ncsa.uiuc.edu:8001.@refill
 
 @vindex w3-group-annotation-server
 @vindex w3-group-annotation-port
-In W3, if the variable @var{w3-group-annotation-server} is defined, then
+In W3, if the variable @code{w3-group-annotation-server} is defined, then
 it will try to contact the server and retrieve any annotations for the
 current document.  This variable should be a string containing the name
 of the annotation server (defaults to "hoohoo.ncsa.uiuc.edu").  To turn
 off group annotation support, set this variable to @code{nil}.  If you
 have a slow connection to NCSA, I'd recommend doing this.  The variable
-@var{w3-group-annotation-port} defaults to 8001, and should be an
+@code{w3-group-annotation-port} defaults to 8001, and should be an
 integer representing the port number the server is running on.@refill
 
 The group annotations (if any) will appear as normal links at the bottom
@@ -1090,15 +1253,9 @@ w3-delete-group-annotation}.  If any errors are received, they will be
 displayed in a separate buffer.@refill
 
 I do not currently support editing group annotations.@refill
-
-@ifinfo
-@node Personal Annotations, Hyperbole Compatibility, Group Annotations, Annotations
-@end ifinfo
-@iftex
+@node Personal Annotations, , Group Annotations, Annotations
 @unnumberedsubsec Personal Annotations
-@end iftex
 @cindex Personal Annotations
-
 @vindex w3-personal-annotation-directory
 If you do not want to share your musings about a particular document
 with the entire network, you can add a personal annotation that only you
@@ -1108,8 +1265,8 @@ about what URLs have been annotated and which files contain the
 annotations.@refill
 
 W3 will look in the directory specified by
-@var{w3-personal-annotation-directory} (defaults to
-~/.mosaic-personal-annotations).  Any personal annotations for a
+@code{w3-personal-annotation-directory} (defaults to
+@file{~/.mosaic-personal-annotations}).  Any personal annotations for a
 document will be automatically appended when it is retrieved.@refill
 
 @findex w3-add-personal-annotation
@@ -1133,62 +1290,1479 @@ your log file.@refill
 
 I do not currently support editing personal annotations.@refill
 
-@ifinfo
-@node Hyperbole Compatibility, Internals of W3, Personal Annotations, Top
-@end ifinfo
-@iftex
-@unnumbered Hyperbole Compatibility
-@end iftex
+@node Controlling Formatting, General Formatting, Top, Top
+@comment  node-name,  next,  previous,  up
+@unnumbered Controlling Formatting
+@cindex Customizing formatting
+@cindex Specifying Fonts
+@cindex Fonts
+@cindex Colors
+How W3 formats a document is very customizable.  How a document is
+displayed depends on several things -- whether the user is on a terminal
+capable of graphics, and a few variables.@refill
 
-@cindex Hyperbole
-Since hyperbole is such a general package, I have included a file
-written by Jin S. Choi (jsc@@monolith.mit.edu) to add W3 support to
-hyperbole.  There are 2 small changes you have to make to the hyperbole
-source, but they are extremely minor (they keep hyperbole from thinking
-URLs are ftp links).  See the file w3-hyperbole.el for more
+The following sections describe in more detail how to change the
+formatting of a document.@refill
+
+@ifinfo
+@menu
+* General Formatting::                 Changing general things about a
+                                       document.
+* Character based terminals::          Changing how a document is
+                                       displayed on a non-graphics
+                                       terminal (vt100, etc) or if
+                                       @code{w3-delimit-emphasis} is @code{t}.
+* Smart terminals::                    Getting highlighting of links, etc
+                                       on not-quite-so-dumb terminals (vt100s
+                                       and comparable machines)
+* Graphics workstations::              Changing how a document is
+                                       displayed on a graphics terminal
+                                       (Xwindows, Windows, NeXTstep,
+                                       OS/2, etc)
+@end menu
+@end ifinfo
+@node General Formatting, Character based terminals, Controlling Formatting, Controlling Formatting
+@unnumberedsec General formatting conventions
+@iftex
+@heading Setting the fill column
+@end iftex
+@ifinfo
+@center --------------------
+@center Setting the fill column
+@center --------------------
+@end ifinfo
+@vindex fill-column
+@vindex w3-right-border
+Each time a document is parsed, the @code{fill-column} is recalculated
+using @code{window-width} and @code{w3-right-border}.
+@code{w3-right-border} is an integer specifying how much room at the
+right edge of the screen to leave blank.  The @code{fill-column} is set
+to @code{(- (window-width) @code{w3-right-border})}.
+@iftex
+@heading Formatting of hypertext links
+@end iftex
+@ifinfo
+@center --------------------
+@center Formatting of hypertext links
+@center --------------------
+@end ifinfo
+@vindex w3-delimit-links
+@vindex w3-link-start-delimiter
+@vindex w3-link-end-delimiter
+If the variable @code{w3-delimit-links} is non-@code{nil} (the default
+for text-terminals), then hypertext links will be surrounded by text
+specified by the user.  The variables @code{w3-link-start-delimiter} and
+@code{w3-link-end-delimiter} control what text is at the start and end
+of a hypertext link.  These variables are cons-pairs of two
+strings.@refill
+
+If a link has never been visited before (it is not in the @i{global
+history}), then the @code{car} of these variables will be inserted at
+the start and end of the link.  If the link has been visited before,
+then the @code{cdr} will be inserted.  So, links will look like:@refill
+
+@example
+[[This is a hypertext link]] that has never been visited.
+@{@{This one, however@}@} has been seen before at some point in time.
+@end example
+
+All reserved characters should be replaced with their HTML[+] entity
+definitions.@refill
+@iftex
+@heading Formatting of lists
+@end iftex
+@ifinfo
+@center --------------------
+@center Formatting of lists
+@center --------------------
+@end ifinfo
+@vindex tab-stop-list
+@vindex tab-width
+@vindex w3-file-prepare-hooks
+There are several different ways to control the formatting of lists.
+The most obvious is how deeply they are indented relative to the rest of
+the paragraphs in the document.  To control this, you should set the
+variables @code{tab-stop-list} and @code{tab-width}.  A tab every eight
+spaces is considered normal, but I prefer to have a tab every four
+spaces.  So @code{tab-stop-list} would be @samp{'(4 8 12 16 20 24 28 32
+36 ...)}, and @code{tab-width} would be @samp{4}.  I use
+@code{setq-default} in my .emacs for these, but you can also use them
+from @code{w3-mode-hooks}.  Something like:@refill
+@example
+(add-hook 'w3-file-prepare-hooks
+          (function
+            (lambda ()
+              (setq tab-stop-width (list 4 8 16 20 24 28 32 36 40 44)
+                    tab-width 4))))
+@end example
+@vindex w3-list-chars-assoc
+Another thing that is easy to change about lists is the bullet character
+put at the front of each list item.  This is controlled by the variable
+@code{w3-list-chars-assoc}, which is an assoc list.  This is a list of
+lists, each sublist describing what to put at the start of each
+particular list type.  The @code{car} of this list should be the type of
+list, in all caps (ie: @samp{UL}).  The rest of the list should consist
+of strings to insert at certain levels of lists.  The @code{n}th element
+of this list will be used when the list is nested @code{n + 1} levels.
+If the list is not long enough to define a string for a certain nesting
+level, then it defaults to either a '*' or a '.'.@refill
+@iftex
+@heading Formatting of directory listings
+@end iftex
+@ifinfo
+@center --------------------
+@center Formatting of directory listings
+@center --------------------
+@end ifinfo
+@vindex w3-directory-format
+When W3 encounters a link to a directory (whether by local file access
+or via ftp), it can either create an HTML document on the fly, or use
+@code{dired-mode} to peruse the listing.  The variable
+@code{w3-directory-format} controls this behavior.@refill
+
+If the value is @code{'hypertext}, use @code{directory-files} to list
+them out and transform them into a hypertext document, then pass it
+through the parser like any other document.@refill
+
+If the value is @code{'dired}, just pass the directory off to dired
+using find-file.  Using this option loses all the hypertext abilities of
+W3, and you will be unable to load documents in the directory directly
+into W3 by clicking with the mouse, etc.@refill
+@iftex
+@heading Formatting of gopher directories
+@end iftex
+@ifinfo
+@center --------------------
+@center Formatting of gopher directories
+@center --------------------
+@end ifinfo
+@vindex w3-use-hypertext-gopher
+@cindex Gopher+
+@cindex ASK blocks
+There are two different ways of viewing gopher links.  You can use the
+built-in support that converts gopher directories into HTML, or you can
+use the @file{gopher.el} package by Scott Snyder
+<snyder@@fnald0.fnal.gov>.  The variable that controls this is
+@code{w3-use-hypertext-gopher}.  If set to @code{nil}, then
+@file{gopher.el} is used.  Any other value causes W3 to use its internal
+gopher support.  If you use @file{gopher.el}, you lose all the hypertext
+capabilities of W3.  All the functionality of @file{gopher.el} is now
+available in the hypertext version, and the hypertext version supports
+Gopher+ and ASK blocks.@refill
+
+@vindex w3-gopher-labels
+The main way to control the display of gopher directories is by the
+variable @code{w3-gopher-labels}.  This variable controls the text that
+is inserted at the front of each item.  This is an assoc list of gopher
+types (as one character strings), and a string to insert just after the
+list item.  All the normal gopher types are defined.  Entries should be
+similar to: @samp{("0" . "(TXT)")}.  I have tried to keep all the tags
+to three characters plus two parentheses. @refill
+@iftex
+@heading Creating a horizontal rule
+@end iftex
+@ifinfo
+@center --------------------
+@center Creating a horizontal rule
+@center --------------------
+@end ifinfo
+@vindex w3-horizontal-rule-char
+Horizontal rules (@b{<HR>} tags in HTML[+]) are used to separate chunks
+of a document, and is meant to be rendered as a solid line across the
+page.  Some terminals display characters differently, so the variable
+@code{w3-horizontal-rule-char} controls which character is used to draw a
+horizontal bar.  This variable must be the ASCII value of the character,
+@b{not a string}.  The variable is passed through make-string whenever a
+horizontal rule of a certain width is necessary.@refill
+
+@node Character based terminals, Smart terminals , General Formatting, Controlling Formatting
+@unnumberedsec On character based terminals
+@vindex w3-delimit-emphasis
+On character based terminals, there is no easy way to show that a
+certain range of text is in bold or italics.  If the variable
+@code{w3-delimit-emphasis} is non-@code{nil}, then W3 can insert
+characters before and after character formatting commands in HTML
+documents.  The defaul value of @code{w3-delimit-emphasis} is
+automatically set based on the type of window system and version of
+Emacs being used.@refill 
+
+@vindex w3-header-chars-assoc
+@vindex w3-style-chars-assoc
+Two variables control what text is inserted around different markup
+tags.  @code{w3-header-chars-assoc} controls what characters are inserted
+around header items, and @code{w3-style-chars-assoc} controls what
+characters are inserted around most other markup (italics, addresses,
+etc).@refill
+
+@findex w3-upcase-region
+@code{w3-header-chars-assoc} is an assoc list of header tags and a list
+of formatting instructions.  The @code{car} of the list is the level of
+the header (1 -- 6).  The rest of the list should contain three items.
+The first item is text to insert before the header.  The second item is
+text to insert after the header.  Both should have reserved characters
+converted to their HTML[+] entity definitions.  The third item is a
+function to call on the area the header is in.  This function is called
+with arguments specifying the start and ending character positions of
+the header.  The starting point will always be first.  To convert a
+region to upper case, please use @code{w3-upcase-region} instead of
+@code{upcase-region}, so that URLs within the region will not be
+corrupted.@refill
+
+@code{w3-style-chars-assoc} is an assoc list of style tags and a list of
+strings.  The @code{car} of the list is the type of style tag it
+specifies (DFN, B, I, etc).  The rest of the list should contain two
+items.  The @code{car} is text to insert before the stylized text.  The
+@code{cdr} is text to insert after the stylized text.  Both should have
+reserved characters converted to their HTML[+] entity
+definitions.@refill
+@node Smart terminals, Graphics workstations, Character based terminals, Controlling Formatting
+@cindex Text highlighting on terminals
+@cindex Emacs 19.22 on terminals
+@cindex Highlighting on terminals
+@cindex VTx00 terminals
+If you are using Emacs 19.2x on a VT100 compatible terminal, you will be
+able to show links, headers, and various other types of emphasis in bold
+or underlined text.@refill
+
+@vindex w3-emacs19-hack-faces-p
+To do this, you should set the variable @code{w3-emacs19-hack-faces-p}
+to non-@code{nil} in your @file{~/.emacs} file.  You should also make
+sure that the environment variable @code{TERM} is set to the correct
+terminal type that you are using.@refill
+
+@findex w3-emacs19-hack-TERMINAL
+If there is a function called @code{w3-emacs19-hack-@var{TERMINAL}},
+then this will be used to setup the special characters that turn on bold
+and underlined text.  If this function does not exist, you can write one
+from scratch, using your terminals entry in the @file{/etc/termcap}
+file.@refill
+
+@cindex Creating w3-emacs19-hack-XXX functions
+@cindex Highlighting on new terminals
+Each function should use the @code{standard-display-table} to replace
+^A, ^B, ^C, and ^D with escape sequences that turn on highlighting.
+When reading your @file{/etc/termcap} file, be on the lookout for these
+codes:@refill
+
+@table @code
+@item us
+Code to turn on underlining
+@item ue
+Code to turn off underlining
+@item mb
+Code to turn on boldface type
+@item se
+Code to turn off all attributes
+@end table
+
+Here is an example for creating the VT100 control sequences:
+
+@example
+(defun w3-emacs19-hack-vt100 ()
+  "Hack 'faces' for ttys (vt100)"
+  (or standard-display-table
+      (setq standard-display-table (make-vector 261 nil)))
+  (aset standard-display-table 1 (vector (create-glyph "\e[4m")))
+  (aset standard-display-table 2 (vector (create-glyph "\e[m")))
+  (aset standard-display-table 3 (vector (create-glyph "\e[5m")))
+  (aset standard-display-table 4 (vector (create-glyph "\e[m")))
+  )
+@end example
+
+@findex w3-emacs19-unhack-faces
+To turn off the highlighting features, set the variable
+@code{w3-emacs19-hack-faces-p} to @code{nil} and execute the function
+@code{w3-emacs19-unhack-faces}@refill
+
+@b{NOTE}: This highlighting is not perfect and could cause some odd
+display glitches, especially when emacs does a @i{smart} redisplay and
+doesn't redraw the whole screen.  @kbd{C-l} will usually fix
+this.@refill
+
+@node Graphics workstations, , Smart terminals, Controlling Formatting
+@unnumberedsec With graphics workstations
+@cindex Xresources
+@cindex NeXTstep resources
+When you are running in a graphic environemnt (Xwindows or NeXTstep for
+example), the fonts and colors used by W3 to display text can be
+controlled by setting a few resources.  To specify these
+resources:@refill
+@itemize @bullet
+@item
+Xwindows: Place them into your @file{~/.Xresources} file or the
+@file{/usr/lib/X11/app-defaults/Emacs} file.@refill
+@item
+NeXTstep: If you are using the NeXTstep port of Emacs 19, you should use
+the @file{dwrite} command to install these resources.  The command
+should look something like: (@samp{dwrite Emacs <Style>.Attribute<item>
+value}, where style and attribute are one of the choices below.@refill
+@item
+OS/2 or Windows: If you are using the Lucid Emacs or FSF Emacs that has
+been ported to the Presentation Manager or Windows 3.x, it will tell you
+where to store a file that Emacs will look at for Xresources.@refill
+@end itemize
+The resources for each version of Emacs are the same.  For each style of
+text that W3 uses, you can specify any of the following resources by
+replacing <style> with the actual style name.@refill
+@itemize @bullet
+@item
+Emacs*<Style>.AttributeFont: Font name
+@item
+Emacs*<Style>.AttributeForeground: Foreground color
+@item
+Emacs*<Style>.AttributeBackground: Background color
+@item
+Emacs*<Style>.AttributeUnderline: Underline text?
+@end itemize
+
+W3 uses these style names:
+@table @code
+@item w3-address-style
+For anything in <ADDRESS> tags.
+@item w3-bold-style
+For anything in bold, strong, or a definition
+@item w3-default-style
+For normal text
+@item w3-header-style
+For any headers
+@item w3-italic-style
+For italic text, emphasized, or addresses
+@item w3-node-style
+For links to other documents
+@item w3-strikethru-style
+For items that should be shown as struck-out.
+@item w3-subscript-style
+For subscripted items
+@item w3-superscript-style
+For superscripted items
+@item w3-tt-style
+For fixed width fonts, code segments, samples, or variables
+@item w3-underline-style
+For underlining, and citations
+@item w3-visited-node-style
+For displaying hypertext links that have been viewed before
+@end table
+
+@vindex w3-style-assoc
+To determine what styles are displayed in what face, W3 uses an assoc
+list called @code{w3-style-assoc}.  It is of the form @samp{(TAGNAME .
+FACENAME)}, where tagname is the HTML[+] tag that surrounds the text
+(without the <, >, or /), and FACENAME is either a symbol representing a
+face (in Emacs 19 and Lucid Emacs) or a symbol representing a variable
+that holds the face information (Epoch 4.x).  
+
+@node HTTP/1.0 Support, Redirection, Top, Top
+@unnumbered HTTP/1.0 Support
+The new revision of the HTTP specification adds much more functionality
+to the server side of a transaction.  Access authorization (via username
+and password combinations) has been added, and several types of
+redirection can occur.  All of this negotiation and redirection should
+take place @b{before} the user ever sees the first requested page -
+this will avoid the overhead of parsing any error messages or old
+documents the server may have returned with the redirection or
+authorization message.  The new protocol is also MIME (Multimedia
+Internet Mail Extensions, see RFC 1341) compliant.@refill
+
+@ifinfo
+@menu
+* Redirection::
+* Authentication::                      Accessing restricted servers and
+                                        documents
+* Payment::                             How to pay for services over the
+                                        World Wide Web
+* MIME Support::                        How W3 uses MIME types, and how to
+                                        modify its behavior.
+@end menu
+@end ifinfo
+@node Redirection, Authentication, HTTP/1.0 Support, HTTP/1.0 Support
+@unnumberedsec Redirection
+One of the most useful aspects of HTTP/1.0 is the ability to
+transparently move files between different servers (perhaps even
+different protocols).  Most of the WWW browsers support redirection in
+some form or another.  The Emacs browser supports all three types of
+redirection in the HTTP/1.0 specification (error codes 301, 302, and
+303).@refill
+
+Whenever a redirection response is detected, the URL specified by the
+@b{Location:} header is retrieved.  All relative references are resolved
+before requesting the new URL.@refill
+
+Eventually, an HTML editor that is tightly integrated with the browser
+is planned, and it will be able to edit documents to change their links
+if a permanent relocation is seen.@refill
+@node Authentication, Payment, Redirection, HTTP/1.0 Support
+@unnumberedsec Authentication
+Lots of information will be useful to a group of people within an
+organization, or a group working on a project, but it is not always wise
+to distribute this information to the world at large.@refill
+
+The HTTP/1.0 protocol adds the capability to have authentication based
+on usernames and passwords.  If the improper username/password pair is
+sent to the server, an error code of 401, @b{Unauthorized} will be
+returned by the server.@refill
+
+The browser has a very extensible interface to its authentication
+handling.  When a 401 error code is received, the @i{Auth-type} header
+is checked -- this header field should be a space-separated list of
+suitable authorization schemes for the requested URL.  The value of this
+header is read into a lisp symbol by way of Emacs' read-string function.
+This lisp symbol will be similar to @code{w3-@i{authtype}-auth}, where
+@i{authtype} is replaced by the correct authorization type.  The
+authorization types defined in the latest HTTP/1.0 specification include
+user, basic, public key, and kerberos (versions 4 and 5).  If a function
+of this name is currently defined, then the function is called via
+@code{funcall} with several parameters:@refill
+@enumerate
+@item
+The URL being authenticated.@refill
+@item
+whether to prompt for a username/password if no cached data is
+found.@refill
+@item
+whether to overwrite an old username/password if the information is
+found in the cache.@refill
+@end enumerate
+This interface was chosen for its flexibility and extensibility.  The
+main routine that does the MIME parsing and the buil,ding of the
+Authorization header does not need to know how to handle each type of
+authentication, and the addition of a new method for authentication is
+simply a matter of defining one function that conforms to a simple
+interface.@refill
+
+The only authorization supported by the browser at this time is 'basic.'
+This is simply a string that looks like @samp{user:password} that has
+been encoded using Base64 encoding as defined in RFC 1421.  It is given
+as an example of how to write an authorization module.  All of the
+functions for storing, retrieving, and over-writing the cached
+authorization information should all be handled by one function
+(although it would be perfectly acceptable to have a stub function that
+passed off to three larger functions based on its parameters).  The most
+efficient way to store the cached information is by an assoc-list of
+assoc-lists.  The top level assoc list is keyed on the name of the
+server.  The secondary assoc-list is keyed on the full path of the file
+that is protected.  Thus, a sample authorization cache would look like
+this:@refill
+
+@example
+((``info.cern.ch''    . ((``/foo''        . ``d21wZXJyeTp0ZXN0aW5n'')
+                         (``/bar''        . ``amtvbnJhdGg6ZGlzbWVtYmVy'')
+                         (``/foo/x.html'' . ``dmlvbGV0dDpvcGVuZ2w='')))
+ (``cs.indiana.edu''  . ((``/elisp/w3/''  . ``dGxvb3M6Y29ucXVlcg=='')
+                         (``/''           . ``bXZhbmhleW46a2lsbGh1bGljaw=='')))
+)
+@end example
+
+The structure consists of two assoc-lists for the sake of speed.  The
+list of cached information could conceivably hold several thousand links
+(if the user does not exit Emacs for long periods of time.)  If the list
+were keyed on a full URL, the assoc function would have to search
+through every link before failing to find a new URL.  With the current
+scheme, assoc only has to search though a few items (maximum is the
+number of HTTP servers, which will always be much, much smaller than the
+number of distinct URLs.)  Even with a 3:1 ratio of URLs to each server,
+this will be a big win.@refill
+@node Payment, MIME Support, Authentication, HTTP/1.0 Support
+@unnumberedsec Payment
+The Chargeto: header will be used to pay for services offered over the
+World Wide Web.  Such things as electronic magazines and commercial
+databases will all need a way to restrict access to only authorized
+subscribers.  The format of the header has yet to be specified, but the
+interface and storage techniques will be similar to the Authorization
+section.@refill
+@node MIME Support, Adding MIME types based on file extensions, Payment, HTTP/1.0 Support
+@unnumberedsec MIME Support
+MIME is an emerging standard for multimedia mail.  It offers a very
+flexible typing mechanism.  The type of a file/message is specified in
+two parts, separated by a '/'.  The first part is a general category of
+data (text, application, image, etc).  The second part is the specific
+type of data (postscript, gif, jpeg, etc).  So @samp{text/html}
+specifies an HTML document, whereas @samp{image/x-xwindowdump} specifies
+an image of an Xwindow taken with the xwd program.@refill
+
+This typing allows much more flexibility in naming files.  HTTP/1.0
+servers can now send back content-type headers in response to a request,
+and not have the client second-guess it based on file extensions.  Now
+you can name HTML files @file{something.gif} if you really felt like it
+(not a great idea, but doable).@refill
+
+@ifinfo
+@menu
+* Adding MIME types based on file extensions::  How to map file
+                                                extensions onto MIME
+                                                types (ie: @samp{.gif ->
+                                                image/gif)}.@refill
+* Mapping gopher types to MIME types::          Going from gopher typing
+                                                to MIME types.
+* Specifying Viewers::  How to specify external and internal viewers
+                        for files that W3 cannot handle natively.
+* Mailcap File::        How to set up and use a Mailcap file.  Standard
+                        way to specify MIME viewers -- compatible with
+                        Mosaic and most MIME compliant mailers.
+@end menu
+@end ifinfo
+@node Adding MIME types based on file extensions, Mapping gopher types to MIME types, MIME Support, MIME Support
+@unnumberedsubsec Adding MIME types based on file extensions
+@vindex w3-mime-extensions
+For some protocols however, it is still necessary to guess the content
+of a file based on the file extension.  This type of guess-work should
+only be needed when accessing files via FTP, local file access, or old
+HTTP/0.9 servers.@refill
+
+Instead of specifying how to view things twice, once based on
+content-type and once based on the file extension, it is easier to map
+file extensions to MIME content-types.  The variable that controls this
+is @code{w3-mime-extensions}.@refill
+
+This variable is an assoc list of file extensions and the corresponding
+MIME content-type.  A sample entry looks like: @samp{(".movie"
+. "video/x-sgi-movie")} This makes all files that end in @file{.movie}
+(@file{foo.movie} and @file{bar.movie}) be interpreted as SGI animation
+files.  If a content-type is defined for the document, then this is
+over-ridden.  Regular expressions can @b{NOT} be used.@refill
+
+@cindex mime-types file
+@findex w3-parse-mime-types
+Both Mosaic and the NCSA HTTP daemon rely on a separate file for mapping
+file extensions to MIME types.  Instead of having the users of W3
+duplicate this in lisp, this file can be parsed using the
+@code{w3-parse-mime-types} function.  This function is called each time
+w3 is loaded, and tries to parse the file @file{~/.mime-types} if it
+exists.  This format of this file is as follows.@refill
+
+Each line contains information for one http type.  These types resemble
+MIME types.  If you plan to add new ones, you should use subtypes
+beginning with x-, such as application/x-myprogram.  Lines beginning
+with # are comment lines, and suitably ignored.  Each line consists
+of:@refill
+
+type/subtype ext1 ext2 ...  ext@var{n}
+
+type/subtype is the MIME-like type of the document. ext* is any number
+of space-separated filename extensions which correspond to the MIME
+type.@refill
+@node Mapping gopher types to MIME types, Specifying Viewers, Adding MIME types based on file extensions, MIME Support
+@unnumberedsubsec Mapping gopher types to MIME types
+Need to fill this in :: WORK ::
+@node Specifying Viewers, Mailcap File, Mapping gopher types to MIME types, MIME Support
+@unnumberedsubsec Specifying Viewers
+Not all files look as they should when parsed as an HTML document
+(whitespace is stripped, paragraphs are reformatted, and lots of little
+changes that make the document look unrecognizable).  Files may be
+passed to external programs or Emacs lisp functions to be viewed.@refill
+
+@vindex w3-mime-viewers
+Not all files can be viewed accurately from within an Emacs session (GIF
+files for example, or audio files).  For this reason, the user can
+specify file "viewers" based on MIME content-types.  The variable
+@code{w3-mime-viewers} is an assoc-list contains MIME content-types and a
+lisp object specifying how to view a document.@refill
+
+If the lisp object is a string (ie: @samp{"xv -perfect %s"}), it
+specifies an external program that should be used to view the document.
+This is passed through the @code{format} function.  The first %s will be
+replaced with the temporary file name the retrieved document is saved
+in, and then that resulting string is used as a command in a subprocess
+via @code{start-process}.@refill
+
+If the lisp object is a lisp symbol (ie: @samp{tar-mode}), it species
+a lisp function to call after visiting the buffer.  This is appropriate
+for using major modes to view documents.  The function is called with no
+arguments.@refill
+
+If the lisp object is a list (ie: @samp{(message "wow")}), it specifies
+something to be passed through @code{eval}.
+@node Mailcap File, , Specifying Viewers, MIME Support
+@unnumberedsec Mailcap File
+Both Mosaic and the NCSA HTTP daemon rely on a separate file for mapping
+file extensions to MIME types.  Instead of having the users of W3
+duplicate this in lisp, this file can be parsed using the
+@code{w3-parse-mime-types} function.  This function is called each time
+w3 is loaded, and tries to parse the file @file{~/.mime-types} if it
+exists.  This format of this file is specified in RFC 1343, but a brief
+synopsis follows (this is taken verbatim from sections of RFC
+1343).@refill
+
+Each mailcap file consists of a set of entries that describe the proper
+handling of one media type at the local site.  For example, one line
+might tell how to display a message in Group III fax format.  A mailcap
+file consists of a sequence of such individual entries, separated by
+newlines (according to the operating system's newline
+conventions). Blank lines and lines that start with the "#" character
+(ASCII 35) are considered comments, and are ignored.  Long entries may
+be continued on multiple lines if each non-terminal line ends with a
+backslash character ('\', ASCII 92), in which case the multiple lines
+are to be treated as a single mailcap entry.  Note that for such
+"continued" lines, the backslash must be the last character on the line
+to be continued.@refill
+
+Each mailcap entry consists of a number of fields, separated by
+semi-colons.  The first two fields are required, and must occur in the
+specified order.  The remaining fields are optional, and may appear in
+any order.@refill
+
+The first field is the content-type, which indicates the type of data
+this mailcap entry describes how to handle.  It is to be matched against
+the type/subtype specification in the "Content-Type" header field of an
+Internet mail message.  If the subtype is specified as "*", it is
+intended to match all subtypes of the named content-type.@refill
+
+The second field, view-command, is a specification of how the message or
+body part can be viewed at the local site.  Although the syntax of this
+field is fully specified, the semantics of program execution are
+necessarily somewhat operating system dependent.@refill
+
+The optional fields, which may be given in any order, are as follows:
+@itemize @bullet
+@item
+The "compose" field may be used to specify a program that can be used to
+compose a new body or body part in the given format.  Its intended use
+is to support mail composing agents that support the composition of
+multiple types of mail using external composing agents.  As with the
+view- command, the semantics of program execution are operating system
+dependent.  The result of the composing program may be data that is not
+yet suitable for mail transport -- that is, a Content- Transfer-Encoding
+may need to be applied to the data.@refill
+@item
+The "composetyped" field is similar to the "compose" field, but is to be
+used when the composing program needs to specify the Content-type header
+field to be applied to the composed data.  The "compose" field is
+simpler, and is preferred for use with existing (non-mail-oriented)
+programs for composing data in a given format.  The "composetyped" field
+is necessary when the Content-type information must include auxilliary
+parameters, and the composition program must then know enough about mail
+formats to produce output that includes the mail type
 information.@refill
+@item
+The "edit" field may be used to specify a program that can be used to
+edit a body or body part in the given format.  In many cases, it may be
+identical in content to the "compose" field, and shares the
+operating-system dependent semantics for program execution.@refill
+@item
+The "print" field may be used to specify a program that can be used to
+print a message or body part in the given format.  As with the
+view-command, the semantics of program execution are operating system
+dependent.@refill
+@item
+The "test" field may be used to test some external condition (e.g.  the
+machine architecture, or the window system in use) to determine whether
+or not the mailcap line applies.  It specifies a program to be run to
+test some condition.  The semantics of execution and of the value
+returned by the test program are operating system dependent.  If the
+test fails, a subsequent mailcap entry should be sought.  Multiple test
+fields are not permitted -- since a test can call a program, it can
+already be arbitrarily complex.@refill
+@item
+The "needsterminal" field indicates that the view-command must be run on
+an interactive terminal.  This is needed to inform window-oriented user
+agents that an interactive terminal is needed.  (The decision is not
+left exclusively to the view-command because in some circumstances it
+may not be possible for such programs to tell whether or not they are on
+interactive terminals.)  The needsterminal command should be assumed to
+apply to the compose and edit commands, too, if they exist.  Note that
+this is NOT a test -- it is a requirement for the environment in which
+the program will be executed, and should typically cause the creation of
+a terminal window when not executed on either a real terminal or a
+terminal window.@refill
+@item
+The "copiousoutput" field indicates that the output from the
+view-command will be an extended stream of output, and is to be
+interpreted as advice to the UA (User Agent mail- reading program) that
+the output should be either paged or made scrollable. Note that it is
+probably a mistake if needsterminal and copiousoutput are both
+specified.@refill
+@item
+The "description" field simply provides a textual description,
+optionally quoted, that describes the type of data, to be used
+optionally by mail readers that wish to describe the data before
+offering to display it.@refill
+@item
+The "x11-bitmap" field names a file, in X11 bitmap (xbm) format, which
+points to an appropriate icon to be used to visually denote the presence
+of this kind of data.@refill
+@item
+Any other fields beginning with "x-" may be included for local or
+mailer-specific extensions of this format.  Implementations should
+simply ignore all such unrecognized fields to permit such extensions,
+some of which might be standardized in a future version of this
+document.@refill
+@end itemize
 
-I am considering merging W3 with hyperbole more completely, but am not
-sure if this is a good idea.  If you have any strong feelings on the
-subject, send mail to me at wmperry@@indiana.edu.  Any comments
-welcome.@refill
+
+@node Advanced Features, Searching, , Top
+@comment  node-name,  next,  previous,  up
+@unnumbered Advanced Features
 
 @ifinfo
-@node Internals of W3, Customizing Formatting, Hyperbole Compatibility, Top
+@menu
+* Searching::		How to search entire sections of the web
+			for what you want, automatically.
+* Interfacing to VM::	How to make VM understand hypertext links
+* Interfacing to RMAIL::How to make RMAIL understand hypertext links
+* Interfacing to GNUS::	How to make GNUS understand hypertext links
+* Using PGP/PEM::	How to use various public-key crypto-systems
+			to ensure the security of your HTTP
+                        transactions.
+* Native WAIS Support:: How to make W3 understand WAIS links without
+                        using a gateway.
+* Rating Links::        How to make W3 put an 'interestingness' value
+                        next to each link.
+* Gopher+ Support::     How W3 makes use of the Gopher+ protocol.
+* Hooks::               Various hooks to use throughout W3
+* Other Variables::     Miscellaneous variables that control the real
+                        guts of W3.
+@end menu
 @end ifinfo
-@iftex
+
+@node Searching, Interfacing to VM, Advanced Features, Advanced Features
+@unnumberedsec Searching
+@cindex Depth-first search
+@cindex Searching more than one node
+@cindex Recursive searching
+@vindex w3-allow-searching-of
+In the file @file{w3-search.el} is a function that some of you may find
+handy.  It is not 100% completed yet, so if you run into any problems
+with it, please try to fix it, not just say its broken.@refill
+
+The function is @code{w3-do-search}.  It must be called with at least
+one argument.  All others are optional.  Arguments are @var{TERM},
+@var{BASE}, @var{HOPE-LIMIT}, and @var{RESTRICTION}.  This will
+recursively descend all the child links of the current document for
+@var{TERM}.  @var{TERM} may be a string, in which case it is treated as
+a regular expression, and @code{re-search-forward} is used, or a symbol,
+in which case it is funcalled with 1 argument, the current URL being
+searched.@refill
+
+@var{BASE} is the URL to start searching from.
+
+@var{HOPS-LIMIT} is the maximum number of nodes to descend before the
+search dies out.
+
+@var{RESTRICTION} is a regular expression or function to call with one
+argument, a URL that could be searched.  If @var{RESTRICTION} returns
+non-@code{nil}, then the URL is added to the queue, otherwise it is
+discarded.  This is useful for restricting searching to either certain
+types of URLs (only search ftp links), or restricting searching to one
+domain (only search stuff in the indiana.edu domain).@refill
+
+You may check several variables from the main @code{w3-do-search}
+routine in any functions passed to it (as @var{RESTRICTION} or
+@var{TERM}). @var{QUEUE} is the queue of links to be searched,
+@var{HOPS} is the current number of hops from the root document,
+@var{RESULTS} is an assoc list of (@var{URL} . @var{RETVAL}), where
+@var{RETVAL} is the value returned from previous calls to the @var{TERM}
+function (or point if searching for a regular expression).@refill
+
+The function returns a list of the form: ((@var{URL} . @var{RETVAL})...)
+@refill
+
+Please note that there is no interactive use for this function yet - it
+was designed for non-interactive, batch-mode processing.  However, if
+anyone wants to write a wrapper function for it, please feel
+free.@refill
+
+@node Interfacing to VM, Interfacing to RMAIL, Searching, Advanced Features
+@unnumberedsec Interfacing to VM
+@cindex Interfacing to VM
+@cindex VM
+@cindex Using W3 with VM
+More and more people are including URLs in their signatures, and within
+the body of mail messages.  It can get quite tedious to type these into
+the minibuffer when you wish to follow one.  The following functions in
+your @file{~/.emacs} or @file{~/.vm} files should do the trick.  It adds
+two keybindings to the main VM message window.  The middle mouse button
+will now try to follow a hypertext link.  This will first try to find
+any links that were fully-qualified with the HTML <A> and </A>
+@footnote{Something akin to <a href="http://cs.indiana.edu/">} tags,
+otherwise it will check and see if the text around point is a naked URL
+@footnote{Similar to http://cs.indiana.edu/}.@refill
+
+@example
+(defun w3-maybe-follow-link-mouse (e)
+  "Maybe follow a hypertext link under point.
+If there is no link under point, this will try using
+w3-get-url-at-point"
+  (interactive "e")
+  (save-excursion
+    (mouse-set-point e)
+    (w3-maybe-follow-link)))
+
+(defun w3-maybe-follow-link ()
+  "Maybe follow a hypertext link under point.
+If there is no link under point, this will try using
+w3-get-url-at-point"
+  (interactive)
+  (require 'w3)
+  (if (not w3-setup-done) (w3-do-setup))
+  (let* ((zn  (w3-zone-at (point)))
+         (url1 (and zn (w3-zone-data zn)))
+         (url2 (w3-get-url-at-point)))
+    (cond
+      (url1 (w3-follow-link))
+      ((and url2 (string-match w3-nonrelative-link url2)) (w3-fetch url2))
+      (t (message "w3-maybe-follow-link got confused.")))))
+
+(add-hook 'vm-mode-hook
+          (function
+            (lambda ()
+              (define-key vm-mode-map [mouse-2] 'w3-maybe-follow-link-mouse)
+              (define-key vm-mode-map "\r"      'w3-maybe-follow-link))))
+
+(add-hook 'vm-select-message-hook
+          (function
+            (lambda ()
+              (let ((w3-working-buffer (current-buffer)))
+                (w3-build-links-list)))))
+@end example
+
+
+@node Interfacing to RMAIL, Interfacing to GNUS, Searching, Advanced Features
+@unnumberedsec Interfacing to RMAIL
+@cindex Interfacing to RMAIL
+@cindex RMAIL
+@cindex Using W3 with RMAIL
+More and more people are including URLs in their signatures, and within
+the body of mail messages.  It can get quite tedious to type these into
+the minibuffer when you wish to follow one.  The following functions in
+your @file{~/.emacs} files should do the trick.  It adds two keybindings
+to the main RMAIL window.  The middle mouse button will now try to
+follow a hypertext link.  This will first try to find any links that
+were fully-qualified with the HTML <A> and </A> @footnote{Something akin
+to <a href="http://cs.indiana.edu/">} tags, otherwise it will check and
+see if the text around point is a naked URL @footnote{Similar to
+http://cs.indiana.edu/}.@refill
+
+@example
+(defun w3-maybe-follow-link-mouse (e)
+  "Maybe follow a hypertext link under point.
+If there is no link under point, this will try using
+w3-get-url-at-point"
+  (interactive "e")
+  (save-excursion
+    (mouse-set-point e)
+    (w3-maybe-follow-link)))
+
+(defun w3-maybe-follow-link ()
+  "Maybe follow a hypertext link under point.
+If there is no link under point, this will try using
+w3-get-url-at-point"
+  (interactive)
+  (require 'w3)
+  (if (not w3-setup-done) (w3-do-setup))
+  (let* ((zn  (w3-zone-at (point)))
+         (url1 (and zn (w3-zone-data zn)))
+         (url2 (w3-get-url-at-point)))
+    (cond
+      (url1 (w3-follow-link))
+      ((and url2 (string-match w3-nonrelative-link url2)) (w3-fetch url2))
+      (t (message "w3-maybe-follow-link got confused.")))))
+
+
+(add-hook 'rmail-mode-hook
+	  (function
+	   (lambda ()
+	     (define-key rmail-mode-map [mouse-2] 'w3-maybe-follow-link-mouse)
+	     (define-key rmail-mode-map "\r"      'w3-maybe-follow-link))))
+
+(add-hook 'rmail-show-message-hook
+	  (function
+	   (lambda ()
+	     (let ((w3-working-buffer (current-buffer)))
+	       (w3-build-links-list)))))
+
+@end example
+
+@node Interfacing to GNUS, Using PGP/PEM,Interfacing to RMAIL,Advanced Features
+@unnumberedsec Interfacing to GNUS
+@cindex Usenet meets W3
+@cindex Interfacing to GNUS
+@cindex GNUS
+@cindex Using GNUS and W3
+More and more people are including URLs in their signatures and within
+the body of usenet posts.  It can get quite tedious to type these into
+the minibuffer when you wish to follow one.  The following functions in
+your @file{~/.emacs} file should do the trick.  It adds two keybindings
+to the GNUS article buffer.  The middle mouse button will now try to
+follow a hypertext link.  This will first try to find any links that
+were fully-qualified with the HTML <A> and </A> @footnote{Something akin
+to <a href="http://cs.indiana.edu/">} tags, otherwise it will check and
+see if the text around point is a naked URL @footnote{Similar to
+http://cs.indiana.edu/}.@refill
+
+@example
+(defun w3-maybe-follow-link-mouse (e)
+  "Maybe follow a hypertext link under point.
+If there is no link under point, this will try using
+w3-get-url-at-point"
+  (interactive "e")
+  (save-excursion
+    (mouse-set-point e)
+    (w3-maybe-follow-link)))
+
+(defun w3-maybe-follow-link ()
+  "Maybe follow a hypertext link under point.
+If there is no link under point, this will try using
+w3-get-url-at-point"
+  (interactive)
+  (require 'w3)
+  (if (not w3-setup-done) (w3-do-setup))
+  (let* ((zn  (w3-zone-at (point)))
+         (url1 (and zn (w3-zone-data zn)))
+         (url2 (w3-get-url-at-point)))
+    (cond
+      (url1 (w3-follow-link))
+      ((and url2 (string-match w3-nonrelative-link url2)) (w3-fetch url2))
+      (t (message "w3-maybe-follow-link got confused.")))))
+
+(add-hook 'gnus-article-mode-hook
+          (function
+            (lambda ()
+              (define-key gnus-article-mode-map [mouse-2]
+                          'w3-maybe-follow-link-mouse)
+              (define-key gnus-article-mode-map "\r"
+                          'w3-maybe-follow-link))))
+
+(add-hook 'gnus-article-prepare-hook
+          (function
+            (lambda ()
+              (let ((w3-working-buffer gnus-article-buffer))
+                (w3-build-links-list)))))
+@end example
+
+@node Using PGP/PEM, Native WAIS Support, Interfacing to GNUS,Advanced Features
+@unnumberedsec Using PGP/PEM
+@cindex RIPEM
+@cindex Public Key Cryptography
+@cindex PGP
+@cindex Pretty Good Privacy
+@cindex Encryption
+@cindex Security
+Most of this section was taken from the documentation written by Rob
+McCool <@i{robm@@ncsa.uiuc.edu}>.  Gratefully reproduced here with
+permission from him.@footnote{See
+http://hoohoo.ncsa.uiuc.edu/docs/PEMPGP.html}.@refill
+
+RIPEM is 'Riordan's Internet Privacy Enhanced Mail', and is currently on
+version 1.2b3.  If you are a US citizen, you can ftp it from
+ripem.msu.edu:/pub/crypt/ripem.@refill
+
+PGP is 'Pretty Good Privacy', and is currently on version 2.3a.  From
+what I understand there is some legal controversy over this right now,
+so I am not sure where/if it is available for anonymous ftp.  Try using
+archie to find it, or check the major archive sites.@refill
+
+PGP and PEM are programs to allow you and a second party to communicate
+in a way which does not allow third parties to read them, and which
+certify that the person who sent the message is really who they claim
+they are.@refill
+
+PGP and PEM both use RSA encryption.  The U.S.  government has strict
+export controls over foreign use of this technology, so people outside
+the U.S.  may have a difficult time finding programs which perform the
+encryption.@refill
+
+You will need a working copy of either Pretty Good Privacy or RIPEM to
+begin with.  You should be familiar with the program and have generated
+your own public/private key pair.  You should be able to use the TIS/PEM
+program with the PEM authorization type.  I haven't tried it.  This
+tutorial is written assuming that you are using RIPEM.@refill
+
+Currently, the protocol has been implemented with PEM and PGP using
+local key files on the server side, and on the client side with PEM
+using finger to retrieve the server's public key.@refill
+
+As you can tell, parties who wish to use W3 and httpd with PEM or PGP
+encryption will need to communicate beforehand and find a tamper-proof
+way to exchange their public keys.@refill
+
+Pioneers get shot full of arrows.  This work is currently in the
+experimental stages and thus may have some problems that I have
+overlooked.  The only known problem that I know about is that the
+messages are currently not timestamped.  This means that a malicious
+user could record your encrypted message with a packet sniffer and
+repeat it back to the server ad nauseum.  Although they would not be
+able to read the reply, if the request was something you were being
+charged for, you may have a large bill to pay by the time they're
+through.@refill
+
+This protocol is almost word-for-word a copy of Tony Sander's RIPEM
+based scheme, generalized a little.  Below, wherever you see PEM you can
+replace it with PGP and get the same thing.@refill
+
+@example
+*Client:*
+
+GET /docs/protected.html HTTP/1.0
+UserAgent: Emacs-W3/2.1.x
+
+*Server:* 
+
+HTTP/1.0 401 Unauthorized
+WWW-Authenticate: PEM entity="webmaster@@hoohoo.ncsa.uiuc.edu"
+Server: NCSA/1.1
+
+*Client:* 
+
+GET / HTTP/1.0
+Authorization: PEM entity="robm@@ncsa.uiuc.edu"
+Content-type: application/x-www-pem-request
+
+--- BEGIN PRIVACY-ENHANCED MESSAGE ---
+this is the real request, encrypted
+--- END PRIVACY-ENHANCED MESSAGE ---
+
+*Server:* 
+
+HTTP/1.0 200 OK
+Content-type: application/x-www-pem-reply
+
+--- BEGIN PRIVACY-ENHANCED MESSAGE ---
+this is the real reply, encrypted
+--- END PRIVACY-ENHANCED MESSAGE ---
+That's it.  
+@end example
+
+@cindex Mailcrypt
+Emacs-w3 uses the excellent @i{mailcrypt} package written by Jin S Choi
+<@i{jsc@@mit.edu}>.@footnote{Available via anonymous ftp to
+archive.cis.ohio-state.edu:/pub/gnu/emacs/elisp-archive/interfaces/mailcrypt.el.Z}.  This
+package takes care of calling ripem and/or pgp with the correct
+arguments.  Please see the documentation at the top of mailcrypt.el for
+instructions on using mailcrypt.  All bug reports about mailcrypt should
+go to Jin S Choi, but bugs about how I use it in W3 should of course be
+directed to me.@refill
+
+@node Native WAIS Support, Rating Links, Using PGP/PEM, Advanced Features
+@unnumberedsec Native WAIS Support
+:: WORK ::
+
+@node Rating Links, Gopher+ Support, Native WAIS Support, Advanced Features
+@unnumberedsec Rating Links
+:: WORK ::
+
+@node Gopher+ Support, Hooks, Rating Links, Advanced Features
+@unnumberedsec Gopher+ Support
+:: WORK ::
+
+@node Hooks, Other Variables, Gopher+ Support, Advanced Features
+@unnumberedsec Hooks
+@cindex Hooks
+These are the various hooks you can use to customize some of W3s behavior.
+They are arranged in the order in which they would happen when
+retrieving a document.  All of these are functions (or lists of
+functions) that are called consecutively.@refill
+
+@table @code
+@vindex w3-load-hooks
+@item w3-load-hooks
+:: WORK ::
+@item w3-file-done-hooks
+:: WORK ::
+@item w3-file-prepare-hooks
+:: WORK ::
+@item w3-mode-hooks
+:: WORK ::
+@end table
+@node Other Variables, , Hooks, Advanced Features
+@unnumberedsec Miscellaneous variables
+There are lots of variables that control the real nitty-gritty of W3
+that the beginning user probably shouldn't mess with.  Here they are.
+
+@table @code
+@item w3-always-show-output
+@vindex w3-always-show-output
+Controls whether to show process output or not.  If @code{nil}, never
+show output, if @code{t}, always show output, if other than @code{nil}
+or @code{t}, prompt.@refill
+@item w3-icon-directory-list
+@vindex w3-icon-directory-list
+A list of directorys to look in for the w3 standard icons...  must end
+in a /!  If the directory @code{data-directory}/w3 exists, then this is
+automatically added to the default value of
+http://cs.indiana.edu/elisp/w3/icons/.@refill
+@item w3-keep-old-buffers
+@vindex w3-keep-old-buffers
+Whether to keep old buffers around when following links.  If you do not
+like having lots of buffers in one emacs session, you should set this to
+@code{nil}.  I recommend setting it to @code{t}, so that backtracking
+from one link to another is faster.@refill
+@item w3-passwd-entry-func
+@vindex w3-passwd-entry-func
+This is a symbol indicating which function to call to read in a
+password.  It will be set up depending on whether you are running
+@dfn{EFS} or @dfn{ange-ftp} at startup if it is nil.  This function
+should accept the prompt string as its first argument, and the default
+value as its second argument.@refill
+@item w3-reuse-buffers
+@vindex w3-reuse-buffers
+What to do when following a link will re-fetch a document that has
+already been fetched into a W3 buffer.  Possible values are: @code{nil},
+@code{yes}, and @code{no}.  @code{nil} means ask the user if we should
+reuse the buffer (this is the default value).  A value of @code{yes}
+means assume the user wants us to reuse the buffer.  A value of
+@code{no} means assume the user wants us to re-fetch the
+document.@refill
+@item w3-show-headers
+@vindex w3-show-headers
+This is a list of HTTP/1.0 headers to show at the end of a buffer.  All
+the headers should be in lowercase.  They will be inserted at the end of
+the buffer in a <UL> list.@refill
+@item w3-show-status
+@vindex w3-show-status
+Whether to show a running total of bytes transferred.  Can cause a large
+performance hit if using a remote X display over a slow link, or a
+terminal with a slow modem.@refill
+@item w3-starting-documents
+@vindex w3-starting-documents
+:: WORK ::
+@item w3-uncompressor-alist
+@vindex w3-uncompressor-alist
+:: WORK ::
+@item w3-waisq-prog
+@vindex w3-waisq-prog
+Name of the waisq executable on this system.  This should be the
+@file{waisq} program from think.com's wais8-b5.1 distribution.@refill
+@end table
+
+@node More Help, Future Directions, , Top
+@unnumbered More Help
+@cindex Relevant Newsgroups
+@cindex Newsgroups
+@cindex Support
+If you need more help on W3, please send me mail (wmperry@@indiana.edu).
+Several discussion lists have also been created for W3.  To subscribe,
+send mail to <listname>-request@@indiana.edu.  All other mail should go
+to <listname>@@indiana.edu@refill
+
+@itemize @bullet
+@item
+w3-announce -- this list is for anyone interested in W3, and should in
+general only be used by me.  The gnu.emacs.sources newsgroup and a few
+other mailing lists are included on this.  You may use this if you have
+written an enhancement to W3 that you wish more people to know about.
+(www-announce@@info.cern.ch is included on this list).@refill
+@item
+w3-beta -- this list is for beta testers of W3.  These brave souls test
+out not-quite stable code.@refill
+@item
+w3-dev -- a list consisting of myself and a few other people who are
+interested in the internals of W3, and doing active development work.
+Pretty dead right now, but I hope it will grow.@refill
+@end itemize
+
+If you need more help on the World Wide Web in general, please refer to
+the newsgroup comp.infosystems.www.  There are also several discussion
+lists concerning the Web.  Send mail to listserv@@info.cern.ch with a
+subject line of 'subscribe <listname>'.  All mail should go to
+<listname>@@info.cern.ch.  Administrative mail should go to
+www-admin@@info.cern.ch.  The lists are:@refill
+
+@itemize @bullet
+@item
+www-talk -- for general discussion of the World Wide Web, where its
+going, new features, etc.  All the major developers are subscribed to
+this list.@refill
+@item
+www-announce -- for announcements concerning the World Wide Web.  Server
+changes, new servers, new software, etc.@refill
+@end itemize
+
+As a last resort, you may always mail me.  I'll try to answer as quickly
+as I can.@refill
+@node Future Directions, Programming Interface, More Help, Top
+@unnumbered Future Directions
+Changes are constantly being made to the emacs browser (hopefully all
+for the better).  This is a list of the things that are being worked on
+right now.@refill
+@itemize @asis
+@item Fix before 2.2
+@enumerate
+@item
+more texinfo documentation
+@item
+Way to save url under point without viewing it first.
+@item
+Fix <DL> handling.
+@item
+ability to read in .info files natively
+@item
+cacheing - easy in emacs19/lucid - just grab the entire buffer and tell it to save the text properties, then insert it into a new buffer and boom, done
+@item
+have a 'timeout' when retrieving images.  Use (nth 1 (current-time)) when in lucid.
+@item
+PATHs
+@item
+TABLEs
+@item
+Merge hotlist stuff with bookmark.el
+@end enumerate
+@item Long range goals
+@enumerate
+@item
+Multi-DTD browsing
+@item
+Style sheets
+@item
+New parser, with process-filter and process-sentinel
+@end enumerate
+@end itemize
+
+@node Programming Interface, Generalized ZONES, Future Directions, Top
+@comment  node-name,  next,  previous,  up
 @unnumbered Internals of W3
-@end iftex
 @cindex Internals of W3
 @cindex Using W3 from your own programs
+This chapter will attempt to explain some of the internal workings of W3
+and various data structures that are used.  It will also detail some
+functions that are useful for using some of the W3 functionality from
+within your own programs, or extending the current capabilities of
+W3.@refill
 
+@ifinfo
+@menu
+* Generalized ZONES::           A generic interface to 'zones' of text
+                                that can contain information.
+* Global Variables::            Global variables used throughout W3
+* Data Structures::             The various data structures used in W3
+* Miscellaneous Functions::     Miscellaneous functions you can use to
+                                interface with w3 and access its data
+                                structures
+@end menu
+@end ifinfo
+@node Generalized ZONES, Global Variables,Programming Interface, Programming Interface, Programming Interface
+@comment  node-name,  next,  previous,  up
+@unnumberedsec Generalized ZONES
+Due to the many different @i{flavors} of Emacs in existence, the
+addition of data and font information to arbitrary regions of text has
+been generalized.  The following functions are defined for
+using/manipulating these @dfn{zones} of data.
+
+@table @code
+@findex w3-add-zone
+@item w3-add-zone (start end style data &optional highlight)
+This function creates a zone between buffer positions start and end,
+with font information specified by style, and a data segment of data.
+If the optional argument highlight is non-@code{nil}, then the region
+will highlight when the mouse moves over it.@refill
+
+@findex w3-zone-at
+@item w3-zone-at (point)
+Returns the the zone at @var{point}.  Preference is given to hypertext
+links, then to form entry areas, then to inlined images.  So if an
+inlined image was part of a hypertext link, this would always return the
+hypertext link.@refill
+
+@findex w3-zone-data
+@item w3-zone-data (zone)
+Returns the zone's data segment. The data structures used in W3 are
+relatively simple.  They are just list structures that follow a certain
+format.  The two main data types are @dfn{form objects}, @dfn{link
+objects},and @dfn{inlined images}.  All the information for these types
+of links are stored as lists.@refill
+
+@findex w3-zone-hidden-p
+@item w3-zone-hidden-p (zone)
+Returns @code{t} if and only if a zone is currently invisible.@refill
+@findex w3-hide-zone
+@item w3-hide-zone (start end)
+Makes a region of text from @code{start} to @code{end} invisible.@refill
+@findex w3-unhide-zone
+@item w3-unhide-zone (start end)
+Makes a region of text from @code{start} to @code{end} visible
+again.@refill
+@findex w3-zone-start
+@item w3-zone-start (zone)
+Returns an integer that is the start of zone, as a buffer position.  In
+emacs 18.xx, this will return a marker instead of an integer, but it can
+be used just like an integer.@refill
+@findex w3-zone-end
+@item w3-zone-end (zone)
+Returns an integer that is the end of zone, as a buffer position.  In
+emacs 18.xx, this will return a marker instead of an integer, but it can
+be used just like an integer.@refill
+@findex w3-zone-eq
+@item w3-zone-eq (zone1 zone2)
+Returns @code{t} if and only if zone1 and zone2 represent the same
+region of text in the same buffer, with the same properties and
+data.@refill
+@findex w3-delete-zone
+@item w3-delete-zone (zone)
+Removes zone from its buffer (or current buffer).  The return value is
+irrelevant, and varies for each version of emacs.@refill
+@findex w3-all-zones
+@item w3-all-zones ()
+Returns a list of all the zones contained in the current buffer.  Useful
+for extracting information about hypertext links or form entry
+areas.  Programs should not rely on this list being sorted, as the order
+varies with each version of emacs.@refill
+@item w3-zone-at (pt)
+This will return the zone at character position PT in the current buffer
+that is either a link or a forms entry area.  Returns nil if no link at
+point.@refill
+@end table
+@findex w3-zone-data
+These data structures are what is generally returned by
+@code{w3-zone-data}.@refill
+
+@node Global Variables, Data Structures , Generalized ZONES, Programming Interface
+@comment  node-name,  next,  previous,  up
+@unnumberedsec Global variables
+There are also some variables that may be useful if you are writing a
+program or function that interacts with W3.  All of the
+@code{w3-current-*} variables are local to each buffer.@refill
+
+@table @code
+@vindex w3-current-mime-headers
+@item w3-current-mime-headers
+An assoc list of all the MIME headers for the current document.  Keyed
+on the lowercase MIME header (ie: @samp{content-type} or
+@samp{content-encoding}.@refill
+@vindex w3-current-server
+@item w3-current-server
+Server that the current document was retrieved from.
+@vindex w3-current-file
+@item w3-current-file
+Filename of the current document
+@vindex w3-current-type
+@item w3-current-type
+A string representing what network protocol was used to retrieve the
+current buffer's document.  Can be one of http, gopher, file, ftp, news,
+or mailto.@refill
+@vindex w3-current-port
+@item w3-current-port
+Port # of the current document.@refill
+@vindex w3-current-last-buffer
+@item w3-current-last-buffer
+The last buffer seen before this one.@refill
+@vindex w3-running-FSF19
+@item w3-running-FSF19
+This is @code{t} if and only if we are running in FSF Emacs 19.@refill
+@vindex w3-running-epoch
+@item w3-running-epoch
+This is @code{t} if and only if we are running in Epoch 4.x@refill
+@vindex w3-running-lemacs
+@item w3-running-lemacs
+This is @code{t} if and only if we are running in Lucid Emacs 19.6 or
+Lucid Emacs 19.8.@refill
+@vindex w3-running-new-lucid
+@item w3-running-new-lucid
+This is @code{t} if and only if we are running in Lucid Emacs 19.9 or
+later.@refill
+@end table
+
+@node Data Structures, Miscellaneous Functions, Global Variables, Programming Interface
+@comment  node-name,  next,  previous,  up
+@unnumberedsec Data Structures
+Form objects are used to store information about a FORM data entry area.
+@enumerate
+@item
+@code{'w3form}
+@item
+A cons pair of (METHOD . URL), where METHOD specifies what method to use
+to retrieve the form when it is submitted (ie: @samp{GET}) and URL is a
+fully specified URL pointing at where to submit the FORM data to.@refill
+@item
+The type of input area this is.  (ie: @samp{CHECKBOX} or
+@samp{RADIO})@refill
+@item
+The name of the input tag.  This is used when sending the form to the
+server, so that the server can tell what data is what.@refill
+@item
+The default value of the input area.  Gotten from the INPUT tag at
+creation time.@refill
+@item
+The current value of the input area.@refill
+@item
+Whether the item is checked or not.  Only used for RADIO or CHECKBOX
+items.@refill
+@item
+The size (in characters) of the input area.  Not used for CHECKBOX,
+RADIO, or TEXTAREA input areas.@refill
+@item
+The maximum length of the input.  Only used for TEXT or PASSWORD input
+areas.@refill
+@item
+The form that this input area belongs to.  Each form in the same buffer
+has a unique identifier assigned when the document is parsed.  It is
+used when the form is submitted to get only the data for the correct
+form.@refill
+@item
+A list of strings that represent the choices for this input area.  Only
+used for SELECT tags.@refill
+@end enumerate
+
+A new development in the World Wide Web is the concept of collapsible
+areas of text.  If a zone controls one of these regions, it will be
+marked with the @b{w3expandlist} property.  The format of this structure
+is:@refill
+
+@enumerate
+@item
+@code{'w3expandlist}
+@item
+A marker representing the start of the hidden text as a buffer position.@refill
+@item
+A marker representing the end of the hidden text as a buffer position.@refill
+@end enumerate
+
+A zone with the @b{w3graphic} property is a link to an inlined image's
+source file.@refill
+@enumerate
+@item
+@code{'w3graphic}
+@item
+@findex w3-follow-inlined-image
+The full URL of the inlined image.  This is only ever returned if the
+inlined image is the only extent under point, or
+@code{w3-follow-inlined-image} is invoked.
+@end enumerate
+
+A zone with the @b{w3} property is a full-fledged hypertext link to
+another document.@refill
+@enumerate
+@item
+@code{'w3}
+@item
+The ID attribute of this link.  Used for resolving references to
+specific points within a document (ie: @samp{file.html#sectionA}.@refill
+@item
+The HREF attribute of this link.  This is a fully specified URL pointing
+at a network resource.  All relative directory references should have
+been removed before being stored in this structure.@refill
+@item
+The text between the <A> and </A> tags.  This is used to build menus or
+to get the text of a link without doing a buffer-substring.@refill
+@item
+The URN attribute of this link.  Currently not used for anything,
+waiting for the URN specification to be hammered out.@refill
+@item
+The REL attribute of this link.  Specifies the links relevance to the
+current document.@refill
+@item
+The REV attribute of this link.  Specifies the current documents
+relevance to the link.@refill
+@item
+The METHODS attribute, which tells what methods can be used on this
+link.  (ie: @samp{GET, HEAD, PUT}.@refill
+@end enumerate
+@node Miscellaneous Functions, Concept Index, Data Structures, Programming Interface
+@comment  node-name,  next,  previous,  up
+@unnumberedsec Miscellaneous Functions
 I have done quite a bit of work trying to make a semi-clean interface to
 the internals of W3.  Here is a list of functions that you can use to
 take advantage of the World Wide Web.@refill
 
-@iftex
-@table @asis
-@end iftex
-@ifinfo
 @table @code
-@end ifinfo
-
 @findex w3-clear-tmp-buffer
 @vindex w3-working-buffer
 @item w3-clear-tmp-buffer
-This will set the current buffer to be @var{w3-working-buffer}, creating
+This will set the current buffer to be @code{w3-working-buffer}, creating
 it if necessary, and erase it.  This should usually be called before
 retrieving URLs.@refill
-
-@findex w3-convert-ask-to-form
-@item w3-convert-ask-to-form
-This functions takes a string that is a Gopher+ ASK block, and will
-return a string that is a comparable HTML+ form.@refill
 
 @findex w3-convert-html-to-latex
 @item w3-convert-html-to-latex
 This will take a buffer of HTML markup (which should be in
-@var{w3-working-buffer}), and convert it into LaTeX.  This is an
+@code{w3-working-buffer}), and convert it into LaTeX.  This is an
 adaptation of the simple sed scripts from Cern.  Does as good a job as
 the html2latex program, and I usually prefer its formatting over
 html2latex's.@refill
@@ -1197,25 +2771,24 @@ html2latex's.@refill
 @vindex w3-mime-extensions
 @item w3-extension-to-mime
 This functions takes a file extension and returns the corresponding
-MIME-type, as defined in @var{w3-mime-extensions}.  For example,
+MIME-type, as defined in @code{w3-mime-extensions}.  For example,
 @samp{(w3-extension-to-mime ".gif")} would return
 @samp{"image/gif"}.@refill
 
 @findex w3-fetch
 @item w3-fetch
-This function takes a URL, a method, and a block of data as its
-arguments.  It then attempts to retrieve the URL using the specified
-method, using data (if any) as the body of the MIME request.  For
-example: @samp{(w3-fetch "http://cs.indiana.edu/" "GET" nil)} would
-retrieve the Indiana University CS home page and parse it as
-HTML.@refill
+This function takes a URL as its only argument. It then attempts to
+retrieve the URL using the specified method, using data (if any) as the
+body of the MIME request.  For example: @samp{(w3-fetch
+"http://cs.indiana.edu/")} would retrieve the Indiana University CS home
+page and parse it as HTML.@refill
 
 @findex w3-fix-entities-in-string
 @vindex w3-html-entities
 @item w3-fix-entities-in-string
 This function takes a string, and removes all HTML[+] entity references
 from it, replacing them with the correct character(s).  It consults the
-variable @var{w3-html-entities} for the entity names and translations.
+variable @code{w3-html-entities} for the entity names and translations.
 For example, @samp{(w3-fix-entities-in-string "&gt;testing&lt;&amp;")}
 would return @samp{">testing<&"}.@refill
 
@@ -1224,7 +2797,7 @@ would return @samp{">testing<&"}.@refill
 This function takes a string, and returns the first unique buffer name
 using that string as a base.  For example
 @samp{(w3-generate-new-buffer-name "new-buff")} would return
-@samp{"new-buff<1>"} if buffer new-buff already existed.@refill
+@samp{"new-buff<1>"} if buffer @code{new-buff} already existed.@refill
 
 @findex w3-generate-unique-filename
 @item w3-generate-unique-filename
@@ -1233,6 +2806,33 @@ This functions returns a string that represents a unique filename in the
 return @samp{"/tmp/w3-tmp129440"}.  The filename is arrived at by using
 a unique prefix (w3-tmp), the uid of the current user (12944 in my
 case), and a number that is incremented if a file already exists.@refill
+
+@findex w3-buffer-visiting
+@item w3-buffer-visiting (url)
+Return the name of a buffer (if any) that is visiting URL.@refill
+
+@findex w3-create-mime-request
+@vindex w3-request-extra-headers
+@vindex w3-request-data
+@vindex w3-request-method
+@vindex w3-mime-accept-string
+@vindex w3-bad-server-list
+@vindex w3-current-server
+@cindex Creating an HTTP request
+@item w3-create-mime-request (fname ref-url)
+Create a MIME request for the file fname.  The Referer: field of the
+HTTP/1.0 request is set to the value of ref-url if necessary.  Returns a
+string that can be sent to an HTTP server.  The request uses several
+variables that control how the request looks.@refill
+
+If the value of @code{w3-current-server} is found in the assoc list of
+@code{w3-bad-server-list}, then the basic HTTP/0.9 request type is used.
+This loses lots of information and server-side typing of files, but it
+is necessary for some older HTTP/0.9 servers that can't understand the
+newer, longer HTTP/1.0 requests.@refill
+
+If the value of @code{w3-request-extra-headers} is non-@code{nil}, then
+it will be used as extra MIME headers in the 
 
 @findex w3-get-url-at-point
 @item w3-get-url-at-point
@@ -1265,7 +2865,7 @@ This functions takes a string specifying a MIME content-type, and
 returns a string or symbol.  If it returns a string, it specifies a
 shell command to execute to view that type of file.  This string can be
 passed to 'format with a file name to get the complete command to use.
-If it is a symbol, it represents an emacs lisp function to call with no
+If it is a symbol, it represents an Emacs lisp function to call with no
 arguments.@refill
 
 @findex w3-open-stream
@@ -1276,14 +2876,13 @@ name, and a port number or server name.  It attempts to open a network
 connection to the remote host on the specified port/service name, with
 output going to the buffer.  It returns the process object that is the
 network connection.@refill
-
 @vindex w3-use-telnet
 @vindex w3-telnet-prog
 This function is different from @code{open-network-stream} in that it
 allows you to use programs in a subprocess to emulate a network
 connection.  This is necessary if you are behind a firewall, or
-something similar.  If the variable @var{w3-use-telnet} is @code{t},
-then the program specified by @var{w3-telnet-prog} will be run in an
+something similar.  If the variable @code{w3-use-telnet} is @code{t},
+then the program specified by @code{w3-telnet-prog} will be run in an
 asynchronous subprocess.  This program should expect a command line of
 the form @samp{w3-telnet-prog hostname portnumber}, and feed anything on
 its standard input to the remote machine.@refill
@@ -1309,7 +2908,8 @@ encoded characters in a string.  For example @samp{(w3-unhex-string
 @item w3-upcase-region
 This function takes a start and end position in the current buffer as
 its arguments, and converts all the text to uppercase, except for text
-between < and >.  This is useful for converting regions to uppercase
+between < and >, and it also ignores HTML[+] entity references (ie:
+@samp{&lt;}).  This is useful for converting regions to uppercase
 without corrupting any URLs within it.@refill
 
 @findex w3-view-this-url
@@ -1323,587 +2923,22 @@ under point, then it returns nil).  If the optional argument is
 This function returns the URL of current document.  If the optional
 argument is @code{nil}, then the URL is also displayed in the
 minibuffer.@refill
+
 @end table
 
-@ifinfo
-@node Customizing Formatting, Character based terminals, Internals of W3, Top
-@end ifinfo
-@iftex
-@unnumbered Customizing Formatting
-@end iftex
-@cindex Customizing formatting
-@cindex Specifying Fonts
-@cindex Fonts
-@cindex Colors
 
-How W3 formats a document is very customizable.  How a document is
-displayed depends on several things - whether the user is on a terminal
-capable of graphics, and a few variables.@refill
-
-The following sections describe in more detail how to change the
-formatting of a document.@refill
-
-@ifinfo
-@menu
-* General formatting::                 Changing general things about a
-                                       document.
-* Character based terminals::          Changing how a document is
-                                       displayed on a non-graphics
-                                       terminal (vt100, etc) or if
-                                       @var{w3-delimit-emphasis} is @code{t}.
-* Graphics workstations::              Changing how a document is
-                                       displayed on a graphics terminal
-                                       (Xwindows, Windows, NeXTstep,
-                                       OS/2, etc)
-@end menu
-@end ifinfo
-
-@ifinfo
-@node General formatting, Character based terminals, Customizing Formatting, Customizing Formatting
-@end ifinfo
-@iftex
-@unnumberedsec General formatting conventions
-@end iftex
-@iftex
-@heading Formatting of hypertext links
-@end iftex
-@ifinfo
-@center --------------------
-@center Formatting of hypertext links
-@center --------------------
-@end ifinfo
-@vindex w3-delimit-links
-@vindex w3-link-start-delimiter
-@vindex w3-link-end-delimiter
-If the variable @var{w3-delimit-links} is non-@code{nil}, then hypertext
-links will be surrounded by text specified by the user.  The string
-@var{w3-link-start-delimiter} will be inserted just before the body of
-the hyperlink, and @var{w3-link-end-delimiter} will be inserted just
-after the body of the link.  All reserved characters should be replaced
-with their HTML[+] entity definitions.@refill
-@iftex
-@heading Formatting of lists
-@end iftex
-@ifinfo
-@center --------------------
-@center Formatting of lists
-@center --------------------
-@end ifinfo
-@vindex tab-stop-list
-@vindex tab-width
-@vindex w3-mode-hooks
-There are several different ways to control the formatting of lists.
-The most obvious is how deeply they are indented relative to the rest of
-the paragraphs in the document.  To control this, you should set the
-variables @var{tab-stop-list} and @var{tab-width}.  A tab every eight
-spaces is considered normal, but I prefer to have a tab every four
-spaces.  So @var{tab-stop-list} would be @samp{'(4 8 12 16 20 24 28 32
-36 ...)}, and @var{tab-width} would be @samp{4}.  I use
-@code{setq-default} in my .emacs for these, but you can also use them
-from @var{w3-mode-hooks}.  Something like @samp{(add-hook 'w3-mode-hooks
-(function (lambda () (setq tab-stop-width '(...)  tab-width
-4))))}.@refill
-
-@vindex w3-list-chars-assoc
-Another thing that is easy to change about lists is the bullet character
-put at the front of each list item.  This is controlled by the variable
-@var{w3-list-chars-assoc}, which is an assoc list.  This is a list of
-lists, each sublist describing what to put at the start of each
-particular list type.  The @code{car} of this list should be the type of
-list, in all caps (ie: @samp{UL}).  The rest of the list should consist
-of strings to insert at certain levels of lists.  The @code{n}th element
-of this list will be used when the list is nested @code{n + 1} levels.
-If the list is not long enough to define a string for a certain nesting
-level, then it defaults to either a '*' or a '.'.@refill
-
-@iftex
-@heading Formatting of gopher directories
-@end iftex
-@ifinfo
-@center --------------------
-@center Formatting of gopher directories
-@center --------------------
-@end ifinfo
-The main way to control the display of gopher directories is by the
-variable @var{w3-gopher-labels}.  This variable controls the text that
-is inserted at the front of each item.  This is an assoc list of gopher
-types (as one character strings), and a string to insert just after the
-list item.  All the normal gopher types are defined.  Entries should be
-similar to: @samp{("0" . "(TXT)")}.  I have tried to keep all the tags
-to three characters plus two parentheses. 
-
-@ifinfo
-@node Character based terminals, Graphics workstations , General formatting, Customizing Formatting
-@end ifinfo
-@iftex
-@unnumberedsec On character based terminals
-@end iftex
-@vindex w3-delimit-emphasis
-On character based terminals, there is no easy way to show that a
-certain range of text is in bold or italics.  If the variable
-@var{w3-delimit-emphasis} is non-@code{nil}, then W3 can insert
-characters before and after character formatting commands in HTML
-documents.@refill
-
-@vindex w3-header-chars-assoc
-@vindex w3-style-chars-assoc
-Two variables control what text is inserted around different markup
-tags.  @var{w3-header-chars-assoc} controls what characters are inserted
-around header items, and @var{w3-style-chars-assoc} controls what
-characters are inserted around most other markup (italics, addresses,
-etc).@refill
-
-@findex w3-upcase-region
-@var{w3-header-chars-assoc} is an assoc list of header tags and a list
-of formatting instructions.  The @code{car} of the list is the level of
-the header (1 - 6).  The rest of the list should contain three items.
-The first item is text to insert before the header.  The second item is
-text to insert after the header.  Both should have reserved characters
-converted to their HTML[+] entity definitions.  The third item is a
-function to call on the area the header is in.  This function is called
-with arguments specifying the start and ending character positions of
-the header.  The starting point will always be first.  To convert a
-region to upper case, please use @code{w3-upcase-region} instead of
-@code{upcase-region}, so that URLs within the region will not be
-corrupted.@refill
-
-@var{w3-style-chars-assoc} is an assoc list of style tags and a list of
-strings.  The @code{car} of the list is the type of style tag it
-specifies (DFN, B, I, etc).  The rest of the list should contain two
-items.  The @code{car} is text to insert before the stylized text.  The
-@code{cdr} is text to insert after the stylized text.  Both should have
-reserved characters converted to their HTML[+] entity
-definitions.@refill
-
-@ifinfo
-@node Graphics workstations, Printing, Character based terminals, Customizing Formatting
-@end ifinfo
-@iftex
-@unnumberedsec With graphics workstations
-@end iftex
-@cindex Xresources
-@cindex NeXTstep resources
-When you are running in a graphic environemnt (Xwindows or NeXTstep for
-example), the fonts and colors used by W3 to display text can be
-controlled by setting a few resources.  To specify these
-resources:@refill
-
-@itemize @bullet
-@item
-Xwindows: Place them into your @file{~/.Xresources} file or the
-@file{/usr/lib/X11/app-defaults/Emacs} file.@refill
-@item
-NeXTstep: If you are using the NeXTstep port of Emacs 19, you should use
-the dwrite command to install these resources.  The command should look
-something like: (@samp{dwrite Emacs <Style>.Attribute<item> value}, where
-style and attribute are one of the choices below.@refill
-@item
-OS/2 or Windows: If you are using the Lucid Emacs or FSF Emacs that has
-been ported to the Presentation Manager or Windows 3.x, it will tell you
-where to store a file that Emacs will look at for Xresources.@refill
-@end itemize
-
-The resources for each version of emacs are the same.  For each style of
-text that W3 uses, you can specify any of the following resources by
-replacing <style> with the actual style name.@refill
-
-@itemize @bullet
-@item
-Emacs*<Style>.AttributeFont: Font name
-@item
-Emacs*<Style>.AttributeForeground: Foreground color
-@item
-Emacs*<Style>.AttributeBackground: Background color
-@item
-Emacs*<Style>.AttributeUnderline: Underline text?
-@end itemize
-
-W3 uses these style names:
-@iftex
-@table @asis
-@end iftex
-@ifinfo
-@table @var
-@end ifinfo
-@item w3-address-style
-For anything in $<$ADDRESS$>$ tags.
-@item w3-bold-style
-For anything in bold, strong, or a definition
-@item w3-default-style
-For normal text
-@item w3-header-style
-For any headers
-@item w3-italic-style
-For italic text, emphasized, or addresses
-@item w3-node-style
-For links to other documents
-@item w3-strikethru-style
-For items that should be shown as struck-out.
-@item w3-subscript-style
-For subscripted items
-@item w3-superscript-style
-For superscripted items
-@item w3-tt-style
-For fixed width fonts, code segments, samples, or variables
-@item w3-underline-style
-For underlining, and citations
-@end table
-
-@ifinfo
-@node Printing, Saving Files, Graphics workstations, Top
-@end ifinfo
-@iftex
-@unnumbered Printing
-@end iftex
-@cindex Printing
-@findex w3-print-this-url
-@kindex P
-@findex w3-print-url-under-point
-There are two ways to print a document in W3.  Typing @kbd{P} or
-@kbd{M-x w3-print-this-url} will print out the current document, and
-typing @kbd{M-x w3-print-url-under-point} will attempt to print the
-document the cursor is on.
-
-You will be prompted to choose how the document will be printed.  
-
-@vindex w3-use-html2latex
-@vindex w3-print-command
-
-
-@ifinfo
-@node Saving Files, Using W3 behind a firewall, Printing, Top
-@end ifinfo
-@iftex
-@unnumbered Saving Files
-@end iftex
-
-@ifinfo
-@node Using W3 behind a firewall, Hook Variables, Saving Files, Top
-@end ifinfo
-@iftex
-@unnumbered Using W3 behind a firewall
-@end iftex
-
-@ifinfo
-@node Hook Variables, Miscellaneous, Using W3 behind a firewall, Top
-@end ifinfo
-@iftex
-@unnumbered Hook Variables
-@end iftex
-
-@ifinfo
-@node Miscellaneous, More Help, Hook Variables, Top
-@end ifinfo
-@iftex
-@unnumbered Miscellaneous
-@end iftex
-
-@ifinfo
-@node More Help, HTML, Miscellaneous, Top
-@end ifinfo
-@iftex
-@unnumbered More Help
-@end iftex
-
-@cindex Relevant Newsgroups
-@cindex Newsgroups
-@cindex Support
-If you need more help on W3, please send me mail (wmperry@@indiana.edu).
-Several discussion lists have also been created for W3.  To subscribe,
-send mail to <listname>-request@@indiana.edu.  All other mail should go
-to <listname>@@indiana.edu@refill
-
-@itemize @bullet
-@item
-w3-announce - this list is for anyone interested in W3, and should in
-general only be used by me.  The gnu.emacs.sources newsgroup and a few
-other mailing lists are included on this.  You may use this if you have
-written an enhancement to W3 that you wish more people to know about.
-(www-announce@@info.cern.ch is included on this list).@refill
-@item
-w3-beta - this list is for beta testers of W3.  These brave souls test
-out not-quite stable code.@refill
-@item
-w3-dev - a list consisting of myself and a few other people who are
-interested in the internals of W3, and doing active development work.
-Pretty dead right now, but I hope it will grow.@refill
-@end itemize
-
-If you need more help on the World Wide Web in general, please refer to
-the newsgroup comp.infosystems.www.  There are also several discussion
-lists concerning the Web.  Send mail to listserv@@info.cern.ch with a
-subject line of 'subscribe <listname>'.  All mail should go to
-<listname>@@info.cern.ch.  Administrative mail should go to
-www-admin@@info.cern.ch.  The lists are:@refill
-
-@itemize @bullet
-@item
-www-talk - for general discussion of the World Wide Web, where its
-going, new features, etc.  All the major developers are subscribed to
-this list.@refill
-@item
-www-announce - for announcements concerning the World Wide Web.  Server
-changes, new servers, new software, etc.@refill
-@end itemize
-
-As a last resort, you may always mail me.  I'll try to answer as quickly
-as I can.
-
-@ifinfo
-@node HTML, WWW, More Help, Top
-@end ifinfo
-@iftex
-@unnumbered HTML
-@end iftex
-@cindex HTML
-@cindex Hypertext Markup Language
-
-HTML is composed of a set of elements that define a document and guide
-its display.  An HTML element may include a name, some attributes and
-some text or hypertext, and will appear in an HTML document as
-<tag_name> text </tag_name> <tag_name attribute_name=argument> text
-</tag_name>, or just <tag_name>.@refill
-
-For example: @samp{<title> My Useful Document </title>}, and @samp{<pre
-width=60> A lot of text here.  </pre>}. @refill
-
-An HTML document is composed of a single element: <html>...</html>, that
-is, in turn, composed of head and body elements: <head>...</head>, and
-<body>...</body>.  To allow older HTML documents to remain readable,
-<html>, <head>, and <body> are actually optional within HTML
-documents.@refill
-
-@iftex
-@heading Elements restricted to the head element include:
-@end iftex
-@ifinfo
-@center Elements restricted to the head element include:
-@end ifinfo
-
-@itemize @bullet
-@item
-<isindex> -  Specify index file. @refill
-@item
-<title> .  .  .  </title> -  Specify document title. @refill
-@item
-<nextid> - Set a variable value.  Attribute: variable name. @refill
-@item
-<link> - Specify relationships to other documents.  Attributes: same as
-Anchor below. @refill
-@item
-<base> -  Specify the name of the file in which the current document is
-stored.  This is useful when link references within the document do  not
-include full pathnames (i.e., are partially qualified)
-@end itemize
-
-The following sections describe elements that can be used in the body of
-the document.
-
-@iftex
-@heading Text Elements
-@end iftex
-@ifinfo
-@center Text Elements
-@end ifinfo
-
-@itemize @bullet
-@item
-<p> - The end of a paragraph that will be formatted before it is
-displayed on the screen. @refill
-@item
-<pre> .  .  .  </pre> - Identifies text that has already been formatted
-(preformatted) by some other system and must be displayed as is.
-Preformatted text may include embedded tags, but not all tag types are
-permitted.  Attribute: width. @refill
-@item
-<listing> .  .  .  </listing> - Example computer listing; embedded tags
-will be ignored, but embedded tabs will work. @refill
-@item
-<plaintext> - all text from this marker to the end of the document will
-not be parsed as HTML.  All newlines/tabs/spaces will be
-preserved. @refill
-@item
-<blockquote> .  .  .  </blockquote> - Include a section of text quoted
-from some other source. @refill
-@end itemize
-
-@iftex
-@heading Hyperlinks or Anchors
-@end iftex
-@ifinfo
-@center Hyperlinks or Anchors
-@end ifinfo
-
-@itemize @bullet
-@item
-<a name="target_anchor_name"> .  .  .  </a> -  Define a target location
-in a document. @refill
-@item
-<a href="#anchor_name"> .  .  .  </a> - Link to a location in the same
-file. @refill
-@item
-<a href="URL"> .  .  .  </a> - Link to another file. @refill
-@item
-<a href="URL#target_string"> .  .  .  </a> - Link to a target location
-in another file. @refill
-@end itemize
-
-Required attributes for anchors: one of name or href.  Optional
-attributes: rel, rev, urn, title, methods.@refill
-
-@iftex
-@heading Headers
-@end iftex
-@ifinfo
-@center Headers
-@end ifinfo
-
-@itemize @bullet
-@item
-<h1> .  .  .  </h1> - Most prominent header.
-@item
-<h2> .  .  .  </h2>
-@item
-<h3> .  .  .  </h2>
-@item
-<h4> .  .  .  </h4>
-@item
-<h5> .  .  .  </h5>
-@item
-<h6> .  .  .  </h6> - Least prominent header.
-@end itemize
-
-@iftex
-@heading Logical Styles
-@end iftex
-@ifinfo
-@center Logical Styles
-@end ifinfo
-
-@itemize @bullet
-@item
-<em> .  .  .  </em> - Generic emphasis.
-@item
-<strong> .  .  .  </strong> - Stronger emphasis
-@item
-<code> .  .  .  </code> - Display an HTML directive
-@item
-<samp> .  .  .  </samp> - Include sample output
-@item
-<kbd> .  .  .  </kbd> - Display a keyboard key
-@item
-<var> .  .  .  </var> - Define a variable
-@item
-<dfn> .  .  .  </dfn> - Display a definition
-@item
-<cite> .  .  .  </cite> - Display a citation
-@end itemize
-
-@iftex
-@heading Physical Styles
-@end iftex
-@ifinfo
-@center Physical Styles
-@end ifinfo
-
-@itemize @bullet
-@item
-<b> .  .  .  </b> - Bold font 
-@item
-<i> .  .  .  </i> - Italics 
-@item
-<u> .  .  .  </u> - Underline
-@item
-<tt> .  .  .  </tt> - Typewriter font
-@end itemize
-
-@iftex
-@heading List Types
-@end iftex
-@ifinfo
-@center List Types
-@end ifinfo
-
-@itemize @bullet
-@item
-Definition list/glossary: <dl> ... </dl>, <dt> defines a term to be
-defined, <dd> is the definition of the term.
-@item
-Unordered list: <ul> ... </ul>.  <li> defines an item of the list.
-@item
-Ordered list: <ol> ... </ol>.  <li> defines an item of the list.
-@item
-Interactive menu: <menu> ... </menu>.  <li> defines an item of the list.
-@item
-A directory list of items: <dir> ... </dir> <li> defines an item of the list.
-@end itemize
-
-@iftex
-@heading Entities
-@end iftex
-@ifinfo
-@center Entities
-@end ifinfo
-
-@iftex
-@table @asis
-@end iftex
-@ifinfo
-@table @code
-@end ifinfo
-@item &keyword;
-Display a particular character identified by a special keyword.  For
-example the entity &amp; specifies the ampersand ( & ), and the entity
-&lt; specifies the less than ( < ) character. Note that the semicolon
-following the keyword is required.@refill
-@item &#ascii_equivalent;
-Use a character literally.  Again note that the semicolon following the
-ASCII numeric value is required.@refill
-@item <!-- text -->
-Place a comment in the HTML source
-@end table
-
-@ifinfo
-@node WWW, Concept Index, HTML, Top
-@end ifinfo
-@iftex
-@unnumbered WWW
-@end iftex
-@cindex WWW
-@cindex World Wide Web
-
-@ifinfo
-@node Concept Index, Key Index, WWW, Top
-@end ifinfo
-@iftex
+@node Concept Index, Key Index, Miscellaneous Functions, Top
 @unnumbered Concept Index
-@end iftex
 @printindex cp
-
-@ifinfo
 @node Key Index, Command Index, Concept Index, Top
-@end ifinfo
-@iftex
 @unnumbered Key Index
-@end iftex
 @printindex ky
-
-@ifinfo
 @node Command Index, Variable Index, Key Index, Top
-@end ifinfo
-@iftex
 @unnumbered Command Index
-@end iftex
 @printindex fn
-
-@ifinfo
-@node Variable Index, Introduction, Command Index, Top
-@end ifinfo
-@iftex
+@node Variable Index, , Command Index, Top
 @unnumbered Variable Index
-@end iftex
 @printindex vr
-
 @summarycontents
 @contents
 @bye

@@ -1,0 +1,60 @@
+Notes to Implementors
+
+
+TO BE DONE
+
+left-margin on per-screen basis
+	This would provide a feedback that the given screen is
+	handling messages
+
+command to recover state in debugger.
+	Browser has little state; debugger has much more. If the
+	editor (or an important buffer) goes away, glyphs are not easy
+	to recover
+
+Use file-truename so that identical files with different paths get
+	to the same buffer (as in the browser database)
+
+Handle multiple instances of debugger/browser clients.
+
+I-search for stop-signs (across all buffers)
+
+
+BUGS
+
+/Common
+
+1-	Color setting is broken.
+	FIXED; needs integration
+
+/Debuggger
+
+1 -	an occasional "nil is not an annotation" message
+	weath@eng, quenelle@eng
+
+2 -	glyphs are not removed when the debugger dies
+	weath@eng, quenelle@eng
+	FIXED; awaiting VERIFICATION
+
+3 -	glyph backgrounds are always white
+	weath@eng; phc
+	FIXED; awaiting VERIFICATION
+
+4 -	deleting character at beginning of line removes glyphs
+	(bug in annotation code)
+	weath@eng
+	NEEDS changes to annotation implementation
+
+5 -	If you put a bpt on the closing curly brace of a function, the
+	solid arrow hides it when you hit the bpt.  I'd rather the text
+	shift right to show both glyphs (and stay shifted; don't jump back!).
+	weath@eng
+	partial FIXED (made it 5 chars; created a variable for it).
+
+6-	If a debugger arrow & a breakpoint are on the same place and "clear"
+	is requested, one of the two glyphs is removed more or less randomly.
+	FIXED
+
+7-	../.. & breakpoints...
+	gramlich
+	PASSED to dbx.

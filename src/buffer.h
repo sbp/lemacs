@@ -133,22 +133,40 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    taken into account.  This must be fixed if right margins are ever
    implemented.
 */
+#define LEFT_MARGIN_INTERNAL(buf,scr,bwin)				\
+(MINI_WINDOW_P (bwin)							\
+ ? 0									\
+ : (NILP ((buf)->left_outside_margin_width)				\
+    ? (NILP ((scr)->left_outside_margin_width)				\
+       ? 0								\
+       : XINT ((scr)->left_outside_margin_width))			\
+    : XINT ((buf)->left_outside_margin_width)))
+#define RIGHT_MARGIN_INTERNAL(buf,scr,bwin)				\
+(MINI_WINDOW_P (bwin)							\
+ ? 0									\
+ : (NILP ((buf)->right_outside_margin_width)				\
+    ? (NILP ((scr)->right_outside_margin_width)				\
+       ? 0								\
+       : XINT ((scr)->right_outside_margin_width))			\
+    : XINT ((buf)->right_outside_margin_width)))
+
 #ifdef I18N4
-#define LEFT_MARGIN(buf,scr,bwin) (XINT((buf)->left_outside_margin_width) * \
-	XmbTextEscapement (SCREEN_DEFAULT_X_FONT (scr), "M", 1))
-#define RIGHT_MARGIN(buf,scr,bwin) (XINT((buf)->right_outside_margin_width) * \
-	XmbTextEscapement (SCREEN_DEFAULT_X_FONT (scr), "M", 1))
+#define LEFT_MARGIN(buf,scr,bwin)					\
+(LEFT_MARGIN_INTERNAL(buf,scr,bwin) *					\
+ XmbTextEscapement (SCREEN_DEFAULT_X_FONT (scr), "M", 1))
+#define RIGHT_MARGIN(buf,scr,bwin)					\
+(RIGHT_MARGIN_INTERNAL(buf,scr,bwin) *					\
+ XmbTextEscapement (SCREEN_DEFAULT_X_FONT (scr), "M", 1))
 #else
-#define LEFT_MARGIN(buf,scr,bwin) \
-(((XINT ((buf)->left_outside_margin_width) + 2) > window_real_width(bwin)) \
-  ? ((window_real_width(bwin) - 2) * XTextWidth (SCREEN_DEFAULT_X_FONT (scr), "M", 1)) \
-   : (XINT ((buf)->left_outside_margin_width) * XTextWidth (SCREEN_DEFAULT_X_FONT (scr), "M", 1)))
-/*
-#define LEFT_MARGIN(buf,scr,bwin) (XINT((buf)->left_outside_margin_width) * \
-	XTextWidth (SCREEN_DEFAULT_X_FONT (scr), "M", 1))
-*/
-#define RIGHT_MARGIN(buf,scr,bwin) (XINT((buf)->right_outside_margin_width) * \
-	XTextWidth (SCREEN_DEFAULT_X_FONT (scr), "M", 1))
+#define LEFT_MARGIN(buf,scr,bwin)					\
+(((LEFT_MARGIN_INTERNAL(buf,scr,bwin) + 2) > window_real_width (bwin))	\
+ ? ((window_real_width (bwin) - 2) *					\
+    XTextWidth (SCREEN_DEFAULT_X_FONT (scr), "M", 1))			\
+ : (LEFT_MARGIN_INTERNAL(buf,scr,bwin) *				\
+    XTextWidth (SCREEN_DEFAULT_X_FONT (scr), "M", 1)))
+#define RIGHT_MARGIN(buf,scr,bwin)					\
+(RIGHT_MARGIN_INTERNAL(buf,scr,bwin) *					\
+ XTextWidth (SCREEN_DEFAULT_X_FONT (scr), "M", 1))
 #endif
 #endif
 
@@ -200,6 +218,10 @@ struct buffer
 
     /* the value of text.modiff at the last auto-save. */
     int auto_save_modified;
+
+    /* The time at which we detected a failure to auto-save,
+       Or -1 if we didn't have a failure.  */
+    int auto_save_failure_time;
 
     /* Position in buffer at which display started
        the last time this buffer was displayed */

@@ -1,55 +1,66 @@
-#include "usg5-4-2.h"
+#include "usg5-4-2.h"		/* lemacs change from 5-4 to 5-4-2 */
 
-#ifdef BSTRING
-ERROR! SunOS 5.x does not have BSTRING.
-#endif
+/* eggert@twinsun.com said these work in Solaris.
+   Perhaps they work in all kinds of SVR4, but this is more conservative.  */
+#undef BROKEN_TIOCGETC
+#undef BROKEN_TIOCGWINSZ
 
-#if !defined(__GNUC__) && !defined(__lucid)
-  /* The Sun compiler (acc) is apparently broken w.r.t. unions. */
-# define NO_UNION_TYPE
-#endif
+/* This triggers a conditional in xfaces.c.  */
+#define XOS_NEEDS_TIME_H
 
 #define POSIX
 
-#define HAVE_TERMIOS
+/* Here is how to find X Windows.  The -R option says where
+   to find X windows at run time.  */
+#ifndef __GNUC__
+#define LD_SWITCH_SYSTEM -R/usr/openwin/lib
+#else /* GCC */
+#define LD_SWITCH_SYSTEM -Xlinker -R/usr/openwin/lib
+#endif /* GCC */
 
-#define HAVE_VFORK
+/* lemacs change -- Sun CC needs this to default to ANSI */
+#ifdef __SUNPRO_C
+#define C_SWITCH_SYSTEM -Xa
+#ifndef NOT_C_CODE
+/* prototype left out out include files */
+int gethostname (char *, int);
+#endif
+#endif /* __SUNPRO_C */
 
-#undef HAVE_GETHOSTNAME
+/* lemacs change -- removed flags to force K & R compilation */
 
-#define HAVE_RINT
+/* Karl Berry writes:
+If you have the misfortune to be running Solaris 2.1, you may have
+noticed that the access system call does not check the readonlyness of
+the filesystem the path refers to.  This is a bug, according to
+access(2), but in the meantime, some of us need the right behavior.  */
 
-#if !defined(sun)
-#define sun
-#endif /* sun */
+/* Well, we released Emacs with this change, and fixed a typo, but
+   people keep saying that it doesn't work, and that the patch is easy
+   to install.  Patch number is 100947-02.  */
+#undef SOLARIS_BROKEN_ACCESS
 
-#define HAVE_UNISTD_H
+/*
+ * lemacs change -- some Motif packages need -lgen to get regex and regcmp
+ */
 
-#define HAVE_UTIMBUF
+#undef LIBS_SYSTEM
+#define LIBS_SYSTEM -lsocket -lnsl -lelf -lgen
 
-/* Sun4s running SunOS 4+ usually have sound support. */
-#define USE_SOUND
 
-/* SunOS provides strcoll() and setlocale(). */
-#define I18N2
-
+/* #### lemacs change: until we've gotten the Energize builds converted
+   over to use configure instead of ymakefile, we still need this.
+ */
 #ifdef THIS_IS_YMAKEFILE
 
-# define LD_SWITCH_SYSTEM -L/usr/openwin/lib		\
-			  -L/opt/SUNWmotif/lib		\
-			  -L/pkg/src/X11/xpm-3.3/lib	\
-			  -R/usr/openwin/lib:/opt/SUNWmotif/lib
-
-# define C_SWITCH_SYSTEM -I/usr/openwin/include		\
-			 -I/opt/SUNWmotif/include	\
-			 -I/pkg/src/X11/xpm-3.3/lib
-
 # define LIB_INTL -L/usr/openwin/lib -lintl -lw
-# define LIBS_TERMCAP -ltermlib -lcurses
+# define LIBS_TERMCAP -ltermlib 
 # define LIBS_DEBUG
 # undef LIBS_SYSTEM
-# define LIBS_SYSTEM -lsocket -lnsl -lelf -lgen
+# define LIBS_SYSTEM -lsocket -lnsl -lintl -lelf -lgen
 # define START_FILES
 # define LD_CMD $(CC)
 
 #endif
+
+#define SYSTEM_MALLOC

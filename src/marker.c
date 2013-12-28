@@ -1,5 +1,5 @@
 /* Markers: examining, setting and killing.
-   Copyright (C) 1985, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -27,11 +27,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 static Lisp_Object mark_marker (Lisp_Object, void (*) (Lisp_Object));
 static void print_marker (Lisp_Object, Lisp_Object, int);
-static int sizeof_marker (void *h) { return (sizeof (struct Lisp_Marker)); }
 static int marker_equal (Lisp_Object, Lisp_Object, int);
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_marker,
-                               mark_marker, print_marker, 
-                               0, sizeof_marker, marker_equal);
+DEFINE_LRECORD_IMPLEMENTATION ("marker", lrecord_marker,
+                               mark_marker, print_marker, 0, marker_equal,
+			       sizeof (struct Lisp_Marker));
 
 static Lisp_Object
 mark_marker (Lisp_Object obj, void (*markobj) (Lisp_Object))
@@ -61,7 +60,7 @@ print_marker (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
     write_string_1 (GETTEXT ("in no buffer"), -1, printcharfun);
   else
     {
-      char buf[20];
+      char buf[200];
       sprintf (buf, "at %d", marker_position (obj));
       write_string_1 (buf, -1, printcharfun);
       write_string_1 (" in ", -1, printcharfun);

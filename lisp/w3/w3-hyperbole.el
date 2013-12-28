@@ -1,3 +1,4 @@
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Copyright (c) 1993, 1994 by William M. Perry (wmperry@indiana.edu)
 ;;;
@@ -23,31 +24,6 @@
 ;;; Since I really don't have a clue about hyperbole yet, I will just
 ;;; forward all questions on this file to him. :)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; There are no patches to w3 required, just the following file which I
-;;; call hwww.el. You have to patch hyperbole to keep it from thinking
-;;; URLs are ange-ftp pathnames. The following two functions are in
-;;; hpath.el:
-
-;;;(defun hpath:relative-to (path &optional default-dir)
-;;;  "Returns PATH relative to optional DEFAULT-DIR or 'default-directory'.
-;;;Returns PATH unchanged when it is not a valid path."
-;;;  (if (not (and (stringp path) 
-;;;		(not (string-match "^[^:/]+:" path)) ; no URLs
-;;;		(file-exists-p path)))
-;;;      path
-;;;...)))
-;;;
-;;;(defun hpath:substitute-var (path)
-;;;  "Replaces up to one match in PATH with first matching variable from 'hpath:variables'."
-;;;  (if (not (and (stringp path) (string-match "/" path)
-;;;					; differentiate between
-;;;					; urls and files
-;;;		(not (string-match "^[^:/]+:" path))))
-;;;      path
-;;;...))
-;;;
-;;;
 
 ;;; ************************************************************************
 ;;; Other required Elisp libraries
@@ -77,22 +53,7 @@
 
 (defib hwww:url ()
   "Attempts to follow a URL."
-  (let ((path (hwww:at-url)))
-    (if path
-	(progn (ibut:label-set path)
-	       (hact 'w3-fetch path)))))
-
-(defun hwww:at-url ()
-  (save-excursion
-    (re-search-forward "[ \t\n\"]" 
-		       (save-excursion (end-of-line)) 'leave-at-end)
-    (backward-char)
-    (re-search-backward "\\(news\\|ftp\\|http\\|file\\|telnet\\|gopher\\):"
-			(save-excursion
-			  (re-search-backward "[ \t\n]" nil 'leave-at-end))
-			t)
-    (if (looking-at "\\(news\\|ftp\\|http\\|file\\|telnet\\|gopher\\):[^ \t\"]+")
-	(buffer-substring (match-beginning 0) (match-end 0)))))
+  (w3-follow-url-at-point))
 
 
 (defact hwww:start (url)

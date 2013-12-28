@@ -19,15 +19,13 @@
 ;;;_ + Package Identification Stuff
 ;;;_  - Author: Ken Manheimer <klm@nist.gov>
 ;;;_  - Maintainer: Ken Manheimer <klm@nist.gov>
-;;;_  - Version: $Id: icomplete.el,v 1.1 1993/12/07 08:09:55 jwz Exp $
+;;;_  - Version: <<<cvs ate me>>>
 ;;;_  - Created: Mar 1993 klm@nist.gov - first release to usenet
 ;;;_  - Keywords: extensions
 ;;;_  - LCD Archive Entry and RCS ID
 ;;; icomplete|Ken Manheimer|klm@nist.gov
 ;;; |Completion enhancement, with incremental feedback in the minibuffer.
-;;; |$Date: 1993/12/07 08:09:55 $|$Id: icomplete.el,v 1.1 1993/12/07 08:09:55 jwz Exp $||
 ;;;
-;;; $Header: /cadillac-inferno-5/cvs-master/lemacs/lisp/packages/icomplete.el,v 1.1 1993/12/07 08:09:55 jwz Exp $
 
 ;;;_  - GNU Copyright
 ;;; This program is free software; you can redistribute it and/or modify
@@ -75,7 +73,7 @@ post-command-hook functions are used in v19.17 and earlier revs."
 	     (add-hook 'pre-command-hook 'icomplete-pre-command-hook 'append)
 	     (add-hook 'post-command-hook
 		       'icomplete-post-command-hook 'append))))
-	((equal "19.8 Lucid" emacs-version)
+	((string-match "Lucid" emacs-version)
 	 (add-hook 'pre-command-hook 'icomplete-pre-command-hook 'append)
 	 (add-hook 'post-command-hook
 		   'icomplete-post-command-hook 'append))

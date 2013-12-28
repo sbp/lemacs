@@ -1,5 +1,5 @@
-This is Info file ../info/lemacs.info, produced by Makeinfo-1.55 from
-the input file lemacs.texinfo.
+This is Info file ../../info/lemacs.info, produced by Makeinfo-1.56
+from the input file lemacs.texinfo.
 
    This file documents the GNU Emacs editor.
 
@@ -22,6 +22,519 @@ manual into another language, under the above conditions for modified
 versions, except that the sections entitled "The GNU Manifesto",
 "Distribution" and "GNU General Public License" may be included in a
 translation approved by the author instead of in the original English.
+
+
+File: lemacs.info,  Node: Recover,  Prev: Auto Save Control,  Up: Auto Save
+
+Recovering Data from Auto-Saves
+-------------------------------
+
+   If you want to use the contents of an auto-save file to recover from
+a loss of data, use the command `M-x recover-file RET FILE RET'.  Emacs
+visits FILE and then (after your confirmation) restores the contents
+from the auto-save file `#FILE#'.  You can then save the file with `C-x
+C-s' to put the recovered text into FILE itself.  For example, to
+recover file `foo.c' from its auto-save file `#foo.c#', do:
+
+     M-x recover-file RET foo.c RET
+     C-x C-s
+
+   Before asking for confirmation, `M-x recover-file' displays a
+directory listing describing the specified file and the auto-save file,
+so you can compare their sizes and dates.  If the auto-save file is
+older, `M-x recover-file' does not offer to read it.
+
+   Auto-saving is disabled by `M-x recover-file' because using this
+command implies that the auto-save file contains valuable data from a
+past session.  If you save the data in the visited file and then go on
+to make new changes, turn auto-saving back on with `M-x auto-save-mode'.
+
+
+File: lemacs.info,  Node: ListDir,  Next: Dired,  Prev: Auto Save,  Up: Files
+
+Listing a File Directory
+========================
+
+   Files are organized by Unix into "directories".  A "directory
+listing" is a list of all the files in a directory.  Emacs provides
+directory listings in brief format (file names only) and verbose format
+(sizes, dates, and authors included).
+
+`C-x C-d DIR-OR-PATTERN'
+     Print a brief directory listing (`list-directory').
+
+`C-u C-x C-d DIR-OR-PATTERN'
+     Print a verbose directory listing.
+
+   To print a directory listing, use `C-x C-d' (`list-directory').
+This command prompts in the minibuffer for a file name which is either
+a  directory to be listed or pattern containing wildcards for the files
+to be listed.  For example,
+
+     C-x C-d /u2/emacs/etc RET
+
+lists all the files in directory `/u2/emacs/etc'.  An example of
+specifying a file name pattern is:
+
+     C-x C-d /u2/emacs/src/*.c RET
+
+   Normally, `C-x C-d' prints a brief directory listing containing just
+file names.  A numeric argument (regardless of value) tells it to print
+a verbose listing (like `ls -l').
+
+   Emacs obtains the text of a directory listing by running `ls' in an
+inferior process.  Two Emacs variables control the switches passed to
+`ls': `list-directory-brief-switches' is a string giving the switches
+to use in brief listings (`"-CF"' by default).
+`list-directory-verbose-switches' is a string giving the switches to
+use in a verbose listing (`"-l"' by default).
+
+   The variable `directory-abbrev-alist' is an alist of abbreviations
+for file directories.  The list consists of elements of the form `(FROM
+.  TO)', each meaning to replace `FROM' with `TO' when it appears in a
+directory name.  This replacement is done when setting up the default
+directory of a newly visited file.  Every `FROM' string should start
+with ``^''.
+
+   Use this feature when you have directories which you normally refer
+to via absolute symbolic links.  Make `TO' the name of the link, and
+`FROM' the name it is linked to.
+
+
+File: lemacs.info,  Node: Dired,  Next: Misc File Ops,  Prev: ListDir,  Up: Files
+
+Dired, the Directory Editor
+===========================
+
+   Dired makes it easy to delete or visit many of the files in a single
+directory at once.  It creates an Emacs buffer containing a listing of
+the directory.  You can use the normal Emacs commands to move around in
+this buffer and special Dired commands to operate on the files.
+
+* Menu:
+
+* Enter: Dired Enter.         How to invoke Dired.
+* Edit: Dired Edit.           Editing the Dired buffer.
+* Deletion: Dired Deletion.   Deleting files with Dired.
+* Immed: Dired Immed.         Other file operations through Dired.
+
+
+File: lemacs.info,  Node: Dired Enter,  Next: Dired Edit,  Prev: Dired,  Up: Dired
+
+Entering Dired
+--------------
+
+   To invoke dired, type `C-x d' or `M-x dired'.  The command reads a
+directory name or wildcard file name pattern as a minibuffer argument
+just like the `list-directory' command, `C-x C-d'.  Where `dired'
+differs from `list-directory' is in naming the buffer after the
+directory name or the wildcard pattern used for the listing, and putting
+the buffer into Dired mode so that the special commands of Dired are
+available in it.  The variable `dired-listing-switches' is a string
+used as an argument to `ls' in making the directory; this string must
+contain `-l'.
+
+   To display the Dired buffer in another window rather than in the
+selected window, use `C-x 4 d' (`dired-other-window)' instead of `C-x
+d'.
+
+
+File: lemacs.info,  Node: Dired Edit,  Next: Dired Deletion,  Prev: Dired Enter,  Up: Dired
+
+Editing in Dired
+----------------
+
+   Once the Dired buffer exists, you can switch freely between it and
+other Emacs buffers.  Whenever the Dired buffer is selected, certain
+special commands are provided that operate on files that are listed.
+The Dired buffer is "read-only", and inserting text in it is not
+useful, so ordinary printing characters such as `d' and `x' are used
+for Dired commands.  Most Dired commands operate on the file described
+by the line that point is on.  Some commands perform operations
+immediately; others "flag" a file to be operated on later.
+
+   Most Dired commands that operate on the current line's file also
+treat a numeric argument as a repeat count, meaning to act on the files
+of the next few lines.  A negative argument means to operate on the
+files of the preceding lines, and leave point on the first of those
+lines.
+
+   All the usual Emacs cursor motion commands are available in Dired
+buffers.  Some special purpose commands are also provided.  The keys
+`C-n' and `C-p' are redefined so that they try to position the cursor
+at the beginning of the filename on the line, rather than at the
+beginning of the line.
+
+   For extra convenience, SPC and `n' in Dired are equivalent to `C-n'.
+`p' is equivalent to `C-p'.  Moving by lines is done so often in Dired
+that it deserves to be easy to type.  DEL (move up and unflag) is often
+useful simply for moving up.
+
+   The `g' command in Dired runs `revert-buffer' to reinitialize the
+buffer from the actual disk directory and show any changes made in the
+directory by programs other than Dired.  All deletion flags in the Dired
+buffer are lost when this is done.
+
+
+File: lemacs.info,  Node: Dired Deletion,  Next: Dired Immed,  Prev: Dired Edit,  Up: Dired
+
+Deleting Files With Dired
+-------------------------
+
+   The primary use of Dired is to flag files for deletion and then
+delete them.
+
+`d'
+     Flag this file for deletion.
+
+`u'
+     Remove deletion-flag on this line.
+
+`DEL'
+     Remove deletion-flag on previous line, moving point to that line.
+
+`x'
+     Delete the files that are flagged for deletion.
+
+`#'
+     Flag all auto-save files (files whose names start and end with `#')
+     for deletion (*note Auto Save::.).
+
+`~'
+     Flag all backup files (files whose names end with `~') for deletion
+     (*note Backup::.).
+
+`. (Period)'
+     Flag excess numeric backup files for deletion.  The oldest and
+     newest few backup files of any one file are exempt; the middle
+     ones are flagged.
+
+   You can flag a file for deletion by moving to the line describing the
+file and typing `d' or `C-d'.  The deletion flag is visible as a `D' at
+the beginning of the line.  Point is moved to the beginning of the next
+line, so that repeated `d' commands flag successive files.
+
+   The files are flagged for deletion rather than deleted immediately to
+avoid the danger of deleting a file accidentally.  Until you direct
+Dired to delete the flagged files, you can remove deletion flags using
+the commands `u' and DEL.  `u' works just like `d', but removes flags
+rather than making flags.  DEL moves upward, removing flags; it is like
+`u' with numeric argument automatically negated.
+
+   To delete the flagged files, type `x'.  This command first displays a
+list of all the file names flagged for deletion, and requests
+confirmation with `yes'.  Once you confirm, all the flagged files are
+deleted, and their lines are deleted from the text of the Dired buffer.
+The shortened Dired buffer remains selected.  If you answer `no' or
+quit with `C-g', you return immediately to Dired, with the deletion
+flags still present and no files actually deleted.
+
+   The `#', `~', and `.' commands flag many files for deletion, based
+on their names.  These commands are useful precisely because they do
+not actually delete any files; you can remove the deletion flags from
+any flagged files that you really wish to keep.
+
+   `#' flags for deletion all files that appear to have been made by
+auto-saving (that is, files whose names begin and end with `#').  `~'
+flags for deletion all files that appear to have been made as backups
+for files that were edited (that is, files whose names end with `~').
+
+   `.' (Period) flags just some of the backup files for deletion: only
+numeric backups that are not among the oldest few nor the newest few
+backups of any one file.  Normally `dired-kept-versions' (not
+`kept-new-versions'; that applies only when saving) specifies the
+number of newest versions of each file to keep, and `kept-old-versions'
+specifies the number of oldest versions to keep.  Period with a
+positive numeric argument, as in `C-u 3 .', specifies the number of
+newest versions to keep, overriding `dired-kept-versions'.  A negative
+numeric argument overrides `kept-old-versions', using minus the value
+of the argument to specify the number of oldest versions of each file
+to keep.
+
+
+File: lemacs.info,  Node: Dired Immed,  Prev: Dired Deletion,  Up: Dired
+
+Immediate File Operations in Dired
+----------------------------------
+
+   Some file operations in Dired take place immediately when they are
+requested.
+
+`c'
+     Copies the file described on the current line.  You must supply a
+     file name to copy to, using the minibuffer.
+
+`f'
+     Visits the file described on the current line.  It is just like
+     typing `C-x C-f' and supplying that file name.  If the file on
+     this line is a subdirectory, `f' actually causes Dired to be
+     invoked on that subdirectory.  *Note Visiting::.
+
+`o'
+     Like `f', but uses another window to display the file's buffer.
+     The Dired buffer remains visible in the first window.  This is
+     like using `C-x 4 C-f' to visit the file.  *Note Windows::.
+
+`r'
+     Renames the file described on the current line.  You must supply a
+     file name to rename to, using the minibuffer.
+
+`v'
+     Views the file described on this line using `M-x view-file'.
+     Viewing a file is like visiting it, but is slanted toward moving
+     around in the file conveniently and does not allow changing the
+     file.  *Note View File: Misc File Ops.  Viewing a file that is a
+     directory runs Dired on that directory.
+
+
+File: lemacs.info,  Node: Misc File Ops,  Prev: Dired,  Up: Files
+
+Miscellaneous File Operations
+=============================
+
+   Emacs has commands for performing many other operations on files.
+All operate on one file; they do not accept wildcard file names.
+
+   You can use the command `M-x add-name-to-file' to add a name to an
+existing file without removing the old name.  The new name must belong
+on the file system that the file is on.
+
+   `M-x append-to-file' adds the text of the region to the end of the
+specified file.
+
+   `M-x copy-file' reads the file OLD and writes a new file named NEW
+with the same contents.  Confirmation is required if a file named NEW
+already exists, because copying overwrites the old contents of the file
+NEW.
+
+   `M-x delete-file' deletes a specified file, like the `rm' command in
+the shell.  If you are deleting many files in one directory, it may be
+more convenient to use Dired (*note Dired::.).
+
+   `M-x insert-file' inserts a copy of the contents of a specified file
+into the current buffer at point, leaving point unchanged before the
+contents and the mark after them.  *Note Mark::.
+
+   `M-x make-symbolic-link' reads two file names OLD and LINKNAME, and
+then creates a symbolic link named LINKNAME and pointing at OLD.
+Future attempts to open file LINKNAME will then refer to the file named
+OLD at the time the opening is done, or will result in an error if the
+name OLD is not in use at that time.  Confirmation is required if you
+create the link while LINKNAME is in use.  Note that not all systems
+support symbolic links.
+
+   `M-x rename-file' reads two file names OLD and NEW using the
+minibuffer, then renames file OLD as NEW.  If a file named NEW already
+exists, you must confirm with `yes' or renaming is not done; this is
+because renaming causes the previous meaning of the name NEW to be
+lost.  If OLD and NEW are on different file systems, the file OLD is
+copied and deleted.
+
+   `M-x view-file' allows you to scan or read a file by sequential
+screenfuls.  It reads a file name argument using the minibuffer.  After
+reading the file into an Emacs buffer, `view-file' reads and displays
+one windowful.  You can then type SPC to scroll forward one window, or
+DEL to scroll backward.  Various other commands are provided for moving
+around in the file, but none for changing it; type `C-h' while viewing
+a file for a list of them.  Most commands are the default Emacs cursor
+motion commands.  To exit from viewing, type `C-c'.
+
+
+File: lemacs.info,  Node: Buffers,  Next: Windows,  Prev: Files,  Up: Top
+
+Using Multiple Buffers
+**********************
+
+   Text you are editing in Emacs resides in an object called a
+"buffer".  Each time you visit a file, Emacs creates a buffer to hold
+the file's text.  Each time you invoke Dired, Emacs creates a buffer to
+hold the directory listing.  If you send a message with `C-x m', a
+buffer named `*mail*' is used to hold the text of the message.  When
+you ask for a command's documentation, it appears in a buffer called
+`*Help*'.
+
+   At any time, one and only one buffer is "selected".  It is also
+called the "current buffer".  Saying a command operates on "the buffer"
+really means that the command operates on the selected buffer, as most
+commands do.
+
+   When Emacs creates multiple windows, each window has a chosen buffer
+which is displayed there, but at any time only one of the windows is
+selected and its chosen buffer is the selected buffer.  Each window's
+mode line displays the name of the buffer the window is displaying
+(*note Windows::.).
+
+   Each buffer has a name which can be of any length but is
+case-sensitive.  You can select a buffer using its name.  Most buffers
+are created when you visit files; their names are derived from the
+files' names.  You can also create an empty buffer with any name you
+want.  A newly started Emacs has a buffer named `*scratch*' which you
+can use for evaluating Lisp expressions in Emacs.
+
+   Each buffer records what file it is visiting, whether it is
+modified, and what major mode and minor modes are in effect in it
+(*note Major Modes::.).  Any Emacs variable can be made "local to" a
+particular buffer, meaning its value in that buffer can be different
+from the value in other buffers.  *Note Locals::.
+
+* Menu:
+
+* Select Buffer::   Creating a new buffer or reselecting an old one.
+* List Buffers::    Getting a list of buffers that exist.
+* Misc Buffer::     Renaming; changing read-onliness; copying text.
+* Kill Buffer::     Killing buffers you no longer need.
+* Several Buffers:: How to go through the list of all buffers
+                     and operate variously on several of them.
+
+
+File: lemacs.info,  Node: Select Buffer,  Next: List Buffers,  Prev: Buffers,  Up: Buffers
+
+Creating and Selecting Buffers
+==============================
+
+`C-x b BUFFER RET'
+     Select or create a buffer named BUFFER (`switch-to-buffer').
+
+`C-x 4 b BUFFER RET'
+     Similar, but select a buffer named BUFFER in another window
+     (`switch-to-buffer-other-window').
+
+`M-x switch-to-other-buffer N'
+     Switch to the previous buffer.
+
+   To select a buffer named BUFNAME, type `C-x b BUFNAME RET'.  This is
+the command `switch-to-buffer' with argument BUFNAME.  You can use
+completion on an abbreviation for the buffer name you want (*note
+Completion::.).  An empty argument to `C-x b' specifies the most
+recently selected buffer that is not displayed in any window.
+
+   Most buffers are created when you visit files, or use Emacs commands
+that display text.  You can also create a buffer explicitly by typing
+`C-x b BUFNAME RET', which creates a new, empty buffer that is not
+visiting any file, and selects it for editing.  The new buffer's major
+mode is determined by the value of `default-major-mode' (*note Major
+Modes::.).  Buffers not visiting files are usually used for making
+notes to yourself.  If you try to save one, you are asked for the file
+name to use.
+
+   The function `switch-to-buffer-other-screen' is similar to
+`switch-to-buffer' except that it creates a new screen in which to
+display the selected buffer.
+
+   Use `M-x switch-to-other-buffer' to visit the previous buffer. If
+you supply a positive integer N, the Nth most recent buffer is
+displayed. If you supply an argument of 0, the current buffer is moved
+to the bottom of the buffer stack.
+
+   Note that you can also use `C-x C-f' and any other command for
+visiting a file to switch buffers.  *Note Visiting::.
+
+
+File: lemacs.info,  Node: List Buffers,  Next: Misc Buffer,  Prev: Select Buffer,  Up: Buffers
+
+Listing Existing Buffers
+========================
+
+`C-x C-b'
+     List the existing buffers (`list-buffers').
+
+   To print a list of all existing buffers, type `C-x C-b'.  Each line
+in the list shows one buffer's name, major mode, and visited file.  A
+`*' at the beginning of a line indicates the buffer has been
+"modified".  If several buffers are modified, it may be time to save
+some with `C-x s' (*note Saving::.).  A `%' indicates a read-only
+buffer.  A `.' marks the selected buffer.  Here is an example of a
+buffer list:
+
+      MR Buffer         Size  Mode           File
+      -- ------         ----  ----           ----
+     .*  emacs.tex      383402 Texinfo       /u2/emacs/man/emacs.tex
+         *Help*         1287  Fundamental
+         files.el       23076 Emacs-Lisp     /u2/emacs/lisp/files.el
+       % RMAIL          64042 RMAIL          /u/rms/RMAIL
+      *% man            747   Dired		/u2/emacs/man/
+         net.emacs      343885 Fundamental   /u/rms/net.emacs
+         fileio.c       27691 C              /u2/emacs/src/fileio.c
+         NEWS           67340 Text           /u2/emacs/etc/NEWS
+         *scratch*	   0	 Lisp Interaction
+
+Note that the buffer `*Help*' was made by a help request; it is not
+visiting any file.  The buffer `man' was made by Dired on the directory
+`/u2/emacs/man/'.
+
+   As you move the mouse over the `*Buffer List*' buffer, the lines are
+highlighted.  This visual cue indicates that clicking the right mouse
+button (`button3') will pop up a menu of commands on the buffer
+represented by this line.  This menu duplicates most of those commands
+which are bound to keys in the `*Buffer List*' buffer.
+
+
+File: lemacs.info,  Node: Misc Buffer,  Next: Kill Buffer,  Prev: List Buffers,  Up: Buffers
+
+Miscellaneous Buffer Operations
+===============================
+
+`C-x C-q'
+     Toggle read-only status of buffer (`toggle-read-only').
+
+`M-x rename-buffer'
+     Change the name of the current buffer.
+
+`M-x view-buffer'
+     Scroll through a buffer.
+
+   A buffer can be "read-only", which means that commands to change its
+text are not allowed.  Normally, read-only buffers are created by
+subsystems such as Dired and Rmail that have special commands to operate
+on the text.  Emacs also creates a read-only buffer if you visit a file
+that is protected.  To make changes in a read-only buffer, use the
+command `C-x C-q' (`toggle-read-only').  It makes a read-only buffer
+writable, and makes a writable buffer read-only.  This works by setting
+the variable `buffer-read-only', which has a local value in each buffer
+and makes a buffer read-only if its value is non-`nil'.
+
+   `M-x rename-buffer' changes the name of the current buffer,
+prompting for the new name in the minibuffer.  There is no default.  If
+you specify a name that is used by a different buffer, an error is
+signalled and renaming is not done.
+
+   `M-x view-buffer' is similar to `M-x view-file' (*note Misc File
+Ops::.), but it examines an already existing Emacs buffer.  View mode
+provides convenient commands for scrolling through the buffer but not
+for changing it.  When you exit View mode, the resulting value of point
+remains in effect.
+
+   To copy text from one buffer to another, use the commands `M-x
+append-to-buffer' and `M-x insert-buffer'.  *Note Accumulating Text::.
+
+
+File: lemacs.info,  Node: Kill Buffer,  Next: Several Buffers,  Prev: Misc Buffer,  Up: Buffers
+
+Killing Buffers
+===============
+
+   After using Emacs for a while, you may accumulate a large number of
+buffers and may want to eliminate the ones you no longer need.  There
+are several commands for doing this.
+
+`C-x k'
+     Kill a buffer, specified by name (`kill-buffer').
+
+`M-x kill-some-buffers'
+     Offer to kill each buffer, one by one.
+
+   `C-x k' (`kill-buffer') kills one buffer, whose name you specify in
+the minibuffer.  If you type just RET in the minibuffer, the default,
+killing the current buffer, is used.  If the current buffer is killed,
+the buffer that has been selected recently but does not appear in any
+window now is selected.  If the buffer being killed contains unsaved
+changes, you are asked to confirm with `yes' before the buffer is
+killed.
+
+   The command `M-x kill-some-buffers' asks about each buffer, one by
+one.  An answer of `y' means to kill the buffer.  Killing the current
+buffer or a buffer containing unsaved changes selects a new buffer or
+asks for confirmation just like `kill-buffer'.
 
 
 File: lemacs.info,  Node: Several Buffers,  Prev: Kill Buffer,  Up: Buffers
@@ -88,7 +601,7 @@ additional windows.
      effect immediately.
 
 `2'
-     Immediately set up two windows, with this buffer in one, and the
+     Immediately set up two windows, with this buffer in one and the
      buffer selected before `*Buffer List*' in the other.
 
 `f'
@@ -113,8 +626,8 @@ additional windows.
    Going back between a `buffer-menu' buffer and other Emacs buffers is
 easy.  You can, for example, switch from the `*Buffer List*' buffer to
 another Emacs buffer, and edit there.  You can then reselect the
-`buffer-menu' buffer, and perform operations already requested, or you
-can kill that buffer, or pay no further attention to it.   All that
+`buffer-menu' buffer and perform operations already requested, or you
+can kill that buffer or pay no further attention to it.   All that
 `buffer-menu' does directly is create and select a suitable buffer, and
 turn on Buffer Menu mode.  All the other capabilities of the buffer
 menu are implemented by special commands provided in Buffer Menu mode.
@@ -132,7 +645,7 @@ Multiple Windows
 ****************
 
    Emacs can split the screen into two or many windows, which can
-display parts of different buffers, or different parts of one buffer.
+display parts of different buffers or different parts of one buffer.
 If you are running Lucid GNU Emacs under X, that means you can have the
 X window that contains the Emacs screen have multiple subwindows.
 
@@ -156,10 +669,10 @@ one window; if it does, any changes in its text are displayed in all
 the windows that display it.  Windows showing the same buffer can show
 different parts of it, because each window has its own value of point.
 
-   At any time, one  windows is the "selected window"; the buffer
+   At any time, one  window is the "selected window"; the buffer
 displayed by that window is the current buffer.  The cursor shows the
 location of point in that window.  Each other window has a location of
-point as well, but since the terminal has only one cursor it cannot
+point as well, but since the terminal has only one cursor, it cannot
 show the location of point in the other windows.
 
    Commands to move point affect the value of point for the selected
@@ -174,7 +687,7 @@ information in a window, including (for example) `C-h f'
 buffers in a non-selected window without affecting the selected window.
 
    Each window has its own mode line, which displays the buffer name,
-modification status and major and minor modes of the buffer that is
+modification status, and major and minor modes of the buffer that is
 displayed in the window.  *Note Mode Line::, for details on the mode
 line.
 
@@ -188,12 +701,9 @@ Splitting Windows
      Split the selected window into two windows, one above the other
      (`split-window-vertically').
 
-`C-x 5'
+`C-x 3'
      Split the selected window into two windows positioned side by side
      (`split-window-horizontally').
-
-     In Lucid GNU Emacs, horizontal window splitting is not
-     implemented.  In this version, `C-x 5' creates a new screen.
 
 `C-x 6'
      Save the current window configuration in register REG (a letter).
@@ -209,7 +719,7 @@ each of the two windows gets half the height of the window that was
 split.  A numeric argument specifies how many lines to give to the top
 window.
 
-   `C-x 5' (`split-window-horizontally') breaks the selected window
+   `C-x 3' (`split-window-horizontally') breaks the selected window
 into two side-by-side windows.  A numeric argument specifies how many
 columns to give the one on the left.  A line of vertical bars separates
 the two windows.  Windows that are not the full width of the screen
@@ -230,7 +740,7 @@ Display::.
    You can resize a window and store that configuration in a register by
 supplying a REGISTER argument to `register-to-window-config' (`C-x 6').
 To return to the window configuration established with
-(`window-config-to-register', use `register-to-window-config' (`C-x 7').
+`window-config-to-register', use `register-to-window-config' (`C-x 7').
 
 
 File: lemacs.info,  Node: Other Window,  Next: Pop Up Window,  Prev: Split Window,  Up: Windows
@@ -239,7 +749,8 @@ Using Other Windows
 ===================
 
 `C-x o'
-     Select another window (`other-window').  That is `o', not zero.
+     Select another window (`other-window').  That is the letter `o',
+     not zero.
 
 `C-M-v'
      Scroll the next window (`scroll-other-window').
@@ -322,10 +833,10 @@ buffer to select.
      `find-tag-other-window', the multiple-window variant of `M-.'
      (*note Tags::.).
 
-   If the variable `display-buffer-function' is non-`nil', it is the
-function to call to handle display-buffer. It receives two arguments,
-the buffer and a flag, that if non-`nil', means that the currently
-selected window is not acceptable. Commands, such as
+   If the variable `display-buffer-function' is non-`nil', its value is
+the function to call to handle `display-buffer'. It receives two
+arguments, the buffer and a flag that if non-`nil' means that the
+currently selected window is not acceptable. Commands such as
 `switch-to-buffer-other-window' and `find-file-other-window' work using
 this function.
 
@@ -380,7 +891,7 @@ divided up.   Minimum window size is specified by the variables
    You can also resize windows within a screen by clicking the left
 mouse button on a modeline, and dragging.
 
-   Clicking the right button on a modeline pops up a menu of common
+   Clicking the right button on a mode line pops up a menu of common
 window manager operations.  This menu contains the following options:
 
 Delete Window
@@ -430,7 +941,7 @@ the buffer.  *Note Syntax::.
 
    The major modes fall into three major groups.  Lisp mode (which has
 several variants), C mode, and Muddle mode are for specific programming
-languages.  Text mode, Nroff mode, TeX mode and Outline mode are for
+languages.  Text mode, Nroff mode, TeX mode, and Outline mode are for
 editing English text.  The remaining major modes are not intended for
 use on users' files; they are used in buffers created by Emacs for
 specific purposes and include Dired mode for buffers made by Dired
@@ -467,7 +978,7 @@ lisp-mode'.
 based on the file's name.  For example, files whose names end in `.c'
 are edited in C mode.  The variable `auto-mode-alist' controls the
 correspondence between file names and major mode.  Its value is a list
-in which each element has the form
+in which each element has the form:
 
      (REGEXP . MODE-FUNCTION)
 
@@ -489,7 +1000,7 @@ tells Emacs to use Lisp mode.  Note how the semicolon is used to make
 Lisp treat this line as a comment.  Such an explicit specification
 overrides any default mode based on the file name.
 
-   Another format of mode specification is
+   Another format of mode specification is:
 
      -*-Mode: MODENAME;-*-
 
@@ -550,7 +1061,7 @@ Lisp code, lines are indented according to their nesting in
 parentheses.  The same general idea is used for C code, though details
 differ.
 
-   Use the TAB command to indent a line whatever the language, Each
+   Use the TAB command to indent a line whatever the language.  Each
 major mode defines this command to perform indentation appropriate for
 the particular language.  In Lisp mode, TAB aligns a line according to
 its depth in parentheses.  No matter where in the line you are when you
@@ -595,10 +1106,11 @@ regard, `C-M-o' resembles `C-o'.
    To join two lines cleanly, use the `Meta-^' (`delete-indentation')
 command to delete the indentation at the front of the current line, and
 the line boundary as well.  Empty spaces are replaced by a single
-space, or by no space if at the beginning of a line, before a `)', or
-after a `('.  To delete just the indentation of a line, go to the
-beginning of the line and use `Meta-\' (`delete-horizontal-space'),
-which deletes all spaces and tabs around the cursor.
+space, or by no space if at the beginning of a line, before a close
+parenthesis, or after an open parenthesis.  To delete just the
+indentation of a line, go to the beginning of the line and use `Meta-\'
+(`delete-horizontal-space'), which deletes all spaces and tabs around
+the cursor.
 
    There are also commands for changing the indentation of several
 lines at once.  `Control-Meta-\' (`indent-region') gives each line which
@@ -650,7 +1162,8 @@ buffers share the same tab stops and changing them in one buffer
 affects all.  If you make `tab-stop-list' local in one buffer
 `edit-tab-stops' in that buffer edits only the local settings.
 
-   Here is the text representing ordinary tab stops every eight columns.
+   Below is the text representing ordinary tab stops every eight
+columns:
 
              :       :       :       :       :       :
      0         1         2         3         4
@@ -682,484 +1195,4 @@ scans the region for sequences of spaces, and converts sequences of at
 least three spaces to tabs if that is possible without changing
 indentation.  `M-x untabify' changes all tabs in the region to
 corresponding numbers of spaces.
-
-
-File: lemacs.info,  Node: Text,  Next: Programs,  Prev: Indentation,  Up: Top
-
-Commands for Human Languages
-****************************
-
-   The term "text" has two widespread meanings in our area of the
-computer field.  One is data that is a sequence of characters.  In this
-sense of the word any file that you edit with Emacs is text.  The other
-meaning is more restrictive: a sequence of characters in a human
-language for humans to read (possibly after processing by a text
-formatter), as opposed to a program or commands for a program.
-
-   Human languages have syntactic and stylistic conventions that editor
-commands should support or use to advantage: conventions involving
-words, sentences, paragraphs, and capital letters.  This chapter
-describes Emacs commands for all these things.  There are also commands
-for "filling", or rearranging paragraphs into lines of approximately
-equal length.  The commands for moving over and killing words, sentences
-and paragraphs, while intended primarily for editing text, are also
-often useful for editing programs.
-
-   Emacs has several major modes for editing human language text.  If a
-file contains plain text, use Text mode, which customizes Emacs in
-small ways for the syntactic conventions of text.  For text which
-contains embedded commands for text formatters, Emacs has other major
-modes, each for a particular text formatter.  Thus, for input to TeX,
-you can use TeX mode; for input to nroff, Nroff mode.
-
-* Menu:
-
-* Text Mode::   The major modes for editing text files.
-* Nroff Mode::  The major mode for editing input to the formatter nroff.
-* TeX Mode::    The major modes for editing input to the formatter TeX.
-* Outline Mode::The major mode for editing outlines.
-* Words::       Moving over and killing words.
-* Sentences::   Moving over and killing sentences.
-* Paragraphs::	Moving over paragraphs.
-* Pages::	Moving over pages.
-* Filling::     Filling or justifying text
-* Case::        Changing the case of text
-
-
-File: lemacs.info,  Node: Text Mode,  Next: Words,  Prev: Text,  Up: Text
-
-Text Mode
-=========
-
-   You should use Text mode--rather than Fundamental or Lisp mode--to
-edit files of text in a human language.  Invoke `M-x text-mode' to
-enter Text mode.  In Text mode, TAB runs the function
-`tab-to-tab-stop', which allows you to use arbitrary tab stops set with
-`M-x edit-tab-stops' (*note Tab Stops::.).  Features concerned with
-comments in programs are turned off unless they are explicitly invoked.
-The syntax table is changed so that periods are not considered part of a
-word, while apostrophes, backspaces and underlines are.
-
-   A similar variant mode is Indented Text mode, intended for editing
-text in which most lines are indented.  This mode defines TAB to run
-`indent-relative' (*note Indentation::.), and makes Auto Fill indent
-the lines it creates.  As a result, a line made by Auto Filling, or by
-LFD, is normally indented just like the previous line.  Use `M-x
-indented-text-mode' to select this mode.
-
-   Entering Text mode or Indented Text mode calls the value of the
-variable `text-mode-hook' with no arguments, if that value exists and
-is not `nil'.  This value is also called when modes related to Text
-mode are entered; this includes Nroff mode, TeX mode, Outline mode and
-Mail mode.  Your hook can look at the value of `major-mode' to see
-which of these modes is actually being entered.
-
-   Two modes similar to Text mode are of use for editing text that is to
-be passed through a text formatter before achieving the form in which
-humans are to read it.
-
-* Menu:
-
-* Nroff Mode::  The major mode for editing input to the formatter nroff.
-* TeX Mode::    The major modes for editing input to the formatter TeX.
-
-
-  Another similar mode is used for editing outlines.  It allows you
-to view the text at various levels of detail.  You can view either
-the outline headings alone or both headings and text; you can also
-hide some of the headings at lower levels from view to make the high
-level structure more visible.
-
-
-* Outline Mode::The major mode for editing outlines.
-
-
-File: lemacs.info,  Node: Nroff Mode,  Next: TeX Mode,  Prev: Text Mode,  Up: Text Mode
-
-Nroff Mode
-----------
-
-   Nroff mode is a mode like Text mode but modified to handle nroff
-commands present in the text.  Invoke `M-x nroff-mode' to enter this
-mode.  Nroff mode differs from Text mode in only a few ways.  All nroff
-command lines are considered paragraph separators, so that filling never
-garbles the nroff commands.  Pages are separated by `.bp' commands.
-Comments start with backslash-doublequote.  There are also three special
-commands that are not available in Text mode:
-
-`M-n'
-     Move to the beginning of the next line that isn't an nroff command
-     (`forward-text-line').  An argument is a repeat count.
-
-`M-p'
-     Like `M-n' but move up (`backward-text-line').
-
-`M-?'
-     Prints in the echo area the number of text lines (lines that are
-     not nroff commands) in the region (`count-text-lines').
-
-   The other feature of Nroff mode is that you can turn on Electric
-Nroff newline mode.  This is a minor mode that you can turn on or off
-with `M-x electric-nroff-mode' (*note Minor Modes::.).  When the mode is
-on and you use RET to end a line that containing an nroff command that
-opens a kind of grouping, Emacs automatically inserts the matching
-nroff command to close that grouping on the following line.  For
-example, if you are at the beginning of a line and type `. ( b RET',
-the matching command `.)b' will be inserted on a new line following
-point.
-
-   Entering Nroff mode calls the value of the variable `text-mode-hook'
-with no arguments, if that value exists and is not `nil'; then does the
-same with the variable `nroff-mode-hook'.
-
-
-File: lemacs.info,  Node: TeX Mode,  Next: Outline Mode,  Prev: Nroff Mode,  Up: Text Mode
-
-TeX Mode
---------
-
-   TeX is a powerful text formatter written by Donald Knuth; like GNU
-Emacs, it is free.  LaTeX is a simplified input format for TeX,
-implemented by TeX macros.  It is part of TeX.
-
-   Emacs has a special TeX mode for editing TeX input files.  It
-provides facilities for checking the balance of delimiters and for
-invoking TeX on all or part of the file.
-
-   TeX mode has two variants, Plain TeX mode and LaTeX mode, which are
-two distinct major modes that differ only slightly.  These modes are
-designed for editing the two different input formats.  The command `M-x
-tex-mode' looks at the contents of a buffer to determine whether it
-appears to be LaTeX input or not; it then selects the appropriate mode.
-If it can't tell which is right (e.g., the buffer is empty), the
-variable `TeX-default-mode' controls which mode is used.
-
-   The commands `M-x plain-tex-mode' and `M-x latex-mode' explicitly
-select one of the variants of TeX mode.  Use these commands when `M-x
-tex-mode' does not guess right.
-
-* Menu:
-
-* Editing: TeX Editing.   Special commands for editing in TeX mode.
-* Printing: TeX Print.    Commands for printing part of a file with TeX.
-
-   TeX for Unix systems can be obtained from the University of
-Washington for a distribution fee.
-
-   To order a full distribution, send $140.00 for a 1/2 inch 9-track
-tape, $165.00 for two 4-track 1/4 inch cartridge tapes (foreign sites
-$150.00, for 1/2 inch, $175.00 for 1/4 inch, to cover the extra
-postage) payable to the University of Washington to:
-
-     The Director
-     Northwest Computer Support Group,  DW-10
-     University of Washington
-     Seattle, Washington 98195
-
-Purchase orders are acceptable, but there is an extra charge of $10.00,
-to pay for processing charges. (Total of $150 for domestic sites, $175
-for foreign sites).
-
-   The normal distribution is a tar tape, blocked 20, 1600 bpi, on an
-industry standard 2400 foot half-inch reel.  The physical format for
-the 1/4 inch streamer cartridges uses QIC-11, 8000 bpi, 4-track
-serpentine recording for the SUN.  Also, SystemV tapes can be written
-in cpio format, blocked 5120 bytes, ASCII headers.
-
-
-File: lemacs.info,  Node: TeX Editing,  Next: TeX Print,  Prev: TeX Mode,  Up: TeX Mode
-
-TeX Editing Commands
-....................
-
-   Here are the special commands provided in TeX mode for editing the
-text of the file.
-
-`"'
-     Insert, according to context, either ```' or `"' or `'''
-     (`TeX-insert-quote').
-
-`LFD'
-     Insert a paragraph break (two newlines) and check the previous
-     paragraph for unbalanced braces or dollar signs (`TeX-terminate-
-     paragraph').
-
-`M-x validate-TeX-buffer'
-     Check each paragraph in the buffer for unbalanced braces or dollar
-     signs.
-
-`M-{'
-     Insert `{}' and position point between them (`TeX-insert-braces').
-
-`M-}'
-     Move forward past the next unmatched close brace (`up-list').
-
-`C-c C-f'
-     Close a block for LaTeX (`TeX-close-LaTeX-block').
-
-   In TeX, the character `"' is not normally used; you use ```' to
-start a quotation and `''' to end one.  TeX mode defines the key `"' to
-insert ```' after whitespace or an open brace, `"' after a backslash,
-or `''' otherwise.  This is done by the command `TeX-insert-quote'.  If
-you need the character `"' itself in unusual contexts, use `C-q' to
-insert it.  Also, `"' with a numeric argument always inserts that
-number of `"' characters.
-
-   In TeX mode, `$' has a special syntax code which attempts to
-understand the way TeX math mode delimiters match.  When you insert a
-`$' that is meant to exit math mode, the position of the matching `$'
-that entered math mode is displayed for a second.  This is the same
-feature that displays the open brace that matches a close brace that is
-inserted.  However, there is no way to tell whether a `$' enters math
-mode or leaves it; so when you insert a `$' that enters math mode, the
-previous `$' position is shown as if it were a match, even though they
-are actually unrelated.
-
-   If you prefer to keep braces balanced at all times, you can use `M-{'
-(`TeX-insert-braces') to insert a pair of braces.  It leaves point
-between the two braces so you can insert the text that belongs inside.
-Afterward, use the command `M-}' (`up-list') to move forward past the
-close brace.
-
-   There are two commands for checking the matching of braces.  LFD
-(`TeX-terminate-paragraph') checks the paragraph before point, and
-inserts two newlines to start a new paragraph.  It prints a message in
-the echo area if any mismatch is found.  `M-x validate-TeX-buffer'
-checks the entire buffer, paragraph by paragraph.  When it finds a
-paragraph that contains a mismatch, it displays point at the beginning
-of the paragraph for a few seconds and pushes a mark at that spot.
-Scanning continues until the whole buffer has been checked or until you
-type another key.  The positions of the last several paragraphs with
-mismatches can be found in the mark ring (*note Mark Ring::.).
-
-   Note that square brackets and parentheses, not just braces, are
-matched in TeX mode.  This is wrong if you want to  check TeX syntax.
-However, parentheses and square brackets are likely to be used in text
-as matching delimiters and it is useful for the various motion commands
-and automatic match display to work with them.
-
-   In LaTeX input, `\begin' and `\end' commands must balance.  After
-you insert a `\begin', use `C-c C-f' (`TeX-close-LaTeX-block') to
-insert automatically a matching `\end' (on a new line following the
-`\begin').  A blank line is inserted between the two, and point is left
-there.
-
-
-File: lemacs.info,  Node: TeX Print,  Prev: TeX Editing,  Up: TeX Mode
-
-TeX Printing Commands
-.....................
-
-   You can invoke TeX as an inferior of Emacs on either the entire
-contents of the buffer or just a region at a time.  Running TeX in this
-way on just one chapter is a good way to see what your changes look
-like without taking the time to format the entire file.
-
-`C-c C-r'
-     Invoke TeX on the current region, plus the buffer's header
-     (`TeX-region').
-
-`C-c C-b'
-     Invoke TeX on the entire current buffer (`TeX-buffer').
-
-`C-c C-l'
-     Recenter the window showing output from the inferior TeX so that
-     the last line can be seen (`TeX-recenter-output-buffer').
-
-`C-c C-k'
-     Kill the inferior TeX (`TeX-kill-job').
-
-`C-c C-p'
-     Print the output from the last `C-c C-r' or `C-c C-b' command
-     (`TeX-print').
-
-`C-c C-q'
-     Show the printer queue (`TeX-show-print-queue').
-
-   You can pass the current buffer through an inferior TeX using `C-c
-C-b' (`TeX-buffer').  The formatted output appears in a file in `/tmp';
-to print it, type `C-c C-p' (`TeX-print').  Afterward use `C-c C-q'
-(`TeX-show-print-queue') to view the progress of your output towards
-being printed.
-
-   The console output from TeX, including any error messages, appears
-in a buffer called `*TeX-shell*'.  If TeX gets an error, you can switch
-to this buffer and feed it input (this works as in Shell mode; *note
-Interactive Shell::.).  Without switching to this buffer, you can scroll
-it so that its last line is visible by typing `C-c C-l'.
-
-   Type `C-c C-k' (`TeX-kill-job') to kill the TeX process if you see
-that its output is no longer useful.  Using `C-c C-b' or `C-c C-r' also
-kills any TeX process still running.
-
-   You can pass an arbitrary region through an inferior TeX by typing
-`C-c C-r' (`TeX-region').  This is tricky, however, because most files
-of TeX input contain commands at the beginning to set parameters and
-define macros.  Without them, no later part of the file will format
-correctly.  To solve this problem, `C-c C-r' allows you to designate a
-part of the file as containing essential commands; it is included
-before the specified region as part of the input to TeX.  The
-designated part of the file is called the "header".
-
-   To indicate the bounds of the header in Plain TeX mode, insert two
-special strings in the file: `%**start of header' before the header,
-and `%**end of header' after it.  Each string must appear entirely on
-one line, but there may be other text on the line before or after.  The
-lines containing the two strings are included in the header.  If
-`%**start of header' does not appear within the first 100 lines of the
-buffer, `C-c C-r' assumes there is no header.
-
-   In LaTeX mode, the header begins with `\documentstyle' and ends with
-`\begin{document}'.  These are commands that LaTeX requires you to use,
-so you don't need to do anything special to identify the header.
-
-   When you enter either kind of TeX mode, Emacs calls with no
-arguments the value of the variable `text-mode-hook', if that value
-exists and is not `nil'.  Emacs then calls the variable `TeX-mode-hook'
-and either `plain-TeX-mode-hook' or `LaTeX-mode-hook' under the same
-conditions.
-
-
-File: lemacs.info,  Node: Outline Mode,  Prev: TeX Mode,  Up: Text Mode
-
-Outline Mode
-------------
-
-   Outline mode is a major mode similar to Text mode but intended for
-editing outlines.  It allows you to make parts of the text temporarily
-invisible so that you can see just the overall structure of the
-outline.  Type `M-x outline-mode' to turn on Outline mode in the
-current buffer.
-
-   When you enter Outline mode, Emacs calls with no arguments the value
-of the variable `text-mode-hook', if that value exists and is not
-`nil'; then it does the same with the variable `outline-mode-hook'.
-
-   When a line is invisible in outline mode, it does not appear on the
-screen.  The screen appears exactly as if the invisible line were
-deleted, except that an ellipsis (three periods in a row) appears at
-the end of the previous visible line (only one ellipsis no matter how
-many invisible lines follow).
-
-   All editing commands treat the text of the invisible line as part of
-the previous visible line.  For example, `C-n' moves onto the next
-visible line.  Killing an entire visible line, including its
-terminating newline, really kills all the following invisible lines as
-well; yanking everything back yanks the invisible lines and they remain
-invisible.
-
-* Menu:
-
-* Format: Outline Format.	  What the text of an outline looks like.
-* Motion: Outline Motion.	  Special commands for moving through outlines.
-* Visibility: Outline Visibility. Commands to control what is visible.
-
-
-File: lemacs.info,  Node: Outline Format,  Next: Outline Motion,  Prev: Outline Mode,  Up: Outline Mode
-
-Format of Outlines
-..................
-
-   Outline mode assumes that the lines in the buffer are of two types:
-"heading lines" and "body lines".  A heading line represents a topic in
-the outline.  Heading lines start with one or more stars; the number of
-stars determines the depth of the heading in the outline structure.
-Thus, a heading line with one star is a major topic; all the heading
-lines with two stars between it and the next one-star heading are its
-subtopics; and so on.  Any line that is not a heading line is a body
-line.  Body lines belong to the preceding heading line.  Here is an
-example:
-
-     * Food
-     
-     This is the body,
-     which says something about the topic of food.
-     
-     ** Delicious Food
-     
-     This is the body of the second-level header.
-     
-     ** Distasteful Food
-     
-     This could have
-     a body too, with
-     several lines.
-     
-     *** Dormitory Food
-     
-     * Shelter
-     
-     A second first-level topic with its header line.
-
-   A heading line together with all following body lines is called
-collectively an "entry".  A heading line together with all following
-deeper heading lines and their body lines is called a "subtree".
-
-   You can customize the criterion for distinguishing heading lines by
-setting the variable `outline-regexp'.  Any line whose beginning has a
-match for this regexp is considered a heading line.  Matches that start
-within a line (not at the beginning) do not count.  The length of the
-matching text determines the level of the heading; longer matches make
-a more deeply nested level.  Thus, for example, if a text formatter has
-commands `@chapter', `@section' and `@subsection' to divide the
-document into chapters and sections, you can make those lines count as
-heading lines by setting `outline-regexp' to
-`"@chap\\|@\\(sub\\)*section"'.  Note the trick: the two words
-`chapter' and `section' are the same length, but by defining the regexp
-to match only `chap' we ensure that the length of the text matched on a
-chapter heading is shorter, so that Outline mode will know that
-sections are contained in chapters.  This works as long as no other
-command starts with `@chap'.
-
-   Outline mode makes a line invisible by changing the newline before it
-into an ASCII Control-M (code 015).  Most editing commands that work on
-lines treat an invisible line as part of the previous line because,
-strictly speaking, it is part of that line, since there is no longer a
-newline in between.  When you save the file in Outline mode, Control-M
-characters are saved as newlines, so the invisible lines become ordinary
-lines in the file.  Saving does not change the visibility status of a
-line inside Emacs.
-
-
-File: lemacs.info,  Node: Outline Motion,  Next: Outline Visibility,  Prev: Outline Format,  Up: Outline Mode
-
-Outline Motion Commands
-.......................
-
-   Some special commands in Outline mode move backward and forward to
-heading lines.
-
-`C-c C-n'
-     Move point to the next visible heading line
-     (`outline-next-visible-heading').
-
-`C-c C-p'
-     Move point to the previous visible heading line
-     (`outline-previous-visible-heading').
-
-`C-c C-f'
-     Move point to the next visible heading line at the same level as
-     the one point is on (`outline-forward-same-level').
-
-`C-c C-b'
-     Move point to the previous visible heading line at the same level
-     (`outline-backward-same-level').
-
-`C-c C-u'
-     Move point up to a lower-level (more inclusive) visible heading
-     line (`outline-up-heading').
-
-   `C-c C-n' (`next-visible-heading') moves down to the next heading
-line.  `C-c C-p' (`previous-visible-heading') moves similarly backward.
-Both accept numeric arguments as repeat counts.  The names emphasize
-that invisible headings are skipped, but this is not really a special
-feature.  All editing commands that look for lines ignore the invisible
-lines automatically.
-
-   More advanced motion commands understand the levels of headings.
-The commands `C-c C-f' (`outline-forward-same-level') and `C-c C-b'
-(`outline-backward-same-level') move from one heading line to another
-visible heading at the same depth in the outline.  `C-c C-u'
-(`outline-up-heading') moves backward to another heading that is less
-deeply nested.
 

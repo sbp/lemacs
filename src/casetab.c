@@ -1,5 +1,5 @@
 /* GNU Emacs routines to deal with case tables.
-   Copyright (C) 1987, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -48,7 +48,8 @@ See `set-case-table' for more information on these data structures.")
   return (STRING256_P (down)
 	  && (NILP (up) || STRING256_P (up))
 	  && ((NILP (canon) && NILP (eqv))
-	      || (STRING256_P (canon) && STRING256_P (eqv)))
+	      || (STRING256_P (canon)
+                  && (NILP (eqv) || STRING256_P (eqv))))
 	  ? Qt : Qnil);
 }
 
@@ -102,11 +103,11 @@ UPCASE maps each character to its upper-case equivalent;\n\
  you may use nil and the upcase table will be deduced from DOWNCASE.\n\
 CANONICALIZE maps each character to a canonical equivalent;\n\
  any two characters that are related by case-conversion have the same\n\
- canonical equivalent character.\n\
+ canonical equivalent character; it may be nil, in which case it is\n\
+ deduced from DOWNCASE and UPCASE.\n\
 EQUIVALENCES is a map that cyclicly permutes each equivalence class\n\
- (of characters with the same canonical equivalent).\n\
-Both CANONICALIZE and EQUIVALENCES may be nil, in which case\n\
- both are deduced from DOWNCASE and UPCASE.")
+ (of characters with the same canonical equivalent); it may be nil,\n\
+ in which case it is deduced from CANONICALIZE.")
   (table)
      Lisp_Object table;
 {
@@ -150,13 +151,17 @@ set_case_table (table, standard)
       unsigned char *downvec = XSTRING (down)->data;
 
       canon = Fmake_string (make_number (256), make_number (0));
-      eqv = Fmake_string (make_number (256), make_number (0));
 
       /* Set up the CANON vector; for each character,
 	 this sequence of upcasing and downcasing ought to
 	 get the "preferred" lowercase equivalent.  */
       for (i = 0; i < 256; i++)
 	XSTRING (canon)->data[i] = downvec[upvec[downvec[i]]];
+    }
+
+  if (NILP (eqv))
+    {
+      eqv = Fmake_string (make_number (256), make_number (0));
 
       compute_trt_inverse (XSTRING (canon)->data, XSTRING (eqv)->data);
     }
@@ -185,11 +190,11 @@ set_case_table (table, standard)
    the elements of INVERSE.  */
 
 void
-compute_trt_inverse (register unsigned char *trt,
-		     register unsigned char *inverse)
+compute_trt_inverse (unsigned char *trt,
+                     unsigned char *inverse)
 {
-  register int i = 0400;
-  register unsigned char c, q;
+  int i = 0400;
+  unsigned char c, q;
 
   while (i--)
     inverse[i] = i;

@@ -115,7 +115,19 @@ it will behave just like normal shell and gdb-mode buffers.")
 	   ;; the bottom when displayed.
 	   (set-window-point window
 			     (save-excursion (set-buffer buffer)
-					     (+ 1 (buffer-size))))))))
+					     (+ 1 (buffer-size))))
+	   ;; Careful to deactivate the selection when automatically moving
+	   ;; the user to the end of the buffer.  This is suboptimal, but
+	   ;; otherwise we have bad interactions with the debugger-panel
+	   ;; Print button.  (Double-click on a value (point is now at the
+	   ;; end of that word); hit Print; point is now at point-max, but
+	   ;; the original word is still highlighted, which is incorrect -
+	   ;; we're now in a state where the selection highlighting and the
+	   ;; region between point and mark is out of sync.  I'm not entirely
+	   ;; sure how to fix this short of using a point-motion hook of some
+	   ;; kind, so we'll punt, and just deactivate the region instead.)
+	   (zmacs-deactivate-region)
+	   ))))
 
 
 ;;; called by energize-make-buffers-visible

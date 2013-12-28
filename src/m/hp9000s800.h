@@ -1,5 +1,5 @@
 /* machine description file for hp9000 series 800 machines.
-   Copyright (C) 1987, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1987 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -30,11 +30,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define INTBITS 32		/* Number of bits in an int */
 
 #define LONGBITS 32		/* Number of bits in a long */
-
-/* Define BIG_ENDIAN iff lowest-numbered byte in a word
-   is the most significant byte.  */
-
-#define BIG_ENDIAN
 
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
@@ -98,16 +93,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    Define neither one if an assembler-language alloca
    in the file alloca.s should be used.  */
 
+/* lemacs change:  define HAVE_ALLOCA if gcc is being used */
+#ifdef __GNUC__
+#define HAVE_ALLOCA
+#else
 #define C_ALLOCA
-/* #define HAVE_ALLOCA */
+#endif
 
 /* the data segment on this machine always starts at address 0x40000000. */
 
 #define DATA_SEG_BITS 0x40000000
-
-/* lemacs has fewer tags than v18, so let lisp.h take care of this */
-/* #define VALBITS    26 */
-/* #define GCTYPEBITS 5 */
 
 #ifdef DATA_START
 #undef DATA_START
@@ -125,9 +120,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    to change the boundary between the text section and data section
    when Emacs is dumped.  If you define this, the preloaded Lisp
    code will not be sharable; but that's better than failing completely.  */
-#ifndef RUN_TIME_REMAP
+
 #define NO_REMAP
-#endif
 
 /* This machine requires completely different unexec code
    which lives in a separate file.  Specify the file name.  */
@@ -164,11 +158,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 
 /* Define the BSTRING functions in terms of the sysV functions. */
+/* On HPUX 8.05, including types.h can include strings.h
+   which declares these as functions.  Hence the #ifndef.  */
 
-/* emacs now uses only the ANSI routines */
-/* #define bcopy(a,b,s)	memcpy (b,a,s) */
-/* #define bzero(a,s)	memset (a,0,s) */
-/* #define bcmp		memcmp */
+#if 0			/* lemacs change */
+#ifndef HAVE_BCOPY
+#define bcopy(a,b,s)	memcpy (b,a,s)
+#define bzero(a,s)	memset (a,0,s)
+#define bcmp		memcmp
+#endif
+#endif
 
 /* On USG systems these have different names. */
 
@@ -177,6 +176,3 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Include the file bsdtty.h, since this machine has job control.  */
 #define NEED_BSDTTY
-
-/* Assume sound capabilities. Undef this in config.h if you don't want sound */
-#define USE_SOUND

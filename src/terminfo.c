@@ -17,12 +17,17 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#include "config.h"
+
+#include <string.h>
+
 /* Define these variables that serve as global parameters to termcap,
    so that we do not need to conditionalize the places in Emacs
    that set them.  */
 
 char *UP, *BC, PC;
-#ifdef HAVE_TERMIOS	/* copied from sysdep.c -jwz */
+#if defined (HAVE_TERMIOS) && !(defined (USG) && defined (sparc))
+#include <termios.h>
 speed_t ospeed;
 #else
 short ospeed;
@@ -48,7 +53,8 @@ tparam (string, outstring, len, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, 
 {
   char *temp;
 
-  temp = tparm (string, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+  temp = (char *) tparm (string, arg1, arg2, arg3, arg4, arg5, arg6, arg7,
+			 arg8, arg9);
   if (outstring == 0)
     outstring = ((char *) (xmalloc ((strlen (temp)) + 1)));
   strcpy (outstring, temp);

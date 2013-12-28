@@ -1,6 +1,6 @@
 ;;; -*- Mode:Emacs-Lisp -*-
 ;; Appointment notification functions.
-;; Copyright (C) 1989, 1990, 1992, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1989, 1990, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -167,7 +167,12 @@ Appt will beep and issue a warning message when encountering unparsable
 lines.")
 
 (defvar appt-audible t
-  "*Controls whether appointment announcements should beep.")
+  "*Controls whether appointment announcements should beep.
+Appt uses two sound-types for beeps: `appt' and `appt-final'.
+If this is a number, then that many beeps will occur.
+If this is a cons, the car is how many beeps, and the cdr is the
+  delay between them (a float, fraction of a second to sleep.)
+See also the variable `appt-msg-countdown-list'")
 
 (defvar appt-display-mode-line t
   "*Controls if minutes-to-appointment should be displayed on the mode line.")
@@ -305,7 +310,7 @@ notifications to be given via messages in a pop-up screen."
 	  (let ((s (selected-screen)))
 	    (select-screen appt-disp-screen)
 	    (make-screen-visible appt-disp-screen)
-	    (set-screen-height height)
+	    (set-screen-height appt-disp-screen height)
 	    (sit-for 0)
 	    (select-screen s))
 	(setq appt-disp-screen
@@ -498,7 +503,7 @@ selects that one."
   appt-time-msg-list)
 
 
-(defun appt-beep ()
+(defun appt-beep (&optional final-p)
   (cond ((null appt-audible) nil)
 	((numberp appt-audible)
 	 (let ((i appt-audible))
@@ -508,7 +513,9 @@ selects that one."
 	       (j (cdr appt-audible)))
 	   (if (consp j) (setq j (car j)))
 	   (while (> i 0)
-	     (beep)
+	     (if (fboundp 'play-sound)
+		 (beep nil (if final-p 'appt-final 'appt))
+	       (beep))
 	     (if (integerp j)
 		 (sleep-for-millisecs j)
 	       (sleep-for j))
@@ -548,8 +555,7 @@ selects that one."
  This function is run from the `loadst' or `wakeup' process for display-time.
  Therefore, you need to have (display-time) in your .emacs file."
   (if appt-issue-message
-   (let ((min-to-app -1)
-	 (new-time ""))
+   (let ((min-to-app -1))
      ;; Get the current time and convert it to minutes
      ;; from midnight. ie. 12:01am = 1, midnight = 0.
      (let* ((cur-comp-time (appt-current-time-in-seconds))
@@ -634,7 +640,7 @@ selects that one."
 		     (>= min-to-app 0))
 		;;
 		;; produce a notification.
-		(appt-beep)
+		(appt-beep (= min-to-app 0))
 		(funcall appt-announce-method min-to-app
 			 (car appt-time-msg-list))
 		;; update mode line and expire if necessary

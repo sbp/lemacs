@@ -154,9 +154,8 @@
 		     (1- (window-height (selected-window)))))))
       (cond ((and (eq (window-buffer win) buf)) (select-window win))
 	    (one-window
-	     (split-window)
 	     (goto-char (window-start win))
-	     (switch-to-buffer buffer)
+	     (pop-to-buffer buffer)
 	     (setq win (selected-window))
 	     (enlarge-window (- target-height (window-height win))))
 	    (t

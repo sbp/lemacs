@@ -1,0 +1,296 @@
+@c -*-texinfo-*-
+@c This is part of the GNU Emacs Lisp Reference Manual.
+@c Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc. 
+@c See the file lispref.texinfo for copying conditions.
+@setfilename ../../info/annotations.info
+@node Annotations, Processes, Extents, top
+@chapter Annotations
+@cindex annotation
+
+An @dfn{annotation} is a pixmap or string that is not part of a buffer's
+text but is displayed next to a particular location in a buffer.
+Annotations are implemented using extents (@pxref{Extents}); but you
+can work with annotations without knowing how extents work.
+
+@menu
+* Annotation Basics::
+* Annotation Primitives::
+* Margin Primitives::
+* Annotation Hooks::
+@end menu
+
+@node Annotation Basics, Annotation Primitives, Annotations, Annotations
+@section Annotation Basics
+
+@cindex margin
+Marginal annotations are notes associated with a particular location in
+a buffer.  They may be displayed in a margin created on the left-hand
+side of the screen, in any whitespace at the beginning of a line, or
+inside of the text itself.  Every annotation may have an associated
+action to be performed when the annotation is selected.  The term
+@dfn{annotation} is used to refer to an individual note.  The term
+@dfn{margin} is generically used to refer to the whitespace before the
+first character on a line.
+
+@table @code
+@item annotation
+Each annotation has the following characteristics:
+@table @var
+@item glyph
+This may be either a bitmap/pixmap object or a string.
+@item face
+The face with which to display the glyph.
+@item action
+If non-nil this field must contain a function capable of being the
+first argument to @code{funcall}.  This function is evaluated with a
+single argument, the value of the @var{data} field, each time the
+annotation is selected.
+@item data
+Not used internally.  This field can contain any Elisp object.  It is
+passed as the lone argument to @var{action} described above.
+@item type
+Valid types are: @code{bitmap}, @code{pixmap} and @code{string}.
+@end table
+@end table
+
+@cindex outside margin
+@cindex inside margin
+The margin is divided into @dfn{outside} and @dfn{inside}.  The
+outside margin is space on the left side of the screen which normal text
+cannot be displayed in.  The inside margin is that space between the
+leftmost point text can be displayed and where the first character
+actually is.
+
+@cindex layout types
+There are four different @dfn{layout types} which affect the exact
+location an annotation appears.
+
+@table @code
+@item outside-margin
+The annotation is placed, left-justified, into the outside margin area.
+If the outside margin is not wide enough for an annotation to fit it is
+not displayed.
+
+@item inside-margin
+The annotation is placed, left-justified, into the inside margin area.
+If the inside margin is not wide enough for the annotation to fit it
+will be displayed using any available outside margin space if and only
+if the variable @code{use-left-overflow} is non-@code{nil}.
+
+@item whitespace
+The annotation is placed, right-justified, into the inside margin area.
+This puts the annotation as close as possible to the first
+non-whitespace character on a line.  If the inside margin is not wide
+enough for the annotation to fit it will be displayed if and only if the
+variable @code{use-left-overflow} is non-@code{nil}.
+
+@item text
+The annotation is placed at the position it is inserted.  It will create
+enough space for itself inside of the text area.  It does not take up a
+place in the logical buffer, only in the display of the buffer.
+@end table
+
+@cindex layout policy
+The current layout policy is that all @code{whitespace} annotations are
+displayed first.  Next, all @code{inside-margin} annotations are
+displayed using any remaining space.  Finally as many
+@code{outside-margin} annotations are displayed as possible.  The
+@code{text} annotations will always display as they create their own
+space to display in.
+
+
+@node Annotation Primitives, Margin Primitives, Annotation Basics, Annotations
+@section Annotation Primitives
+
+@defun make-annotation glyph &optional position layout buffer
+Create a marginal annotation with @var{glyph}, which may be a
+bitmap/pixmap or a string at position @var{pos}.  Use layout policy
+@var{layout} and place the annotation in buffer @var{buffer}.  If
+@var{pos} is @code{nil}, point is used.  If @var{layout} is @code{nil},
+@code{whitespace} is used.  If @var{buffer} is @code{nil}, the current
+buffer is used.  Returns the newly created annotation.
+@end defun
+
+@defun delete-annotation annotation
+Remove @var{annotation} from its buffer.  This does not modify the
+buffer text.  Returns the annotation deleted.
+@end defun
+
+@defun annotationp annotation
+Return @code{t} if @var{annotation} is an annotation, @code{nil}
+otherwise.
+@end defun
+
+@defun annotation-visible annotation
+Return @code{t} if there is enough available space to display
+@var{annotation}, @code{nil} otherwise.
+@end defun
+
+@defun annotation-at &optional position buffer
+Return the annotation at @var{position} in @var{buffer}.  If
+@var{position} is @code{nil} point is used.  If @var{buffer} is
+@code{nil} the current buffer is used.
+@end defun
+
+@defun annotation-layout annotation
+Return the layout policy of @var{annotation}.
+@end defun
+
+@defun set-annotation-layout annotation layout
+Set the layout policy of @var{annotation} to @var{layout}.
+@end defun
+
+@defun annotation-type annotation
+Returns the display type of @var{annotation}.  The type will be one of
+following symbols:
+@table @code
+@item
+pixmap
+@item
+bitmap
+@item
+string
+@item
+nil (object is not an annotation)
+@end table
+@end defun
+
+@defun annotation-width annotation
+Return the width of @var{annotation} in pixels.
+@end defun
+
+@defun annotation-glyph annotation
+If @var{annotation} is of type @code{string} return the string.
+Otherwise return the bitmap or pixmap object of the glyph representing
+@var{annotation}.
+@end defun
+
+@defun set-annotation-glyph annotation glyph &optional layout
+Set the glyph image of @var{annotation} to @var{glyph}.  If
+@var{layout} is non-@code{nil} set the layout policy of @var{annotation}
+to @var{layout}.  Returns the new value of @code{annotation-glyph}.
+@end defun
+
+@defun annotation-data annotation
+Return the data associated with @var{annotation}.
+@end defun
+
+@defun set-annotation-data annotation data
+Set the data field of @var{annotation} to @var{data}.  Returns
+@var{data}.
+@end defun
+
+@defun annotation-action annotation
+Return the action associated with @var{annotation}.
+@end defun
+
+@defun set-annotation-action annotation action
+Set the action field of @var{annotation} to @var{action}.  Returns
+@var{action}.
+@end defun
+
+@defun annotation-face annotation
+Return the face associated with @var{annotation}.
+@end defun
+        
+@defun set-annotation-face annotation face
+Set the face associated with @var{annotation} to @var{face}.
+@end defun
+
+@defun annotations-in-region start end buffer
+Return a list of all annotations in @var{buffer} which are between
+@var{start} and @var{end} inclusively.
+@end defun
+
+@defun annotation-at &optional position buffer
+Return a list of all annotations at @var{position} in @var{buffer}.  If
+@var{position} is @code{nil} point is used.  If @var{buffer} is
+@code{nil} the current buffer is used.
+@end defun
+
+@defun annotation-list &optional buffer
+Returns a list of all annotations in @var{buffer}.  If @var{buffer}
+is @code{nil}, the current buffer is used.
+@end defun
+
+@defun all-annotations
+Returns a list of all annotations in all buffers in existence.
+@end defun
+
+
+@node Margin Primitives, Annotation Hooks, Annotation Primitives, Annotations
+@section Margin Primitives
+@cindex margin width
+
+It is possible to set values for both a left and a right hand side
+margin.  Only the left side has been implemented.  All margin settings
+are buffer-local at the moment.
+
+@defun set-buffer-left-margin-width width &optional buffer
+Set the width, in characters, of the left outside margin of @var{buffer}
+to @var{width}.  If @var{buffer} is @code{nil}, the current buffer is
+used.  Returns the new width.
+@end defun
+
+@defun set-buffer-right-margin-width width &optional buffer
+Set the width, in characters, of the right outside margin of
+@var{buffer} to @var{width}.  If @var{buffer} is @code{nil}, the current
+buffer is used.  Returns the new width.
+@end defun
+
+@defun buffer-left-margin-width &optional buffer
+Return the width of the left outside margin, in characters, of
+@var{buffer}.  If @var{buffer} is @code{nil}, the current buffer is
+used.
+@end defun
+
+@defun buffer-right-margin-width &optional buffer
+Return the width of the right outside margin, in characters, of
+@var{buffer}.  If @var{buffer} is @code{nil}, the current buffer is
+used.
+@end defun
+
+@defun buffer-left-margin-pixwidth &optional buffer
+Return the width of the left outside margin, in pixels, of @var{buffer}.
+If @var{buffer} is @code{nil}, the current buffer is used.
+@end defun
+
+@defun buffer-right-margin-pixwidth &optional buffer
+Return the width of the right outside margin, in pixels, of
+@var{buffer}.  If @var{buffer} is @code{nil}, the current buffer is
+used.
+@end defun
+
+@defvar use-left-overflow
+If non-@code{nil} use the left outside margin as extra whitespace when
+displaying @code{whitespace} and @code{inside-margin} annotations.
+Defaults to @code{nil}.
+@end defvar
+
+The margin colors are controlled by the faces @code{left-margin} and
+@code{right-margin}.  These can be set using the X resources
+@code{Emacs*left-margin*background} and
+@code{Emacs*left-margin*foreground}.  Likewise for the right margin.
+
+
+@node Annotation Hooks,  , Margin Primitives, Annotations
+@section Annotation Hooks
+@cindex annotation hooks
+
+The following three hooks are provided for use with the marginal annotations:
+
+@table @asis
+@item @strong{@code{before-delete-annotation-hook}}
+This hook is called immediately before an annotation is destroyed.  It
+is passed a single argument, the annotation being destroyed.
+
+@item @strong{@code{after-delete-annotation-hook}}
+This hook is called immediately after an annotation is destroyed.  It
+may contain any number of functions to run.  No arguments are passed to
+any of the functions on the hook.
+
+@item @strong{@code{make-annotation-hook}}
+This hook is called immediately after an annotation is created.  It is
+passed a single argument, the newly created annotation.
+
+@end table

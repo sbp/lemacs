@@ -1,23 +1,21 @@
-Info file elisp, produced by Makeinfo, -*- Text -*- from input file
-elisp.texi.
+This is Info file ../../info/lispref.info, produced by Makeinfo-1.56
+from the input file lispref.texinfo.
 
-   This file documents GNU Emacs Lisp.
+   This version is newer than the second printed edition of the GNU
+Emacs Lisp Reference Manual.  It corresponds to Emacs Version 19.19.
 
-   This is edition 1.03 of the GNU Emacs Lisp Reference Manual,   for
-Emacs Version 18.
+   Published by the Free Software Foundation 675 Massachusetts Avenue
+Cambridge, MA 02139 USA
 
-   Published by the Free Software Foundation, 675 Massachusetts
-Avenue,  Cambridge, MA 02139 USA
+   Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
 
-   Copyright (C) 1990 Free Software Foundation, Inc.
-
-   Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
 
    Permission is granted to copy and distribute modified versions of
-this manual under the conditions for verbatim copying, provided that
-the entire resulting derived work is distributed under the terms of a
+this manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
 permission notice identical to this one.
 
    Permission is granted to copy and distribute translations of this
@@ -25,1218 +23,1228 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be stated in a
 translation approved by the Foundation.
 
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the Free Software
+Foundation instead of in the original English.
 
 
-File: elisp,  Node: Combining Conditions,  Next: Iteration,  Prev: Conditionals,  Up: Control Structures
+File: lispref.info,  Node: Array Functions,  Next: Vectors,  Prev: Arrays,  Up: Sequences Arrays Vectors
 
-Constructs for Combining Conditions
-===================================
+Functions that Operate on Arrays
+================================
 
-   This section describes three constructs that are often used
-together with `if' and `cond' to express complicated conditions.  The
-constructs `and' and `or' can also be used individually as kinds of
-multiple conditional constructs.
+   In this section, we describe the functions that accept both strings
+and vectors.
 
- * Function: not CONDITION
-     This function tests for the falsehood of CONDITION.  It returns
-     `t' if CONDITION is `nil', and `nil' otherwise.  The function
-     `not' is identical to `null', and we recommend using `null' if
-     you are testing for an empty list.
+ - Function: arrayp OBJECT
+     This function returns `t' if OBJECT is an array (i.e., either a
+     vector or a string).
 
- * Special Form: and CONDITIONS...
-     The `and' special form tests whether all the CONDITIONS are
-     true.  It works by evaluating the CONDITIONS one by one in the
-     order written.
+          (arrayp [a])
+          => t
+          (arrayp "asdf")
+          => t
 
-     If any of the CONDITIONS evaluates to `nil', then the result of
-     the `and' must be `nil' regardless of the remaining CONDITIONS;
-     so the remaining CONDITIONS are ignored and the `and' returns
-     right away.
+ - Function: aref ARRAY INDEX
+     This function returns the INDEXth element of ARRAY.  The first
+     element is at index zero.
 
-     If all the CONDITIONS turn out non-`nil', then the value of the
-     last of them becomes the value of the `and' form.
+          (setq primes [2 3 5 7 11 13])
+               => [2 3 5 7 11 13]
+          (aref primes 4)
+               => 11
+          (elt primes 4)
+               => 11
+          
+          (aref "abcdefg" 1)
+               => 98           ; `b' is ASCII code 98.
 
-     Here is an example.  The first condition returns the integer 1,
-     which is not `nil'.  Similarly, the second condition returns the
-     integer 2, which is not `nil'.  The third condition is `nil', so
-     the remaining condition is never evaluated.
+     See also the function `elt', in *Note Sequence Functions::.
 
-          (and (print 1) (print 2) nil (print 3))
-               -| 1
-               -| 2
-          => nil
+ - Function: aset ARRAY INDEX OBJECT
+     This function sets the INDEXth element of ARRAY to be OBJECT.  It
+     returns OBJECT.
 
-     Here is a more realistic example of using `and':
+          (setq w [foo bar baz])
+               => [foo bar baz]
+          (aset w 0 'fu)
+               => fu
+          w
+               => [fu bar baz]
+          
+          (setq x "asdfasfd")
+               => "asdfasfd"
+          (aset x 3 ?Z)
+               => 90
+          x
+               => "asdZasfd"
 
-          (if (and (consp foo) (eq (car foo) 'x))
-              (message "foo is a list starting with x"))
+     If ARRAY is a string and OBJECT is not a character, a
+     `wrong-type-argument' error results.
 
-     Note that `(car foo)' is not executed if `(consp foo)' returns
-     `nil', thus avoiding an error.
+ - Function: fillarray ARRAY OBJECT
+     This function fills the array ARRAY with pointers to OBJECT,
+     replacing any previous values.  It returns ARRAY.
 
-     `and' can be expressed in terms of either `if' or `cond'.  For
-     example:
+          (setq a [a b c d e f g])
+               => [a b c d e f g]
+          (fillarray a 0)
+               => [0 0 0 0 0 0 0]
+          a
+               => [0 0 0 0 0 0 0]
+          (setq s "When in the course")
+               => "When in the course"
+          (fillarray s ?-)
+               => "------------------"
 
-          (and ARG1 ARG2 ARG3)
-          ==
-          (if ARG1 (if ARG2 ARG3))
-          ==
-          (cond (ARG1 (cond (ARG2 ARG3))))
+     If ARRAY is a string and OBJECT is not a character, a
+     `wrong-type-argument' error results.
 
- * Special Form: or CONDITIONS...
-     The `or' special form tests whether at least one of the
-     CONDITIONS is true.  It works by evaluating all the CONDITIONS
-     one by one in the order written.
-
-     If any of the CONDITIONS evaluates to a non-`nil' value, then
-     the result of the `or' must be non-`nil'; so the remaining
-     CONDITIONS are ignored and the `or' returns right away.  The
-     value it returns is the non-`nil' value of the condition just
-     evaluated.
-
-     If all the CONDITIONS turn out `nil', then the `or' expression
-     returns `nil'.
-
-     For example, this expression tests whether `x' is either 0 or
-     `nil':
-
-          (or (eq x nil) (= x 0))
-
-     Like the `and' construct, `or' can be written in terms of
-     `cond'.  For example:
-
-          (or ARG1 ARG2 ARG3)
-          ==
-          (cond (ARG1)
-                (ARG2)
-                (ARG3))
-
-     You could almost write `or' in terms of `if', but not quite:
-
-          (if ARG1 ARG1
-            (if ARG2 ARG2 
-              ARG3))
-
-     This is not completely equivalent because it can evaluate ARG1
-     or ARG2 twice.  By contrast, `(or ARG1 ARG2 ARG3)' never
-     evaluates any argument more than once.
-
+   The general sequence functions `copy-sequence' and `length' are
+often useful for objects known to be arrays.  *Note Sequence
+Functions::.
 
 
-File: elisp,  Node: Iteration,  Next: Nonlocal Exits,  Prev: Combining Conditions,  Up: Control Structures
+File: lispref.info,  Node: Vectors,  Prev: Array Functions,  Up: Sequences Arrays Vectors
 
-Iteration
-=========
+Vectors
+=======
 
-   Iteration means executing part of a program repetitively.  For
-example, you might want to repeat some expressions once for each
-element of a list, or once for each integer from 0 to N.  You can do
-this in Emacs Lisp with the special form `while':
+   Arrays in Lisp, like arrays in most languages, are blocks of memory
+whose elements can be accessed in constant time.  A "vector" is a
+general-purpose array; its elements can be any Lisp objects.  (The other
+kind of array provided in Emacs Lisp is the "string", whose elements
+must be characters.)  The main uses of vectors in Emacs are as syntax
+tables (vectors of integers) and keymaps (vectors of commands).  They
+are also used internally as part of the representation of a
+byte-compiled function; if you print such a function, you will see a
+vector in it.
 
- * Special Form: while CONDITION FORMS...
-     `while' first evaluates CONDITION.  If the result is non-`nil',
-     it evaluates FORMS in textual order.  Then it reevaluates
-     CONDITION, and if the result is non-`nil', it evaluates FORMS
-     again.  This process repeats until CONDITION evaluates to `nil'.
+   The indices of the elements of a vector are numbered starting with
+zero in Emacs Lisp.
 
-     There is no limit on the number of iterations that may occur. 
-     The loop will continue until either CONDITION evaluates to `nil'
-     or until an error or `throw' jumps out of it (*note Nonlocal
-     Exits::.).
+   Vectors are printed with square brackets surrounding the elements in
+their order.  Thus, a vector containing the symbols `a', `b' and `c' is
+printed as `[a b c]'.  You can write vectors in the same way in Lisp
+input.
 
-     The value of a `while' form is always `nil'.
+   A vector, like a string or a number, is considered a constant for
+evaluation: the result of evaluating it is the same vector.  The
+elements of the vector are not evaluated.  *Note Self-Evaluating
+Forms::.
 
-          (setq num 0)
-               => 0
-          (while (< num 4)
-            (princ (format "Iteration %d." num))
-            (setq num (1+ num)))
-               -| Iteration 0.
-               -| Iteration 1.
-               -| Iteration 2.
-               -| Iteration 3.
+   Here are examples of these principles:
+
+     (setq avector [1 two '(three) "four" [five]])
+          => [1 two (quote (three)) "four" [five]]
+     (eval avector)
+          => [1 two (quote (three)) "four" [five]]
+     (eq avector (eval avector))
+          => t
+
+   Here are some functions that relate to vectors:
+
+ - Function: vectorp OBJECT
+     This function returns `t' if OBJECT is a vector.
+
+          (vectorp [a])
+               => t
+          (vectorp "asdf")
                => nil
 
-     If you would like to execute something on each iteration before
-     the end-test, put it together with the end-test in a `progn' as
-     the first argument of `while', as shown here:
+ - Function: vector &rest OBJECTS
+     This function creates and returns a vector whose elements are the
+     arguments, OBJECTS.
 
-          (while (progn
-                   (forward-line 1)
-                   (not (looking-at "^$"))))
+          (vector 'foo 23 [bar baz] "rats")
+               => [foo 23 [bar baz] "rats"]
+          (vector)
+               => []
 
-     This moves forward one line and continues moving by lines until
-     an empty line is reached.
+ - Function: make-vector INTEGER OBJECT
+     This function returns a new vector consisting of INTEGER elements,
+     each initialized to OBJECT.
 
+          (setq sleepy (make-vector 9 'Z))
+               => [Z Z Z Z Z Z Z Z Z]
+
+ - Function: vconcat &rest SEQUENCES
+     This function returns a new vector containing all the elements of
+     the SEQUENCES.  The arguments SEQUENCES may be lists, vectors, or
+     strings.  If no SEQUENCES are given, an empty vector is returned.
+
+     The value is a newly constructed vector that is not `eq' to any
+     existing vector.
+
+          (setq a (vconcat '(A B C) '(D E F)))
+               => [A B C D E F]
+          (eq a (vconcat a))
+               => nil
+          (vconcat)
+               => []
+          (vconcat [A B C] "aa" '(foo (6 7)))
+               => [A B C 97 97 foo (6 7)]
+
+     When an argument is an integer (not a sequence of integers), it is
+     converted to a string of digits making up the decimal printed
+     representation of the integer.  This special case exists for
+     compatibility with Mocklisp, and we don't recommend you take
+     advantage of it.  If you want to convert an integer in this way,
+     use `format' (*note Formatting Strings::.) or `int-to-string'
+     (*note String Conversion::.).
+
+     For other concatenation functions, see `mapconcat' in *Note
+     Mapping Functions::, `concat' in *Note Creating Strings::, and
+     `append' in *Note Building Lists::.
+
+   The `append' function may be used to convert a vector into a list
+with the same elements (*note Building Lists::.):
+
+     (setq avector [1 two (quote (three)) "four" [five]])
+          => [1 two (quote (three)) "four" [five]]
+     (append avector nil)
+          => (1 two (quote (three)) "four" [five])
 
 
-File: elisp,  Node: Nonlocal Exits,  Prev: Iteration,  Up: Control Structures
+File: lispref.info,  Node: Symbols,  Next: Evaluation,  Prev: Sequences Arrays Vectors,  Up: Top
 
-Nonlocal Exits
-==============
+Symbols
+*******
 
-   A "nonlocal exit" is a transfer of control from one point in a
-program to another remote point.  Nonlocal exits can occur in Emacs
-Lisp as a result of errors; you can also use them under explicit
-control.
+   A "symbol" is an object with a unique name.  This chapter describes
+symbols, their components, and how they are created and interned.
+Property lists are also described.  The uses of symbols as variables
+and as function names are described in separate chapters; see *Note
+Variables::, and *Note Functions::.  For the precise syntax for
+symbols, see *Note Symbol Type::.
+
+   You can test whether an arbitrary Lisp object is a symbol with
+`symbolp':
+
+ - Function: symbolp OBJECT
+     This function returns `t' if OBJECT is a symbol, `nil' otherwise.
 
 * Menu:
 
-* Catch and Throw::     Nonlocal exits for the program's own purposes.
-* Examples of Catch::   Showing how such nonlocal exits can be written.
-* Errors::              How errors are signaled and handled.
-* Cleanups::            Arranging to run a cleanup form if an error happens.
-
- 
-
-File: elisp,  Node: Catch and Throw,  Next: Examples of Catch,  Prev: Nonlocal Exits,  Up: Nonlocal Exits
-
-Explicit Nonlocal Exits: `catch' and `throw'
---------------------------------------------
-
-   Most control constructs affect only the flow of control within the
-construct itself.  The function `throw' is the sole exception: it
-performs a nonlocal exit on request.  `throw' is used inside a
-`catch', and jumps back to that `catch'.  For example:
-
-     (catch 'foo
-       (progn
-         ...
-           (throw 'foo t)
-         ...))
-
-The `throw' transfers control straight back to the corresponding
-`catch', which returns immediately.  The code following the `throw'
-is not executed.  The second argument of `throw' is used as the
-return value of the `catch'.
-
-   The `throw' and the `catch' are matched through the first
-argument: `throw' searches for a `catch' whose first argument is `eq'
-to the one specified.  Thus, in the above example, the `throw'
-specifies `foo', and the `catch' specifies the same symbol, so that
-`catch' is applicable.  If there is more than one applicable `catch',
-the innermost one takes precedence.
-
-   All Lisp constructs between the `catch' and the `throw', including
-function calls, are exited automatically along with the `catch'. 
-When binding constructs such as `let' or function calls are exited in
-this way, the bindings are unbound, just as they are when the binding
-construct is exited normally (*note Local Variables::.).  Likewise,
-the buffer and position saved by `save-excursion' (*note
-Excursions::.) are restored, and so is the narrowing status saved by
-`save-restriction' and the window selection saved by
-`save-window-excursion' (*note Window Configurations::.).  Any
-cleanups established with the `unwind-protect' special form are
-executed if the `unwind-protect' is exited with a `throw'.
-
-   The `throw' need not appear lexically within the `catch' that it
-jumps to.  It can equally well be called from another function called
-within the `catch'.  As long as the `throw' takes place
-chronologically after entry to the `catch', and chronologically
-before exit from it, it has access to that `catch'.  This is why
-`throw' can be used in commands such as `exit-recursive-edit' which
-throw back to the editor command loop (*note Recursive Editing::.).
-
-     Common Lisp note: most other versions of Lisp, including Common
-     Lisp, have several ways of transferring control nonsequentially:
-     `return', `return-from', and `go', for example.  Emacs Lisp has
-     only `throw'.
-
- * Special Form: catch TAG BODY...
-     `catch' establishes a return point for the `throw' function. 
-     The return point is distinguished from other such return points
-     by TAG, which may be any Lisp object.  The argument TAG is
-     evaluated normally before the return point is established.
-
-     With the return point in effect, the forms of the BODY are
-     evaluated in textual order.  If the forms execute normally,
-     without error or nonlocal exit, the value of the last body form
-     is returned from the `catch'.
-
-     If a `throw' is done within BODY specifying the same value TAG,
-     the `catch' exits immediately; the value it returns is whatever
-     was specified as the second argument of `throw'.
-
- * Function: throw TAG VALUE
-     The purpose of `throw' is to return from a return point
-     previously established with `catch'.  The argument TAG is used
-     to choose among the various existing return points; it must be
-     `eq' to the value specified in the `catch'.  If multiple return
-     points match TAG, the innermost one is used.
-
-     The argument VALUE is used as the value to return from that
-     `catch'.
-
-     If no return point is in effect with tag TAG, then a `no-catch'
-     error is signaled with data `(TAG VALUE)'.
-
+* Symbol Components::        Symbols have names, values, function definitions
+                               and property lists.
+* Definitions::              A definition says how a symbol will be used.
+* Creating Symbols::         How symbols are kept unique.
+* Property Lists::           Each symbol has a property list
+                               for recording miscellaneous information.
 
 
-File: elisp,  Node: Examples of Catch,  Next: Errors,  Prev: Catch and Throw,  Up: Nonlocal Exits
+File: lispref.info,  Node: Symbol Components,  Next: Definitions,  Prev: Symbols,  Up: Symbols
 
-Examples of `catch' and `throw'
--------------------------------
+Symbol Components
+=================
 
-   One way to use `catch' and `throw' is to exit from a doubly nested
-loop.  (In most languages, this would be done with a "go to".) Here
-we compute `(foo I J)' for I and J varying from 0 to 9:
+   Each symbol has four components (or "cells"), each of which
+references another object:
 
-     (defun search-foo ()
-       (catch 'loop
-         (let ((i 0))
-           (while (< i 10)
-             (let ((j 0))
-               (while (< j 10)
-                 (if (foo i j)
-                     (throw 'loop (list i j)))
-                 (setq j (1+ j))))
-             (setq i (1+ i))))))
+Print name
+     The "print name cell" holds a string which names the symbol for
+     reading and printing.  See `symbol-name' in *Note Creating
+     Symbols::.
 
-If `foo' ever returns non-`nil', we stop immediately and return a
-list of I and J.  If `foo' always returns `nil', the `catch' returns
-normally, and the value is `nil', since that is the result of the
-`while'.
+Value
+     The "value cell" holds the current value of the symbol as a
+     variable.  When a symbol is used as a form, the value of the form
+     is the contents of the symbol's value cell.  See `symbol-value' in
+     *Note Accessing Variables::.
 
-   Here are two tricky examples, slightly different, showing two
-return points at once.  First, two return points with the same tag,
-`hack':
+Function
+     The "function cell" holds the function definition of the symbol.
+     When a symbol is used as a function, its function definition is
+     used in its place.  This cell is also used to make a symbol stand
+     for a keymap or a keyboard macro, for editor command execution.
+     Because each symbol has separate value and function cells,
+     variables and function names do not conflict.  See
+     `symbol-function' in *Note Function Cells::.
 
-     (defun catch2 (tag)
-       (catch tag
-         (throw 'hack 'yes)))
-     => catch2
-     
-     (catch 'hack 
-       (print (catch2 'hack))
-       'no)
-     -| yes
-     => no
+Property list
+     The "property list cell" holds the property list of the symbol.
+     See `symbol-plist' in *Note Property Lists::.
 
-Since both return points have tags that match the `throw', it goes to
-the inner one, the one established in `catch2'.  Therefore, `catch2'
-returns normally with value `yes', and this value is printed. 
-Finally the second body form in the outer `catch', which is `'no', is
-evaluated and returned from the outer `catch'.
+   The print name cell always holds a string, and cannot be changed.
+The other three cells can be set individually to any specified Lisp
+object.
 
-   Now let's change the argument given to `catch2':
+   The print name cell holds the string that is the name of the symbol.
+Since symbols are represented textually by their names, it is important
+not to have two symbols with the same name.  The Lisp reader ensures
+this: every time it reads a symbol, it looks for an existing symbol with
+the specified name before it creates a new one.  (In GNU Emacs Lisp,
+this is done with a hashing algorithm that uses an obarray; see *Note
+Creating Symbols::.)
 
-     (defun catch2 (tag)
-       (catch tag
-         (throw 'hack 'yes)))
-     => catch2
-     
-     (catch 'hack
-       (print (catch2 'quux))
-       'no)
-     => yes
+   In normal usage, the function cell usually contains a function or
+macro, as that is what the Lisp interpreter expects to see there (*note
+Evaluation::.).  Keyboard macros (*note Keyboard Macros::.), keymaps
+(*note Keymaps::.) and autoload objects (*note Autoloading::.) are also
+sometimes stored in the function cell of symbols.  We often refer to
+"the function `foo'" when we really mean the function stored in the
+function cell of the symbol `foo'.  We make the distinction only when
+necessary.
 
-We still have two return points, but this time only the outer one has
-the tag `hack'; the inner one has the tag `quux' instead.  Therefore,
-the `throw' returns the value `yes' from the outer return point.  The
-function `print' is never called, and the body-form `'no' is never
-evaluated.
+   Similarly, the property list cell normally holds a correctly
+formatted property list (*note Property Lists::.), as a number of
+functions expect to see a property list there.
 
+   The function cell or the value cell may be "void", which means that
+the cell does not reference any object.  (This is not the same thing as
+holding the symbol `void', nor the same as holding the symbol `nil'.)
+Examining the value of a cell which is void results in an error, such
+as `Symbol's value as variable is void'.
 
-
-File: elisp,  Node: Errors,  Next: Cleanups,  Prev: Examples of Catch,  Up: Nonlocal Exits
+   The four functions `symbol-name', `symbol-value', `symbol-plist',
+and `symbol-function' return the contents of the four cells.  Here as
+an example we show the contents of the four cells of the symbol
+`buffer-file-name':
 
-Errors
-------
+     (symbol-name 'buffer-file-name)
+          => "buffer-file-name"
+     (symbol-value 'buffer-file-name)
+          => "/gnu/elisp/symbols.texi"
+     (symbol-plist 'buffer-file-name)
+          => (variable-documentation 29529)
+     (symbol-function 'buffer-file-name)
+          => #<subr buffer-file-name>
 
-   When Emacs Lisp attempts to evaluate a form that, for some reason,
-cannot be evaluated, it "signals" an "error".
-
-   When an error is signaled, Emacs's default reaction is to print an
-error message and terminate execution of the current command.  This
-is the right thing to do in most cases, such as if you type `C-f' at
-the end of the buffer.
-
-   In complicated programs, simple termination may not be what you
-want.  For example, the program may have made temporary changes in
-data structures, or created temporary buffers which should be deleted
-before the program is finished.  In such cases, you would use
-`unwind-protect' to establish "cleanup expressions" to be evaluated
-in case of error.  Occasionally, you may wish the program to continue
-execution despite an error in a subroutine.  In these cases, you
-would use `condition-case' to establish "error handlers" to recover
-control in case of error.
-
-   Resist the temptation to use error handling to transfer control
-from one part of the program to another; use `catch' and `throw'. 
-*Note Catch and Throw::.
-
-* Menu:
-
-* Signaling Errors::      How to report an error.
-* Processing of Errors::  What Emacs does when you report an error.
-* Handling Errors::       How you can trap errors and continue execution.
-* Error Names::           How errors are classified for trapping them.
-
- 
-
-File: elisp,  Node: Signaling Errors,  Next: Processing of Errors,  Prev: Errors,  Up: Errors
-
-How to Signal an Error
-......................
-
-    Most errors are signaled "automatically" within Lisp primitives
-which you call for other purposes, such as if you try to take the CAR
-of an integer or move forward a character at the end of the buffer;
-you can also signal errors explicitly with the functions `error' and
-`signal'.
-
- * Function: error FORMAT-STRING &rest ARGS
-     This function signals an error with an error message constructed
-     by applying `format' (*note String Conversion::.) to
-     FORMAT-STRING and ARGS.
-
-     Typical uses of `error' is shown in the following examples:
-
-          (error "You have committed an error.  Try something else.")
-               error--> You have committed an error.  Try something else.
-          
-          (error "You have committed %d errors.  You don't learn fast." 10)
-               error--> You have committed 10 errors.  You don't learn fast.
-
-      `error' works by calling `signal' with two arguments: the error
-     symbol `error', and a list containing the string returned by
-     `format'.
-
-     If you want to use a user-supplied string as an error message
-     verbatim, don't just write `(error STRING)'.  If STRING contains
-     `%', it will be interpreted as a format specifier, with
-     undesirable results.  Instead, use `(error "%s" STRING)'.
-
- * Function: signal ERROR-SYMBOL DATA
-     This function signals an error named by ERROR-SYMBOL.  The
-     argument DATA is a list of additional Lisp objects relevant to
-     the circumstances of the error.
-
-     The argument ERROR-SYMBOL must be an "error symbol"--a symbol
-     that has an `error-conditions' property whose value is a list of
-     condition names.  This is how different sorts of errors are
-     classified.
-
-     The number and significance of the objects in DATA depends on
-     ERROR-SYMBOL.  For example, with a `wrong-type-arg' error, there
-     are two objects in the list: a predicate which describes the
-     type that was expected, and the object which failed to fit that
-     type.  *Note Error Names::, for a description of error symbols.
-
-     Both ERROR-SYMBOL and DATA are available to any error handlers
-     which handle the error: a list `(ERROR-SYMBOL . DATA)' is
-     constructed to become the value of the local variable bound in
-     the `condition-case' form (*note Handling Errors::.).  If the
-     error is not handled, both of them are used in printing the
-     error message.
-
-          (signal 'wrong-number-of-arguments '(x y))
-               error--> Wrong number of arguments: x, y
-          
-          (signal 'no-such-error '("My unknown error condition."))
-               error--> peculiar error: "My unknown error condition."
-
-     Common Lisp note: Emacs Lisp has nothing like the Common Lisp
-     concept of continuable errors.
-
+Because this symbol is the variable which holds the name of the file
+being visited in the current buffer, the value cell contents we see are
+the name of the source file of this chapter of the Emacs Lisp Manual.
+The property list cell contains the list `(variable-documentation
+29529)' which tells the documentation functions where to find
+documentation about `buffer-file-name' in the `DOC' file.  (29529 is
+the offset from the beginning of the `DOC' file where the documentation
+for the function begins.)  The function cell contains the function for
+returning the name of the file.  `buffer-file-name' names a primitive
+function, which has no read syntax and prints in hash notation (*note
+Primitive Function Type::.).  A symbol naming a function written in
+Lisp would have a lambda expression (or a byte-code object) in this
+cell.
 
 
-File: elisp,  Node: Processing of Errors,  Next: Handling Errors,  Prev: Signaling Errors,  Up: Errors
+File: lispref.info,  Node: Definitions,  Next: Creating Symbols,  Prev: Symbol Components,  Up: Symbols
 
-How Emacs Processes Errors
-..........................
-
-    When an error is signaled, Emacs searches for an active "handler"
-for the error.  A handler is a specially marked place in the Lisp
-code of the current function or any of the functions by which it was
-called.  If an applicable handler exists, its code is executed, and
-control resumes following the handler.  The handler executes in the
-environment of the `condition-case' which established it; all
-functions called within that `condition-case' have already been
-exited, and the handler cannot return to them.
-
-   If no applicable handler is in effect in your program, the current
-command is terminated and control returns to the editor command loop,
-because the command loop has an implicit handler for all kinds of
-errors.  The command loop's handler uses the error symbol and
-associated data to print an error message.
-
-   When an error is not handled explicitly, it may cause the Lisp
-debugger to be called.  The debugger is enabled if the variable
-`debug-on-error' (*note Error Debugging::.) is non-`nil'.  Unlike
-error handlers, the debugger runs in the environment of the error, so
-that you can examine values of variables precisely as they were at
-the time of the error.
-
-
-
-File: elisp,  Node: Handling Errors,  Next: Error Names,  Prev: Processing of Errors,  Up: Errors
-
-Writing Code to Handle Errors
-.............................
-
-    The usual effect of signaling an error is to terminate the command
-that is running and return immediately to the Emacs editor command
-loop.  You can arrange to trap errors occurring in a part of your
-program by establishing an "error handler" with the special form
-`condition-case'.  A simple example looks like this:
-
-     (condition-case nil
-         (delete-file filename)
-       (error nil))
-
-This deletes the file named FILENAME, catching any error and
-returning `nil' if an error occurs.
-
-   The second argument of `condition-case' is called the "protected
-form".  (In the example above, the protected form is a call to
-`delete-file'.)  The error handlers go into effect when this form
-begins execution and are deactivated when this form returns.  They
-remain in effect for all the intervening time.  In particular, they
-are in effect during the execution of subroutines called by this
-form, and their subroutines, and so on.  This is a good thing, since,
-strictly speaking, errors can be signaled only by Lisp primitives
-(including `signal' and `error') called by the protected form, not by
-the protected form itself.
-
-   The arguments after the protected form are handlers.  Each handler
-lists one or more "condition names" (which are symbols) to specify
-which errors it will handle.  The error symbol specified when an
-error is signaled also defines a list of condition names.  A handler
-applies to an error if they have any condition names in common.  In
-the example above, there is one handler, and it specifies one
-condition name, `error', which covers all errors.
-
-   The search for an applicable handler checks all the established
-handlers starting with the most recently established one.  Thus, if
-two nested `condition-case' forms try to handle the same error, the
-inner of the two will actually handle it.
-
-   When an error is handled, control returns to the handler,
-unbinding all variable bindings made by binding constructs that are
-exited and executing the cleanups of all `unwind-protect' forms that
-are exited by doing so.  Then the body of the handler is executed. 
-After this, execution continues by returning from the
-`condition-case' form.  Because the protected form is exited
-completely before execution of the handler, the handler cannot resume
-execution at the point of the error, nor can it examine variable
-bindings that were made within the protected form.  All it can do is
-clean up and proceed.
-
-   Error signaling and handling have some resemblance to `throw' and
-`catch', but they are entirely separate facilities.  An error cannot
-be caught by a `catch', and a `throw' cannot be handled by an error
-handler (though if there is no `catch', `throw' will signal an error
-which can be handled).
-
- * Special Form: condition-case VAR PROTECTED-FORM HANDLERS...
-     This special form establishes the error handlers HANDLERS around
-     the execution of PROTECTED-FORM.  If PROTECTED-FORM executes
-     without error, the value it returns becomes the value of the
-     `condition-case' form; in this case, the `condition-case' has no
-     effect.  The `condition-case' form makes a difference when an
-     error occurs during PROTECTED-FORM.
-
-     Each of the HANDLERS is a list of the form `(CONDITIONS
-     BODY...)'.  CONDITIONS is a condition name to be handled, or a
-     list of condition names; BODY is one or more Lisp expressions to
-     be executed when this handler handles an error.
-
-     Each error that occurs has an "error symbol" which describes
-     what kind of error it is.  The `error-conditions' property of
-     this symbol is a list of condition names (*note Error Names::.).
-     Emacs searches all the active `condition-case' forms for a
-     handler which specifies one or more of these names; the
-     innermost matching `condition-case' handles the error.  The
-     handlers in this `condition-case' are tested in the order in
-     which they appear.
-
-     The body of the handler is then executed, and the
-     `condition-case' returns normally, using the value of the last
-     form in the body as the overall value.
-
-     The argument VAR is a variable.  `condition-case' does not bind
-     this variable when executing the PROTECTED-FORM, only when it
-     handles an error.  At that time, VAR is bound locally to a list
-     of the form `(ERROR-SYMBOL . DATA)', giving the particulars of
-     the error.  The handler can refer to this list to decide what to
-     do.  For example, if the error is for failure opening a file,
-     the file name is the second element of DATA--the third element
-     of VAR.
-
-     If VAR is `nil', that means no variable is bound.  Then the
-     error symbol and associated data are not made available to the
-     handler.
-
-   Here is an example of using `condition-case' to handle the error
-that results from dividing by zero.  The handler prints out a warning
-message and returns a very large number.
-
-     (defun safe-divide (dividend divisor)
-       (condition-case err                
-           ;; Protected form.
-           (/ dividend divisor)              
-         ;; The handler.
-         (arith-error                        ; Condition.
-          (princ (format "Arithmetic error: %s" err))
-          1000000)))
-     => safe-divide
-     
-     (safe-divide 5 0)
-          -| Arithmetic error: (arith-error)
-     => 1000000
-
-The handler specifies condition name `arith-error' so that it will
-handle only division-by-zero errors.  Other kinds of errors will not
-be handled, at least not by this `condition-case'.  Thus,
-
-     (safe-divide nil 3)
-          error--> Wrong type argument: integer-or-marker-p, nil
-
-   Here is a `condition-case' that catches all kinds of errors,
-including those signaled with `error':
-
-     (setq baz 34)
-          => 34
-     
-     (condition-case err
-         (if (eq baz 35)
-             t
-           ;; This is a call to the function `error'.
-           (error "Rats!  The variable %s was %s, not 35." 'baz baz))
-       ;; This is the handler; it is not a form.
-       (error (princ (format "The error was: %s" err)) 
-              2))
-     
-          -| The error was: (error "Rats!  The variable baz was 34, not 35.")
-          => 2
-
-   `condition-case' is often used to trap errors that are
-predictable, such as failure to open a file in a call to
-`insert-file-contents'.  It is also used to trap errors that are
-totally unpredictable, such as when the program evaluates an
-expression read from the user.
-
-
-
-File: elisp,  Node: Error Names,  Prev: Handling Errors,  Up: Errors
-
-Error Symbols and Condition Names
-.................................
-
-    When you signal an error, you specify an "error symbol" to specify
-the kind of error you have in mind.  Each error has one and only one
-error symbol to categorize it.  This is the finest classification of
-errors defined by the Lisp language.
-
-   These narrow classifications are grouped into a hierarchy of wider
-classes called "error conditions", identified by "condition names". 
-The narrowest such classes belong to the error symbols themselves:
-each error symbol is also a condition name.  There are also condition
-names for more extensive classes, up to the condition name `error'
-which takes in all kinds of errors.  Thus, each error has one or more
-condition names: `error', the error symbol if that is distinct from
-`error', and perhaps some intermediate classifications.
-
-   In order for a symbol to be usable as an error symbol, it must
-have an `error-conditions' property which gives a list of condition
-names.  This list defines the conditions which this kind of error
-belongs to.  (The error symbol itself, and the symbol `error', should
-always be members of this list.)  Thus, the hierarchy of condition
-names is defined by the `error-conditions' properties of the error
-symbols.
-
-   In addition to the `error-conditions' list, the error symbol
-should have an `error-message' property whose value is a string to be
-printed when that error is signaled but not handled.  If the
-`error-message' property exists, but is not a string, the error
-message `peculiar error' is used.
-
-   Here is how we define a new error symbol, `new-error':
-
-     (put 'new-error 'error-conditions '(error my-own-errors new-error))
-          => (error my-own-errors new-error)
-     (put 'new-error 'error-message "A new error")
-          => "A new error"
-
-This error has three condition names: `new-error', the narrowest
-classification; `my-own-errors', which we imagine is a wider
-classification; and `error', which is the widest of all.
-
-   Naturally, Emacs will never signal a `new-error' on its own; only
-an explicit call to `signal' (*note Errors::.) in your code can do
-this:
-
-     (signal 'new-error '(x y))
-          error--> A new error: x, y
-
-   This error can be handled through any of the three condition names.
-This example handles `new-error' and any other errors in the class
-`my-own-errors':
-
-     (condition-case foo
-         (bar nil t)
-       (my-own-errors nil))
-
-   The significant way that errors are classified is by their
-condition names--the names used to match errors with handlers.  An
-error symbol serves only as a convenient way to specify the intended
-error message and list of condition names.  If `signal' were given a
-list of condition names rather than one error symbol, that would be
-cumbersome.
-
-   By contrast, using only error symbols without condition names
-would seriously decrease the power of `condition-case'.  Condition
-names make it possible to categorize errors at various levels of
-generality when you write an error handler.  Using error symbols
-alone would eliminate all but the narrowest level of classification.
-
-   *Note Standard Errors::, for a list of all the standard error
-symbols and their conditions.
-
-
-
-File: elisp,  Node: Cleanups,  Prev: Errors,  Up: Nonlocal Exits
-
-Cleaning up from Nonlocal Exits
--------------------------------
-
-   The `unwind-protect' construct is essential whenever you
-temporarily put a data structure in an inconsistent state; it permits
-you to ensure the data are consistent in the event of an error.
-
- * Special Form: unwind-protect BODY CLEANUP-FORMS...
-     `unwind-protect' executes the BODY with a guarantee that the
-     CLEANUP-FORMS will be evaluated if control leaves BODY, no
-     matter how that happens.  The BODY may complete normally, or
-     execute a `throw' out of the `unwind-protect', or cause an
-     error; in all cases, the CLEANUP-FORMS will be evaluated.
-
-     Only the BODY is actually protected by the `unwind-protect'.  If
-     any of the CLEANUP-FORMS themselves exit nonlocally (e.g., via a
-     `throw' or an error), it is *not* guaranteed that the rest of
-     them will be executed.  If the failure of one of the
-     CLEANUP-FORMS has the potential to cause trouble, then it should
-     be protected by another `unwind-protect' around that form.
-
-     The number of currently active `unwind-protect' forms counts,
-     together with the number of local variable bindings, against the
-     limit `max-specpdl-size' (*note Local Variables::.).
-
-   For example, here we make an invisible buffer for temporary use,
-and make sure to kill it before finishing:
-
-     (save-excursion
-       (let ((buffer (get-buffer-create " *temp*")))
-         (set-buffer buffer)
-         (unwind-protect
-             BODY
-           (kill-buffer buffer))))
-
-You might think that we could just as well write `(kill-buffer
-(current-buffer))' and dispense with the variable `buffer'.  However,
-the way shown above is safer, if BODY happens to get an error after
-switching to a different buffer!  (Alternatively, you could write
-another `save-excursion' around the body, to ensure that the
-temporary buffer becomes current in time to kill it.)
-
-   Here is an actual example taken from the file `ftp.el'.  It
-creates a process (*note Processes::.) to try to establish a
-connection to a remote machine.  As the function `ftp-login' is
-highly susceptible to numerous problems which the writer of the
-function cannot anticipate, it is protected with a form that
-guarantees deletion of the process in the event of failure. 
-Otherwise, Emacs might fill up with useless subprocesses.
-
-     (let ((win nil))
-       (unwind-protect
-           (progn
-             (setq process (ftp-setup-buffer host file))
-             (if (setq win (ftp-login process host user password))
-                 (message "Logged in")
-               (error "Ftp login failed")))
-         (or win (and process (delete-process process)))))
-
-   This example actually has a small bug: if the user types `C-g' to
-quit, and the quit happens immediately after the function
-`ftp-setup-buffer' returns but before the variable `process' is set,
-the process will not be killed.  There is no easy way to fix this
-bug, but at least it is very unlikely.
-
-
-
-File: elisp,  Node: Variables,  Next: Functions,  Prev: Control Structures,  Up: Top
-
-Variables
-*********
-
-   A "variable" is a name used in a program to stand for a value. 
-Nearly all programming languages have variables of some sort.  In the
-text for a Lisp program, variables are written using the syntax for
-symbols.
-
-   In Lisp, unlike most programming languages, programs are
-represented primarily as Lisp objects and only secondarily as text. 
-The Lisp objects used for variables are symbols: the symbol name is
-the variable name, and the variable's value is stored in the value
-cell of the symbol.  The use of a symbol as a variable is independent
-of whether the same symbol has a function definition.  *Note Symbol
-Components::.
-
-   The textual form of a program is determined by its Lisp object
-representation; it is the read syntax for the Lisp object which
-constitutes the program.  This is why a variable in a textual Lisp
-program is written as the read syntax for the symbol that represents
-the variable.
-
-* Menu:
-
-* Global Variables::      Variable values that exist permanently, everywhere.
-* Constant Variables::    Certain "variables" have values that never change.
-* Local Variables::       Variable values that exist only temporarily.
-* Void Variables::        Symbols that lack values.
-* Defining Variables::    A definition says a symbol is used as a variable.
-* Accessing Variables::   Examining values of variables whose names
-                            are known only at run time.
-* Setting Variables::     Storing new values in variables.
-* Variable Scoping::      How Lisp chooses among local and global values.
-* Buffer-Local Variables::  Variable values in effect only in one buffer.
-
- 
-
-File: elisp,  Node: Global Variables,  Next: Constant Variables,  Prev: Variables,  Up: Variables
-
-Global Variables
+Defining Symbols
 ================
 
-   The simplest way to use a variable is "globally".  This means that
-the variable has just one value at a time, and this value is in
-effect (at least for the moment) throughout the Lisp system.  The
-value remains in effect until you specify a new one.  When a new
-value replaces the old one, no trace of the old value remains in the
+   A "definition" in Lisp is a special form that announces your
+intention to use a certain symbol in a particular way.  In Emacs Lisp,
+you can define a symbol as a variable, or define it as a function (or
+macro), or both independently.
+
+   A definition construct typically specifies a value or meaning for the
+symbol for one kind of use, plus documentation for its meaning when used
+in this way.  Thus, when you define a symbol as a variable, you can
+supply an initial value for the variable, plus documentation for the
 variable.
 
-   You specify a value for a symbol with `setq'.  For example,
+   `defvar' and `defconst' are special forms that define a symbol as a
+global variable.  They are documented in detail in *Note Defining
+Variables::.
 
-     (setq x '(a b))
+   `defun' defines a symbol as a function, creating a lambda expression
+and storing it in the function cell of the symbol.  This lambda
+expression thus becomes the function definition of the symbol.  (The
+term "function definition", meaning the contents of the function cell,
+is derived from the idea that `defun' gives the symbol its definition
+as a function.)  *Note Functions::.
 
-gives the variable `x' the value `(a b)'.  Note that the first
-argument of `setq', the name of the variable, is not evaluated, but
-the second argument, the desired value, is evaluated normally.
+   `defmacro' defines a symbol as a macro.  It creates a macro object
+and stores it in the function cell of the symbol.  Note that a given
+symbol can be a macro or a function, but not both at once, because both
+macro and function definitions are kept in the function cell, and that
+cell can hold only one Lisp object at any given time.  *Note Macros::.
 
-   Once the variable has a value, you can refer to it by using the
-symbol by itself as an expression.  Thus,
-
-     x
-          => (a b)
-
-assuming the `setq' form shown above has already been executed.
-
-   If you do another `setq', the new value replaces the old one:
-
-     x
-          => (a b)
-     (setq x 4)
-          => 4
-     x
-          => 4
-
-
-
-File: elisp,  Node: Constant Variables,  Next: Local Variables,  Prev: Global Variables,  Up: Variables
-
-Variables that Never Change
-===========================
-
-   Emacs Lisp has two special symbols, `nil' and `t', that always
-evaluate to themselves.  These symbols cannot be rebound, nor can
-their value cells be changed.  An attempt to change the value of
-`nil' or `t' signals a `setting-constant' error.
-
-     nil == 'nil
-          => nil
-     (setq nil 500)
-     error--> Attempt to set constant symbol: nil
-
+   In GNU Emacs Lisp, a definition is not required in order to use a
+symbol as a variable or function.  Thus, you can make a symbol a global
+variable with `setq', whether you define it first or not.  The real
+purpose of definitions is to guide programmers and programming tools.
+They inform programmers who read the code that certain symbols are
+*intended* to be used as variables, or as functions.  In addition,
+utilities such as `etags' and `make-docfile' can recognize definitions,
+and add the appropriate information to tag tables and the
+`emacs/etc/DOC-VERSION' file. *Note Accessing Documentation::.
 
 
-File: elisp,  Node: Local Variables,  Next: Void Variables,  Prev: Constant Variables,  Up: Variables
+File: lispref.info,  Node: Creating Symbols,  Next: Property Lists,  Prev: Definitions,  Up: Symbols
 
-Local Variables
-===============
+Creating and Interning Symbols
+==============================
 
-   Global variables are given values that last until explicitly
-superseded with new values.  Sometimes it is useful to create
-variable values that exist temporarily--only while within a certain
-part of the program.  These values are called "local", and the
-variables so used are called "local variables".
+   To understand how symbols are created in GNU Emacs Lisp, you must
+know how Lisp reads them.  Lisp must ensure that it finds the same
+symbol every time it reads the same set of characters.  Failure to do
+so would cause complete confusion.
 
-   For example, when a function is called, its argument variables
-receive new local values which last until the function exits. 
-Similarly, the `let' special form explicitly establishes new local
-values for specified variables; these last until exit from the `let'
-form.
+   When the Lisp reader encounters a symbol, it reads all the characters
+of the name.  Then it "hashes" those characters to find an index in a
+table called an "obarray".  Hashing is an efficient method of looking
+something up.  For example, instead of searching a telephone book cover
+to cover when looking up Jan Jones, you start with the J's and go from
+there.  That is a simple version of hashing.  Each element of the
+obarray is a "bucket" which holds all the symbols with a given hash
+code; to look for a given name, it is sufficient to look through all
+the symbols in the bucket for that name's hash code.
 
-   When a local value is established, the previous value (or lack of
-one) of the variable is saved away.  When the life span of the local
-value is over, the previous value is restored.  In the mean time, we
-say that the previous value is "shadowed" and "not visible".  Both
-global and local values may be shadowed.
+   If a symbol with the desired name is found, then it is used.  If no
+such symbol is found, then a new symbol is created and added to the
+obarray bucket.  Adding a symbol to an obarray is called "interning"
+it, and the symbol is then called an "interned symbol".  In Emacs Lisp,
+a symbol may be interned in only one obarray--if you try to intern the
+same symbol in more than one obarray, you will get unpredictable
+results.
 
-   If you set a variable (such as with `setq') while it is local,
-this replaces the local value; it does not alter the global value, or
-previous local values that are shadowed.  To model this behavior, we
-speak of a "local binding" of the variable as well as a local value.
+   It is possible for two different symbols to have the same name in
+different obarrays; these symbols are not `eq' or `equal'.  However,
+this normally happens only as part of abbrev definition (*note
+Abbrevs::.).
 
-   The local binding is a conceptual place that holds a local value. 
-Entry to a function, or a special form such as `let', creates the
-local binding; exit from the function or from the `let' removes the
-local binding.  As long as the local binding lasts, the variable's
-value is stored within it.  Use of `setq' or `set' while there is a
-local binding stores a different value into the local binding; it
-does not create a new binding.
+     Common Lisp note: in Common Lisp, a symbol may be interned in
+     several obarrays at once.
 
-   We also speak of the "global binding", which is where
-(conceptually) the global value is kept.
+   If a symbol is not in the obarray, then there is no way for Lisp to
+find it when its name is read.  Such a symbol is called an "uninterned
+symbol" relative to the obarray.  An uninterned symbol has all the
+other characteristics of symbols.
 
-   A variable can have more than one local binding at a time (for
-example, if there are nested `let' forms that bind it).  In such a
-case, the most recently created local binding that still exists is
-the "current binding" of the variable.  (This is called "dynamic
-scoping"; see *Note Variable Scoping::.)  If there are no local
-bindings, the variable's global binding is its current binding.  We
-also call the current binding the "most-local existing binding", for
-emphasis.  Ordinary evaluation of a symbol always returns the value
-of its current binding.
+   In Emacs Lisp, an obarray is represented as a vector.  Each element
+of the vector is a bucket; its value is either an interned symbol whose
+name hashes to that bucket, or 0 if the bucket is empty.  Each interned
+symbol has an internal link (invisible to the user) to the next symbol
+in the bucket.  Because these links are invisible, there is no way to
+scan the symbols in an obarray except using `mapatoms' (below).  The
+order of symbols in a bucket is not significant.
 
-   The special forms `let' and `let*' exist to create local bindings.
+   In an empty obarray, every element is 0, and you can create an
+obarray with `(make-vector LENGTH 0)'.  *This is the only valid way to
+create an obarray.*  Prime numbers as lengths tend to result in good
+hashing; lengths one less than a power of two are also good.
 
- * Special Form: let (BINDINGS...) FORMS...
-     This function binds variables according to BINDINGS and then
-     evaluates all of the FORMS in textual order.  The `let'-form
-     returns the value of the last form in FORMS.
+   *Do not try to create an obarray that is not empty.*  This does not
+work--only `intern' can enter a symbol in an obarray properly.  Also,
+don't try to put into an obarray of your own a symbol that is already
+interned in the main obarray, because in Emacs Lisp a symbol cannot be
+in two obarrays at once.
 
-     Each of the BINDINGS is either (i) a symbol, in which case that
-     symbol is bound to `nil'; or (ii) a list of the form `(SYMBOL
-     VALUE-FORM)', in which case SYMBOL is bound to the result of
-     evaluating VALUE-FORM.  If VALUE-FORM is omitted, `nil' is used.
+   Most of the functions below take a name and sometimes an obarray as
+arguments.  A `wrong-type-argument' error is signaled if the name is
+not a string, or if the obarray is not a vector.
 
-     All of the VALUE-FORMs in BINDINGS are evaluated in the order
-     they appear and *before* any of the symbols are bound.  Here is
-     an example of this: `Z' is bound to the old value of `Y', which
-     is 2, not the new value, 1.
+ - Function: symbol-name SYMBOL
+     This function returns the string that is SYMBOL's name.  For
+     example:
 
-          (setq Y 2)
-               => 2
-          (let ((Y 1) 
-                (Z Y))
-            (list Y Z))
-               => (1 2)
+          (symbol-name 'foo)
+               => "foo"
 
- * Special Form: let* (BINDINGS...) FORMS...
-     This special form is like `let', except that each symbol in
-     BINDINGS is bound as soon as its new value is computed, before
-     the computation of the values of the following local bindings. 
-     Therefore, an expression in BINDINGS may reasonably refer to the
-     preceding symbols bound in this `let*' form.  Compare the
-     following example with the example above for `let'.
+     Changing the string by substituting characters, etc, does change
+     the name of the symbol, but fails to update the obarray, so don't
+     do it!
 
-          (setq Y 2)
-               => 2
-          (let* ((Y 1)
-                 (Z Y))    ; Use the just-established value of `Y'.
-            (list Y Z))
-               => (1 1)
+ - Function: make-symbol NAME
+     This function returns a newly-allocated, uninterned symbol whose
+     name is NAME (which must be a string).  Its value and function
+     definition are void, and its property list is `nil'.  In the
+     example below, the value of `sym' is not `eq' to `foo' because it
+     is a distinct uninterned symbol whose name is also `foo'.
 
-   Here is a complete list of the other facilities which create local
-bindings:
-
-   * Function calls (*note Functions::.).
-
-   * Macro calls (*note Macros::.).
-
-   * `condition-case' (*note Errors::.).
-
- * Variable: max-specpdl-size
-     This variable defines the limit on the number of local variable
-     bindings and `unwind-protect' cleanups (*note Nonlocal Exits::.)
-     that are allowed before signaling an error (with data `"Variable
-     binding depth exceeds max-specpdl-size"').
-
-     This limit, with the associated error when it is exceeded, is
-     one way that Lisp avoids infinite recursion on an ill-defined
-     function.
-
-     The default value is 600.
-
-
-
-File: elisp,  Node: Void Variables,  Next: Defining Variables,  Prev: Local Variables,  Up: Variables
-
-When a Variable is "Void"
-=========================
-
-   If you have never given a symbol any value as a global variable,
-we say that that symbol's global value is "void".  In other words,
-the symbol's value cell does not have any Lisp object in it.  If you
-try to evaluate the symbol, you get a `void-variable' error rather
-than a value.
-
-   Note that a value of `nil' is not the same as void.  The symbol
-`nil' is a Lisp object and can be the value of a variable just as any
-other object can be; but it is *a value*.  A void variable does not
-have any value.
-
-   After you have given a variable a value, you can make it void once
-more using `makunbound'.
-
- * Function: makunbound SYMBOL
-     This function makes the current binding of SYMBOL void.  This
-     causes any future attempt to use this symbol as a variable to
-     signal the error `void-variable', unless or until you set it
-     again.
-
-     `makunbound' returns SYMBOL.
-
-          (makunbound 'x)          ; Make the global value of `x' void.
-               => x
-          x
-          error--> Symbol's value as variable is void: x
-
-     If SYMBOL is locally bound, `makunbound' affects the most local
-     existing binding.  This is the only way a symbol can have a void
-     local binding, since all the constructs that create local
-     bindings create them with values.  In this case, the voidness
-     lasts at most as long as the binding does; when the binding is
-     removed due to exit from the construct that made it, the
-     previous or global binding is reexposed as usual, and the
-     variable is no longer void unless the newly reexposed binding
-     was void all along.
-
-          (setq x 1)               ; Put a value in the global binding.
-               => 1
-          (let ((x 2))             ; Locally bind it.
-            (makunbound 'x)        ; Void the local binding.
-            x)
-          error--> Symbol's value as variable is void: x
-          x                        ; The global binding is unchanged.
-               => 1
-          
-          (let ((x 2))             ; Locally bind it.
-            (let ((x 3))           ; And again.
-              (makunbound 'x)      ; Void the innermost-local binding.
-              x))                  ; And refer: it's void.
-          error--> Symbol's value as variable is void: x
-          
-          (let ((x 2))
-            (let ((x 3))
-              (makunbound 'x))     ; Void inner binding, then remove it.
-            x)                     ; Now outer `let' binding is visible.
-               => 2
-
-   A variable that has been made void with `makunbound' is
-indistinguishable from one that has never received a value and has
-always been void.
-
-   You can use the function `boundp' to test whether a variable is
-currently void.
-
- * Function: boundp VARIABLE
-     `boundp' returns `t' if VARIABLE (a symbol) is not void; more
-     precisely, if its current binding is not void.  It returns `nil'
-     otherwise.
-
-          (boundp 'abracadabra)                ; Starts out void.
+          (setq sym (make-symbol "foo"))
+               => foo
+          (eq sym 'foo)
                => nil
-          (let ((abracadabra 5))               ; Locally bind it.
-            (boundp 'abracadabra))
+
+ - Function: intern NAME &optional OBARRAY
+     This function returns the interned symbol whose name is NAME.  If
+     there is no such symbol in the obarray, a new one is created,
+     added to the obarray, and returned.  If OBARRAY is supplied, it
+     specifies the obarray to use; otherwise, the value of the global
+     variable `obarray' is used.
+
+          (setq sym (intern "foo"))
+               => foo
+          (eq sym 'foo)
                => t
-          (boundp 'abracadabra)                ; Still globally void.
+          
+          (setq sym1 (intern "foo" other-obarray))
+               => foo
+          (eq sym 'foo)
                => nil
-          (setq abracadabra 5)                 ; Make it globally nonvoid.
-               => 5
-          (boundp 'abracadabra)
+
+ - Function: intern-soft NAME &optional OBARRAY
+     This function returns the symbol whose name is NAME, or `nil' if a
+     symbol with that name is not found in the obarray.  Therefore, you
+     can use `intern-soft' to test whether a symbol with a given name is
+     interned.  If OBARRAY is supplied, it specifies the obarray to
+     use; otherwise the value of the global variable `obarray' is used.
+
+          (intern-soft "frazzle")        ; No such symbol exists.
+               => nil
+          (make-symbol "frazzle")        ; Create an uninterned one.
+               => frazzle
+          (intern-soft "frazzle")        ; That one cannot be found.
+               => nil
+          (setq sym (intern "frazzle"))  ; Create an interned one.
+               => frazzle
+          (intern-soft "frazzle")        ; That one can be found!
+               => frazzle
+          (eq sym 'frazzle)              ; And it is the same one.
                => t
 
+ - Variable: obarray
+     This variable is the standard obarray for use by `intern' and
+     `read'.
+
+ - Function: mapatoms FUNCTION &optional OBARRAY
+     This function applies FUNCTION to every symbol in OBARRAY.  It
+     returns `nil'.  If OBARRAY is not supplied, it defaults to the
+     value of `obarray', the standard obarray for ordinary symbols.
+
+          (setq count 0)
+               => 0
+          (defun count-syms (s)
+            (setq count (1+ count)))
+               => count-syms
+          (mapatoms 'count-syms)
+               => nil
+          count
+               => 1871
+
+     See `documentation' in *Note Accessing Documentation::, for another
+     example using `mapatoms'.
 
 
-File: elisp,  Node: Defining Variables,  Next: Accessing Variables,  Prev: Void Variables,  Up: Variables
+File: lispref.info,  Node: Property Lists,  Prev: Creating Symbols,  Up: Symbols
 
-Defining Global Variables
-=========================
+Property Lists
+==============
 
-   You may announce your intention to use a symbol as a global
-variable with a definition, using `defconst' or `defvar'.
+   A "property list" ("plist" for short) is a list of paired elements
+stored in the property list cell of a symbol.  Each of the pairs
+associates a property name (usually a symbol) with a property or value.
+Property lists are generally used to record information about a
+symbol, such as how to compile it, the name of the file where it was
+defined, or perhaps even the grammatical class of the symbol
+(representing a word) in a language understanding system.
 
-   In Emacs Lisp, definitions serve three purposes.  First, they
-inform the user who reads the code that certain symbols are
-*intended* to be used as variables.  Second, they inform the Lisp
-system of these things, supplying a value and documentation.  Third,
-they provide information to utilities such as `etags' and
-`make-docfile', which create data bases of the functions and
-variables in a program.
+   Character positions in a string or buffer can also have property
+lists.  *Note Text Properties::.
 
-   The difference between `defconst' and `defvar' is primarily a
-matter of intent, serving to inform human readers of whether programs
-will change the variable.  Emacs Lisp does not restrict the ways in
-which a variable can be used based on `defconst' or `defvar'
-declarations.  However, it also makes a difference for
-initialization: `defconst' unconditionally initializes the variable,
-while `defvar' initializes it only if it is void.
+   The property names and values in a property list can be any Lisp
+objects, but the names are usually symbols.  They are compared using
+`eq'.  Here is an example of a property list, found on the symbol
+`progn' when the compiler is loaded:
 
-   One would expect user option variables to be defined with
-`defconst', since programs do not change them.  Unfortunately, this
-has bad results if the definition is in a library that is not
-preloaded: `defconst' would override any prior value when the library
-is loaded.  Users would like to be able to set the option in their
-init files, and override the default value given in the definition. 
-For this reason, user options must be defined with `defvar'.
+     (lisp-indent-function 0 byte-compile byte-compile-progn)
 
- * Special Form: defvar SYMBOL [VALUE [DOC-STRING]]
-     This special form informs a person reading your code that SYMBOL
-     will be used as a variable that the programs are likely to set
-     or change.  It is also used for all user option variables except
-     in the preloaded parts of Emacs.  Note that SYMBOL is not
-     evaluated; the symbol to be defined must appear explicitly in
-     the `defvar'.
+Here `lisp-indent-function' and `byte-compile' are property names, and
+the other two elements are the corresponding values.
 
-     If SYMBOL already has a value (i.e., it is not void), VALUE is
-     not even evaluated, and SYMBOL's value remains unchanged.  If
-     SYMBOL is void and VALUE is specified, it is evaluated and
-     SYMBOL is set to the result.  (If VALUE is not specified, the
-     value of SYMBOL is not changed in any case.)
+   Association lists (*note Association Lists::.) are very similar to
+property lists.  In contrast to association lists, the order of the
+pairs in the property list is not significant since the property names
+must be distinct.
 
-     If the DOC-STRING argument appears, it specifies the
-     documentation for the variable.  (This opportunity to specify
-     documentation is one of the main benefits of defining the
-     variable.)  The documentation is stored in the symbol's
-     `variable-documentation' property.  The Emacs help functions
-     (*note Documentation::.) look for this property.
+   Property lists are better than association lists when it is necessary
+to attach information to various Lisp function names or variables.  If
+all the pairs are recorded in one association list, the program will
+need to search that entire list each time a function or variable is to
+be operated on.  By contrast, if the information is recorded in the
+property lists of the function names or variables themselves, each
+search will scan only the length of one property list, which is usually
+short.  For this reason, the documentation for a variable is recorded in
+a property named `variable-documentation'.  The byte compiler likewise
+uses properties to record those functions needing special treatment.
 
-     If the first character of DOC-STRING is `*', it means that this
-     variable is considered to be a user option.  This affects
-     commands such as `set-variable' and `edit-options'.
+   However, association lists have their own advantages.  Depending on
+your application, it may be faster to add an association to the front of
+an association list than to update a property.  All properties for a
+symbol are stored in the same property list, so there is a possibility
+of a conflict between different uses of a property name.  (For this
+reason, it is a good idea to use property names that are probably
+unique, such as by including the name of the library in the property
+name.)  An association list may be used like a stack where associations
+are pushed on the front of the list and later discarded; this is not
+possible with a property list.
 
-     For example, this form defines `foo' but does not set its value:
+ - Function: symbol-plist SYMBOL
+     This function returns the property list of SYMBOL.
 
-          (defvar foo)
-               => foo
+ - Function: setplist SYMBOL PLIST
+     This function sets SYMBOL's property list to PLIST.  Normally,
+     PLIST should be a well-formed property list, but this is not
+     enforced.
 
-     The following example sets the value of `bar' to `23', and gives
-     it a documentation string:
+          (setplist 'foo '(a 1 b (2 3) c nil))
+               => (a 1 b (2 3) c nil)
+          (symbol-plist 'foo)
+               => (a 1 b (2 3) c nil)
 
-          (defvar bar 23 "The normal weight of a bar.")
-               => bar
+     For symbols in special obarrays, which are not used for ordinary
+     purposes, it may make sense to use the property list cell in a
+     nonstandard fashion; in fact, the abbrev mechanism does so (*note
+     Abbrevs::.).
 
-     The following form changes the documentation string for `bar',
-     making it a user option, but does not change the value, since
-     `bar' already has a value.  (The addition `(1+ 23)' is not even
-     performed.)
+ - Function: get SYMBOL PROPERTY
+     This function finds the value of the property named PROPERTY in
+     SYMBOL's property list.  If there is no such property, `nil' is
+     returned.  Thus, there is no distinction between a value of `nil'
+     and the absence of the property.
 
-          (defvar bar (1+ 23) "*The normal weight of a bar.")
-               => bar
-          bar
-               => 23
+     The name PROPERTY is compared with the existing property names
+     using `eq', so any object is a legitimate property.
 
-     Here is an equivalent expression for the `defvar' special form:
+     See `put' for an example.
 
-          (defvar SYMBOL VALUE DOC-STRING)
-          ==
-          (progn
-            (if (not (boundp 'SYMBOL))
-                (setq SYMBOL VALUE))
-            (put 'SYMBOL 'variable-documentation 'DOC-STRING)
-            'SYMBOL)
+ - Function: put SYMBOL PROPERTY VALUE
+     This function puts VALUE onto SYMBOL's property list under the
+     property name PROPERTY, replacing any previous value.
 
-     The `defvar' form returns SYMBOL, but it is normally used at top
-     level in a file where its value does not matter.
-
- * Special Form: defconst SYMBOL [VALUE [DOC-STRING]]
-     This special form informs a person reading your code that SYMBOL
-     has a global value, established here, that will not normally be
-     changed or locally bound by the execution of the program.  The
-     user, however, may be welcome to change it.  Note that SYMBOL is
-     not evaluated; the symbol to be defined must appear explicitly
-     in the `defconst'.
-
-     `defconst' always evaluates VALUE and sets the global value of
-     SYMBOL to the result, provided VALUE is given.
-
-     *Note:* don't use `defconst' for user option variables in
-     libraries that are not normally loaded.  The user should be able
-     to specify a value for such a variable in the `.emacs' file, so
-     that it will be in effect if and when the library is loaded
-     later.
-
-     Here, `pi' is a constant that presumably ought not to be changed
-     by anyone (attempts by the Indiana State Legislature
-     notwithstanding).  As the second form illustrates, however, this
-     is only advisory.
-
-          (defconst pi 3 "Pi to one place.")
-               => pi
-          (setq pi 4)
-               => pi
-          pi
-               => 4
-
- * Function: user-variable-p VARIABLE
-     This function returns `t' if VARIABLE is a user option, intended
-     to be set by the user for customization, `nil' otherwise. 
-     (Variables other than user options exist for the internal
-     purposes of Lisp programs, and users need not know about them.)
-
-     User option variables are distinguished from other variables by
-     the first character of the `variable-documentation' property. 
-     If the property exists and is a string, and its first character
-     is `*', then the variable is a user option.
-
-   Note that if the `defconst' and `defvar' special forms are used
-while the variable has a local binding, the local binding's value is
-set, and the global binding is not changed.  This would be confusing.
-But the normal way to use these special forms is at top level in a
-file, where no local binding should be in effect.
-
+          (put 'fly 'verb 'transitive)
+               =>'transitive
+          (put 'fly 'noun '(a buzzing little bug))
+               => (a buzzing little bug)
+          (get 'fly 'verb)
+               => transitive
+          (symbol-plist 'fly)
+               => (verb transitive noun (a buzzing little bug))
 
 
-File: elisp,  Node: Accessing Variables,  Next: Setting Variables,  Prev: Defining Variables,  Up: Variables
+File: lispref.info,  Node: Evaluation,  Next: Control Structures,  Prev: Symbols,  Up: Top
 
-Accessing Variable Values
-=========================
+Evaluation
+**********
 
-   The usual way to reference a variable is to write the symbol which
-names it (*note Symbol Forms::.).  This requires you to specify the
-variable name when you write the program.  Usually that is exactly
-what you want to do.  Occasionally you need to choose at run time
-which variable to reference; then you can use `symbol-value'.
+   The "evaluation" of expressions in Emacs Lisp is performed by the
+"Lisp interpreter"--a program that receives a Lisp object as input and
+computes its "value as an expression".  The value is computed in a
+fashion that depends on the data type of the object, following rules
+described in this chapter.  The interpreter runs automatically to
+evaluate portions of your program, but can also be called explicitly
+via the Lisp primitive function `eval'.
 
- * Function: symbol-value SYMBOL
-     This function returns the value of SYMBOL.  This is the value in
-     the innermost local binding of the symbol, or its global value
-     if it has no local bindings.
+* Menu:
 
-          (setq abracadabra 5)
-               => 5
-          (setq foo 9)
-               => 9
-          
-          ;; Here the symbol `abracadabra'
-          ;; is the symbol whose value is examined.
-          (let ((abracadabra 'foo))
-            (symbol-value 'abracadabra))
+* Intro Eval::  Evaluation in the scheme of things.
+* Eval::        How to invoke the Lisp interpreter explicitly.
+* Forms::       How various sorts of objects are evaluated.
+* Quoting::     Avoiding evaluation (to put constants in the program).
+
+
+File: lispref.info,  Node: Intro Eval,  Next: Eval,  Up: Evaluation
+
+Introduction to Evaluation
+==========================
+
+   The Lisp interpreter, or evaluator, is the program which computes
+the value of an expression which is given to it.  When a function
+written in Lisp is called, the evaluator computes the value of the
+function by evaluating the expressions in the function body.  Thus,
+running any Lisp program really means running the Lisp interpreter.
+
+   How the evaluator handles an object depends primarily on the data
+type of the object.
+
+   A Lisp object which is intended for evaluation is called an
+"expression" or a "form".  The fact that expressions are data objects
+and not merely text is one of the fundamental differences between
+Lisp-like languages and typical programming languages.  Any object can
+be evaluated, but in practice only numbers, symbols, lists and strings
+are evaluated very often.
+
+   It is very common to read a Lisp expression and then evaluate the
+expression, but reading and evaluation are separate activities, and
+either can be performed alone.  Reading per se does not evaluate
+anything; it converts the printed representation of a Lisp object to the
+object itself.  It is up to the caller of `read' whether this object is
+a form to be evaluated, or serves some entirely different purpose.
+*Note Input Functions::.
+
+   Do not confuse evaluation with command key interpretation.  The
+editor command loop translates keyboard input into a command (an
+interactively callable function) using the active keymaps, and then
+uses `call-interactively' to invoke the command.  The execution of the
+command itself involves evaluation if the command is written in Lisp,
+but that is not a part of command key interpretation itself.  *Note
+Command Loop::.
+
+   Evaluation is a recursive process.  That is, evaluation of a form may
+cause `eval' to be called again in order to evaluate parts of the form.
+For example, evaluation of a function call first evaluates each
+argument of the function call, and then evaluates each form in the
+function body.  Consider evaluation of the form `(car x)': the subform
+`x' must first be evaluated recursively, so that its value can be
+passed as an argument to the function `car'.
+
+   The evaluation of forms takes place in a context called the
+"environment", which consists of the current values and bindings of all
+Lisp variables.(1)  Whenever the form refers to a variable without
+creating a new binding for it, the value of the binding in the current
+environment is used.  *Note Variables::.
+
+   Evaluation of a form may create new environments for recursive
+evaluation by binding variables (*note Local Variables::.).  These
+environments are temporary and will be gone by the time evaluation of
+the form is complete.  The form may also make changes that persist;
+these changes are called "side effects".  An example of a form that
+produces side effects is `(setq foo 1)'.
+
+   Finally, evaluation of one particular function call, `byte-code',
+invokes the "byte-code interpreter" on its arguments.  Although the
+byte-code interpreter is not the same as the Lisp interpreter, it uses
+the same environment as the Lisp interpreter, and may on occasion invoke
+the Lisp interpreter.  (*Note Byte Compilation::.)
+
+   The details of what evaluation means for each kind of form are
+described below (*note Forms::.).
+
+   ---------- Footnotes ----------
+
+   (1)  This definition of "environment" is specifically not intended
+to include all the data which can affect the result of a program.
+
+
+File: lispref.info,  Node: Eval,  Next: Forms,  Prev: Intro Eval,  Up: Evaluation
+
+Eval
+====
+
+   Most often, forms are evaluated automatically, by virtue of their
+occurrence in a program being run.  On rare occasions, you may need to
+write code that evaluates a form that is computed at run time, such as
+after reading a form from text being edited or getting one from a
+property list.  On these occasions, use the `eval' function.
+
+   The functions and variables described in this section evaluate
+forms, specify limits to the evaluation process, or record recently
+returned values.  Loading a file also does evaluation (*note
+Loading::.).
+
+ - Function: eval FORM
+     This is the basic function for performing evaluation.  It evaluates
+     FORM in the current environment and returns the result.  How the
+     evaluation proceeds depends on the type of the object (*note
+     Forms::.).
+
+     Since `eval' is a function, the argument expression that appears
+     in a call to `eval' is evaluated twice: once as preparation before
+     `eval' is called, and again by the `eval' function itself.  Here
+     is an example:
+
+          (setq foo 'bar)
+               => bar
+          (setq bar 'baz)
+               => baz
+          ;; `eval' receives argument `bar', which is the value of `foo'
+          (eval foo)
+               => baz
+
+     The number of currently active calls to `eval' is limited to
+     `max-lisp-eval-depth' (see below).
+
+ - Command: eval-current-buffer &optional STREAM
+     This function evaluates the forms in the current buffer.  It reads
+     forms from the buffer and calls `eval' on them until the end of the
+     buffer is reached, or until an error is signaled and not handled.
+
+     If STREAM is supplied, the variable `standard-output' is bound to
+     STREAM during the evaluation (*note Output Functions::.).
+
+     `eval-current-buffer' always returns `nil'.
+
+ - Command: eval-region START END &optional STREAM
+     This function evaluates the forms in the current buffer in the
+     region defined by the positions START and END.  It reads forms from
+     the region and calls `eval' on them until the end of the region is
+     reached, or until an error is signaled and not handled.
+
+     If STREAM is supplied, `standard-output' is bound to it for the
+     duration of the command.
+
+     `eval-region' always returns `nil'.
+
+ - Variable: max-lisp-eval-depth
+     This variable defines the maximum depth allowed in calls to
+     `eval', `apply', and `funcall' before an error is signaled (with
+     error message `"Lisp nesting exceeds max-lisp-eval-depth"').
+     `eval' is called recursively to evaluate the arguments of Lisp
+     function calls and to evaluate bodies of functions.
+
+     This limit, with the associated error when it is exceeded, is one
+     way that Lisp avoids infinite recursion on an ill-defined function.
+
+     The default value of this variable is 200.  If you set it to a
+     value less than 100, Lisp will reset it to 100 if the given value
+     is reached.
+
+     `max-specpdl-size' provides another limit on nesting.  *Note Local
+     Variables::.
+
+ - Variable: values
+     The value of this variable is a list of values returned by all
+     expressions which were read from buffers (including the
+     minibuffer), evaluated, and printed.  The elements are in order,
+     most recent first.
+
+          (setq x 1)
+               => 1
+          (list 'A (1+ 2) auto-save-default)
+               => (A 3 t)
+          values
+               => ((A 3 t) 1 ...)
+
+     This variable is useful for referring back to values of forms
+     recently evaluated.  It is generally a bad idea to print the value
+     of `values' itself, since this may be very long.  Instead, examine
+     particular elements, like this:
+
+          ;; Refer to the most recent evaluation result.
+          (nth 0 values)
+               => (A 3 t)
+          ;; That put a new element on,
+          ;;   so all elements move back one.
+          (nth 1 values)
+               => (A 3 t)
+          ;; This gets the element that was next-to-last
+          ;;   before this example.
+          (nth 3 values)
+               => 1
+
+
+File: lispref.info,  Node: Forms,  Next: Quoting,  Prev: Eval,  Up: Evaluation
+
+Kinds of Forms
+==============
+
+   A Lisp object that is intended to be evaluated is called a "form".
+How Emacs evaluates a form depends on its data type.  Emacs has three
+different kinds of form that are evaluated differently: symbols, lists,
+and "all other types".  All three kinds are described in this section,
+starting with "all other types" which are self-evaluating forms.
+
+* Menu:
+
+* Self-Evaluating Forms::   Forms that evaluate to themselves.
+* Symbol Forms::            Symbols evaluate as variables.
+* Classifying Lists::       How to distinguish various sorts of list forms.
+* Function Indirection::    When a symbol appears as the car of a list,
+			      we find the real function via the symbol.
+* Function Forms::          Forms that call functions.
+* Macro Forms::             Forms that call macros.
+* Special Forms::           "Special forms" are idiosyncratic primitives,
+                              most of them extremely important.
+* Autoloading::             Functions set up to load files
+                              containing their real definitions.
+
+
+File: lispref.info,  Node: Self-Evaluating Forms,  Next: Symbol Forms,  Up: Forms
+
+Self-Evaluating Forms
+---------------------
+
+   A "self-evaluating form" is any form that is not a list or symbol.
+Self-evaluating forms evaluate to themselves: the result of evaluation
+is the same object that was evaluated.  Thus, the number 25 evaluates to
+25, and the string `"foo"' evaluates to the string `"foo"'.  Likewise,
+evaluation of a vector does not cause evaluation of the elements of the
+vector--it returns the same vector with its contents unchanged.
+
+     '123               ; An object, shown without evaluation.
+          => 123
+     123                ; Evaluated as usual---result is the same.
+          => 123
+     (eval '123)        ; Evaluated ``by hand''---result is the same.
+          => 123
+     (eval (eval '123)) ; Evaluating twice changes nothing.
+          => 123
+
+   It is common to write numbers, characters, strings, and even vectors
+in Lisp code, taking advantage of the fact that they self-evaluate.
+However, it is quite unusual to do this for types that lack a read
+syntax, because it is inconvenient and not very useful; however, it is
+possible to put them inside Lisp programs when they are constructed
+from subexpressions rather than read.  Here is an example:
+
+     ;; Build such an expression.
+     (setq buffer (list 'print (current-buffer)))
+          => (print #<buffer eval.texi>)
+     ;; Evaluate it.
+     (eval buffer)
+          -| #<buffer eval.texi>
+          => #<buffer eval.texi>
+
+
+File: lispref.info,  Node: Symbol Forms,  Next: Classifying Lists,  Prev: Self-Evaluating Forms,  Up: Forms
+
+Symbol Forms
+------------
+
+   When a symbol is evaluated, it is treated as a variable.  The result
+is the variable's value, if it has one.  If it has none (if its value
+cell is void), an error is signaled.  For more information on the use of
+variables, see *Note Variables::.
+
+   In the following example, we set the value of a symbol with `setq'.
+When the symbol is later evaluated, that value is returned.
+
+     (setq a 123)
+          => 123
+     (eval 'a)
+          => 123
+     a
+          => 123
+
+   The symbols `nil' and `t' are treated specially, so that the value
+of `nil' is always `nil', and the value of `t' is always `t'.  Thus,
+these two symbols act like self-evaluating forms, even though `eval'
+treats them like any other symbol.
+
+
+File: lispref.info,  Node: Classifying Lists,  Next: Function Indirection,  Prev: Symbol Forms,  Up: Forms
+
+Classification of List Forms
+----------------------------
+
+   A form that is a nonempty list is either a function call, a macro
+call, or a special form, according to its first element.  These three
+kinds of forms are evaluated in different ways, described below.  The
+rest of the list consists of "arguments" for the function, macro or
+special form.
+
+   The first step in evaluating a nonempty list is to examine its first
+element.  This element alone determines what kind of form the list is
+and how the rest of the list is to be processed.  The first element is
+*not* evaluated, as it would be in some Lisp dialects including Scheme.
+
+
+File: lispref.info,  Node: Function Indirection,  Next: Function Forms,  Prev: Classifying Lists,  Up: Forms
+
+Symbol Function Indirection
+---------------------------
+
+   If the first element of the list is a symbol then evaluation examines
+the symbol's function cell, and uses its contents instead of the
+original symbol.  If the contents are another symbol, this process,
+called "symbol function indirection", is repeated until a non-symbol is
+obtained.  *Note Function Names::, for more information about using a
+symbol as a name for a function stored in the function cell of the
+symbol.
+
+   One possible consequence of this process is an infinite loop, in the
+event that a symbol's function cell refers to the same symbol.  Or a
+symbol may have a void function cell, causing a `void-function' error.
+But if neither of these things happens, we eventually obtain a
+non-symbol, which ought to be a function or other suitable object.
+
+   More precisely, we should now have a Lisp function (a lambda
+expression), a byte-code function, a primitive function, a Lisp macro, a
+special form, or an autoload object.  Each of these types is a case
+described in one of the following sections.  If the object is not one of
+these types, the error `invalid-function' is signaled.
+
+   The following example illustrates the symbol indirection process.  We
+use `fset' to set the function cell of a symbol and `symbol-function'
+to get the function cell contents (*note Function Cells::.).
+Specifically, we store the symbol `car' into the function cell of
+`first', and the symbol `first' into the function cell of `erste'.
+
+     ;; Build this function cell linkage:
+     ;;   -------------       -----        -------        -------
+     ;;  | #<subr car> | <-- | car |  <-- | first |  <-- | erste |
+     ;;   -------------       -----        -------        -------
+
+     (symbol-function 'car)
+          => #<subr car>
+
+     (fset 'first 'car)
+          => car
+
+     (fset 'erste 'first)
+          => first
+
+     (erste '(1 2 3))   ; Call the function referenced by `erste'.
+          => 1
+
+   By contrast, the following example calls a function without any
+symbol function indirection, because the first element is an anonymous
+Lisp function, not a symbol.
+
+     ((lambda (arg) (erste arg))
+      '(1 2 3))
+          => 1
+
+After that function is called, its body is evaluated; this does involve
+symbol function indirection when calling `erste'.
+
+   The built-in function `indirect-function' provides an easy way to
+perform symbol function indirection explicitly.
+
+ - Function: indirect-function FUNCTION
+     This function returns the meaning of FUNCTION as a function.  If
+     FUNCTION is a symbol, then it finds FUNCTION's function definition
+     and starts over with that value.  If FUNCTION is not a symbol,
+     then it returns FUNCTION itself.
+
+     Here is how you could define `indirect-function' in Lisp:
+
+          (defun indirect-function (function)
+            (if (symbolp function)
+                (indirect-function (symbol-function function))
+              function))
+
+
+File: lispref.info,  Node: Function Forms,  Next: Macro Forms,  Prev: Function Indirection,  Up: Forms
+
+Evaluation of Function Forms
+----------------------------
+
+   If the first element of a list being evaluated is a Lisp function
+object, byte-code object or primitive function object, then that list is
+a "function call".  For example, here is a call to the function `+':
+
+     (+ 1 x)
+
+   When a function call is evaluated, the first step is to evaluate the
+remaining elements of the list in the order they appear.  The results
+are the actual argument values, one argument from each element.  Then
+the function is called with this list of arguments, effectively using
+the function `apply' (*note Calling Functions::.).  If the function is
+written in Lisp, the arguments are used to bind the argument variables
+of the function (*note Lambda Expressions::.); then the forms in the
+function body are evaluated in order, and the result of the last one is
+used as the value of the function call.
+
+
+File: lispref.info,  Node: Macro Forms,  Next: Special Forms,  Prev: Function Forms,  Up: Forms
+
+Lisp Macro Evaluation
+---------------------
+
+   If the first element of a list being evaluated is a macro object,
+then the list is a "macro call".  When a macro call is evaluated, the
+elements of the rest of the list are *not* initially evaluated.
+Instead, these elements themselves are used as the arguments of the
+macro.  The macro definition computes a replacement form, called the
+"expansion" of the macro, which is evaluated in place of the original
+form.  The expansion may be any sort of form: a self-evaluating
+constant, a symbol or a list.  If the expansion is itself a macro call,
+this process of expansion repeats until some other sort of form results.
+
+   Normally, the argument expressions are not evaluated as part of
+computing the macro expansion, but instead appear as part of the
+expansion, so they are evaluated when the expansion is evaluated.
+
+   For example, given a macro defined as follows:
+
+     (defmacro cadr (x)
+       (list 'car (list 'cdr x)))
+
+an expression such as `(cadr (assq 'handler list))' is a macro call,
+and its expansion is:
+
+     (car (cdr (assq 'handler list)))
+
+Note that the argument `(assq 'handler list)' appears in the expansion.
+
+   *Note Macros::, for a complete description of Emacs Lisp macros.
+
+
+File: lispref.info,  Node: Special Forms,  Next: Autoloading,  Prev: Macro Forms,  Up: Forms
+
+Special Forms
+-------------
+
+   A "special form" is a primitive function specially marked so that
+its arguments are not all evaluated.  Special forms define control
+structures or perform variable bindings--things which functions cannot
+do.
+
+   Each special form has its own rules for which arguments are evaluated
+and which are used without evaluation.  Whether a particular argument is
+evaluated may depend on the results of evaluating other arguments.
+
+   Here is a list, in alphabetical order, of all of the special forms in
+Emacs Lisp with a reference to where each is described.
+
+`and'
+     *note Combining Conditions::.
+
+`catch'
+     *note Catch and Throw::.
+
+`cond'
+     *note Conditionals::.
+
+`condition-case'
+     *note Handling Errors::.
+
+`defconst'
+     *note Defining Variables::.
+
+`defmacro'
+     *note Defining Macros::.
+
+`defun'
+     *note Defining Functions::.
+
+`defvar'
+     *note Defining Variables::.
+
+`function'
+     *note Anonymous Functions::.
+
+`if'
+     *note Conditionals::.
+
+`interactive'
+     *note Interactive Call::.
+
+`let'
+`let*'
+     *note Local Variables::.
+
+`or'
+     *note Combining Conditions::.
+
+`prog1'
+`prog2'
+`progn'
+     *note Sequencing::.
+
+`quote'
+     *note Quoting::.
+
+`save-excursion'
+     *note Excursions::.
+
+`save-restriction'
+     *note Narrowing::.
+
+`save-window-excursion'
+     *note Window Configurations::.
+
+`setq'
+     *note Setting Variables::.
+
+`setq-default'
+     *note Creating Buffer-Local::.
+
+`unwind-protect'
+     *note Nonlocal Exits::.
+
+`while'
+     *note Iteration::.
+
+`with-output-to-temp-buffer'
+     *note Temporary Displays::.
+
+     Common Lisp note: here are some comparisons of special forms in
+     GNU Emacs Lisp and Common Lisp.  `setq', `if', and `catch' are
+     special forms in both Emacs Lisp and Common Lisp.  `defun' is a
+     special form in Emacs Lisp, but a macro in Common Lisp.
+     `save-excursion' is a special form in Emacs Lisp, but doesn't
+     exist in Common Lisp.  `throw' is a special form in Common Lisp
+     (because it must be able to throw multiple values), but it is a
+     function in Emacs Lisp (which doesn't have multiple values).
+
+
+File: lispref.info,  Node: Autoloading,  Prev: Special Forms,  Up: Forms
+
+Autoloading
+-----------
+
+   The "autoload" feature allows you to call a function or macro whose
+function definition has not yet been loaded into Emacs.  When an
+autoload object appears as a symbol's function definition and that
+symbol is used as a function, Emacs will automatically install the real
+definition (plus other associated code) and then call that definition.
+(*Note Autoload::.)
+
+
+File: lispref.info,  Node: Quoting,  Prev: Forms,  Up: Evaluation
+
+Quoting
+=======
+
+   The special form `quote' returns its single argument "unchanged".
+
+ - Special Form: quote OBJECT
+     This special form returns OBJECT, without evaluating it.  This
+     allows symbols and lists, which would normally be evaluated, to be
+     included literally in a program.  (It is not necessary to quote
+     numbers, strings, and vectors since they are self-evaluating.)
+
+     Because `quote' is used so often in programs, Lisp provides a
+     convenient read syntax for it.  An apostrophe character (`'')
+     followed by a Lisp object (in read syntax) expands to a list whose
+     first element is `quote', and whose second element is the object.
+     Thus, the read syntax `'x' is an abbreviation for `(quote x)'.
+
+     Here are some examples of expressions that use `quote':
+
+          (quote (+ 1 2))
+               => (+ 1 2)
+          (quote foo)
                => foo
-          
-          ;; Here the value of `abracadabra',
-          ;; which is `foo',
-          ;; is the symbol whose value is examined.
-          (let ((abracadabra 'foo))
-            (symbol-value abracadabra))
-               => 9
-          
-          (symbol-value 'abracadabra)
-               => 5
+          'foo
+               => foo
+          ''foo
+               => (quote foo)
+          '(quote foo)
+               => (quote foo)
+          ['foo]
+               => [(quote foo)]
 
-     A `void-variable' error is signaled if SYMBOL has neither a
-     local binding nor a global value.
+   Other quoting constructs include `function' (*note Anonymous
+Functions::.), which causes an anonymous lambda expression written in
+Lisp to be compiled, and ``' (*note Backquote::.), which is used to
+quote only part of a list, while computing and substituting other parts.
 
+
+File: lispref.info,  Node: Control Structures,  Next: Variables,  Prev: Evaluation,  Up: Top
+
+Control Structures
+******************
+
+   A Lisp program consists of expressions or "forms" (*note Forms::.).
+We control the order of execution of the forms by enclosing them in
+"control structures".  Control structures are special forms which
+control when, whether, or how many times to execute the forms they
+contain.
+
+   The simplest control structure is sequential execution: first form
+A, then form B, and so on.  This is what happens when you write several
+forms in succession in the body of a function, or at top level in a
+file of Lisp code--the forms are executed in the order they are
+written.  We call this "textual order".  For example, if a function
+body consists of two forms A and B, evaluation of the function
+evaluates first A and then B, and the function's value is the value of
+B.
+
+   Naturally, Emacs Lisp has many kinds of control structures, including
+other varieties of sequencing, function calls, conditionals, iteration,
+and (controlled) jumps.  The built-in control structures are special
+forms since their subforms are not necessarily evaluated.  You can use
+macros to define your own control structure constructs (*note
+Macros::.).
+
+* Menu:
+
+* Sequencing::             Evaluation in textual order.
+* Conditionals::           `if', `cond'.
+* Combining Conditions::   `and', `or', `not'.
+* Iteration::              `while' loops.
+* Nonlocal Exits::         Jumping out of a sequence.
 

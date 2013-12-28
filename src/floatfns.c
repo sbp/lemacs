@@ -64,12 +64,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <math.h>
 
+#if 0 /* #### configure does this */
 #if defined(DOMAIN) && defined(SING) && defined(OVERFLOW)
     /* If those are defined, then this is probably a `matherr' machine. */
 # ifndef HAVE_MATHERR
 #  define HAVE_MATHERR
 # endif
 #endif
+#endif /* 0 */
 
 #ifdef NO_MATHERR
 #undef HAVE_MATHERR
@@ -159,10 +161,30 @@ static CONST char *float_error_fn_name;
   Fsignal (Qarith_error, list2 (build_string ((op)), (arg)))
 #define range_error(op,arg) \
   Fsignal (Qrange_error, list2 (build_string ((op)), (arg)))
+#define range_error2(op,a1,a2) \
+  Fsignal (Qrange_error, list3 (build_string ((op)), (a1), (a2)))
 #define domain_error(op,arg) \
   Fsignal (Qdomain_error, list2 (build_string ((op)), (arg)))
 #define domain_error2(op,a1,a2) \
   Fsignal (Qdomain_error, list3 (build_string ((op)), (a1), (a2)))
+
+
+/* Convert float to Lisp_Int if it fits, else signal a range error
+   using the given arguments.  */
+static Lisp_Object
+float_to_int (double x,
+              CONST char *name, Lisp_Object num, Lisp_Object num2)
+{
+  if (x >= (1 << (VALBITS-1))
+      || x <= - (1 << (VALBITS-1)) - 1)
+  {
+    if (!EQ (num2, Qunbound))
+      range_error2 (name, num, num2);
+    else
+      range_error (name, num);
+  }
+  return (make_number ((LISP_WORD_TYPE) x));
+}
 
 
 static void
@@ -191,11 +213,10 @@ in_float_error ()
 
 static Lisp_Object mark_float (Lisp_Object, void (*) (Lisp_Object));
 extern void print_float (Lisp_Object, Lisp_Object, int);
-static int sizeof_float (void *h) { return (sizeof (struct Lisp_Float)); }
 static int float_equal (Lisp_Object o1, Lisp_Object o2, int depth);
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_float,
-                               mark_float, print_float,
-                               0, sizeof_float, float_equal);
+DEFINE_LRECORD_IMPLEMENTATION ("float", lrecord_float,
+                               mark_float, print_float, 0, float_equal,
+			       sizeof (struct Lisp_Float));
 
 static Lisp_Object
 mark_float (Lisp_Object obj, void (*markobj) (Lisp_Object))
@@ -710,8 +731,6 @@ DEFUN ("float", Ffloat, Sfloat, 1, 1, 0,
 #endif /* LISP_FLOAT_TYPE */
 
 
-/* >>>> HAVE_LOGB, HAVE_FREXP need to be defined via configure or s/xxx.h */
-
 #ifdef LISP_FLOAT_TYPE
 DEFUN ("logb", Flogb, Slogb, 1, 1, 0,
   "Returns largest integer <= the base 2 log of the magnitude of ARG.\n\
@@ -719,27 +738,49 @@ This is the same as the exponent of a float.")
      (arg)
      Lisp_Object arg;
 {
-  Lisp_Object val;
-#if defined (HAVE_LOGB) || defined (HAVE_FREXP)
   double f = extract_float (arg);
-#endif /* HAVE_LOGB || HAVE_FREXP */
 
+  if (f == 0.0)
+    return (make_number (- (1 << (VALBITS - 1)))); /* most-negative-fixnum */
 #ifdef HAVE_LOGB
-  IN_FLOAT (val = make_number (logb (f)), "logb", arg);
+  {
+    Lisp_Object val;
+    IN_FLOAT (val = make_number (logb (f)), "logb", arg);
+    return (val);
+  }
 #else
 #ifdef HAVE_FREXP
   {
     int exp;  
     IN_FLOAT (frexp (f, &exp), "logb", arg);
-    val = make_number (exp - 1);
+    return (make_number (exp - 1));
   }
 #else
-  /* Would someone like to write code to emulate logb?  */
-  error (GETTEXT ("`logb' not implemented on this operating system"));
-#endif
-#endif
-
-  return val;
+  {
+    int i;
+    double d;
+    LISP_WORD_TYPE val;
+    if (f < 0.0)
+      f = -f;
+    val = -1;
+    while (f < 0.5)
+      {
+        for (i = 1, d = 0.5; d * d >= f; i += i)
+          d *= d;
+        f /= d;
+        val -= i;
+      }
+    while (f >= 1.0)
+      {
+        for (i = 1, d = 2.0; d * d <= f; i += i)
+          d *= d;
+        f /= d;
+        val += i;
+      }
+    return (make_number (val));
+  }
+#endif /* ! HAVE_FREXP */
+#endif /* ! HAVE_LOGB */
 }
 #endif /* LISP_FLOAT_TYPE */
 
@@ -753,8 +794,11 @@ DEFUN ("ceiling", Fceiling, Sceiling, 1, 1, 0,
 
 #ifdef LISP_FLOAT_TYPE
   if (FLOATP (arg))
-    IN_FLOAT (arg = make_number (ceil (float_data (XFLOAT (arg)))),
-              "ceiling", arg);
+  {
+    double d;
+    IN_FLOAT ((d = ceil (float_data (XFLOAT (arg)))), "ceiling", arg);
+    return (float_to_int (d, "ceiling", arg, Qunbound));
+  }
 #endif /* LISP_FLOAT_TYPE */
 
   return arg;
@@ -785,9 +829,8 @@ With optional DIVISOR, return the largest integer no greater than ARG/DIVISOR.")
 	  if (f2 == 0)
 	    Fsignal (Qarith_error, Qnil);
 
-	  IN_FLOAT2 (arg = make_number (floor (f1 / f2)),
-		     "floor", arg, divisor);
-	  return arg;
+	  IN_FLOAT2 (f1 = floor (f1 / f2), "floor", arg, divisor);
+	  return float_to_int (f1, "floor", arg, divisor);
 	}
 #endif /* LISP_FLOAT_TYPE */
 
@@ -808,8 +851,11 @@ With optional DIVISOR, return the largest integer no greater than ARG/DIVISOR.")
 
 #ifdef LISP_FLOAT_TYPE
   if (FLOATP (arg))
-    IN_FLOAT (arg = make_number (floor (float_data (XFLOAT (arg)))),
-              "floor", arg);
+  {
+    double d;
+    IN_FLOAT ((d = floor (float_data (XFLOAT (arg)))), "floor", arg);
+    return (float_to_int (d, "floor", arg, Qunbound));
+  }
 #endif /* LISP_FLOAT_TYPE */
 
   return arg;
@@ -824,9 +870,12 @@ DEFUN ("round", Fround, Sround, 1, 1, 0,
 
 #ifdef LISP_FLOAT_TYPE
   if (FLOATP (arg))
+  {
+    double d;
     /* Screw the prevailing rounding mode.  */
-    IN_FLOAT (arg = make_number (rint (float_data (XFLOAT (arg)))),
-              "round", arg);
+    IN_FLOAT ((d = rint (float_data (XFLOAT (arg)))), "round", arg);
+    return (float_to_int (d, "round", arg, Qunbound));
+  }
 #endif /* LISP_FLOAT_TYPE */
 
   return arg;
@@ -842,7 +891,8 @@ Rounds the value toward zero.")
 
 #ifdef LISP_FLOAT_TYPE
   if (FLOATP (arg))
-    arg = make_number ((LISP_WORD_TYPE) (float_data (XFLOAT (arg))));
+    return (float_to_int (float_data (XFLOAT (arg)),
+                          "truncate", arg, Qunbound));
 #endif /* LISP_FLOAT_TYPE */
 
   return arg;

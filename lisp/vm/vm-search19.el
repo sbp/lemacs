@@ -1,6 +1,5 @@
-;;; Incremental search through a mail folder
-;;; For Lucid Emacs and FSF Emacs 19
-;;; Copyright (C) 1989, 1993 Kyle E. Jones
+;;; Incremental search through a mail folder (for Lucid and FSF Emacs 19)
+;;; Copyright (C) 1994 Kyle E. Jones
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -16,9 +15,6 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-;;; Version 18 code first adapted to v19 isearch-mode
-;;; by Tim Bradshaw, March 1993
-
 (defun vm-isearch-forward ()
   "Incrementally search forward through the current folder's messages.
 Usage is identical to the standard Emacs incremental search.
@@ -28,52 +24,90 @@ If the variable vm-search-using-regexps is non-nil, regular expressions
 are understood; nil means the search will be for the input string taken
 literally."
   (interactive)
+  (vm-isearch t))
+
+(defun vm-isearch-backward ()
+  "Incrementally search backward through the current folder's messages.
+Usage is identical to the standard Emacs incremental search.
+When the search terminates the message containing point will be selected.
+
+If the variable vm-search-using-regexps is non-nil, regular expressions
+are understood; nil means the search will be for the input string taken
+literally."
+  (interactive)
+  (vm-isearch nil))
+
+(defun vm-isearch (forward)
   (vm-follow-summary-cursor)
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
   (vm-error-if-folder-empty)
   (vm-error-if-virtual-folder)
-  (vm-set-window-configuration 'searching-folder)
-  (if (null (get-buffer-window (current-buffer)))
-      (vm-display-current-message-buffer))
+  (vm-display (current-buffer) t '(vm-isearch-forward vm-isearch-backward)
+	      (list this-command 'searching-message))
   (let ((clip-head (point-min))
 	(clip-tail (point-max))
-	(old-w (selected-window)))
+	(old-vm-message-pointer vm-message-pointer))
     (unwind-protect
-	(progn (select-window (get-buffer-window (current-buffer)))
+	(progn (select-window (vm-get-buffer-window (current-buffer)))
 	       (widen)
-	       (isearch-mode t vm-search-using-regexps nil t)
-	       (vm-update-search-position)
-	       ;; vm-show-current-message only adjusts (point-max),
-	       ;; it doesn't change (point-min).
-	       (narrow-to-region
-		(if (< (point) (vm-vheaders-of (car vm-message-pointer)))
-		    (vm-start-of (car vm-message-pointer))
-		  (vm-vheaders-of (car vm-message-pointer)))
-		(point-max))
-	       (vm-show-current-message)
-	       (setq vm-system-state 'reading)
-	       ;; turn the clipping unwind into a noop
-	       (setq clip-head (point-min))
-	       (setq clip-tail (point-max)))
+	       (add-hook 'pre-command-hook 'vm-isearch-widen)
+	       ;; order is significant, we want to narrow after
+	       ;; the update
+	       (add-hook 'post-command-hook 'vm-isearch-narrow)
+	       (add-hook 'post-command-hook 'vm-isearch-update)
+	       (isearch-mode forward vm-search-using-regexps nil t)
+	       (vm-isearch-update)
+	       (if (not (eq vm-message-pointer old-vm-message-pointer))
+		   (progn
+		     (vm-record-and-change-message-pointer
+		      old-vm-message-pointer vm-message-pointer)
+		     (vm-update-summary-and-mode-line)
+		     ;; vm-show-current-message only adjusts (point-max),
+		     ;; it doesn't change (point-min).
+		     (widen)
+		     (narrow-to-region
+		      (if (< (point) (vm-vheaders-of (car vm-message-pointer)))
+			  (vm-start-of (car vm-message-pointer))
+			(vm-vheaders-of (car vm-message-pointer)))
+		      (vm-text-end-of (car vm-message-pointer)))
+		     (vm-display nil nil
+				 '(vm-isearch-forward vm-isearch-backward)
+				 '(reading-message))
+		     ;; turn the unwinds into a noop
+		     (setq old-vm-message-pointer vm-message-pointer)
+		     (setq clip-head (point-min))
+		     (setq clip-tail (point-max)))))
+      (remove-hook 'pre-command-hook 'vm-isearch-widen)
+      (remove-hook 'post-command-hook 'vm-isearch-update)
+      (remove-hook 'post-command-hook 'vm-isearch-narrow)
       (narrow-to-region clip-head clip-tail)
-      (select-window old-w))))
+      (setq vm-message-pointer old-vm-message-pointer))))
 
+(defun vm-isearch-widen ()
+  (if (eq major-mode 'vm-mode)
+      (widen)))
 
-(defun vm-update-search-position (&optional record-change)
-  (if (and (>= (point) (vm-start-of (car vm-message-pointer)))
-	   (<= (point) (vm-end-of (car vm-message-pointer))))
-      nil
-    (let ((mp vm-message-list)
-	  (point (point)))
-      (while mp
-	(if (and (>= point (vm-start-of (car mp)))
-		 (<= point (vm-end-of (car mp))))
-	    (if record-change
-		(progn
-		  (vm-record-and-change-message-pointer vm-message-pointer mp)
-		  (setq mp nil))
-	      (setq vm-message-pointer mp mp nil))
-	  (setq mp (cdr mp))))
-      (setq vm-need-summary-pointer-update t)
-      (vm-update-summary-and-mode-line))))
+(defun vm-isearch-narrow ()
+  (if (eq major-mode 'vm-mode)
+      (narrow-to-region
+       (if (< (point) (vm-vheaders-of (car vm-message-pointer)))
+	   (vm-start-of (car vm-message-pointer))
+	 (vm-vheaders-of (car vm-message-pointer)))
+       (vm-text-end-of (car vm-message-pointer)))))
+
+(defun vm-isearch-update ()
+  (if (eq major-mode 'vm-mode)
+      (if (and (>= (point) (vm-start-of (car vm-message-pointer)))
+	       (<= (point) (vm-end-of (car vm-message-pointer))))
+	  nil
+	(let ((mp vm-message-list)
+	      (point (point)))
+	  (while mp
+	    (if (and (>= point (vm-start-of (car mp)))
+		     (<= point (vm-end-of (car mp))))
+		(setq vm-message-pointer mp mp nil)
+	      (setq mp (cdr mp))))
+	  (setq vm-need-summary-pointer-update t)
+	  (intern (buffer-name) vm-buffers-needing-display-update)
+	  (vm-update-summary-and-mode-line)))))

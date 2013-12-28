@@ -595,6 +595,20 @@ static void
 xm_update_scrollbar (widget_instance *instance, Widget widget,
 		     widget_value *val)
 {
+  /* #### In some cases (e.g. on SGI machines), this function may
+     be called when the scrollbar is not realized.  I'm not really
+     sure why.  If the code below is executed in that case, you
+     get X errors and Motif warnings. */
+
+  if (!XtIsRealized (widget))
+    return;
+
+  /* #### This is a pretty junky function.  It needs to be
+     rewritten. (e.g. non-widget code is never supposed to call
+     XtConfigureWidget()!) The proper solution here, IMHO, is
+     to make the EmacsManager widget manage the scrollbars itself
+     and get rid of the stupid Paned widget. --ben */
+
   if (val->scrollbar_data)
     {
       scrollbar_values *data = val->scrollbar_data;
@@ -1912,10 +1926,9 @@ xm_scrollbar_callback (Widget widget, XtPointer closure, XtPointer call_data)
 void
 xm_set_keyboard_focus (Widget parent, Widget w)
 {
-#if (XmVersion < 1002)
-  /* The focus stuff changed around; this causes problems in 1.2.1
-     but is necessary in 1.1.5. */
   XmProcessTraversal (w, XmTRAVERSE_CURRENT);
-#endif
-  XtSetKeyboardFocus (parent, w);
+  /* At some point we believed that it was necessary to use XtSetKeyboardFocus
+     instead of XmProcessTraversal when using Motif >= 1.2.1, but that's bogus.
+     Presumably the problem was elsewhere, and is now gone...
+   */
 }

@@ -7,7 +7,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -48,10 +48,6 @@ NOTE-END  */
 #define INTBITS 32		/* Number of bits in an int */
 
 #define LONGBITS 32		/* Number of bits in a long */
-
-/* 68000 has lowest-numbered byte as most significant */
-
-#define BIG_ENDIAN
 
 /* Say this machine is a 68000 */
 
@@ -96,7 +92,7 @@ NOTE-END  */
 /* These programs require Sun UNIX 4.2 Release 3.2 or greater */
 
 #ifdef HAVE_SUN_WINDOWS
-#define OTHER_FILES  ${etcdir}emacstool
+#define OTHER_FILES  ${libsrc}emacstool
 #define LIBS_MACHINE -lsuntool -lsunwindow -lpixrect
 #define OBJECTS_MACHINE sunfns.o
 #define SYMS_MACHINE syms_of_sunfns ()

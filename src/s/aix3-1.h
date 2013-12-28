@@ -1,22 +1,21 @@
 /* Definitions file for GNU Emacs running on IBM AIX version 3.1
-   Copyright (C) 1985, 1986 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1990 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
-GNU Emacs is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY.  No author or distributor
-accepts responsibility to anyone for the consequences of using it
-or for whether it serves any particular purpose or works at all,
-unless he says so in writing.  Refer to the GNU Emacs General Public
-License for full details.
+GNU Emacs is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
 
-Everyone is granted permission to copy, modify and redistribute
-GNU Emacs, but only under the conditions described in the
-GNU Emacs General Public License.   A copy of this license is
-supposed to have been given to you along with GNU Emacs so you
-can know your rights and responsibilities.  It should be in a
-file named COPYING.  Among other things, the copyright notice
-and this notice must be preserved on all copies.  */
+GNU Emacs is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GNU Emacs; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
 /*
@@ -77,7 +76,11 @@ and this notice must be preserved on all copies.  */
  *	for terminal control.
  */
 
-#define HAVE_TERMIO
+#define HAVE_TERMIOS
+/* lemacs change */
+#ifndef NOT_C_CODE
+#include <termios.h>
+#endif
 
 /*
  *	Define HAVE_TIMEVAL if the system supports the BSD style clock values.
@@ -167,7 +170,6 @@ and this notice must be preserved on all copies.  */
 
 /* Special itemss needed to make Emacs run on this system.  */
 
-#if 0 /* jwz: dkeller@vnet.IBM.COM says take this out; it's in syssignal.h */
 /*
  *	Make the sigsetmask function go away.  Don't know what the
  *	ramifications of this are, but doesn't seem possible to
@@ -175,7 +177,6 @@ and this notice must be preserved on all copies.  */
  */
 
 #define sigsetmask(mask)	/* Null expansion */
-#endif /* 0 */
 
 /* setjmp and longjmp can safely replace _setjmp and _longjmp,
    but they will run slower.  */
@@ -183,14 +184,12 @@ and this notice must be preserved on all copies.  */
 #define _setjmp setjmp
 #define _longjmp longjmp
 
-/* On USG systems the system calls are interruptable by signals
+/* On USG systems the system calls are interruptible by signals
  that the user program has elected to catch.  Thus the system call
- must be retried in these cases.  All calls to read, write, and open
- in emacs are really calls to emacs_read, etc.  We define emacs_read
- to be sys_read (which is defined in sysdep.c for this system.)  If
- these were not defined, they would be defined to be open, etc.
- We can't just "#define open sys_open" because of prototype problems.
- */
+ must be retried in these cases.  To handle this without massive
+ changes in the source code, we remap the standard system call names
+ to names for our own functions in sysdep.c that do the system call
+ with retries. */
 
 #define emacs_read sys_read
 #define emacs_open sys_open
@@ -201,8 +200,12 @@ and this notice must be preserved on all copies.  */
 
 /* On USG systems these have different names */
 
+#ifndef index	/* lemacs: ifndef added per dkeller@VNET.IBM.COM */
 #define index strchr
+#endif
+#ifndef rindex	/* lemacs: ifndef added per dkeller@VNET.IBM.COM */
 #define rindex strrchr
+#endif
 
 /* USG systems tend to put everything declared static
    into the initialized data area, which becomes pure after dumping Emacs.
@@ -214,7 +217,9 @@ and this notice must be preserved on all copies.  */
 
 /* #define ADDR_CORRECT(x) (x) */
 
+#ifndef __GNUC__
 #define LINKER cc
+#endif
 
 /* Prevent -lg from being used for debugging.  Not needed.  */
 
@@ -234,12 +239,10 @@ and this notice must be preserved on all copies.  */
 
 #define SYSTEM_MALLOC
 
-/* Use the gethostname system call.  */
-#define HAVE_GETHOSTNAME
+/* lemacs change: there have been multiple problems reported with
+   using REL_ALLOC.  It works on some configurations and not others.
+   We're just going to turn it off by default. */
+#define NO_REL_ALLOC
 
-#define HAVE_CLOSEDIR
-
-/* Apparently the AIX 3.2 C compiler has a buggy interpretation of const. */
-#ifndef __GNUC__
-#define const
-#endif
+/* AIX doesn't define this.  */
+#define unix 1

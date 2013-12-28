@@ -21,8 +21,8 @@
 ;;; -------------------------------- CONTENTS --------------------------------
 ;;;
 ;;; mime-compose: Utility routines for composing MIME-compliant mail.
-;;; $Revision: 1.4 $
-;;; $Date: 1993/10/29 03:22:06 $
+;;; $Revision: 1.5 $
+;;; $Date: 1994/03/24 00:00:47 $
 ;;;
 ;;; Canonical list of features:
 ;;;   Automatic MIME header construction.
@@ -240,7 +240,7 @@
 ;;; LCD Archive Entry:
 ;;; mime-compose|Marc Andreessen|marca@ncsa.uiuc.edu|
 ;;; MIME-compliant message generation utilities.|
-;;; $Date: 1993/10/29 03:22:06 $|$Revision: 1.4 $|~/misc/mime-compose.el.Z|
+;;; $Date: 1994/03/24 00:00:47 $|$Revision: 1.5 $|~/misc/mime-compose.el.Z|
 ;;; --------------------------------------------------------------------------
 
 (provide 'mime-compose)
@@ -433,7 +433,7 @@ from VM, the Kitchen Sink(tm) of mail readers."
         (if (sit-for 2)
             (let ((lines mime-waiting-message-lines))
               (message
-               "mime-compose.el $Revision: 1.4 $, by marca@ncsa.uiuc.edu")
+               "mime-compose.el $Revision: 1.5 $, by marca@ncsa.uiuc.edu")
               (while (and (sit-for 4) lines)
                 (message (car lines))
                 (setq lines (cdr lines)))))
@@ -1112,7 +1112,7 @@ hook-var's value may be a single function or a list of functions."
             (concat "^--" (mime-primary-boundary)
                     "\nContent-Type: text.*[\n]*--" (mime-primary-boundary))
             (point-max) t)
-      (replace-match (concat "--" (mime-primary-boundary)))
+      (replace-match (concat "--" (mime-primary-boundary)) t t)
       ;; Go all the way back up to start over.
       (goto-char (point-min)))))
 

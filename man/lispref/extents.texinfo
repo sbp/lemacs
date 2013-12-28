@@ -1,0 +1,684 @@
+@c -*-texinfo-*-
+@c This is part of the GNU Emacs Lisp Reference Manual.
+@c Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc. 
+@c See the file lispref.texinfo for copying conditions.
+@setfilename ../../info/extents.info
+@node Extents, Annotations, Display, top
+@chapter Extents
+@cindex extent
+
+  An @dfn{extent} is a region of text (a start position and an end
+position) that is displayed in a particular face and can have certain
+other properties such as being read-only.  Extents can overlap each
+other.  Lucid Emacs efficiently handles buffers with large numbers of
+extents in them.
+
+@defun extentp object
+This returns @code{t} if @var{object} is an extent.
+@end defun
+
+@menu
+* Intro to Extents::
+* Creating and Modifying Extents::
+* Extent Endpoints::
+* Finding Extents::
+* Extent Properties::
+* Detached Extents::
+* Duplicable Extents::
+* Extent Replicas::
+* Extents and Events::
+* Atomic Extents::
+@end menu
+
+@node Intro to Extents
+@section Introduction to Extents
+@cindex extent priority
+@cindex priority of an extent
+
+  An extent is a region of text within a buffer that has certain
+properties associated with it.  The properties of an extent primarily
+affect the way the text contained in the extent is displayed.  Extents
+can freely overlap each other in a buffer.  Extents are invisible to
+functions that merely examine the text of a buffer.
+
+  An extent is logically a Lisp object consisting of a start position,
+an end position, a buffer to which these positions refer, and a property
+list.  As text is inserted into the buffer, the start and end positions
+of the extent are automatically adjusted as necessary to keep the extent
+referring to the same text in the buffer.  If text is inserted at the
+boundary of an extent, the extent's @code{start-open} and
+@code{end-open} properties control whether the text is included as part
+of the extent.  If the text bounded by an extent is deleted, the extent
+becomes @dfn{detached}; its start and end positions are no longer
+meaningful, but it maintains all its other properties and can later be
+reinserted into a buffer.
+
+  Each extent has a face associated with it, which controls the way in
+which the text bounded by the extent is displayed .  If an extent's face
+is @code{nil} or its properties are partially undefined, the
+corresponding properties from the default face for the screen is used.
+If two or more extents overlap, the corresponding faces are merged to
+determine the text's displayed properties.  Every extent has a
+@dfn{priority} that determines which face takes precedence if the faces
+conflict. (If two extents have the same priority, the one that comes
+later in the display order takes precedence.  @xref{Extent Endpoints,
+display order}.) Higher-numbered priority values correspond to a higher
+priority, and priority values can be negative.  Every extent is created
+with a priority of 0, but this can be changed with
+@code{set-extent-priority}.
+
+  Extents can be set to respond specially to key and mouse events within
+the extent.  An extent's @code{keymap} property controls the effect of
+key and mouse strokes within the extent's text, and the @code{highlight}
+property controls whether the extent is highlighted when the mouse moves
+over it.  @xref{Extents and Events}.
+
+  An extent can optionally have a @dfn{start-glyph} or @dfn{end-glyph}
+(but not both at one time) associated with it.  A start-glyph or
+end-glyph is a pixmap or string that will be displayed either at the
+start or end of an extent or in the margin of the line that the start
+or end of the extent lies in, depending on the extent's layout policy.
+Start-glyphs and end-glyphs are used to implement annotations, and you
+should use the annotation API functions in preference to the 
+lower-level extent functions.  For more information, @xref{Annotations}.
+
+  If an extent has its @code{duplicable} property set, it will be
+remembered when a string is created from text bounded by the extent.
+When the string is re-inserted into a buffer, the extent will also
+be re-inserted.  This mechanism is used in the kill, yank, and undo
+commands.  @xref{Duplicable Extents}.
+
+@node Creating and Modifying Extents
+@section Creating and Modifying Extents
+
+@defun make-extent from to &optional buffer
+This function makes an extent for the range [@var{from}, @var{to}) in
+@var{buffer}.  @var{buffer} defaults to the current buffer.  Insertions
+at point @var{to} will be outside of the extent; insertions at
+@var{from} will be inside the extent, causing the extent to grow
+(@pxref{Extent Endpoints}).  This is the same way that markers behave.
+The extent is initially detached if both @var{from} and @var{to} are
+@code{nil}, and in this case @var{buffer} defaults to @code{nil},
+meaning the extent is in no buffer (@pxref{Detached Extents}).
+@end defun
+
+@defun delete-extent extent
+This function removes @var{extent} from its buffer and destroys it.
+This does not modify the buffer's text, only its display properties.
+The extent cannot be used thereafter.  To remove an extent in such
+a way that it can be re-inserted later, use @code{detach-extent}.
+@xref{Detached Extents}.
+@end defun
+
+@defun extent-buffer extent
+This function returns the buffer of @var{extent}.  If the return value
+is @code{nil}, this means that the extent is detached; however, a
+detached extent will not necessarily return a value of @code{nil}.
+@end defun
+
+@node Extent Endpoints
+@section Extent Endpoints
+@cindex extent endpoint
+@cindex extent start position
+@cindex extent end position
+@cindex zero-length extent
+@cindex display order
+@cindex extent order
+@cindex order of extents
+
+Every extent has a start position and an end position, and logically
+affects the characters between those positions.  Normally the start and
+end positions must both be valid positions in the extent's buffer.
+However, both endpoints can be @code{nil}, meaning the extent is
+detached.  @xref{Detached Extents}.
+
+Whether the extent overlaps its endpoints is governed by its
+@code{start-open} and @code{end-open} properties.  Insertion of a
+character at a closed endpoint will expand the extent to include that
+character; insertion at an open endpoint will not.  Similarly, functions
+such as @code{extent-at} that scan over all extents overlapping a
+particular position will include extents with a closed endpoint at that
+position, but not extents with an open endpoint.
+
+Note that the @code{start-closed} and @code{end-closed} properties are
+equivalent to @code{start-open} and @code{end-open} with the opposite
+sense.
+
+Both endpoints can be equal, in which case the extent includes no
+characters but still exists in the buffer.  Zero-length extents are used
+primarily to represent annotations (@pxref{Annotations}).  Zero-length
+extents must be created as such: Deletion of the last character in an
+extent of length one will cause the extent to become detached rather
+than zero-length.  Insertion at the position of a zero-length extent
+expands the extent if both endpoints are closed; goes before the extent
+if it has the @code{start-open} property; and goes after the extent if
+it has the @code{start-closed} and @code{end-open} properties.  Deletion
+of a character on a side of a zero-length extent whose corresponding
+endpoint is closed causes the extent to be detached; if the
+corresponding endpoint is open, the extent remains in the buffer, moving
+as necessary.
+
+Extents are ordered within a buffer by increasing start position, and
+then by decreasing end position (this is called the @dfn{display
+order}).  Note that @code{start-open} and @code{end-closed} extents are
+treated as if 1/2 were added to the corresponding endpoint; thus, e.g.,
+all @code{start-open} extents with a particular start position will be
+ordered after all @code{start-closed} extents with the same start
+position.
+
+@defun extent-start-position extent
+This function returns the start position of @var{extent}.
+@end defun
+
+@defun extent-end-position extent
+This function returns the end position of @var{extent}.
+@end defun
+
+@defun extent-length extent
+This function returns the length of @var{extent} in characters.  If
+the extent is detached, this returns @code{0}.  If the extent is not
+detached, this is equivalent to
+@example
+(- (extent-end-position @var{extent}) (extent-start-position @var{extent}))
+@end example
+@end defun
+
+@defun set-extent-endpoints extent start end
+This function sets the start and end position of @var{extent} to
+@var{start} and @var{end}.  If both are @code{nil}, this is equivalent
+to @code{detach-extent}.
+@end defun
+
+@node Finding Extents
+@section Finding Extents
+
+The following functions allow for scanning over the extents in a buffer
+or searching for extents in a particular range of a buffer.  Keep in
+mind the way that extents are ordered in a buffer (@pxref{Extent
+Endpoints}).
+
+@defun next-extent extent
+Given an extent @var{extent}, this function returns the next extent in
+the buffer's display order.  If @var{extent} is a buffer, this returns
+the first extent in the buffer.
+@end defun
+
+@defun extent-at pos &optional buffer property before
+This function finds the ``smallest'' extent (i.e., the last one in the
+display order) at (i.e., overlapping) @var{pos} in @var{buffer} having
+@var{property} set.  @var{buffer} defaults to the current buffer.
+@var{property} defaults to @code{nil}, meaning that any extent will do.
+Returns @code{nil} if there is no matching extent at @var{pos}.  If the
+fourth argument @var{before} is not @code{nil}, it must be an extent;
+any returned extent will precede that extent.  This feature allows
+@code{extent-at} to be used by a loop over extents.
+@end defun
+
+@defun map-extents function &optional buffer from to maparg closed-end
+This function maps @var{function} over the extents which overlap the
+region @samp{[@var{from}, @var{to})} (or @samp{[@var{from}, @var{to}]}
+if @var{closed-end} is non-@code{nil}) in @var{buffer}.  @var{function}
+is called with the arguments @code{(extent, @var{maparg})}.  The
+arguments @var{from}, @var{to}, @var{maparg}, and @var{buffer} default
+to the beginning of @var{buffer}, the end of @var{buffer}, @code{nil},
+and @code{(current-buffer)}, respectively.  @code{map-extents} returns
+the first non-@code{nil} result produced by @var{function}, and no more
+calls to @var{function} are made after that.  If @var{buffer} is an
+extent, @var{from} and @var{to} default to the extent's endpoints, and
+the mapping omits that extent and its predecessors.  This feature
+supports restarting a loop based on @code{map-extents}.
+
+The effect of @var{closed-end} is that, if an extent and the map region
+overlap only at a start and end position, the extent is visited by
+@code{map-extents} only if both positions are closed.
+@end defun
+
+@defun map-extent-children function &optional buffer from to maparg closed-end
+This function is similar to @code{map-extents}, but differs in that:
+
+@itemize @bullet
+@item
+It only visits extents which start in the given region.
+@item
+After visiting an extent E, it skips all other extents which start
+inside E but end before E's end.
+@end itemize
+
+Thus, this function may be used to walk a tree of extents in a buffer:
+@example
+(defun walk-extents (buffer &optional ignore)
+  (map-extent-children 'walk-extents buffer))
+@end example
+@end defun
+
+@defun extent-in-region-p extent &optional from to closed-end
+This function returns @var{t} if @code{map-extents} would visit
+@var{extent} if called with the given arguments.
+@end defun
+
+@node Extent Properties
+@section Properties of Extents
+@cindex extent property
+@cindex property of an extent
+
+Each extent has a property list associating property names with values.
+Some property names have predefined meanings, and can usually only
+assume particular values.  Assigning other values to such a property
+either cause the value to be converted into a legal value (e.g.,
+assigning anything but @code{nil} to a Boolean property will cause
+the value of @code{t} to be assigned to the property) or will cause
+an error.  Property names without predefined meanings can be assigned
+any value.  An undefined property is equivalent to a property with
+a value of @code{nil}, or with a particular default value in the
+case of properties with predefined meanings.
+
+Note: Although the ``default'' value of the @code{end-open} property
+is @code{nil}, extents are created with this property having a value
+of @code{t}.
+
+@defun extent-property extent property
+This function returns the value of @var{property} in @var{extent}.  If
+@var{property} is undefined, @code{nil} is returned.
+@end defun
+
+@defun extent-properties extent
+This function returns a list of all of @var{extent}'s properties that do
+not have the value of @code{nil} (or the default value, for properties
+with predefined meanings).
+@end defun
+
+@defun set-extent-property extent property value
+This function sets @var{property} to @var{value} in @var{extent}. (If
+@var{property} has a predefined meaning, only certain values are
+allowed, and some values may be converted to others before being
+stored.)
+@end defun
+
+The following table lists the properties with predefined meanings, along
+with their allowable values.
+
+@table @code
+@item detached
+(Boolean) Whether the extent is detached.   Setting this is the same
+as calling @code{detach-extent}.  @xref{Detached Extents}.
+
+@item destroyed
+(Boolean) Whether the extent has been deleted.  Setting this is the same
+as calling @code{delete-extent}.
+
+@item priority
+(integer) The extent's redisplay priority.  Defaults to 0.  @xref{Intro
+to Extents, priority}.  This property can also be set with
+@code{set-extent-priority} and accessed with @code{extent-priority}.
+
+@item start-open
+(Boolean) Whether the start position of the extent is open, meaning that
+characters inserted at that position go outside of the extent.
+@xref{Extent Endpoints}.
+
+@item start-closed
+(Boolean) Same as @code{start-open} but with the opposite sense.  Setting
+this property clears @code{start-open} and vice-versa.
+
+@item end-open
+(Boolean) Whether the end position of the extent is open, meaning that
+characters inserted at that position go outside of the extent.
+@xref{Extent Endpoints}.
+
+@item end-closed
+(Boolean) Same as @code{end-open} but with the opposite sense.  Setting
+this property clears @code{end-open} and vice-versa.
+
+@item read-only
+(Boolean) Whether text within this extent will be unmodifiable.
+
+@item face
+(face, face name, or @code{nil}) The face in which to display the
+extent's text.  This property can also be set with
+@code{set-extent-face} and accessed with @code{extent-face}.
+
+@item highlight
+(Boolean) Whether to highlight the extent when the mouse moves over it.
+@xref{Extents and Events}.
+
+@item duplicable
+(Boolean) Whether this extent should be copied into strings, so that
+kill, yank, and undo commands will restore or copy it.  @xref{Duplicable
+Extents}.
+
+@item unique
+(Boolean) Meaningful only in conjunction with @code{duplicable}.  When
+this is set, there may be only one instance of this extent attached at a
+time.  @xref{Duplicable Extents}.
+
+@item invisible
+(Boolean) If @code{t}, text under this extent will not be displayed.
+(This is not yet implemented.)
+
+@item keymap
+(keymap or @code{nil}) This keymap is consulted for mouse clicks on this
+extent or keypresses made while @code{point} is within the extent.
+@xref{Extents and Events}.
+
+@item copy-function
+This is a hook that is run when a duplicable extent is about to be
+copied from a buffer to a string (or the kill ring).  @xref{Duplicable
+Extents}.
+
+@item paste-function
+This is a hook that is run when a duplicable extent is about to be
+copied from a string (or the kill ring) into a buffer.  @xref{Duplicable
+Extents}.
+
+@item glyph-layout
+('text, 'whitespace, 'inside-margin, or 'outside-margin) The layout
+policy for this extent's glyph.  Defaults to @code{text}.
+@xref{Annotations}.
+
+@item begin-glyph
+(pixmap, string, or @code{nil}) This extent's begin-glyph.  Cannot be
+non-@code{nil} at the same time as @code{end-glyph}.
+@xref{Annotations}.
+
+@item end-glyph
+(pixmap, string, or @code{nil}) This extent's end-glyph.  Cannot be
+non-@code{nil} at the same time as @code{begin-glyph}.
+@xref{Annotations}.
+@end table
+
+The following convenience functions are provided for accessing
+particular properties of an extent.
+
+@defun extent-priority extent
+This function returns the @code{priority} property of @var{extent}.
+@end defun
+
+@defun extent-face extent
+This function returns the @code{face} property of @var{extent}.
+@end defun
+
+@defun extent-layout extent
+This function returns the @code{glyph-layout} property of @var{extent}.
+@end defun
+
+@defun extent-glyph extent
+This function returns the glyph associated with @var{extent}.  This
+is the value of the @code{begin-glyph} or @code{end-glyph} property,
+if either one is non-@code{nil}. (It is not possible for both to
+be non-@code{nil} at the same time.)
+@end defun
+
+@defun extent-data extent
+This function returns the @code{data} property of @var{extent}.  The
+@code{data} property has no special meaning; this function is retained
+for compatibility purposes.
+@end defun
+
+The following convenience functions are provided for setting particular
+properties of an extent.
+
+@defun set-extent-priority extent pri
+This function sets the @code{priority} property of @var{extent} to
+@var{pri}.
+@end defun
+
+@defun set-extent-face extent face
+This function sets the @code{face} property of @var{extent} to
+@var{face}.
+@end defun
+
+@defun set-extent-layout extent layout
+This function sets the @code{glyph-layout} property of @var{extent} to
+@var{layout}.
+@end defun
+
+@defun set-extent-begin-glyph extent begin-glyph &optional layout
+This function sets the @code{begin-glyph} and @code{glyph-layout}
+properties of @var{extent} to @var{begin-glyph} and @var{layout},
+respectively. (@var{layout} defaults to @code{text} if not specified.)
+This function will fail if @var{extent} already has an @var{end-glyph}
+property.
+@end defun
+
+@defun set-extent-end-glyph extent end-glyph &optional layout
+This function sets the @code{end-glyph} and @code{glyph-layout}
+properties of @var{extent} to @var{end-glyph} and @var{layout},
+respectively. (@var{layout} defaults to @code{text} if not specified.)
+This function will fail if @var{extent} already has a @var{begin-glyph}
+property.
+@end defun
+
+@defun set-extent-data extent data
+This function sets the @code{data} property of @var{extent} to
+@var{data}.  The @code{data} property has no special meaning; this
+function is retained for compatibility purposes.
+@end defun
+
+@node Detached Extents
+@section Detached Extents
+@cindex detached extent
+
+A detached extent is an extent that is not attached to a buffer but can
+be re-inserted.  Detached extents have a start position and end position
+of @code{nil}.  Extents can be explicitly detached using
+@code{detach-extent}; an extent is also detached when all of its
+characters are all killed by a deletion. (Zero-length extents behave
+specially.  @xref{Extent Endpoints, zero-length extents}.)
+
+@defun detach-extent extent
+This function detaches @var{extent} from its buffer.  If @var{extent} has
+the @code{duplicable} property, its detachment is tracked by the undo
+mechanism.  @xref{Duplicable Extents}.
+@end defun
+
+@defun copy-extent extent &optional buffer
+This function makes a copy of @var{extent}.  It is initially detached.
+Optional argument @var{buffer} defaults to @var{extent}'s buffer.
+@end defun
+
+@defun insert-extent extent &optional start end no-hooks
+This function inserts @var{extent} from @var{start} to @var{end} in the
+current buffer.  If @var{extent} is detached from a different buffer, or
+in most cases when @var{extent} is already attached, the extent will
+first be copied as if with @code{copy-extent}.  This function operates
+the same as if @code{insert} were called on a string whose extent data
+calls for @var{extent} to be inserted, except that if @var{no-hooks} is
+non-@code{nil}, @var{extent}'s @code{paste-function} will not be
+invoked.  @xref{Duplicable Extents}.
+@end defun
+
+@node Duplicable Extents
+@section Duplicable Extents
+@cindex duplicable extent
+@cindex extent replica
+@cindex extent, duplicable
+
+If an extent has the @code{duplicable} property, it will be copied into
+strings, so that kill, yank, and undo commands will restore or copy it.
+Note that the extent is not actually copied; rather, a pointer to it is
+stored, along with the start and end positions of the extent. (This
+combination is called an @dfn{extent replica}.) This means that, e.g.,
+if you copy a duplicable extent into the kill ring, then change the
+properties of the extent, then paste the kill-ring text back into the
+buffer, the newly-inserted extent will have the property changes you
+just made to the original extent, and not the property values at the
+time the text was copied into the kill ring.
+
+Specifically:
+
+@itemize @bullet
+@item
+When a string is created using @code{buffer-substring} or
+@code{buffer-string}, any duplicable extents in the region corresponding
+to the string will be remembered in the string (@pxref{Buffer
+Contents}).  When the string in inserted into a buffer using
+@code{insert}, @code{insert-before-markers}, @code{insert-buffer} or
+@code{insert-buffer-substring}, the remembered extents will be inserted
+back into the buffer (@pxref{Insertion}).  The extents can also be
+retrieved explicitly using @code{string-extent-data} (@pxref{Extent
+Replicas}).
+
+@item
+Similarly, when text is copied or cut into the kill ring, any duplicable
+extents will be remembered and reinserted later when the text is pasted
+back into a buffer.
+
+@item
+An extent replica consists of a pointer to an extent and a range within
+the string.  When an extent replica is inserted into a buffer:
+
+@itemize @minus
+@item
+If the original extent was detached from this buffer, it is reattached
+at the new range.
+
+@item
+If the original extent is attached to this buffer and is contiguous with
+or overlaps the new range, it is simply extended to include that range.
+Note that in this case the extent's @code{paste-function} is not called
+(see below).
+
+@item
+If the original extent was detached from another buffer, it is copied
+as if by @code{copy-extent} and attached at the new range.
+
+@item
+If the original extent is attached to another buffer, or is attached to
+this buffer and does not overlap the new range, it is copied as if by
+@code{copy-extent} and attached at the new range.  However, if the
+extent has the @code{unique} property, this action is inhibited and
+nothing happens.
+@end itemize
+
+@item
+When @code{concat} is called on strings, the extent replicas remembered
+in the strings are merged together and placed into the resulting string.
+
+@item
+When @code{substring} is called on a string, the relevant extent
+replicas are placed into the resulting string.
+
+@item
+When a duplicable extent is detached by @code{detach-extent} or string
+deletion, or inserted by @code{insert-extent} or string insertion, the
+action is recorded by the undo mechanism so that it can be undone later.
+
+@item
+Extent motion, face changes, and attachment via @code{make-extent} are
+not recorded by the undo mechanism.  This means that extent changes
+which are to be undo-able must be performed by character editing, or by
+insertion and detachment of duplicable extents.
+
+@item
+A duplicable extent's @code{copy-function} property, if non-@code{nil},
+should be a function, and will be run when a duplicable extent is about
+to be copied from a buffer to a string (or the kill ring).  It is called
+with three arguments: the extent and the buffer positions within it
+which are being copied.  If this function returns @code{nil}, then the
+extent will not be copied; otherwise it will.
+
+@item
+A duplicable extent's @code{paste-function} property, if non-@code{nil},
+should be a function, and will be run when a duplicable extent is about
+to be copied from a string (or the kill ring) into a buffer.  It is
+called with three arguments: the original extent and the buffer
+positions which the copied extent will occupy. (This hook is run after
+the corresponding text has already been inserted into the buffer.) Note
+that the extent argument may be detached when this function is run.  If
+this function returns @code{nil}, no extent will be inserted.
+Otherwise, there will be an extent covering the range in question.
+
+Note: if the extent to be copied is already attached to the buffer and
+overlaps the new range, the extent will simply be extended and the
+@code{paste-function} will not be called.
+@end itemize
+
+@node Extent Replicas
+@section Extent Replicas
+
+The following primitives for manipulating extent replicas are available.
+An extent replica is used to store extent data in a string and is a
+primitive data type encapsulating an extent and start and end positions
+within the string.  New extent replicas can be created but there are
+no mutator functions for modifying existing extent replicas.
+@xref{Duplicable Extents}.
+
+Note: Lisp-visible extent replicas may disappear in the future (replaced
+by allowing @code{map-extents} to take a string argument).  Avoid using
+the following functions if at all possible.
+
+@defun string-extent-data string
+This function returns the extent data stored along with @var{string}.
+The value returned is a list of extent replica objects.
+@end defun
+
+@defun set-string-extent-data string data
+This function sets the extent data stored along with a string.
+@code{data} should be @code{nil} or a list of extent replicas.
+@end defun
+
+@defun make-extent-replica extent start end
+This function makes an extent replica for @var{extent} in the range
+from @code{start} to @code{end}.
+@end defun
+
+@defun extent-replica-extent dup
+This function returns the extent to which extent replica @var{dup}
+refers.
+@end defun
+
+@defun extent-replica-start dup
+This function returns the start position of extent replica @var{dup}.
+@end defun
+
+@defun extent-replica-end dup
+This function returns the end position of extent replica @var{dup}.
+@end defun
+
+@node Extents and Events
+@section Interaction of Extents with Keyboard and Mouse Events
+
+If an extent has the @code{highlight} property set, it will be
+highlighted when the mouse passes over it.  Highlighting is accomplished
+by merging the extent's face with the @code{highlight} face.  The effect
+is as if a pseudo-extent with the @code{highlight} face were inserted
+after the extent in the display order (@pxref{Extent Endpoints}, display
+order).
+
+@defvar mouse-highlight-priority
+This variable holds the priority to use when merging in the highlighting
+pseudo-extent.  The default is 10.
+@end defvar
+
+You can also explicitly cause an extent to be highlighted.  Only one
+extent at a time can be highlighted in this fashion, and any other
+highlighted extent will be de-highlighted.
+
+@defun highlight-extent extent &optional highlight-p
+This function highlights (if @var{highlight-p} is non-@code{nil}) or
+de-highlights (if @var{highlight-p} is @code{nil}) @var{extent}, if
+@var{extent} has the @code{highlight} property. (Nothing happens if
+@var{extent} does not have the @code{highlight} property.)
+@end defun
+
+@defun force-highlight-extent extent &optional highlight-p
+This function is similar to @code{highlight-extent} but highlights
+or de-highlights the extent regardless of whether it has the
+@code{highlight} property.
+@end defun
+
+If an extent has a @code{keymap} property, this keymap will be consulted
+for mouse clicks on the extent and keypresses made while @code{point} is
+within the extent.  The behavior of mouse clicks and keystrokes not
+defined in the keymap is as normal for the buffer.
+
+@node Atomic Extents
+@section Atomic Extents
+@cindex atomic extent
+
+If the Lisp file @file{atomic-extents} is loaded, then the atomic extent
+facility is available.  An @dfn{atomic extent} is an extent for which
+@code{point} cannot be positioned anywhere within it.  This ensures
+that when selecting text, either all or none of the extent is selected.
+
+To make an extent atomic, set its @code{atomic} property.

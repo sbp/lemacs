@@ -37,6 +37,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "window.h"
 #include "insdel.h"
 #include "events.h"             /* for EVENTP */
+#include "dispextern.h"		/* for buffers_changed */
 
 #include "systime.h"
 
@@ -48,7 +49,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 Lisp_Object Vsystem_name;
 Lisp_Object Vuser_real_name;	/* login name of current user ID */
 Lisp_Object Vuser_full_name;	/* full name of current user */
-Lisp_Object Vuser_name;		/* user name from USER or LOGNAME.  */
+Lisp_Object Vuser_name;		/* user name from LOGNAME or USER.  */
 
 extern char *get_system_name (void);
 
@@ -99,9 +100,9 @@ init_editfns ()
 
   /* Get the effective user name, by consulting environment variables,
      or the effective uid if those are unset.  */
-  user_name = getenv ("USER");
+  user_name = getenv ("LOGNAME");
   if (!user_name)
-    user_name = getenv ("LOGNAME");
+    user_name = getenv ("USER");
   if (!user_name)
     {
       pw = (struct passwd *) getpwuid (geteuid ());
@@ -225,6 +226,17 @@ clip_to_bounds (int lower, int num, int upper)
     return num;
 }
 
+/*
+ * Chuck says:
+ * There is no absolute way to determine if goto-char is the function
+ * being run.  this-command doesn't work because it is often eval'd
+ * and this-command ends up set to eval-expression.  So this flag gets
+ * added for now.
+ *
+ * Jamie thinks he's wrong, but we'll leave this in for now.
+ */
+int atomic_extent_goto_char_p;
+
 DEFUN ("goto-char", Fgoto_char, Sgoto_char, 1, 1, "NGoto char: ",
   "Set point to POSITION, a number or marker.\n\
 Beginning of buffer is position (point-min), end is (point-max).")
@@ -233,6 +245,7 @@ Beginning of buffer is position (point-min), end is (point-max).")
 {
   CHECK_FIXNUM_COERCE_MARKER (n, 0);
   SET_PT (clip_to_bounds (BEGV, XINT (n), ZV));
+  atomic_extent_goto_char_p = 1;
   return n;
 }
 
@@ -292,7 +305,7 @@ should ever do this.")
 {
   if (! zmacs_regions) return Qnil;
   zmacs_region_active_p++;
-  if (!NILP (Vrun_hooks) && zmacs_region_active_p == 1)
+  if (zmacs_region_active_p == 1 && !NILP (Vrun_hooks))
     call1 (Vrun_hooks, Qzmacs_activate_region_hook);
   return Qt;
 }
@@ -403,9 +416,9 @@ save_excursion_restore (Lisp_Object info)
 #if 0 /* RMSmacs */
   visible = !NILP (current_buffer->mark_active);
   current_buffer->mark_active = Fcdr (tem);
-  if (! NILP (current_buffer->mark_active))
+  if (! NILP (current_buffer->mark_active) && ! NILP (Vrun_hooks))
     call1 (Vrun_hooks, intern ("activate-mark-hook"));
-  else if (visible)
+  else if (visible && !NILP (Vrun_hooks))
     call1 (Vrun_hooks, intern ("deactivate-mark-hook"));
 #endif
 
@@ -556,7 +569,7 @@ If POS is out of range, the value is nil.")
 DEFUN ("user-login-name", Fuser_login_name, Suser_login_name, 0, 0, 0,
   "Return the name under which the user logged in, as a string.\n\
 This is based on the effective uid, not the real uid.\n\
-Also, if the environment variable USER or LOGNAME is set,\n\
+Also, if the environment variable LOGNAME or USER is set,\n\
 that determines the value of this function.")
   ()
 {
@@ -566,7 +579,8 @@ that determines the value of this function.")
 DEFUN ("user-real-login-name", Fuser_real_login_name, Suser_real_login_name,
   0, 0, 0,
   "Return the name of the user's real uid, as a string.\n\
-Differs from `user-login-name' when running under `su'.")
+This ignores the environment variables LOGNAME and USER, so it differs from\n\
+`user-login-name' when running under `su'.")
   ()
 {
   return (Fcopy_sequence (Vuser_real_name));
@@ -598,6 +612,13 @@ DEFUN ("system-name", Fsystem_name, Ssystem_name, 0, 0, 0,
   ()
 {
     return (Fcopy_sequence (Vsystem_name));
+}
+
+DEFUN ("emacs-pid", Femacs_pid, Semacs_pid, 0, 0, 0,
+  "Return the process ID of Emacs, as an integer.")
+  ()
+{
+  return make_number (getpid ());
 }
 
 DEFUN ("current-time", Fcurrent_time, Scurrent_time, 0, 0, 0,
@@ -677,26 +698,25 @@ and from `file-attributes'.")
 
 /* Yield A - B, measured in seconds.  */
 static long
-difftm(a, b)
-     struct tm *a, *b;
+difftm (a, b)
+     CONST struct tm *a, *b;
 {
   int ay = a->tm_year + (TM_YEAR_ORIGIN - 1);
   int by = b->tm_year + (TM_YEAR_ORIGIN - 1);
-  return
-    (
-     (
-      (
-       /* difference in day of year */
-       a->tm_yday - b->tm_yday
-       /* + intervening leap days */
-       +  ((ay >> 2) - (by >> 2))
-       -  (ay/100 - by/100)
-       +  ((ay/100 >> 2) - (by/100 >> 2))
-       /* + difference in years * 365 */
-       +  (long)(ay-by) * 365
-       )*24 + (a->tm_hour - b->tm_hour)
-      )*60 + (a->tm_min - b->tm_min)
-     )*60 + (a->tm_sec - b->tm_sec);
+  /* Some compilers can't handle this as a single return statement.  */
+  int days = (
+	      /* difference in day of year */
+	      a->tm_yday - b->tm_yday
+	      /* + intervening leap days */
+	      +  ((ay >> 2) - (by >> 2))
+	      -  (ay/100 - by/100)
+	      +  ((ay/100 >> 2) - (by/100 >> 2))
+	      /* + difference in years * 365 */
+	      +  (long)(ay-by) * 365
+	      );
+  return (60*(60*(24*days + (a->tm_hour - b->tm_hour))
+	      + (a->tm_min - b->tm_min))
+	  + (a->tm_sec - b->tm_sec));
 }
 
 DEFUN ("current-time-zone", Fcurrent_time_zone, Scurrent_time_zone, 0, 1, 0,
@@ -1174,14 +1194,6 @@ and don't mark the buffer as really changed.")
   stop = XINT (end);
   look = XINT (fromchar);
 
-  if (! NILP (noundo))
-    {
-      if (MODIFF - 1 == current_buffer->save_modified)
-	current_buffer->save_modified++;
-      if (MODIFF - 1 == current_buffer->auto_save_modified)
-	current_buffer->auto_save_modified++;
-    }
-
   while (pos < stop)
     {
       if (FETCH_CHAR (pos) == look)
@@ -1189,6 +1201,13 @@ and don't mark the buffer as really changed.")
 	  if (! changed)
 	    {
 	      modify_region (current_buffer, XINT (start), stop);
+	      if (! NILP (noundo))
+		{
+		  if (MODIFF - 1 == current_buffer->save_modified)
+		    current_buffer->save_modified++;
+		  if (MODIFF - 1 == current_buffer->auto_save_modified)
+		    current_buffer->auto_save_modified++;
+		}
 	      changed = 1;
 	    }
 	  if (NILP (noundo))
@@ -1199,8 +1218,13 @@ and don't mark the buffer as really changed.")
     }
 
   if (changed)
-    signal_after_change (XINT (start),
-			 stop - XINT (start), stop - XINT (start));
+    {
+      /* If we don't record the change the redisplay won't notice
+	 that a buffer change has happened unless we tell it. */
+      buffers_changed++;
+      signal_after_change (XINT (start),
+			   stop - XINT (start), stop - XINT (start));
+    }
 
   return Qnil;
 }
@@ -1716,6 +1740,13 @@ See the variable `zmacs-regions'.");
   Vzmacs_deactivate_region_hook = Qnil;
   zmacs_region_stays = 0;
 
+  DEFVAR_BOOL ("atomic-extent-goto-char-p", &atomic_extent_goto_char_p,
+       "Do not use this - it will be going away soon.\n\
+Indicates if goto-char has just been run.  This information is allegedly\n\
+needed to get the desired behavior for atomic extents and unfortunately\n\
+is not available by any other means.");
+  atomic_extent_goto_char_p = 0;
+
   defsymbol (&Qzmacs_update_region_hook, "zmacs-update-region-hook");
   defsymbol (&Qzmacs_activate_region_hook, "zmacs-activate-region-hook");
   defsymbol (&Qzmacs_deactivate_region_hook, "zmacs-deactivate-region-hook");
@@ -1762,6 +1793,7 @@ See the variable `zmacs-regions'.");
   defsubr (&Suser_uid);
   defsubr (&Suser_real_uid);
   defsubr (&Suser_full_name);
+  defsubr (&Semacs_pid);
   defsubr (&Scurrent_time);
   defsubr (&Scurrent_time_string);
   defsubr (&Scurrent_time_zone);

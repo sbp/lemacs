@@ -27,9 +27,3 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* We don't have a built-in strdup() function */
 #define NEED_STRDUP
-
-/* We don't have a built-in realpath() function */
-#define NEED_REALPATH
-
-/* We have an rint() function (this should probably go in bsd4-3.h) */
-#define HAVE_RINT

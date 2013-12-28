@@ -6,7 +6,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -36,11 +36,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define INTBITS 32		/* Number of bits in an int */
 
 #define LONGBITS 32		/* Number of bits in a long */
-
-/* Define BIG_ENDIAN iff lowest-numbered byte in a word
-   is the most significant byte.  */
-
-#define BIG_ENDIAN
 
 /* XINT must explicitly sign-extend */
 
@@ -74,7 +69,26 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* #define LOAD_AVE_CVT(x) (int) (((double) (x)) * 100.0) */
 
+#ifdef __GNUC__
+
+#define HAVE_ALLOCA
+
+#else
+
 #define SWITCH_ENUM_BUG
+#define C_ALLOCA
+#define STACK_DIRECTION -1
+
+#endif
+
+/* If you have the PD pty driver installed, uncomment the following line.  */
+/* #define HAVE_PTYS */
+
+#define HAVE_SYSVIPC
+#define USE_UTIME
+
+/* We don't have memmove.  */
+#define memmove(d, s, n) safe_bcopy (s, d, n)
 
 /* These three lines were new in 18.50.  They were said to permit
    a demand-paged executable, but someone else says they don't work.
@@ -84,3 +98,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define SECTION_ALIGNMENT 0x03ff
 #define SEGMENT_MASK 0xffff
 #define LD_SWITCH_MACHINE -z
+
+/* Insist on using cc when compiling this.  GCC may have been
+   configured to use GAS syntax, which causes problems.  */
+#define CRT0_COMPILE cc -c -O -Demacs

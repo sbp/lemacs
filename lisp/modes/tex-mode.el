@@ -415,8 +415,8 @@ tex-shell-hook is called."
   (setq comment-start "%")
   (make-local-variable 'comment-start-skip)
   (setq comment-start-skip "\\(\\(^\\|[^\\]\\)\\(\\\\\\\\\\)*\\)\\(%+ *\\)")
-  (make-local-variable 'comment-indent-hook)
-  (setq comment-indent-hook 'tex-comment-indent)
+  (make-local-variable 'comment-indent-function)
+  (setq comment-indent-function 'tex-comment-indent)
   (make-local-variable 'compare-windows-whitespace)
   (setq compare-windows-whitespace 'tex-categorize-whitespace)
   (make-local-variable 'tex-command)
@@ -561,7 +561,7 @@ Puts point on a blank line between them."
     (save-excursion
       (insert ?\n)
       (indent-to col)
-      (insert-string (format "\\end{%s}" name))
+      (insert (format "\\end{%s}" name))
       (if (eobp) (insert ?\n)))))
 
 (defun tex-last-unended-begin ()
@@ -651,7 +651,7 @@ in COMMAND.  COMMAND can be any expression that evaluates to a command string."
           (delete-file (concat dir (car list)))
           (setq list (cdr list))))))
 
-(setq kill-emacs-hook 'tex-delete-last-temp-files)
+(add-hook 'kill-emacs-hook 'tex-delete-last-temp-files)
 
 ;;; The commands:
 
@@ -710,8 +710,8 @@ The value of `tex-command' specifies the command to use to run TeX."
 	  (set-buffer temp-buffer)
 	  (erase-buffer)
 	  ;; make sure trailer isn't hidden by a comment
-	  (insert-string "\n")
-	  (if local-tex-trailer (insert-string local-tex-trailer))
+	  (insert ?\n)
+	  (if local-tex-trailer (insert local-tex-trailer))
 	  (tex-set-buffer-directory temp-buffer zap-directory)
 	  (write-region (point-min) (point-max)
                         (concat tex-out-file ".tex") t nil))))

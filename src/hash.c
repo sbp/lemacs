@@ -1,5 +1,5 @@
 /* Hash tables.
-   Copyright (C) 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -290,6 +290,15 @@ grow_hashtable (hash, new_size)
   else
 #endif
     xfree (old_harray);
+}
+
+void
+expand_hashtable (c_hashtable hash, unsigned int needed_size)
+{
+  unsigned int hsize = hash->size;
+  int comfortable_size = (13 * needed_size) / 10;
+  if (hsize < comfortable_size)
+    grow_hashtable (hash, comfortable_size + 1);
 }
 
 void 

@@ -83,7 +83,7 @@ c -- Character.\n\
 C -- Command name: symbol with interactive function definition.\n\
 d -- Value of point as number.  Does not do I/O.\n\
 D -- Directory name.\n\
-e -- Last mouse event.\n\
+e -- Last mouse event.  Does not do I/O.\n\
 f -- Existing file name.\n\
 F -- Possibly nonexistent file name.\n\
 k -- Key sequence (a vector of events).\n\
@@ -388,7 +388,10 @@ the minibuffer.")
 	  Vcommand_history = Fcons (list1 (function), Vcommand_history);
 	}
       specbind (Qcommand_debug_status, Qnil);
-      return (unbind_to (speccount, call0 (fun)));
+      fun = call0 (fun);
+      if (set_zmacs_region_stays)
+	zmacs_region_stays = 1;
+      return (unbind_to (speccount, fun));
     }
 
   /* Read interactive arguments */

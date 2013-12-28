@@ -1,17 +1,31 @@
 #include "irix3-3.h"
 
 #define USG5_3
+#define IRIX4
 
-/* Define HAVE_ALLOCA to say that the system provides a properly
-   working alloca function and it should be used. */
 #define HAVE_ALLOCA
-#undef C_ALLOCA
-#define alloca __builtin_alloca
+#ifndef NOT_C_CODE
+#include <alloca.h>
+#endif
+
+#undef IRIS_UTIME
+#undef NEED_SIOCTL
+
+/* Make process_send_signal work by "typing" a signal character on the pty.  */
+#define SIGNALS_VIA_CHARACTERS
+
+/* use K&R C */
+/* lemacs change -- use ANSI, not K&R */
+#ifndef __GNUC__
+#define C_SWITCH_MACHINE -xansi
+#endif
 
 /* SGI has all the fancy wait stuff, but we can't include sys/wait.h
    because it defines BIG_ENDIAN and LITTLE_ENDIAN (ugh!.)  Instead
    we'll just define WNOHANG right here.
    (An implicit decl is good enough for wait3.)  */
+/* [Now that we don't use BIG_ENDIAN/LITTLE_ENDIAN, it's safe to include
+    wait.h.  Should something change here?] */
 
 #define WNOHANG		0x1
 
@@ -20,9 +34,6 @@
 #define PTY_TTY_NAME_SPRINTF
 /* No need to get the pty name at all.  */
 #define PTY_NAME_SPRINTF
-#ifdef emacs
-/* char *_getpty(); */  /* this causes prototype conflicts */
-#endif
 /* We need only try once to open a pty.  */
 #define PTY_ITERATION
 /* Here is how to do it.  */
@@ -42,19 +53,6 @@
   strcpy (pty_name, name);					\
 }
 
-/* IRIX 4.0 has sound support. */
-#define USE_SOUND
-
-#define HAVE_GETTIMEOFDAY
-#define HAVE_SYS_TIME_H
-#undef IRIS_UTIME
-#define IRIX_CONST_ENUM_BUG
-#define INTERRUPTIBLE_CLOSE
-#undef  HAVE_TERMIO
-#define SIGNALS_VIA_CHARACTERS
-#define HAVE_TERMIOS
-
-/* From edwards@sunrise.Stanford.EDU (Larry Edwards) for Lemacs */
-#define HAVE_RINT
+/* jpff@maths.bath.ac.uk reports `struct exception' is not defined
+   on this system, so inhibit use of matherr.  */
 #define NO_MATHERR
-#define HAVE_RENAME

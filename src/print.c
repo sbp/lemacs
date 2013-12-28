@@ -101,10 +101,10 @@ struct output_stream
 static Lisp_Object mark_output_stream (Lisp_Object, void (*) (Lisp_Object));
 static void print_output_stream (Lisp_Object, Lisp_Object, int);
 static void finalise_output_stream (void *, int);
-static int sizeof_ostream (void *h) { return (sizeof (struct output_stream));}
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_output_stream,
+DEFINE_LRECORD_IMPLEMENTATION ("output-stream", lrecord_output_stream,
                                mark_output_stream, print_output_stream,
-                               finalise_output_stream, sizeof_ostream, 0);
+                               finalise_output_stream, 0,
+			       sizeof (struct output_stream));
 
 static void flush_stream_output_buffer (struct output_stream *stream);
 
@@ -120,8 +120,7 @@ print_output_stream (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
   /* This should NEVER be called, since these streams don't (yet) actually
      escape to Lisp from the confines of the printer */
   char buf[100];
-  sprintf (buf, GETTEXT ("#<output-stream 0x%x>"),
-	   XOUTPUTSTREAM (obj)->header.uid);
+  sprintf (buf, GETTEXT ("#<output-stream 0x%x>"), (long) XOUTPUTSTREAM (obj));
   write_string_1 (buf, -1, printcharfun);
 }
 
@@ -159,13 +158,15 @@ miscellaneous_output_kludges (Lisp_Object function,
 	  fwrite (str, 1, len, stream->stdio_stream);
       
 	  /* kludge to tell the "message" function to print a newline */
-	  if (noninteractive && stream->stdio_stream == stderr)
+	  if (noninteractive && stream->stdio_stream == stdout)
 	    noninteractive_need_newline = 1;
 	}
       else
 	{
 	  int offset = 0;
 	  char *fill = stream->buffered_output.fill_pointer;
+          struct gcpro gcpro1, gcpro2;
+          GCPRO2 (function, string_or_zero);
 
 	  if (STRINGP (string_or_zero))
 	    {
@@ -178,7 +179,8 @@ miscellaneous_output_kludges (Lisp_Object function,
 	      char *new_end = fill + len;
 	      int delta = new_end - stream->buffered_output.end;
 
-	      if (delta < 0) break;
+	      if (delta < 0)
+                break;
 	      delta = len - delta;
 
 	      memcpy (fill, str + offset, delta);
@@ -197,40 +199,49 @@ miscellaneous_output_kludges (Lisp_Object function,
 	    }
 	  memcpy (fill, str + offset, len);
 	  stream->buffered_output.fill_pointer = fill + len;
+          UNGCPRO;
 	}
     }
 #ifndef standalone
   else if (BUFFERP (function))
     {
-      struct buffer *old = current_buffer;
+      Lisp_Object old = Fcurrent_buffer ();
+      struct gcpro gcpro1, gcpro2;
+      GCPRO2 (old, string_or_zero);
 
-      set_buffer_internal (XBUFFER (function));
+      Fset_buffer (function);
       insert_relocatable_raw_string (str, len, string_or_zero);
-      set_buffer_internal (old);
+      Fset_buffer (old);
+      UNGCPRO;
     }
   else if (MARKERP (function))
     {
-      struct buffer *old = current_buffer;
-      struct buffer *buf = XMARKER (function)->buffer;
-      int op, sp;
+      /* marker_position will err if marker doesn't point anywhere */
+      int spoint = marker_position (function);
+      int opoint;
+      int npoint;
+      Lisp_Object old = Fcurrent_buffer ();
+      struct gcpro gcpro1, gcpro2, gcpro3;
+      GCPRO3 (function, string_or_zero, old);
 
-      if (!buf)
-	signal_error (Qerror, 
-		      list2 (build_string
-			     (GETTEXT ("Marker does not point anywhere")),
-			     function));
-
-      set_buffer_internal (buf);
-      op = PT;
-      SET_PT (marker_position (function));
-      sp = PT;
+      Fset_buffer (Fmarker_buffer (function));
+      opoint = PT;
+      SET_PT (spoint);
       insert_relocatable_raw_string (str, len, string_or_zero);
-      if (op > sp)
-	SET_PT (PT + op - sp);
-      set_buffer_internal (old);
+      npoint = PT;
+      Fset_marker (function, make_number (npoint), Qnil);
+      if (opoint >= spoint)
+        SET_PT (npoint + (opoint - spoint));
+      else
+        SET_PT (opoint);
+      Fset_buffer (old);
+      UNGCPRO;
     }
   else if (SCREENP (function))
     {
+      /* let's just try using message and see what happens */
+      /* let's not - that screws up command error messages badly. -jwz */
+#if 1
       struct screen *s = XSCREEN (function);
       int swidth = SCREEN_WIDTH (s);
       char *sbuf = SCREEN_MESSAGE_BUF (s);
@@ -259,6 +270,13 @@ miscellaneous_output_kludges (Lisp_Object function,
 	  memcpy (sbuf + pos, str, len);
 	  sbuf[pos + len] = 0;
 	}
+#else
+      char *sbuf = (char *) alloca (len * sizeof (char *) + 1);
+
+      strncpy (sbuf, str, len);
+      sbuf[len] = 0;
+      message ("%s", sbuf);
+#endif
     }
 #endif /* not standalone */
   else if (EQ (function, Qt) || EQ (function, Qnil))
@@ -268,12 +286,16 @@ miscellaneous_output_kludges (Lisp_Object function,
   else
     {
       int iii;
+      struct gcpro gcpro1, gcpro2;
+      GCPRO2 (function, string_or_zero);
+
       for (iii = 0; iii < len; iii++)
 	{
 	  call1 (function, make_number (str[iii]));
 	  if (STRINGP (string_or_zero))
 	    str = (char *) XSTRING (string_or_zero)->data;
 	}
+      UNGCPRO;
     }
 }
 
@@ -314,8 +336,10 @@ canonicalise_printcharfun (Lisp_Object printcharfun)
 }
 
 
+/* nil, or chained by XOUTPUTSTREAM ()->function */
 static Lisp_Object Voutput_stream_resource;
 
+/* This is called by GC */
 void
 clear_output_stream_resource (void)
 {
@@ -336,8 +360,10 @@ print_prepare (Lisp_Object printcharfun, int buffer_size)
   if (EQ (printcharfun, Qnil))
     {
       stdio_stream = stdout;
+#if 0 /* Why do this? */
       if (noninteractive)
 	stdio_stream = stderr;
+#endif
       buffer_size = 0;
     }
 #if 0 /* Don't bother */
@@ -742,7 +768,7 @@ float_to_string (char *buf, double data)
 }
 #endif /* LISP_FLOAT_TYPE */
 
-static void
+void
 print_vector_internal (CONST char *start, CONST char *end,
                        Lisp_Object obj, 
                        Lisp_Object printcharfun, int escapeflag)
@@ -773,10 +799,7 @@ print_vector_internal (CONST char *start, CONST char *end,
 }
 
 void
-print_internal (obj, printcharfun, escapeflag)
-     Lisp_Object obj;
-     Lisp_Object printcharfun;
-     int escapeflag;
+print_internal (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 {
   char buf[256];
 #ifdef I18N4
@@ -957,6 +980,7 @@ print_internal (obj, printcharfun, escapeflag)
 	break;
       }
 
+#ifndef LRECORD_VECTOR
     case Lisp_Vector:
       {
 	/* If deeper than spec'd depth, print placeholder.  */
@@ -971,6 +995,7 @@ print_internal (obj, printcharfun, escapeflag)
 	print_vector_internal ("[", "]", obj, printcharfun, escapeflag);
 	break;
       }
+#endif /* !LRECORD_VECTOR */
 
 #ifndef LRECORD_SYMBOL
     case Lisp_Symbol:
@@ -1106,24 +1131,33 @@ print_symbol (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 
   /* Does it look like an integer or a float? */
   {
+    unsigned char *data = name->data;
     int confusing = 0;
 
-    if (size > 1 && (name->data[0] == '-' || name->data[0] == '+'))
-      {
-	register int i;
-	for (i = 1, confusing = 1; i < size; i++)
-	  { 
-	    register unsigned char c = name->data[i];
-	    if (!isdigit (c))
-	      {
-		confusing = 0;
-		break;
-	      }
-	  }
+    if (size == 0)
+      goto not_yet_confused;    /* Really confusing */
+    else if (isdigit (data[0]))
+      confusing = 0;
+    else if (size == 1)
+      goto not_yet_confused;
+    else if (data[0] == '-' || data[0] == '+')
+      confusing = 1;
+    else
+      goto not_yet_confused;
+
+    for (; confusing < size; confusing++)
+      { 
+        if (!isdigit (data[confusing]))
+          {
+            confusing = 0;
+            break;
+          }
       }
+  not_yet_confused:
+
 #ifdef LISP_FLOAT_TYPE
     if (!confusing)
-      confusing = isfloat_string ((char *) name->data);
+      confusing = isfloat_string (data);
 #endif
     if (confusing)
       write_char_internal ("\\", printcharfun);
@@ -1162,7 +1196,7 @@ print_symbol (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 }
 
 
-int alternate_do_pointer = 0;
+int alternate_do_pointer;
 char alternate_do_string[5000];
 
 DEFUN ("alternate-debugging-output", Falternate_debugging_output,
@@ -1211,8 +1245,9 @@ debug_print (Lisp_Object debug_print_obj)
   int old_print_depth = print_depth;
   Lisp_Object old_print_length = Vprint_length;
   Lisp_Object old_print_level = Vprint_level;
-  struct gcpro gcpro1, gcpro2;
-  GCPRO2 (old_print_level, old_print_length);
+  Lisp_Object old_inhibit_quit = Vinhibit_quit;
+  struct gcpro gcpro1, gcpro2, gcpro3;
+  GCPRO3 (old_print_level, old_print_length, old_inhibit_quit);
 
   if (gc_in_progress)
     fprintf (stderr,
@@ -1229,11 +1264,12 @@ debug_print (Lisp_Object debug_print_obj)
   print_internal (debug_print_obj, Qexternal_debugging_output, 1);
   fprintf (stderr, "\n");
   fflush (stderr);
-  Vprint_length = old_print_length;
+  Vinhibit_quit = old_inhibit_quit;
   Vprint_level = old_print_level;
-  max_print = old_max_print;
+  Vprint_length = old_print_length;
   print_depth = old_print_depth;
   print_readably = old_print_readably;
+  max_print = old_max_print;
   UNGCPRO;
 }
 #endif /* debugging kludge */
@@ -1247,6 +1283,8 @@ syms_of_print ()
 
   defsymbol (&Qprint_escape_newlines, "print-escape-newlines");
   defsymbol (&Qprint_readably, "print-readably");
+
+  alternate_do_pointer = 0;
 
   DEFVAR_LISP ("standard-output", &Vstandard_output,
     "Output stream `print' uses by default for outputting a character.\n\

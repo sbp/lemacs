@@ -1,6 +1,6 @@
 ;;; gnuspost.el --- post news commands for GNUS newsreader
 
-;; Copyright (C) 1989, 1990, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1989, 1990, 1993, 1994 Free Software Foundation, Inc.
 
 ;; Author: Masanobu UMEDA <umerin@flab.flab.fujitsu.junet>
 ;; Version: !Header: /home/fsf/rms/e19/lisp/RCS/gnuspost.el,v 1.16 1993/11/22 06:44:12 rms Exp !
@@ -199,7 +199,11 @@ Type \\[describe-mode] once editing the article to get a list of commands."
 		;;(if (string-equal distribution "")
 		;;    (setq distribution nil))
 		))
-	  (news-setup () subject () newsgroups artbuf)
+	  ;; lemacs change: the news-setup-hook should be run after all
+	  ;; default modifications to the buffer are complete.  So we inhibit
+	  ;; `news-setup' from running it, and run it ourselves later.
+	  (let ((news-setup-hook nil))
+	    (news-setup () subject () newsgroups artbuf))
 	  ;; Make sure the article is posted by GNUS.
 	  ;;(mail-position-on-field "Posting-Software")
 	  ;;(insert "GNUS: NNTP-based News Reader for GNU Emacs")
@@ -218,6 +222,8 @@ Type \\[describe-mode] once editing the article to get a list of commands."
 	    ;; Move point to Newsgroup: field.
 	    (goto-char (point-min))
 	    (end-of-line))
+	  ;; lemacs change: see comment above.
+	  (run-hooks 'news-setup-hook)
 	  ))
     (message "")))
 
@@ -228,7 +234,7 @@ original message into it."
   (interactive)
   (if (or (not gnus-novice-user)
 	  (y-or-n-p "Are you sure you want to followup to all of USENET? "))
-      (let (from cc subject date to followup-to newsgroups message-of
+      (let (from subject date followup-to newsgroups message-of
 		 references distribution message-id
 		 (artbuf (current-buffer)))
 	(save-restriction
@@ -283,7 +289,11 @@ original message into it."
 			  (if stop-pos (substring from 0 stop-pos) from)
 			  "'s message of "
 			  date)))))
-	  (news-setup nil subject message-of newsgroups artbuf)
+	  ;; lemacs change: the news-setup-hook should be run after all
+	  ;; default modifications to the buffer are complete.  So we inhibit
+	  ;; `news-setup' from running it, and run it ourselves later.
+	  (let ((news-setup-hook nil))
+	    (news-setup nil subject message-of newsgroups artbuf))
 	  (if followup-to
 	      (progn (news-reply-followup-to)
 		     (insert followup-to)))
@@ -326,8 +336,32 @@ original message into it."
 	      ;; Insert at current point.
 	      (news-reply-yank-original nil)
 	      (goto-char last)))
+	;; lemacs change: see comment above.
+	(run-hooks 'news-setup-hook)
 	)
     (message "")))
+
+(defun gnus-clean-newsgroups-field ()
+  ;; lemacs: clean up the Newsgroups: field.  NNTP bogusly says
+  ;; it can't contain whitespace.
+  (let ((p (point-marker)))
+    (goto-char (point-min))
+    (or (re-search-forward "^Newsgroups: *" nil t)
+	(error "No `Newsgroups' field."))
+    (just-one-space)
+    (while (/= (following-char) ?\n)
+      (skip-chars-forward "^ \t\n,")
+      (cond ((looking-at "\\([ \t]*\\)\n[^ \t]")
+	     (goto-char (match-end 1))
+	     (delete-region (match-beginning 1) (match-end 1)))
+	    ((or (looking-at "\\([ \t]*\\),\\([, \t]*\n[ \t]+\\)")
+		 (looking-at "\\([ \t]*\\),\\([, \t]*\\)"))
+	     (goto-char (match-end 0))
+	     (delete-region (match-beginning 2) (match-end 2))
+	     (delete-region (match-beginning 1) (match-end 1)))
+	    (t
+	     (error "illegal characters in `Newsgroups' field"))))
+    (goto-char (prog1 (marker-position p) (set-marker p nil)))))
 
 (defun gnus-inews-news ()
   "Send a news message."
@@ -342,6 +376,7 @@ original message into it."
       (widen)
       (goto-char (point-min))
       (run-hooks 'news-inews-hook)
+      (gnus-clean-newsgroups-field) ; lemacs (do this before the hook?)
       ;; Mail the message too if To: or Cc: exists.
       (if (save-restriction
 	    (narrow-to-region

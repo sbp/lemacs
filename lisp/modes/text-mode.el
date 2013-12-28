@@ -63,7 +63,8 @@ inherit all the commands defined in this map.")
 ;  (setq delete-auto-save-files t))
 
 (defun text-mode ()
-  "Major mode for editing text intended for humans to read.  Special commands:\\{text-mode-map}
+  "Major mode for editing text intended for humans to read.
+Special commands:\\{text-mode-map}
 Turning on Text mode calls the value of the variable `text-mode-hook',
 if that value is non-nil."
   (interactive)
@@ -111,7 +112,7 @@ Turning on `indented-text-mode' calls the value of the variable
   (use-local-map indented-text-mode-map)
   (setq mode-name "Indented Text")
   (setq major-mode 'indented-text-mode)
-  (run-hooks 'text-mode-hook))
+  (run-hooks 'text-mode-hook 'indented-text-mode-hook))
 
 (defun center-paragraph ()
   "Center each nonblank line in the paragraph at or after point.

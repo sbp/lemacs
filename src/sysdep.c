@@ -29,17 +29,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "sysdep.h"
 #include "blockio.h"
 
+#include "window.h"
 #include "dispmisc.h"
 
 #define min(x,y) ((x) > (y) ? (y) : (x))
-
-/* >>> kludges: need `configure' >>>> */
-#define HAVE_MKDIR
-#define HAVE_RMDIR
-#ifndef USG
-# define HAVE_VFORK
-#endif
-/* >>>> end kludges >>>> */
 
 /* In this file, open, read and write refer to the system calls,
    not our sugared interfaces  sys_open, sys_read and sys_write.
@@ -63,6 +56,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
+
+#ifdef MSDOS	/* Demacs 1.1.2 91/10/20 Manabu Higashida, MW Aug 1993 */
+#include <dos.h>
+#include "dosfns.h"
+#include "msdos.h"
+#include <sys/param.h>
+#endif
 
 #ifdef VMS
 #include <rms.h>
@@ -113,7 +113,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef FASYNC
 #endif
 
+#ifndef MSDOS
 #include <sys/ioctl.h>
+#endif
 #include "systty.h"
 #include "syswait.h"
 
@@ -127,7 +129,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef MEMORY_IN_STRING_H
 #include <memory.h>
 #endif
-#ifdef TIOCGWINSZ
+#if defined (TIOCGWINSZ) || defined (ISC4_0)
 #ifdef NEED_SIOCTL
 #include <sys/sioctl.h>
 #endif
@@ -135,12 +137,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <sys/stream.h>
 #include <sys/ptem.h>
 #endif
-#endif /* TIOCGWINSZ */
+#endif /* TIOCGWINSZ or ISC4_0 */
 #endif /* USG */
 
 #include "dispextern.h"
 #include "screen.h"
-#include "window.h"
 #include "termhooks.h"
 #include "termchar.h"
 #include "termopts.h"
@@ -261,8 +262,13 @@ discard_tty_input ()
     ioctl (input_fd, TIOCFLUSH, &zero);
   }
 #else /* not Apollo */
+#ifdef MSDOS	/* Demacs 1.1.1 91/10/16 HIRANO Satoshi */
+  while (dos_keyread () != -1)
+  	;
+#else /* not MSDOS */
   EMACS_GET_TTY (input_fd, &buf);
   EMACS_SET_TTY (input_fd, &buf, 0);
+#endif /* not MSDOS */
 #endif /* not Apollo */
 #endif /* not VMS */
 }
@@ -292,6 +298,9 @@ init_baud_rate ()
     ospeed = 0;
   else
     {
+#ifdef MSDOS
+    ospeed = 15;
+#else
 #ifdef VMS
       struct vms_sensemode sg;
 
@@ -326,6 +335,7 @@ init_baud_rate ()
 #endif /* not HAVE_TERMIO */
 #endif /* not HAVE_TERMIOS */
 #endif /* not VMS */
+#endif /* not MSDOS */
     }
   
   baud_rate = (ospeed < sizeof baud_convert / sizeof baud_convert[0]
@@ -384,7 +394,8 @@ wait_for_termination (int pid)
       break;
 #else /* not VMS */
 
-#if defined (BSD) || (defined (HPUX) && !defined (HPUX_5))
+      /* commented out HPUX defines:  from dg@hplb.hpl.hp.com */
+#if defined (BSD) /* || (defined (HPUX) && !defined (HPUX_5)) */
       /* Note that kill returns -1 even if the process is just a zombie now.
 	 But inevitably a SIGCHLD interrupt should be generated
 	 and child_sig will do wait3 and make the process go away. */
@@ -485,6 +496,7 @@ flush_pending_output (channel)
 }
 
 #ifndef VMS
+#ifndef MSDOS
 /*  Set up the terminal at the other end of a pseudo-terminal that
     we will be controlling an inferior through.
     It should not echo or do line-editing, since that is done
@@ -500,14 +512,18 @@ child_setup_tty (int out)
 #if defined (HAVE_TERMIO) || defined (HAVE_TERMIOS)
   s.main.c_oflag |= OPOST;	/* Enable output postprocessing */
   s.main.c_oflag &= ~ONLCR;	/* Disable map of NL to CR-NL on output */
+#ifdef NLDLY
   s.main.c_oflag &= ~(NLDLY|CRDLY|TABDLY|BSDLY|VTDLY|FFDLY);
   				/* No output delays */
+#endif
   s.main.c_lflag &= ~ECHO;	/* Disable echo */
   s.main.c_lflag |= ISIG;	/* Enable signals */
-  s.main.c_iflag &= ~IUCLC;	/* Disable map of upper case to lower on
-				   input */
-  s.main.c_oflag &= ~OLCUC;	/* Disable map of lower case to upper on
-				   output */
+#ifdef IUCLC
+  s.main.c_iflag &= ~IUCLC;     /* Disable downcasing on input.  */
+#endif
+#ifdef OLCUC
+  s.main.c_oflag &= ~OLCUC;	/* Disable upcasing on output.  */
+#endif
   s.main.c_cflag = (s.main.c_cflag & ~CSIZE) | CS8; /* Don't strip 8th bit */
 #if 0
   /* Said to be unnecessary:  */
@@ -577,6 +593,7 @@ child_setup_tty (int out)
   }
 #endif /* RTU */
 }
+#endif /* not MSDOS */
 #endif /* not VMS */
 
 #endif /* subprocesses */
@@ -623,6 +640,92 @@ restore_signal_handlers (saved_handlers)
       saved_handlers++;
     }
 }
+
+/* Fork a subshell.  */
+static void
+sys_subshell (void)
+{
+#ifdef MSDOS	/* Demacs 1.1.2 91/10/20 Manabu Higashida */
+  int st;
+  char oldwd[MAXPATHLEN+1]; /* Fixed length is safe on MSDOS.  */
+#endif /* MSDOS */
+  int pid = fork ();
+  struct save_signal saved_handlers[5];
+
+  saved_handlers[0].code = SIGINT;
+  saved_handlers[1].code = SIGQUIT;
+  saved_handlers[2].code = SIGTERM;
+#ifdef SIGIO
+  saved_handlers[3].code = SIGIO;
+  saved_handlers[4].code = 0;
+#else
+  saved_handlers[3].code = 0;
+#endif
+
+  if (pid == -1)
+    error ("Can't spawn subshell");
+  if (pid == 0)
+  {
+    char *sh;
+
+#ifdef MSDOS	/* MW, Aug 1993 */
+    getwd (oldwd);
+#endif
+    sh = (char *) egetenv ("SHELL");
+
+    if (sh == 0)
+      sh = "sh";
+
+    /* Use our buffer's default directory for the subshell.  */
+    {
+      Lisp_Object dir;
+      unsigned char *str;
+      int len;
+
+      /* mentioning current_buffer->buffer would mean including buffer.h,
+         which somehow wedges the hp compiler.  So instead... */
+
+      if (NILP (Fboundp (Qdefault_directory)))
+        goto xyzzy;
+      dir = Fsymbol_value (Qdefault_directory);
+      if (!STRINGP (dir))
+        goto xyzzy;
+
+      str = (unsigned char *) alloca (XSTRING (dir)->size + 2);
+      len = XSTRING (dir)->size;
+      memcpy (str, XSTRING (dir)->data, len);
+      /* >>>> Unix specific */
+      if (str[len - 1] != '/') str[len++] = '/';
+      str[len] = 0;
+
+      chdir (str);
+    }
+
+  xyzzy:
+    close_process_descs ();	/* Close Emacs's pipes/ptys */
+#ifdef PRIO_PROCESS
+    if (emacs_priority != 0)
+      nice (-emacs_priority);   /* Give the new shell the default priority */ 
+#endif
+
+#ifdef MSDOS	/* Demacs 1.1.2 91/10/20 Manabu Higashida */
+      st = system (sh);
+      chdir (oldwd);
+      if (st)
+        report_file_error ("Can't execute subshell", Fcons (build_string (sh), Qnil));
+#else /* not MSDOS */
+    execlp (sh, sh, 0);
+    write (1, "Can't execute subshell", 22);
+    _exit (1);
+#endif /* not MSDOS */
+  }
+
+  save_signal_handlers (saved_handlers);
+  synch_process_alive = 1;
+  wait_for_termination (pid);
+  restore_signal_handlers (saved_handlers);
+}
+
 #endif /* no USG_JOBCTRL */
 #endif /* no SIGTSTP */
 #endif /* not VMS */
@@ -674,8 +777,7 @@ sys_suspend ()
     }
   return -1;
 #else /* not VMS */
-#ifdef SIGTSTP
-
+#if defined(SIGTSTP) && !defined(MSDOS)
   {
     int pgrp = EMACS_GETPGRP (0);
     EMACS_KILLPG (pgrp, SIGTSTP);
@@ -688,78 +790,16 @@ sys_suspend ()
 
 #else /* No SIGTSTP or USG_JOBCTRL */
 
-/* On a system where suspending is not implemented,
-   instead fork a subshell and let it talk directly to the terminal
-   while we wait.  */
-  int pid = fork ();
-  struct save_signal saved_handlers[5];
-
-  saved_handlers[0].code = SIGINT;
-  saved_handlers[1].code = SIGQUIT;
-  saved_handlers[2].code = SIGTERM;
-#ifdef SIGIO
-  saved_handlers[3].code = SIGIO;
-  saved_handlers[4].code = 0;
-#else
-  saved_handlers[3].code = 0;
-#endif
-
-  if (pid == -1)
-    error ("Can't spawn subshell");
-  if (pid == 0)
-    {
-      char *sh;
-
-      sh = (char *) egetenv ("SHELL");
-
-      if (sh == 0)
-	sh = "sh";
-
-      /* Use our buffer's default directory for the subshell.  */
-      {
-        Lisp_Object dir;
-        unsigned char *str;
-        int len;
-
-        /* mentioning current_buffer->buffer would mean including buffer.h,
-           which somehow wedges the hp compiler.  So instead... */
-
-        if (NILP (Fboundp (Qdefault_directory)))
-          goto xyzzy;
-        dir = Fsymbol_value (Qdefault_directory);
-        if (!STRINGP (dir))
-          goto xyzzy;
-
-        str = (unsigned char *) alloca (XSTRING (dir)->size + 2);
-        len = XSTRING (dir)->size;
-        memcpy (str, XSTRING (dir)->data, len);
-        /* >>>> Unix specific */
-        if (str[len - 1] != '/') str[len++] = '/';
-        str[len] = 0;
-
-        chdir (str);
-      }
-
-    xyzzy:
-      close_process_descs ();	/* Close Emacs's pipes/ptys */
-#ifdef PRIO_PROCESS
-      if (emacs_priority != 0)
-        nice (-emacs_priority); /* Give the new shell the default priority */ 
-#endif
-      execlp (sh, sh, 0);
-      write (1, "Can't execute subshell", 22);
-      _exit (1);
-    }
-
-  save_signal_handlers (saved_handlers);
-  synch_process_alive = 1;
-  wait_for_termination (pid);
-  restore_signal_handlers (saved_handlers);
+  /* On a system where suspending is not implemented,
+     instead fork a subshell and let it talk directly to the terminal
+     while we wait.  */
+  sys_subshell ();
 
 #endif /* no USG_JOBCTRL */
 #endif /* no SIGTSTP */
 #endif /* not VMS */
 }
+
 
 
 #ifdef F_SETFL
@@ -871,14 +911,40 @@ unrequest_sigio ()
 
 #else /* not FASYNC, not STRIDE or HPUX */
  
- 
-#endif /* STRIDE */
+#ifdef _CX_UX
+
+#include <termios.h>
+
+void
+request_sigio ()
+{
+  int on = 1;
+  sigset_t st;
+
+  sigemptyset(&st);
+  sigaddset(&st, SIGIO);
+  ioctl (input_fd, FIOASYNC, &on);
+  interrupts_deferred = 0;
+  sigprocmask(SIG_UNBLOCK, &st, (sigset_t *)0);
+}
+
+void
+unrequest_sigio ()
+{
+  int off = 0;
+
+  ioctl (input_fd, FIOASYNC, &off);
+  interrupts_deferred = 1;
+}
+
+#endif /* _CX_UX */
+#endif /* STRIDE, LINUX or HUPX */
 #endif /* FASYNC */
 #endif /* F_SETFL */
 
 /* Saving and restoring the process group of Emacs's terminal.  */
 
-#ifdef BSD
+#ifdef BSD_PGRPS
 
 /* The process group of which Emacs was a member when it initially
    started.
@@ -924,7 +990,7 @@ widen_foreground_group ()
   setpgrp (0, inherited_pgroup);
 }
 
-#endif
+#endif /* BSD_PGRPS */
 
 /* Getting and setting emacs_tty structures.  */
 
@@ -955,13 +1021,14 @@ emacs_get_tty (int fd, struct emacs_tty *settings)
     return -1;
 
 #else
+#ifndef MSDOS
   /* I give up - I hope you have the BSD ioctls.  */
   if (ioctl (fd, TIOCGETP, &settings->main) < 0)
     return -1;
-
-#endif
-#endif
-#endif
+#endif /* not MSDOS */
+#endif /* not VMS */
+#endif /* HAVE_TERMIO */
+#endif /* HAVE_TCATTR */
 
   /* Suivant - Do we have to get struct ltchars data?  */
 #ifdef HAVE_LTCHARS
@@ -1027,7 +1094,6 @@ emacs_set_tty (int fd, struct emacs_tty *settings, int waitp)
 	else
 	  continue;
       }
-
 #else
 #ifdef HAVE_TERMIO
   /* The SYSV-style interface?  */
@@ -1043,13 +1109,14 @@ emacs_set_tty (int fd, struct emacs_tty *settings, int waitp)
     return -1;
 
 #else
+#ifndef MSDOS
   /* I give up - I hope you have the BSD ioctls.  */
   if (ioctl (fd, (waitp) ? TIOCSETP : TIOCSETN, &settings->main) < 0)
     return -1;
-
-#endif
-#endif
-#endif
+#endif /* not MSDOS */
+#endif /* VMS */
+#endif /* HAVE_TERMIO */
+#endif /* HAVE_TCATTR */
 
   /* Suivant - Do we have to get struct ltchars data?  */
 #ifdef HAVE_LTCHARS
@@ -1152,7 +1219,7 @@ init_sys_modes ()
 #endif
 #endif /* not VMS */
 
-#ifdef BSD
+#ifdef BSD_PGRPS
   if (! read_socket_hook && EQ (Vwindow_system, Qnil))
     narrow_foreground_group ();
 #endif
@@ -1172,7 +1239,7 @@ init_sys_modes ()
       tty.main.c_lflag &= ~ECHO;	/* Disable echo */
       tty.main.c_lflag &= ~ICANON;	/* Disable erase/kill processing */
 #ifdef IEXTEN
-      tty.main.c_iflag &= ~IEXTEN;	/* Disable other editing characters.  */
+      tty.main.c_lflag &= ~IEXTEN;	/* Disable other editing characters.  */
 #endif
       tty.main.c_lflag |= ISIG;	/* Enable signals */
       if (flow_control)
@@ -1257,10 +1324,12 @@ init_sys_modes ()
 	tty.main.tt_char &= ~TT$M_TTSYNC;
       tty.main.tt2_char |= TT2$M_PASTHRU | TT2$M_XON;
 #else /* not VMS (BSD, that is) */
+#ifndef MSDOS
       tty.main.sg_flags &= ~(ECHO | CRMOD | XTABS);
       if (meta_key)
 	tty.main.sg_flags |= ANYP;
       tty.main.sg_flags |= interrupt_input ? RAW : CBREAK;
+#endif /* not MSDOS */
 #endif /* not VMS (BSD, that is) */
 #endif /* not HAVE_TERMIO */
 
@@ -1299,6 +1368,10 @@ init_sys_modes ()
 #ifdef HAVE_LTCHARS
       tty.ltchars = new_ltchars;
 #endif /* HAVE_LTCHARS */
+#ifdef MSDOS	/* Demacs 1.1.2 91/10/20 Manabu Higashida, MW Aug 1993 */
+      internal_terminal_init ();
+      dos_ttraw ();
+#endif
 
       EMACS_SET_TTY (input_fd, &tty, 0);
 
@@ -1381,8 +1454,12 @@ init_sys_modes ()
   set_terminal_modes ();
   if (term_initted && no_redraw_on_reenter)
     {
+      /* Maybe when there is tty support this will be needed.  It
+       * sure as hell isn't used at the moment. */
+#if 0
       if (display_completed)
 	direct_output_forward_char (0);
+#endif
     }
   else
     {
@@ -1408,6 +1485,7 @@ tabs_safe_p ()
   return EMACS_TTY_TABS_OK (&tty);
 }
 
+
 /* Get terminal size from system.
    Store number of lines into *heightp and width into *widthp.
    If zero or a negative number is stored, the value is not valid.  */
@@ -1454,12 +1532,53 @@ get_screen_size (widthp, heightp)
   *widthp = tty.scr_wid;
   *heightp = tty.scr_len;
 
+#else
+#ifdef MSDOS
+  *widthp = ScreenCols ();
+  *heightp = ScreenRows ();
 #else /* system doesn't know size */
 
   *widthp = 0;
   *heightp = 0;
 
+#endif /* not MSDOS */
 #endif /* not VMS */
+#endif /* not SunOS-style */
+#endif /* not BSD-style */
+}
+
+/* Set the logical window size associated with descriptor FD
+   to HEIGHT and WIDTH.  This is used mainly with ptys.  */
+
+int
+set_window_size (int fd, int height, int width)
+{
+#ifdef TIOCSWINSZ
+
+  /* BSD-style.  */
+  struct winsize size;
+  size.ws_row = height;
+  size.ws_col = width;
+
+  if (ioctl (fd, TIOCSWINSZ, &size) == -1)
+    return 0; /* error */
+  else
+    return 1;
+
+#else
+#ifdef TIOCSSIZE
+
+  /* SunOS - style.  */
+  struct ttysize size;  
+  size.ts_lines = height;
+  size.ts_cols = width;
+
+  if (ioctl (fd, TIOCGSIZE, &size) == -1)
+    return 0;
+  else
+    return 1;
+#else
+  return -1;
 #endif /* not SunOS-style */
 #endif /* not BSD-style */
 }
@@ -1485,21 +1604,21 @@ reset_sys_modes ()
    * >>>>>  before calling initialize-first-screen */
   if (selected_screen->cur_line)
   {
-    selected_screen->new_cur_line = selected_screen->new_cur_w->lines;
+    selected_screen->new_cur_line = selected_screen->new_cur_mir->lines;
     selected_screen->new_cur_char = selected_screen->new_cur_line->body;
     selected_screen->cursor_x = selected_screen->cursor_y = 0;
     cursor_to (selected_screen->new_cur_line,
 	       selected_screen->new_cur_char,
 	       selected_screen->cursor_y,
 	       selected_screen->cursor_x,
-	       selected_screen->new_cur_w, selected_screen);	/* WRONG */
+	       selected_screen->new_cur_mir, selected_screen);	/* WRONG */
     /*  clear_end_of_line (selected_screen->width); */
     /* clear_end_of_line may move the cursor */
     cursor_to (selected_screen->new_cur_line,
 	       selected_screen->new_cur_char,
 	       selected_screen->cursor_y,
 	       selected_screen->cursor_x,
-	       selected_screen->new_cur_w, selected_screen);	/* WRONG */
+	       selected_screen->new_cur_mir, selected_screen);	/* WRONG */
     /* Output raw CR so kernel can track the cursor hpos.  */
   }
 #ifdef IBMR2AIX
@@ -1540,6 +1659,9 @@ reset_sys_modes ()
 #endif /* F_SETOWN */
 #endif /* F_SETFL */
 #endif /* !F_SETOWN_BUG */
+#ifdef O_NDELAY
+  fcntl (input_fd, F_SETFL, fcntl (input_fd, F_GETFL, 0) & ~O_NDELAY);
+#endif /* O_NDELAY */
 #endif /* !HPUX */
 
 #ifdef BSD4_1
@@ -1550,11 +1672,15 @@ reset_sys_modes ()
   while (EMACS_SET_TTY (input_fd, &old_tty, 0) < 0 && errno == EINTR)
     ;
 
+#ifdef MSDOS	/* Demacs 1.1.2 91/10/20 Manabu Higashida */
+  dos_ttcooked ();
+#endif
+
 #ifdef AIX
   hft_reset ();
 #endif
 
-#ifdef BSD
+#ifdef BSD_PGRPS
   widen_foreground_group ();
 #endif
 }
@@ -1707,7 +1833,7 @@ vms_wait_for_kbd_input ()
   extern int have_process_input, process_exited;
 
   /* If already something, avoid doing system calls.  */
-  if (detect_input_pending ())
+  if (detect_input_pending (0))
     {
       return;
     }
@@ -1715,13 +1841,13 @@ vms_wait_for_kbd_input ()
   SYS$CLREF (vms_input_ef);
   vms_waiting_for_ast = 1;
   /* Check for timing error: ast happened while we were doing that.  */
-  if (!detect_input_pending ())
+  if (!detect_input_pending (0))
     {
       /* No timing error: wait for flag to be set.  */
       set_waiting_for_input (0);
       SYS$WFLOR (vms_input_ef, vms_input_eflist);
       clear_waiting_for_input (0);
-      if (!detect_input_pending ())
+      if (!detect_input_pending (0))
 	/* Check for subprocess input availability */
 	{
 	  int dsp = have_process_input || process_exited;
@@ -1787,7 +1913,7 @@ vms_input_wait_timeout (timeval)
   LIB$EMUL (&timeval, &large, &zero, time); 	  /* Convert to VMS format */
 
   /* If already something, avoid doing system calls.  */
-  if (detect_input_pending ())
+  if (detect_input_pending (0))
     {
       return;
     }
@@ -1795,7 +1921,7 @@ vms_input_wait_timeout (timeval)
   SYS$CLREF (vms_input_ef);
   vms_waiting_for_ast = 1;
   /* Check for timing error: ast happened while we were doing that.  */
-  if (!detect_input_pending ())
+  if (!detect_input_pending (0))
     {
       /* No timing error: wait for flag to be set.  */
       SYS$CANTIM (1, 0);
@@ -1851,7 +1977,7 @@ sys_sleep (timeval)
  *
  */
 
-#ifndef CANNOT_UNEXEC
+#if !defined (CANNOT_UNEXEC) && !defined (HAVE_TEXT_START)
 char *
 start_of_text ()
 {
@@ -1867,7 +1993,7 @@ start_of_text ()
 #endif /* GOULD */
 #endif /* TEXT_START */
 }
-#endif /* not CANNOT_UNEXEC */
+#endif /* not CANNOT_UNEXEC and not HAVE_TEXT_START */
 
 /*
  *	Return the address of the start of the data segment prior to
@@ -1956,7 +2082,7 @@ end_of_data ()
 
 #endif /* not CANNOT_DUMP */
 
-/* Get_system_name returns as its value
+/* get_system_name returns as its value
  a string for the Lisp function system-name to return. */
 
 #ifdef BSD4_1
@@ -1965,96 +2091,129 @@ end_of_data ()
 
 /* Can't have this within the function since `static' is #defined to
    nothing for some USG systems.  */
-#ifdef USG
-#ifdef HAVE_GETHOSTNAME
-static char get_system_name_name[256];
-#else /* not HAVE_GETHOSTNAME */
-static struct utsname get_system_name_name;
-#endif /* not HAVE_GETHOSTNAME */
-#endif /* USG */
+static char *get_system_name_cache;
+static int get_system_name_predump_p;
 
 #ifndef BSD4_1
-#ifndef USG
 #ifndef VMS
 #ifdef HAVE_SOCKETS
 #include <sys/socket.h>
 #include <netdb.h>
 #endif /* HAVE_SOCKETS */
 #endif /* not VMS */
-#endif /* not USG */
 #endif /* not BSD4_1 */
 
 char *
 get_system_name ()
 {
-#ifdef USG
-#ifdef HAVE_GETHOSTNAME
-  gethostname (get_system_name_name, sizeof (get_system_name_name));
-  return get_system_name_name;
-#else /* not HAVE_GETHOSTNAME */
-  uname (&get_system_name_name);
-  return (get_system_name_name.nodename);
-#endif /* not HAVE_GETHOSTNAME */
-#else /* Not USG */
 #ifdef BSD4_1
   return sysname;
-#else /* not USG, not 4.1 */
-  static char system_name_saved[32];
-#ifdef VMS
-  char *sp;
-  if ((sp = egetenv ("SYS$NODE")) == 0)
-    sp = "vax-vms";
-  else
-    {
-      char *end;
-
-      if ((end = index (sp, ':')) != 0)
-	*end = '\0';
-    }
-  strcpy (system_name_saved, sp);
-#else /* not VMS */
-  if (gethostname (system_name_saved, sizeof (system_name_saved)) != 0)
-    {
-      sprintf (system_name_saved, "gethostname: %s", sys_errlist[errno]);
-      return (system_name_saved);
-    }
-#ifdef HAVE_SOCKETS
-  /* Turn the hostname into the official, fully-qualified hostname.
-     Don't do this if we're going to dump; this can confuse system
-     libraries on some machines and make the dumped emacs core dump. */
+#else
 #ifndef CANNOT_DUMP
-  if (initialized)
-#endif /* not CANNOT_DUMP */
+  /* If the cached value is from before the dump, and we've dumped
+     since then, then the cached value is no good. */
+  if (get_system_name_predump_p && initialized && get_system_name_cache)
     {
-      struct hostent *hp;
-      hp = gethostbyname (system_name_saved);
-      if (hp && strlen (hp->h_name) < sizeof(system_name_saved))
-	strcpy (system_name_saved, hp->h_name);
+      xfree (get_system_name_cache);
+      get_system_name_cache = 0;
     }
-#endif /* HAVE_SOCKETS */
-#endif /* not VMS */
-  return system_name_saved;
-#endif /* not USG, not 4.1 */
-#endif /* not USG */
-}
-
+#endif
+  if (!get_system_name_cache)
+    {
+      /* No cached value, so get the name from the system.  */
 #ifdef VMS
+      char *sp;
+      if ((sp = egetenv ("SYS$NODE")) == 0)
+        sp = "vax-vms";
+      else
+      {
+        char *end;
+
+        if ((end = index (sp, ':')) != 0)
+          *end = '\0';
+      }
+      get_system_name_cache = (char *) xmalloc (strlen (sp) + 1);
+      strcpy (get_system_name_cache, sp);
+#else
 #ifndef HAVE_GETHOSTNAME
-void gethostname(buf, len)
-    char *buf;
-    int len;
-{
-    char *s;
-    s = getenv ("SYS$NODE");
-    if (s == NULL)
-        buf[0] = '\0';
-    else {
-        strncpy (buf, s, len - 2);
-        buf[len - 1] = '\0';
-    } /* else */
-} /* static void gethostname */
-#endif /* ! HAVE_GETHOSTNAME */
+      struct utsname uts;
+      uname (&uts);
+      get_system_name_cache = (char *) xmalloc (strlen (uts.nodename) + 1);
+      strcpy (get_system_name_cache, uts.nodename);
+#else /* HAVE_GETHOSTNAME */
+      {
+	int hostname_size = 256;
+	char *hostname = (char *) xmalloc (hostname_size);
+
+	/* Try to get the host name; if the buffer is too short, try
+	   again.  Apparently, the only indication gethostname gives of
+	   whether the buffer was large enough is the presence or absence
+	   of a '\0' in the string.  Eech.  */
+	for (;;)
+	  {
+	    gethostname (hostname, hostname_size - 1);
+	    hostname[hostname_size - 1] = '\0';
+
+	    /* Was the buffer large enough for the '\0'?  */
+	    if (strlen (hostname) < hostname_size - 1)
+	      break;
+
+	    hostname_size <<= 1;
+	    hostname = (char *) xrealloc (hostname, hostname_size);
+	  }
+	get_system_name_cache = hostname;
+#ifdef HAVE_SOCKETS
+	/* Turn the hostname into the official, fully-qualified hostname.
+	   Don't do this if we're going to dump; this can confuse system
+	   libraries on some machines and make the dumped emacs core dump. */
+#ifndef CANNOT_DUMP
+	if (initialized)
+#endif /* not CANNOT_DUMP */
+	  {
+	    struct hostent *hp = gethostbyname (hostname);
+	    if (hp)
+	      {
+		char *fqdn = hp->h_name;
+		if (!index (fqdn, '.'))
+		  {
+		    /* We still don't have a fully qualified domain name.
+		       Try to find one in the list of alternate names */
+		    char **alias = hp->h_aliases;
+		    while (*alias && !index (*alias, '.'))
+		      alias++;
+		    if (*alias)
+		      fqdn = *alias;
+		  }
+		hostname = (char *) xrealloc (hostname, strlen (fqdn) + 1);
+		strcpy (hostname, fqdn);
+#if 0
+                {
+                  /* Convert the host name to lower case.  */
+                  /* Using ctype.h here would introduce a possible locale
+                     dependence that is probably wrong for hostnames.  */
+                  char *p = hostname;
+                  while (*p)
+                  {
+                    if (*p >= 'A' && *p <= 'Z')
+                      *p += 'a' - 'A';
+		    p++;
+		  }
+                }
+#endif /* unused */
+	      }
+	  }
+#endif /* HAVE_SOCKETS */
+	get_system_name_cache = hostname;
+      }
+#endif /* HAVE_GETHOSTNAME */
 #endif /* VMS */
+#ifndef CANNOT_DUMP
+      get_system_name_predump_p = !initialized;
+#endif
+    }
+  return (get_system_name_cache);
+#endif /* BSD4_1 */
+}
 
 
 #ifndef VMS
@@ -2127,7 +2286,7 @@ select (nfds, rfds, wfds, efds, timeout)
      just read it and wait -- that's more efficient.  */
   if (orfds == 1 && *local_timeout == 100000 && process_tick == update_tick)
     {
-      if (! detect_input_pending ())
+      if (! detect_input_pending (0))
 	read_input_waiting ();
       *rfds = 1;
       return 1;
@@ -2150,12 +2309,15 @@ select (nfds, rfds, wfds, efds, timeout)
 		  int avail = 0, status = 0;
 
 		  if (bit == 1)
-		    avail = detect_input_pending (); /* Special keyboard handler */
+		    avail = detect_input_pending (0); /* Special keyboard handler */
 		  else
 		    {
 #ifdef FIONREAD
 		      status = ioctl (fd, FIONREAD, &avail);
 #else /* no FIONREAD */
+#ifdef MSDOS
+		      abort (); /* I don't think we need it.  */
+#else /* not MSDOS */
 		      /* Hoping it will return -1 if nothing available
 			 or 0 if all 0 chars requested are read.  */
 		      if (proc_buffered_char[fd] >= 0)
@@ -2166,6 +2328,7 @@ select (nfds, rfds, wfds, efds, timeout)
 			  if (avail > 0)
 			    proc_buffered_char[fd] = buf;
 			}
+#endif /* not MSDOS */
 #endif /* no FIONREAD */
 		    }
 		  if (status >= 0 && avail > 0)
@@ -2186,17 +2349,22 @@ select (nfds, rfds, wfds, efds, timeout)
       while (select_alarmed == 0 && *local_timeout != 0
 	     && process_tick == update_tick)
 	{
+#ifdef MSDOS
+	  sleep_or_kbd_hit (SELECT_PAUSE, (orfds & 1) != 0);
+	  select_alarm ();
+#else /* not MSDOS */
 	  /* If we are interested in terminal input,
 	     wait by reading the terminal.
 	     That makes instant wakeup for terminal input at least.  */
 	  if (orfds & 1)
 	    {
 	      read_input_waiting ();
-	      if (detect_input_pending ())
+	      if (detect_input_pending (0))
 		select_alarmed = 1;
 	    }
 	  else
 	    pause ();
+#endif /* not MSDOS */
 	}
       (*local_timeout) -= SELECT_PAUSE;
       /* Reset the old alarm if there was one */
@@ -2368,7 +2536,9 @@ init_signals ()
   sigfillset (&full_mask);
 }
 
-#if 0	/* This doesn't seem to be used?  conflicts with libenergize.a -jwz */
+#ifndef ENERGIZE
+/* This fn is only used by Linux (I think?), and conflicts with a like-named
+   function in libenergize.a -jwz */
 
 signal_handler_t
 sys_signal (int signal_number, signal_handler_t action)
@@ -2380,13 +2550,20 @@ sys_signal (int signal_number, signal_handler_t action)
 #else
   sigemptyset (&new_action.sa_mask);
   new_action.sa_handler = action;
+#ifdef SA_RESTART
+  /* Emacs mostly works better with restartable system services. If this
+   * flag exists, we probably want to turn it on here.
+   */
+  new_action.sa_flags = SA_RESTART;
+#else
   new_action.sa_flags = 0;
+#endif
   sigaction (signal_number, &new_action, &old_action);
   return (old_action.sa_handler);
 #endif /* DGUX */
 }
 
-#endif /* 0 */
+#endif /* !ENERGIZE */
 
 #ifndef __GNUC__
 /* If we're compiling with GCC, we don't need this function, since it
@@ -2546,23 +2723,28 @@ sys_abort ()
 }
 #endif /* abort */
 #endif /* VMS */
+
 
-#ifdef VMS
-#ifdef LINK_CRTL_SHARE
-#ifdef SHAREABLE_LIB_BUG
+/**********************************************************************/
+/* strerror                                                           */
+/**********************************************************************/
+
+#ifndef HAVE_STRERROR
+
+#if defined (VMS) && defined (LINK_CRTL_SHARE) && defined (SHAREABLE_LIB_BUG)
+
 /* Variables declared noshare and initialized in sharable libraries
    cannot be shared.  The VMS linker incorrectly forces you to use a private
    version which is uninitialized... If not for this "feature", we
    could use the C library definition of sys_nerr and sys_errlist. */
-int sys_nerr = 35;
-const char *sys_errlist[] =
+CONST char *sys_errlist[] =
   {
     "error 0",
     "not owner",
     "no such file or directory",
     "no such process",
     "interrupted system call",
-    "i/o error",
+    "I/O error",
     "no such device or address",
     "argument list too long",
     "exec format error",
@@ -2595,9 +2777,36 @@ const char *sys_errlist[] =
     "I/O stream empty",
     "vax/vms specific error code nontranslatable error"
   };
-#endif /* SHAREABLE_LIB_BUG */
-#endif /* LINK_CRTL_SHARE */
-#endif /* VMS */
+int sys_nerr = countof (sys_errlist);
+
+#endif /* VMS & LINK_CRTL_SHARE & SHAREABLE_LIB_BUG */
+
+
+#if !defined(NeXT) && !defined(__alpha) && !defined(MACH) && !defined(LINUX) && !defined(IRIX) && !defined(__NetBSD__)
+/* Linux added here by Raymond L. Toy <toy@alydar.crd.ge.com> for Lemacs. */
+/* Irix added here by gparker@sni-usa.com for Lemacs. */
+/* NetBSD added here by James R Grinter <jrg@doc.ic.ac.uk> for Lemacs */
+extern CONST char *sys_errlist[];
+extern int sys_nerr;
+#endif
+
+#ifdef __NetBSD__
+extern char *sys_errlist[];
+extern int sys_nerr;
+#endif
+
+
+CONST char *
+strerror (int errnum)
+{
+  if (errnum >= 0 && errnum < sys_nerr)
+    return sys_errlist[errnum];
+  return ((CONST char *) GETTEXT ("Unknown error"));
+}
+
+#endif /* ! HAVE_STRERROR */
+
+
 
 #ifdef INTERRUPTIBLE_OPEN
 
@@ -2661,7 +2870,7 @@ sys_write (int fildes, CONST void *buf, unsigned int nbyte)
 	  if (errno == EINTR)
 	    continue;
 	  else
-	    return (-1);
+            return (bytes_written ? bytes_written : -1);
 	}
       b += rtnval;
       nbyte -= rtnval;
@@ -2686,8 +2895,8 @@ vfork (void)
 }
 
 #endif /* not HAVE_VFORK */
-
 
+
 #ifdef USG
 /*
  *	All of the following are for USG.
@@ -2703,70 +2912,6 @@ vfork (void)
  *	adds an extra level of function call overhead but it is almost
  *	always negligible.   Fred Fish, Unisoft Systems Inc.
  */
-
-#ifndef HAVE_SYS_SIGLIST
-
-CONST char *sys_siglist[NSIG + 1] =
-{
-#ifdef AIX
-/* AIX has changed the signals a bit */
-  DEFER_GETTEXT ("bogus signal"),			/* 0 */
-  DEFER_GETTEXT ("hangup"),				/* 1  SIGHUP */
-  DEFER_GETTEXT ("interrupt"),				/* 2  SIGINT */
-  DEFER_GETTEXT ("quit"),				/* 3  SIGQUIT */
-  DEFER_GETTEXT ("illegal instruction"),		/* 4  SIGILL */
-  DEFER_GETTEXT ("trace trap"),				/* 5  SIGTRAP */
-  DEFER_GETTEXT ("IOT instruction"),			/* 6  SIGIOT */
-  DEFER_GETTEXT ("crash likely"),			/* 7  SIGDANGER */
-  DEFER_GETTEXT ("floating point exception"),		/* 8  SIGFPE */
-  DEFER_GETTEXT ("kill"),				/* 9  SIGKILL */
-  DEFER_GETTEXT ("bus error"),				/* 10 SIGBUS */
-  DEFER_GETTEXT ("segmentation violation"),		/* 11 SIGSEGV */
-  DEFER_GETTEXT ("bad argument to system call"),	/* 12 SIGSYS */
-  DEFER_GETTEXT ("write on a pipe with no one to read it"), /* 13 SIGPIPE */
-  DEFER_GETTEXT ("alarm clock"),			/* 14 SIGALRM */
-  DEFER_GETTEXT ("software termination signum"),	/* 15 SIGTERM */
-  DEFER_GETTEXT ("user defined signal 1"),		/* 16 SIGUSR1 */
-  DEFER_GETTEXT ("user defined signal 2"),		/* 17 SIGUSR2 */
-  DEFER_GETTEXT ("death of a child"),			/* 18 SIGCLD */
-  DEFER_GETTEXT ("power-fail restart"),			/* 19 SIGPWR */
-  DEFER_GETTEXT ("bogus signal"),			/* 20 */
-  DEFER_GETTEXT ("bogus signal"),			/* 21 */
-  DEFER_GETTEXT ("bogus signal"),			/* 22 */
-  DEFER_GETTEXT ("bogus signal"),			/* 23 */
-  DEFER_GETTEXT ("bogus signal"),			/* 24 */
-  DEFER_GETTEXT ("LAN I/O interrupt"),			/* 25 SIGAIO */
-  DEFER_GETTEXT ("PTY I/O interrupt"),			/* 26 SIGPTY */
-  DEFER_GETTEXT ("I/O intervention required"),		/* 27 SIGIOINT */
-  DEFER_GETTEXT ("HFT grant"),				/* 28 SIGGRANT */
-  DEFER_GETTEXT ("HFT retract"),			/* 29 SIGRETRACT */
-  DEFER_GETTEXT ("HFT sound done"),			/* 30 SIGSOUND */
-  DEFER_GETTEXT ("HFT input ready"),			/* 31 SIGMSG */
-#else /* not AIX */
-  DEFER_GETTEXT ("bogus signal"),			/* 0 */
-  DEFER_GETTEXT ("hangup"),				/* 1  SIGHUP */
-  DEFER_GETTEXT ("interrupt"),				/* 2  SIGINT */
-  DEFER_GETTEXT ("quit"),				/* 3  SIGQUIT */
-  DEFER_GETTEXT ("illegal instruction"),		/* 4  SIGILL */
-  DEFER_GETTEXT ("trace trap"),				/* 5  SIGTRAP */
-  DEFER_GETTEXT ("IOT instruction"),			/* 6  SIGIOT */
-  DEFER_GETTEXT ("EMT instruction"),			/* 7  SIGEMT */
-  DEFER_GETTEXT ("floating point exception"),		/* 8  SIGFPE */
-  DEFER_GETTEXT ("kill"),				/* 9  SIGKILL */
-  DEFER_GETTEXT ("bus error"),				/* 10 SIGBUS */
-  DEFER_GETTEXT ("segmentation violation"),		/* 11 SIGSEGV */
-  DEFER_GETTEXT ("bad argument to system call"),	/* 12 SIGSYS */
-  DEFER_GETTEXT ("write on a pipe with no one to read it"), /* 13 SIGPIPE */
-  DEFER_GETTEXT ("alarm clock"),			/* 14 SIGALRM */
-  DEFER_GETTEXT ("software termination signum"),	/* 15 SIGTERM */
-  DEFER_GETTEXT ("user defined signal 1"),		/* 16 SIGUSR1 */
-  DEFER_GETTEXT ("user defined signal 2"),		/* 17 SIGUSR2 */
-  DEFER_GETTEXT ("death of a child"),			/* 18 SIGCLD */
-  DEFER_GETTEXT ("power-fail restart"),			/* 19 SIGPWR */
-#endif /* not AIX */
-  0
-};
-#endif /* not HAVE_SYS_SIGLIST */
 
 /*
  *	Warning, this function may not duplicate 4.2 action properly
@@ -2785,7 +2930,9 @@ getwd (pathname)
      char *pathname;
 {
   char *npath, *spath;
+#if !__STDC__ && !defined(STDC_HEADERS)
   extern char *getcwd ();
+#endif
 
   BLOCK_INPUT;			/* getcwd uses malloc */
   spath = npath = getcwd ((char *) 0, MAXPATHLEN);
@@ -2908,7 +3055,7 @@ dup2 (oldd, newd)
 #ifdef F_DUPFD
   fd = fcntl (oldd, F_DUPFD, newd);
   if (fd != newd)
-    error ("can't dup2 (%i,%i) : %s", oldd, newd, sys_errlist[errno]);
+    error ("can't dup2 (%i,%i) : %s", oldd, newd, strerror (errno));
 #else
   fd = dup (old);
   if (fd == -1)
@@ -2957,82 +3104,169 @@ gettimeofday (tp, tzp)
 
 #endif /* USG */
 
-#ifdef DGUX
+#ifndef HAVE_SYS_SIGLIST
 
+#ifdef USG
+#ifdef AIX
 CONST char *sys_siglist[NSIG + 1] =
-{
-  DEFER_GETTEXT ("null signal"),			 /*  0 SIGNULL   */
-  DEFER_GETTEXT ("hangup"),				 /*  1 SIGHUP    */
-  DEFER_GETTEXT ("interrupt"),		       		 /*  2 SIGINT    */
-  DEFER_GETTEXT ("quit"),				 /*  3 SIGQUIT   */
-  DEFER_GETTEXT ("illegal instruction"),		 /*  4 SIGILL    */
-  DEFER_GETTEXT ("trace trap"),				 /*  5 SIGTRAP   */
-  DEFER_GETTEXT ("abort termination"),			 /*  6 SIGABRT   */
-  DEFER_GETTEXT ("SIGEMT"),				 /*  7 SIGEMT    */
-  DEFER_GETTEXT ("floating point exception"),		 /*  8 SIGFPE    */
-  DEFER_GETTEXT ("kill"),				 /*  9 SIGKILL   */
-  DEFER_GETTEXT ("bus error"),				 /* 10 SIGBUS    */
-  DEFER_GETTEXT ("segmentation violation"),		 /* 11 SIGSEGV   */
-  DEFER_GETTEXT ("bad argument to system call"),	 /* 12 SIGSYS    */
-  DEFER_GETTEXT ("write on a pipe with no reader"),	 /* 13 SIGPIPE   */
-  DEFER_GETTEXT ("alarm clock"),			 /* 14 SIGALRM   */
-  DEFER_GETTEXT ("software termination signal"),	 /* 15 SIGTERM   */
-  DEFER_GETTEXT ("user defined signal 1"),		 /* 16 SIGUSR1   */
-  DEFER_GETTEXT ("user defined signal 2"),		 /* 17 SIGUSR2   */
-  DEFER_GETTEXT ("child stopped or terminated"),	 /* 18 SIGCLD    */
-  DEFER_GETTEXT ("power-fail restart"),			 /* 19 SIGPWR    */
-  DEFER_GETTEXT ("window size changed"),		 /* 20 SIGWINCH  */
-  DEFER_GETTEXT ("undefined"),				 /* 21           */
-  DEFER_GETTEXT ("pollable event occurred"),		 /* 22 SIGPOLL   */
-  DEFER_GETTEXT ("sendable stop signal not from tty"),	 /* 23 SIGSTOP   */
-  DEFER_GETTEXT ("stop signal from tty"),		 /* 24 SIGSTP    */
-  DEFER_GETTEXT ("continue a stopped process"),		 /* 25 SIGCONT   */
-  DEFER_GETTEXT ("attempted background tty read"),	 /* 26 SIGTTIN   */
-  DEFER_GETTEXT ("attempted background tty write"),	 /* 27 SIGTTOU   */
-  DEFER_GETTEXT ("undefined"),				 /* 28           */
-  DEFER_GETTEXT ("undefined"),				 /* 29           */
-  DEFER_GETTEXT ("undefined"),				 /* 30           */
-  DEFER_GETTEXT ("undefined"),				 /* 31           */
-  DEFER_GETTEXT ("undefined"),				 /* 32           */
-  DEFER_GETTEXT ("socket (TCP/IP) urgent data arrival"), /* 33 SIGURG    */
-  DEFER_GETTEXT ("I/O is possible"),			 /* 34 SIGIO     */
-  DEFER_GETTEXT ("exceeded cpu time limit"),		 /* 35 SIGXCPU   */
-  DEFER_GETTEXT ("exceeded file size limit"),		 /* 36 SIGXFSZ   */
-  DEFER_GETTEXT ("virtual time alarm"),			 /* 37 SIGVTALRM */
-  DEFER_GETTEXT ("profiling time alarm"),		 /* 38 SIGPROF   */
-  DEFER_GETTEXT ("undefined"),				 /* 39           */
-  DEFER_GETTEXT ("file record locks revoked"),		 /* 40 SIGLOST   */
-  DEFER_GETTEXT ("undefined"),				 /* 41           */
-  DEFER_GETTEXT ("undefined"),				 /* 42           */
-  DEFER_GETTEXT ("undefined"),				 /* 43           */
-  DEFER_GETTEXT ("undefined"),				 /* 44           */
-  DEFER_GETTEXT ("undefined"),				 /* 45           */
-  DEFER_GETTEXT ("undefined"),				 /* 46           */
-  DEFER_GETTEXT ("undefined"),				 /* 47           */
-  DEFER_GETTEXT ("undefined"),				 /* 48           */
-  DEFER_GETTEXT ("undefined"),				 /* 49           */
-  DEFER_GETTEXT ("undefined"),				 /* 50           */
-  DEFER_GETTEXT ("undefined"),				 /* 51           */
-  DEFER_GETTEXT ("undefined"),				 /* 52           */
-  DEFER_GETTEXT ("undefined"),				 /* 53           */
-  DEFER_GETTEXT ("undefined"),				 /* 54           */
-  DEFER_GETTEXT ("undefined"),				 /* 55           */
-  DEFER_GETTEXT ("undefined"),				 /* 56           */
-  DEFER_GETTEXT ("undefined"),				 /* 57           */
-  DEFER_GETTEXT ("undefined"),				 /* 58           */
-  DEFER_GETTEXT ("undefined"),				 /* 59           */
-  DEFER_GETTEXT ("undefined"),				 /* 60           */
-  DEFER_GETTEXT ("undefined"),				 /* 61           */
-  DEFER_GETTEXT ("undefined"),				 /* 62           */
-  DEFER_GETTEXT ("undefined"),				 /* 63           */
-  DEFER_GETTEXT ("notification message in mess. queue"), /* 64 SIGDGNOTIFY */
-  0
-};
-
+  {
+    /* AIX has changed the signals a bit */
+    DEFER_GETTEXT ("bogus signal"),			/* 0 */
+    DEFER_GETTEXT ("hangup"),				/* 1  SIGHUP */
+    DEFER_GETTEXT ("interrupt"),			/* 2  SIGINT */
+    DEFER_GETTEXT ("quit"),				/* 3  SIGQUIT */
+    DEFER_GETTEXT ("illegal instruction"),		/* 4  SIGILL */
+    DEFER_GETTEXT ("trace trap"),			/* 5  SIGTRAP */
+    DEFER_GETTEXT ("IOT instruction"),			/* 6  SIGIOT */
+    DEFER_GETTEXT ("crash likely"),			/* 7  SIGDANGER */
+    DEFER_GETTEXT ("floating point exception"),		/* 8  SIGFPE */
+    DEFER_GETTEXT ("kill"),				/* 9  SIGKILL */
+    DEFER_GETTEXT ("bus error"),			/* 10 SIGBUS */
+    DEFER_GETTEXT ("segmentation violation"),		/* 11 SIGSEGV */
+    DEFER_GETTEXT ("bad argument to system call"),	/* 12 SIGSYS */
+    DEFER_GETTEXT ("write on a pipe with no one to read it"), /* 13 SIGPIPE */
+    DEFER_GETTEXT ("alarm clock"),			/* 14 SIGALRM */
+    DEFER_GETTEXT ("software termination signum"),	/* 15 SIGTERM */
+    DEFER_GETTEXT ("user defined signal 1"),		/* 16 SIGUSR1 */
+    DEFER_GETTEXT ("user defined signal 2"),		/* 17 SIGUSR2 */
+    DEFER_GETTEXT ("death of a child"),			/* 18 SIGCLD */
+    DEFER_GETTEXT ("power-fail restart"),		/* 19 SIGPWR */
+    DEFER_GETTEXT ("bogus signal"),			/* 20 */
+    DEFER_GETTEXT ("bogus signal"),			/* 21 */
+    DEFER_GETTEXT ("bogus signal"),			/* 22 */
+    DEFER_GETTEXT ("bogus signal"),			/* 23 */
+    DEFER_GETTEXT ("bogus signal"),			/* 24 */
+    DEFER_GETTEXT ("LAN I/O interrupt"),		/* 25 SIGAIO */
+    DEFER_GETTEXT ("PTY I/O interrupt"),		/* 26 SIGPTY */
+    DEFER_GETTEXT ("I/O intervention required"),	/* 27 SIGIOINT */
+    DEFER_GETTEXT ("HFT grant"),			/* 28 SIGGRANT */
+    DEFER_GETTEXT ("HFT retract"),			/* 29 SIGRETRACT */
+    DEFER_GETTEXT ("HFT sound done"),			/* 30 SIGSOUND */
+    DEFER_GETTEXT ("HFT input ready"),			/* 31 SIGMSG */
+    0
+  };
+#else /* USG, not AIX */
+CONST char *sys_siglist[NSIG + 1] =
+  {
+    DEFER_GETTEXT ("bogus signal"),			/* 0 */
+    DEFER_GETTEXT ("hangup"),				/* 1  SIGHUP */
+    DEFER_GETTEXT ("interrupt"),			/* 2  SIGINT */
+    DEFER_GETTEXT ("quit"),				/* 3  SIGQUIT */
+    DEFER_GETTEXT ("illegal instruction"),		/* 4  SIGILL */
+    DEFER_GETTEXT ("trace trap"),			/* 5  SIGTRAP */
+    DEFER_GETTEXT ("IOT instruction"),			/* 6  SIGIOT */
+    DEFER_GETTEXT ("EMT instruction"),			/* 7  SIGEMT */
+    DEFER_GETTEXT ("floating point exception"),		/* 8  SIGFPE */
+    DEFER_GETTEXT ("kill"),				/* 9  SIGKILL */
+    DEFER_GETTEXT ("bus error"),			/* 10 SIGBUS */
+    DEFER_GETTEXT ("segmentation violation"),		/* 11 SIGSEGV */
+    DEFER_GETTEXT ("bad argument to system call"),	/* 12 SIGSYS */
+    DEFER_GETTEXT ("write on a pipe with no one to read it"), /* 13 SIGPIPE */
+    DEFER_GETTEXT ("alarm clock"),			/* 14 SIGALRM */
+    DEFER_GETTEXT ("software termination signum"),	/* 15 SIGTERM */
+    DEFER_GETTEXT ("user defined signal 1"),		/* 16 SIGUSR1 */
+    DEFER_GETTEXT ("user defined signal 2"),		/* 17 SIGUSR2 */
+    DEFER_GETTEXT ("death of a child"),			/* 18 SIGCLD */
+    DEFER_GETTEXT ("power-fail restart"),		/* 19 SIGPWR */
+#ifdef sun
+    DEFER_GETTEXT ("window size change"),		/* 20 SIGWINCH */
+    DEFER_GETTEXT ("urgent socket condition"),		/* 21 SIGURG */
+    DEFER_GETTEXT ("pollable event occured"),		/* 22 SIGPOLL */
+    DEFER_GETTEXT ("stop (cannot be caught or ignored)"), /*  23 SIGSTOP */
+    DEFER_GETTEXT ("user stop requested from tty"),	/* 24 SIGTSTP */
+    DEFER_GETTEXT ("stopped process has been continued"), /* 25 SIGCONT */
+    DEFER_GETTEXT ("background tty read attempted"),	/* 26 SIGTTIN */
+    DEFER_GETTEXT ("background tty write attempted"),	/* 27 SIGTTOU */
+    DEFER_GETTEXT ("virtual timer expired"),		/* 28 SIGVTALRM */
+    DEFER_GETTEXT ("profiling timer expired"),		/* 29 SIGPROF */
+    DEFER_GETTEXT ("exceeded cpu limit"),		/* 30 SIGXCPU */
+    DEFER_GETTEXT ("exceeded file size limit"),		/* 31 SIGXFSZ */
+    DEFER_GETTEXT ("process's lwps are blocked"),	/* 32 SIGWAITING */
+    DEFER_GETTEXT ("special signal used by thread library"), /* 33 SIGLWP */
+#ifdef SIGFREEZE
+    DEFER_GETTEXT ("Special Signal Used By CPR"),        /* 34 SIGFREEZE */
+#endif
+#ifdef SIGTHAW
+    DEFER_GETTEXT ("Special Signal Used By CPR"),        /* 35 SIGTHAW */
+#endif
+#endif /* sun */
+    0
+  };
+#endif /* not AIX */
+#endif /* USG */
+#ifdef DGUX
+CONST char *sys_siglist[NSIG + 1] =
+  {
+    DEFER_GETTEXT ("null signal"),			 /*  0 SIGNULL   */
+    DEFER_GETTEXT ("hangup"),				 /*  1 SIGHUP    */
+    DEFER_GETTEXT ("interrupt"),	       		 /*  2 SIGINT    */
+    DEFER_GETTEXT ("quit"),				 /*  3 SIGQUIT   */
+    DEFER_GETTEXT ("illegal instruction"),		 /*  4 SIGILL    */
+    DEFER_GETTEXT ("trace trap"),			 /*  5 SIGTRAP   */
+    DEFER_GETTEXT ("abort termination"),		 /*  6 SIGABRT   */
+    DEFER_GETTEXT ("SIGEMT"),				 /*  7 SIGEMT    */
+    DEFER_GETTEXT ("floating point exception"),		 /*  8 SIGFPE    */
+    DEFER_GETTEXT ("kill"),				 /*  9 SIGKILL   */
+    DEFER_GETTEXT ("bus error"),			 /* 10 SIGBUS    */
+    DEFER_GETTEXT ("segmentation violation"),		 /* 11 SIGSEGV   */
+    DEFER_GETTEXT ("bad argument to system call"),	 /* 12 SIGSYS    */
+    DEFER_GETTEXT ("write on a pipe with no reader"),	 /* 13 SIGPIPE   */
+    DEFER_GETTEXT ("alarm clock"),			 /* 14 SIGALRM   */
+    DEFER_GETTEXT ("software termination signal"),	 /* 15 SIGTERM   */
+    DEFER_GETTEXT ("user defined signal 1"),		 /* 16 SIGUSR1   */
+    DEFER_GETTEXT ("user defined signal 2"),		 /* 17 SIGUSR2   */
+    DEFER_GETTEXT ("child stopped or terminated"),	 /* 18 SIGCLD    */
+    DEFER_GETTEXT ("power-fail restart"),		 /* 19 SIGPWR    */
+    DEFER_GETTEXT ("window size changed"),		 /* 20 SIGWINCH  */
+    DEFER_GETTEXT ("undefined"),			 /* 21           */
+    DEFER_GETTEXT ("pollable event occurred"),		 /* 22 SIGPOLL   */
+    DEFER_GETTEXT ("sendable stop signal not from tty"), /* 23 SIGSTOP   */
+    DEFER_GETTEXT ("stop signal from tty"),		 /* 24 SIGSTP    */
+    DEFER_GETTEXT ("continue a stopped process"),	 /* 25 SIGCONT   */
+    DEFER_GETTEXT ("attempted background tty read"),	 /* 26 SIGTTIN   */
+    DEFER_GETTEXT ("attempted background tty write"),	 /* 27 SIGTTOU   */
+    DEFER_GETTEXT ("undefined"),			 /* 28           */
+    DEFER_GETTEXT ("undefined"),			 /* 29           */
+    DEFER_GETTEXT ("undefined"),			 /* 30           */
+    DEFER_GETTEXT ("undefined"),			 /* 31           */
+    DEFER_GETTEXT ("undefined"),			 /* 32           */
+    DEFER_GETTEXT ("socket (TCP/IP) urgent data arrival"), /* 33 SIGURG    */
+    DEFER_GETTEXT ("I/O is possible"),			 /* 34 SIGIO     */
+    DEFER_GETTEXT ("exceeded cpu time limit"),		 /* 35 SIGXCPU   */
+    DEFER_GETTEXT ("exceeded file size limit"),		 /* 36 SIGXFSZ   */
+    DEFER_GETTEXT ("virtual time alarm"),		 /* 37 SIGVTALRM */
+    DEFER_GETTEXT ("profiling time alarm"),		 /* 38 SIGPROF   */
+    DEFER_GETTEXT ("undefined"),			 /* 39           */
+    DEFER_GETTEXT ("file record locks revoked"),	 /* 40 SIGLOST   */
+    DEFER_GETTEXT ("undefined"),			 /* 41           */
+    DEFER_GETTEXT ("undefined"),			 /* 42           */
+    DEFER_GETTEXT ("undefined"),			 /* 43           */
+    DEFER_GETTEXT ("undefined"),			 /* 44           */
+    DEFER_GETTEXT ("undefined"),			 /* 45           */
+    DEFER_GETTEXT ("undefined"),			 /* 46           */
+    DEFER_GETTEXT ("undefined"),			 /* 47           */
+    DEFER_GETTEXT ("undefined"),			 /* 48           */
+    DEFER_GETTEXT ("undefined"),			 /* 49           */
+    DEFER_GETTEXT ("undefined"),			 /* 50           */
+    DEFER_GETTEXT ("undefined"),			 /* 51           */
+    DEFER_GETTEXT ("undefined"),			 /* 52           */
+    DEFER_GETTEXT ("undefined"),			 /* 53           */
+    DEFER_GETTEXT ("undefined"),			 /* 54           */
+    DEFER_GETTEXT ("undefined"),			 /* 55           */
+    DEFER_GETTEXT ("undefined"),			 /* 56           */
+    DEFER_GETTEXT ("undefined"),			 /* 57           */
+    DEFER_GETTEXT ("undefined"),			 /* 58           */
+    DEFER_GETTEXT ("undefined"),			 /* 59           */
+    DEFER_GETTEXT ("undefined"),			 /* 60           */
+    DEFER_GETTEXT ("undefined"),			 /* 61           */
+    DEFER_GETTEXT ("undefined"),			 /* 62           */
+    DEFER_GETTEXT ("undefined"),			 /* 63           */
+    DEFER_GETTEXT ("notification message in mess. queue"), /* 64 SIGDGNOTIFY */
+    0
+  };
 #endif /* DGUX */
-
 #ifdef BSD4_1
-CONST char *sys_siglist[] =
+CONST char *sys_siglist[NSIG + 1] =
   {
     DEFER_GETTEXT ("bum signal!!"),
     DEFER_GETTEXT ("hangup"),
@@ -3061,8 +3295,10 @@ CONST char *sys_siglist[] =
     DEFER_GETTEXT ("exceeded CPU time limit"),
     DEFER_GETTEXT ("exceeded file size limit"),
     0
-};
+  };
 #endif /* BSD4_1 */
+
+#endif /* ! HAVE_SYS_SIGLIST */
 
 
 /* Directory routines for systems that don't have them. */
@@ -3258,10 +3494,14 @@ readdirver (dirp)
 /*
  * Make a directory.
  */
+#ifdef MKDIR_PROTOTYPE
+MKDIR_PROTOTYPE
+#else
 int
 mkdir (dpath, dmode)
      CONST char *dpath;
      int dmode;
+#endif
 {
   int cpid, status, fd;
   struct stat statbuf;
@@ -3284,6 +3524,7 @@ mkdir (dpath, dmode)
       return (-1);		/* Errno is set already */
 
     case 0:			/* Child process */
+    {
       /*
 		 * Cheap hack to set mode of new directory.  Since this
 		 * child process is going away anyway, we zap its umask.
@@ -3301,6 +3542,7 @@ mkdir (dpath, dmode)
         }
       execl ("/bin/mkdir", "mkdir", dpath, (char *) 0);
       _exit (-1);		/* Can't exec /bin/mkdir */
+    }
 
     default:			/* Parent process */
       wait_for_termination (cpid);

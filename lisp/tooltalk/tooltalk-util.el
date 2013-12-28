@@ -2,7 +2,7 @@
 ;;;
 ;;; Emacs Tooltalk Utility Functions
 ;;;
-;;; @(#)tooltalk-util.el 1.6 93/02/10
+;;; @(#)tooltalk-util.el 1.7 93/12/07
 
 
 (defun initialize-tooltalk-message-arg (msg n mode value vtype)
@@ -214,6 +214,8 @@ are initialized.
 	(cond
 	 ((eq indicator 'args)
 	  (initialize-tooltalk-message/pattern-args initfn pat value))
+	 ((eq indicator 'plist)
+	  (tooltalk-pattern-plist-set (append value nil) pat))
 	 ((consp value)
 	  (let ((values value))
 	    (while values

@@ -1,5 +1,5 @@
-This is Info file ../info/lemacs.info, produced by Makeinfo-1.55 from
-the input file lemacs.texinfo.
+This is Info file ../../info/lemacs.info, produced by Makeinfo-1.56
+from the input file lemacs.texinfo.
 
    This file documents the GNU Emacs editor.
 
@@ -24,13 +24,14 @@ versions, except that the sections entitled "The GNU Manifesto",
 translation approved by the author instead of in the original English.
 
 
-File: lemacs.info,  Node: Top,  Next: Distrib,  Up: (dir)
+File: lemacs.info,  Node: Top,  Next: License,  Up: (dir)
 
    The Emacs Editor ****************
 
    Emacs is the extensible, customizable, self-documenting real-time
 display editor.  This Info file describes how to edit with Emacs and
-some of how to customize it, but not how to extend it.
+some of how to customize it, but not how to extend it.  It corresponds
+to Lucid GNU Emacs version 19.10.
 
 * Menu:
 
@@ -42,7 +43,7 @@ some of how to customize it, but not how to extend it.
 * Glossary::    The glossary.
 * Manifesto::   What's GNU?  Gnu's Not Unix!
 
-Indexes, nodes containing large menus
+Indices, nodes containing large menus
 * Key Index::      An item for each standard Emacs key sequence.
 * Command Index::  An item for each command name.
 * Variable Index:: An item for each documented variable.
@@ -53,16 +54,13 @@ Important General Concepts
 * Keystrokes::  Keyboard gestures Emacs recognizes.
 * Pull-down Menus::
                 The Lucid Emacs Pull-down Menus available under X.
-* Mouse Selection::
-                Selecting Text with the Mouse.
-* Keystrokes::
-                Using Keystrokes to represent key sequences.
-* Commands::    Commands: named functions run by key sequences to do editing.
 * Entering Emacs::
                 Starting Emacs from the shell.
+* Exiting::     Stopping or killing Emacs.
 * Command Switches::
                 Hairy startup options.
-* Exiting::     Stopping or killing Emacs.
+
+Fundamental Editing Commands
 * Basic::       The most basic editing commands.
 * Undo::        Undoing recently made changes in the text.
 * Minibuffer::  Entering arguments that are prompted for.
@@ -71,6 +69,10 @@ Important General Concepts
 
 Important Text-Changing Commands
 * Mark::        The mark: how to delimit a "region" of text.
+* Mouse Selection::
+                Selecting text with the mouse.
+* Additional Mouse Operations::
+                Other operations available from the mouse.
 * Killing::     Killing text.
 * Yanking::     Recovering killed text.  Moving text.
 * Using X Selections::
@@ -100,15 +102,17 @@ Advanced Features
                  using the quarter-plane screen model.
 * Sending Mail::Sending mail in Emacs.
 * Rmail::       Reading mail in Emacs.
+* Calendar/Diary::
+		The calendar and diary facilities.
+* Sorting::	Sorting lines, paragraphs or pages within Emacs.
+* Shell::       Executing shell commands from Emacs.
+* Narrowing::   Restricting display and editing to a portion
+                 of the buffer.
+* Hardcopy::	Printing buffers or regions.
 * Recursive Edit::
                 A command can allow you to do editing
                  "within the command".  This is called a
                  `recursive editing level'.
-* Narrowing::   Restricting display and editing to a portion
-                 of the buffer.
-* Sorting::	Sorting lines, paragraphs or pages within Emacs.
-* Shell::       Executing shell commands from Emacs.
-* Hardcopy::	Printing buffers or regions.
 * Dissociated Press::  Dissociating text for fun.
 * CONX::	       A different kind of dissociation.
 * Amusements::         Various games and hacks.
@@ -120,130 +124,185 @@ Recovery from Problems.
 * Lossage::     What to do if Emacs is hung or malfunctioning.
 * Bugs::        How and when to report a bug.
 
-Here are some nodes which are inferiors of the ones already listed. They
-are mentioned here so you can get to them in one step:
+Here are some other nodes which are really inferiors of the ones
+already listed, mentioned here so you can get to them in one step:
 
-Subnodes of Screen
-* Point::	The place in the text where editing commands operate.
-* Echo Area::   Short messages appear at the bottom of the screen.
-* Mode Line::	Interpreting the mode line.
+ -- The Detailed Node Listing --
 
-Subnodes of Basic
-* Blank Lines:: Commands to make or delete blank lines.
-* Continuation Lines:: Lines too wide for the screen.
-* Position Info::      What page, line, row, or column is point on?
-* Arguments::          Giving numeric arguments to commands.
+The Organization of the Screen
 
-Subnodes of Keystrokes
+* Point::	        The place in the text where editing commands operate.
+* Echo Area::           Short messages appear at the bottom of the screen.
+* Mode Line::	        Interpreting the mode line.
+* Emacs under X::       Some information on using Emacs under the X
+                        Window System.
+
+Keystrokes
+
+* Intro to Keystrokes::      Keystrokes as building blocks of key sequences.
 * Representing Keystrokes::  Using lists of modifiers and keysyms to
                              represent keystrokes.
 * Key Sequences::            Combine key strokes into key sequences you can
                              bind to commands.
 * String Key Sequences::     Available for upward compatibility.
 * Meta Key::                 Using ESC to represent Meta
-* Super and Hyper Keys::     Adding modifier keys on certain keyboards
+* Super and Hyper Keys::     Adding modifier keys on certain keyboards.
 * Character Representation:: How characters appear in Emacs buffers.
 * Commands::                 How commands are bound to key sequences.
 
-Subnodes of Pull-down Menus
-* File Menu::           Items on the File menu
-* Edit Menu::           Items on the Edit menu
+Pull-down Menus
+
+* File Menu::           Items on the File menu.
+* Edit Menu::           Items on the Edit menu.
 * Buffers Menu::        Information about the Buffers menu
-* Help Menu::           Items on the Help menu
+* Help Menu::           Items on the Help menu.
 * Menu Customization::  Adding and removing menu items and related
                         operations.
 
-Subnodes of Minibuffer
-* Minibuffer File::    Entering file names with the minibuffer.
-* Minibuffer Edit::    How to edit in the minibuffer.
-* Completion::  An abbreviation facility for minibuffer input.
-* Repetition::  Re-executing previous commands that used the minibuffer.
+Basic Editing Commands
 
-Subnodes of Mark
-* Setting Mark::       Commands to set the mark.
-* Using Region::       Summary of ways to operate on contents of the region.
-* Marking Objects::    Commands to put region around textual units.
-* Mark Ring::          Previous mark positions saved so you can go back there.
+* Blank Lines::        Commands to make or delete blank lines.
+* Continuation Lines:: Lines too wide for the screen.
+* Position Info::      What page, line, row, or column is point on?
+* Arguments::	       Numeric arguments for repeating a command.
 
-Subnodes of Yanking
-* Kill Ring::          Where killed text is stored.  Basic yanking.
-* Appending Kills::    Several kills in a row all yank together.
-* Earlier Kills::      Yanking something killed some time ago.
+The Minibuffer
 
-Subnodes of Registers
-* RegPos::             Saving positions in registers.
-* RegText::            Saving text in registers.
-* RegRect::            Saving rectangles in registers.
+* File: Minibuffer File.  Entering file names with the minibuffer.
+* Edit: Minibuffer Edit.  How to edit in the minibuffer.
+* Completion::		  An abbreviation facility for minibuffer input.
+* Repetition::		  Re-executing commands that used the minibuffer.
 
-Subnodes of Display
+The Mark and the Region
+
+* Setting Mark::	Commands to set the mark.
+* Using Region::	Summary of ways to operate on contents of the region.
+* Marking Objects::	Commands to put region around textual units.
+* Mark Ring::   	Previous mark positions saved so you can go back there.
+
+Yanking
+
+* Kill Ring::       Where killed text is stored.  Basic yanking.
+* Appending Kills:: Several kills in a row all yank together.
+* Earlier Kills::   Yanking something killed some time ago.
+
+Using X Selections
+
+* X Clipboard Selection::     	Pasting to the X clipboard.
+* X Selection Commands::	Other operations on the selection.
+* X Cut Buffers::       	X cut buffers are available for compatibility.
+* Active Regions::      	Using zmacs-style highlighting of the
+                        	 selected region.
+
+Registers
+
+* RegPos::    Saving positions in registers.
+* RegText::   Saving text in registers.
+* RegRect::   Saving rectangles in registers.
+
+Controlling the Display
+
 * Scrolling::	           Moving text up and down in a window.
 * Horizontal Scrolling::   Moving text left and right in a window.
 * Selective Display::      Hiding lines with lots of indentation.
 * Display Vars::           Information on variables for customizing display.
 
-Subnodes of Search
+Searching and Replacement
+
 * Incremental Search::     Search happens as you type the string.
-* Non-Incremental Search::  Specify entire string and then search.
-* Word Search:: 	   Search for sequence of words.
-* Regexp Search::	   Search for match for a regexp.
-* Regexps::     	   Syntax of regular expressions.
-* Search Case::		   To ignore case while searching, or not.
-* Replace::     	   Search, and replace some or all matches.
-* Unconditional Replace::  Everything about replacement except for querying.
-* Query Replace::          How to use querying.
+* Non-Incremental Search:: Specify entire string and then search.
+* Word Search::            Search for sequence of words.
+* Regexp Search::          Search for match for a regexp.
+* Regexps::                Syntax of regular expressions.
+* Search Case::            To ignore case while searching, or not.
+* Replace::                Search, and replace some or all matches.
 * Other Repeating Search:: Operating on all matches for some regexp.
 
-Subnodes of Fixit
+Replacement Commands
+
+* Unconditional Replace::  Replacing all matches for a string.
+* Regexp Replace::         Replacing all matches for a regexp.
+* Replacement and Case::   How replacements preserve case of letters.
+* Query Replace::          How to use querying.
+
+Commands for Fixing Typos
+
 * Kill Errors:: Commands to kill a batch of recently entered text.
 * Transpose::   Exchanging two characters, words, lines, lists...
 * Fixing Case:: Correcting case of last word entered.
-
 * Spelling::    Apply spelling checker to a word, or a whole file.
 
-Subnodes of Files
-* File Names::  How to type and edit file name arguments.
-* Visiting::    Visiting a file prepares Emacs to edit the file.
-* Saving::      Saving makes your changes permanent.
-* Backup::      How Emacs saves the old version of your file.
-* Interlocking::How Emacs protects against simultaneous editing
-                 of one file by two users.
-* Reverting::   Reverting cancels all the changes not saved.
-* Auto Save::   Auto Save periodically protects against loss of data.
-* ListDir::     Listing the contents of a file directory.
-* Dired::       "Editing" a directory to delete, rename, etc.
-                 the files in it.
+File Handling
+
+* File Names::   How to type and edit file name arguments.
+* Visiting::     Visiting a file prepares Emacs to edit the file.
+* Saving::       Saving makes your changes permanent.
+* Reverting::    Reverting cancels all the changes not saved.
+* Auto Save::    Auto Save periodically protects against loss of data.
+* ListDir::      Listing the contents of a file directory.
+* Dired::        "Editing" a directory to delete, rename, etc.
+                  the files in it.
 * Misc File Ops:: Other things you can do on files.
 
-Subnodes of Buffers
+Saving Files
+
+* Backup::       How Emacs saves the old version of your file.
+* Interlocking:: How Emacs protects against simultaneous editing
+                  of one file by two users.
+
+Backup Files
+
+* Names: Backup Names.		How backup files are named;
+				Choosing single or numbered backup files.
+* Deletion: Backup Deletion.	Emacs deletes excess numbered backups.
+* Copying: Backup Copying.	Backups can be made by copying or renaming.
+
+Auto-Saving: Protection Against Disasters
+
+* Files: Auto Save Files.
+* Control: Auto Save Control.
+* Recover::		Recovering text from auto-save files.
+
+Dired, the Directory Editor
+
+* Enter: Dired Enter.         How to invoke Dired.
+* Edit: Dired Edit.           Editing the Dired buffer.
+* Deletion: Dired Deletion.   Deleting files with Dired.
+* Immed: Dired Immed.         Other file operations through Dired.
+
+Using Multiple Buffers
+
 * Select Buffer::   Creating a new buffer or reselecting an old one.
 * List Buffers::    Getting a list of buffers that exist.
-* Misc Buffer::     Renaming; changing read-only status.
+* Misc Buffer::     Renaming; changing read-onliness; copying text.
 * Kill Buffer::     Killing buffers you no longer need.
 * Several Buffers:: How to go through the list of all buffers
                      and operate variously on several of them.
 
-Subnodes of Windows
-* Basic Window::    Introduction to Emacs windows.
-* Split Window::    New windows are made by splitting existing windows.
-* Other Window::    Moving to another window or doing something to it.
-* Pop Up Window::   Finding a file or buffer in another window.
-* Change Window::   Deleting windows and changing their sizes.
+Multiple Windows
 
-Subnodes of Using X Selections
-* X Clipboard Selection::     Storing the primary selection.
-* Active Regions::  Using zmacs-style highlighting of the selected region.
-* X Cut Buffers::   X cut buffers are available for compatibility.
+* Basic Window::     Introduction to Emacs windows.
+* Split Window::     New windows are made by splitting existing windows.
+* Other Window::     Moving to another window or doing something to it.
+* Pop Up Window::    Finding a file or buffer in another window.
+* Change Window::    Deleting windows and changing their sizes.
 
-Subnodes of Indentation
+Major Modes
+
+* Choosing Modes::     How major modes are specified or chosen.
+
+Indentation
+
 * Indentation Commands:: Various commands and techniques for indentation.
-* Tab Stops::   You can set arbitrary "tab stops" and then
-                 indent to the next tab stop when you want to.
-* Just Spaces:: You can request indentation using just spaces.
+* Tab Stops::            You can set arbitrary "tab stops" and then
+                         indent to the next tab stop when you want to.
+* Just Spaces::          You can request indentation using just spaces.
 
-Subnodes of Text
-* Text Mode::   The major mode for editing text files.
+Commands for Human Languages
+
+* Text Mode::   The major modes for editing text files.
 * Nroff Mode::  The major mode for editing input to the formatter nroff.
-* TeX Mode::    The major mode for editing input to the formatter TeX.
+* TeX Mode::    The major modes for editing input to the formatter TeX.
 * Outline Mode::The major mode for editing outlines.
 * Words::       Moving over and killing words.
 * Sentences::   Moving over and killing sentences.
@@ -252,179 +311,245 @@ Subnodes of Text
 * Filling::     Filling or justifying text
 * Case::        Changing the case of text
 
-Subnodes of Programs
+TeX Mode
+
+* Editing: TeX Editing.   Special commands for editing in TeX mode.
+* Printing: TeX Print.    Commands for printing part of a file with TeX.
+
+Outline Mode
+
+* Format: Outline Format.	  What the text of an outline looks like.
+* Motion: Outline Motion.	  Special commands for moving through outlines.
+* Visibility: Outline Visibility. Commands to control what is visible.
+
+Filling Text
+
+* Auto Fill::	  Auto Fill mode breaks long lines automatically.
+* Fill Commands:: Commands to refill paragraphs and center lines.
+* Fill Prefix::   Filling when every line is indented or in a comment, etc.
+
+Editing Programs
+
 * Program Modes::       Major modes for editing programs.
-* Lists::       Expressions with balanced parentheses.
-                 There are editing commands to operate on them.
-* Defuns::      Each program is made up of separate functions.
-                 There are editing commands to operate on them.
-* Grinding::    Adjusting indentation to show the nesting.
-* Matching::    Insertion of a close-delimiter flashes matching open.
-* Comments::    Inserting, illing and aligning comments.
+* Lists::               Expressions with balanced parentheses.
+                         There are editing commands to operate on them.
+* Defuns::              Each program is made up of separate functions.
+                         There are editing commands to operate on them.
+* Grinding::            Adjusting indentation to show the nesting.
+* Matching::            Insertion of a close-delimiter flashes matching open.
+* Comments::            Inserting, illing and aligning comments.
 * Balanced Editing::    Inserting two matching parentheses at once, etc.
 * Lisp Completion::     Completion on symbol names in Lisp code.
 * Documentation::       Getting documentation of functions you plan to call.
-* Change Log::  Maintaining a change history for your program.
-* Tags::        Go direct to any function in your program in one
-                 command.  Tags remembers which file it is in.
-* Fortran::	Fortran mode and its special features.
+* Change Log::          Maintaining a change history for your program.
+* Tags::                Go direct to any function in your program in one
+                         command.  Tags remembers which file it is in.
+* Fortran::		Fortran mode and its special features.
 
-Subnodes of Running
-* Compilation::       Compiling programs in languages other than Lisp
-                       (C, Pascal, etc.)
-* Lisp Modes::        Various modes for editing Lisp programs, with
+Indentation for Programs
+
+* Basic Indent::
+* Multi-line Indent::   Commands to reindent many lines at once.
+* Lisp Indent::		Specifying how each Lisp function should be indented.
+* C Indent::		Choosing an indentation style for C code.
+
+Tag Tables
+
+* Tag Syntax::
+* Create Tag Table::
+* Select Tag Table::
+* Find Tag::
+* Tags Search::
+* Tags Stepping::
+* List Tags::
+
+Fortran Mode
+
+* Motion: Fortran Motion.     Moving point by statements or subprograms.
+* Indent: Fortran Indent.     Indentation commands for Fortran.
+* Comments: Fortran Comments. Inserting and aligning comments.
+* Columns: Fortran Columns.   Measuring columns for valid Fortran.
+* Abbrev: Fortran Abbrev.     Built-in abbrevs for Fortran keywords.
+
+Fortran Indentation
+
+* Commands: ForIndent Commands. Commands for indenting Fortran.
+* Numbers:  ForIndent Num.      How line numbers auto-indent.
+* Conv:     ForIndent Conv.     Conventions you must obey to avoid trouble.
+* Vars:     ForIndent Vars.     Variables controlling Fortran indent style.
+
+Compiling and Testing Programs
+
+* Compilation::        Compiling programs in languages other than Lisp
+                        (C, Pascal, etc.)
+* Modes: Lisp Modes.   Various modes for editing Lisp programs, with
                        different facilities for running the Lisp programs.
-* Lisp Libraries::    Creating Lisp programs to run in Emacs.
-* Lisp Interaction::  Executing Lisp in an Emacs buffer.
-* Lisp Eval::         Executing a single Lisp expression in Emacs.
-* Lisp Debug::        Debugging Lisp programs running in Emacs.
-* External Lisp::     Communicating through Emacs with a separate Lisp.
+* Libraries: Lisp Libraries.      Creating Lisp programs to run in Emacs.
+* Eval: Lisp Eval.     Executing a single Lisp expression in Emacs.
+* Debug: Lisp Debug.   Debugging Lisp programs running in Emacs.
+* Interaction: Lisp Interaction.  Executing Lisp in an Emacs buffer.
+* External Lisp::      Communicating through Emacs with a separate Lisp.
 
-Subnodes of Abbrevs
+Lisp Libraries
+
+* Loading::		Loading libraries of Lisp code into Emacs for use.
+* Compiling Libraries:: Compiling a library makes it load and run faster.
+* Mocklisp::		Converting Mocklisp to Lisp so GNU Emacs can run it.
+
+Abbrevs
+
 * Defining Abbrevs::  Defining an abbrev, so it will expand when typed.
 * Expanding Abbrevs:: Controlling expansion: prefixes, canceling expansion.
 * Editing Abbrevs::   Viewing or editing the entire list of defined abbrevs.
 * Saving Abbrevs::    Saving the entire list of abbrevs for another session.
 * Dynamic Abbrevs::   Abbreviations for words already in the buffer.
 
-Subnodes of Picture
-* Basic Picture::     Basic concepts and simple commands of Picture Mode.
-* Insert in Picture:: Controlling direction of cursor motion
-                       after "self-inserting" characters.
-* Tabs in Picture::   Various features for tab stops and indentation.
+Editing Pictures
+
+* Basic Picture::         Basic concepts and simple commands of Picture Mode.
+* Insert in Picture::     Controlling direction of cursor motion
+                           after "self-inserting" characters.
+* Tabs in Picture::       Various features for tab stops and indentation.
 * Rectangles in Picture:: Clearing and superimposing rectangles.
 
-Subnodes of Sending Mail
-* Mail Format::       Format of the mail being composed.
-* Mail Headers::      Details of allowed mail header fields.
-* Mail Mode::         Special commands for editing mail being composed.
+Sending Mail
 
-Subnodes of Rmail
-* Rmail Scrolling::   Scrolling through a message.
-* Rmail Motion::      Moving to another message.
-* Rmail Deletion::    Deleting and expunging messages.
-* Rmail Inbox::       How mail gets into the Rmail file.
-* Rmail Files::       Using multiple Rmail files.
-* Rmail Output::      Copying message out to files.
-* Rmail Labels::      Classifying messages by labeling them.
-* Rmail Summary::     Summaries show brief info on many messages.
-* Rmail Reply::       Sending replies to messages you are viewing.
-* Rmail Editing::     Editing message text and headers in Rmail.
-* Rmail Digest::      Extracting the messages from a digest message.
+* Format: Mail Format.    Format of the mail being composed.
+* Headers: Mail Headers.  Details of allowed mail header fields.
+* Mode: Mail Mode.        Special commands for editing mail being composed.
 
-Subnodes of Shell
-* Single Shell::      Commands to run one shell command and return.
-* Interactive Shell:: Permanent shell taking input via Emacs.
-* Shell Mode::        Special Emacs commands used with permanent shell.
+Reading Mail with Rmail
 
-Subnodes of Customization
-* Minor Modes::       Each minor mode is one feature you can turn on
-                       independently of any others.
-* Variables::         Many Emacs commands examine Emacs variables
-                       to decide what to do; by setting variables,
-                       you can control their functioning.
-* Examining::         Examining or setting one variable's value.
-* Edit Options::      Examining or editing list of all variables' values.
-* Locals::            Per-buffer values of variables.
-* File Variables::    How files can specify variable values.
-* Keyboard Macros::   A keyboard macro records a sequence of keystrokes
-                       to be replayed with a single command.
-* Key Bindings::      The keymaps say what command each key runs.
-                       By changing them, you can "redefine keys".
-* Keymaps::           Definition of the keymap data structure.
-* Rebinding::         How to redefine one key's meaning conveniently.
-* Disabling::         Disabling a command means confirmation is required
-                       before it can be executed.  This is done to protect
-                       beginners from surprises.
-* Syntax::            The syntax table controls how words and expressions
-                       are parsed.
-* Init File::         How to write common customizations in the `.emacs'
-                       file.
-* Audible Bell::      Changing how Emacs sound the bell.
+* Scroll: Rmail Scrolling.   Scrolling through a message.
+* Motion: Rmail Motion.      Moving to another message.
+* Deletion: Rmail Deletion.  Deleting and expunging messages.
+* Inbox: Rmail Inbox.        How mail gets into the Rmail file.
+* Files: Rmail Files.        Using multiple Rmail files.
+* Output: Rmail Output.	     Copying message out to files.
+* Labels: Rmail Labels.      Classifying messages by labeling them.
+* Summary: Rmail Summary.    Summaries show brief info on many messages.
+* Reply: Rmail Reply.        Sending replies to messages you are viewing.
+* Editing: Rmail Editing.    Editing message text and headers in Rmail.
+* Digest: Rmail Digest.      Extracting the messages from a digest message.
+
+Rmail Summaries
+
+* Rmail Make Summary::  Making various sorts of summaries.
+* Rmail Summary Edit::  Manipulating messages from the summary.
+
+The Calendar and the Diary
+
+* Calendar Motion::        Moving through the calendar; selecting a date.
+* Scroll Calendar::        Bringing earlier or later months onto the screen.
+* Mark and Region::        Remembering dates, the mark ring.
+* General Calendar::       Conveniences for moving about.
+* Holidays::               Displaying dates of holidays.
+* Sunrise/Sunset::         Displaying local times of sunrise and sunset.
+* Lunar Phases::           Displaying phases of the moon.
+* Other Calendars::        Converting dates to other calendar systems.
+* Diary::                  Displaying events from your diary.
+* Calendar Customization:: Altering the behavior of the features above.
+
+Movement in the Calendar
+
+* Calendar Unit Motion::       Moving by days, weeks, months, and years.
+* Move to Beginning or End::   Moving to start/end of weeks, months, and years.
+* Specified Dates::            Moving to the current date or another specific date.
+
+The Diary
+
+* Diary Commands::         Viewing diary entries and associated calendar dates.
+* Format of Diary File::   Entering events in your diary.
+* Special Diary Entries::  Anniversaries, blocks of dates, cyclic entries, etc.
+
+Customizing the Calendar and Diary
+
+* Calendar Customizing::   Defaults you can set.
+* Holiday Customizing::    Defining your own holidays.
+* Date Display Format::    Changing the format.
+* Time Display Format::    Changing the format.
+* Daylight Savings::       Changing the default.
+* Diary Customizing::      Defaults you can set.
+* Hebrew/Islamic Entries:: How to obtain them.
+* Fancy Diary Display::    Enhancing the diary display, sorting entries.
+* Included Diary Files::   Sharing a common diary file.
+* Sexp Diary Entries::     Fancy things you can do.
+* Appt Customizing::	   Customizing appointment reminders.
+
+Running Shell Commands from Emacs
+
+* Single Shell::         How to run one shell command and return.
+* Interactive Shell::    Permanent shell taking input via Emacs.
+* Shell Mode::           Special Emacs commands used with permanent shell.
+
+Emulating Other Editors
+
+* evi Mode:: Brief discussion of evi, the vi emulation mode within Lucid Emacs
+
+Customization
+
+* Minor Modes::     Each minor mode is one feature you can turn on
+                     independently of any others.
+* Variables::       Many Emacs commands examine Emacs variables
+                     to decide what to do; by setting variables,
+                     you can control their functioning.
+* Keyboard Macros:: A keyboard macro records a sequence of keystrokes
+                     to be replayed with a single command.
+* Key Bindings::    The keymaps say what command each key runs.
+                     By changing them, you can "redefine keys".
+* Syntax::          The syntax table controls how words and expressions
+                     are parsed.
+* Init File::       How to write common customizations in the `.emacs'
+                     file.
+* Audible Bell::    Changing how Emacs sounds the bell.
 * Faces::
-                      Changing the fonts and colors of a region of text.
+                    Changing the fonts and colors of a region of text.
 
-Subnodes of Lossage (and recovery)
-* Stuck Recursive::   `[...]' in mode line around the parentheses.
-* Screen Garbled::    Garbage on the screen.
-* Text Garbled::      Garbage in the text.
-* Unasked-for Search::Spontaneous entry to incremental search.
-* Emergency Escape::  Emergency escape--
-                       What to do if Emacs stops responding.
-* Total Frustration:: When you are at your wits' end.
+Variables
 
-
-File: lemacs.info,  Node: Distrib,  Next: License,  Prev: Top,  Up: Top
+* Examining::           Examining or setting one variable's value.
+* Edit Options::        Examining or editing list of all variables' values.
+* Locals::              Per-buffer values of variables.
+* File Variables::      How files can specify variable values.
 
-Distribution
-************
+Keyboard Macros
 
-   Lucid GNU Emacs is "free"; this means that everyone is free to use
-it and free to redistribute it on a free basis.  Lucid GNU Emacs is not
-in the public domain; it is copyrighted and there are restrictions on
-its distribution, but these restrictions are designed to permit
-everything that a good cooperating citizen would want to do.  What is
-not allowed is to try to prevent others from further sharing any
-version of GNU Emacs that they might get from you.  The precise
-conditions are found in the GNU General Public License that comes with
-Emacs and also appears following this section.
+* Basic Kbd Macro::     Defining and running keyboard macros.
+* Save Kbd Macro::      Giving keyboard macros names; saving them in files.
+* Kbd Macro Query::     Keyboard macros that do different things each use.
 
-   The easiest way to get a copy of GNU Emacs is from someone else who
-has it.  You need not ask for permission to do so, or tell any one
-else; just copy it.
+Customizing Key Bindings
 
-   If you have access to the Internet, you can get the latest version of
-Lucid Emacs from our anonymous FTP server, `lucid.com'.   It can also
-be found at numerous other archive sites around the world; check the
-file `etc/DISTRIB' in a Lucid Emacs distribution for the latest known
-list.
+* Keymaps::    Definition of the keymap data structure.
+               Names of Emacs's standard keymaps.
+* Rebinding::  How to redefine one key's meaning conveniently.
+* Disabling::  Disabling a command means confirmation is required
+                before it can be executed.  This is done to protect
+                beginners from surprises.
 
-   You can also purchase Lucid Emacs tapes and manuals directly from
-Lucid.  For current pricing information, call (800) 223-9322, or send
-electronic mail to `lucid-info@lucid.com'.
+The Syntax Table
 
-Getting Earlier Versions of GNU Emacs
-=====================================
+* Entry: Syntax Entry.    What the syntax table records for each character.
+* Change: Syntax Change.  How to change the information.
 
-   Lucid GNU Emacs, the version of Emacs described in this manual, is
-not distributed by the Free Software Foundation. You can, however,
-still get other versions of Emacs from there.
+The Init File, `~/.emacs'
 
-   If you have access to the Internet, you can get the latest
-distribution version of GNU Emacs from host `prep.ai.mit.edu' using
-anonymous login.  See the file `/u2/emacs/GETTING.GNU.SOFTWARE' on that
-host to find out about your options for copying and which files to use.
+* Init Syntax::     Syntax of constants in Emacs Lisp.
+* Init Examples::   How to do some things with an init file.
+* Terminal Init::   Each terminal type can have an init file.
 
-   You may also receive GNU Emacs when you buy a computer.  Computer
-manufacturers are free to distribute copies on the same terms that
-apply to everyone else.  These terms require them to give you the full
-sources, including whatever changes they may have made, and to permit
-you to redistribute the GNU Emacs received from them under the usual
-terms of the General Public License.  In other words, the program must
-be free for you when you get it, not just free for the manufacturer.
+Dealing with Emacs Trouble
 
-   If you cannot get a copy in any of those ways, you can order one from
-the Free Software Foundation.  Though Emacs itself is free, the Free
-Software Foundation's distribution service is not.  An order form is
-included in the file `etc/DISTRIB' in the Emacs distribution.  For
-further information, write to
-
-     Free Software Foundation
-     675 Mass Ave
-     Cambridge, MA 02139
-     USA
-
-   The income from distribution fees goes to support the foundation's
-purpose: the development of more free software to distribute just like
-GNU Emacs.
-
-   If you find GNU Emacs useful, please send a donation to the Free
-Software Foundation.  This will help support development of the rest of
-the GNU system, and other useful software beyond that.  Your donation
-is tax deductible.
+* Stuck Recursive::    `[...]' in mode line around the parentheses.
+* Screen Garbled::     Garbage on the screen.
+* Text Garbled::       Garbage in the text.
+* Unasked-for Search:: Spontaneous entry to incremental search.
+* Emergency Escape::   Emergency escape--
+                        What to do if Emacs stops responding.
+* Total Frustration::  When you are at your wits' end.
 
 
-File: lemacs.info,  Node: License,  Next: Intro,  Prev: Distrib,  Up: Top
+File: lemacs.info,  Node: License,  Next: Distrib,  Prev: Top,  Up: Top
 
 GNU GENERAL PUBLIC LICENSE
 **************************
@@ -689,7 +814,77 @@ if necessary.  Here a sample; alter the names:
    That's all there is to it!
 
 
-File: lemacs.info,  Node: Intro,  Next: Glossary,  Prev: License,  Up: Top
+File: lemacs.info,  Node: Distrib,  Next: Intro,  Prev: License,  Up: Top
+
+Distribution
+************
+
+   Lucid GNU Emacs is "free"; this means that everyone is free to use
+it and free to redistribute it on a free basis.  Lucid GNU Emacs is not
+in the public domain; it is copyrighted and there are restrictions on
+its distribution, but these restrictions are designed to permit
+everything that a good cooperating citizen would want to do.  What is
+not allowed is to try to prevent others from further sharing any
+version of GNU Emacs that they might get from you.  The precise
+conditions are found in the GNU General Public License that comes with
+Emacs and also appears following this section.
+
+   The easiest way to get a copy of GNU Emacs is from someone else who
+has it.  You need not ask for permission to do so, or tell any one
+else; just copy it.
+
+   If you have access to the Internet, you can get the latest version of
+Lucid Emacs from our anonymous FTP server, `lucid.com'.   It can also
+be found at numerous other archive sites around the world; check the
+file `etc/DISTRIB' in a Lucid Emacs distribution for the latest known
+list.
+
+   You can also purchase Lucid Emacs tapes and manuals directly from
+Lucid.  For current pricing information, call (800) 223-9322, or send
+electronic mail to `lucid-info@lucid.com'.
+
+Getting Earlier Versions of GNU Emacs
+=====================================
+
+   Lucid GNU Emacs, the version of Emacs described in this manual, is
+not distributed by the Free Software Foundation. You can, however,
+still get other versions of Emacs from there.
+
+   If you have access to the Internet, you can get the latest
+distribution version of GNU Emacs from host `prep.ai.mit.edu' using
+anonymous login.  See the file `/u2/emacs/GETTING.GNU.SOFTWARE' on that
+host to find out about your options for copying and which files to use.
+
+   You may also receive GNU Emacs when you buy a computer.  Computer
+manufacturers are free to distribute copies on the same terms that
+apply to everyone else.  These terms require them to give you the full
+sources, including whatever changes they may have made, and to permit
+you to redistribute the GNU Emacs received from them under the usual
+terms of the General Public License.  In other words, the program must
+be free for you when you get it, not just free for the manufacturer.
+
+   If you cannot get a copy in any of those ways, you can order one from
+the Free Software Foundation.  Though Emacs itself is free, the Free
+Software Foundation's distribution service is not.  An order form is
+included in the file `etc/DISTRIB' in the Emacs distribution.  For
+further information, write to:
+
+     Free Software Foundation
+     675 Mass Ave.
+     Cambridge, MA 02139
+     USA
+
+   The income from distribution fees goes to support the foundation's
+purpose: the development of more free software to distribute just like
+GNU Emacs.
+
+   If you find GNU Emacs useful, please send a donation to the Free
+Software Foundation.  This will help support development of the rest of
+the GNU system, and other useful software beyond that.  Your donation
+is tax deductible.
+
+
+File: lemacs.info,  Node: Intro,  Next: Glossary,  Prev: Distrib,  Up: Top
 
 Introduction
 ************
@@ -746,9 +941,9 @@ File: lemacs.info,  Node: Screen,  Next: Keystrokes,  Prev: Concept Index,  Up: 
 The Emacs Screen
 ****************
 
-   Since Emacs was developed on environments that only had one window
-taking up the whole screen, the terminology used here reflects those
-environments:
+   The terminology used here reflects the fact that Emacs was developed
+on environments that had only one window, which took up the entire
+screen.
 Screen
      In many environments, such as a tty terminal, an Emacs screen
      literally takes up the whole screen.  If you are running Emacs in
@@ -769,7 +964,7 @@ Window
 
    Each Emacs screen displays a variety of information:
    * The biggest area usually displays the text you are editing.  It may
-     consist of one window or of two windows or more if you need to
+     consist of one window or of two or more windows if you need to
      look at two buffers a the same time.
 
    * Below each text window's last line is a "mode line" (*note Mode
@@ -795,9 +990,9 @@ window is separated from the lower window by its mode line.
    When there are multiple, tiled Emacs windows on a single Emacs
 screen, the Emacs window receiving input from the keyboard has the
 "keyboard focus" and is called the "selected window".  The selected
-window contains the cursor which indicates the insertion point.  If you
-are working in an environment that permits multiple Emacs screens, and
-you move the focus from one Emacs screen into another, the selected
+window contains the cursor, which indicates the insertion point.  If
+you are working in an environment that permits multiple Emacs screens,
+and you move the focus from one Emacs screen into another, the selected
 window is the one that was last selected in that screen.
 
    The same text can be displayed simultaneously in several Emacs
@@ -810,76 +1005,45 @@ visible in all Emacs windows containing that buffer.
 * Point::	        The place in the text where editing commands operate.
 * Echo Area::           Short messages appear at the bottom of the screen.
 * Mode Line::	        Interpreting the mode line.
-* Emacs under X::       Some information on Using Emacs under the X
+* Emacs under X::       Some information on using Emacs under the X
                         Window System.
-* Pull-down Menus::     Menus available in Lucid Emacs
 
 
-File: lemacs.info,  Node: Emacs under X,  Prev: Screen,  Up: Screen
+File: lemacs.info,  Node: Point,  Next: Echo Area,  Prev: Screen,  Up: Screen
 
-Using Emacs under the X Window System
-=====================================
+Point
+=====
 
-   Lucid Emacs can be used with the X Window System and a window
-manager like MWM or TWM.  In that case, the X window manager opens,
-closes, and resizes Emacs screens.  You use the window manager's mouse
-gestures to perform the operations.  Consult your window manager guide
-or reference manual for information on manipulating X windows.
+   When Emacs is running, the cursor shows the location at which editing
+commands will take effect.  This location is called "point".  You can
+use keystrokes or the mouse cursor to move point through the text and
+edit the text at different places.
 
-   When you are working under X, each X window (that is, each Emacs
-screen) has a menu bar for mouse-controlled operations (*note Pull-down
-Menus::.).
+   While the cursor appears to point AT a character, you should think
+of point as BETWEEN two characters: it points BEFORE the character on
+which the cursor appears.  Sometimes people speak of "the cursor" when
+they mean "point," or speak of commands that move point as "cursor
+motion" commands.
 
-   Emacs under X is also a multi-screen Emacs.  You can call the
-function `x-new-screen' or use the New Screen menu item from the File
-menu to create a new Emacs screen in a new X window from the same
-process.  The different screens will share the same buffer list, but
-you can look at different buffers in the different screens.
+   Each Emacs screen has only one cursor.  When output is in progress,
+the cursor must appear where the typing is being done.  This does not
+mean that point is moving.  It is only that Emacs has no way to show
+you the location of point except when the terminal is idle.
 
-   The function `find-file-new-screen' is just like `find-file', but
-creates a new screen to display the buffer in first.
+   If you are editing several files in Emacs, each file has its own
+point location.  A file that is not being displayed remembers where
+point is.  Point becomes visible at the correct location when you look
+at the file again.
 
-   The function `switch-to-buffer-new-screen' is just like
-`switch-to-buffer', but creates a new screen to display the buffer in
-first.
+   When there are multiple text windows, each window has its own point
+location.  The cursor shows the location of point in the selected
+window.  The visible cursor also shows you which window is selected.  If
+the same buffer appears in more than one window, point can be moved in
+each window independently.
 
-   You can specify a different default screen size other than the one
-provided. Use the variable `screen-default-alist', which is an alist of
-default values for screen creation other than the first one.  These may
-be set in your init file, like this:
-
-       (setq screen-default-alist ((width . 80) (height . 55)))
-
-   For values specific to the first Emacs screen, you must use X
-resources.  The variable `x-screen-defaults' takes an alist of default
-screen creation parameters for X window screens.  These override what is
-specified in `~/.Xdefaults' but are overridden by the arguments to the
-particular call to `x-create-screen'.
-
-   When you create a new screen, the variable `create-screen-hook' is
-called with one argument, the screen just created.
-
-   If you want to close one or more of the X windows you created using
-New Screen, use the Close menu item from the File menu.
-
-   If you are working with multiple screens, some special information
-applies:
-   * Two variables, `screen-title-format' and
-     `screen-icon-title-format' determine the title of the screen and
-     the title of the icon that results if you shrink the screen.
-
-   * The variables `auto-lower-screen' and `auto-raise-screen' position
-     a screen. If true, `auto-lower-screen' lowers a screen to the
-     bottom when it is no longer selected. If true, `auto-raise-screen'
-     raises a screen to the top when it is selected. Under X, most
-     ICCCM-compliant window managers will have options to do this for
-     you, but these variables are provided in case you are using a
-     broken window manager.
-
-   * There is a new screen/modeline format directive, %S, which expands
-     to the name of the current screen (a screen's name is distinct
-     from its title; the name is used for resource lookup, among other
-     things, and the title is simply what appears above the window.)
+   The term `point' comes from the character `.', which was the command
+in TECO (the language in which the original Emacs was written) for
+accessing the value now called `point'.
 
 
 File: lemacs.info,  Node: Echo Area,  Next: Mode Line,  Prev: Point,  Up: Screen
@@ -925,133 +1089,4 @@ The Echo Area
      area displays with a prompt string that usually ends with a colon.
      The cursor appears after the prompt.  You can always get out of
      the minibuffer by typing `C-g'.  *Note Minibuffer::.
-
-
-File: lemacs.info,  Node: Mode Line,  Prev: Echo Area,  Up: Screen
-
-The Mode Line
-=============
-
-   Each text window's last line is a "mode line" which describes what is
-going on in that window.  When there is only one text window, the mode
-line appears right above the echo area.  The mode line is in inverse
-video if the terminal supports that, starts and ends with dashes, and
-contains text like `Emacs: SOMETHING'.
-
-   If a mode line has something else in place of `Emacs: SOMETHING',
-the window above it is in a special subsystem such as Dired.  The mode
-line then indicates the status of the subsystem.
-
-   Normally, the mode line has the following appearance:
-
-     --CH-Emacs: BUF      (MAJOR MINOR)----POS------
-
-This gives information about the buffer being displayed in the window:
-the buffer's name, what major and minor modes are in use, whether the
-buffer's text has been changed, and how far down the buffer you are
-currently looking.
-
-   CH contains two stars `**' if the text in the buffer has been edited
-(the buffer is "modified"), or `--' if the buffer has not been edited.
-Exception: for a read-only buffer, it is `%%'.
-
-   BUF is the name of the window's chosen "buffer".  The chosen buffer
-in the selected window (the window that the cursor is in) is also
-Emacs's selected buffer, the buffer in which editing takes place.  When
-we speak of what some command does to "the buffer", we mean the
-currently selected buffer.  *Note Buffers::.
-
-   POS tells you whether there is additional text above the top of the
-screen, or below the bottom.  If your file is small and it is
-completely visible on the screen, POS is `All'.  Otherwise, POS is
-`Top' if you are looking at the beginning of the file, `Bot' if you are
-looking at the end of the file, or `NN%', where NN is the percentage of
-the file above the top of the screen.
-
-   MAJOR is the name of the "major mode" in effect in the buffer.  At
-any time, each buffer is in one and only one major mode.  The available
-major modes include Fundamental mode (the least specialized), Text
-mode, Lisp mode, and C mode.  *Note Major Modes::, for details on how
-the modes differ and how you select one.
-
-   MINOR is a list of some of the "minor modes" that are turned on in
-the window's chosen buffer.  For example, `Fill' means that Auto Fill
-mode is on.  `Abbrev' means that Word Abbrev mode is on.  `Ovwrt' means
-that Overwrite mode is on.  *Note Minor Modes::, for more information.
-`Narrow' means that the buffer being displayed has editing restricted
-to only a portion of its text.  This is not really a minor mode, but is
-like one.  *Note Narrowing::.  `Def' means that a keyboard macro is
-being defined.  *Note Keyboard Macros::.
-
-   Some buffers display additional information after the minor modes.
-For example, Rmail buffers display the current message number and the
-total number of messages.  Compilation buffers and Shell mode display
-the status of the subprocess.
-
-   If Emacs is currently inside a recursive editing level, square
-brackets (`[...]') appear around the parentheses that surround the
-modes.  If Emacs is in one recursive editing level within another,
-double square brackets appear, and so on.  Since information on
-recursive editing applies to Emacs in general and not to any one buffer,
-the square brackets appear in every mode line on the screen or not in
-any of them.  *Note Recursive Edit::.
-
-   Emacs can optionally display the time and system load in all mode
-lines.  To enable this feature, type `M-x display-time'.  The
-information added to the mode line usually appears after the file name,
-before the mode names and their parentheses.  It looks like this:
-
-     HH:MMpm L.LL [D]
-
-(Some fields may be missing if your operating system cannot support
-them.) HH and MM are the hour and minute, followed always by `am' or
-`pm'.  L.LL is the average number of running processes in the whole
-system recently.  D is an approximate index of the ratio of disk
-activity to cpu activity for all users.
-
-   The word `Mail' appears after the load level if there is mail for
-you that you have not read yet.
-
-   Customization note: the variable `mode-line-inverse-video' controls
-whether the mode line is displayed in inverse video (assuming the
-terminal supports it); `nil' means no inverse video.  The default
-is`t'.  For X screens, simply set the foreground and background colors
-appropriately.
-
-
-File: lemacs.info,  Node: Point,  Next: Echo Area,  Prev: Screen,  Up: Screen
-
-Point
-=====
-
-   When Emacs is running, the cursor shows the location at which editing
-commands will take effect.  This location is called "point".  You can
-use keystrokes or the mouse cursor to move point through the text and
-edit the text at different places.
-
-   While the cursor appears to point AT a character, you should think
-of point as BETWEEN two characters: it points BEFORE the character on
-which the cursor appears.  Sometimes people speak of "the cursor" when
-they mean "point", or speak of commands that move point as "cursor
-motion" commands.
-
-   Each Emacs screen has only one cursor.  When output is in progress,
-the cursor must appear where the typing is being done.  This does not
-mean that point is moving.  It is only that Emacs has no way to show
-you the location of point except when the terminal is idle.
-
-   If you are editing several files in Emacs, each file has its own
-point location.  A file that is not being displayed remembers where
-point is.  Point becomes visible at the correct location when you look
-at the file again.
-
-   When there are multiple text windows, each window has its own point
-location.  The cursor shows the location of point in the selected
-window.  The visible cursor also shows you which window is selected.  If
-the same buffer appears in more than one window, point can be moved in
-each window independently.
-
-   The term `point' comes from the character `.', which was the command
-in TECO (the language in which the original Emacs was written) for
-accessing the value now called `point'.
 

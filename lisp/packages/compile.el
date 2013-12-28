@@ -99,6 +99,7 @@ or when it is used with \\[next-error] or \\[compile-goto-error].")
 
 (defvar compilation-num-errors-found)
 
+;; lemacs change: 4th elt can be column number.
 (defvar compilation-error-regexp-alist
   '(
     ;; NOTE!  This first one is repeated in grep-regexp-alist, below.
@@ -133,6 +134,10 @@ or when it is used with \\[next-error] or \\[compile-goto-error].")
     ("\n\\(Error on \\)?[Ll]ine[ \t]+\\([0-9]+\\)[ \t]+\
 of[ \t]+\"?\\([^\"\n]+\\)\"?:" 3 2)
 
+    ;; Lucid Compiler, lcc 3.x
+    ;; E, file.cc(35,52) Illegal operation on pointers
+    ("\n[A-Z], \\([^(]*\\)(\\([0-9]+\\),[ \t]*\\([0-9]+\\)" 1 2 3)
+
     ;; Apollo cc, 4.3BSD fc:
     ;;	"foo.f", line 3: Error: syntax error near end of statement
     ;; IBM RS6000:
@@ -153,9 +158,11 @@ of[ \t]+\"?\\([^\"\n]+\\)\"?:" 3 2)
 
     )
   "Alist that specifies how to match errors in compiler output.
-Each element has the form (REGEXP FILE-IDX LINE-IDX).
+Each element has the form (REGEXP FILE-IDX LINE-IDX [COL-IDX]).
 If REGEXP matches, the FILE-IDX'th subexpression gives the file
-name, and the LINE-IDX'th subexpression gives the line number.")
+name, and the LINE-IDX'th subexpression gives the line number.
+COL-IDX'th subexpression gives the column number of the error. COL-IDX
+is optional, and if not present, beginning of line is used.")
 
 (defvar grep-regexp-alist
   '(("^\\([^:( \t\n]+\\)[:( \t]+\\([0-9]+\\)[:) \t]" 1 2))
@@ -781,18 +788,26 @@ See variables `compilation-parse-errors-function' and
       (while
 	  (progn
 	    (if (null next-error)
-		(progn
-		  (if argp (if (> (prefix-numeric-value argp) 0)
-			       (error "Moved past last error")
-			     (error "Moved back past first error")))
-		  (compilation-forget-errors)
-		  (error (concat compilation-error-message
-				 (and (get-buffer-process (current-buffer))
-				      (eq (process-status
-					   (get-buffer-process
-					    (current-buffer)))
-					  'run)
-				      " yet"))))
+;; lemacs change by Barry Warsaw.
+;; Without this, if you a "no more errors" error, then you can't do
+;; previous-error or goto-error until you kill the buffer.
+;		(progn
+;		  (if argp (if (> (prefix-numeric-value argp) 0)
+;			       (error "Moved past last error")
+;			     (error "Moved back past first error")))
+;		  (compilation-forget-errors)
+;		  (error (concat compilation-error-message
+;				 (and (get-buffer-process (current-buffer))
+;				      (eq (process-status
+;					   (get-buffer-process
+;					    (current-buffer)))
+;					  'run)
+;				      " yet"))))
+
+		(if (> (prefix-numeric-value argp) 0)
+		    (error "Moved past last error")
+		  (error "Moved back past first error"))
+
 	      (setq compilation-error-list (cdr next-errors))
 	      (if (null (cdr next-error))
 		  ;; This error is boring.  Go to the next.
@@ -824,13 +839,19 @@ See variables `compilation-parse-errors-function' and
 			;; variable, so we must be careful to extract its value
 			;; before switching to the source file buffer.
 			(let ((errors compilation-old-error-list)
-			      (last-line (cdr (cdr next-error))))
+			      ;; lemacs change (columns)
+			      (last-line (nth 1 (cdr next-error)))
+			      (column (nth 2 (cdr next-error)))
+			      )
 			  (set-buffer buffer)
 			  (save-excursion
 			    (save-restriction
 			      (widen)
 			      (goto-line last-line)
 			      (beginning-of-line)
+			      ;; lemacs change (columns)
+			      (and column
+				   (forward-char (1- column)))
 			      (setcdr next-error (point-marker))
 			      ;; Make all the other error messages referring
 			      ;; to the same file have markers into the buffer.
@@ -838,8 +859,10 @@ See variables `compilation-parse-errors-function' and
 				(and (consp (cdr (car errors)))
 				     (equal (car (cdr (car errors))) fileinfo)
 				     (let ((this (cdr (cdr (car errors))))
-					   (lines (- (cdr (cdr (car errors)))
-						     last-line)))
+					   ;; lemacs change (columns)
+					   (lines (- (nth 1 (cdr (car errors)))
+						     last-line))
+					   (col (nth 2 (cdr (car errors)))))
 				       (if (eq selective-display t)
 					   (if (< lines 0)
 					       (re-search-backward "[\n\C-m]"
@@ -849,7 +872,14 @@ See variables `compilation-parse-errors-function' and
 								nil 'end
 								lines))
 					 (forward-line lines))
-				       (setq last-line this)
+				       ;; lemacs change (columns)
+				       (setq last-line (car this))
+				       (if col
+					   (let ((eol (save-excursion
+							(end-of-line)
+							(point))))
+					     (forward-char  ; don't pass eol.
+					      (min (1- col) (- eol (point))))))
 				       (setcdr (car errors) (point-marker))))
 				(setq errors (cdr errors)))))))))
 		;; If we didn't get a marker for this error,
@@ -1029,7 +1059,11 @@ See variable `compilation-parse-errors-function' for the interface it uses."
     (while alist
       (setq error-regexp-groups (cons (list subexpr
 					    (+ subexpr (nth 1 (car alist)))
-					    (+ subexpr (nth 2 (car alist))))
+					    ;; lemacs change (columns)
+					    (+ subexpr (nth 2 (car alist)))
+					    (let ((col (nth 3 (car alist))))
+					      (and col
+						   (+ subexpr col))))
 				      error-regexp-groups))
       (setq subexpr (+ subexpr 1 (count-regexp-groupings (car (car alist)))))
       (setq alist (cdr alist)))
@@ -1111,8 +1145,21 @@ See variable `compilation-parse-errors-function' for the interface it uses."
 			       (match-beginning (nth 2 alist))
 			       (match-end (nth 2 alist)))
 			      (goto-char (point-min))
-			      (if (looking-at "[0-9]")
-				  (read (current-buffer))))))
+			      ;; lemacs change (columns)
+			      (save-match-data
+				(if (looking-at "[0-9]")
+				    (read (current-buffer))))
+			      ))
+		   ;; lemacs change (columns)
+		   (column (and (nth 3 alist)
+				(save-restriction
+				  (narrow-to-region
+				   (match-beginning (nth 3 alist))
+				   (match-end (nth 3 alist)))
+				  (goto-char (point-min))
+				  (if (looking-at "[0-9]")
+				      (read (current-buffer))))))
+		   )
 	       ;; Locate the erring file and line.
 	       ;; Cons a new elt onto compilation-error-list,
 	       ;; giving a marker for the current compilation buffer
@@ -1120,7 +1167,9 @@ See variable `compilation-parse-errors-function' for the interface it uses."
 	       (save-excursion
 		 (beginning-of-line 1)
 		 (let ((this (cons (point-marker)
-				   (cons filename linenum))))
+				   ;; lemacs change (columns)
+				   (list filename linenum column)
+				   )))
 		   ;; Don't add the same source line more than once.
 		   (if (equal (cdr this) (cdr (car compilation-error-list)))
 		       nil

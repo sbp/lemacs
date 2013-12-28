@@ -1,11 +1,11 @@
 /* The lwlib interface to "xlwmenu" menus.
-   Copyright (C) 1992 Lucid, Inc.
+   Copyright (C) 1992, 1994 Lucid, Inc.
 
 This file is part of the Lucid Widget Library.
 
 The Lucid Widget Library is free software; you can redistribute it and/or 
 modify it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 The Lucid Widget Library is distributed in the hope that it will be useful,
@@ -48,20 +48,28 @@ pick_hook (Widget w, XtPointer client_data, XtPointer call_data)
   widget_value* contents_val = (widget_value*)call_data;
   widget_value* widget_val;
   XtPointer widget_arg;
+  LWLIB_ID id;
+  lw_callback post_activate_cb;
 
   if (w->core.being_destroyed)
     return;
 
-  if (instance->info->selection_cb && contents_val && contents_val->enabled
-      && !contents_val->contents)
-    instance->info->selection_cb (w, instance->info->id,
-				  contents_val->call_data);
+  /* Grab these values before running any functions, in case running
+     the selection_cb causes the widget to be destroyed. */
+  id = instance->info->id;
+  post_activate_cb = instance->info->post_activate_cb;
 
   widget_val = lw_get_widget_value_for_widget (instance, w);
   widget_arg = widget_val ? widget_val->call_data : NULL;
-  if (instance->info->post_activate_cb)
-    instance->info->post_activate_cb (w, instance->info->id, widget_arg);
 
+  if (instance->info->selection_cb &&
+      contents_val &&
+      contents_val->enabled &&
+      !contents_val->contents)
+    instance->info->selection_cb (w, id, contents_val->call_data);
+
+  if (post_activate_cb)
+    post_activate_cb (w, id, widget_arg);
 }
 
 /* creation functions */

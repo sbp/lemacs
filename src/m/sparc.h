@@ -1,5 +1,5 @@
 /* machine description file for Sun 4 SPARC.
-   Copyright (C) 1987, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -26,12 +26,6 @@ Use -opsystem=sunos4 for operating system version 4, and
 -opsystem=bsd4-2 for earlier versions.
 NOTE-END  */
 
-/* This defines the FSCALE constant, which this file uses in the LOAD_AVE_CVT
-   macro.  */
-#ifdef emacs /* Don't do this when making xmakefile! */
-#include <sys/param.h>
-#endif
-
 /* The following three symbols give information on
  the size of various data types.  */
 
@@ -41,35 +35,40 @@ NOTE-END  */
 
 #define LONGBITS 32		/* Number of bits in a long */
 
-/* SPARC has lowest-numbered byte as most significant */
-
-#define BIG_ENDIAN
-
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
 
 #define NO_ARG_ARRAY
 
-/* Say this machine is a sparc */
+/* lemacs change */
+/* Say this machine is a sparc if we are not generating the Makefiles.
+   In that case say we are a SPARC.  Otherwise people who have sparc
+   in a path will not be happy. */
 
-#ifndef sparc
-#define sparc 1
+#ifdef NOT_C_CODE
+# define SPARC
+#else
+# ifndef sparc
+#  define sparc
+# endif
 #endif
 
 #ifdef __GNUC__
 # define C_OPTIMIZE_SWITCH -O
 #else
-#ifdef USE_LCC
-# define C_OPTIMIZE_SWITCH -O4 -Oi -G
-#else
+/* lemacs change */
+# ifdef USE_LCC
+#  define C_OPTIMIZE_SWITCH -O4 -Oi
+# else
      /* This level of optimization is reported to work.  */
-# define C_OPTIMIZE_SWITCH -O2
-#endif
+#  define C_OPTIMIZE_SWITCH -O2
+# endif
 #endif
 
 /* Use type int rather than a union, to represent Lisp_Object */
 
-/*#define NO_UNION_TYPE*/
+/* lemacs change */
+/* #define NO_UNION_TYPE */
 
 /* XINT must explicitly sign-extend */
 
@@ -91,14 +90,26 @@ NOTE-END  */
    in the file alloca.s should be used.  */
 
 #define HAVE_ALLOCA
-#ifdef emacs /* Don't do this when making xmakefile! */
+#if __GNUC__ < 2 /* Modern versions of GCC handle alloca directly.  */
+#ifndef NOT_C_CODE
 #include <alloca.h>
 #endif
+#endif
 
-/* Must use the system's termcap.  It does special things.  */
+/* SunPro's wondrous compiler defines alloca to __builtin_alloca, but
+   fails to provide a prototype for this function. */
 
-#ifndef LIBS_TERMCAP /* s/sol2.h defines this -jwz */
-# define LIBS_TERMCAP -ltermcap
+#ifdef __SUNPRO_C
+#ifndef NOT_C_CODE
+void *__builtin_alloca (unsigned int);
+#endif
+#endif
+
+/* Must use the system's termcap, if we use any termcap.
+   It does special things.  */
+
+#ifndef TERMINFO
+#define LIBS_TERMCAP -ltermcap
 #endif
 
 /* Mask for address bits within a memory segment */

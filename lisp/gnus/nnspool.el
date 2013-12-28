@@ -83,6 +83,13 @@ nnspool-retrieve-headers (which see).")
 (defvar nnspool-article-header-read-size 1024
   "Number of bytes to read when processing headers from NNSPOOL.")
 
+;;; lemacs change: from Chris Davis <ckd@kei.com>
+;;; UNIMPLEMENTED!  Probably can be implemented based on 
+;;; nnspool-find-article-by-message-id.
+(defun nnspool-retrieve-headers-by-id (message-id)
+  "UNIMPLEMENTED.  Should return same things nnspool-retrieve-headers does."
+  (error "Unimplemented function, sorry."))
+
 ;;; lemacs change: from Rick Sladkey <jrs@world.std.com>
 (defun nnspool-retrieve-headers (sequence)
   "Return list of article headers specified by SEQUENCE of article id.

@@ -48,6 +48,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <math.h>
 
+#ifndef isnan
+# define isnan(x) ((x) != (x))
+#endif
+
 #endif /* LISP_FLOAT_TYPE */
 
 Lisp_Object Qnil, Qt, Qquote, Qlambda, Qfunction, Qunbound;
@@ -292,8 +296,8 @@ or nil if it takes an arbitrary number of arguments (or is a special form.)")
     return make_number (nargs);
 }
 
-DEFUN ("compiled-function-p", Fcompiled_function_p, Scompiled_function_p, 1, 1, 0, 
-       "T if OBJECT is a byte-compiled function object.")
+DEFUN ("compiled-function-p", Fcompiled_function_p, Scompiled_function_p, 1, 1, 0,
+       "t if OBJECT is a byte-compiled function object.")
   (object)
      Lisp_Object object;
 {
@@ -302,7 +306,8 @@ DEFUN ("compiled-function-p", Fcompiled_function_p, Scompiled_function_p, 1, 1, 
   return Qnil;
 }
 
-DEFUN ("char-or-string-p", Fchar_or_string_p, Schar_or_string_p, 1, 1, 0, "T if OBJECT is a character (a number) or a string.")
+DEFUN ("char-or-string-p", Fchar_or_string_p, Schar_or_string_p, 1, 1, 0,
+       "t if OBJECT is a character (an integer) or a string.")
   (object)
      Lisp_Object object;
 {
@@ -311,7 +316,8 @@ DEFUN ("char-or-string-p", Fchar_or_string_p, Schar_or_string_p, 1, 1, 0, "T if 
   return Qnil;
 }
 
-DEFUN ("integerp", Fintegerp, Sintegerp, 1, 1, 0, "T if OBJECT is a number.")
+DEFUN ("integerp", Fintegerp, Sintegerp, 1, 1, 0,
+       "t if OBJECT is an integer.")
   (object)
      Lisp_Object object;
 {
@@ -321,7 +327,7 @@ DEFUN ("integerp", Fintegerp, Sintegerp, 1, 1, 0, "T if OBJECT is a number.")
 }
 
 DEFUN ("integer-or-marker-p", Finteger_or_marker_p, Sinteger_or_marker_p, 1, 1, 0,
-  "T if OBJECT is an integer or a marker (editor pointer).")
+       "t if OBJECT is an integer or a marker (editor pointer).")
   (object)
      Lisp_Object object;
 {
@@ -330,7 +336,8 @@ DEFUN ("integer-or-marker-p", Finteger_or_marker_p, Sinteger_or_marker_p, 1, 1, 
   return Qnil;
 }
 
-DEFUN ("natnump", Fnatnump, Snatnump, 1, 1, 0, "T if OBJECT is a nonnegative number.")
+DEFUN ("natnump", Fnatnump, Snatnump, 1, 1, 0,
+       "t if OBJECT is a nonnegative integer.")
   (object)
      Lisp_Object object;
 {
@@ -340,7 +347,7 @@ DEFUN ("natnump", Fnatnump, Snatnump, 1, 1, 0, "T if OBJECT is a nonnegative num
 }
 
 DEFUN ("numberp", Fnumberp, Snumberp, 1, 1, 0,
-       "T if OBJECT is a number (floating point or integer).")
+       "t if OBJECT is a number (floating point or integer).")
   (object)
      Lisp_Object object;
 {
@@ -349,9 +356,8 @@ DEFUN ("numberp", Fnumberp, Snumberp, 1, 1, 0,
   return Qnil;
 }
 
-DEFUN ("number-or-marker-p", Fnumber_or_marker_p,
-       Snumber_or_marker_p, 1, 1, 0,
-       "T if OBJECT is a number or a marker.")
+DEFUN ("number-or-marker-p", Fnumber_or_marker_p, Snumber_or_marker_p, 1, 1, 0,
+       "t if OBJECT is a number or a marker.")
   (object)
      Lisp_Object object;
 {
@@ -363,7 +369,7 @@ DEFUN ("number-or-marker-p", Fnumber_or_marker_p,
 
 #ifdef LISP_FLOAT_TYPE
 DEFUN ("floatp", Ffloatp, Sfloatp, 1, 1, 0,
-       "T if OBJECT is a floating point number.")
+       "t if OBJECT is a floating point number.")
   (object)
      Lisp_Object object;
 {
@@ -550,8 +556,8 @@ ARRAY may be a vector or a string, or a byte-code object.  INDEX starts at 0.")
 }
 
 DEFUN ("aset", Faset, Saset, 3, 3, 0,
-  "Store into the element of ARRAY at index INDEX the value NEWVAL.\n\
-ARRAY may be a vector or a string.  INDEX starts at 0.")
+  "Store into the element of ARRAY at index IDX the value NEWVAL.\n\
+ARRAY may be a vector or a string.  IDX starts at 0.")
   (array, idx, newelt)
      register Lisp_Object array;
      Lisp_Object idx, newelt;
@@ -941,7 +947,8 @@ NUM may be an integer or a floating point number.")
 
 DEFUN ("string-to-number", Fstring_to_number, Sstring_to_number, 1, 1, 0,
   "Convert STRING to a number by parsing it as a decimal number.\n\
-This parses both integers and floating point numbers.")
+This parses both integers and floating point numbers.\n\
+It ignores leading spaces and tabs.")
   (string)
      Lisp_Object string;
 {
@@ -955,7 +962,7 @@ This parses both integers and floating point numbers.")
     p++;
 
 #ifdef LISP_FLOAT_TYPE
-  if (isfloat_string (p))
+  if (isfloat_string ((unsigned char *) p))
     return make_float (atof (p));
 #endif /* LISP_FLOAT_TYPE */
 
@@ -1099,11 +1106,11 @@ float_arith_driver (accum, argnum, code, nargs, args)
 	case Alogxor:
 	  return wrong_type_argument (Qinteger_or_marker_p, val);
 	case Amax:
-	  if (!argnum || next > accum)
+	  if (!argnum || isnan (next) || next > accum)
 	    accum = next;
 	  break;
 	case Amin:
-	  if (!argnum || next < accum)
+	  if (!argnum || isnan (next) || next < accum)
 	    accum = next;
 	  break;
 	}
@@ -1193,7 +1200,7 @@ If either argument is a float, a float will be returned.")
       /* Note, ANSI *requires* the presence of the fmod() library routine.
          If your system doesn't have it, complain to your vendor, because
          that is a bug. */
-#ifdef USE_DREM
+#ifdef USE_DREM                 /* >>> obsolete?? */
       /* drem returns a result in the range [-f2/2,f2/2] instead of
          [0,f2), but the sign fixup below takes care of that. */
       f1 = drem (f1, f2);

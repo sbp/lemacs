@@ -1,23 +1,21 @@
-Info file elisp, produced by Makeinfo, -*- Text -*- from input file
-elisp.texi.
+This is Info file ../../info/lispref.info, produced by Makeinfo-1.56
+from the input file lispref.texinfo.
 
-   This file documents GNU Emacs Lisp.
+   This version is newer than the second printed edition of the GNU
+Emacs Lisp Reference Manual.  It corresponds to Emacs Version 19.19.
 
-   This is edition 1.03 of the GNU Emacs Lisp Reference Manual,   for
-Emacs Version 18.
+   Published by the Free Software Foundation 675 Massachusetts Avenue
+Cambridge, MA 02139 USA
 
-   Published by the Free Software Foundation, 675 Massachusetts
-Avenue,  Cambridge, MA 02139 USA
+   Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
 
-   Copyright (C) 1990 Free Software Foundation, Inc.
-
-   Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
 
    Permission is granted to copy and distribute modified versions of
-this manual under the conditions for verbatim copying, provided that
-the entire resulting derived work is distributed under the terms of a
+this manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
 permission notice identical to this one.
 
    Permission is granted to copy and distribute translations of this
@@ -25,1816 +23,990 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be stated in a
 translation approved by the Foundation.
 
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the Free Software
+Foundation instead of in the original English.
 
 
-File: elisp,  Node: Index,  Prev: Standard Hooks,  Up: Top
+File: lispref.info,  Node: Mode-Specific Indent,  Next: Region Indent,  Prev: Primitive Indent,  Up: Indentation
 
-Index
-*****
+Indentation Controlled by Major Mode
+------------------------------------
+
+   An important function of each major mode is to customize the TAB key
+to indent properly for the language being edited.  This section
+describes the mechanism of the TAB key and how to control it.  The
+functions in this section return unpredictable values.
+
+ - Variable: indent-line-function
+     This variable's value is the function to be used by TAB (and
+     various commands) to indent the current line.  The command
+     `indent-according-to-mode' does no more than call this function.
+
+     In Lisp mode, the value is the symbol `lisp-indent-line'; in C
+     mode, `c-indent-line'; in Fortran mode, `fortran-indent-line'.  In
+     Fundamental mode, Text mode, and many other modes with no standard
+     for indentation, the value is `indent-to-left-margin' (which is the
+     default value).
+
+ - Command: indent-according-to-mode
+     This command calls the function in `indent-line-function' to
+     indent the current line in a way appropriate for the current major
+     mode.
+
+ - Command: indent-for-tab-command
+     This command calls the function in `indent-line-function' to
+     indent the current line, except that if that function is
+     `indent-to-left-margin', `insert-tab' is called instead.  (That is
+     a trivial command which inserts a tab character.)
+
+ - Variable: left-margin
+     This variable is the column to which the default
+     `indent-line-function' will indent.  (That function is
+     `indent-to-left-margin'.)  In Fundamental mode, LFD indents to
+     this column.  This variable automatically becomes buffer-local when
+     set in any fashion.
+
+ - Function: indent-to-left-margin
+     This is the default `indent-line-function', used in Fundamental
+     mode, Text mode, etc.  Its effect is to adjust the indentation at
+     the beginning of the current line to the value specified by the
+     variable `left-margin'.  This may involve either inserting or
+     deleting whitespace.
+
+ - Command: newline-and-indent
+     This function inserts a newline, then indents the new line (the one
+     following the newline just inserted) according to the major mode.
+
+     Indentation is done using the current `indent-line-function'.  In
+     programming language modes, this is the same thing TAB does, but
+     in some text modes, where TAB inserts a tab, `newline-and-indent'
+     indents to the column specified by `left-margin'.
+
+ - Command: reindent-then-newline-and-indent
+     This command reindents the current line, inserts a newline at
+     point, and then reindents the new line (the one following the
+     newline just inserted).
+
+     Indentation of both lines is done according to the current major
+     mode; this means that the current value of `indent-line-function'
+     is called.  In programming language modes, this is the same thing
+     TAB does, but in some text modes, where TAB inserts a tab,
+     `reindent-then-newline-and-indent' indents to the column specified
+     by `left-margin'.
+
+
+File: lispref.info,  Node: Region Indent,  Next: Relative Indent,  Prev: Mode-Specific Indent,  Up: Indentation
+
+Indenting an Entire Region
+--------------------------
+
+   This section describes commands which indent all the lines in the
+region.  They return unpredictable values.
+
+ - Command: indent-region START END TO-COLUMN
+     This command indents each nonblank line starting between START
+     (inclusive) and END (exclusive).  If TO-COLUMN is `nil',
+     `indent-region' indents each nonblank line by calling the current
+     mode's indentation function, the value of `indent-line-function'.
+
+     If TO-COLUMN is non-`nil', it should be an integer specifying the
+     number of columns of indentation; then this function gives each
+     line exactly that much indentation, by either adding or deleting
+     whitespace.
+
+     If there is a fill prefix, `indent-region' indents each line by
+     making it start with the fill prefix.
+
+ - Variable: indent-region-function
+     The value of this variable is a function that can be used by
+     `indent-region' as a short cut.  You should design the function so
+     that it will produce the same results as indenting the lines of the
+     region one by one (but presumably faster).
+
+     If the value is `nil', there is no short cut, and `indent-region'
+     actually works line by line.
+
+     A short cut function is useful in modes such as C mode and Lisp
+     mode, where the `indent-line-function' must scan from the
+     beginning of the function: applying it to each line would be
+     quadratic in time.  The short cut can update the scan information
+     as it moves through the lines indenting them; this takes linear
+     time.  If indenting a line individually is fast, there is no need
+     for a short cut.
+
+     `indent-region' with a non-`nil' argument has a different
+     definition and does not use this variable.
+
+ - Command: indent-rigidly START END COUNT
+     This command indents all lines starting between START (inclusive)
+     and END (exclusive) sideways by `count' columns.  This "preserves
+     the shape" of the affected region, moving it as a rigid unit.
+     Consequently, this command is useful not only for indenting
+     regions of unindented text, but also for indenting regions of
+     formatted code.
+
+     For example, if COUNT is 3, this command adds 3 columns of
+     indentation to each of the lines beginning in the region specified.
+
+     In Mail mode, `C-c C-y' (`mail-yank-original') uses
+     `indent-rigidly' to indent the text copied from the message being
+     replied to.
+
+ - Function: indent-code-rigidly START END COLUMNS &optional
+          NOCHANGE-REGEXP
+     This is like `indent-rigidly', except that it doesn't alter lines
+     that start within strings or comments.
+
+     In addition, it doesn't alter a line if NOCHANGE-REGEXP matches at
+     the beginning of the line (if NOCHANGE-REGEXP is non-`nil').
+
+
+File: lispref.info,  Node: Relative Indent,  Next: Indent Tabs,  Prev: Region Indent,  Up: Indentation
+
+Indentation Relative to Previous Lines
+--------------------------------------
+
+   This section describes two commands which indent the current line
+based on the contents of previous lines.
+
+ - Command: indent-relative &optional UNINDENTED-OK
+     This function inserts whitespace at point, extending to the same
+     column as the next "indent point" of the previous nonblank line.
+     An indent point is a non-whitespace character following
+     whitespace.  The next indent point is the first one at a column
+     greater than the current column of point.  For example, if point
+     is underneath and to the left of the first non-blank character of
+     a line of text, it moves to that column by inserting whitespace.
+
+     If the previous nonblank line has no next indent point (i.e., none
+     at a great enough column position), this function either does
+     nothing (if UNINDENTED-OK is non-`nil') or calls `tab-to-tab-stop'.
+     Thus, if point is underneath and to the right of the last column
+     of a short line of text, this function moves point to the next tab
+     stop by inserting whitespace.
+
+     This command returns an unpredictable value.
+
+     In the following example, point is at the beginning of the second
+     line:
+
+                      This line is indented twelve spaces.
+          -!-The quick brown fox jumped.
+
+     Evaluation of the expression `(indent-relative nil)' produces the
+     following:
+
+                      This line is indented twelve spaces.
+                      -!-The quick brown fox jumped.
+
+     In this example, point is between the `m' and `p' of `jumped':
+
+                      This line is indented twelve spaces.
+          The quick brown fox jum-!-ped.
+
+     Evaluation of the expression `(indent-relative nil)' produces the
+     following:
+
+                      This line is indented twelve spaces.
+          The quick brown fox jum  -!-ped.
+
+ - Command: indent-relative-maybe
+     This command indents the current line like the previous nonblank
+     line.  The function consists of a call to `indent-relative' with a
+     non-`nil' value passed to the UNINDENTED-OK optional argument.
+     The value is unpredictable.
+
+     If the previous line has no indentation, the current line is given
+     no indentation (any existing indentation is deleted); if the
+     previous nonblank line has no indent points beyond the column at
+     which point starts, nothing is changed.
+
+
+File: lispref.info,  Node: Indent Tabs,  Next: Motion by Indent,  Prev: Relative Indent,  Up: Indentation
+
+Adjustable "Tab Stops"
+----------------------
+
+   This section explains the mechanism for user-specified "tab stops"
+and the mechanisms which use and set them.  The name "tab stops" is
+used because the feature is similar to that of the tab stops on a
+typewriter.  The feature works by inserting an appropriate number of
+spaces and tab characters to reach the designated position, like the
+other indentation functions; it does not affect the display of tab
+characters in the buffer (*note Usual Display::.).  Note that the TAB
+character as input uses this tab stop feature only in a few major
+modes, such as Text mode.
+
+ - Function: tab-to-tab-stop
+     This function inserts spaces or tabs up to the next tab stop column
+     defined by `tab-stop-list'.  It searches the list for an element
+     greater than the current column number, and uses that element as
+     the column to indent to.  If no such element is found, then
+     nothing is done.
+
+ - User Option: tab-stop-list
+     This variable is the list of tab stop columns used by
+     `tab-to-tab-stops'.  The elements should be integers in increasing
+     order.  The tab stop columns need not be evenly spaced.
+
+     Use `M-x edit-tab-stops' to edit the location of tab stops
+     interactively.
+
+
+File: lispref.info,  Node: Motion by Indent,  Prev: Indent Tabs,  Up: Indentation
+
+Indentation-Based Motion Commands
+---------------------------------
+
+   These commands, primarily for interactive use, act based on the
+indentation in the text.
+
+ - Command: back-to-indentation
+     This command moves point to the first non-whitespace character in
+     the current line (which is the line in which point is located).
+     It returns `nil'.
+
+ - Command: backward-to-indentation ARG
+     This command moves point backward ARG lines and then to the first
+     nonblank character on that line.  It returns `nil'.
+
+ - Command: forward-to-indentation ARG
+     This command moves point forward ARG lines and then to the first
+     nonblank character on that line.  It returns `nil'.
+
+
+File: lispref.info,  Node: Columns,  Next: Case Changes,  Prev: Indentation,  Up: Text
+
+Counting Columns
+================
+
+   The column functions convert between a character position (counting
+characters from the beginning of the buffer) and a column position
+(counting screen characters from the beginning of a line).
+
+   Column number computations ignore the width of the window and the
+amount of horizontal scrolling.  Consequently, a column value can be
+arbitrarily high.  The first (or leftmost) column is numbered 0.
+
+   A character counts according to the number of columns it occupies on
+the screen.  This means control characters count as occupying 2 or 4
+columns, depending upon the value of `ctl-arrow', and tabs count as
+occupying a number of columns that depends on the value of `tab-width'
+and on the column where the tab begins.  *Note Usual Display::.
+
+ - Function: current-column
+     This function returns the horizontal position of point, measured in
+     columns, counting from 0 at the left margin.  The column count is
+     calculated by adding together the widths of all the displayed
+     representations of the characters between the start of the current
+     line and point.
+
+     For a more complicated example of the use of `current-column', see
+     the description of `count-lines' in *Note Text Lines::.
+
+ - Function: move-to-column COLUMN &optional FORCE
+     This function moves point to COLUMN in the current line.  The
+     calculation of COLUMN takes into account the widths of all the
+     displayed representations of the characters between the start of
+     the line and point.
+
+     If the argument COLUMN is greater than the column position of the
+     end of the line, point moves to the end of the line.  If COLUMN is
+     negative, point moves to the beginning of the line.
+
+     If it is impossible to move to column COLUMN because that is in
+     the middle of a multicolumn character such as a tab, point moves
+     to the end of that character.  However, if FORCE is non-`nil', and
+     COLUMN is in the middle of a tab, then `move-to-column' converts
+     the tab into spaces so that it can move precisely to column COLUMN.
+
+     The argument FORCE also has an effect if the line isn't long
+     enough to reach column COLUMN; in that case, it says to indent at
+     the end of the line to reach that column.
+
+     If COLUMN is not an integer, an error is signaled.
+
+     The return value is the column number actually moved to.
+
+
+File: lispref.info,  Node: Case Changes,  Next: Text Properties,  Prev: Columns,  Up: Text
+
+Case Changes
+============
+
+   The case change commands described here work on text in the current
+buffer.  *Note Character Case::, for case conversion commands that work
+on strings and characters.  *Note Case Table::, for how to customize
+which characters are upper or lower case and how to convert them.
+
+ - Command: capitalize-region START END
+     This function capitalizes all words in the region defined by START
+     and END.  To capitalize means to convert each word's first
+     character to upper case and convert the rest of each word to lower
+     case.  The function returns `nil'.
+
+     If one end of the region is in the middle of a word, the part of
+     the word within the region is treated as an entire word.
+
+     When `capitalize-region' is called interactively, START and END
+     are point and the mark, with the smallest first.
+
+          ---------- Buffer: foo ----------
+          This is the contents of the 5th foo.
+          ---------- Buffer: foo ----------
+          
+          (capitalize-region 1 44)
+          => nil
+          
+          ---------- Buffer: foo ----------
+          This Is The Contents Of The 5th Foo.
+          ---------- Buffer: foo ----------
+
+ - Command: downcase-region START END
+     This function converts all of the letters in the region defined by
+     START and END to lower case.  The function returns `nil'.
+
+     When `downcase-region' is called interactively, START and END are
+     point and the mark, with the smallest first.
+
+ - Command: upcase-region START END
+     This function converts all of the letters in the region defined by
+     START and END to upper case.  The function returns `nil'.
+
+     When `upcase-region' is called interactively, START and END are
+     point and the mark, with the smallest first.
+
+ - Command: capitalize-word COUNT
+     This function capitalizes COUNT words after point, moving point
+     over as it does.  To capitalize means to convert each word's first
+     character to upper case and convert the rest of each word to lower
+     case.  If COUNT is negative, the function capitalizes the -COUNT
+     previous words but does not move point.  The value is `nil'.
+
+     If point is in the middle of a word, the part of word the before
+     point (if moving forward) or after point (if operating backward)
+     is ignored.  The rest is treated as an entire word.
+
+     When `capitalize-word' is called interactively, COUNT is set to
+     the numeric prefix argument.
+
+ - Command: downcase-word COUNT
+     This function converts the COUNT words after point to all lower
+     case, moving point over as it does.  If COUNT is negative, it
+     converts the -COUNT previous words but does not move point.  The
+     value is `nil'.
+
+     When `downcase-word' is called interactively, COUNT is set to the
+     numeric prefix argument.
+
+ - Command: upcase-word COUNT
+     This function converts the COUNT words after point to all upper
+     case, moving point over as it does.  If COUNT is negative, it
+     converts the -COUNT previous words but does not move point.  The
+     value is `nil'.
+
+     When `upcase-word' is called interactively, COUNT is set to the
+     numeric prefix argument.
+
+
+File: lispref.info,  Node: Text Properties,  Next: Substitution,  Prev: Case Changes,  Up: Text
+
+Text Properties
+===============
+
+   Text properties in Lucid Emacs are provided for compatibility with
+FSF Emacs 19.  Text properties are implemented using extents, which
+provide a more powerful functionality.  *Note Extents::.
+
+   Each character position in a buffer or a string can have a "text
+property list", much like the property list of a symbol.  The properties
+belong to a particular character at a particular place, such as, the
+letter `T' at the beginning of this sentence or the first `o' in
+`foo'--if the same character occurs in two different places, the two
+occurrences generally have different properties.
+
+   Each property has a name, which is usually a symbol, and an
+associated value, which can be any Lisp object--just as for properties
+of symbols (*note Property Lists::.).
+
+   If a character has a `category' property, we call it the "category"
+of the character.  It should be a symbol.  The properties of the symbol
+serve as defaults for the properties of the character.
+
+   Copying text between strings and buffers preserves the properties
+along with the characters; this includes such diverse functions as
+`substring', `insert', and `buffer-substring'.
 
 * Menu:
 
-* %: Arithmetic Operations.
-* &optional: Argument List.
-* &rest: Argument List.
-* *: Arithmetic Operations.
-* +: Arithmetic Operations.
-* ,: Backquote.
-* ,@: Backquote.
-* -: Arithmetic Operations.
-* /: Arithmetic Operations.
-* /=: Comparison of Numbers.
-* 1+: Arithmetic Operations.
-* 1-: Arithmetic Operations.
-* <: Comparison of Numbers.
-* <=: Comparison of Numbers.
-* =: Comparison of Numbers.
-* >: Comparison of Numbers.
-* >=: Comparison of Numbers.
-* EMACSLOADPATH environment variable: How Programs Do Loading.
-* HOME environment variable: Subprocess Creation.
-* PATH environment variable: Subprocess Creation.
-* TERM environment variable: Terminal-Specific.
-* apply, and debugging: Internals of Debugger.
-* arith-error example: Handling Errors.
-* arith-error in division: Arithmetic Operations.
-* commandp example: High-Level Completion.
-* debug-on-error use: Processing of Errors.
-* error in debug: Invoking the Debugger.
-* eval, and debugging: Internals of Debugger.
-* funcall, and debugging: Internals of Debugger.
-* interactive, examples of using: Interactive Examples.
-* isearch-forward quitting: Quitting.
-* lambda in debug: Invoking the Debugger.
-* lambda in keymap: Key Lookup.
-* mode-class property: Major Mode Conventions.
-* nil and lists: Cons Cells.
-* nil in keymap: Key Lookup.
-* nil in lists: List Type.
-* nil input stream: Input Streams.
-* nil output stream: Output Streams.
-* nil, uses of: nil and t.
-* quote-insert suppression: Changing Key Bindings.
-* self-insert-command override: Changing Key Bindings.
-* self-insert-command, and minor modes: Limits of Minor Modes.
-* special: Major Mode Conventions.
-* suspend-emacs, related to no-redraw-on-reenter: Screen Attributes.
-* throw example: Recursive Editing.
-* t and truth: nil and t.
-* t input stream: Input Streams.
-* t output stream: Output Streams.
-* undefined in keymap: Key Lookup.
-* user-variable-p example: High-Level Completion.
-* .emacs: Init File.
-* .emacs customization: Major Mode Conventions.
-* DOC (documentation) file: Documentation Basics.
-* default.el: Start-up Summary.
-* emacs/etc/DOC-VERSION: Documentation Basics.
-* etc/DOC-VERSION: Documentation Basics.
-* lisp-mode.el: Example Major Modes.
-* loadup.el: Building Emacs.
-* startup.el: Start-up Summary.
-* ? in minibuffer: Text from Minibuffer.
-* C-c: Prefix Keys.
-* C-g: Quitting.
-* C-h: Prefix Keys.
-* C-q: Flow Control.
-* C-s: Flow Control.
-* C-x 4: Prefix Keys.
-* C-x: Prefix Keys.
-* M-x: Interactive Call.
-* ESC: Functions for Key Lookup.
-* SPC in minibuffer: Text from Minibuffer.
-* TAB in minibuffer: Text from Minibuffer.
-* " in printing: Output Functions.
-* " in strings: String Type.
-* $ in display: Truncation.
-* $ in regexp: Syntax of Regexps.
-* % in format: Formatting Strings.
-* & in replacement: Match Data.
-* ' for quoting: Quoting.
-* ' in regexp: Syntax of Regexps.
-* (...) in lists: List Type.
-* ( in regexp: Syntax of Regexps.
-* ) in regexp: Syntax of Regexps.
-* *scratch*: Auto Major Mode.
-* * in interactive: Using Interactive.
-* * in regexp: Syntax of Regexps.
-* + in regexp: Syntax of Regexps.
-* . in lists: Dotted Pair Notation.
-* . in regexp: Syntax of Regexps.
-* ; in comment: Comments.
-* ? in character constant: Character Type.
-* ? in regexp: Syntax of Regexps.
-* [ in regexp: Syntax of Regexps.
-* \< in regexp: Syntax of Regexps.
-* \> in regexp: Syntax of Regexps.
-* \N in replacement: Match Data.
-* \B in regexp: Syntax of Regexps.
-* \S in regexp: Syntax of Regexps.
-* \W in regexp: Syntax of Regexps.
-* \b: Character Type.
-* \b in regexp: Syntax of Regexps.
-* \e: Character Type.
-* \f: Character Type.
-* \n: Character Type.
-* \n in print: Output Functions.
-* \r: Character Type.
-* \s in regexp: Syntax of Regexps.
-* \t: Character Type.
-* \v: Character Type.
-* \w in regexp: Syntax of Regexps.
-* \ in character constant: Character Type.
-* \ in display: Truncation.
-* \ in printing: Output Functions.
-* \ in regexp: Syntax of Regexps.
-* \ in replacement: Match Data.
-* \ in strings: String Type.
-* \ in symbols: Symbol Type.
-* ] in regexp: Syntax of Regexps.
-* ^ in regexp: Syntax of Regexps.
-* ^ in regexp: Syntax of Regexps.
-* ` in regexp: Syntax of Regexps.
-* | in regexp: Syntax of Regexps.
-* CBREAK: Flow Control.
-* PTYs: Asynchronous Processes.
-* character quote: Syntax Class Table.
-* close parenthesis character: Syntax Class Table.
-* comment ender: Syntax Class Table.
-* comment starter: Syntax Class Table.
-* escape: Syntax Class Table.
-* expression prefix: Syntax Class Table.
-* open parenthesis character: Syntax Class Table.
-* paired delimiter: Syntax Class Table.
-* punctuation character: Syntax Class Table.
-* string quote: Syntax Class Table.
-* symbol constituent: Syntax Class Table.
-* whitespace character: Syntax Class Table.
-* word constituent: Syntax Class Table.
-* ASCII character codes: Character Type.
-* Auto Fill mode: Auto Filling.
-* Buffer-menu-mode-map: Standard Keymaps.
-* Common Lisp: Lisp History.
-* Control-X-prefix: Prefix Keys.
-* ESC-prefix: Prefix Keys.
-* Emacs character standard notation: Describing Characters.
-* Fundamental mode: Major Modes.
-* Helper-describe-bindings: Help Functions.
-* Helper-help: Help Functions.
-* Helper-help-map: Standard Keymaps.
-* Info-edit-map: Standard Keymaps.
-* Info-mode-map: Standard Keymaps.
-* Lisp debugger: Debugger.
-* Lisp expression motion: List Motion.
-* Lisp history: Lisp History.
-* Lisp interpreter: Evaluation.
-* Lisp library: Loading.
-* Lisp nesting error: Eval.
-* Lisp object: Types of Lisp Object.
-* Lisp printer: Output Functions.
-* Lisp reader: Streams Intro.
-* Lisp symbol completion: Lisp Symbol Completion.
-* Maclisp: Lisp History.
-* Outline mode: Substitution.
-* Shell mode mode-line-format: Mode Line Data.
-* Snarf-documentation: Accessing Documentation.
-* TCP: TCP.
-* X Window System: Window Systems.
-* `: Backquote.
-* abbrev: Abbrevs.
-* abbrev table: Abbrevs.
-* abbrev tables in modes: Major Mode Conventions.
-* abbrev-all-caps: Abbrev Expansion.
-* abbrev-expansion: Abbrev Expansion.
-* abbrev-file-name: Abbrev Files.
-* abbrev-mode: Abbrev Mode.
-* abbrev-start-location: Abbrev Expansion.
-* abbrev-start-location-buffer: Abbrev Expansion.
-* abbrev-symbol: Abbrev Expansion.
-* abbrev-table-name-list: Abbrev Tables.
-* abbrevs-changed: Abbrev Files.
-* abort-recursive-edit: Recursive Editing.
-* aborting: Recursive Editing.
-* absolute file name: Relative File Names.
-* accept-process-output: Accepting Output.
-* accessibility of a file: Testing Accessibility.
-* accessible portion (of a buffer): Narrowing.
-* accessible-keymaps: Scanning Keymaps.
-* add-abbrev: Defining Abbrevs.
-* add-name-to-file: Changing File Attributes.
-* address field of register: List Type.
-* after-find-file: Subroutines of Visiting.
-* alist: Association Lists.
-* all-completions: Basic Completion.
-* and: Combining Conditions.
-* anonymous function: Anonymous Functions.
-* apostrophe for quoting: Quoting.
-* append: Building Lists.
-* append-to-file: Writing to Files.
-* append-to-register: Registers.
-* apply: Calling Functions.
-* apropos: Help Functions.
-* aref: Array Functions.
-* argument binding: Argument List.
-* argument descriptors: Using Interactive.
-* argument evaluation form: Using Interactive.
-* argument prompt: Using Interactive.
-* arguments, reading: Minibuffers.
-* arithmetic shift: Bitwise Operations.
-* array: Arrays.
-* array elements: Array Functions.
-* arrayp: Array Functions.
-* aset: Array Functions.
-* ash: Bitwise Operations.
-* ask-user-about-lock: File Locks.
-* ask-user-about-supersession-threat: Modification Time.
-* asking the user questions: Yes-or-No Queries.
-* assoc: Association Lists.
-* association list: Association Lists.
-* assq: Association Lists.
-* asynchronous subprocess: Asynchronous Processes.
-* atom: List-related Predicates.
-* atom: List Type.
-* atoms: List-related Predicates.
-* auto-fill-hook: Auto Filling.
-* auto-mode-alist: Auto Major Mode.
-* auto-save-default: Auto-Saving.
-* auto-save-file-name-p: Auto-Saving.
-* auto-save-interval: Auto-Saving.
-* auto-save-mode: Auto-Saving.
-* auto-save-visited-file-name: Auto-Saving.
-* auto-saving: Auto-Saving.
-* autoload: Autoload.
-* autoload: Autoload.
-* autoload errors: Autoload.
-* automatically buffer-local: Intro to Buffer-Local.
-* back-to-indentation: Motion by Indent.
-* backquote (list substitution): Backquote.
-* backslash in character constant: Character Type.
-* backslash in strings: String Type.
-* backslash in symbols: Symbol Type.
-* backspace: Character Type.
-* backtrace: Internals of Debugger.
-* backtrace-debug: Internals of Debugger.
-* backup file: Backup Files.
-* backup files, how to make them: Rename or Copy.
-* backup-buffer: Making Backups.
-* backup-by-copying: Rename or Copy.
-* backup-by-copying-when-linked: Rename or Copy.
-* backup-by-copying-when-mismatch: Rename or Copy.
-* backup-file-name-p: Backup Names.
-* backward-char: Character Motion.
-* backward-delete-char-untabify: Deletion.
-* backward-list: List Motion.
-* backward-prefix-chars: Parsing Expressions.
-* backward-sexp: List Motion.
-* backward-to-indentation: Motion by Indent.
-* backward-word: Word Motion.
-* balancing parentheses: Blinking.
-* barf-if-buffer-read-only: Read Only Buffers.
-* batch mode: Batch Mode.
-* batch-byte-compile: Compilation Functions.
-* baud-rate: Terminal Output.
-* beep: Beeping.
-* beeping: Beeping.
-* before point, insertion: Insertion.
-* beginning of line: Text Lines.
-* beginning of line in regexp: Syntax of Regexps.
-* beginning-of-buffer: Buffer End Motion.
-* beginning-of-line: Text Lines.
-* bell: Beeping.
-* binding arguments: Argument List.
-* binding local variables: Local Variables.
-* binding of a key: Keymap Terms.
-* bitwise and: Bitwise Operations.
-* bitwise exclusive or: Bitwise Operations.
-* bitwise not: Bitwise Operations.
-* bitwise or: Bitwise Operations.
-* blink-matching-open: Blinking.
-* blink-matching-paren: Blinking.
-* blink-matching-paren-distance: Blinking.
-* blink-paren-function: Blinking.
-* blink-paren-hook: Blinking.
-* blinking: Blinking.
-* bobp: Near Point.
-* body of function: Lambda Components.
-* bolp: Near Point.
-* boolean: nil and t.
-* boundp: Void Variables.
-* box diagrams, for lists: List Type.
-* box representation for lists: Lists as Boxes.
-* break: Debugger.
-* bucket (in obarray): Creating Symbols.
-* buffer: Buffers.
-* buffer contents: Text.
-* buffer file name: Buffer File Name.
-* buffer input stream: Input Streams.
-* buffer internals: Buffer Internals.
-* buffer list: The Buffer List.
-* buffer modification: Buffer Modification.
-* buffer names: Buffer Names.
-* buffer output stream: Output Streams.
-* buffer text notation: Buffer Text Notation.
-* buffer, read-only: Read Only Buffers.
-* buffer-auto-save-file-name: Auto-Saving.
-* buffer-backed-up: Making Backups.
-* buffer-enable-undo: Undo.
-* buffer-end: Point.
-* buffer-file-name: Buffer File Name.
-* buffer-file-name: Buffer File Name.
-* buffer-flush-undo: Undo.
-* buffer-list: The Buffer List.
-* buffer-local variables: Buffer-Local Variables.
-* buffer-local variables in modes: Major Mode Conventions.
-* buffer-local-variables: Creating Buffer-Local.
-* buffer-modified-p: Buffer Modification.
-* buffer-name: Buffer Names.
-* buffer-offer-save: Saving Buffers.
-* buffer-read-only: Read Only Buffers.
-* buffer-read-only: Read Only Buffers.
-* buffer-read-only: Deletion.
-* buffer-read-only: Using Interactive.
-* buffer-saved-size: Point.
-* buffer-size: Point.
-* buffer-string: Buffer Contents.
-* buffer-substring: Buffer Contents.
-* bufferp: Buffer Basics.
-* buffers, controlled in windows: Buffers and Windows.
-* buffers, creating: Creating Buffers.
-* buffers, killing: Killing Buffers.
-* building Emacs: Building Emacs.
-* building lists: Building Lists.
-* built-in function: What Is a Function.
-* bury-buffer: The Buffer List.
-* byte-code: Byte Compilation.
-* byte-code: Compilation Functions.
-* byte-code interpreter: Compilation Functions.
-* byte-compile: Compilation Functions.
-* byte-compile-file: Compilation Functions.
-* byte-compiling require: Features.
-* byte-compiling macros: Compiling Macros.
-* byte-recompile-directory: Compilation Functions.
-* bytes: Strings and Characters.
-* c-mode-abbrev-table: Standard Abbrev Tables.
-* c-mode-map: Standard Keymaps.
-* c-mode-syntax-table: Standard Syntax Tables.
-* call stack: Internals of Debugger.
-* call-interactively: Interactive Call.
-* call-process: Synchronous Processes.
-* call-process-region: Synchronous Processes.
-* calling a function: Calling Functions.
-* cancel-debug-on-entry: Function Debugging.
-* capitalization: Character Case.
-* capitalize: Character Case.
-* capitalize-region: Case Changes.
-* capitalize-word: Case Changes.
-* car: List Elements.
-* car-safe: List Elements.
-* case changes: Case Changes.
-* case in replacements: Match Data.
-* case-fold-search: Searching and Case.
-* case-replace: Searching and Case.
-* catch: Catch and Throw.
-* cdr: List Elements.
-* cdr-safe: List Elements.
-* centering point: Vertical Scrolling.
-* changing key bindings: Changing Key Bindings.
-* changing to another buffer: Current Buffer.
-* changing window size: Resizing Windows.
-* char-after: Near Point.
-* char-equal: Text Comparison.
-* char-or-string-p: Predicates for Strings.
-* char-syntax: Syntax Table Functions.
-* char-to-string: String Conversion.
-* character arrays: Strings and Characters.
-* character case: Character Case.
-* character insertion: Commands for Insertion.
-* character printing: Describing Characters.
-* character set (in regexp): Syntax of Regexps.
-* character to string: String Conversion.
-* character width: Columns.
-* characters: Strings and Characters.
-* characters for interactive codes: Interactive Codes.
-* child process: Processes.
-* cleanup forms: Cleanups.
-* clear-abbrev-table: Abbrev Tables.
-* clear-visited-file-modtime: Modification Time.
-* close parenthesis: Blinking.
-* codes, interactive, description of: Interactive Codes.
-* columns: Columns.
-* command: What Is a Function.
-* command descriptions: A Sample Function Description.
-* command history: Command History.
-* command in keymap: Key Lookup.
-* command line arguments: Command Line Arguments.
-* command line options: Command Line Arguments.
-* command loop: Command Loop.
-* command loop, recursive: Recursive Editing.
-* command-execute: Interactive Call.
-* command-history: Command History.
-* command-history-map: Standard Keymaps.
-* command-line: Command Line Arguments.
-* command-line-args: Command Line Arguments.
-* command-line-processed: Command Line Arguments.
-* command-switch-alist: Command Line Arguments.
-* commandp: Interactive Call.
-* commands, defining: Defining Commands.
-* comment syntax: Syntax Class Table.
-* comments: Comments.
-* comparison of modification time: Modification Time.
-* compilation: Byte Compilation.
-* compilation functions: Compilation Functions.
-* complete key: Keymap Terms.
-* completing-read: Minibuffer Completion.
-* completion: Completion.
-* completion, Lisp symbol: Lisp Symbol Completion.
-* completion, file name: File Name Completion.
-* completion-auto-help: Completion Commands.
-* completion-ignore-case: Basic Completion.
-* completion-ignored-extensions: File Name Completion.
-* complex arguments: Minibuffers.
-* complex command: Command History.
-* concat: Creating Strings.
-* concatenating lists: Rearrangement.
-* concatenating strings: Creating Strings.
-* cond: Conditionals.
-* condition name: Error Names.
-* condition-case: Handling Errors.
-* conditional evaluation: Conditionals.
-* cons: Building Lists.
-* cons cell as box: Lists as Boxes.
-* cons cells: Building Lists.
-* consing: Building Lists.
-* consp: List-related Predicates.
-* continuation lines: Truncation.
-* continue-process: Signals to Processes.
-* control character key constants: Changing Key Bindings.
-* control character printing: Describing Characters.
-* control characters: Character Type.
-* control characters in display: Control Char Display.
-* control characters, reading: Keyboard Input.
-* control structures: Control Structures.
-* conventions for writing minor modes: Minor Mode Conventions.
-* conversion of strings: String Conversion.
-* copy-alist: Association Lists.
-* copy-file: Changing File Attributes.
-* copy-keymap: Creating Keymaps.
-* copy-marker: Creating Markers.
-* copy-rectangle-to-register: Registers.
-* copy-region-as-kill: Kill Functions.
-* copy-sequence: Sequence Functions.
-* copy-syntax-table: Syntax Table Functions.
-* copy-to-register: Registers.
-* copying alists: Association Lists.
-* copying files: Changing File Attributes.
-* copying lists: Building Lists.
-* copying sequences: Sequence Functions.
-* copying strings: Creating Strings.
-* copying vectors: Vectors.
-* count-lines: Text Lines.
-* count-loop: A Sample Function Description.
-* counting columns: Columns.
-* create-file-buffer: Subroutines of Visiting.
-* creating buffers: Creating Buffers.
-* creating keymaps: Creating Keymaps.
-* ctl-arrow: Control Char Display.
-* ctl-x-4-map: Prefix Keys.
-* ctl-x-map: Prefix Keys.
-* current binding: Local Variables.
-* current buffer: Current Buffer.
-* current buffer excursion: Excursions.
-* current buffer mark: The Mark.
-* current buffer position: Point.
-* current command: Command Loop Info.
-* current stack frame: Using Debugger.
-* current-buffer: Current Buffer.
-* current-column: Columns.
-* current-global-map: Global and Local Keymaps.
-* current-indentation: Primitive Indent.
-* current-local-map: Global and Local Keymaps.
-* current-prefix-arg: Prefix Command Arguments.
-* current-time-string: System Environment.
-* current-window-configuration: Window Configurations.
-* cursor-in-echo-area: The Echo Area.
-* cyclic ordering of windows: Cyclic Window Ordering.
-* data type: Types of Lisp Object.
-* debug: Invoking the Debugger.
-* debug-on-entry: Function Debugging.
-* debug-on-error: Error Debugging.
-* debug-on-next-call: Internals of Debugger.
-* debug-on-quit: Infinite Loops.
-* debugger: Internals of Debugger.
-* debugger: Debugger.
-* debugger command list: Debugger Commands.
-* debugger-mode-map: Standard Keymaps.
-* debugging errors: Error Debugging.
-* debugging specific functions: Function Debugging.
-* decrement field of register: List Type.
-* deep binding: Impl of Scope.
-* default argument string: Interactive Codes.
-* default init file: Init File.
-* default value: Default Value.
-* default-abbrev-mode: Abbrev Mode.
-* default-case-fold-search: Searching and Case.
-* default-ctl-arrow: Control Char Display.
-* default-directory: File Name Expansion.
-* default-directory: Subprocess Creation.
-* default-fill-column: Filling.
-* default-major-mode: Auto Major Mode.
-* default-mode-line-format: Mode Line Variables.
-* default-subprocess-input-handler: VMS Subprocesses.
-* default-truncate-lines: Truncation.
-* default-value: Default Value.
-* defconst: Defining Variables.
-* define-abbrev: Defining Abbrevs.
-* define-abbrev-table: Abbrev Tables.
-* define-key: Changing Key Bindings.
-* define-prefix-command: Prefix Keys.
-* defining a function: Defining Functions.
-* defining commands: Defining Commands.
-* defining-kbd-macro: Keyboard Macros.
-* definition of a symbol: Definitions.
-* defmacro: Defining Macros.
-* defun: Defining Functions.
-* defvar: Defining Variables.
-* delete previous char: Deletion.
-* delete-auto-save-file-if-necessary: Auto-Saving.
-* delete-auto-save-files: Auto-Saving.
-* delete-backward-char: Deletion.
-* delete-blank-lines: User-Level Deletion.
-* delete-char: Deletion.
-* delete-exited-processes: Deleting Processes.
-* delete-file: Changing File Attributes.
-* delete-horizontal-space: User-Level Deletion.
-* delete-indentation: User-Level Deletion.
-* delete-other-windows: Deleting Windows.
-* delete-process: Deleting Processes.
-* delete-region: Deletion.
-* delete-window: Deleting Windows.
-* delete-windows-on: Deleting Windows.
-* deleting files: Changing File Attributes.
-* deleting processes: Deleting Processes.
-* deleting whitespace: User-Level Deletion.
-* deleting windows: Deleting Windows.
-* deletion of elements: Sets And Lists.
-* deletion vs killing: Deletion.
-* delq: Sets And Lists.
-* describe-bindings: Scanning Keymaps.
-* describe-mode: Mode Help.
-* describe-syntax: Syntax Table Functions.
-* description for interactive codes: Interactive Codes.
-* description format: Format of Descriptions.
-* diagrams, boxed, for lists: List Type.
-* digit-argument: Prefix Command Arguments.
-* ding: Beeping.
-* directory name: Directory Names.
-* directory part (of file name): File Name Components.
-* directory-file-name: Directory Names.
-* directory-files: Contents of Directories.
-* directory-oriented functions: Contents of Directories.
-* dired-kept-versions: Numbered Backups.
-* dired-mode-map: Standard Keymaps.
-* disable undo: Undo.
-* disable-command: Disabling Commands.
-* disabled: Disabling Commands.
-* disabled command: Disabling Commands.
-* disabled-command-hook: Disabling Commands.
-* disassemble: Disassembly.
-* disassembled byte-code: Disassembly.
-* discard input: Keyboard Input.
-* discard-input: Keyboard Input.
-* display columns: Screen Attributes.
-* display lines: Screen Attributes.
-* display-buffer: Displaying Buffers.
-* display-completion-list: Completion Commands.
-* displaying a buffer: Displaying Buffers.
-* do-auto-save: Auto-Saving.
-* doctor-mode-map: Standard Keymaps.
-* documentation: Accessing Documentation.
-* documentation conventions: Documentation Basics.
-* documentation for major mode: Mode Help.
-* documentation notation: Evaluation Notation.
-* documentation of function: Function Documentation.
-* documentation strings: Documentation.
-* documentation, keys in: Keys in Documentation.
-* documentation-property: Accessing Documentation.
-* dotted pair notation: Dotted Pair Notation.
-* double-quote in strings: String Type.
-* down-list: List Motion.
-* downcase: Character Case.
-* downcase-region: Case Changes.
-* downcase-word: Case Changes.
-* downcasing in lookup-key: Keyboard Input.
-* dribble file: Terminal Input.
-* dump-emacs: Building Emacs.
-* dynamic scoping: Variable Scoping.
-* echo area: The Echo Area.
-* echo-keystrokes: Command Loop Info.
-* edit-abbrevs-map: Standard Keymaps.
-* edit-and-eval-command: Object from Minibuffer.
-* edit-tab-stops-map: Standard Keymaps.
-* editing types: Editing Types.
-* editor command loop: Command Loop.
-* electric-buffer-menu-mode-map: Standard Keymaps.
-* electric-future-map: A Sample Variable Description.
-* electric-history-map: Standard Keymaps.
-* element (of list): Lists.
-* elements of sequences: Sequence Functions.
-* elt: Sequence Functions.
-* emacs-build-time: Building Emacs.
-* emacs-lisp-mode-map: Standard Keymaps.
-* emacs-lisp-mode-syntax-table: Standard Syntax Tables.
-* emacs-version: Building Emacs.
-* emacs-version: Building Emacs.
-* empty list: List Type.
-* enable-command: Disabling Commands.
-* enable-recursive-minibuffers: Minibuffer Misc.
-* end of buffer marker: Creating Markers.
-* end-of-buffer: Buffer End Motion.
-* end-of-file: Input Functions.
-* end-of-file: Parsing Expressions.
-* end-of-file: Parsing Expressions.
-* end-of-line: Text Lines.
-* enlarge-window: Resizing Windows.
-* enlarge-window-horizontally: Resizing Windows.
-* environment: Intro Eval.
-* environment variable access: System Environment.
-* environment variables and subprocesses: Subprocess Creation.
-* eobp: Near Point.
-* eolp: Near Point.
-* eq: Equality Predicates.
-* equal: Equality Predicates.
-* equality: Equality Predicates.
-* erase-buffer: Deletion.
-* error: Signaling Errors.
-* error cleanup: Cleanups.
-* error debugging: Error Debugging.
-* error display: The Echo Area.
-* error handler: Handling Errors.
-* error message notation: Error Messages.
-* error name: Error Names.
-* error symbol: Error Names.
-* error-conditions: Error Names.
-* errors: Errors.
-* esc-map: Prefix Keys.
-* escape: Character Type.
-* escape characters: Output Functions.
-* escape characters in printing: Output Functions.
-* escape sequence: Character Type.
-* eval: Eval.
-* eval-current-buffer: Eval.
-* eval-minibuffer: Object from Minibuffer.
-* eval-region: Eval.
-* evaluated expression argument: Interactive Codes.
-* evaluation: Evaluation.
-* evaluation error: Local Variables.
-* evaluation notation: Evaluation Notation.
-* evaluation of buffer contents: Eval.
-* examining windows: Buffers and Windows.
-* examples of using interactive: Interactive Examples.
-* excursion: Excursions.
-* exec-directory: Subprocess Creation.
-* exec-path: Subprocess Creation.
-* execute program: Subprocess Creation.
-* execute with prefix argument: Interactive Call.
-* execute-extended-command: Interactive Call.
-* execute-kbd-macro: Keyboard Macros.
-* executing-macro: Keyboard Macros.
-* exit: Recursive Editing.
-* exit recursive editing: Recursive Editing.
-* exit-minibuffer: Minibuffer Misc.
-* exit-recursive-edit: Recursive Editing.
-* exiting Emacs: Getting Out.
-* expand-file-name: File Name Expansion.
-* expansion of file names: File Name Expansion.
-* expansion of macros: Expansion.
-* expression: Intro Eval.
-* extent: Variable Scoping.
-* false: nil and t.
-* fboundp: Function Cells.
-* featurep: Features.
-* features: Features.
-* features: Features.
-* field width: Formatting Strings.
-* file accessibility: Testing Accessibility.
-* file age: Testing Accessibility.
-* file attributes: File Attributes.
-* file hard link: Changing File Attributes.
-* file locks: File Locks.
-* file mode specification error: Auto Major Mode.
-* file modification time: Testing Accessibility.
-* file name completion subroutines: File Name Completion.
-* file name of buffer: Buffer File Name.
-* file name of directory: Directory Names.
-* file names: File Names.
-* file names in directory: Contents of Directories.
-* file open error: Subroutines of Visiting.
-* file symbolic links: Kinds of Files.
-* file with multiple names: Changing File Attributes.
-* file-already-exists: Changing File Attributes.
-* file-attributes: File Attributes.
-* file-directory-p: Kinds of Files.
-* file-error: How Programs Do Loading.
-* file-exists-p: Testing Accessibility.
-* file-locked: File Locks.
-* file-locked-p: File Locks.
-* file-modes: File Attributes.
-* file-name-absolute-p: Relative File Names.
-* file-name-all-completions: File Name Completion.
-* file-name-all-versions: Contents of Directories.
-* file-name-as-directory: Directory Names.
-* file-name-completion: File Name Completion.
-* file-name-directory: File Name Components.
-* file-name-nondirectory: File Name Components.
-* file-name-sans-versions: File Name Components.
-* file-newer-than-file-p: Testing Accessibility.
-* file-nlinks: File Attributes.
-* file-precious-flag: Saving Buffers.
-* file-readable-p: Testing Accessibility.
-* file-supersession: Modification Time.
-* file-symlink-p: Kinds of Files.
-* file-writable-p: Testing Accessibility.
-* fill-column: Filling.
-* fill-individual-paragraphs: Filling.
-* fill-paragraph: Filling.
-* fill-region: Filling.
-* fill-region-as-paragraph: Filling.
-* fillarray: Array Functions.
-* filling a paragraph: Filling.
-* filling, automatic: Auto Filling.
-* filling, explicit: Filling.
-* filter function: Filter Functions.
-* find-alternate-file: Visiting Functions.
-* find-backup-file-name: Backup Names.
-* find-file: Visiting Functions.
-* find-file-hooks: Visiting Functions.
-* find-file-noselect: Visiting Functions.
-* find-file-not-found-hooks: Visiting Functions.
-* find-file-other-window: Visiting Functions.
-* find-file-read-only: Visiting Functions.
-* finding files: Visiting Files.
-* finding windows: Selecting Windows.
-* fixup-whitespace: User-Level Deletion.
-* floating point: Number Type.
-* flow control characters: Flow Control.
-* flow control example: Terminal Input.
-* flush input: Keyboard Input.
-* fmakunbound: Function Cells.
-* following-char: Near Point.
-* fonts: Some Terms.
-* foo: A Sample Function Description.
-* for: Argument Evaluation.
-* forcing redisplay: Waiting.
-* format: Formatting Strings.
-* format specification: Formatting Strings.
-* formatting strings: Formatting Strings.
-* formfeed: Character Type.
-* forms: Intro Eval.
-* forward-char: Character Motion.
-* forward-line: Text Lines.
-* forward-list: List Motion.
-* forward-sexp: List Motion.
-* forward-to-indentation: Motion by Indent.
-* forward-word: Word Motion.
-* free list: Garbage Collection.
-* fset: Function Cells.
-* ftp-login: Cleanups.
-* full keymap: Creating Keymaps.
-* funcall: Calling Functions.
-* function: Anonymous Functions.
-* function: What Is a Function.
-* function call: Function Forms.
-* function call debugging: Function Debugging.
-* function cell: Symbol Components.
-* function cell in autoload: Autoload.
-* function definition: Function Names.
-* function descriptions: A Sample Function Description.
-* function form evaluation: Function Forms.
-* function input stream: Input Streams.
-* function invocation: Calling Functions.
-* function keys: Terminal-Specific.
-* function name: Function Names.
-* function output stream: Output Streams.
-* function quoting: Anonymous Functions.
-* function-keymap: Standard Keymaps.
-* functionals: Calling Functions.
-* functions in modes: Major Mode Conventions.
-* functions, making them interactive: Defining Commands.
-* fundamental-mode: Auto Major Mode.
-* fundamental-mode-abbrev-table: Standard Abbrev Tables.
-* fundamental-mode-map: Standard Keymaps.
-* garbage collection protection: Writing Emacs Primitives.
-* garbage collector: Garbage Collection.
-* garbage-collect: Garbage Collection.
-* gc-cons-threshold: Garbage Collection.
-* generate-new-buffer: Creating Buffers.
-* get: Property Lists.
-* get-buffer: Buffer Names.
-* get-buffer-create: Creating Buffers.
-* get-buffer-process: Process Buffers.
-* get-buffer-window: Buffers and Windows.
-* get-file-buffer: Buffer File Name.
-* get-file-char: Input Streams.
-* get-largest-window: Selecting Windows.
-* get-lru-window: Selecting Windows.
-* get-process: Process Information.
-* get-register: Registers.
-* getenv: System Environment.
-* global binding: Local Variables.
-* global keymap: Global and Local Keymaps.
-* global variable: Global Variables.
-* global-abbrev-table: Standard Abbrev Tables.
-* global-key-binding: Global and Local Keymaps.
-* global-map: Global and Local Keymaps.
-* global-mode-string: Mode Line Variables.
-* global-set-key: Key Binding Commands.
-* global-unset-key: Key Binding Commands.
-* goal column: Vertical Motion.
-* goal-column: Vertical Motion.
-* goto-char: Character Motion.
-* goto-line: Text Lines.
-* hack-local-variables: Auto Major Mode.
-* handling errors: Handling Errors.
-* hash notation: Printed Representation.
-* hashing: Creating Symbols.
-* help for major mode: Mode Help.
-* help-char: Help Functions.
-* help-command: Help Functions.
-* help-form: Help Functions.
-* help-map: Help Functions.
-* help-map: Prefix Keys.
-* highlighting: Screen Attributes.
-* history of commands: Command History.
-* hook: Hooks.
-* horizontal position: Columns.
-* horizontal scrolling: Horizontal Scrolling.
-* horizontal split lines: Truncation.
-* identity: Calling Functions.
-* if: Conditionals.
-* ignore: Calling Functions.
-* implicit progn: Sequencing.
-* inc: Simple Macro.
-* indent-according-to-mode: Mode-Specific Indent.
-* indent-for-tab-command: Mode-Specific Indent.
-* indent-line-function: Mode-Specific Indent.
-* indent-region: Region Indent.
-* indent-region-function: Region Indent.
-* indent-relative: Relative Indent.
-* indent-relative-maybe: Relative Indent.
-* indent-rigidly: Region Indent.
-* indent-tabs-mode: Primitive Indent.
-* indent-to: Primitive Indent.
-* indent-to-left-margin: Mode-Specific Indent.
-* indentation: Indentation.
-* indenting with parentheses: Parsing Expressions.
-* indirection: Classifying Lists.
-* infinite loops: Infinite Loops.
-* infinite recursion: Local Variables.
-* inhibit-default-init: Init File.
-* inhibit-local-variables: Auto Major Mode.
-* inhibit-quit: Quitting.
-* inhibit-startup-message: Start-up Summary.
-* init file: Init File.
-* initial-major-mode: Auto Major Mode.
-* initialization: Start-up Summary.
-* innermost containing parentheses: Parsing Expressions.
-* input stream: Input Streams.
-* input-pending-p: Keyboard Input.
-* insert: Insertion.
-* insert-abbrev-table-description: Abbrev Tables.
-* insert-before-markers: Insertion.
-* insert-buffer: Commands for Insertion.
-* insert-buffer-substring: Insertion.
-* insert-char: Insertion.
-* insert-default-directory: Reading File Names.
-* insert-file: Reading from Files.
-* insert-file-contents: Reading from Files.
-* insert-register: Registers.
-* inserting killed text: Yank Commands.
-* insertion before point: Insertion.
-* insertion of text: Insertion.
-* inside comment: Parsing Expressions.
-* inside string: Parsing Expressions.
-* int-to-string: String Conversion.
-* integer to decimal: String Conversion.
-* integer to hexadecimal: Formatting Strings.
-* integer to octal: Formatting Strings.
-* integer to string: String Conversion.
-* integer-or-marker-p: Predicates on Markers.
-* integerp: Predicates on Numbers.
-* integers: Numbers.
-* interactive: Using Interactive.
-* interactive call: Interactive Call.
-* interactive code description: Interactive Codes.
-* interactive completion: Interactive Codes.
-* interactive function: Defining Commands.
-* interactive-p: Interactive Call.
-* intern: Creating Symbols.
-* intern-soft: Creating Symbols.
-* internals, of buffer: Buffer Internals.
-* internals, of process: Process Internals.
-* internals, of window: Window Internals.
-* interning: Creating Symbols.
-* interpreter: Evaluation.
-* interrupt-process: Signals to Processes.
-* invalid function: Classifying Lists.
-* invalid prefix characters error: Changing Key Bindings.
-* invalid-function: Key Lookup.
-* invalid-function: Classifying Lists.
-* invalid-read-syntax: Printed Representation.
-* invalid-regexp: Syntax of Regexps.
-* inverse-video: Screen Attributes.
-* iteration: Iteration.
-* joining lists: Rearrangement.
-* just-one-space: User-Level Deletion.
-* justify-current-line: Filling.
-* kept-new-versions: Numbered Backups.
-* kept-old-versions: Numbered Backups.
-* key: Keymap Terms.
-* key binding: Keymap Terms.
-* key lookup: Key Lookup.
-* key sequence: Keyboard Input.
-* key sequence error: Changing Key Bindings.
-* key-binding: Global and Local Keymaps.
-* key-description: Describing Characters.
-* keyboard macro execution: Interactive Call.
-* keyboard macro termination: Beeping.
-* keyboard macros: Keyboard Macros.
-* keyboard-quit: Quitting.
-* keyboard-translate-table: Terminal Input.
-* keymap: Keymaps.
-* keymap entry: Key Lookup.
-* keymap in keymap: Key Lookup.
-* keymapp: Creating Keymaps.
-* keymaps in modes: Major Mode Conventions.
-* keys in documentation strings: Keys in Documentation.
-* keystroke: Keymap Terms.
-* keystroke command: What Is a Function.
-* kill command repetition: Command Loop Info.
-* kill ring: The Kill Ring.
-* kill-all-local-variables: Creating Buffer-Local.
-* kill-buffer: Killing Buffers.
-* kill-emacs: Killing Emacs.
-* kill-emacs-hook: Killing Emacs.
-* kill-line: Kill Functions.
-* kill-local-variable: Creating Buffer-Local.
-* kill-process: Signals to Processes.
-* kill-region: Kill Functions.
-* kill-ring: Kill Ring Internals.
-* kill-ring-max: Kill Ring Internals.
-* kill-ring-yank-pointer: Kill Ring Internals.
-* killing Emacs: Killing Emacs.
-* killing buffers: Killing Buffers.
-* lambda expression: Lambda Expressions.
-* lambda expression in hook: Hooks.
-* lambda list: Lambda Components.
-* last-abbrev: Abbrev Expansion.
-* last-abbrev-location: Abbrev Expansion.
-* last-abbrev-text: Abbrev Expansion.
-* last-command: Command Loop Info.
-* last-command-char: Command Loop Info.
-* last-input-char: Keyboard Input.
-* last-kbd-macro: Keyboard Macros.
-* left-margin: Mode-Specific Indent.
-* length: Sequence Functions.
-* let: Local Variables.
-* let*: Local Variables.
-* lexical comparison: Text Comparison.
-* library: Loading.
-* library compilation: Compilation Functions.
-* line wrapping: Truncation.
-* lines: Text Lines.
-* lines in region: Text Lines.
-* linking files: Changing File Attributes.
-* lisp-complete-symbol: Lisp Symbol Completion.
-* lisp-interaction-mode-map: Standard Keymaps.
-* lisp-mode-abbrev-table: Standard Abbrev Tables.
-* lisp-mode-map: Standard Keymaps.
-* list: Building Lists.
-* list: Lists.
-* list elements: List Elements.
-* list form evaluation: Classifying Lists.
-* list in keymap: Key Lookup.
-* list length: Sequence Functions.
-* list motion: List Motion.
-* list-buffers: The Buffer List.
-* list-directory: Contents of Directories.
-* list-directory-brief-switches: Contents of Directories.
-* list-directory-verbose-switches: Contents of Directories.
-* list-processes: Process Information.
-* listp: List-related Predicates.
-* lists and cons cells: Cons Cells.
-* lists as sets: Sets And Lists.
-* lists represented as boxes: Lists as Boxes.
-* literal evaluation: Self-Evaluating Forms.
-* ln: Changing File Attributes.
-* load: How Programs Do Loading.
-* load error with provide: Features.
-* load errors: How Programs Do Loading.
-* load-average: System Environment.
-* load-in-progress: How Programs Do Loading.
-* load-path: How Programs Do Loading.
-* load-path: How Programs Do Loading.
-* loading: Loading.
-* loadst: Subprocess Creation.
-* local binding: Local Variables.
-* local keymap: Global and Local Keymaps.
-* local variables: Local Variables.
-* local-abbrev-table: Standard Abbrev Tables.
-* local-key-binding: Global and Local Keymaps.
-* local-set-key: Key Binding Commands.
-* local-unset-key: Key Binding Commands.
-* lock-buffer: File Locks.
-* logand: Bitwise Operations.
-* logical and: Bitwise Operations.
-* logical exclusive or: Bitwise Operations.
-* logical inclusive or: Bitwise Operations.
-* logical not: Bitwise Operations.
-* logical shift: Bitwise Operations.
-* logior: Bitwise Operations.
-* lognot: Bitwise Operations.
-* logxor: Bitwise Operations.
-* looking-at: Regexp Search.
-* lookup-key: Functions for Key Lookup.
-* loops, infinite: Infinite Loops.
-* lower case: Character Case.
-* ls: Contents of Directories.
-* lsh: Bitwise Operations.
-* macro: What Is a Function.
-* macro argument evaluation: Argument Evaluation.
-* macro call: Expansion.
-* macro call evaluation: Macro Forms.
-* macro compilation: Compilation Functions.
-* macro descriptions: A Sample Function Description.
-* macro expansion: Expansion.
-* macroexpand: Expansion.
-* macros: Macros.
-* major mode: Major Modes.
-* major mode keymap: Global and Local Keymaps.
-* major-mode: Mode Help.
-* make-abbrev-table: Abbrev Tables.
-* make-auto-save-file-name: Auto-Saving.
-* make-backup-file-name: Backup Names.
-* make-backup-files: Making Backups.
-* make-keymap: Creating Keymaps.
-* make-list: Building Lists.
-* make-local-variable: Creating Buffer-Local.
-* make-marker: Creating Markers.
-* make-sparse-keymap: Creating Keymaps.
-* make-string: Creating Strings.
-* make-symbol: Creating Symbols.
-* make-symbolic-link: Changing File Attributes.
-* make-syntax-table: Syntax Table Functions.
-* make-temp-name: Unique File Names.
-* make-variable-buffer-local: Creating Buffer-Local.
-* make-vector: Vectors.
-* makunbound: Void Variables.
-* mapatoms: Creating Symbols.
-* mapcar: Mapping Functions.
-* mapconcat: Mapping Functions.
-* mapping functions: Mapping Functions.
-* mark: The Mark.
-* mark excursion: Excursions.
-* mark ring: The Mark.
-* mark, the: The Mark.
-* mark-marker: The Mark.
-* mark-ring: The Mark.
-* mark-ring-max: The Mark.
-* marker argument: Interactive Codes.
-* marker garbage collection: Overview of Markers.
-* marker input stream: Input Streams.
-* marker output stream: Output Streams.
-* marker relocation: Overview of Markers.
-* marker-buffer: Information from Markers.
-* marker-position: Information from Markers.
-* markerp: Predicates on Markers.
-* markers: Markers.
-* markers as numbers: Overview of Markers.
-* match-beginning: Match Data.
-* match-data: Saving Match Data.
-* match-end: Match Data.
-* max: Comparison of Numbers.
-* max-lisp-eval-depth: Eval.
-* max-specpdl-size: Local Variables.
-* membership in a list: Sets And Lists.
-* memory allocation: Garbage Collection.
-* memq: Sets And Lists.
-* message: The Echo Area.
-* meta character key constants: Changing Key Bindings.
-* meta character printing: Describing Characters.
-* meta characters: Character Type.
-* meta characters in keys: Creating Keymaps.
-* meta-flag: Terminal Input.
-* meta-prefix-char: Functions for Key Lookup.
-* min: Comparison of Numbers.
-* minibuffer: Minibuffers.
-* minibuffer input: Recursive Editing.
-* minibuffer window: Cyclic Window Ordering.
-* minibuffer-complete: Completion Commands.
-* minibuffer-complete-and-exit: Completion Commands.
-* minibuffer-complete-word: Completion Commands.
-* minibuffer-completion-confirm: Completion Commands.
-* minibuffer-completion-help: Completion Commands.
-* minibuffer-completion-predicate: Completion Commands.
-* minibuffer-completion-table: Completion Commands.
-* minibuffer-depth: Minibuffer Misc.
-* minibuffer-help-form: Minibuffer Misc.
-* minibuffer-local-completion-map: Completion Commands.
-* minibuffer-local-map: Text from Minibuffer.
-* minibuffer-local-must-match-map: Completion Commands.
-* minibuffer-local-ns-map: Text from Minibuffer.
-* minibuffer-scroll-window: Minibuffer Misc.
-* minibuffer-window: Minibuffer Misc.
-* minimum window size: Resizing Windows.
-* minor mode: Minor Modes.
-* minor mode conventions: Minor Mode Conventions.
-* minor-mode-alist: Mode Line Variables.
-* mode: Modes.
-* mode help: Mode Help.
-* mode line: Mode Line Format.
-* mode line construct: Mode Line Data.
-* mode loading: Major Mode Conventions.
-* mode-line-buffer-identification: Mode Line Variables.
-* mode-line-format: Mode Line Data.
-* mode-line-inverse-video: Screen Attributes.
-* mode-line-modified: Mode Line Variables.
-* mode-line-process: Mode Line Variables.
-* mode-name: Mode Line Variables.
-* mode-specific-map: Prefix Keys.
-* modification flag (of buffer): Buffer Modification.
-* modification of lists: Rearrangement.
-* modification time, comparison of: Modification Time.
-* modify-syntax-entry: Syntax Table Functions.
-* modulus: Arithmetic Operations.
-* momentary-string-display: Temporary Displays.
-* mouse-map: Standard Keymaps.
-* move-marker: Changing Markers.
-* move-to-column: Columns.
-* move-to-window-line: Screen Lines.
-* multiple windows: Basic Windows.
-* named function: Function Names.
-* narrow-to-page: Narrowing.
-* narrow-to-region: Narrowing.
-* narrowing: Narrowing.
-* natnump: Predicates on Numbers.
-* natural numbers: Predicates on Numbers.
-* nconc: Rearrangement.
-* negative-argument: Prefix Command Arguments.
-* new file message: Subroutines of Visiting.
-* newline: Commands for Insertion.
-* newline: Character Type.
-* newline and Auto Fill mode: Commands for Insertion.
-* newline in print: Output Functions.
-* newline in strings: String Type.
-* newline-and-indent: Mode-Specific Indent.
-* next input: Keyboard Input.
-* next-line: Vertical Motion.
-* next-screen-context-lines: Vertical Scrolling.
-* next-window: Cyclic Window Ordering.
-* nil: Constant Variables.
-* nlistp: List-related Predicates.
-* no-catch: Catch and Throw.
-* no-redraw-on-reenter: Screen Attributes.
-* nondirectory part (of file name): File Name Components.
-* noninteractive: Batch Mode.
-* noninteractive use: Batch Mode.
-* nonlocal exits: Nonlocal Exits.
-* nonprinting characters, reading: Keyboard Input.
-* normal-mode: Auto Major Mode.
-* not: Combining Conditions.
-* not-modified: Buffer Modification.
-* nreverse: Rearrangement.
-* nth: List Elements.
-* nthcdr: List Elements.
-* null: List-related Predicates.
-* number equality: Comparison of Numbers.
-* numbers: Numbers.
-* numeric prefix: Formatting Strings.
-* numeric prefix argument: Prefix Command Arguments.
-* numeric prefix argument usage: Interactive Codes.
-* obarray: Creating Symbols.
-* obarray: Creating Symbols.
-* obarray in completion: Basic Completion.
-* object: Types of Lisp Object.
-* object internals: Object Internals.
-* object to string: Output Functions.
-* obsolete buffer: Modification Time.
-* occur-mode-map: Standard Keymaps.
-* octal character code: Character Type.
-* octal character input: Keyboard Input.
-* octal to character: Commands for Insertion.
-* one-window-p: Splitting Windows.
-* only-global-abbrevs: Defining Abbrevs.
-* open-dribble-file: Terminal Input.
-* open-line: Commands for Insertion.
-* open-network-stream: TCP.
-* open-termscript: Terminal Output.
-* operating system environment: System Environment.
-* option descriptions: A Sample Variable Description.
-* optional arguments: Argument List.
-* options on command line: Command Line Arguments.
-* or: Combining Conditions.
-* ordering of windows, cyclic: Cyclic Window Ordering.
-* other-buffer: The Buffer List.
-* other-window: Cyclic Window Ordering.
-* output from processes: Output from Processes.
-* output stream: Output Streams.
-* overflow: Number Basics.
-* overlay arrow: Overlay Arrow.
-* overlay-arrow-position: Overlay Arrow.
-* overlay-arrow-string: Overlay Arrow.
-* overwrite-mode: Commands for Insertion.
-* overwrite-mode: Commands for Insertion.
-* padding: Formatting Strings.
-* page-delimiter: Standard Regexps.
-* paragraph-separate: Standard Regexps.
-* paragraph-start: Standard Regexps.
-* parent process: Processes.
-* parenthesis: List Type.
-* parenthesis depth: Parsing Expressions.
-* parenthesis matching: Blinking.
-* parenthesis syntax: Syntax Class Table.
-* parse state: Parsing Expressions.
-* parse-partial-sexp: Parsing Expressions.
-* parse-sexp-ignore-comments: Parsing Expressions.
-* parsing: Syntax Tables.
-* pausing: Waiting.
-* peculiar error: Error Names.
-* peeking at input: Keyboard Input.
-* percent symbol in mode line: Mode Line Data.
-* permission: File Attributes.
-* pipes: Asynchronous Processes.
-* plist: Property Lists.
-* point: Point.
-* point: Point.
-* point excursion: Excursions.
-* point in window: Window Point.
-* point with narrowing: Point.
-* point-marker: Creating Markers.
-* point-max: Point.
-* point-max-marker: Creating Markers.
-* point-min: Point.
-* point-min-marker: Creating Markers.
-* point-to-register: Registers.
-* pop-mark: The Mark.
-* pop-to-buffer: Displaying Buffers.
-* pop-up-windows: Displaying Buffers.
-* pos-visible-in-window-p: Window Start.
-* position (in buffer): Positions.
-* position argument: Interactive Codes.
-* position in window: Window Point.
-* preceding-char: Near Point.
-* predicates: Type Predicates.
-* prefix argument: Prefix Command Arguments.
-* prefix argument unreading: Keyboard Input.
-* prefix command: Prefix Keys.
-* prefix key: Prefix Keys.
-* prefix-arg: Prefix Command Arguments.
-* prefix-numeric-value: Prefix Command Arguments.
-* prepend-to-register: Registers.
-* preventing prefix key: Key Lookup.
-* previous complete subexpression: Parsing Expressions.
-* previous-line: Vertical Motion.
-* previous-window: Cyclic Window Ordering.
-* primitive: What Is a Function.
-* primitive function internals: Writing Emacs Primitives.
-* primitive type: Types of Lisp Object.
-* prin1: Output Functions.
-* prin1-to-string: Output Functions.
-* princ: Output Functions.
-* print: Output Functions.
-* print example: Output Streams.
-* print name cell: Symbol Components.
-* print-escape-newlines: Output Functions.
-* print-help-return-message: Help Functions.
-* print-length: Output Functions.
-* printed representation: Printed Representation.
-* printed representation for characters: Character Type.
-* printing: Streams Intro.
-* printing limits: Output Functions.
-* printing notation: Printing Notation.
-* process: Processes.
-* process filter: Filter Functions.
-* process input: Input to Processes.
-* process internals: Process Internals.
-* process output: Output from Processes.
-* process sentinel: Sentinels.
-* process signals: Signals to Processes.
-* process-buffer: Process Buffers.
-* process-command: Process Information.
-* process-connection-type: Asynchronous Processes.
-* process-environment: Subprocess Creation.
-* process-exit-status: Process Information.
-* process-filter: Filter Functions.
-* process-id: Process Information.
-* process-kill-without-query: Deleting Processes.
-* process-list: Process Information.
-* process-mark: Process Buffers.
-* process-name: Process Information.
-* process-send-eof: Input to Processes.
-* process-send-region: Input to Processes.
-* process-send-string: Input to Processes.
-* process-sentinel: Sentinels.
-* process-status: Process Information.
-* processp: Processes.
-* prog1: Sequencing.
-* prog2: Sequencing.
-* progn: Sequencing.
-* program arguments: Subprocess Creation.
-* program directories: Subprocess Creation.
-* programmed completion: Programmed Completion.
-* programming types: Programming Types.
-* property list: Property Lists.
-* property list cell: Symbol Components.
-* property lists vs association lists: Property Lists.
-* protected forms: Cleanups.
-* provide: Features.
-* providing features: Features.
-* pure storage: Pure Storage.
-* pure-bytes-used: Pure Storage.
-* purecopy: Pure Storage.
-* purify-flag: Pure Storage.
-* push-mark: The Mark.
-* put: Property Lists.
-* querying the user: Yes-or-No Queries.
-* question mark in character constant: Character Type.
-* quietly-read-abbrev-file: Abbrev Files.
-* quit-flag: Quitting.
-* quit-process: Signals to Processes.
-* quitting: Quitting.
-* quitting from infinite loop: Infinite Loops.
-* quote: Quoting.
-* quote character: Parsing Expressions.
-* quoted-insert: Commands for Insertion.
-* quoting: Quoting.
-* quoting characters in printing: Output Functions.
-* quoting using apostrophe: Quoting.
-* random: Random Numbers.
-* random numbers: Random Numbers.
-* rassq: Association Lists.
-* raw prefix argument: Prefix Command Arguments.
-* raw prefix argument usage: Interactive Codes.
-* re-search-backward: Regexp Search.
-* re-search-forward: Regexp Search.
-* read: Input Functions.
-* read command name: Interactive Call.
-* read syntax: Printed Representation.
-* read syntax for characters: Character Type.
-* read-buffer: High-Level Completion.
-* read-char: Keyboard Input.
-* read-command: High-Level Completion.
-* read-file-name: Reading File Names.
-* read-from-minibuffer: Text from Minibuffer.
-* read-from-string: Input Functions.
-* read-key-sequence: Keyboard Input.
-* read-minibuffer: Object from Minibuffer.
-* read-no-blanks-input: Text from Minibuffer.
-* read-only buffer: Read Only Buffers.
-* read-quoted-char: Keyboard Input.
-* read-string: Text from Minibuffer.
-* read-variable: High-Level Completion.
-* reading: Streams Intro.
-* reading interactive arguments: Interactive Codes.
-* reading symbols: Creating Symbols.
-* reals: Number Type.
-* rearrangement of lists: Rearrangement.
-* rebinding: Changing Key Bindings.
-* recent-auto-save-p: Auto-Saving.
-* recent-keys: Terminal Input.
-* recenter: Vertical Scrolling.
-* record command history: Interactive Call.
-* recover-file: Reverting.
-* recursion: Iteration.
-* recursion-depth: Recursive Editing.
-* recursive command loop: Recursive Editing.
-* recursive editing level: Recursive Editing.
-* recursive evaluation: Intro Eval.
-* recursive-edit: Recursive Editing.
-* redo: Undo.
-* redraw-display: Refresh Screen.
-* regexp: Regular Expressions.
-* regexp alternative: Syntax of Regexps.
-* regexp grouping: Syntax of Regexps.
-* regexp searching: Regexp Search.
-* regexp-quote: Syntax of Regexps.
-* region argument: Interactive Codes.
-* region, the: The Region.
-* region-beginning: The Region.
-* region-end: The Region.
-* register-alist: Registers.
-* register-to-point: Registers.
-* registers: Registers.
-* regular expression: Regular Expressions.
-* regular expression searching: Regexp Search.
-* regular expressions used standardly in editing: Standard Regexps.
-* reindent-then-newline-and-indent: Mode-Specific Indent.
-* relative file name: Relative File Names.
-* rename-auto-save-file: Auto-Saving.
-* rename-buffer: Buffer Names.
-* rename-file: Changing File Attributes.
-* renaming files: Changing File Attributes.
-* repeat-complex-command-map: Command History.
-* repeated loading: Repeated Loading.
-* replace bindings: Changing Key Bindings.
-* replace characters: Substitution.
-* replace-buffer-in-windows: Buffers and Windows.
-* replace-match: Match Data.
-* require: Features.
-* require-final-newline: Saving Buffers.
-* requiring features: Features.
-* resize redisplay: Screen Attributes.
-* rest arguments: Argument List.
-* restriction (in a buffer): Narrowing.
-* resume, related to no-redraw-on-reenter: Screen Attributes.
-* return: Character Type.
-* reverse: Building Lists.
-* reversing a list: Rearrangement.
-* revert-buffer: Reverting.
-* revert-buffer-function: Reverting.
-* rm: Changing File Attributes.
-* rotate-yank-pointer: Kill Ring Internals.
-* rplaca: Modifying Lists.
-* rplacd: Modifying Lists.
-* run time stack: Internals of Debugger.
-* run-hooks: Hooks.
-* save-abbrevs: Abbrev Files.
-* save-buffer: Saving Buffers.
-* save-buffers-kill-emacs: Saving Buffers.
-* save-excursion: Excursions.
-* save-restriction: Narrowing.
-* save-some-buffers: Saving Buffers.
-* save-window-excursion: Window Configurations.
-* saving window information: Window Configurations.
-* scan-lists: Parsing Expressions.
-* scan-sexps: Parsing Expressions.
-* scope: Variable Scoping.
-* screen attributes: Screen Attributes.
-* screen layout: Window Configuration Type.
-* screen of terminal: Basic Windows.
-* screen size: Screen Attributes.
-* screen-height: Screen Attributes.
-* screen-width: Screen Attributes.
-* scroll-down: Vertical Scrolling.
-* scroll-left: Horizontal Scrolling.
-* scroll-other-window: Vertical Scrolling.
-* scroll-right: Horizontal Scrolling.
-* scroll-step: Vertical Scrolling.
-* scroll-up: Vertical Scrolling.
-* scrolling vertically: Vertical Scrolling.
-* search-backward: String Search.
-* search-failed: String Search.
-* search-forward: String Search.
-* searching: Searching and Matching.
-* searching and case: Searching and Case.
-* searching for regexp: Regexp Search.
-* select-window: Selecting Windows.
-* selected window: Basic Windows.
-* selected-window: Selecting Windows.
-* selecting a buffer: Current Buffer.
-* selecting windows: Selecting Windows.
-* selective display: Selective Display.
-* selective-display: Selective Display.
-* selective-display-ellipses: Selective Display.
-* self-evaluating form: Self-Evaluating Forms.
-* self-insert-and-exit: Minibuffer Misc.
-* self-insert-command: Commands for Insertion.
-* self-insertion: Commands for Insertion.
-* send-command-to-subprocess: VMS Subprocesses.
-* send-string-to-terminal: Terminal Output.
-* sending signals: Signals to Processes.
-* sentence-end: Standard Regexps.
-* sentinel: Sentinels.
-* sequence: Sequences Arrays Vectors.
-* sequence length: Sequence Functions.
-* sequencep: Sequence Functions.
-* set: Setting Variables.
-* set-auto-mode: Auto Major Mode.
-* set-buffer: Current Buffer.
-* set-buffer-auto-saved: Auto-Saving.
-* set-buffer-modified-p: Buffer Modification.
-* set-default: Default Value.
-* set-file-modes: Changing File Attributes.
-* set-goal-column: Vertical Motion.
-* set-input-mode: Terminal Input.
-* set-mark: The Mark.
-* set-mark-command: The Mark.
-* set-marker: Changing Markers.
-* set-process-buffer: Process Buffers.
-* set-process-filter: Filter Functions.
-* set-process-sentinel: Sentinels.
-* set-register: Registers.
-* set-screen-height: Screen Attributes.
-* set-screen-width: Screen Attributes.
-* set-syntax-table: Syntax Table Functions.
-* set-visited-file-name: Buffer File Name.
-* set-window-buffer: Buffers and Windows.
-* set-window-configuration: Window Configurations.
-* set-window-hscroll: Horizontal Scrolling.
-* set-window-point: Window Point.
-* set-window-start: Window Start.
-* setcar: Setcar.
-* setcdr: Setcdr.
-* setplist: Property Lists.
-* setprv: System Environment.
-* setq: Setting Variables.
-* setq-default: Default Value.
-* sets: Sets And Lists.
-* setting modes of files: Changing File Attributes.
-* setting-constant: Constant Variables.
-* sexp motion: List Motion.
-* shadowing of variables: Local Variables.
-* shallow binding: Impl of Scope.
-* shrink-window: Resizing Windows.
-* shrink-window-horizontally: Resizing Windows.
-* side effect: Intro Eval.
-* signal: Signaling Errors.
-* signaling errors: Signaling Errors.
-* signals: Signals to Processes.
-* single-key-description: Describing Characters.
-* sit-for: Waiting.
-* size of window: Size of Window.
-* skip-chars-backward: Skipping Characters.
-* skip-chars-forward: Skipping Characters.
-* skipping characters: Skipping Characters.
-* skipping comments: Parsing Expressions.
-* sleep-for: Waiting.
-* sort: Rearrangement.
-* sort-columns: Sorting.
-* sort-fields: Sorting.
-* sort-lines: Sorting.
-* sort-numeric-fields: Sorting.
-* sort-pages: Sorting.
-* sort-paragraphs: Sorting.
-* sort-regexp-fields: Sorting.
-* sort-subr: Sorting.
-* sorting lists: Rearrangement.
-* sorting text: Sorting.
-* sparse keymap: Creating Keymaps.
-* spawn-subprocess: VMS Subprocesses.
-* special form descriptions: A Sample Function Description.
-* special form evaluation: Special Forms.
-* special forms: Primitive Function Type.
-* special forms for control structures: Control Structures.
-* splicing (with backquote): Backquote.
-* split-height-threshold: Displaying Buffers.
-* split-line: Commands for Insertion.
-* split-window: Splitting Windows.
-* split-window-horizontally: Splitting Windows.
-* split-window-vertically: Splitting Windows.
-* splitting windows: Splitting Windows.
-* stable sort: Rearrangement.
-* stack trace: Internals of Debugger.
-* stack-trace-on-error: Internals of Debugger.
-* standard regular expressions used in editing: Standard Regexps.
-* standard-input: Input Functions.
-* standard-output: Output Functions.
-* standard-syntax-table: Standard Syntax Tables.
-* start up of Emacs: Start-up Summary.
-* start-process: Asynchronous Processes.
-* stop-process: Signals to Processes.
-* stop-subprocess: VMS Subprocesses.
-* stopping an infinite loop: Infinite Loops.
-* store-match-data: Saving Match Data.
-* stream (for printing): Output Streams.
-* stream (for reading): Input Streams.
-* string equality: Text Comparison.
-* string in keymap: Key Lookup.
-* string input stream: Input Streams.
-* string length: Sequence Functions.
-* string search: String Search.
-* string to character: String Conversion.
-* string to integer: String Conversion.
-* string to object: Input Functions.
-* string, writing a documentation string: Documentation Basics.
-* string-equal: Text Comparison.
-* string-lessp: Text Comparison.
-* string-match: Regexp Search.
-* string-to-char: String Conversion.
-* string-to-int: String Conversion.
-* string<: Text Comparison.
-* string=: Text Comparison.
-* stringp: Predicates for Strings.
-* strings: Strings and Characters.
-* strings, formatting them: Formatting Strings.
-* subprocess: Processes.
-* subr: What Is a Function.
-* subrp: What Is a Function.
-* subst-char-in-region: Substitution.
-* substitute-command-keys: Keys in Documentation.
-* substitute-in-file-name: File Name Expansion.
-* substitute-key-definition: Changing Key Bindings.
-* substituting keys in documentation: Keys in Documentation.
-* substring: Creating Strings.
-* suppress-keymap: Changing Key Bindings.
-* suspend evaluation: Recursive Editing.
-* suspend-emacs: Suspending Emacs.
-* suspend-hook: Suspending Emacs.
-* suspend-resume-hook: Suspending Emacs.
-* suspending Emacs: Suspending Emacs.
-* switch-to-buffer: Displaying Buffers.
-* switch-to-buffer-other-window: Displaying Buffers.
-* switches on command line: Command Line Arguments.
-* switching to a buffer: Displaying Buffers.
-* symbol: Symbols.
-* symbol completion, Lisp: Lisp Symbol Completion.
-* symbol components: Symbol Components.
-* symbol equality: Creating Symbols.
-* symbol evaluation: Symbol Forms.
-* symbol function indirection: Classifying Lists.
-* symbol in keymap: Key Lookup.
-* symbol name hashing: Creating Symbols.
-* symbol-function: Function Cells.
-* symbol-name: Creating Symbols.
-* symbol-plist: Property Lists.
-* symbol-value: Accessing Variables.
-* symbolp: Symbols.
-* synchronous subprocess: Synchronous Processes.
-* syntax classes: Syntax Descriptors.
-* syntax descriptor: Syntax Descriptors.
-* syntax flags: Syntax Flags.
-* syntax for characters: Character Type.
-* syntax table: Syntax Tables.
-* syntax table example: Example Major Modes.
-* syntax table internals: Syntax Table Internals.
-* syntax tables in modes: Major Mode Conventions.
-* syntax-table: Syntax Table Functions.
-* syntax-table-p: Syntax Tables.
-* system-name: System Environment.
-* system-type: System Environment.
-* t: Constant Variables.
-* tab: Character Type.
-* tab character width: Columns.
-* tab deletion: Deletion.
-* tab-stop-list: Indent Tabs.
-* tab-to-tab-stop: Indent Tabs.
-* tab-width: Control Char Display.
-* tabs stops for indentation: Indent Tabs.
-* tag on run time stack: Catch and Throw.
-* temacs: Building Emacs.
-* temp-buffer-show-hook: Temporary Displays.
-* temporary-goal-column: Vertical Motion.
-* term-file-prefix: Terminal-Specific.
-* term-setup-hook: Terminal-Specific.
-* termcap: Terminal-Specific.
-* terminal input: Terminal Input.
-* terminal output: Terminal Output.
-* terminal screen: Basic Windows.
-* terminal-specific initialization: Terminal-Specific.
-* terminate keyboard macro: Keyboard Input.
-* termscript file: Terminal Output.
-* terpri: Output Functions.
-* testing types: Type Predicates.
-* text: Text.
-* text insertion: Insertion.
-* text parsing: Syntax Tables.
-* text-char-description: Describing Characters.
-* text-mode-abbrev-table: Standard Abbrev Tables.
-* text-mode-map: Standard Keymaps.
-* text-mode-syntax-table: Standard Syntax Tables.
-* this-command: Command Loop Info.
-* this-command-keys: Command Loop Info.
-* throw: Catch and Throw.
-* tiled windows: Basic Windows.
-* toggle-read-only: Read Only Buffers.
-* top-level: Recursive Editing.
-* top-level form: Loading.
-* track-eol: Vertical Motion.
-* trim-versions-without-asking: Numbered Backups.
-* true: nil and t.
-* truncate-lines: Truncation.
-* truncate-partial-width-windows: Truncation.
-* truth value: nil and t.
-* try-completion: Basic Completion.
-* two's complement: Number Basics.
-* type: Types of Lisp Object.
-* type checking: Type Predicates.
-* type checking internals: Object Internals.
-* type predicates: Type Predicates.
-* unbinding keys: Key Binding Commands.
-* undefined: Functions for Key Lookup.
-* undefined key: Keymap Terms.
-* underline-region: Underlining.
-* underlining: Underlining.
-* undo: Undo.
-* undo avoidance: Substitution.
-* undo-boundary: Undo.
-* undo-more: Undo.
-* undo-start: Undo.
-* unexec: Building Emacs.
-* uninterned symbol: Creating Symbols.
-* universal-argument: Prefix Command Arguments.
-* unlock-buffer: File Locks.
-* unread-command-char: Keyboard Input.
-* ununderline-region: Underlining.
-* unwind-protect: Cleanups.
-* unwinding: Cleanups.
-* up-list: List Motion.
-* upcase: Character Case.
-* upcase-region: Case Changes.
-* upcase-word: Case Changes.
-* upper case: Character Case.
-* upper case key sequence: Keyboard Input.
-* use-global-map: Global and Local Keymaps.
-* use-local-map: Global and Local Keymaps.
-* user option: Defining Variables.
-* user-defined error: Error Names.
-* user-full-name: System Environment.
-* user-login-name: System Environment.
-* user-real-login-name: System Environment.
-* user-real-uid: System Environment.
-* user-uid: System Environment.
-* user-variable-p: Defining Variables.
-* value cell: Symbol Components.
-* value of expression: Evaluation.
-* values: Eval.
-* variable: Variables.
-* variable descriptions: A Sample Variable Description.
-* variable limit error: Local Variables.
-* variable-documentation: Documentation Basics.
-* variables, buffer-local: Buffer-Local Variables.
-* vconcat: Vectors.
-* vector: Vectors.
-* vector: Vectors.
-* vector evaluation: Self-Evaluating Forms.
-* vector length: Sequence Functions.
-* vectorp: Vectors.
-* verify-visited-file-modtime: Modification Time.
-* version number (in file name): File Name Components.
-* version-control: Numbered Backups.
-* vertical scrolling: Vertical Scrolling.
-* vertical tab: Character Type.
-* vertical text line motion: Vertical Motion.
-* vertical-motion: Screen Lines.
-* view-file: Visiting Functions.
-* view-mode-map: Standard Keymaps.
-* view-register: Registers.
-* visible-bell: Beeping.
-* visited file: Buffer File Name.
-* visited file mode: Auto Major Mode.
-* visiting files: Visiting Files.
-* void function: Classifying Lists.
-* void function cell: Function Cells.
-* void variable: Void Variables.
-* void-function: Function Cells.
-* void-function: Classifying Lists.
-* void-variable: Void Variables.
-* waiting: Waiting.
-* waiting for command key input: Keyboard Input.
-* waiting-for-user-input-p: Sentinels.
-* where-is-internal: Scanning Keymaps.
-* while: Iteration.
-* whitespace: Character Type.
-* widen: Narrowing.
-* widening: Narrowing.
-* window: Basic Windows.
-* window configurations: Window Configurations.
-* window excursions: Excursions.
-* window internals: Window Internals.
-* window ordering, cyclic: Cyclic Window Ordering.
-* window point: Window Point.
-* window point internals: Window Internals.
-* window position: Window Point.
-* window resizing: Resizing Windows.
-* window size: Size of Window.
-* window size, changing: Resizing Windows.
-* window splitting: Splitting Windows.
-* window top line: Window Start.
-* window-buffer: Buffers and Windows.
-* window-edges: Size of Window.
-* window-height: Size of Window.
-* window-hscroll: Horizontal Scrolling.
-* window-min-height: Resizing Windows.
-* window-min-width: Resizing Windows.
-* window-point: Window Point.
-* window-setup-hook: Window Systems.
-* window-start: Window Start.
-* window-system: Window Systems.
-* window-system-version: Window Systems.
-* window-width: Size of Window.
-* windowp: Basic Windows.
-* windows, controlling precisely: Buffers and Windows.
-* with-output-to-temp-buffer: Temporary Displays.
-* word search: String Search.
-* word-search-backward: String Search.
-* word-search-forward: String Search.
-* write-abbrev-file: Abbrev Files.
-* write-char: Output Functions.
-* write-file: Saving Buffers.
-* write-file-hooks: Saving Buffers.
-* write-region: Writing to Files.
-* writing a documentation string: Documentation Basics.
-* wrong-number-of-arguments: Argument List.
-* wrong-type-argument: Type Predicates.
-* xemacs: Building Emacs.
-* y-or-n-p: Yes-or-No Queries.
-* yank: Yank Commands.
-* yank suppression: Changing Key Bindings.
-* yank-pop: Yank Commands.
-* yanking: Data in Kill Ring.
-* yes-or-no questions: Yes-or-No Queries.
-* yes-or-no-p: Yes-or-No Queries.
-* zap-to-char: Kill Functions.
-* zerop: Predicates on Numbers.
+* Examining Properties::	Looking at the properties of one character.
+* Changing Properties::		Setting the properties of a range of text.
+* Property Search::		Searching for where a property changes value.
+* Special Properties::		Particular properties with special meanings.
 
+
+File: lispref.info,  Node: Examining Properties,  Next: Changing Properties,  Up: Text Properties
 
- 
+Examining Text Properties
+-------------------------
+
+   The simplest way to examine text properties is to ask for the value
+of a particular property of a particular character.  For that, use
+`get-text-property'.  Use `text-properties-at' to get the entire
+property list of a character.  *Note Property Search::, for functions
+to examine the properties of a number of characters at once.
+
+   Under FSF Emacs, these functions handle both strings and buffers.
+(Keep in mind that positions in a string start from 0, whereas positions
+in a buffer start from 1.) Under Lucid Emacs, these functions currently
+only handle buffers.  This may change in the future.
+
+ - Function: get-text-property POS PROP &optional OBJECT
+     This function returns the value of the PROP property of the
+     character after position POS in OBJECT (a buffer).  The argument
+     OBJECT is optional and defaults to the current buffer.
+
+     If there is no PROP property strictly speaking, but the character
+     has a category which is a symbol, then `get-text-property' returns
+     the PROP property of that symbol.
+
+ - Function: text-properties-at POSITION &optional OBJECT
+     This function returns the list of properties held by the character
+     at POSITION in the buffer OBJECT.  If OBJECT is `nil', it defaults
+     to the current buffer.
+
+ - Function: text-property-any START END PROP VALUE &optional OBJECT
+     This function returns non-`nil' if at least one character between
+     START and END has a property PROP whose value is VALUE.  More
+     precisely, it returns the position of the first such character.
+     Otherwise, it returns `nil'.
+
+     The optional fifth argument, OBJECT, specifies the buffer to scan.
+     Positions are relative to OBJECT.
+
+ - Function: text-property-not-all START END PROP VALUE &optional OBJECT
+     This function returns non-`nil' if at least one character between
+     START and END has a property PROP whose value differs from VALUE.
+     More precisely, it returns the position of the first such
+     character.  Otherwise, it returns `nil'.
+
+     The optional fifth argument, OBJECT, specifies the buffer to scan.
+     Positions are relative to OBJECT.
+
+
+File: lispref.info,  Node: Changing Properties,  Next: Property Search,  Prev: Examining Properties,  Up: Text Properties
+
+Changing Text Properties
+------------------------
+
+   The primitives for changing properties apply to a specified range of
+text.  The function `set-text-properties' (see end of section) sets the
+entire property list of the text in that range; more often, it is
+useful to add, change, or delete just certain properties specified by
+name.
+
+   Since text properties are considered part of the buffer's contents,
+and can affect how the buffer looks on the screen, any change in the
+text properties is considered a buffer modification.  Buffer text
+property changes are undoable.
+
+ - Function: add-text-properties START END PROPS &optional OBJECT
+     This function modifies the text properties for the text between
+     START and END in the string or buffer OBJECT.  If OBJECT is `nil',
+     it defaults to the current buffer.
+
+     The argument PROPS specifies which properties to change.  It
+     should have the form of a property list (*note Property Lists::.):
+     a list whose elements include the property names followed
+     alternately by the corresponding values.
+
+     The return value is `t' if the function actually changed some
+     property's value; `nil' otherwise (if PROPS is `nil' or its values
+     agree with those in the text).
+
+     For example, here is how to set the `comment' property to `t' for
+     a range of text:
+
+          (add-text-properties (region-beginning)
+                               (region-end)
+                               (list 'comment t))
+
+ - Function: put-text-property START END PROP VALUE &optional OBJECT
+     This function sets the PROP property to VALUE for the text between
+     START and END in the buffer OBJECT.  If OBJECT is `nil', it
+     defaults to the current buffer.
+
+ - Function: remove-text-properties START END PROPS &optional OBJECT
+     This function deletes specified text properties from the text
+     between START and END in the buffer OBJECT.  If OBJECT is `nil',
+     it defaults to the current buffer.
+
+     The argument PROPS specifies which properties to delete.  It
+     should have the form of a property list (*note Property Lists::.):
+     a list whose elements include the property names followed by the
+     corresponding values.  The property names mentioned in PROPS are
+     the ones deleted from the text.  The values associated in PROPS
+     with these names do not matter.
+
+     The return value is `t' if the function actually changed some
+     property's value; `nil' otherwise (if PROPS is `nil' or if none of
+     the text had any of those properties).
+
+ - Function: set-text-properties START END PROPS &optional OBJECT
+     This function completely replaces the text property list for the
+     text between START and END in the buffer OBJECT.  If OBJECT is
+     `nil', it defaults to the current buffer.
+
+     The argument PROPS is the new property list.  It should have the
+     form of a list whose elements include the property names followed
+     by the corresponding values.
+
+     After `set-text-properties' returns, all the characters in the
+     specified range have identical properties.
+
+     If PROPS is `nil', the effect is to get rid of all properties from
+     the specified range of text.  Here's an example:
+
+          (set-text-properties (region-beginning)
+                               (region-end)
+                               nil)
+
+
+File: lispref.info,  Node: Property Search,  Next: Special Properties,  Prev: Changing Properties,  Up: Text Properties
+
+Property Search Functions
+-------------------------
+
+   In typical use of text properties, most of the time several or many
+consecutive characters have the same value for a property.  Rather than
+writing your programs to examine characters one by one, it is much
+faster to process chunks of text that have the same property value.
+
+   Here are functions you can use to do this.  In all cases, OBJECT
+defaults to the current buffer.
+
+ - Function: next-property-change POS &optional OBJECT
+     The function scans the text forward from position POS in the
+     string or buffer OBJECT till it finds a change in some text
+     property, then returns the position of the change.  In other
+     words, it returns the position of the first character beyond POS
+     whose properties are not identical to those of the character just
+     after POS.
+
+     The value is `nil' if the properties remain unchanged all the way
+     to the end of OBJECT.  If the value is non-`nil', it is a position
+     greater than POS, never equal.
+
+     Here is an example of how to scan the buffer by chunks of text
+     within which all properties are constant:
+
+          (while (not (eobp))
+            (let ((plist (text-properties-at (point)))
+                  (next-change
+                   (or (next-property-change (point) (current-buffer))
+                       (point-max))))
+              PROCESS TEXT FROM POINT TO NEXT-CHANGE...
+              (goto-char next-change)))
+
+ - Function: next-single-property-change POS PROP &optional OBJECT
+     The function scans the text forward from position POS in the
+     buffer OBJECT till it finds a change in the PROP property, then
+     returns the position of the change.  In other words, it returns the
+     position of the first character beyond POS whose PROP property
+     differs from that of the character just after POS.
+
+     The value is `nil' if the properties remain unchanged all the way
+     to the end of OBJECT.  If the value is non-`nil', it is a position
+     greater than POS, never equal.
+
+ - Function: previous-property-change POS &optional OBJECT
+     This is like `next-property-change', but scans back from POS
+     instead of forward.  If the value is non-`nil', it is a position
+     always strictly less than POS.  Remember that a position is always
+     between two characters; the position returned by this function is
+     between two characters with different properties.
+
+ - Function: previous-single-property-change POS PROP &optional OBJECT
+     This is like `next-property-change', but scans back from POS
+     instead of forward.  If the value is non-`nil', it is a position
+     always strictly less than POS.
+
+
+File: lispref.info,  Node: Special Properties,  Prev: Property Search,  Up: Text Properties
+
+Special Properties
+------------------
+
+   The predefined properties are the same as those for extents.  *Note
+Extent Properties::.
+
+
+File: lispref.info,  Node: Substitution,  Next: Underlining,  Prev: Text Properties,  Up: Text
+
+Substituting for a Character Code
+=================================
+
+   The following functions replace characters within a specified region
+based on their character codes.
+
+ - Function: subst-char-in-region START END OLD-CHAR NEW-CHAR &optional
+          NOUNDO
+     This function replaces all occurrences of the character OLD-CHAR
+     with the character NEW-CHAR in the region of the current buffer
+     defined by START and END.
+
+     If NOUNDO is non-`nil', then `subst-char-in-region' does not
+     record the change for undo and does not mark the buffer as
+     modified.  This feature is useful for changes which are not
+     considered significant, such as when Outline mode changes visible
+     lines to invisible lines and vice versa.
+
+     `subst-char-in-region' does not move point and returns `nil'.
+
+          ---------- Buffer: foo ----------
+          This is the contents of the buffer before.
+          ---------- Buffer: foo ----------
+          
+          (subst-char-in-region 1 20 ?i ?X)
+               => nil
+          
+          ---------- Buffer: foo ----------
+          ThXs Xs the contents of the buffer before.
+          ---------- Buffer: foo ----------
+
+ - Function: translate-region START END TABLE
+     This function applies a translation table to the characters in the
+     buffer between positions START and END.
+
+     The translation table TABLE is a string; `(aref TABLE OCHAR)'
+     gives the translated character corresponding to OCHAR.  If the
+     length of TABLE is less than 256, any characters with codes larger
+     than the length of TABLE are not altered by the translation.
+
+     The return value of `translate-region' is the number of characters
+     which were actually changed by the translation.  This does not
+     count characters which were mapped into themselves in the
+     translation table.
+
+     This function is available in Emacs versions 19 and later.
+
+
+File: lispref.info,  Node: Underlining,  Next: Registers,  Prev: Substitution,  Up: Text
+
+Underlining
+===========
+
+   The underlining commands are somewhat obsolete.  The
+`underline-region' function actually inserts `_^H' before each
+appropriate character in the region.  This command provides a minimal
+text formatting feature that might work on your printer; however, we
+recommend instead that you use more powerful text formatting facilities,
+such as Texinfo.
+
+ - Command: underline-region START END
+     This function underlines all nonblank characters in the region
+     defined by START and END.  That is, an underscore character and a
+     backspace character are inserted just before each non-whitespace
+     character in the region.  The backspace characters are intended to
+     cause overstriking, but in Emacs they display as either `\010' or
+     `^H', depending on the setting of `ctl-arrow'.  There is no way to
+     see the effect of the overstriking within Emacs.  The value is
+     `nil'.
+
+ - Command: ununderline-region START END
+     This function removes all underlining (overstruck underscores) in
+     the region defined by START and END.  The value is `nil'.
+
+
+File: lispref.info,  Node: Registers,  Next: Change Hooks,  Prev: Underlining,  Up: Text
+
+Registers
+=========
+
+   A register is a sort of variable used in Emacs editing that can hold
+a marker, a string, a rectangle, a window configuration (of one
+screen), or a screen configuration (of all screens).  Each register is
+named by a single character.  All characters, including control and
+meta characters (but with the exception of `C-g'), can be used to name
+registers.  Thus, there are 255 possible registers.  A register is
+designated in Emacs Lisp by a character which is its name.
+
+   The functions in this section return unpredictable values unless
+otherwise stated.
+
+ - Variable: register-alist
+     This variable is an alist of elements of the form `(NAME .
+     cONTENTS)'.  Normally, there is one element for each Emacs
+     register that has been used.
+
+     The object NAME is a character (an integer) identifying the
+     register.  The object CONTENTS is a string, marker, or list
+     representing the register contents.  A string represents text
+     stored in the register.  A marker represents a position.  A list
+     represents a rectangle; its elements are strings, one per line of
+     the rectangle.
+
+ - Command: view-register REG
+     This command displays what is contained in register REG.
+
+ - Function: get-register REG
+     This function returns the contents of the register REG, or `nil'
+     if it has no contents.
+
+ - Function: set-register REG VALUE
+     This function sets the contents of register REG to VALUE.  A
+     register can be set to any value, but the other register functions
+     expect only certain data types.  The return value is VALUE.
+
+ - Command: point-to-register REG
+     This command stores both the current location of point and the
+     current buffer in register REG as a marker.
+
+ - Command: jump-to-register REG
+ - Command: register-to-point REG
+     This command restores the status recorded in register REG.
+
+     If REG contains a marker, it moves point to the position stored in
+     the marker.  Since both the buffer and the location within the
+     buffer are stored by the `point-to-register' function, this
+     command can switch you to another buffer.
+
+     If REG contains a window configuration or a screen configuration.
+     `jump-to-register' restores that configuration.
+
+ - Command: insert-register REG &optional BEFOREP
+     This command inserts contents of register REG into the current
+     buffer.
+
+     Normally, this command puts point before the inserted text, and the
+     mark after it.  However, if the optional second argument BEFOREP
+     is non-`nil', it puts the mark before and point after.  You can
+     pass a non-`nil' second argument BEFOREP to this function
+     interactively by supplying any prefix argument.
+
+     If the register contains a rectangle, then the rectangle is
+     inserted with its upper left corner at point.  This means that
+     text is inserted in the current line and underneath it on
+     successive lines.
+
+     If the register contains something other than saved text (a
+     string) or a rectangle (a list), currently useless things happen.
+     This may be changed in the future.
+
+ - Command: copy-to-register REG START END &optional DELETE-FLAG
+     This command copies the region from START to END into register
+     REG.  If DELETE-FLAG is non-`nil', it deletes the region from the
+     buffer after copying it into the register.
+
+ - Command: prepend-to-register REG START END &optional DELETE-FLAG
+     This command prepends the region from START to END into register
+     REG.  If DELETE-FLAG is non-`nil', it deletes the region from the
+     buffer after copying it to the register.
+
+ - Command: append-to-register REG START END &optional DELETE-FLAG
+     This command appends the region from START to END to the text
+     already in register REG.  If DELETE-FLAG is non-`nil', it deletes
+     the region from the buffer after copying it to the register.
+
+ - Command: copy-rectangle-to-register REG START END &optional
+          DELETE-FLAG
+     This command copies a rectangular region from START to END into
+     register REG.  If DELETE-FLAG is non-`nil', it deletes the region
+     from the buffer after copying it to the register.
+
+ - Command: window-configuration-to-register REG
+     This function stores the window configuration of the selected
+     screen in register REG.
+
+
+File: lispref.info,  Node: Change Hooks,  Prev: Registers,  Up: Text
+
+Change Hooks
+============
+
+   These hook variables let you arrange to take notice of all changes in
+all buffers (or in a particular buffer, if you make them buffer-local).
+
+   The functions you use in these hooks should save and restore the
+match data if they do anything that uses regular expressions;
+otherwise, they will interfere in bizarre ways with the editing
+operations that call them.
+
+ - Variable: before-change-function
+     If this variable is non-`nil', then it should be a function; the
+     function is called before any buffer modification.  Its arguments
+     are the beginning and end of the region that is going to change,
+     represented as integers.  The buffer that's about to change is
+     always the current buffer.
+
+ - Variable: after-change-function
+     If this variable is non-`nil', then it should be a function; the
+     function is called after any buffer modification.  It receives
+     three arguments: the beginning and end of the region just changed,
+     and the length of the text that existed before the change.  (To
+     get the current length, subtract the region beginning from the
+     region end.) All three arguments are integers.  The buffer that's
+     about to change is always the current buffer.
+
+   Both of these variables are temporarily bound to `nil' during the
+time that either of these hooks is running.  This means that if one of
+these functions changes the buffer, that change won't run these
+functions.  If you do want the hook function to be run recursively,
+write your hook functions to bind these variables back to their usual
+values.
+
+ - Variable: first-change-hook
+     This variable is a normal hook; its hook functions are run using
+     `run-hooks' whenever a buffer is changed that was previously in
+     the unmodified state.
+
+   The variables described in this section are meaningful only starting
+with Emacs version 19.
+
+
+File: lispref.info,  Node: Searching and Matching,  Next: Syntax Tables,  Prev: Text,  Up: Top
+
+Searching and Matching
+**********************
+
+   GNU Emacs provides two ways to search through a buffer for specified
+text: exact string searches and regular expression searches.  After a
+regular expression search, you can identify the text matched by parts of
+the regular expression by examining the "match data".
+
+* Menu:
+
+* String Search::         Search for an exact match.
+* Regular Expressions::   Describing classes of strings.
+* Regexp Search::         Searching for a match for a regexp.
+* Replacement::		  Internals of `query-replace'.
+* Match Data::            Finding out which part of the text matched
+                            various parts of a regexp, after regexp search.
+* Standard Regexps::      Useful regexps for finding sentences, pages,...
+* Searching and Case::    Case-independent or case-significant searching.
+
+
+File: lispref.info,  Node: String Search,  Next: Regular Expressions,  Up: Searching and Matching
+
+Searching for Strings
+=====================
+
+   These are the primitive functions for searching through the text in a
+buffer.  They are meant for use in programs, but you may call them
+interactively.  If you do so, they prompt for the search string; LIMIT
+and NOERROR are set to `nil', and REPEAT is set to 1.
+
+ - Command: search-forward STRING &optional LIMIT NOERROR REPEAT
+     This function searches forward from point for an exact match for
+     STRING.  If successful, it sets point to the end of the occurrence
+     found, and returns the new value of point.  If no match is found,
+     the value and side effects depend on NOERROR (see below).
+
+     In the following example, point is positioned at the beginning of
+     the line.  Then `(search-forward "fox")' is evaluated in the
+     minibuffer and point is left after the last letter of `fox':
+
+          ---------- Buffer: foo ----------
+          -!-The quick brown fox jumped over the lazy dog.
+          ---------- Buffer: foo ----------
+          
+          (search-forward "fox")
+               => t
+          
+          ---------- Buffer: foo ----------
+          The quick brown fox-!- jumped over the lazy dog.
+          ---------- Buffer: foo ----------
+
+     The argument LIMIT specifies the upper bound to the search.  (It
+     must be a position in the current buffer.)  No match extending
+     after that position is accepted.  If LIMIT is omitted or `nil', it
+     defaults to the end of the accessible portion of the buffer.
+
+     What happens when the search fails depends on the value of
+     NOERROR.  If NOERROR is `nil', a `search-failed' error is
+     signaled.  If NOERROR is `t', `search-forward' returns `nil' and
+     does nothing.  If NOERROR is neither `nil' nor `t', then
+     `search-forward' moves point to the upper bound and returns `nil'.
+     (It would be more consistent now to return the new position of
+     point in that case, but some programs may depend on a value of
+     `nil'.)
+
+     If REPEAT is non-`nil', then the search is repeated that many
+     times.  Point is positioned at the end of the last match.
+
+ - Command: search-backward STRING &optional LIMIT NOERROR REPEAT
+     This function searches backward from point for STRING.  It is just
+     like `search-forward' except that it searches backwards and leaves
+     point at the beginning of the match.
+
+ - Command: word-search-forward STRING &optional LIMIT NOERROR REPEAT
+     This function searches forward from point for a "word" match for
+     STRING.  If it finds a match, it sets point to the end of the
+     match found, and returns the new value of point.
+
+     A word search differs from a simple string search in that a word
+     search *requires* that the words it searches for are present as
+     entire words (searching for the word `ball' does not match the word
+     `balls'), and punctuation and spacing are ignored (searching for
+     `ball boy' does match `ball.  Boy!').
+
+     In this example, point is first placed at the beginning of the
+     buffer; the search leaves it between the `y' and the `!'.
+
+          ---------- Buffer: foo ----------
+          -!-He said "Please!  Find
+          the ball boy!"
+          ---------- Buffer: foo ----------
+          
+          (word-search-forward "Please find the ball, boy.")
+               => t
+          
+          ---------- Buffer: foo ----------
+          He said "Please!  Find
+          the ball boy-!-!"
+          ---------- Buffer: foo ----------
+
+     If LIMIT is non-`nil' (it must be a position in the current
+     buffer), then it is the upper bound to the search.  The match
+     found must not extend after that position.
+
+     If NOERROR is `t', then `word-search-forward' returns `nil' when a
+     search fails, instead of signaling an error.  If NOERROR is
+     neither `nil' nor `t', then `word-search-forward' moves point to
+     LIMIT (or the end of the buffer) and returns `nil'.
+
+     If REPEAT is non-`nil', then the search is repeated that many
+     times.  Point is positioned at the end of the last match.
+
+ - Command: word-search-backward STRING &optional LIMIT NOERROR REPEAT
+     This function searches backward from point for a word match to
+     STRING.  This function is just like `word-search-forward' except
+     that it searches backward and normally leaves point at the
+     beginning of the match.
+
+
+File: lispref.info,  Node: Regular Expressions,  Next: Regexp Search,  Prev: String Search,  Up: Searching and Matching
+
+Regular Expressions
+===================
+
+   A "regular expression" ("regexp", for short) is a pattern that
+denotes a (possibly infinite) set of strings.  Searching for matches for
+a regexp is a very powerful operation.  This section explains how to
+write regexps; the following section says how to search for them.
+
+* Menu:
+
+* Syntax of Regexps::       Rules for writing regular expressions.
+* Regexp Example::          Illustrates regular expression syntax.
+

@@ -6,13 +6,14 @@
    we don't plan to think about it, or about whether other Emacs
    maintenance might break it.
 
-   Copyright (C) 1988, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1992, 1993, 1994
+   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -58,8 +59,7 @@ static void mark_x ();
 	  fatal_unexec (_error_message, _error_arg);
 
 extern int errno;
-extern int sys_nerr;
-extern char *sys_errlist[];
+extern char *strerror ();
 #define EEOF -1
 
 static struct scnhdr *text_section;
@@ -141,10 +141,6 @@ unexec (new_name, a_name, data_start, bss_start, entry_address)
       exit (1);
     }
 
-/*
- * The headers are no longer in text-init-rdata-data order. Therefore we 
- * have to do a linear search for each section in the section list.
- */
 #define CHECK_SCNHDR(ptr, name, flags)					\
   ptr = NULL;								\
   for (i = 0; i < hdr.fhdr.f_nscns && !ptr; i++)			\
@@ -177,7 +173,8 @@ unexec (new_name, a_name, data_start, bss_start, entry_address)
   text_section->s_scnptr = 0;
 
   pagesize = getpagesize ();
-  brk = (sbrk (0) + pagesize - 1) & (-pagesize);
+  /* Casting to int avoids compiler error on NEWS-OS 5.0.2.  */
+  brk = (((int) (sbrk (0))) + pagesize - 1) & (-pagesize);
   hdr.aout.dsize = brk - DATA_START;
   hdr.aout.bsize = 0;
   if (entry_address == 0)
@@ -284,7 +281,7 @@ unexec (new_name, a_name, data_start, bss_start, entry_address)
 /*
  * mark_x
  *
- * After succesfully building the new a.out, mark it executable
+ * After successfully building the new a.out, mark it executable
  */
 
 static void
@@ -308,10 +305,8 @@ fatal_unexec (s, va_alist)
   va_list ap;
   if (errno == EEOF)
     fputs ("unexec: unexpected end of file, ", stderr);
-  else if (errno < sys_nerr)
-    fprintf (stderr, "unexec: %s, ", sys_errlist[errno]);
   else
-    fprintf (stderr, "unexec: error code %d, ", errno);
+    fprintf (stderr, "unexec: %s, ", strerror (errno));
   va_start (ap);
   _doprnt (s, ap, stderr);
   fputs (".\n", stderr);

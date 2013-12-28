@@ -5,15 +5,16 @@ static char *recycle[] = {
 "    51    51     4       1               26    23",
 /*  colors */
 "  c None		m None",
-"# c black		m black",
-"@ c black		m black",
-"- c white		m white",
-/* "@ c forestgreen	m black", */
-/* "- c yellowgreen	m white", */
+/* "# c black		m black",	*/
+/* "@ c black		m black",	*/
+/* "- c white		m white",	*/
+"# c black		m chartreuse4",
+"@ c chartreuse4	m chartreuse4",
+"- c chartreuse1	m chartreuse1",
 /*  pixels */
 "                                                   ",
 "                 ###################               ",
-"               ##------------##@@-@ ##             ",
+"               ##------------##@@-@-##             ",
 "              #-------------#@@@-@----#            ",
 "             #-------------#@@@-@------#           ",
 "             #------------#@@@-@-------#           ",

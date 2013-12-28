@@ -1,0 +1,736 @@
+s@c -*-texinfo-*-
+@c This is part of the GNU Emacs Lisp Reference Manual.
+@c Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc. 
+@c See the file lispref.texinfo for copying conditions.
+@setfilename ../../info/screens.info
+@node Screens, Positions, Windows, Top
+@chapter Screens
+@cindex screen
+
+  A @var{screen} is a rectangle on the screen that contains one or more
+Emacs windows.  A screen initially contains a single main window (plus
+perhaps a minibuffer window) which you can subdivide vertically or
+horizontally into smaller windows.
+
+@cindex terminal screen
+@cindex X window screen
+  When Emacs runs on a text-only terminal, it has just one screen, a
+@dfn{terminal screen}.  There is no way to create another terminal screen
+after startup.  If Emacs has an X display, it does not make a terminal
+screen; instead, it initially creates a single @dfn{X window screen}.  You
+can create more; see @ref{Creating Screens}.
+
+@defun screenp object
+This predicate returns @code{t} if @var{object} is a screen, and
+@code{nil} otherwise.
+@end defun
+
+@menu
+* Creating Screens::		Creating additional X Window screens.
+* Screen Parameters::		Controlling screen size, position, font, etc.
+* Deleting Screens::		Screens last until explicitly deleted.
+* Finding All Screens::		How to examine all existing screens.
+* Screens and Windows::		A screen contains windows;
+				  display of text always works through windows.
+* Minibuffers and Screens::	How a screen finds the minibuffer to use.
+* Input Focus::			Which screen receives keyboard events.
+* Visibility of Screens::	Screens may be visible or invisible, or icons.
+* Raising and Lowering::	Raising a screen makes it hide other X windows;
+				  lowering it makes the others hide them.
+* Screen Titles and Icons::     Changing the way the screen's title or icon
+                                  appears.
+* Screen Hooks::                Hooks for customizing screen behavior.
+@end menu
+
+  @xref{Display}, for related information.
+
+@node Creating Screens
+@section Creating Screens
+
+To create a new screen, call the function @code{make-screen}.
+
+@defun make-screen &optional alist
+This function creates a new screen, if the display mechanism permits
+creation of screens.  (An X server does; an ordinary terminal does not.)
+
+The argument is an alist specifying screen parameters.  Any parameters
+not mentioned in @var{alist} default according to the value of the
+variable @code{default-screen-alist}.  Under the X Window System,
+parameters not specified in @code{default-screen-alist} default in turn
+from @code{x-screen-defaults} and, if not specified there, from the X
+resources.
+
+The set of possible parameters depends in principle on what kind of
+window system Emacs uses to display its the screens.  @xref{X Screen
+Parameters}, for documentation of individual parameters you can specify
+when creating an X window screen.
+@end defun
+
+@defvar default-screen-alist
+An alist specifying default values of screen parameters.  Each element
+has the form:
+
+@example
+(@var{parameter} . @var{value})
+@end example
+
+If you use options that specify window appearance when you invoke Emacs,
+they take effect by adding elements to @code{default-screen-alist}.
+@end defvar
+
+@node Screen Parameters
+@section Screen Parameters
+
+A screen has many parameters that control how it displays.
+
+@menu
+* Parameter Access::       How to change a screen's parameters.
+* Initial Parameters::	   Specifying screen parameters when you make a screen.
+* X Screen Parameters::     Individual parameters documented.
+* Size And Position::      Changing the size and position of a screen.
+* Screen Name::            The name of a screen (as opposed to its title).
+@end menu
+
+@node Parameter Access
+@subsection Access to Screen Parameters
+
+These functions let you read and change the parameter values of a
+screen.
+
+@defun screen-parameters screen
+The function @code{screen-parameters} returns an alist of all the
+parameters of @var{screen}.
+@end defun
+
+@defun modify-screen-parameters screen alist
+This function alters the parameters of screen @var{screen} based on the
+elements of @var{alist}.  Each element of @var{alist} has the form
+@code{(@var{parm} . @var{value})}, where @var{parm} is a symbol naming a
+parameter.  If you don't mention a parameter in @var{alist}, its value
+doesn't change.
+@end defun
+
+@node Initial Parameters
+@subsection Initial Screen Parameters
+
+You can specify the parameters for the initial startup screen
+by setting @code{initial-screen-alist} in your @file{.emacs} file.
+
+@defvar initial-screen-alist
+This variable's value is an alist of parameter values to when creating
+the initial X window screen.
+@end defvar
+
+@ignore  @c Not yet working in Lucid Emacs
+If these parameters specify a separate minibuffer-only screen,
+and you have not created one, Emacs creates one for you.
+
+@defvar minibuffer-screen-alist
+This variable's value is an alist of parameter values to when creating
+an initial minibuffer-only screen---if such a screen is needed, according
+to the parameters for the main initial screen.
+@end defvar
+@end ignore
+
+@node X Screen Parameters
+@subsection X Window Screen Parameters
+
+Just what parameters a screen has depends on what display mechanism it
+uses.  Here is a table of the parameters of an X window screen:
+
+@table @code
+@item name
+The name of the screen.
+
+@item left
+The screen position of the left edge, in pixels.
+
+@item top
+The screen position of the top edge, in pixels.
+
+@item height
+The height of the screen contents, in lines.  (This differs from FSF
+Emacs, which measures the value in pixels.)
+
+@item width
+The width of the screen contents, in characters.  (This differs from FSF
+Emacs, which measures the value in pixels.)
+
+@item window-id
+The number of the X window for the screen.
+
+@item minibuffer
+The minibuffer window for the screen, or @code{nil} if this screen has
+no minibuffer.
+
+@ignore  @c You have to access this one differently in Lucid Emacs.
+@item font
+The name of the font for text in the screen.  This is a string.
+
+@c Not in Lucid Emacs.  Use auto-raise-screen, etc.
+@item auto-raise
+Whether selecting the screen raises it (non-@code{nil} means yes).
+
+@item auto-lower
+Whether deselecting the screen lowers it (non-@code{nil} means yes).
+
+@item vertical-scroll-bars
+Whether the screen has a scroll bar for vertical scrolling
+(non-@code{nil} means yes).
+
+@item horizontal-scroll-bars
+Whether the screen has a scroll bar for horizontal scrolling
+(non-@code{nil} means yes).  (Horizontal scroll bars are not currently
+implemented.)
+
+@item icon-type
+The type of icon to use for this screen when it is iconified.
+Non-@code{nil} specifies a bitmap icon, @code{nil} a text icon.
+
+@c (You have to access the following two differently.)
+@item foreground-color
+The color to use for the inside of a character.  We use strings to
+designate colors; the X server defines the meaningful color names.
+
+@item background-color
+The color to use for the background of text.
+
+@item mouse-color
+The color for the mouse cursor.
+@end ignore
+
+@item cursor-color
+The color for the cursor that shows point.
+
+@item border-color
+The color for the border of the screen.
+
+@ignore  @c Not accessible as screen parameter in Lucid Emacs.
+@item cursor-type
+The way to display the cursor.  There are two legitimate values:
+@code{bar} and @code{box}.  The value @code{bar} specifies a vertical
+bar between characters as the cursor.  The value @code{box} specifies an
+ordinary black box overlaying the character after point; that is the
+default.
+@end ignore
+
+@item border-width
+The width in pixels of the window border.
+
+@item internal-border-width
+The distance in pixels between text and border.
+
+@item unsplittable
+If non-@code{nil}, this screen's window is never split automatically.
+
+@ignore  @c Not accessible as screen parameter in Lucid Emacs.
+@item visibility
+The state of visibility of the screen.  There are three possibilities:
+@code{nil} for invisible, @code{t} for visible, and @code{icon} for
+iconified.  @xref{Visibility of Screens}.
+
+@c Not in Lucid Emacs
+@item menu-bar-lines
+The number of lines to allocate at the top of the screen for a menu bar.
+The default is zero.  @xref{Menu Bar}.
+@end ignore
+
+@item inter-line-space
+The space in pixels between adjacent lines of text. (Not currently
+implemented.)
+
+@item modeline
+Whether the screen has a modeline. (Currently always @code{t}.)
+@end table
+
+@node Size And Position
+@subsection Screen Size And Position
+@cindex size of screen
+@cindex screen size
+@cindex display lines
+@cindex display columns
+@cindex resize redisplay
+@cindex screen position
+@cindex position of screen
+
+  You can read or change the size and position of a screen using the
+screen parameters @code{left}, @code{top}, @code{height} and
+@code{width}.  When you create a screen, you must specify either both
+size parameters or neither.  Likewise, you must specify either both
+position parameters or neither.  Whatever geometry parameters you don't
+specify are chosen by the window manager in its usual fashion.
+
+  Here are some special features for working with sizes and positions:
+
+@defun set-screen-position screen xoffset yoffset
+This function sets the position of the top left corner of
+@var{screen}---to @var{xoffset} and @var{yoffset}.  These arguments are
+measured in pixels, counting from the top left corner of the screen.  If
+@var{xoffset} or @var{yoffset} is negative, it is interpreted relative
+to the leftmost or bottommost position @var{screen} could occupy without
+going off the screen.
+@end defun
+
+@defun screen-height &optional screen
+@defunx screen-width &optional screen
+These functions return the height and width of @var{screen}, measured in
+lines and columns.  If you don't supply @var{screen}, they use the selected
+screen.
+@end defun
+
+@defun screen-pixel-height &optional screen
+@defunx screen-pixel-width &optional screen
+These functions return the height and width of @var{screen}, measured in
+pixels.  If you don't supply @var{screen}, they use the selected screen.
+@end defun
+
+@ignore  @c Not in Lucid Emacs
+@defun screen-char-height &optional screen
+@defunx screen-char-width &optional screen
+These functions return the height and width, respectively, of a
+character in @var{screen}, measured in pixels.  The values depend on the
+choice of font.  If you don't supply @var{screen}, these functions use
+the selected screen.
+@end defun
+@end ignore
+
+@defun set-screen-size screen cols rows &optional pretend
+This function sets the size of @var{screen}, measured in characters;
+@var{cols} and @var{rows} specify the new width and height.  (If
+@var{pretend} is non-nil, it means that redisplay should act as if
+the screen's size is @var{cols} by @var{rows}, but the actual size
+of the screen should not be changed.  You should not normally use
+this option.)
+
+@ignore  @c Not in Lucid Emacs
+To set the size with values measured in pixels, use
+@code{modify-screen-parameters} to set the @code{width} and @code{height}
+parameters.  @xref{X Screen Parameters}.
+@end ignore
+@end defun
+
+  You can also use the functions @code{set-screen-height} and
+@code{set-screen-width} to set the height and width individually.
+The screen is the first argument and the size (in rows or columns)
+is the second. (There is an optional third argument, @var{pretend},
+which has the same purpose as the corresponding argument in
+@code{set-screen-size}.)
+
+@ignore  @c Not in Lucid Emacs
+@defun x-parse-geometry geom
+@cindex geometry specification
+The function @code{x-parse-geometry} converts a standard X windows
+geometry string to an alist which you can use as part of the argument to
+@code{x-create-screen}.
+
+The alist describes which parameters were specified in @var{geom}, and
+gives the values specified for them.  Each element looks like
+@code{(@var{parameter} . @var{value})}.  The possible @var{parameter}
+values are @code{left}, @code{top}, @code{width}, and @code{height}.
+
+@smallexample
+(x-geometry "35x70+0-0")
+     @result{} ((width . 35) (height . 70) (left . 0) (top . -1))
+@end smallexample
+@end defun
+@end ignore
+
+@node Screen Name
+@subsection The Name of a Screen (As Opposed to Its Title)
+@cindex screen name
+
+Under X, every screen has a name, which is not the same as the title of
+the screen.  A screen's name is used to look up its resources and does
+not normally change over the lifetime of a screen.  It is perfectly
+allowable, and quite common, for multiple screens to have the same
+name.
+
+@defun screen-name &optional screen
+This function returns the name of @var{screen}, which defaults to the
+selected screen if not specified.  The name of a screen can also be
+obtained from the screen's parameters.  @xref{Screen Parameters}.
+@end defun
+
+@defvar default-screen-name
+This variable holds the default name to assign to newly-created screens.
+This can be overridden by arguments to @code{x-create-screen}.  This
+must be a string.
+@end defvar
+
+@node Deleting Screens
+@section Deleting Screens
+@cindex deletion of screens
+
+Screens remain potentially visible until you explicitly @dfn{delete}
+them.  A deleted screen cannot appear on the screen, but continues to
+exist as a Lisp object until there are no references to it.
+
+@deffn Command delete-screen &optional screen
+This function deletes the screen @var{screen}.  By default, @var{screen} is
+the selected screen.
+@end deffn
+
+@defun screen-live-p screen
+The function @code{screen-live-p} returns non-@code{nil} if the screen
+@var{screen} has not been deleted.
+@end defun
+
+@node Finding All Screens
+@section Finding All Screens
+
+@defun screen-list
+The function @code{screen-list} returns a list of all the screens that
+have not been deleted.  It is analogous to @code{buffer-list} for
+buffers.  The list that you get is newly created, so modifying the list
+doesn't have any effect on the internals of Emacs.
+@end defun
+
+@defun visible-screen-list
+This function returns a list of just the currently visible screens.
+@end defun
+
+@defun next-screen &optional screen minibuf visible-only-p
+The function @code{next-screen} lets you cycle conveniently through all
+the screens from an arbitrary starting point.  It returns the ``next''
+screen after @var{screen} in the cycle.  If @var{screen} is omitted or
+@code{nil}, it defaults to the selected screen.
+
+The second argument, @var{minibuf}, says which screens to consider:
+
+@table @asis
+@item @code{nil}
+Exclude minibuffer-only screens.
+@ignore  @c Not in Lucid Emacs
+@item a window
+Consider only the screens using that particular window as their
+minibuffer.
+@end ignore
+@item anything else
+Consider all screens.
+@end table
+@end defun
+
+If @var{visible-only-p} is non-@code{nil}, then consider only
+visible screens.
+
+@defun previous-screen &optional screen minibuf visible-only-p
+Like @code{next-screen}, but cycles through all screens in the opposite
+direction.
+@end defun
+
+@node Screens and Windows
+@section Screens and Windows
+
+All the non-minibuffer windows in a screen are arranged in a tree of
+subdivisions; the root of this tree is available via the function
+@code{screen-root-window}.  Each window is part of one and
+only one screen; you can get the screen with @code{window-screen}.
+
+@defun screen-root-window &optional screen
+This returns the root window of screen @var{screen}.  @var{screen}
+defaults to the current screen if not specified.
+@end defun
+
+@defun window-screen window
+This function returns the screen that @var{window} is on.
+@end defun
+
+At any time, exactly one window on any screen is @dfn{selected within the
+screen}.  The significance of this designation is that selecting the
+screen also selects this window.  You can get the screen's current
+selected window with @code{screen-selected-window}.
+
+@defun screen-selected-window &optional screen
+This function returns the window on @var{screen} which is selected
+within @var{screen}.  @var{screen} defaults to the current screen if not
+specified.
+@end defun
+
+Conversely, selecting a window for Emacs with @code{select-window} also
+makes that window selected within its screen.  @xref{Selecting Windows}.
+
+@node Minibuffers and Screens
+@section Minibuffers and Screens
+
+Normally, each screen has its own minibuffer window at the bottom, which
+is used whenever that screen is selected.  If the screen has a minibuffer,
+you can get it with @code{minibuffer-window} (@pxref{Minibuffer Misc}).
+
+Currently it is not possible for a screen not to have a minibuffer.  This
+feature will appear in later versions of Lucid Emacs.
+
+@ignore  @c Not in Lucid Emacs
+However, you can also create a screen with no minibuffer.  Such a screen
+must use the minibuffer window of some other screen.  When you create the
+screen, you can specify explicitly the screen on which to find the
+minibuffer to use.  If you don't, then the minibuffer is found in the
+screen which is the value of the variable
+@code{default-minibuffer-screen}.  Its value should be a screen which does
+have a minibuffer.
+@end ignore
+
+@node Input Focus
+@section Input Focus
+@cindex input focus
+@cindex selected screen
+
+At any time, one screen in Emacs is the @dfn{selected screen}.  The selected
+window always resides on the selected screen.
+
+@defun selected-screen
+This function returns the selected screen.
+@end defun
+
+The X server normally directs keyboard input to the X window that the
+mouse is in.  Some window managers use mouse clicks or keyboard events
+to @dfn{shift the focus} to various X windows, overriding the normal
+behavior of the server.
+
+@ignore  @c I decided we need not do this one.
+Lisp programs can override the window manager and the user by forcing
+the focus to a particular screen.
+
+@c ??? This is not yet implemented properly.
+@defun focus-screen screen
+This function sets the input focus on screen @var{screen} until explicitly
+overridden.  If @var{screen} is @code{nil}, it abolishes the explicit
+focus, so that control of the focus returns to the window manager
+program.
+@end defun
+@end ignore
+
+Lisp programs can switch screens ``temporarily'' by calling
+the function @code{select-screen}.  This does not override the window
+manager; rather, it escapes from the window manager's control until
+that control is somehow reasserted.
+
+@c ??? This is not yet implemented properly.
+@c Maybe it is in Lucid Emacs.  --bpw
+@defun select-screen screen
+This function selects screen @var{screen}, temporarily disregarding the X
+Windows focus.  The selection of @var{screen} lasts until the next time
+the user does something to select a different screen, or until the next
+time this function is called.
+@end defun
+
+@ignore  @c Not applicable in Lucid Emacs.
+Emacs cooperates with the X server and the window managers by arranging
+to select screens according to what the server and window manager ask
+for.  It does so by generating a special kind of input event, called a
+@dfn{focus} event.  The command loop handles a focus event by calling
+@code{internal-select-screen}.  @xref{Focus Events}.
+
+@defun internal-select-screen screen
+This function selects screen @var{screen}, assuming that the X server
+focus already points to @var{screen}.
+
+Focus events normally do their job by invoking this command.
+Don't call it for any other reason.
+@end defun
+@end ignore
+
+@node Visibility of Screens
+@section Visibility of Screens
+@cindex visible screen
+@cindex invisible screen
+@cindex iconified screen
+@cindex screen visibility
+
+A screen may be @dfn{visible}, @dfn{invisible}, or @dfn{iconified}.  If
+it is visible, you can see its contents.  If it is iconified, the
+screen's contents do not appear on the screen, but an icon does.  If the
+screen is invisible, it doesn't show in the screen, not even as an icon.
+
+@defun make-screen-visible screen
+This function makes screen @var{screen} visible.
+@end defun
+
+@defun make-screen-invisible screen
+This function makes screen @var{screen} invisible.
+@end defun
+
+@defun iconify-screen screen
+This function iconifies screen @var{screen}.
+@end defun
+
+@defun deiconify-screen screen
+This function de-iconifies screen @var{screen}.  Under X, this is
+equivalent to @code{make-screen-visible}.
+@end defun
+
+@defun screen-visible-p screen
+This returns whether @var{screen} is currently ``visible'' (actually in
+use for display).  A screen that is not visible is not updated, and, if
+it works through a window system, may not show at all.
+@end defun
+
+@defun screen-iconified-p screen
+This returns whether @var{screen} is iconified.  Not all window managers
+use icons; some merely unmap the window, so this function is not the
+inverse of @code{screen-visible-p}.  It is possible for a screen to not
+be visible and not be iconified either.  However, if the screen is
+iconified, it will not be visible.  (Under FSF Emacs, the functionality
+of this function is obtained through @code{screen-visible-p}.)
+@end defun
+
+@defun screen-totally-visible-p screen
+This returns whether @var{screen} is not obscured by any other X
+windows.
+@end defun
+
+@ignore  @c Not in Lucid Emacs.
+  The visibility status of a screen is also available as a screen
+parameter.  You can read or change it as such.  @xref{X Screen
+Parameters}.
+@end ignore
+
+@node Raising and Lowering
+@section Raising and Lowering Screens
+
+The X window system uses a desktop metaphor.  Part of this metaphor is
+the idea that windows are stacked in a notional third dimension
+perpendicular to the screen surface, and thus ordered from ``highest''
+to ``lowest''.  Where two windows overlap, the one higher up covers the
+one underneath.  Even a window at the bottom of the stack can be seen if
+no other window overlaps it.
+
+@cindex raising a screen
+@cindex lowering a screen
+A window's place in this ordering is not fixed; in fact, users tend to
+change the order frequently.  @dfn{Raising} a window means moving it
+``up'', to the top of the stack.  @dfn{Lowering} a window means moving
+it to the bottom of the stack.  This motion is in the notional third
+dimension only, and does not change the position of the window on the
+screen.
+
+You can raise and lower Emacs's X windows with these functions:
+
+@defun raise-screen screen
+This function raises screen @var{screen}.
+@end defun
+
+@defun lower-screen screen
+This function lowers screen @var{screen}.
+@end defun
+
+You can also specify auto-raise (raising automatically when a screen is
+selected) or auto-lower (lowering automatically when it is deselected).
+Under X, most ICCCM-compliant window managers will have an option to do
+this for you, but the following variables are provided in case you're
+using a broken WM.  (Under FSF Emacs, the same functionality is
+provided through the @code{auto-raise} and @code{auto-lower}
+screen parameters.)
+
+@defvar auto-raise-screen
+This variable's value is @code{t} if screens will be raised to the top
+when selected.
+@end defvar
+
+@defvar auto-lower-screen
+This variable's value is @code{t} if screens will be lowered to the bottom
+when no longer selected.
+@end defvar
+
+Auto-raising and auto-lowering is implemented through functions attached
+to @code{select-screen-hook} and @code{deselect-screen-hook}
+(@pxref{Screen Hooks}).  Under normal circumstances, you should not call
+these functions directly.
+
+@defun default-select-screen-hook
+This hook function implements the @code{auto-raise-screen} variable; it is
+for use as the value of @code{select-screen-hook}.
+@end defun
+
+@defun default-deselect-screen-hook
+This hook function implements the @code{auto-lower-screen} variable; it is
+for use as the value of @code{deselect-screen-hook}.
+@end defun
+
+@ignore  @c Not in Lucid Emacs.
+@node Screen Configurations
+@section Screen Configurations
+@cindex screen configuration
+
+@defun current-screen-configuration
+This function returns a @dfn{screen configuration} list which describes
+the current arrangement of screens, all their properties, and the window
+configuration of each one.
+@end defun
+
+@defun set-screen-configuration configuration
+This function restores the state of screens described in
+@var{configuration}.
+@end defun
+@end ignore
+
+@node Screen Titles and Icons
+@section Changing the Way a Screen's Title or Icon Appears
+@cindex screen title
+@cindex icon pixmap
+
+Under the X Window System, the title of the X window corresponding to a
+screen and the title and pixmap of the corresponding icon can be set
+from E-Lisp.
+
+@defvar screen-title-format
+This variable controls how the title of the X window corresponding to a
+screen appears.  The format is the same as in @code{mode-line-format}.
+@xref{Mode Line Format}.
+@end defvar
+
+@defvar screen-icon-title-format
+This variable is similar to @code{screen-title-format} but controls the title
+of a screen's icon, when the screen is iconified.
+@end defvar
+
+@defun x-set-screen-icon-pixmap screen pixmap &optional mask
+This function sets the icon of the given screen to the given pixmap,
+which should be an object returned by @code{make-pixmap} or @code{nil}.
+If the given pixmap has a mask, that will be used as the icon mask;
+however, not all window managers support this.  The window manager is
+also not required to support color pixmaps, only bitmaps (one plane
+deep).  If @var{pixmap} is a pixmap without a mask, then the optional
+argument @var{mask} may be the pixmap to use as the mask (it must be one
+plane deep).  @xref{Pixmaps}.
+@end defun
+
+@node Screen Hooks
+@section Hooks for Customizing Screen Behavior
+@cindex screen hooks
+
+Emacs provides many hooks that are called at various times during a
+screen's lifetime.  @xref{Hooks}.
+
+@defvar create-screen-hook
+This hook is called each time a screen is created.  The functions are called
+with one argument, the newly-created screen.
+@end defvar
+
+@defvar delete-screen-hook
+This hook is called each time a screen is deleted.  The functions are called
+with one argument, the about-to-be-deleted screen.
+@end defvar
+
+@defvar select-screen-hook
+This is a normal hook that is run just after a screen is selected.  The
+function @code{default-select-screen-hook}, which implements auto-raising
+(@pxref{Raising and Lowering}), is normally attached to this hook.
+@end defvar
+
+@defvar deselect-screen-hook
+This is a normal hook that is run just before a screen is deselected
+(and another screen is selected).  The function
+@code{default-deselect-screen-hook}, which implements auto-lowering
+(@pxref{Raising and Lowering}), is normally attached to this hook.
+@end defvar
+
+@defvar map-screen-hook
+This hook is called each time a screen is mapped (i.e. made visible).
+The functions are called with one argument, the newly mapped screen.
+@end defvar
+
+@defvar unmap-screen-hook
+This hook is called each time a screen is unmapped (i.e. made invisible
+or iconified).  The functions are called with one argument, the
+newly unmapped screen.
+@end defvar

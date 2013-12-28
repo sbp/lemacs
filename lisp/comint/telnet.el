@@ -138,7 +138,16 @@ rejecting one login and prompting for the again for a username and password.")
 	(t (telnet-check-software-type-initialize string)
 	   (telnet-filter proc string)
 	   (cond ((> telnet-count telnet-maximum-count)
-		  (set-process-filter proc 'telnet-filter))
+		  ;; (set-process-filter proc 'telnet-filter)
+		  ;; Kludge for shell-fonts -- this is the only mode that
+		  ;; actually changes what its process filter is at run time,
+		  ;; which confuses shell-font.  So we special-case that here.
+		  ;; #### Danger, knows an internal shell-font variable name.
+		  (let ((old-filter (process-filter proc)))
+		    (if (eq old-filter 'shell-font-process-filter)
+			(set (make-local-variable 'shell-font-process-filter)
+			     'telnet-filter)
+		      (set-process-filter proc 'telnet-filter))))
 		 (t (setq telnet-count (1+ telnet-count)))))))
 
 ;; Identical to comint-simple-send, except that it sends telnet-new-line

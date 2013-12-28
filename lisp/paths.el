@@ -1,6 +1,6 @@
 ;;; paths.el --- define pathnames for use by various Emacs commands.
 
-;; Copyright (C) 1986, 1988, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1986, 1988, 1993, 1994 Free Software Foundation, Inc.
 
 ;; Maintainer: FSF
 ;; Keywords: internal
@@ -162,7 +162,7 @@ the terminal-initialization file to be loaded.")
    ;; have knowledge about exactly how the automounter mangles pathnames
    ;; (and this knowledge is basically impossible to derive at run-time.)
    ;;
-   (cons (purecopy "\\`/tmp_mnt/net/") (purecopy "/net/"))
+   (cons (purecopy "\\`/tmp_mnt/") (purecopy "/"))
    ))
 
 ;;; paths.el ends here

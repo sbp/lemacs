@@ -1,6 +1,6 @@
 ;;; yow.el --- quote random zippyisms
 
-;; Copyright (C) 1985, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1993, 1994 Free Software Foundation, Inc.
 
 ;; Maintainer: FSF
 ;; Keywords: games
@@ -34,18 +34,20 @@
 (require 'cookie1)
 
 (defvar yow-file (concat data-directory "yow.lines")
-   "Pertinent pinhead phrases.")
+   "File containing Pertinent Pinhead Phrases.")
 
 ;;;###autoload
-(defun yow (&optional interactive)
-  "Return or display a random Zippy quotation."
-  (interactive "p")
+(defun yow (&optional insert)
+  "Return or display a random Zippy quotation.  With prefix arg, insert it."
+  (interactive "P")
   (let ((yow (cookie
 	      yow-file
               "Am I CONSING yet?..." "I have SEEN the CONSING!!")))
-    (cond ((not interactive)
-	   yow)
-	  ((not (string-match "\n" yow))
+    (cond (insert
+	   (insert yow))
+	  ((not (interactive-p))
+           yow)
+          ((not (string-match "\n" yow))
 	   (delete-windows-on (get-buffer-create "*Help*"))
 	   (message "%s" yow))
 	  (t
@@ -59,6 +61,11 @@ If optional second arg is non-nil, require input to match a completion."
   (read-cookie prompt yow-file
 	       "Am I CONSING yet?..." "I have SEEN the CONSING!!"
 	       require-match))
+;;;###autoload
+(defun insert-zippyism (&optional zippyism)
+  "Prompt with completion for a known Zippy quotation, and insert it at point."
+  (interactive (list (read-zippyism "Pinhead wisdom: " t)))
+  (insert zippyism))
 
 ; Yowza!! Feed zippy quotes to the doctor. Watch results.
 ; fun, fun, fun. Entertainment for hours...

@@ -1,6 +1,6 @@
 /* Hooks by which low level terminal operations
    can be made to call other routines.
-   Copyright (C) 1985, 1986, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -52,7 +52,7 @@ extern void (*shift_region_hook) (struct window *,
 extern void (*cursor_to_hook) (struct line_header *,
                                struct char_block *, 
                                int row, int col, 
-                               struct window *, struct screen *);
+                               struct window_mirror *, struct screen *);
 /* extern void (*raw_cursor_to_hook) (); */
 
 extern void (*clear_to_end_hook) (void);
@@ -69,7 +69,7 @@ extern void (*ins_del_lines_hook) (int vpos, int n);
 /* extern void (*delete_glyphs_hook) (); */
 
 extern void (*ring_bell_hook) (Lisp_Object);
-extern void (*beep_hook) (int vol);
+extern void (*beep_hook) (int volume, int pitch, int duration);
 
 extern void (*reset_terminal_modes_hook) (void);
 extern void (*set_terminal_modes_hook) (void);

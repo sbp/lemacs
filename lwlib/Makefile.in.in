@@ -1,0 +1,193 @@
+/* Makefile for Lucid Widget Library
+   Copyright (C) 1994 Lucid, Inc.
+
+This file is part of the Lucid Widget Library.
+
+The Lucid Widget Library is free software; you can redistribute it and/or 
+modify it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+The Lucid Widget Library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of 
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GNU Emacs; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+srcdir=@srcdir@
+VPATH=@srcdir@
+C_SWITCH_X_SITE=@C_SWITCH_X_SITE@
+C_SWITCH_SITE=@C_SWITCH_SITE@
+
+SHELL=/bin/sh
+
+CC=@CC@
+CFLAGS=@CFLAGS@
+CPP=@CPP@
+RANLIB=@RANLIB@
+
+RM = rm -f
+AR = ar cq
+@SET_MAKE@
+
+#define THIS_IS_YMAKEFILE
+#define NOT_C_CODE
+#include "../src/config.h"
+
+#ifndef C_SWITCH_MACHINE
+#define C_SWITCH_MACHINE
+#endif
+
+#ifndef C_SWITCH_SYSTEM
+#define C_SWITCH_SYSTEM
+#endif
+
+#ifndef C_SWITCH_X_SYSTEM
+#define C_SWITCH_X_SYSTEM
+#endif
+
+#ifndef C_SWITCH_X_MACHINE
+#define C_SWITCH_X_MACHINE
+#endif
+
+#if defined(ENERGIZE) || defined(USE_EXTENSIONS)
+#define INCLUDE_EXTENSIONS
+#endif
+
+#ifdef INCLUDE_EXTENSIONS
+EXT_DEFINES = -DTHIS_IS_X11R5 -DINCLUDE_ALLOCA_H
+#endif
+
+#if !defined (LWLIB_USES_MOTIF) && !defined (LWLIB_USES_OLIT)
+# ifndef LWLIB_USES_LUCID
+#  define LWLIB_USES_LUCID
+# endif
+#endif
+
+#if defined (CONST_IS_LOSING)
+# define CONST_FLAG -DCONST_IS_LOSING
+#else
+# define CONST_FLAG
+#endif
+
+LUCID_SRCS = lwlib-Xlw.c xlwmenu.c
+LUCID_OBJS = lwlib-Xlw.o xlwmenu.o
+MOTIF_SRCS = lwlib-Xm.c
+MOTIF_OBJS = lwlib-Xm.o
+OLIT_SRCS = lwlib-Xol.c lwlib-Xol-mb.c
+OLIT_OBJS = lwlib-Xol.o lwlib-Xol-mb.o
+XAW_SRCS = lwlib-Xaw.c
+XAW_OBJS = lwlib-Xaw.o
+
+#ifdef INCLUDE_EXTENSIONS
+EXT_SRCS = dispatch.c xrdb-cpp.c xrdb.c
+EXT_OBJS = dispatch.o xrdb-cpp.o xrdb.o
+#endif
+
+/* This kludge is to avoid invoking gcc as the preprocessor when
+   parsing the app-defaults files (gcc might be what's in $CPP...)
+ */
+#if defined(SPARC) && defined(USG)	/* meaning Solaris */
+XRDB_CPP=/usr/ccs/lib/cpp
+#else /* not Solaris - assume it's in the normal place */
+XRDB_CPP=/lib/cpp
+#endif /* not Solaris */
+
+
+#if defined (LWLIB_USES_MOTIF) && defined (LWLIB_USES_LUCID)
+TOOLKIT_DEFINES = -DUSE_MOTIF -DUSE_LUCID
+   TOOLKIT_SRCS = $(MOTIF_SRCS) $(LUCID_SRCS)
+   TOOLKIT_OBJS = $(MOTIF_OBJS) $(LUCID_OBJS)
+#else
+# if defined (LWLIB_USES_OLIT) && defined (LWLIB_USES_LUCID)
+TOOLKIT_DEFINES = -DUSE_OLIT -DUSE_LUCID -DUSE_XAW
+   TOOLKIT_SRCS = $(OLIT_SRCS) $(LUCID_SRCS) $(XAW_SRCS)
+   TOOLKIT_OBJS = $(OLIT_OBJS) $(LUCID_OBJS) $(XAW_OBJS)
+# else
+#  if defined (LWLIB_USES_OLIT)
+TOOLKIT_DEFINES = -DUSE_OLIT
+   TOOLKIT_SRCS = $(OLIT_SRCS)
+   TOOLKIT_OBJS = $(OLIT_OBJS)
+#  else
+#   if defined (LWLIB_USES_MOTIF)
+TOOLKIT_DEFINES = -DUSE_MOTIF
+   TOOLKIT_SRCS = $(MOTIF_SRCS)
+   TOOLKIT_OBJS = $(MOTIF_OBJS)
+#   else
+#    if defined (LWLIB_USES_LUCID)
+TOOLKIT_DEFINES = -DUSE_LUCID -DUSE_XAW
+   TOOLKIT_SRCS = $(LUCID_SRCS) $(XAW_SRCS)
+   TOOLKIT_OBJS = $(LUCID_OBJS) $(XAW_OBJS)
+#    endif
+#   endif
+#  endif
+# endif
+#endif
+
+#ifdef ENERGIZE
+EZ_OBJS = energize/blpsheet.o energize/build.o energize/classbr_ps.o \
+          energize/ctreebr_ps.o energize/debuggerps.o \
+          energize/editmode.o energize/leb_psheet.o \
+          energize/projectdisp.o energize/projectps.o \
+          energize/search.o energize/target.o
+ENERGIZEP = -DENERGIZE
+#endif
+
+SRCS = lwlib.c $(TOOLKIT_SRCS) lwlib-utils.o $(EXT_SRCS) lwlib-config.c
+OBJS = lwlib.o $(TOOLKIT_OBJS) lwlib-utils.o $(EXT_OBJS) lwlib-config.o \
+       $(EZ_OBJS)
+
+all:: liblw.a
+
+ALL_CFLAGS = -I. C_SWITCH_MACHINE C_SWITCH_SITE C_SWITCH_X_SITE \
+	     C_SWITCH_X_MACHINE C_SWITCH_X_SYSTEM \
+	     C_SWITCH_SYSTEM $(TOOLKIT_DEFINES) $(ENERGIZEP) \
+	     $(EXT_DEFINES) ${CFLAGS} CONST_FLAG
+.c.o:
+	$(CC) -c $(CPPFLAGS) $(ALL_CFLAGS) $<
+
+xrdb-cpp.o: xrdb-cpp.c
+	$(CC) -c $(CPPFLAGS) $(ALL_CFLAGS) -DCPP_PROGRAM="\"$(XRDB_CPP)\"" $<
+	
+liblw.a: $(OBJS)
+	$(RM) $@
+	$(AR) $@ $(OBJS)
+	-if [ -n $(RANLIB) ]; then \
+	  $(RANLIB) $@; \
+	fi
+
+#ifdef ENERGIZE
+$(EZ_OBJS):
+	cd energize ; $(MAKE) $(MFLAGS)
+#endif
+
+FRC.mostlyclean:
+mostlyclean: FRC.mostlyclean
+	rm -f liblw.a *.o
+clean: mostlyclean
+#ifdef ENERGIZE
+	cd energize ; $(MAKE) $(MFLAGS) clean
+#endif
+distclean: clean
+	rm -f Makefile Makefile.in
+realclean: distclean
+extraclean: distclean
+	-rm -f *~ \#* m/?*~ s/?*~
+
+
+dispatch.o:	dispatch.h ../src/config.h
+lwlib-Xaw.o:	lwlib.h lwlib-internal.h lwlib-Xaw.h ../src/config.h
+lwlib-Xlw.o:	lwlib.h lwlib-internal.h lwlib-Xlw.h xlwmenu.h ../src/config.h
+lwlib-Xm.o:	lwlib.h lwlib-internal.h lwlib-utils.h lwlib-Xm.h
+lwlib-Xm.o:	../src/config.h
+lwlib-Xol-mb.o:	lwlib-Xol-mb.h lwlib-Xol-mbP.h ../src/config.h
+lwlib-Xol.o:	lwlib.h lwlib-internal.h lwlib-Xol.h lwlib-Xol-mb.h
+lwlib-Xol.o:	../src/config.h
+lwlib-utils.o:	lwlib-utils.h ../src/config.h
+lwlib.o:	lwlib.h lwlib-internal.h lwlib-utils.h ../src/config.h
+lwlib.o:	lwlib-Xlw.h lwlib-Xm.h lwlib-Xol.h lwlib-Xaw.h ../src/config.h
+xlwmenu.o:	lwlib.h xlwmenu.h xlwmenuP.h ../src/config.h
+xrdb-cpp.o:	../src/config.h

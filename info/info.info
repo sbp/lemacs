@@ -1,0 +1,67 @@
+This is Info file ../info/info.info, produced by Makeinfo-1.55 from the
+input file info.texinfo.
+
+   This file describes how to use Info, the on-line, menu-driven GNU
+documentation system.
+
+   Copyright (C) 1989, 1992 Free Software Foundation, Inc.
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be stated in a
+translation approved by the Free Software Foundation.
+
+
+Indirect:
+info.info-1: 924
+info.info-2: 49645
+
+Tag Table:
+(Indirect)
+Node: Top924
+Node: Getting Started1634
+Node: Help-Small-Screen2450
+Node: Help4187
+Node: Help-P5212
+Node: Help-^L6070
+Node: Help-M8949
+Node: Help-FOO14944
+Node: Help-Adv15677
+Node: Help-Cross18340
+Node: Help-Q18983
+Node: Advanced Info19607
+Node: Expert20583
+Node: Add23080
+Node: Menus26420
+Node: Cross-refs29294
+Node: Tags29996
+Node: Checking31298
+Node: Emacs Info Variables32251
+Node: Create an Info File33240
+Node: Using Stand-alone Info33779
+Node: Options35061
+Node: Cursor Commands38257
+Node: Scrolling Commands40927
+Node: Node Commands43411
+Node: Searching Commands47420
+Node: Xref Commands49037
+Node: Parts of an Xref49645
+Node: Selecting Xrefs51580
+Node: Window Commands53166
+Node: The Mode Line54077
+Node: Basic Windows55719
+Node: The Echo Area58238
+Node: Printing Nodes62418
+Node: Miscellaneous Commands63077
+Node: Variables66304
+
+End Tag Table

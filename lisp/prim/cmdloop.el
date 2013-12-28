@@ -81,7 +81,13 @@
     (setq last-error error-object)
 
     (message nil)
-    (ding nil 'command-error)
+    (ding nil (cond ((eq (car-safe error-object) 'undefined-keystroke-sequence)
+		     (if (and (vectorp (nth 1 error-object))
+			      (/= 0 (length (nth 1 error-object)))
+			      (button-event-p (aref (nth 1 error-object) 0)))
+			 'undefined-click
+		       'undefined-key))
+		    (t 'command-error)))
     (display-error error-object t)
 
     (if (noninteractive)
@@ -184,6 +190,11 @@ Any time you execute a command with \\[execute-extended-command] which has a\
 you will be shown the alternate binding before the command executes.")
 
 (defun execute-extended-command (prefix-arg)
+  "Read a command name from the minibuffer using 'completing-read'.
+Then call the specified command using 'command-execute' and return its
+return value.  If the command asks for a prefix argument, supply the
+value of the current raw prefix argument, or the value of PREFIX-ARG
+when called from Lisp."
   (interactive "P")
   ;; Note:  This doesn't hack "this-command-keys"
   (let ((prefix-arg prefix-arg))
@@ -256,38 +267,39 @@ Takes one argument, which is the string to display to ask the question.
 It should end in a space; `y-or-n-p' adds `(y or n) ' to it.
 No confirmation of the answer is requested; a single character is enough.
 Also accepts Space to mean yes, or Delete to mean no."
-  (let* ((prompt (format "%s(y or n) " prompt))
-         (p prompt)
-	 event)
-    (while (stringp p)
-      (if (let ((cursor-in-echo-area t)
-                (inhibit-quit t))
-            (message "%s" p)
-            (setq event (next-command-event event))
-            (prog1 quit-flag (setq quit-flag nil)))
-          (progn
-            (message "%s%s" p (single-key-description event))
-            (setq quit-flag nil)
-            (signal 'quit '())))
-      (let* ((key (and (key-press-event-p event) (event-key event)))
-             (char (and key (event-to-character event))))
-        (if char (setq char (downcase char)))
-        (cond ((or (eq char ?y) (eq char ? ))
-               (message "%sYes" p)
-               (setq p t))
-              ((or (eq char ?n) (eq key 'delete))
-               (message "%sNo" p)
-               (setq p nil))
-	      ((button-release-event-p event) ; ignore them
-	       nil)
-              (t
-               (message "%s%s" p (single-key-description event))
-               (ding nil 'y-or-n-p)
-               (discard-input)
-               (if (eq p prompt)
-                   (setq p (concat (gettext "Please answer y or n.  ")
-				   prompt)))))))
-    p))
+  (save-excursion
+    (let* ((pre "")
+           (yn (gettext "(y or n) "))
+           event)
+      (while (stringp yn)
+        (if (let ((cursor-in-echo-area t)
+                  (inhibit-quit t))
+              (message "%s%s%s" pre prompt yn)
+              (setq event (next-command-event event))
+              (prog1 quit-flag (setq quit-flag nil)))
+            (progn
+              (message "%s%s%s%s" pre prompt yn (single-key-description event))
+              (setq quit-flag nil)
+              (signal 'quit '())))
+        (let* ((key (and (key-press-event-p event) (event-key event)))
+               (char (and key (event-to-character event))))
+          (if char (setq char (downcase char)))
+          (cond ((or (eq char ?y) (eq char ? ))
+                 (message "%s%sYes" prompt yn)
+                 (setq yn t))
+                ((or (eq char ?n) (eq key 'delete))
+                 (message "%s%sNo" prompt yn)
+                 (setq yn nil))
+                ((button-release-event-p event) ; ignore them
+                 nil)
+                (t
+                 (message "%s%s%s%s" pre prompt yn
+                          (single-key-description event))
+                 (ding nil 'y-or-n-p)
+                 (discard-input)
+                 (if (= (length pre) 0)
+                     (setq pre (gettext "Please answer y or n.  ")))))))
+      yn)))
 
 (defun yes-or-no-p-minibuf (prompt)
   "Ask user a yes-or-no question.  Return t if answer is yes.
@@ -295,20 +307,21 @@ Takes one argument, which is the string to display to ask the question.
 It should end in a space; `yes-or-no-p' adds `(yes or no) ' to it.
 The user must confirm the answer with RET,
 and can edit it until it has been confirmed."
-  (let ((p (concat prompt (gettext "(yes or no) ")))
-	(ans ""))
-    (while (stringp ans)
-      (setq ans (downcase (read-string p nil t))) ;no history
-      (cond ((string-equal ans (gettext "yes"))
-             (setq ans 't))
-            ((string-equal ans (gettext "no"))
-             (setq ans 'nil))
-            (t
-             (ding nil 'yes-or-no-p)
-             (discard-input)
-             (message (gettext "Please answer yes or no."))
-             (sleep-for 2))))
-    ans))
+  (save-excursion
+    (let ((p (concat prompt (gettext "(yes or no) ")))
+          (ans ""))
+      (while (stringp ans)
+        (setq ans (downcase (read-string p nil t))) ;no history
+        (cond ((string-equal ans (gettext "yes"))
+               (setq ans 't))
+              ((string-equal ans (gettext "no"))
+               (setq ans 'nil))
+              (t
+               (ding nil 'yes-or-no-p)
+               (discard-input)
+               (message (gettext "Please answer yes or no."))
+               (sleep-for 2))))
+      ans)))
 
 ;; these may be redefined later, but make the original def easily encapsulable
 (define-function 'yes-or-no-p 'yes-or-no-p-minibuf)
@@ -320,44 +333,45 @@ and can edit it until it has been confirmed."
 If a mouse click is detected, an error is signalled.  The character typed
 is returned as an ASCII value.  This is most likely the wrong thing for you
 to be using: consider using the `next-command-event' function instead."
-  (let ((inhibit-quit t)
-        (event (next-command-event)))
-    (prog1 (or (event-to-character event)
-	       ;; Kludge.  If the event we read was a mouse-release, discard it
-	       ;; and read the next one.
-	       (if (button-release-event-p event)
-		   (event-to-character (next-command-event event)))
-	       (error (gettext "Key read has no ASCII equivalent %S") event))
-      ;; this is not necessary, but is marginally more efficient than GC.
-      (deallocate-event event))))
+  (save-excursion
+    (let ((inhibit-quit t)
+          (event (next-command-event)))
+      (prog1 (or (event-to-character event)
+                 ;; Kludge.  If the event we read was a mouse-release,
+                 ;; discard it and read the next one.
+                 (if (button-release-event-p event)
+                     (event-to-character (next-command-event event)))
+                 (error (gettext "Key read has no ASCII equivalent %S") event))
+        ;; this is not necessary, but is marginally more efficient than GC.
+        (deallocate-event event)))))
 
 (defun read-quoted-char (&optional prompt)
   "Like `read-char', except that if the first character read is an octal
 digit, we read up to two more octal digits and return the character
 represented by the octal number consisting of those digits.
 Optional argument PROMPT specifies a string to use to prompt the user."
-  (let ((count 0) (code 0) char event)
-    (while (< count 3)
-      (let ((inhibit-quit (zerop count))
-	    (help-form nil))
-	(and prompt (message (gettext "%s-") prompt))
-	(setq event (next-command-event)
-	      char (or (event-to-character event nil nil t)
-		       (error
-			(gettext "key read cannot be inserted in a buffer: %S")
-			event)))
-	(if inhibit-quit (setq quit-flag nil)))
-      (cond ((null char))
-	    ((and (<= ?0 char) (<= char ?7))
-	     (setq code (+ (* code 8) (- char ?0))
-		   count (1+ count))
-	     (and prompt (message (setq prompt
-					(format "%s %c" prompt char)))))
-	    ((> count 0)
-	     (setq unread-command-event event
-		   count 259))
-	    (t (setq code char count 259))))
-    (logand 255 code)))
+  (save-excursion
+    (let ((count 0) (code 0) char event)
+      (while (< count 3)
+        (let ((inhibit-quit (zerop count))
+              (help-form nil))
+          (and prompt (message (gettext "%s-") prompt))
+          (setq event (next-command-event)
+                char (or (event-to-character event nil nil t)
+                         (error (gettext "key read cannot be inserted in a buffer: %S")
+                          event)))
+          (if inhibit-quit (setq quit-flag nil)))
+        (cond ((null char))
+              ((and (<= ?0 char) (<= char ?7))
+               (setq code (+ (* code 8) (- char ?0))
+                     count (1+ count))
+               (and prompt (message (setq prompt
+                                          (format "%s %c" prompt char)))))
+              ((> count 0)
+               (setq unread-command-event event
+                     count 259))
+              (t (setq code char count 259))))
+      (logand 255 code))))
 
 (defun redraw-mode-line (&optional all)
   "Force the mode-line of the current buffer to be redisplayed.
@@ -398,7 +412,7 @@ If MESSAGE is nil, instructions to type EXIT-CHAR are displayed there."
 		  (recenter 0))))
 	  (message (or message (gettext "Type %s to continue editing."))
 		   (single-key-description exit-char))
-	  (let ((event (next-command-event)))
+	  (let ((event (save-excursion (next-command-event))))
 	    (or (eq (event-to-character event) exit-char)
 		(setq unread-command-event event))))
       (if insert-end

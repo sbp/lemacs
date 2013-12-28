@@ -1,5 +1,5 @@
 ;; Define standard keybindings.
-;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -45,10 +45,10 @@ The normal global definition of the character C-x indirects to this keymap.")
 Keymap for subcommands of C-x 4")
 (define-key global-map "\C-x4" 'ctl-x-4-prefix)
 
-;(define-prefix-command 'ctl-x-5-prefix t)
-;(defvar ctl-x-5-map (symbol-function 'ctl-x-5-prefix) "\
-;Keymap for subcommands of C-x 5")
-;(define-key global-map "\C-x5" 'ctl-x-5-prefix)
+(define-prefix-command 'ctl-x-5-prefix t)
+(defvar ctl-x-5-map (symbol-function 'ctl-x-5-prefix) "\
+Keymap for subcommands of C-x 5")
+(define-key global-map "\C-x5" 'ctl-x-5-prefix)
 
 (define-prefix-command 'mode-specific-command-prefix t)
 (defvar mode-specific-map (symbol-function 'mode-specific-command-prefix) "\
@@ -103,18 +103,23 @@ Keymap for characters following C-c.")
 (define-key global-map "\C-x0" 'delete-window)
 (define-key global-map "\C-x1" 'delete-other-windows)
 (define-key global-map "\C-x2" 'split-window-vertically)
-(define-key global-map "\C-x5" 'split-window-horizontally)
+(define-key global-map "\C-x3" 'split-window-horizontally)
+;; Old lemacs binding
+;;(define-key global-map "\C-x5" 'split-window-horizontally)
 (define-key global-map "\C-x6" 'window-configuration-to-register)
 ;(define-key global-map "\C-x7" 'jump-to-register);ie register-to-window-config
 (define-key global-map "\C-x}" 'enlarge-window-horizontally)
 (define-key global-map "\C-x{" 'shrink-window-horizontally)
 
-;; >>> FSF19 new keyboard assignments
-;(define-key global-map "\C-x5b" 'switch-to-buffer-other-frame)
-;(define-key global-map "\C-x5f" 'find-file-other-frame)
-;(define-key global-map "\C-x5\C-f" 'find-file-other-frame)
-;(define-key global-map "\C-x5r" 'find-file-read-only-other-frame)
-;(define-key global-map "\C-x5m" 'mail-other-frame)
+;; New FSF19 bindings: C-x 5 as prefix for window commands
+(define-key global-map "\C-x52" 'make-screen)
+(define-key global-map "\C-x50" 'delete-screen)
+(define-key global-map "\C-x5o" 'other-screen)
+(define-key global-map "\C-x5b" 'switch-to-buffer-other-screen)
+(define-key global-map "\C-x5f" 'find-file-other-screen)
+(define-key global-map "\C-x5\C-f" 'find-file-other-screen)
+(define-key global-map "\C-x5r" 'find-file-read-only-other-screen)
+(define-key global-map "\C-x5m" 'mail-other-screen)
 
 (define-key global-map "\C-xo" 'other-window)
 (define-key global-map "\C-x^" 'enlarge-window)
@@ -134,27 +139,33 @@ Keymap for characters following C-c.")
 
 (define-key global-map "\M-%" 'query-replace)
 
-(define-key global-map "\C-x\C-a" 'add-mode-abbrev)
-(define-key global-map "\C-x+" 'add-global-abbrev)
-(define-key global-map "\C-x\C-h" 'inverse-add-mode-abbrev)
-(define-key global-map "\C-x-" 'inverse-add-global-abbrev)
+;; Old v18 bindings
+;(define-key global-map "\C-x\C-a" 'add-mode-abbrev)
+;(define-key global-map "\C-x+" 'add-global-abbrev)
+;(define-key global-map "\C-x\C-h" 'inverse-add-mode-abbrev)
+;(define-key global-map "\C-x-" 'inverse-add-global-abbrev)
+
 (define-key global-map "\M-'" 'abbrev-prefix-mark)
 (define-key global-map "\C-x'" 'expand-abbrev)
 
-;; >>> FSF19 new keyboard assignments
-;(define-key global-map "\C-xal" 'add-mode-abbrev)
-;(define-key global-map "\C-xa\C-a" 'add-mode-abbrev)
-;(define-key global-map "\C-xag" 'add-global-abbrev)
-;(define-key global-map "\C-xa+" 'add-mode-abbrev)
-;(define-key global-map "\C-xaig" 'inverse-add-global-abbrev)
-;(define-key global-map "\C-xail" 'inverse-add-mode-abbrev)
-;(define-key global-map "\C-xa-" 'inverse-add-global-abbrev)
-;(define-key global-map "\C-xae" 'expand-abbrev)
-;(define-key global-map "\C-xa'" 'expand-abbrev)
+;; New FSF19 bindings: C-x a as a prefix for abbrev commands
+(define-key global-map "\C-xal" 'add-mode-abbrev)
+(define-key global-map "\C-xa\C-a" 'add-mode-abbrev)
+(define-key global-map "\C-xag" 'add-global-abbrev)
+(define-key global-map "\C-xa+" 'add-mode-abbrev)
+(define-key global-map "\C-xaig" 'inverse-add-global-abbrev)
+(define-key global-map "\C-xail" 'inverse-add-mode-abbrev)
+(define-key global-map "\C-xa-" 'inverse-add-global-abbrev)
+(define-key global-map "\C-xae" 'expand-abbrev)
+(define-key global-map "\C-xa'" 'expand-abbrev)
 
 (define-key global-map "\C-xb" 'switch-to-buffer)
 (define-key global-map "\C-xk" 'kill-buffer)
 (define-key global-map "\C-x\C-b" 'list-buffers)
+
+;; New FSF19 bindings
+(define-key global-map "\C-x-" 'shrink-window-if-larger-than-buffer)
+(define-key global-map "\C-x+" 'balance-windows)
 
 (define-key global-map "\C-xe" 'call-last-kbd-macro)
 (define-key global-map "\C-x\(" 'start-kbd-macro)
@@ -224,24 +235,26 @@ Keymap for characters following C-c.")
 (define-key global-map "\C-xj" 'jump-to-register)
 (define-key global-map "\C-xx" 'copy-to-register)
 (define-key global-map "\C-xg" 'insert-register)
-(define-key global-map "\C-xr" 'copy-rectangle-to-register)
+;; Old v18 binding
+;(define-key global-map "\C-xr" 'copy-rectangle-to-register)
 
-;; >>> FSF19 new keyboard assignments
-;(define-key global-map "\C-xr\C-@" 'point-to-register)
-;(define-key global-map "\C-xr " 'point-to-register)
-;(define-key global-map "\C-xrj" 'jump-to-register)
-;(define-key global-map "\C-xrs" 'copy-to-register)
-;(define-key global-map "\C-xrx" 'copy-to-register)
-;(define-key global-map "\C-xri" 'insert-register)
-;(define-key global-map "\C-xrg" 'insert-register)
-;(define-key global-map "\C-xrr" 'copy-rectangle-to-register)
-;(define-key global-map "\C-xrc" 'clear-rectangle)
-;(define-key global-map "\C-xrk" 'kill-rectangle)
-;(define-key global-map "\C-xry" 'yank-rectangle)
-;(define-key global-map "\C-xro" 'open-rectangle)
-;(define-key global-map "\C-xrt" 'string-rectangle)
-;(define-key global-map "\C-xrw" 'window-configuration-to-register)
-;(define-key global-map "\C-xrf" 'frame-configuration-to-register)
+;; New FSF19 bindings: C-x r as a prefix for register commands
+(define-key global-map "\C-xr" (make-sparse-keymap))
+(define-key global-map "\C-xr\C-@" 'point-to-register)
+(define-key global-map "\C-xr " 'point-to-register)
+(define-key global-map "\C-xrj" 'jump-to-register)
+(define-key global-map "\C-xrs" 'copy-to-register)
+(define-key global-map "\C-xrx" 'copy-to-register)
+(define-key global-map "\C-xri" 'insert-register)
+(define-key global-map "\C-xrg" 'insert-register)
+(define-key global-map "\C-xrr" 'copy-rectangle-to-register)
+(define-key global-map "\C-xrc" 'clear-rectangle)
+(define-key global-map "\C-xrk" 'kill-rectangle)
+(define-key global-map "\C-xry" 'yank-rectangle)
+(define-key global-map "\C-xro" 'open-rectangle)
+(define-key global-map "\C-xrt" 'string-rectangle)
+(define-key global-map "\C-xrw" 'window-configuration-to-register)
+;(define-key global-map "\C-xrf" 'screen-configuration-to-register)
 
 (define-key global-map "\M-q" 'fill-paragraph)
 (define-key global-map "\M-g" 'fill-region)
@@ -264,15 +277,16 @@ Keymap for characters following C-c.")
 
 (put 'narrow-to-page 'disabled t)
 (put 'narrow-to-region 'disabled t)
-(define-key global-map "\C-xp" 'narrow-to-page)
-(define-key global-map "\C-xn" 'narrow-to-region)
-(define-key global-map "\C-xw" 'widen)
 
-;; >>> FSF19 new keyboard assignments
-;(define-key global-map "\C-xn" (make-sparse-keymap))
-;(define-key global-map "\C-xr" (make-sparse-keymap))
-;(define-key global-map "\C-xnn" 'narrow-to-region)
-;(define-key global-map "\C-xnw" 'widen)
+;; Old v18 bindings
+;(define-key global-map "\C-xp" 'narrow-to-page)
+;(define-key global-map "\C-xn" 'narrow-to-region)
+;(define-key global-map "\C-xw" 'widen)
+
+;; New FSF19 bindings: C-x n as a prefix for narrowing commands.
+(define-key global-map "\C-xn" (make-sparse-keymap))
+(define-key global-map "\C-xnn" 'narrow-to-region)
+(define-key global-map "\C-xnw" 'widen)
 
 
 (define-key global-map "\C-j" 'newline-and-indent)
@@ -306,10 +320,12 @@ Keymap for characters following C-c.")
 (define-key global-map "\C-y" 'yank)
 (define-key global-map "\M-y" 'yank-pop)
 
-(define-key global-map "\C-xa" 'append-to-buffer)
+;; Old v18 binding
+;(define-key global-map "\C-xa" 'append-to-buffer)
 
 (define-key global-map "\C-@" 'set-mark-command)
 (define-key global-map "\C-x\C-x" 'exchange-point-and-mark)
+(define-key global-map "\C-x\C-@" 'pop-global-mark)
 
 (define-key global-map "\C-n" 'next-line)
 (define-key global-map "\C-p" 'previous-line)

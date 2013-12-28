@@ -13,6 +13,7 @@ typedef struct _window_state
   Dimension	width;
   Dimension	height;
   Dimension	label_width;
+  Dimension	toggle_width;
 } window_state;
 
 
@@ -30,23 +31,26 @@ typedef struct _XlwMenu_part
 #endif
   Dimension	font_ascent, font_descent;  /* extracted from font/fontlist */
 
-  int		foreground;
+  Pixel		foreground;
   Pixel		button_foreground;
   Dimension	margin;
-  Dimension	horizontal_spacing;
-  Dimension	vertical_spacing;
-  Dimension	arrow_spacing;
+  Dimension	horizontal_margin;
+  Dimension	vertical_margin;
+  Dimension	column_spacing;
   Dimension	shadow_thickness;
+  Dimension	indicator_size;
   Pixel 	top_shadow_color;
   Pixel 	bottom_shadow_color;
+  Pixel 	select_color;
   Pixmap	top_shadow_pixmap;
   Pixmap	bottom_shadow_pixmap;
-  int		cursor_shape;
+  Cursor	cursor_shape;
   XtCallbackList	open;
   XtCallbackList	select;
   widget_value*	contents;
   int		horizontal;
-  
+  Boolean	use_backing_store;
+
   /* State of the XlwMenu */
   int			old_depth;
   widget_value**	old_stack;
@@ -69,6 +73,7 @@ typedef struct _XlwMenu_part
   GC			inactive_button_gc;
   GC			shadow_top_gc;
   GC			shadow_bottom_gc;
+  GC			select_gc;
   Cursor		cursor;
   Boolean		popped_up;
   Pixmap		gray_pixmap;

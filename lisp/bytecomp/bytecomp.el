@@ -1,10 +1,10 @@
 ;;; -*- Mode: Emacs-Lisp -*-
 ;;; Compilation of Lisp code into byte code.
-;;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
+;;; Copyright (C) 1985, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; By Jamie Zawinski <jwz@lucid.com> and Hallvard Furuseth <hbf@ulrik.uio.no>.
 
-(defconst byte-compile-version (purecopy  "2.22; 22-dec-93."))
+(defconst byte-compile-version (purecopy  "2.24; 26-Apr-94."))
 
 ;; This file is part of GNU Emacs.
 
@@ -317,9 +317,7 @@ If it is 'byte, then only byte-level optimizations will be logged.")
   "*If true, the byte-compiler reports warnings with `error'.")
 
 (defvar byte-compile-default-warnings
-  '(redefine callargs free-vars unresolved
-	     unused-vars ; Default?  Or is this too likely to offend?
-	     )
+  '(redefine callargs free-vars unresolved unused-vars)
   "*The warnings used when byte-compile-warnings is t.")
 
 (defvar byte-compile-warnings t
@@ -1335,7 +1333,8 @@ With prefix arg (noninteractively: 2nd arg), load the file after compiling."
 
   ;; Can't suppress the "Wrote..." message, so don't suppress this.
   (message "Compiling %s..." filename)
-  (let ((byte-compile-current-file (file-name-nondirectory filename))
+  (let (;;(byte-compile-current-file (file-name-nondirectory filename))
+	(byte-compile-current-file filename) ; show full pathname
 	target-file)
     (save-excursion
       (set-buffer (get-buffer-create " *Compiler Input*"))
@@ -1433,6 +1432,7 @@ With argument, insert value in current buffer after the form."
 	  (float-output-format nil)
 	  (case-fold-search nil)
 	  (print-length nil)
+	  (print-level nil)
 	  ;; Simulate entry to byte-compile-top-level
 	  (byte-compile-constants nil)
 	  (byte-compile-variables nil)
@@ -1653,9 +1653,9 @@ With argument, insert value in current buffer after the form."
   ;;
   (let* ((name (if (byte-compile-constp (nth 1 form))
 		   (eval (nth 1 form))))
-	 ;; In v19, the 5th arg to autoload can be t, nil, or 'keymap.
+	 ;; In v19, the 5th arg to autoload can be t, nil, 'macro, or 'keymap.
 	 (macrop (and (byte-compile-constp (nth 5 form))
-		      (eq 't (eval (nth 5 form)))))
+		      (memq (eval (nth 5 form)) '(t macro))))
 ;;	 (functionp (and (byte-compile-constp (nth 5 form))
 ;;			 (eq 'nil (eval (nth 5 form)))))
 	 )
@@ -1774,7 +1774,9 @@ With argument, insert value in current buffer after the form."
     (if (memq 'redefine byte-compile-warnings)
 	(byte-compile-arglist-warn form macrop))
     (if byte-compile-verbose
-	(message "Compiling %s (%s)..." (or filename "") (nth 1 form)))
+	(message "Compiling %s (%s)..."
+		 (if filename (file-name-nondirectory filename) "")
+		 (nth 1 form)))
     (cond (that-one
 	   (if (and (memq 'redefine byte-compile-warnings)
 		    ;; hack hack: don't warn when compiling the stubs in
@@ -1871,6 +1873,69 @@ With argument, insert value in current buffer after the form."
 	  nil)))))
 
 
+
+;; Compile those primitive ordinary functions
+;; which have special byte codes just for speed.
+
+(defmacro byte-defop-compiler (function &optional compile-handler)
+  ;; add a compiler-form for FUNCTION.
+  ;; If function is a symbol, then the variable "byte-SYMBOL" must name
+  ;; the opcode to be used.  If function is a list, the first element
+  ;; is the function and the second element is the bytecode-symbol.
+  ;; COMPILE-HANDLER is the function to use to compile this byte-op, or
+  ;; may be the abbreviations 0, 1, 2, 3, 0-1, or 1-2.
+  ;; If it is nil, then the handler is "byte-compile-SYMBOL."
+  (let (opcode)
+    (if (symbolp function)
+	(setq opcode (intern (concat "byte-" (symbol-name function))))
+      (setq opcode (car (cdr function))
+	    function (car function)))
+    (let ((fnform
+	   (list 'put (list 'quote function) ''byte-compile
+		 (list 'quote
+		       (or (cdr (assq compile-handler
+				      '((0 . byte-compile-no-args)
+					(1 . byte-compile-one-arg)
+					(2 . byte-compile-two-args)
+					(3 . byte-compile-three-args)
+					(0-1 . byte-compile-zero-or-one-arg)
+					(1-2 . byte-compile-one-or-two-args)
+					(2-3 . byte-compile-two-or-three-args)
+					)))
+			   compile-handler
+			   (intern (concat "byte-compile-"
+					   (symbol-name function))))))))
+      (if opcode
+	  (list 'progn fnform
+		(list 'put (list 'quote function)
+		      ''byte-opcode (list 'quote opcode))
+		(list 'put (list 'quote opcode)
+		      ''byte-opcode-invert (list 'quote function)))
+	fnform))))
+
+(defmacro byte-defop-compiler19 (function &optional compile-handler)
+  ;; Just like byte-defop-compiler, but defines an opcode that will only
+  ;; be used when byte-compile-generate-emacs19-bytecodes is true.
+  (if (and (byte-compile-single-version)
+	   (not byte-compile-generate-emacs19-bytecodes))
+      ;; #### instead of doing nothing, this should do some remprops,
+      ;; #### to protect against the case where a single-version compiler
+      ;; #### is loaded into a world that has contained a multi-version one.
+      nil
+    (list 'progn
+      (list 'put
+	(list 'quote
+	  (or (car (cdr-safe function))
+	      (intern (concat "byte-"
+		        (symbol-name (or (car-safe function) function))))))
+	''emacs19-opcode t)
+      (list 'byte-defop-compiler function compile-handler))))
+
+(defmacro byte-defop-compiler-1 (function &optional compile-handler)
+  (list 'byte-defop-compiler (list function nil) compile-handler))
+
+
+
 ;; The `domain' declaration.  This is legal only at top-level in a file, and
 ;; should generally be the first form in the file.  It is not legal inside
 ;; function bodies.
@@ -2315,67 +2380,6 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 (defun byte-compile-push-constant (const)
   (let ((for-effect nil))
     (inline (byte-compile-constant const))))
-
-
-;; Compile those primitive ordinary functions
-;; which have special byte codes just for speed.
-
-(defmacro byte-defop-compiler (function &optional compile-handler)
-  ;; add a compiler-form for FUNCTION.
-  ;; If function is a symbol, then the variable "byte-SYMBOL" must name
-  ;; the opcode to be used.  If function is a list, the first element
-  ;; is the function and the second element is the bytecode-symbol.
-  ;; COMPILE-HANDLER is the function to use to compile this byte-op, or
-  ;; may be the abbreviations 0, 1, 2, 3, 0-1, or 1-2.
-  ;; If it is nil, then the handler is "byte-compile-SYMBOL."
-  (let (opcode)
-    (if (symbolp function)
-	(setq opcode (intern (concat "byte-" (symbol-name function))))
-      (setq opcode (car (cdr function))
-	    function (car function)))
-    (let ((fnform
-	   (list 'put (list 'quote function) ''byte-compile
-		 (list 'quote
-		       (or (cdr (assq compile-handler
-				      '((0 . byte-compile-no-args)
-					(1 . byte-compile-one-arg)
-					(2 . byte-compile-two-args)
-					(3 . byte-compile-three-args)
-					(0-1 . byte-compile-zero-or-one-arg)
-					(1-2 . byte-compile-one-or-two-args)
-					(2-3 . byte-compile-two-or-three-args)
-					)))
-			   compile-handler
-			   (intern (concat "byte-compile-"
-					   (symbol-name function))))))))
-      (if opcode
-	  (list 'progn fnform
-		(list 'put (list 'quote function)
-		      ''byte-opcode (list 'quote opcode))
-		(list 'put (list 'quote opcode)
-		      ''byte-opcode-invert (list 'quote function)))
-	fnform))))
-
-(defmacro byte-defop-compiler19 (function &optional compile-handler)
-  ;; Just like byte-defop-compiler, but defines an opcode that will only
-  ;; be used when byte-compile-generate-emacs19-bytecodes is true.
-  (if (and (byte-compile-single-version)
-	   (not byte-compile-generate-emacs19-bytecodes))
-      ;; #### instead of doing nothing, this should do some remprops,
-      ;; #### to protect against the case where a single-version compiler
-      ;; #### is loaded into a world that has contained a multi-version one.
-      nil
-    (list 'progn
-      (list 'put
-	(list 'quote
-	  (or (car (cdr-safe function))
-	      (intern (concat "byte-"
-		        (symbol-name (or (car-safe function) function))))))
-	''emacs19-opcode t)
-      (list 'byte-defop-compiler function compile-handler))))
-
-(defmacro byte-defop-compiler-1 (function &optional compile-handler)
-  (list 'byte-defop-compiler (list function nil) compile-handler))
 
 
 (put 'byte-call 'byte-opcode-invert 'funcall)
@@ -3177,7 +3181,7 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 (defun byte-compile-autoload (form)
   (and (byte-compile-constp (nth 1 form))
        (byte-compile-constp (nth 5 form))
-       (eval (nth 5 form))  ; macro-p
+       (memq (eval (nth 5 form)) '(t macro))  ; macro-p
        (not (fboundp (eval (nth 1 form))))
        (byte-compile-warn
 	"The compiler ignores `autoload' except at top level.  You should 
@@ -3499,6 +3503,8 @@ For example, invoke \"emacs -batch -f batch-byte-recompile-directory .\""
        (make-obsolete-variable 'meta-flag
 			       "use the set-input-mode function instead.")
        (make-obsolete-variable 'first-change-function 'first-change-hook)
+       (make-obsolete-variable 'before-change-function 'before-change-functions)
+       (make-obsolete-variable 'after-change-function 'after-change-functions)
        (make-obsolete-variable 'after-write-file-hooks 'after-save-hook)
        ))
 (cond ((string-match "Lucid" emacs-version)

@@ -1,5 +1,5 @@
 /* Definition of PURESIZE.
-   Copyright (C) 1986, 1988, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1986, 1988, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -25,17 +25,20 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    this default.
  */
 
-/* Can decrease when building .elc's in ymakefile fixed */
-#if defined (SPARCWORKS) || defined (TOOLTALK)
-#define PURESIZE 900000
+#if defined(ENERGIZE) && !defined(PURESIZE)
+# define PURESIZE 690000
+#endif
+
+#if defined(SUNPRO) && !defined(PURESIZE)
+# define PURESIZE 420000
+#endif
+
+#if defined(TOOLTALK) && !defined(PURESIZE)
+# define PURESIZE 365000
 #endif
 
 #ifndef PURESIZE
-# ifdef ENERGIZE
-#  define PURESIZE 630000
-# else
-#  define PURESIZE 335000
-# endif
+# define PURESIZE 350000
 #endif
 
 #endif /* PURESIZE_H */

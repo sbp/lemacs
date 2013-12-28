@@ -1,5 +1,5 @@
 /* machine description file for U-station (Nihon Unisys, SS5E; Sumitomo Denkoh, U-Station E30).
-   Copyright (C) 1986, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1986 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -30,11 +30,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define INTBITS 32		/* Number of bits in an int */
 
 #define LONGBITS 32		/* Number of bits in a long */
-
-/* Define BIG_ENDIAN iff lowest-numbered byte in a word
-   is the most significant byte.  */
-
-#define BIG_ENDIAN
 
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
@@ -148,7 +143,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define EXEC_PAGESIZE 1024
 #define PURESIZE 130000
 
-/* #undef SIGIO		use BROKEN_SIGIO instead of this kludge -- jwz */
 #define BROKEN_SIGIO
+
 #undef SIGTSTP
 #undef HAVE_TIMEVAL

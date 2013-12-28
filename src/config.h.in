@@ -1,0 +1,343 @@
+/* Lucid Emacs site configuration template file.  -*- C -*-
+   Copyright (C) 1986, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
+
+This file is part of GNU Emacs.
+
+GNU Emacs is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+GNU Emacs is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GNU Emacs; see the file COPYING.  If not, write to
+the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+/* No code in Emacs #includes config.h twice, but some of the code
+   intended to work with other packages as well (like gmalloc.c) 
+   think they can include it as many times as they like.  */
+#ifndef _CONFIG_H_
+#define _CONFIG_H_
+
+/* These are all defined in the top-level Makefile by configure.
+   They're here only for reference.  */
+
+/* Define LISP_FLOAT_TYPE if you want emacs to support floating-point
+   numbers. */
+#undef LISP_FLOAT_TYPE
+
+/* Define GNU_MALLOC if you want to use the *new* GNU memory allocator. */
+#undef GNU_MALLOC
+
+/* Define HAVE_X_WINDOWS if you want to use the X window system.  */
+#undef HAVE_X_WINDOWS
+
+/* If we're using any sort of window system, define MULTI_SCREEN.  */
+#ifdef HAVE_X_WINDOWS
+#define MULTI_SCREEN
+#endif
+
+/* Define USER_FULL_NAME to return a string
+   that is the user's full name.
+   It can assume that the variable `pw'
+   points to the password file entry for this user.
+
+   At some sites, the pw_gecos field contains
+   the user's full name.  If neither this nor any other
+   field contains the right thing, use pw_name,
+   giving the user's login name, since that is better than nothing.  */
+#define USER_FULL_NAME pw->pw_gecos
+
+/* Define AMPERSAND_FULL_NAME if you use the convention
+   that & in the full name stands for the login id.  */
+#undef AMPERSAND_FULL_NAME
+
+/* Some things figured out by the configure script, grouped as they are in
+   configure.in.  */
+#undef HAVE_MACH_MACH_H
+#undef HAVE_SYS_TIME_H
+#undef HAVE_UNISTD_H
+#undef HAVE_UTIME_H
+#undef STDC_HEADERS
+#undef TIME_WITH_SYS_TIME
+#undef WORDS_BIGENDIAN
+
+/* Define if `sys_siglist' is declared by <signal.h>. */
+#undef SYS_SIGLIST_DECLARED
+
+#undef TM_IN_SYS_TIME
+#undef HAVE_TM_ZONE
+#undef HAVE_TZNAME
+
+#undef HAVE_CBRT
+#undef HAVE_CLOSEDIR
+#undef HAVE_DUP2
+#undef HAVE_FREXP
+#undef HAVE_GETHOSTNAME
+#undef HAVE_GETPAGESIZE
+#undef HAVE_GETTIMEOFDAY
+#undef HAVE_GETWD
+
+#undef HAVE_ACOSH
+#undef HAVE_ASINH
+#undef HAVE_ATANH
+#undef HAVE_LOGB
+#undef HAVE_MATHERR
+
+#if defined (HAVE_ACOSH) && defined (HAVE_ASINH) && defined (HAVE_ATANH)
+#define HAVE_INVERSE_HYPERBOLIC
+#endif
+
+#undef HAVE_MMAP
+#undef HAVE_MKDIR
+#undef HAVE_PERROR
+#undef HAVE_RANDOM
+#undef HAVE_RENAME
+#undef HAVE_RES_INIT
+#undef HAVE_RINT
+#undef HAVE_RMDIR
+#undef HAVE_REALPATH
+#undef HAVE_STRERROR
+#undef HAVE_SETSID
+
+#undef UNEXEC_SRC
+#undef AIX_SMT_EXP
+
+/* Define HAVE_XPM if you have the `xpm' library and want emacs to use it. */
+#undef HAVE_XPM
+
+/* Define EPOCH to include extra functionality that was present in Epoch.
+   This code has received only limited testing. */
+#undef EPOCH
+
+/* Define USE_EXTENSIONS if you want lwlib to support the function
+   XtWidgetToDispatchTo().  This is required so that keypresses get
+   dispatched to dialog boxes.  However, it requires that the
+   Xt source (and in particular, the file 'IntrinsicI.h' be present.)
+*/
+#undef USE_EXTENSIONS
+
+#define LOWTAGS
+
+/* If using GNU, then support inline function declarations. */
+#ifdef __GNUC__
+#define INLINE __inline__
+#else
+#define INLINE
+#endif
+
+/* Define USE_ASSERTIONS if you want the abort() to be changed to assert()
+   If the assertion fails, assert_failed() will be called.  This is not
+   recommended for use unless you really know what it does. */
+
+#undef USE_ASSERTIONS
+
+/* Define EXTERNAL_WIDGET to compile support for using the editor as a
+   widget. */
+#undef EXTERNAL_WIDGET
+
+/* There are some special-case defines for gcc and lcc. */
+#undef USE_GCC
+#undef USE_LCC
+
+/* The configuration script defines opsysfile to be the name of the
+   s/...h file that describes the system type you are using.  The file
+   is chosen based on the configuration name you give.
+
+   See the file ../etc/MACHINES for a list of systems and the
+   configuration names to use for them.
+
+   See s/template.h for documentation on writing s/...h files.  */
+#undef config_opsysfile 
+#include config_opsysfile
+
+/* The configuration script defines machfile to be the name of the
+   m/...h file that describes the machine you are using.  The file is
+   chosen based on the configuration name you give.
+
+   See the file ../etc/MACHINES for a list of machines and the
+   configuration names to use for them.
+
+   See m/template.h for documentation on writing m/...h files.  */
+#undef config_machfile
+#include config_machfile
+
+/* The configuration name.  This is used as the install directory name
+   for the lib-src programs. */
+#undef CONFIGURATION
+
+/* Load in the conversion definitions if this system
+   needs them and the source file being compiled has not
+   said to inhibit this.  There should be no need for you
+   to alter these lines.  */
+
+#ifdef SHORTNAMES
+#ifndef NO_SHORTNAMES
+#include "../shortnames/remap.h"
+#endif /* not NO_SHORTNAMES */
+#endif /* SHORTNAMES */
+
+/* Define `subprocesses' should be defined if you want to
+   have code for asynchronous subprocesses
+   (as used in M-x compile and M-x shell).
+   These do not work for some USG systems yet;
+   for the ones where they work, the s/...h file defines this flag.  */
+
+#ifndef VMS
+#ifndef USG
+/* #define subprocesses */
+#endif
+#endif
+
+/* Define REL_ALLOC if you want to use the relocating allocator for
+   buffer space. */
+#undef REL_ALLOC
+  
+/* Define LD_SWITCH_SITE to contain any special flags your loader may need.  */
+#undef LD_SWITCH_SITE
+
+/* Define C_SWITCH_SITE to contain any special flags your compiler needs.  */
+#undef C_SWITCH_SITE
+
+/* Define LD_SWITCH_X_SITE to contain any special flags your loader
+   may need to deal with X Windows.  For instance, if you've defined
+   HAVE_X_WINDOWS above and your X libraries aren't in a place that
+   your loader can find on its own, you might want to add "-L/..." or
+   something similar.  */
+#undef LD_SWITCH_X_SITE
+
+/* Define C_SWITCH_X_SITE to contain any special flags your compiler
+   may need to deal with X Windows.  For instance, if you've defined
+   HAVE_X_WINDOWS above and your X include files aren't in a place
+   that your compiler can find on its own, you might want to add
+   "-I/..." or something similar.  */
+#undef C_SWITCH_X_SITE
+
+/* Define the return type of signal handlers if the s-xxx file
+   did not already do so.  */
+#define RETSIGTYPE void
+
+/* SIGTYPE is the macro we actually use.  */
+#ifndef SIGTYPE
+#define SIGTYPE RETSIGTYPE
+#define SIGRETURN return
+#endif
+
+/* Define ENERGIZE to compile with support for the Energize Programming System.
+   If you do this, don't forget to define ENERGIZE in lwlib/Imakefile as well.
+   You will need to set your C_SWITCH_SITE and LD_SWITCH_SITE to point at the
+   Energize connection library (libconn.a) and associated header files.
+ */
+#undef ENERGIZE
+#undef ENERGIZE_2
+#undef ENERGIZE_3
+
+/* Define SUNPRO to compiled in support for Sun Sparcworks. */
+#undef SUNPRO
+
+/* You should define LWLIB_HAS_EXTENSIONS if and only if the lwlib Imakefile
+   had INCLUDE_EXTENSIONS defined.  This makes it possible to link arbitrary
+   other widgets into the Emacs frame; Energize requires this.  The only
+   reason you would not want this defined is if you couldn't get lwlib to
+   compile this way because you don't have read-access to the X source tree.
+   See also LWLIB_USES_MOTIF and LWLIB_USES_OLIT, below.
+ */
+#if defined(ENERGIZE) || defined(USE_EXTENSIONS)
+#define LWLIB_HAS_EXTENSIONS
+#endif
+
+/* Sun SparcStations, SGI machines, and HP9000s700s have support for playing
+   different sound files as beeps.  If you are on a SparcStation but do not 
+   have the sound option installed for some reason, then undefine
+   HAVE_NATIVE_SOUND.  (It's usually found in /usr/demo/SOUND/ on SunOS 4
+   and Solaris systems; on Solaris, you may need to install the "SUNWaudmo"
+   package.)
+ */
+#undef HAVE_NATIVE_SOUND
+
+/* If you wish to compile with support for the NetAudio network sound
+   system define HAVE_NETAUDIO_SOUND
+ */
+#undef HAVE_NETAUDIO_SOUND
+
+/* Compile in support for running emacs directly from temacs (useful for
+   debugging emacs) */
+#undef RUNNABLE_TEMACS
+
+/* Compile in support for SunPro usage-tracking code. */
+#undef USAGE_TRACKING
+
+/* Define TOOLTALK if your site supports the ToolTalk library. */
+#undef TOOLTALK
+
+/* Define this if you want level 2 internationalization compliance
+   (localized collation and formatting).  Generally this should be
+   defined, unless your system doesn't have the strcoll() and 
+   setlocale() library routines.  This really should be defined in
+   the appropriate s/ or m/ file.
+ */
+#undef I18N2
+
+/* Define this if you want level 3 internationalization compliance
+   (localized messaging).  This will cause a small runtime performance
+   penalty, as the strings are read from the message catalog(s).
+   For this you need the gettext() and dgetext() library routines.
+   WARNING, this code is under construction.
+ */
+#undef I18N3
+
+/* Define this if you want level 4 internationalization compliance
+   (multi-byte character support).  This has a large cost in terms of
+   runtime speed and memory usage, as the internal representation of
+   characters will be 32 bits instead of 8.
+   WARNING, this code is under construction.
+ */
+#undef I18N4
+
+/* If you have defined USE_MOTIF in the lwlib Imakefile, then you must define
+   LWLIB_USES_MOTIF here.  Similarly, if you have defined USE_OLIT in the
+   lwlib Imakefile, you must define LWLIB_USES_OLIT here.  This is because
+   emacs must be linked with the Motif or OpenLook libraries if lwlib has
+   been configured to use them.  (Note: you cannot define both.)
+
+   See the comments in lwlib/Imakefile for more info.
+ */
+#undef LWLIB_USES_MOTIF
+#undef LWLIB_USES_OLIT
+#undef LWLIB_USES_LUCID
+#undef HAVE_XMU
+
+/* If you are using SunOS 4.1.1 and X11r5, then you need this patch.
+   There is a stupid bug in the SunOS libc.a: two functions which X11r5
+   uses, mbstowcs() and wcstombs(), are unusable when programs are
+   statically linked (as Emacs must be) because the static version of
+   libc.a contains the *dynamic* versions of these functions.  These
+   functions don't seem to be called when Emacs is running, so it's 
+   enough to define stubs for them.
+
+   This appears to be fixed in SunOS 4.1.2.
+
+   Also, SunOS 4.1.1 contains buggy versions of strcmp and strcpy that
+   sometimes reference memory past the end of the string, which can segv.
+   I don't know whether this is has been fixed as of 4.1.2 or 4.1.3.
+ */
+#if defined(sparc) && !defined(USG)
+#define OBJECTS_SYSTEM sunOS-fix.o strcmp.o strcpy.o
+#endif
+
+  /* To eliminate use of `const' in the emacs sources,
+     do `#define CONST_IS_LOSING' */
+#undef CONST_IS_LOSING
+
+# undef CONST
+# ifdef CONST_IS_LOSING
+#  define CONST
+# else
+#  define CONST const
+# endif /* CONST */
+
+#endif /* _CONFIG_H_ */

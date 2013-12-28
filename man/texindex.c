@@ -19,6 +19,10 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 
+#if defined (HAVE_CONFIG_H)
+#include "config.h"
+#endif
+
 #include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
@@ -60,8 +64,10 @@ extern noshare char *sys_errlist[];
 
 #else /* !VMS */
 
+#  if !defined (__WATCOMC__)
 extern int sys_nerr;
 extern char *sys_errlist[];
+#  endif /* !__WATCOMC__ */
 
 #  if defined (HAVE_SYS_FCNTL_H)
 #    include <sys/types.h>
@@ -161,29 +167,29 @@ char *program_name;
 
 /* Forward declarations of functions in this file. */
 
-void decode_command ();
-void sort_in_core ();
-void sort_offline ();
-char **parsefile ();
-char *find_field ();
-char *find_pos ();
-long find_value ();
-char *find_braced_pos ();
-char *find_braced_end ();
-void writelines ();
-int compare_field ();
-int compare_full ();
-long readline ();
-int merge_files ();
-int merge_direct ();
-void pfatal_with_name ();
-void fatal ();
-void error ();
-void *xmalloc (), *xrealloc ();
-char *concat ();
-char *maketempname ();
-void flush_tempfiles ();
-char *tempcopy ();
+void decode_command (int, char **);
+void sort_in_core (char *, long, char *);
+void sort_offline (char *, int, long, char *);
+char **parsefile (char *, char **, char *, long);
+char *find_field (struct keyfield *, char *, long *);
+char *find_pos (char *, int, int, int);
+long find_value (char *, long);
+char *find_braced_pos (char *, int, int, int);
+char *find_braced_end (char *);
+void writelines (char **, int, FILE *);
+int compare_field (struct keyfield *, char *, long, long, char *, long, long);
+int compare_full (char **, char **);
+long readline (struct linebuffer *, FILE *);
+int merge_files (char **, int, char *);
+int merge_direct (char **, int, char *);
+void pfatal_with_name (char *);
+void fatal (char *, char *);
+void error (char *, char *);
+void *xmalloc (int), *xrealloc (void *, int);
+char *concat (char *, char *, char *);
+char *maketempname (int);
+void flush_tempfiles (int);
+char *tempcopy (int);
 
 #define MAX_IN_CORE_SORT 500000
 
@@ -247,7 +253,7 @@ main (argc, argv)
 	/* Sort a small amount of data. */
 	sort_in_core (infiles[i], ptr, outfile);
       else
-	sort_offline (infiles[i], ptr, outfile);
+	sort_offline (infiles[i], 1, ptr, outfile);
     }
 
   flush_tempfiles (tempcount);
@@ -1671,7 +1677,7 @@ memory_error (callers_name, bytes_wanted)
 	   "Virtual memory exhausted in %s ()!  Needed %d bytes.",
 	   callers_name, bytes_wanted);
 
-  error (printable_string);
+  error (printable_string, 0);
   abort ();
 }
 

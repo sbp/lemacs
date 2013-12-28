@@ -1,6 +1,6 @@
 ;;; env.el --- functions to manipulate environment variables.
 
-;;; Copyright Free Software Foundation 1991
+;;; Copyright Free Software Foundation 1991, 1994
 
 ;; Maintainer: FSF
 ;; Keywords: processes, unix
@@ -51,7 +51,8 @@ This function works by modifying `process-environment'."
 	  (setq scan nil))
 	 ((null (setq scan (cdr scan)))
 	  (setq process-environment
-		(cons (concat variable "=" value) process-environment))))))))
+		(cons (concat variable "=" value) process-environment)))))))
+  value)
 
 (provide 'env)
 

@@ -1,5 +1,5 @@
 ;;; Mouse and font support for GNUS running in Lucid GNU Emacs
-;; Copyright (C) 1992, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -42,6 +42,7 @@
     ["Mail Reply (Citing Original)" gnus-summary-reply-with-original t]
     ["Post Reply" gnus-summary-followup t]
     ["Post Reply (Citing Original)" gnus-summary-followup-with-original t]
+    ["Post New Article" gnus-summary-post-news t]
     ["Forward Article" gnus-summary-mail-forward t]
     "----"
     ["Mark Article as Read" gnus-summary-mark-as-read-forward t]
@@ -64,6 +65,8 @@
     ["Show Subscribed Nonempty Newsgroups" gnus-group-list-groups t]
     ["Check Bogosity" gnus-group-check-bogus-groups t]
     "----"
+    ["Post New Article" gnus-group-post-news t]
+    "----"
     ["Save .newsrc" gnus-group-force-update t]
     ["GNUS Manual" gnus-info-find-node t]
     ["Suspend GNUS" gnus-group-suspend t]
@@ -76,7 +79,14 @@
     ["Previous Page" gnus-article-prev-page t]
     ["Pop Article History" gnus-article-pop-article t]
     ["Show Referenced Article" gnus-article-refer-article t]
-    ["Show Summary" gnus-article-show-summary t]))
+    ["Show Summary" gnus-article-show-summary t]
+    "----"
+    ["Mail Reply" gnus-summary-reply t]
+    ["Mail Reply (Citing Original)" gnus-summary-reply-with-original t]
+    ["Post Reply" gnus-summary-followup t]
+    ["Post Reply (Citing Original)" gnus-summary-followup-with-original t]
+    ["Forward Article" gnus-summary-mail-forward t]
+    ))
 
 (defun gnus-summary-menu (e)
   (interactive "e")

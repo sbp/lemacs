@@ -1,31 +1,30 @@
+This directory contains the source files for the C component of GNU Emacs.
+Nothing in this directory is needed for using Emacs once it is built
+and installed, if the dumped Emacs (on Unix systems) or the Emacs
+executable and map files (on VMS systems) are copied elsewhere.
 
-Read the file ../etc/NEWS before you do anything else.
+See the files ../README and then ../INSTALL for installation instructions.
 
-Edit src/lwlib/Imakefile, read the comments, and define the symbols you 
-want.  Note that the symbols LWLIB_HAS_EXTENSIONS, LWLIB_USES_MOTIF, and
-LWLIB_USES_OLIT in src/config.h must correspond to the choices you made
-in src/lwlib/Imakefile.  Imake comes with X.  If you don't have Imake, 
-you'll have to hack up a Makefile for lwlib by hand.  
+Under Unix, the file `Makefile.in' is used as a template by the script
+`../configure' to produce `Makefile'.  The `Makefile' then uses `cpp'
+to produce the machine-dependent `ymakefile' from `xmakefile';
+`ymakefile' is the file which actually controls the compilation of
+Emacs.  Most of this should work transparently to the user; you should
+only need to run `../configure', and then type `make'.
 
-Lucid GNU Emacs requires an ANSI C compiler, like Lucid C/C++ or GCC.
+See the file VMSBUILD in this directory for instructions on compiling,
+linking and building Emacs on VMS.
 
-Now all you should have to do is
+The files `*.com' and `temacs.opt' are used on VMS only.
+The files `vlimit.h', `ioclt.h' and `param.h' are stubs to
+allow compilation on VMS with the minimum amount of #ifdefs.
 
-cd src
-make clean
-make
+`uaf.h' contains VMS uaf structure definitions.  This is only needed if
+you define READ_SYSUAF.  This should only be done for single-user
+systems where you are not overly concerned with security, since it
+either requires that you install Emacs with SYSPRV or make SYSUAF.DAT
+world readable.  Otherwise, Emacs can determine information about the
+current user, but no one else.
 
-If anything goes wrong, read the file ../PROBLEMS.
-
-There have been a few incompatible changes due to the new input model, and
-we have included modified versions of many popular emacs-lisp packages.  
-Because of this, you will encounter problems if you try to run (for example)
-the standard distribution of GNUS instead of the one we ship.  We hope to 
-get our compatibility changes folded back into the main distribution of 
-these packages eventually.
-
-If you install emacs in such a way that an emacs18 lisp directory is searched
-before the lisp directory shipped with this emacs, or if you do this with
-your .emacs file, nothing will work.
-
-If you are thinking of editing paths.h, think again.  Re-read ../etc/NEWS.
+`pwd.h' contains definitions for VMS to be able to correctly simulate
+`getpwdnam' and `getpwduid'.

@@ -1,4 +1,5 @@
-/* Copyright (C) 1985, 1986, 1987, 1992, 1993 Free Software Foundation, Inc.
+/* Copyright (C) 1985, 1986, 1987, 1992, 1993, 1994
+   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -28,6 +29,26 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifdef USG
 #include <fcntl.h>
 #endif /* USG */
+
+#ifdef SYSV_SYSTEM_DIR
+
+#include <dirent.h>
+#define DIRENTRY struct dirent
+
+#else /* !SYSV_SYSTEM_DIR */
+
+#ifdef NONSYSTEM_DIR_LIBRARY
+#include "ndir.h"
+#else /* not NONSYSTEM_DIR_LIBRARY */
+#include <sys/dir.h>
+#endif /* not NONSYSTEM_DIR_LIBRARY */
+
+#define DIRENTRY struct direct
+
+extern DIR *opendir ();
+extern struct direct *readdir ();
+
+#endif /* !SYSV_SYSTEM_DIR */
 
 #ifdef VMS
 #include "vms-pwd.h"
@@ -112,7 +133,7 @@ lock_file (fn)
 
   /* Create the name of the lock-file for file fn */
   lfname = (char *) alloca (XSTRING (fn)->size +
-			    XSTRING (Vlock_directory)->size + 1);
+			    XSTRING (Vlock_directory)->size + 2);
   fill_in_lock_file_name (lfname, fn);
 
   /* See if this file is visited and has changed on disk since it was
@@ -159,6 +180,12 @@ fill_in_lock_file_name (char *lockfile, Lisp_Object fn)
 
   p = lockfile + strlen (lockfile);
 
+  if (*p != '/')  /* in case lock-directory doesn't end in / */
+    {
+      *p = '/';
+      p++;
+    }
+
   strcpy (p, (char *) XSTRING (fn)->data);
 
   for (; *p; p++)
@@ -186,7 +213,7 @@ lock_file_1 (CONST char *lfname, int mode)
 #else
       fchmod (fd, 0666);
 #endif
-      sprintf (buf, "%d ", getpid ());
+      sprintf (buf, "%ld ", (long) getpid ());
       emacs_write (fd, buf, strlen (buf));
       emacs_close (fd);
       return 1;
@@ -268,7 +295,7 @@ unlock_file (fn)
   CHECK_STRING (Vsuperlock_path, 0);
 
   lfname = (char *) alloca (XSTRING (fn)->size +
-			    XSTRING (Vlock_directory)->size + 1);
+			    XSTRING (Vlock_directory)->size + 2);
   fill_in_lock_file_name (lfname, fn);
 
   lock_superlock (lfname);
@@ -280,10 +307,10 @@ unlock_file (fn)
 }
 
 static void
-lock_superlock (lfname)
-     CONST char *lfname;
+lock_superlock (CONST char *lfname)
 {
   register int i, fd;
+  DIR *lockdir;
 
   for (i = -20; i < 0 &&
        (fd = emacs_open ((char *) XSTRING (Vsuperlock_path)->data,
@@ -292,6 +319,13 @@ lock_superlock (lfname)
     {
       if (errno != EEXIST)
 	return;
+
+      /* this next stuff is to cause nfs to get all the cache on the
+         system into sync. -- from warrend@sptekwv3.wv.tek.COM */
+      lockdir = opendir ((char *) XSTRING (Vlock_directory)->data);
+      if (lockdir)
+	closedir (lockdir);
+
       sleep (1);
     }
   if (fd >= 0)
@@ -382,7 +416,7 @@ t if it is locked by you, else a string of the name of the locker.")
 
   /* Create the name of the lock-file for file filename */
   lfname = (char *) alloca (XSTRING (fn)->size +
-			    XSTRING (Vlock_directory)->size + 1);
+			    XSTRING (Vlock_directory)->size + 2);
   fill_in_lock_file_name (lfname, fn);
 
   owner = current_lock_owner (lfname);
@@ -408,12 +442,12 @@ syms_of_filelock ()
   DEFVAR_LISP ("lock-directory", &Vlock_directory, "Don't change this");
   DEFVAR_LISP ("superlock-path", &Vsuperlock_path, "Don't change this");
 #ifdef PATH_LOCK
-  Vlock_directory = build_string (PATH_LOCK);
+  Vlock_directory = Ffile_name_as_directory (build_string (PATH_LOCK));
 #else
   Vlock_directory = Qnil;
 #endif
 #ifdef PATH_SUPERLOCK
-  Vsuperlock_path = build_string (PATH_SUPERLOCK);
+  Vsuperlock_path = Ffile_name_as_directory (build_string (PATH_SUPERLOCK));
 #else
   Vsuperlock_path = Qnil;
 #endif

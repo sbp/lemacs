@@ -1,5 +1,5 @@
-This is Info file ../info/lemacs.info, produced by Makeinfo-1.55 from
-the input file lemacs.texinfo.
+This is Info file ../../info/lemacs.info, produced by Makeinfo-1.56
+from the input file lemacs.texinfo.
 
    This file documents the GNU Emacs editor.
 
@@ -24,6 +24,731 @@ versions, except that the sections entitled "The GNU Manifesto",
 translation approved by the author instead of in the original English.
 
 
+File: lemacs.info,  Node: Command Switches,  Next: Basic,  Prev: Exiting,  Up: Top
+
+Command Line Switches and Arguments
+===================================
+
+   GNU Emacs supports command line arguments you can use to request
+various actions when invoking Emacs.  The commands are for compatibility
+with other editors and for sophisticated activities.  If you are using
+Lucid Emacs under the X window system, you can also use a number of
+standard Xt command line arguments. Command line arguments are not
+usually needed for editing with Emacs; new users can skip this section.
+
+   Many editors are designed to be started afresh each time you want to
+edit.  You start the editor to edit one file; then exit the editor.  The
+next time you want to edit either another file or the same one, you
+start the editor again.  Under these circumstances, it makes sense to
+use a command line argument to say which file to edit.
+
+   The recommended way to use GNU Emacs is to start it only once, just
+after you log in, and do all your editing in the same Emacs process.
+Each time you want to edit a file, you visit it using the existing
+Emacs.  Emacs creates a new buffer for each file, and (unless you kill
+some of the buffers) Emacs eventually has many files in it ready for
+editing.  Usually you do not kill the Emacs process until you are about
+to log out.  Since you usually read files by typing commands to Emacs,
+command line arguments for specifying a file when Emacs is started are
+seldom needed.
+
+   Emacs accepts command-line arguments that specify files to visit,
+functions to call, and other activities and operating modes.  If you are
+running Lucid Emacs under the X window system, a number of standard Xt
+command line arguments are available as well.
+
+   The following subsections list:
+   * Command line arguments that you can always use
+
+   * Command line arguments that have to appear at the beginning of the
+     argument list
+
+   * Command line arguments that are only relevant if you are running
+     Lucid Emacs under X
+
+Command Line Arguments for Any Position
+---------------------------------------
+
+   Command line arguments are processed in the order they appear on the
+command line; however, certain arguments (the ones in the second table)
+must be at the front of the list if they are used.
+
+   Here are the arguments allowed:
+
+`FILE'
+     Visit FILE using `find-file'.  *Note Visiting::.
+
+`+LINENUM FILE'
+     Visit FILE using `find-file', then go to line number LINENUM in it.
+
+`-load FILE'
+`-l FILE'
+     Load a file FILE of Lisp code with the function `load'.  *Note
+     Lisp Libraries::.
+
+`-funcall FUNCTION'
+`-f FUNCTION'
+     Call Lisp function FUNCTION with no arguments.
+
+`-eval FUNCTION'
+     Interpret the next argument as a Lisp expression, and evaluate it.
+     You must be very careful of the shell quoting here.
+
+`-insert FILE'
+`-i FILE'
+     Insert the contents of FILE into the current buffer.  This is like
+     what `M-x insert-buffer' does; *Note Misc File Ops::.
+
+`-kill'
+     Exit from Emacs without asking for confirmation.
+
+`-version'
+     Prints version information.  This implies `-batch'.
+
+          % emacs -version
+          GNU Emacs 19.6 Lucid of Thu Apr  1 1993 on thalidomide (berkeley-unix)
+
+`-help'
+     Prints a summary of command-line options and then exits.
+
+Command Line Arguments (Beginning of Line Only)
+-----------------------------------------------
+
+   The following arguments are recognized only at the beginning of the
+command line.  If more than one of them appears, they must appear in the
+order in which they appear in this table.
+
+`-t FILE'
+     Use FILE instead of the terminal for input and output. (This
+     option is currently not valid in Lucid Emacs.)
+
+`-batch'
+     Run Emacs in "batch mode", which means that the text being edited
+     is not displayed and the standard Unix interrupt characters such as
+     `C-z' and `C-c' continue to have their normal effect.  Emacs in
+     batch mode outputs to `stderr' only what would normally be printed
+     in the echo area under program control.
+
+     Batch mode is used for running programs written in Emacs Lisp from
+     shell scripts, makefiles, and so on.  Normally the `-l' switch or
+     `-f' switch will be used as well, to invoke a Lisp program to do
+     the batch processing.
+
+     `-batch' implies `-q' (do not load an init file).  It also causes
+     Emacs to kill itself after all command switches have been
+     processed.  In addition, auto-saving is not done except in buffers
+     for which it has been explicitly requested.
+
+`-no-init-file'
+`-q'
+     Do not load your Emacs init file `~/.emacs'.
+
+`-no-site-file'
+     Do not load the site-specific init file `lisp/site-start.el'.
+
+`-user USER'
+`-u USER'
+     Load USER's Emacs init file `~USER/.emacs' instead of your own.
+
+   Note that the init file can get access to the command line argument
+values as the elements of a list in the variable `command-line-args'.
+(The arguments in the second table above will already have been
+processed and will not be in the list.)  The init file can override the
+normal processing of the other arguments by setting this variable.
+
+   One way to use command switches is to visit many files automatically:
+
+     emacs *.c
+
+passes each `.c' file as a separate argument to Emacs, so that Emacs
+visits each file (*note Visiting::.).
+
+   Here is an advanced example that assumes you have a Lisp program file
+called `hack-c-program.el' which, when loaded, performs some useful
+operation on the current buffer, expected to be a C program.
+
+     emacs -batch foo.c -l hack-c-program -f save-buffer -kill > log
+
+Here Emacs is told to visit `foo.c', load `hack-c-program.el' (which
+makes changes in the visited file), save `foo.c' (note that
+`save-buffer' is the function that `C-x C-s' is bound to), and then
+exit to the shell from which the command was executed.  `-batch'
+guarantees there will be no problem redirecting output to `log',
+because Emacs will not assume that it has a display terminal to work
+with.
+
+Command Line Arguments (for Lucid Emacs Under X)
+------------------------------------------------
+
+   If you are running Lucid Emacs under X, a number of options are
+available to control color, border, and window title and icon name:
+
+`-title TITLE'
+`-wn TITLE'
+`-T TITLE'
+     Use TITLE as the window title. This sets the `screen-title-format'
+     variable, which controls the title of the X window corresponding
+     to the selected screen.  This is the same format as
+     `mode-line-format'.
+
+`-iconname TITLE'
+`-in TITLE'
+     Use TITLE as the icon name. This sets the
+     `screen-icon-title-format' variable, which controls the title of
+     the icon corresponding to the selected screen.
+
+`-mc COLOR'
+     Use COLOR as the mouse color.
+
+`-cr COLOR'
+     Use COLOR as the text-cursor foreground color.
+
+   In addition, Lucid Emacs allows you to use a number of standard Xt
+command line arguments.
+
+`-background COLOR'
+`-bg COLOR'
+     Use COLOR as the background color.
+
+`-bordercolor COLOR'
+`-bd COLOR'
+     Use COLOR as the border color.
+
+`-borderwidth WIDTH'
+`-bw WIDTH'
+     Use WIDTH as the border width.
+
+`-display DISPLAY'
+`-d DISPLAY'
+     When running under the X window system, create the window
+     containing the Emacs screen on the display named DISPLAY.
+
+`-foreground COLOR'
+`-fg COLOR'
+     Use COLOR as the foreground color.
+
+`-font NAME'
+`-fn NAME'
+     Use NAME as the default font.
+
+`-geometry SPEC'
+`-geom SPEC'
+`-g SPEC'
+     Use the geometry (window size and/or position) specified by SPEC.
+
+`-iconic'
+     Start up iconified.
+
+`-rv'
+     Bring up Emacs in reverse video.
+
+`-NAME'
+     Use the resource manager resources specified by NAME.  The default
+     is to use the name of the program (`argv[0]') as the resource
+     manager name.
+
+`-xrm'
+     Read something into the resource database for this invocation of
+     Emacs only.
+
+
+File: lemacs.info,  Node: Basic,  Next: Undo,  Prev: Command Switches,  Up: Top
+
+Basic Editing Commands
+**********************
+
+   We now give the basics of how to enter text, make corrections, and
+save the text in a file.  If this material is new to you, you might
+learn it more easily by running the Emacs learn-by-doing tutorial.  To
+do this, type `Control-h t' (`help-with-tutorial').
+
+Inserting Text
+==============
+
+   To insert printing characters into the text you are editing, just
+type them.  This inserts the characters into the buffer at the cursor
+(that is, at "point"; *note Point::.).  The cursor moves forward.  Any
+characters after the cursor move forward too.  If the text in the buffer
+is `FOOBAR', with the cursor before the `B', and you type `XX', the
+result is `FOOXXBAR', with the cursor still before the `B'.
+
+   To "delete" text you have just inserted, use DEL.  DEL deletes the
+character BEFORE the cursor (not the one that the cursor is on top of
+or under; that is the character AFTER the cursor).  The cursor and all
+characters after it move backwards.  Therefore, if you type a printing
+character and then type DEL, they cancel out.
+
+   To end a line and start typing a new one, type RET.  This inserts a
+newline character in the buffer.  If point is in the middle of a line,
+RET splits the line.  Typing DEL when the cursor is at the beginning of
+a line rubs out the newline before the line, thus joining the line with
+the preceding line.
+
+   Emacs automatically splits lines when they become too long, if you
+turn on a special mode called "Auto Fill" mode.  *Note Filling::, for
+information on using Auto Fill mode.
+
+   Customization information: DEL, in most modes, runs the command
+`delete-backward-char'; RET runs the command `newline', and
+self-inserting printing characters run the command `self-insert', which
+inserts whatever character was typed to invoke it.  Some major modes
+rebind DEL to other commands.
+
+   Direct insertion works for printing characters and SPC, but other
+characters act as editing commands and do not insert themselves.  If
+you need to insert a control character or a character whose code is
+above 200 octal, you must "quote" it by typing the character
+`control-q' (`quoted-insert') first.  There are two ways to use `C-q':
+
+   * `Control-q' followed by any non-graphic character (even `C-g')
+     inserts that character.
+
+   * `Control-q' followed by three octal digits inserts the character
+     with the specified character code.
+
+A numeric argument to `C-q' specifies how many copies of the quoted
+character should be inserted (*note Arguments::.).
+
+   If you prefer to have text characters replace (overwrite) existing
+text instead of moving it to the right, you can enable Overwrite mode, a
+minor mode.  *Note Minor Modes::.
+
+Changing the Location of Point
+==============================
+
+   To do more than insert characters, you have to know how to move point
+(*note Point::.).  Here are a few of the available commands.
+
+`C-a'
+     Move to the beginning of the line (`beginning-of-line').
+
+`C-e'
+     Move to the end of the line (`end-of-line').
+
+`C-f'
+     Move forward one character (`forward-char').
+
+`C-b'
+     Move backward one character (`backward-char').
+
+`M-f'
+     Move forward one word (`forward-word').
+
+`M-b'
+     Move backward one word (`backward-word').
+
+`C-n'
+     Move down one line, vertically (`next-line').  This command
+     attempts to keep the horizontal position unchanged, so if you
+     start in the middle of one line, you end in the middle of the
+     next.  When on the last line of text, `C-n' creates a new line and
+     moves onto it.
+
+`C-p'
+     Move up one line, vertically (`previous-line').
+
+`C-l'
+     Clear the screen and reprint everything (`recenter').  Text moves
+     on the screen to bring point to the center of the window.
+
+`M-r'
+     Move point to left margin on the line halfway down the screen or
+     window (`move-to-window-line').  Text does not move on the screen.
+     A numeric argument says how many screen lines down from the top
+     of the window (zero for the top).  A negative argument counts from
+     the bottom (-1 for the bottom).
+
+`C-t'
+     Transpose two characters, the ones before and after the cursor
+     (`transpose-chars').
+
+`M-<'
+     Move to the top of the buffer (`beginning-of-buffer').  With
+     numeric argument N, move to N/10 of the way from the top.  *Note
+     Arguments::, for more information on numeric arguments.
+
+`M->'
+     Move to the end of the buffer (`end-of-buffer').
+
+`M-x goto-char'
+     Read a number N and move the cursor to character number N.
+     Position 1 is the beginning of the buffer.
+
+`M-x goto-line'
+     Read a number N and move cursor to line number N.  Line 1 is the
+     beginning of the buffer.
+
+`C-x C-n'
+     Use the current column of point as the "semi-permanent goal
+     column" for `C-n' and `C-p' (`set-goal-column').  Henceforth, those
+     commands always move to this column in each line moved into, or as
+     close as possible given the contents of the line.  This goal
+     column remains in effect until canceled.
+
+`C-u C-x C-n'
+     Cancel the goal column.  Henceforth, `C-n' and `C-p' once again
+     try to avoid changing the horizontal position, as usual.
+
+   If you set the variable `track-eol' to a non-`nil' value, `C-n' and
+`C-p' move to the end of the line when at the end of the starting line.
+By default, `track-eol' is `nil'.
+
+Erasing Text
+============
+
+`DEL'
+     Delete the character before the cursor (`delete-backward-char').
+
+`C-d'
+     Delete the character after the cursor (`delete-char').
+
+`C-k'
+     Kill to the end of the line (`kill-line').
+
+`M-d'
+     Kill forward to the end of the next word (`kill-word').
+
+`M-DEL'
+     Kill back to the beginning of the previous word
+     (`backward-kill-word').
+
+   In contrast to the DEL key, which deletes the character before the
+cursor, `Control-d' deletes the character after the cursor, causing the
+rest of the text on the line to shift left.  If `Control-d' is typed at
+the end of a line, that line and the next line are joined.
+
+   To erase a larger amount of text, use `Control-k', which kills a
+line at a time.  If you use `C-k' at the beginning or in the middle of
+a line, it kills all the text up to the end of the line.  If you use
+`C-k' at the end of a line, it joins that line and the next line.
+
+   *Note Killing::, for more flexible ways of killing text.
+
+Files
+=====
+
+   The commands above are sufficient for creating and altering text in
+an Emacs buffer.  More advanced Emacs commands just make things easier.
+But to keep any text permanently you must put it in a "file".  Files
+are named units of text which are stored by the operating system and
+which you can retrieve by name.  To look at or use the contents of a
+file in any way, including editing the file with Emacs, you must
+specify the file name.
+
+   Consider a file named `/usr/rms/foo.c'.  To begin editing this file
+from Emacs, type:
+
+     C-x C-f /usr/rms/foo.c RET
+
+The file name is given as an "argument" to the command `C-x C-f'
+(`find-file').  The command uses the "minibuffer" to read the argument.
+You have to type RET to terminate the argument (*note Minibuffer::.).
+
+   You can also use the Open File... menu item from the File menu, then
+type the name of the file to the prompt.
+
+   Emacs obeys the command by "visiting" the file: it creates a buffer,
+copies the contents of the file into the buffer, and then displays the
+buffer for you to edit.  You can make changes in the buffer, and then
+"save" the file by typing `C-x C-s' (`save-buffer') or choosing Save
+Buffer from the File menu.  This makes the changes permanent by copying
+the altered contents of the buffer back into the file `/usr/rms/foo.c'.
+Until then, the changes are only inside your Emacs buffer, and the
+file `foo.c' is not changed.
+
+   To create a file, visit the file with `C-x C-f' as if it already
+existed or choose Open File from the File menu and provide the name for
+the new file in the minibuffer.  Emacs will create an empty buffer in
+which you can insert the text you want to put in the file.  When you
+save the buffer with `C-x C-s', or by choosing Save Buffer from the
+File menu, the file is created.
+
+   To learn more about using files, *note Files::..
+
+Help
+====
+
+   If you forget what a key does, you can use the Help character
+(`C-h') to find out: Type `C-h k' followed by the key you want to know
+about.  For example, `C-h k C-n' tells you what `C-n' does.  `C-h' is a
+prefix key; `C-h k' is just one of its subcommands (the command
+`describe-key').  The other subcommands of `C-h' provide different
+kinds of help.  Type `C-h' three times to get a description of all the
+help facilities.  *Note Help::.
+
+* Menu:
+
+* Blank Lines::        Commands to make or delete blank lines.
+* Continuation Lines:: Lines too wide for the screen.
+* Position Info::      What page, line, row, or column is point on?
+* Arguments::	       Numeric arguments for repeating a command.
+
+
+File: lemacs.info,  Node: Blank Lines,  Next: Continuation Lines,  Prev: Basic,  Up: Basic
+
+Blank Lines
+===========
+
+   Here are special commands and techniques for entering and removing
+blank lines.
+
+`C-o'
+     Insert one or more blank lines after the cursor (`open-line').
+
+`C-x C-o'
+     Delete all but one of many consecutive blank lines
+     (`delete-blank-lines').
+
+   When you want to insert a new line of text before an existing line,
+you just type the new line of text, followed by RET.  If you prefer to
+create a blank line first and then insert the desired text, use the key
+`C-o' (`open-line'), which inserts a newline after point but leaves
+point in front of the newline.  Then type the text into the new line.
+`C-o F O O' has the same effect as `F O O RET', except for the final
+location of point.
+
+   To create several blank lines, type `C-o' several times, or give
+`C-o' an argument indicating how many blank lines to create.  *Note
+Arguments::, for more information.
+
+   If you have many blank lines in a row and want to get rid of them,
+use `C-x C-o' (`delete-blank-lines').  If point is on a blank line
+which is adjacent to at least one other blank line, `C-x C-o' deletes
+all but one of the blank lines.  If point is on a blank line with no
+other adjacent blank line, the sole blank line is deleted.  If point is
+on a non-blank line, `C-x C-o' deletes any blank lines following that
+non-blank line.
+
+
+File: lemacs.info,  Node: Continuation Lines,  Next: Position Info,  Prev: Blank Lines,  Up: Basic
+
+Continuation Lines
+==================
+
+   If you add too many characters to one line without breaking with a
+RET, the line grows to occupy two (or more) screen lines, with a curved
+arrow at the extreme right margin of all but the last line.  The curved
+arrow indicates that the following screen line is not really a distinct
+line in the text, but just the "continuation" of a line too long to fit
+the screen.  You can use Auto Fill mode (*note Filling::.) to have
+Emacs insert newlines automatically when a line gets too long.
+
+   Instead of continuation, long lines can be displayed by "truncation".
+This means that all the characters that do not fit in the width of the
+screen or window do not appear at all.  They remain in the buffer,
+temporarily invisible.  Three diagonal dots in the last column (instead
+of the curved arrow inform you that truncation is in effect.
+
+   To turn off continuation for a particular buffer, set the variable
+`truncate-lines' to non-`nil' in that buffer.  Truncation instead of
+continuation also happens whenever horizontal scrolling is in use, and
+optionally whenever side-by-side windows are in use (*note Windows::.).
+Altering the value of `truncate-lines' makes it local to the current
+buffer; until that time, the default value is in effect.  The default
+is initially `nil'.  *Note Locals::.
+
+
+File: lemacs.info,  Node: Position Info,  Next: Arguments,  Prev: Continuation Lines,  Up: Basic
+
+Cursor Position Information
+===========================
+
+   If you are accustomed to other display editors, you may be surprised
+that Emacs does not always display the page number or line number of
+point in the mode line.  In Emacs, this information is only rarely
+needed, and a number of commands are available to compute and print it.
+Since text is stored in a way that makes it difficult to compute the
+information, it is not displayed all the time.
+
+`M-x what-page'
+     Print page number of point, and line number within page.
+
+`M-x what-line'
+     Print line number of point in the buffer.
+
+`M-='
+     Print number of lines in the current region (`count-lines-region').
+
+`C-x ='
+     Print character code of character after point, character position
+     of point, and column of point (`what-cursor-position').
+
+   There are several commands for printing line numbers:
+   * `M-x what-line' counts lines from the beginning of the file and
+     prints the line number point is on.  The first line of the file is
+     line number 1.  You can use these numbers as arguments to `M-x
+     goto-line'.
+
+   * `M-x what-page' counts pages from the beginning of the file, and
+     counts lines within the page, printing both of them.  *Note
+     Pages::, for the command `C-x l', which counts the lines in the
+     current page.
+
+   * `M-=' (`count-lines-region') prints the number of lines in the
+     region (*note Mark::.).
+
+   The command `C-x =' (`what-cursor-position') provides information
+about point and about the column the cursor is in.  It prints a line in
+the echo area that looks like this:
+
+     Char: x (0170)  point=65986 of 563027(12%)  x=44
+
+(In fact, this is the output produced when point is before the `x=44'
+in the example.)
+
+   The two values after `Char:' describe the character following point,
+first by showing it and second by giving its octal character code.
+
+   `point=' is followed by the position of point expressed as a
+character count.  The front of the buffer counts as position 1, one
+character later as 2, and so on.  The next, larger number is the total
+number of characters in the buffer.  Afterward in parentheses comes the
+position expressed as a percentage of the total size.
+
+   `x=' is followed by the horizontal position of point, in columns
+from the left edge of the window.
+
+   If the buffer has been narrowed, making some of the text at the
+beginning and the end temporarily invisible, `C-x =' prints additional
+text describing the current visible range.  For example, it might say:
+
+     Char: x (0170)  point=65986 of 563025(12%) <65102 - 68533>  x=44
+
+where the two extra numbers give the smallest and largest character
+position that point is allowed to assume.  The characters between those
+two positions are the visible ones.  *Note Narrowing::.
+
+   If point is at the end of the buffer (or the end of the visible
+part), `C-x =' omits any description of the character after point.  The
+output looks like
+
+     point=563026 of 563025(100%)  x=0
+
+
+File: lemacs.info,  Node: Arguments,  Prev: Position Info,  Up: Basic
+
+Numeric Arguments
+=================
+
+   Any Emacs command can be given a "numeric argument".  Some commands
+interpret the argument as a repetition count.  For example, giving an
+argument of ten to the key `C-f' (the command `forward-char', move
+forward one character) moves forward ten characters.  With these
+commands, no argument is equivalent to an argument of one.  Negative
+arguments are allowed.  Often they tell a command to move or act
+backwards.
+
+   If your keyboard has a META key, the easiest way to specify a
+numeric argument is to type digits and/or a minus sign while holding
+down the the META key.  For example,
+     M-5 C-n
+
+moves down five lines.  The characters `Meta-1', `Meta-2', and so on,
+as well as `Meta--', do this because they are keys bound to commands
+(`digit-argument' and `negative-argument') that are defined to
+contribute to an argument for the next command.
+
+   Another way of specifying an argument is to use the `C-u'
+(`universal-argument') command followed by the digits of the argument.
+With `C-u', you can type the argument digits without holding down shift
+keys.  To type a negative argument, start with a minus sign.  Just a
+minus sign normally means -1.  `C-u' works on all terminals.
+
+   `C-u' followed by a character which is neither a digit nor a minus
+sign has the special meaning of "multiply by four".  It multiplies the
+argument for the next command by four.  `C-u' twice multiplies it by
+sixteen.  Thus, `C-u C-u C-f' moves forward sixteen characters.  This
+is a good way to move forward "fast", since it moves about 1/5 of a line
+in the usual size screen.  Other useful combinations are `C-u C-n',
+`C-u C-u C-n' (move down a good fraction of a screen), `C-u C-u C-o'
+(make "a lot" of blank lines), and `C-u C-k' (kill four lines).
+
+   Some commands care only about whether there is an argument and not
+about its value.  For example, the command `M-q' (`fill-paragraph') with
+no argument fills text; with an argument, it justifies the text as well.
+(*Note Filling::, for more information on `M-q'.)  Just `C-u' is a
+handy way of providing an argument for such commands.
+
+   Some commands use the value of the argument as a repeat count, but do
+something peculiar when there is no argument.  For example, the command
+`C-k' (`kill-line') with argument N kills N lines, including their
+terminating newlines.  But `C-k' with no argument is special: it kills
+the text up to the next newline, or, if point is right at the end of
+the line, it kills the newline itself.  Thus, two `C-k' commands with
+no arguments can kill a non-blank line, just like `C-k' with an
+argument of one.  (*Note Killing::, for more information on `C-k'.)
+
+   A few commands treat a plain `C-u' differently from an ordinary
+argument.  A few others may treat an argument of just a minus sign
+differently from an argument of -1.  These unusual cases will be
+described when they come up; they are always to make the individual
+command more convenient to use.
+
+
+File: lemacs.info,  Node: Undo,  Next: Minibuffer,  Prev: Basic,  Up: Top
+
+Undoing Changes
+***************
+
+   Emacs allows you to undo all changes you make to the text of a
+buffer, up to a certain amount of change (8000 characters).  Each
+buffer records changes individually, and the undo command always
+applies to the current buffer.  Usually each editing command makes a
+separate entry in the undo records, but some commands such as
+`query-replace' make many entries, and very simple commands such as
+self-inserting characters are often grouped to make undoing less
+tedious.
+
+`C-x u'
+     Undo one batch of changes (usually, one command's worth) (`undo').
+
+`C-_'
+     The same.
+
+   The command `C-x u' or `C-_' allows you to undo changes.  The first
+time you give this command, it undoes the last change.  Point moves to
+the text affected by the undo, so you can see what was undone.
+
+   Consecutive repetitions of the `C-_' or `C-x u' commands undo
+earlier and earlier changes, back to the limit of what has been
+recorded.  If all recorded changes have already been undone, the undo
+command prints an error message and does nothing.
+
+   Any command other than an undo command breaks the sequence of undo
+commands.  Starting at this moment, the previous undo commands are
+considered ordinary changes that can themselves be undone.  Thus, you
+can redo changes you have undone by typing `C-f' or any other command
+that have no important effect, and then using more undo commands.
+
+   If you notice that a buffer has been modified accidentally, the
+easiest way to recover is to type `C-_' repeatedly until the stars
+disappear from the front of the mode line.  When that happens, all the
+modifications you made have been canceled.  If you do not remember
+whether you changed the buffer deliberately, type `C-_' once. When you
+see Emacs undo the last change you made, you probably remember why you
+made it.  If the change was an accident, leave it undone.  If it was
+deliberate, redo the change as described in the preceding paragraph.
+
+   Whenever an undo command makes the stars disappear from the mode
+line, the buffer contents is the same as it was when the file was last
+read in or saved.
+
+   Not all buffers record undo information.  Buffers whose names start
+with spaces don't; these buffers are used internally by Emacs and its
+extensions to hold text that users don't normally look at or edit.
+Minibuffers, help buffers, and documentation buffers also don't record
+undo information.
+
+   Emacs can remember at most 8000 or so characters of deleted or
+modified text in any one buffer for reinsertion by the undo command.
+There is also a limit on the number of individual insert, delete, or
+change actions that Emacs can remember.
+
+   There are two keys to run the `undo' command, `C-x u' and `C-_',
+because on some keyboards, it is not obvious how to type `C-_'. `C-x u'
+is an alternative you can type in the same fashion on any terminal.
+
+
 File: lemacs.info,  Node: Minibuffer,  Next: M-x,  Prev: Undo,  Up: Top
 
 The Minibuffer
@@ -43,10 +768,11 @@ will be used.  The prompt is often derived from the name of the command
 the argument is for.  The prompt normally ends with a colon.
 
    Sometimes a "default argument" appears in parentheses after the
-colon; it too is part of the prompt.  The default is used as the
-argument value if you enter an empty argument (e.g., just type RET).
-For example, commands that read buffer names always show a default,
-which is the name of the buffer that will be used if you type just RET.
+colon; it, too, is part of the prompt.  The default is used as the
+argument value if you enter an empty argument (e.g., by just typing
+RET).  For example, commands that read buffer names always show a
+default, which is the name of the buffer that will be used if you type
+just RET.
 
    The simplest way to give a minibuffer argument is to type the text
 you want, terminated by RET to exit the minibuffer.  To get out of the
@@ -86,8 +812,9 @@ Minibuffers for File Names
    Sometimes the minibuffer starts out with text in it.  For example,
 when you are supposed to give a file name, the minibuffer starts out
 containing the "default directory", which ends with a slash.  This
-informs you in which directory the file will be found if you do not
-specify one.  For example, the minibuffer might start out with
+informs you in which directory the file will be looked for if you do
+not specify a different one. For example, the minibuffer might start
+out with:
 
      Find File: /u2/emacs/src/
 
@@ -100,7 +827,7 @@ kill directory names you don't want (*note Words::.).
 
    You can also type an absolute file name, one starting with a slash
 or a tilde, ignoring the default directory.  For example, to find the
-file `/etc/termcap', just type the name, giving
+file `/etc/termcap', just type the name, giving:
 
      Find File: /u2/emacs/src//etc/termcap
 
@@ -128,14 +855,14 @@ you are entering.
 must use `C-o' or `C-q LFD' to insert a newline into the minibuffer.
 (Recall that a newline is really the LFD character.)
 
-   The minibuffer has its own window which always has space on the
+   The minibuffer has its own window, which always has space on the
 screen but acts as if it were not there when the minibuffer is not in
-use.  When the minibuffer is in use. The minibuffer window is just like
-the others; you can switch to another window with `C-x o', edit text in
-other windows and perhaps even visit more files, before returning to the
-minibuffer to submit the argument.  You can kill text in another window,
-return to the minibuffer window, and then yank the text to use it in the
-argument.  *Note Windows::.
+use.  The minibuffer window is just like the others; you can switch to
+another window with `C-x o', edit text in other windows, and perhaps
+even visit more files before returning to the minibuffer to submit the
+argument.  You can kill text in another window, return to the minibuffer
+window, and then yank the text to use it in the argument.  *Note
+Windows::.
 
    There are, however, some restrictions on the use of the minibuffer
 window.  You cannot switch buffers in it--the minibuffer and its window
@@ -148,7 +875,7 @@ text in another window, that window will be scrolled if you type
 feature is helpful if a completing minibuffer gives you a long list of
 possible completions.
 
-   If the variable `minibuffer-confirm-incomplete' is `true', you are
+   If the variable `minibuffer-confirm-incomplete' is `t', you are
 asked for confirmation if there is no known completion for the text you
 typed. For example, if you attempted to visit a non-existent file, the
 minibuffer might read:
@@ -192,18 +919,19 @@ minibuffer against all the command names, find any additional
 characters of the name that are implied by the ones already present in
 the minibuffer, and add those characters to the ones you have given.
 
-   Case is normally significant in completion, because it is
-significant in most of the names that you can complete (buffer names,
-file names and command names).  Thus, `fo' will not complete to `Foo'.
-When you are completing a name in which case does not matter, case may
-be ignored for completion's sake if specified by program.
+   Case is normally significant in completion because it is significant
+in most of the names that you can complete (buffer names, file names,
+and command names).  Thus, `fo' will not complete to `Foo'.  When you
+are completing a name in which case does not matter, case may be ignored
+for completion's sake if specified by program.
 
    When a completion list is displayed, the completions will highlight
-as you move the mouse over them.  Clicking middle on any highlighted
-completion will "select" it just as if you had typed it in and hit RET.
+as you move the mouse over them.  Clicking the middle mouse button on
+any highlighted completion will "select" it just as if you had typed it
+in and hit RET.
 
-Completion Example
-------------------
+A Completion Example
+--------------------
 
    Consider the following example.  If you type `Meta-x au TAB', TAB
 looks for alternatives (in this case, command names) that start with
@@ -250,16 +978,17 @@ minibuffer when completion is available.
      Select the highlighted text under the mouse as a minibuffer
      response.  When the minibuffer is being used to prompt the user
      for a completion, any valid completions which are visible on the
-     screen will highlight when the mouse moves over them.  Clicking
-     button2 will select the highlighted completion and exit the
-     minibuffer.  (`minibuf-select-highlighted-completion').
+     screen will be highlighted when the mouse moves over them.
+     Clicking button2 will select the highlighted completion and exit
+     the minibuffer.  (`minibuf-select-highlighted-completion').
 
-   SPC completes similar to TAB, but never goes beyond the next hyphen
-or space.  If you have `auto-f' in the minibuffer and type SPC, it
-finds that the completion is `auto-fill-mode', but it stops completing
-after `fill-'. The result is `auto-fill-'.  Another SPC at this point
-completes all the way to `auto-fill-mode'.  SPC in the minibuffer runs
-the function `minibuffer-complete-word' when completion is available.
+   SPC completes in a way that is similar to TAB, but it never goes
+beyond the next hyphen or space.  If you have `auto-f' in the
+minibuffer and type SPC, it finds that the completion is
+`auto-fill-mode', but it stops completing after `fill-'.  The result is
+`auto-fill-'. Another SPC at this point completes all the way to
+`auto-fill-mode'.  SPC in the minibuffer runs the function
+`minibuffer-complete-word' when completion is available.
 
    There are three different ways that RET can work in completing
 minibuffers, depending on how the argument will be used.
@@ -307,10 +1036,10 @@ automatically displays a list of all possible completions.  If the
 variable `completion-auto-help' is set to `nil', this does not happen,
 and you must type `?' to display the possible completions.
 
-   If the variable `minibuffer-confirm-incomplete' is set to true, then
+   If the variable `minibuffer-confirm-incomplete' is set to `t', then
 in contexts where `completing-read' allows answers that are not valid
 completions, an extra RET must be typed to confirm the response.  This
-is helpful for catching typos, etc.
+is helpful for catching typos.
 
 
 File: lemacs.info,  Node: Repetition,  Prev: Completion,  Up: Minibuffer
@@ -374,771 +1103,4 @@ Lisp list in the variable `command-history'.  Each element of the list
 is a Lisp expression which describes one command and its arguments.
 Lisp programs can reexecute a command by feeding the corresponding
 `command-history' element to `eval'.
-
-
-File: lemacs.info,  Node: M-x,  Next: Help,  Prev: Minibuffer,  Up: Top
-
-Running Commands by Name
-************************
-
-   The Emacs commands that are used often or that must be quick to type
-are bound to keys--short sequences of characters--for convenient use.
-Other Emacs commands that are used more rarely are not bound to keys;
-to run them, you must refer to them by name.
-
-   A command name consists, by convention, of one or more words,
-separated by hyphens; for example, `auto-fill-mode' or `manual-entry'.
-The use of English words makes the command name easier to remember than
-a key made up of obscure characters, even though it results in more
-characters to type.  You can run any command by name, even if it can be
-run by keys as well.
-
-   To run a command by name, to start with `M-x', then type the command
-name, and finish with RET.  `M-x' uses the minibuffer to read the
-command name.  RET exits the minibuffer and runs the command.
-
-   Emacs uses the minibuffer for reading input for many different
-purposes; on this occasion, the string `M-x' is displayed at the
-beginning of the minibuffer as a "prompt" to remind you that your input
-should be the name of a command to be run.  *Note Minibuffer::, for
-full information on the features of the minibuffer.
-
-   You can use completion to enter a command name.  For example, to
-invoke the command `forward-char', type:
-
-     M-x forward-char RET
-   or
-     M-x fo TAB c RET
-
-Note that `forward-char' is the same command that you invoke with the
-key `C-f'.  You can call any command (interactively callable function)
-defined in Emacs by its name using `M-x' whether or not any keys are
-bound to it.
-
-   If you type `C-g' while Emacs reads the command name, you cancel the
-`M-x' command and get out of the minibuffer, ending up at top level.
-
-   To pass a numeric argument to a command you are invoking with `M-x',
-specify the numeric argument before the `M-x'.  `M-x' passes the
-argument along to the function that it calls.  The argument value
-appears in the prompt while the command name is being read.
-
-   You can use the command `M-x interactive' to specify a way of
-parsing arguments for interactive use of a function.  For example, write
-
-       (defun foo (arg) "Doc string" (interactive "p") ...use arg...)
-
-   to make ARG be the prefix argument when `foo' is called as a
-command.  The call to `interactive' is actually a declaration rather
-than a function; it tells `call-interactively' how to read arguments to
-pass to the function.  When actually called, `interactive' returns
-`nil'.
-
-   The argument of INTERACTIVE is usually a string containing a code
-letter followed by a prompt.  Some code letters do not use I/O to get
-the argument and do not need prompts.  To prompt for multiple arguments,
-you must provide a code letter, its prompt, a newline, and another code
-letter, etc.  If the argument is not a string, it is evaluated to get a
-list of arguments to pass to the function.  If you do not provide an
-argument to `interactive', no arguments are passed when calling
-interactively.
-
-   Available code letters are:
-
-`a'
-     Function name: symbol with a function definition.
-
-`b'
-     Name of existing buffer.
-
-`B'
-     Name of buffer, possibly nonexistent.
-
-`c'
-     Character.
-
-`C'
-     Command name: symbol with interactive function definition.
-
-`d'
-     Value of point as number.  Does not do I/O.
-
-`D'
-     Directory name.
-
-`e'
-     Last mouse event.
-
-`f'
-     Existing file name.
-
-`F'
-     Possibly nonexistent file name.
-
-`k'
-     Key sequence (string).
-
-`m'
-     Value of mark as number.  Does not do I/O.
-
-`n'
-     Number read using minibuffer.
-
-`N'
-     Prefix arg converted to number, or if none, do like code `n'.
-
-`p'
-     Prefix arg converted to number.  Does not do I/O.
-
-`P'
-     Prefix arg in raw form.  Does not do I/O.
-
-`r'
-     Region: point and mark as two numeric arguments, smallest first.
-     Does not do I/O.
-
-`s'
-     Any string.
-
-`S'
-     Any symbol.
-
-`v'
-     Variable name: symbol that is `user-variable-p'.
-
-`x'
-     Lisp expression read but not evaluated.
-
-`X'
-     Lisp expression read and evaluated.
-
-   In addition, if the string begins with `*', an error is signaled if
-the buffer is read-only.  This happens before reading any arguments.
-If the string begins with `@', the window the mouse is over is selected
-before anything else is done.  You may use both `@' and `*'; they are
-processed in the order that they appear.
-
-   Normally, when describing a command that is run by name, we omit the
-RET that is needed to terminate the name.  Thus we may refer to `M-x
-auto-fill-mode' rather than `M-x auto-fill-mode' RET.  We mention the
-RET only when it it necessary to emphasize its presence, for example,
-when describing a sequence of input that contains a command name and
-arguments that follow it.
-
-   `M-x' is defined to run the command `execute-extended-command',
-which is responsible for reading the name of another command and
-invoking it.
-
-
-File: lemacs.info,  Node: Help,  Next: Mark,  Prev: M-x,  Up: Top
-
-Help
-****
-
-   Emacs provides extensive help features which revolve around a single
-character, `C-h'.  `C-h' is a prefix key that is used only for
-documentation-printing commands.  The characters you can type after
-`C-h' are called "help options".  One help option is `C-h'; you use it
-to ask for help about using `C-h'.
-
-   `C-h C-h' prints a list of the possible help options, and then asks
-you to type the desired option.  It prompts with a string
-
-     A, B, C, F, I, K, L, M, N, S, T, V, W, C-c, C-d, C-n, C-w or C-h for more help:
-
-You should type one of those characters.
-
-   Typing a third `C-h' displays a description of what the options mean;
-Emacs still waits for you to type an option.  To cancel, type `C-g'.
-
-   Here is a summary of the defined help commands.
-
-`C-h a STRING RET'
-     Display list of commands whose names contain STRING (`command-
-     apropos').
-
-`C-h b'
-     Display a table of all key bindings in effect now; local bindings
-     of the current major mode first, followed by all global bindings
-     (`describe-bindings').
-
-`C-h c KEY'
-     Print the name of the command that KEY runs (`describe-key-
-     briefly').  `c' is for `character'.  For more extensive
-     information on KEY, use `C-h k'.
-
-`C-h f FUNCTION RET'
-     Display documentation on the Lisp function named FUNCTION
-     (`describe-function').  Note that commands are Lisp functions, so
-     a command name may be used.
-
-`C-h i'
-     Run Info, the program for browsing documentation files (`info').
-     The complete Emacs manual is available on-line in Info.
-
-`C-h k KEY'
-     Display name and documentation of the command KEY runs
-     (`describe-key').
-
-`C-h l'
-     Display a description of the last 100 characters you typed
-     (`view-lossage').
-
-`C-h m'
-     Display documentation of the current major mode (`describe-mode').
-
-`C-h n'
-     Display documentation of Emacs changes, most recent first
-     (`view-emacs-news').
-
-`C-h p'
-     Display a table of all mouse bindings in effect now; local bindings
-     of the current major mode first, followed by all global bindings
-     (`describe-pointer').
-
-`C-h s'
-     Display current contents of the syntax table, plus an explanation
-     of what they mean (`describe-syntax').
-
-`C-h t'
-     Display the Emacs tutorial (`help-with-tutorial').
-
-`C-h v VAR RET'
-     Display the documentation of the Lisp variable VAR (`describe-
-     variable').
-
-`C-h w COMMAND RET'
-     Print which keys run the command named COMMAND (`where-is').
-
-Documentation for a Key
-=======================
-
-   The most basic `C-h' options are `C-h c' (`describe-key-briefly')
-and `C-h k'
-(`describe-key').  `C-h c KEY' prints the name of the command that KEY
-is bound to in the echo area.  For example, `C-h c C-f' prints
-`forward-char'.  Since command names are chosen to describe what the
-command does, using this option is a good way to get a somewhat cryptic
-description of what KEY does.
-
-   `C-h k KEY' is similar to `C-h c' but gives more information.  It
-displays the documentation string of the function KEY is bound to as
-well as its name.  KEY is a string or vector of events.  When called
-interactvely, KEY may also be a menu selection.  This information does
-not usually fit into the echo area, so a window is used for the display.
-
-Help by Command or Variable Name
-================================
-
-   `C-h f' (`describe-function') reads the name of a Lisp function
-using the minibuffer, then displays that function's documentation
-string in a window.  Since commands are Lisp functions, you can use the
-argument FUNCTION to get the documentation of a command that you know
-by name.  For example,
-
-     C-h f auto-fill-mode RET
-
-displays the documentation for `auto-fill-mode'. Using `C-h f' is the
-only way to see the documentation of a command that is not bound to any
-key, that is, a command you would normally call using `M-x'.  If the
-variable `describe-function-show-arglist' is `t', `describe-function'
-shows its arglist if the FUNCTION is not an autoload function.
-
-   `C-h f' is also useful for Lisp functions you are planning to use in
-a Lisp program.  For example, if you have just written the code
-`(make-vector len)' and want to make sure you are using `make-vector'
-properly, type `C-h f make-vector RET'.  Because `C-h f' allows all
-function names, not just command names, you may find that some of your
-favorite abbreviations that work in `M-x' don't work in `C-h f'.  An
-abbreviation may be unique among command names, yet fail to be unique
-when other function names are allowed.
-
-   If you type RET, leaving the minibuffer empty, `C-h f' by default
-describes the function called by the innermost Lisp expression in the
-buffer around point, provided that is a valid, defined Lisp function
-name.  For example, if point is located following the text
-`(make-vector (car x)', the innermost list containing point is the one
-starting with `(make-vector', so the default is to describe the
-function `make-vector'.
-
-   `C-h f' is often useful just to verify that you have the right
-spelling for the function name.  If `C-h f' mentions a default in the
-prompt, you have typed the name of a defined Lisp function.  If that is
-what you wanted to know, just type `C-g' to cancel the `C-h f' command
-and continue editing.
-
-   `C-h w COMMAND RET' tells you what keys are bound to COMMAND.  It
-prints a list of the keys in the echo area.  Alternatively, it informs
-you that a command is not bound to any keys, which implies that you
-must use `M-x' to call the command.
-
-   `C-h v' (`describe-variable') is like `C-h f' but describes Lisp
-variables instead of Lisp functions.  Its default is the Lisp symbol
-around or before point, if that is the name of a known Lisp variable.
-*Note Variables::.
-
-Apropos
-=======
-
-   It is possible to ask a question like, "What are the commands for
-working with files?"  To do this, type `C-h a file RET', which displays
-a list of all command names that contain `file', such as `copy-file',
-`find-file', and so on.  With each command name a brief description of
-its use and information on the keys you can use to invoke it is
-displayed.  For example, you would be informed that you can invoke
-`find-file' by typing `C-x C-f'.  The `a' in `C-h a' stands for
-`Apropos'; `C-h a' runs the Lisp function `command-apropos'.
-
-   Because `C-h a' looks only for functions whose names contain the
-string you specify, you must use ingenuity in choosing the string.  If
-you are looking for commands for killing backwards and `C-h a
-kill-backwards RET' doesn't reveal any commands, don't give up.  Try
-just `kill', or just `backwards', or just `back'.  Be persistent.
-Pretend you are playing Adventure.  Also note that you can use a
-regular expression as the argument (*note Regexps::.).
-
-   Here is a set of arguments to give to `C-h a' that covers many
-classes of Emacs commands, since there are strong conventions for naming
-standard Emacs commands.  By giving you a feeling for the naming
-conventions, this set of arguments can also help you develop a
-technique for picking `apropos' strings.
-
-     char, line, word, sentence, paragraph, region, page, sexp, list,
-     defun, buffer, screen, window, file, dir, register, mode,
-     beginning, end, forward, backward, next, previous, up, down,
-     search, goto, kill, delete, mark, insert, yank, fill, indent, case,
-     change, set, what, list, find, view, describe.
-
-   To list all Lisp symbols that contain a match for a regexp, not just
-the ones that are defined as commands, use the command `M-x apropos'
-instead of `C-h a'.
-
-Other Help Commands
-===================
-
-   `C-h i' (`info') runs the Info program, which is used for browsing
-through structured documentation files.  The entire Emacs manual is
-available within Info.  Eventually all the documentation of the GNU
-system will be available.  Type `h' after entering Info to run a
-tutorial on using Info.
-
-   If something surprising happens, and you are not sure what commands
-you typed, use `C-h l' (`view-lossage').  `C-h l' prints the last 100
-command characters you typed.  If you see commands you don't know, use
-`C-h c' to find out what they do.
-
-   Emacs has several major modes. Each mode redefines a few keys and
-makes a few other changes in how editing works.  `C-h m'
-(`describe-mode') prints documentation on the current major mode, which
-normally describes all the commands that are changed in this mode.
-
-   `C-h b' (`describe-bindings') and `C-h s' (`describe-syntax')
-present information about the current Emacs mode that is not covered by
-`C-h m'.  `C-h b' displays a list of all key bindings now in effect;
-the local bindings of the current major mode first, followed by the
-global bindings (*note Key Bindings::.).  `C-h s' displays the contents
-of the syntax table, with explanations of each character's syntax
-(*note Syntax::.).
-
-   The other `C-h' options display various files of useful information.
-`C-h C-w' displays details on the complete absence of warranty for GNU
-Emacs.  `C-h n' (`view-emacs-news') displays the file `emacs/etc/NEWS',
-which contains documentation on Emacs changes arranged chronologically.
-`C-h t' (`help-with-tutorial') displays the learn-by-doing Emacs
-tutorial.  `C-h C-c' (`describe-copying') displays the file
-`emacs/etc/COPYING', which tells you the conditions you must obey in
-distributing copies of Emacs.  `C-h C-d' (`describe-distribution')
-displays another file named `emacs/etc/DISTRIB', which tells you how
-you can order a copy of the latest version of Emacs.
-
-
-File: lemacs.info,  Node: Mark,  Next: Killing,  Prev: Help,  Up: Top
-
-Selecting Text
-**************
-
-   Many Emacs commands operate on an arbitrary contiguous part of the
-current buffer. You can select text in two ways:
-
-   * You use special keys to select text by defining a region between
-     point and the mark.
-
-   * If you are running Lucid Emacs under X, you can also select text
-     with the mouse.
-
-The Mark and the Region
-=======================
-
-   To specify the text for a command to operate on, set "the mark" at
-one end of it, and move point to the other end.  The text between point
-and the mark is called "the region".  You can move point or the mark to
-adjust the boundaries of the region.  It doesn't matter which one is
-set first chronologically, or which one comes earlier in the text.
-
-   Once the mark has been set, it remains until it is set again at
-another place.  The mark remains fixed with respect to the preceding
-character if text is inserted or deleted in a buffer.  Each Emacs
-buffer has its own mark; when you return to a buffer that had been
-selected previously, it has the same mark it had before.
-
-   Many commands that insert text, such as `C-y' (`yank') and `M-x
-insert-buffer', position the mark at one end of the inserted text--the
-opposite end from where point is positioned, so that the region
-contains the text just inserted.
-
-   Aside from delimiting the region, the mark is useful for marking a
-spot that you may want to go back to.  To make this feature more useful,
-Emacs remembers 16 previous locations of the mark in the `mark ring'.
-
-* Menu:
-
-* Setting Mark::	Commands to set the mark.
-* Using Region::	Summary of ways to operate on contents of the region.
-* Marking Objects::	Commands to put region around textual units.
-* Mark Ring::   	Previous mark positions saved so you can go back there.
-* Using X Selections::  Using the mouse to mark a region if running under X.
-
-
-File: lemacs.info,  Node: Setting Mark,  Next: Using Region,  Prev: Mark,  Up: Mark
-
-Setting the Mark
-----------------
-
-   Here are some commands for setting the mark:
-
-`C-SPC'
-     Set the mark where point is (`set-mark-command').
-
-`C-@'
-     The same.
-
-`C-x C-x'
-     Interchange mark and point (`exchange-point-and-mark').
-
-`C-<'
-     Pushes a mark at the beginning of the buffer.
-
-`C->'
-     Pushes a mark at the end of the buffer.
-
-   For example, to convert part of the buffer to all upper-case, you
-can use the `C-x C-u' (`upcase-region') command, which operates on the
-text in the region.  First go to the beginning of the text you want to
-capitalize and type `C-SPC' to put the mark there, then move to the
-end, and then type `C-x C-u' to capitalize the selected region.  You
-can also set the mark at the end of the text, move to the beginning,
-and then type `C-x C-u'.  Most commands that operate on the text in the
-region have the word `region' in their names.
-
-   The most common way to set the mark is with the `C-SPC' command
-(`set-mark-command').  This command sets the mark where point is. You
-can then move point away, leaving the mark behind.  It is actually
-incorrect to speak of the character `C-SPC'; there is no such
-character.  When you type SPC while holding down CTRL, you get the
-character `C-@' on most terminals. This character is actually bound to
-`set-mark-command'.  But unless you are unlucky enough to have a
-terminal where typing `C-SPC' does not produce `C-@', you should think
-of this character as `C-SPC'.
-
-   Since terminals have only one cursor, Emacs cannot show you where the
-mark is located. Most people use the mark soon after they set it, before
-they forget where it is. But you can see where the mark is with the
-command `C-x C-x' (`exchange-point-and-mark') which puts the mark where
-point was and point where the mark was.  The extent of the region is
-unchanged, but the cursor and point are now at the previous location of
-the mark.
-
-   Another way to set the mark is to push the mark to the beginning of a
-buffer while leaving point at its original location. If you supply an
-argument to `C-<' (`mark-beginning-of-buffer'), the mark is pushed N/10
-of the way from the true beginning of the buffer. You can also set the
-mark at the end of a buffer with `C->' (`mark-end-of-buffer'). It
-pushes the mark to the end of the buffer, leaving point alone.
-Supplying an argument to the command, pushes the mark N/10 of the way
-from the true end of the buffer.
-
-   If you are using Lucid Emacs under the X window system, you can set
-the variable `zmacs-regions' to `t'. This makes the current region
-(defined by point and mark) highlight and makes it available as the X
-clipboard selection, which means you can use the menu bar items on it.
-*Note Active Regions:: for more information.
-
-   `C-x C-x' is also useful when you are satisfied with the location of
-point but want to move the mark; do `C-x C-x' to put point there and
-then you can move it.  A second use of `C-x C-x', if necessary, puts
-the mark at the new location with point back at its original location.
-
-* Menu:
-
-* Active Regions::  Having the region highlight while working under X.
-
-
-File: lemacs.info,  Node: Using Region,  Next: Marking Objects,  Prev: Setting Mark,  Up: Mark
-
-Operating on the Region
------------------------
-
-   Once you have created an active region, you can do many things to
-the text in it:
-   * Kill it with `C-w' (*note Killing::.).
-
-   * Save it in a register with `C-x x' (*note Registers::.).
-
-   * Save it in a buffer or a file (*note Accumulating Text::.).
-
-   * Convert case with `C-x C-l' or `C-x C-u'
-     (*note Case::.).
-
-   * Evaluate it as Lisp code with `M-x eval-region' (*note Lisp
-     Eval::.).
-
-   * Fill it as text with `M-g' (*note Filling::.).
-
-   * Print hardcopy with `M-x print-region' (*note Hardcopy::.).
-
-   * Indent it with `C-x TAB' or `C-M-\' (*note Indentation::.).
-
-
-File: lemacs.info,  Node: Marking Objects,  Next: Mark Ring,  Prev: Using Region,  Up: Mark
-
-Commands to Mark Textual Objects
---------------------------------
-
-   There are commands for placing point and the mark around a textual
-object such as a word, list, paragraph or page.
-
-`M-@'
-     Set mark after end of next word (`mark-word').  This command and
-     the following one do not move point.
-
-`C-M-@'
-     Set mark after end of next Lisp expression (`mark-sexp').
-
-`M-h'
-     Put region around current paragraph (`mark-paragraph').
-
-`C-M-h'
-     Put region around current Lisp defun (`mark-defun').
-
-`C-x h'
-     Put region around entire buffer (`mark-whole-buffer').
-
-`C-x C-p'
-     Put region around current page (`mark-page').
-
-   `M-@' (`mark-word') puts the mark at the end of the next word, while
-`C-M-@' (`mark-sexp') puts it at the end of the next Lisp expression.
-These characters sometimes save you some typing.
-
-   A number of commands are available that set both point and mark and
-thus delimit an object in the buffer.  `M-h' (`mark-paragraph') moves
-point to the beginning of the paragraph that surrounds or follows
-point, and puts the mark at the end of that paragraph (*note
-Paragraphs::.).  You can then indent, case-convert, or kill the whole
-paragraph.  In the same fashion, `C-M-h' (`mark-defun') puts point
-before and the mark after the current or following defun (*note
-Defuns::.).  `C-x C-p' (`mark-page') puts point before the current page
-(or the next or previous, depending on the argument), and mark at the
-end (*note Pages::.).  The mark goes after the terminating page
-delimiter (to include it), while point goes after the preceding page
-delimiter (to exclude it).  Finally, `C-x h' (`mark-whole-buffer') sets
-up the entire buffer as the region by putting point at the beginning
-and the mark at the end.
-
-
-File: lemacs.info,  Node: Mark Ring,  Prev: Marking Objects,  Up: Mark
-
-The Mark Ring
--------------
-
-   Aside from delimiting the region, the mark is also useful for marking
-a spot that you may want to go back to.  To make this feature more
-useful, Emacs remembers 16 previous locations of the mark in the "mark
-ring".  Most commands that set the mark push the old mark onto this
-ring.  To return to a marked location, use `C-u C-SPC' (or `C-u C-@');
-this is the command `set-mark-command' given a numeric argument.  The
-command moves point to where the mark was, and restores the mark from
-the ring of former marks. Repeated use of this command moves point to
-all the old marks on the ring, one by one.  The marks you have seen go
-to the end of the ring, so no marks are lost.
-
-   Each buffer has its own mark ring.  All editing commands use the
-current buffer's mark ring.  In particular, `C-u C-SPC' always stays in
-the same buffer.
-
-   Many commands that can move long distances, such as `M-<'
-(`beginning-of-buffer'), start by setting the mark and saving the old
-mark on the mark ring.  This makes it easier for you to move back
-later.  Searches set the mark, unless they do not actually move point.
-When a command sets the mark, `Mark Set' is printed in the echo area.
-
-   The variable `mark-ring-max' is the maximum number of entries to
-keep in the mark ring.  If that many entries exist and another entry is
-added, the last entry in the list is discarded.  Repeating `C-u C-SPC'
-circulates through the entries that are currently in the ring.
-
-   The variable `mark-ring' holds the mark ring itself, as a list of
-marker objects in the order most recent first.  This variable is local
-in every buffer.
-
-
-File: lemacs.info,  Node: Mouse Selection,  Next: Additional Mouse Operations,  Prev: Pull-Down Menus,  Up: Top
-
-Selecting Text with the Mouse
-=============================
-
-   If you are using Lucid GNU Emacs under X, you can use the mouse
-cursor to select text. There are two mouse cursor shapes:
-   * When the mouse cursor is over text, it appears as an I-beam, the
-     same cursor that `xterm' uses.
-
-   * When the mouse cursor is not over text, it appears as a plus sign
-     (+).
-
-   You can set the value of the variable `x-mode-pointer-shape' to
-determine the shape of the mouse pointer when it is over the modeline.
-If the value is `nil', the variable `x-nontext-pointer-shape' or the
-variable `x-pointer-shape' is used.
-
-   If you want to get fancy, you can set the foreground and background
-colors of the mouse pointer with the variables
-`x-pointer-background-color' and `x-pointer-foreground-color'.
-
-   There are two ways to select a region of text with the mouse:
-
-   To select a word in text, double click with the left mouse button
-while the mouse cursor is over the word.  The word is highlighted when
-selected. On monochrome monitors, a stipled background indicates that a
-region of text has been highlighted. On color monitors, a color
-background indicates highlighted text. You can triple-click to select
-whole lines.
-
-   To select an arbitrary region of text:
-
-  1. Move the mouse cursor over the character at the beginning of the
-     region of text you want to select.
-
-  2. Press and hold the left mouse button.
-
-  3. While holding the left mouse button down, drag the cursor to the
-     character at the end of the region of text you want to select.
-
-  4. Release the left mouse button.
-        The selected region of text is highlighted.
-
-   Once a region of text is selected, it becomes the primary X selection
-(*note Using X Selections::.) as well as the Emacs selected region. You
-can paste it into other X applications and use the options from the
-Edit pull-down menu on it.  Since it is also the Emacs region, you can
-use Emacs region commands on it.
-
-
-File: lemacs.info,  Node: Additional Mouse Operations,  Next: Entering Emacs,  Prev: Mouse Selection,  Up: Top
-
-   Lucid GNU Emacs also provides the following mouse functions.  Most
-of these are not bound to mouse gestures by default, but they are
-provided for your customization pleasure.  For example, if you wanted
-`shift-left' (that is, holding down the shift key and clicking the left
-button) to delete the character at which you are pointing, then you
-could do this:
-
-     (global-set-key '(shift button1) 'mouse-del-char)
-
-`mouse-del-char'
-     Delete the character pointed to by the mouse.
-
-`mouse-delete-window'
-     Delete the Emacs window that the mouse is on.
-
-`mouse-keep-one-window'
-     Select the Emacs window that the mouse is on, then delete all other
-     windows on this screen.
-
-`mouse-kill-line'
-     Kill the line pointed to by the mouse.
-
-`mouse-line-length'
-     Print the length of the line indicated by the pointer.
-
-`mouse-scroll'
-     Scroll point to the mouse position.
-
-`mouse-select'
-     Select the Emacs window the mouse is on.
-
-`mouse-select-and-split'
-     Select the Emacs window mouse is on, then split it vertically in
-     half.
-
-`mouse-set-mark'
-     Select the Emacs window the mouse is on and set the mark at the
-     mouse position.  Display the cursor at that position for a second.
-
-`mouse-set-point'
-     Select the Emacs window that the mouse is on and move point to the
-     mouse position.
-
-`mouse-track'
-     Make a selection with the mouse.   This is the default binding of
-     the left mouse button (button1).
-
-`mouse-track-adjust'
-     Extend the existing selection.  This is the default binding of
-     shift-button1.
-
-`mouse-track-and-copy-to-cutbuffer'
-     Make a selection like `mouse-track', but also copy it to the cut
-     buffer.
-
-`mouse-track-delete-and-insert'
-     Make a selection with the mouse and insert it at point.  This is
-     the default binding of control-shift-button1.
-
-`mouse-track-insert'
-     Make a selection with the mouse and insert it at point.  This is
-     the default binding of control-button1.
-
-`mouse-window-to-region'
-     Narrow a window to the region between the cursor and the mouse
-     pointer.
-
-   The `M-x mouse-track' command should be bound to a mouse button.  If
-you click-and-drag, the selection is set to the region between the
-point of the initial click and the point at which you release the
-button.  These positions do not need to be ordered.
-
-   If you click-and-release without moving the mouse, the point is
-moved, and the selection is disowned (there will be no selection
-owner.)  The mark will be set to the previous position of point.
-
-   If you double-click, the selection will extend by symbols instead of
-by characters.  If you triple-click, the selection will extend by lines.
-
-   If you drag the mouse off the top or bottom of the window, you can
-select pieces of text that are larger than the visible part of the
-buffer; the buffer will scroll as necessary.
-
-   The selected text becomes the current X selection, and is also
-copied to the top of the kill ring.  Point will be left at the position
-at which you released the button and the mark will be left at the
-initial click position.  Bind a mouse click to
-`mouse-track-and-copy-to-cutbuffer' to copy selections to the cut
-buffer.
-
-   See also the `mouse-track-adjust' command, on `Sh-button1'.
-
-   The `M-x mouse-track-adjust' command should be bound to a mouse
-button.  The selection will be enlarged or shrunk so that the point of
-the mouse click is one of its endpoints.  This is only meaningful after
-the `mouse-track' command (button1) has been executed.
-
-   The `M-x mouse-track-delete-and-insert' command is exactly the same
-as the `mouse-track' command on button1, except that point is not
-moved; the selected text is immediately inserted after being selected;
-and the text of the selection is deleted.
-
-   The `M-x mouse-track-insert' command is exactly the same as the
-`mouse-track' command on button1, except that point is not moved; the
-selected text is immediately inserted after being selected; and the
-selection is immediately disowned afterwards.
 

@@ -105,24 +105,36 @@
 (defun describe-key-briefly (key)
   "Print the name of the function KEY invokes.  KEY is a string."
   (interactive "kDescribe key briefly: ")
-  (let (defn)
+  (let (defn
+	 (menup nil))
     ;; If the key typed was really a menu selection, grab the form out
     ;; of the event object and intuit the function that would be called,
     ;; and describe that instead.
-    (if (and (vectorp key) (= 1 (length key)) (menu-event-p (aref key 0)))
+    (if (and (vectorp key) (= 1 (length key))
+	     (or (menu-event-p (aref key 0))
+		 (eq (car-safe (aref key 0)) 'menu-selection)))
 	(let ((event (aref key 0)))
-	  (setq defn (list (event-function event) (event-object event)))
+	  (setq defn (if (eventp event)
+			 (list (event-function event) (event-object event))
+		       (cdr event)))
+	  (setq menup t)
 	  (if (eq (car defn) 'eval)
 	      (setq defn (car (cdr defn))))
 	  (if (eq (car-safe defn) 'call-interactively)
 	      (setq defn (car (cdr defn))))
 	  (if (and (consp defn) (null (cdr defn)))
 	      (setq defn (car defn))))
+      ;; else
       (setq defn (key-binding key)))
     (if (or (null defn) (integerp defn))
         (message (gettext "%s is undefined") (key-description key))
+      ;; If it's a keyboard macro which trivially invokes another command,
+      ;; document that instead.
+      (if (or (stringp defn) (vectorp defn))
+	  (setq defn (or (key-binding defn)
+			 defn)))
       (message (gettext "%s runs the command %s")
-	       (key-description key)
+	       (if menup "This menu item" (key-description key))
 	       (if (symbolp defn) defn (prin1-to-string defn))))))
 
 (defun print-help-return-message (&optional function)
@@ -345,8 +357,14 @@ C-f  Info-elisp-ref.  Look up a function in Emacs Lisp manual."
 	    (let ((cursor-in-echo-area t))
 	      (setq event (next-command-event event)
 		    char (or (event-to-character event) event))))))
-    (let ((defn (lookup-key help-map (vector event))))
-      (if defn (call-interactively defn) (ding)))))
+    (let ((defn (or (lookup-key help-map (vector event))
+		    (and (numberp char)
+			 (lookup-key help-map
+				     (make-string 1 (downcase char)))))))
+      (message nil)
+      (if defn
+	  (call-interactively defn)
+	(ding)))))
 
 ;; Return a function which is called by the list containing point.
 ;; If that gives no function, return a function whose name is around point.

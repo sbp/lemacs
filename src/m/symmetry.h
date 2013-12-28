@@ -5,7 +5,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -59,9 +59,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef KERNEL_FILE
 #define KERNEL_FILE "/dynix"
 
-/* define HAVE_GETPAGESIZE for Symmetry */
-#define HAVE_GETPAGESIZE
-
 /* Avoids a compiler bug */
 
 #define TAHOE_REGISTER_BUG
@@ -98,6 +95,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
   for (ma = 0; ma < sizeof(PTY_MAJOR) - 1; ma++)	\
     for (mi = 0; mi < sizeof(PTY_MINOR) - 1; mi++)
 #define PTY_NAME_SPRINTF \
-  sprintf (ptyname, "/dev/pty%c%c", PTY_MAJOR[ma], PTY_MINOR[mi]);
+  sprintf (pty_name, "/dev/pty%c%c", PTY_MAJOR[ma], PTY_MINOR[mi]);
 #define PTY_TTY_NAME_SPRINTF \
-  sprintf (ptyname, "/dev/tty%c%c", PTY_MAJOR[ma], PTY_MINOR[mi]);
+  sprintf (pty_name, "/dev/tty%c%c", PTY_MAJOR[ma], PTY_MINOR[mi]);

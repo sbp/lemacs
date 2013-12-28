@@ -1,6 +1,6 @@
 ;;; fortran.el --- Fortran mode for GNU Emacs
 
-;;; Copyright (c) 1986, 1993 Free Software Foundation, Inc.
+;;; Copyright (c) 1986, 1993, 1994 Free Software Foundation, Inc.
 
 ;; Author: Michael D. Prange <prange@erl.mit.edu>
 ;; Maintainer: bug-fortran-mode@erl.mit.edu
@@ -169,14 +169,22 @@ This variable used in TAB-format mode.")
   (modify-syntax-entry ?+ "." fortran-mode-syntax-table)
   (modify-syntax-entry ?- "." fortran-mode-syntax-table)
   (modify-syntax-entry ?= "." fortran-mode-syntax-table)
-  (modify-syntax-entry ?* "." fortran-mode-syntax-table)
+  ;;(modify-syntax-entry ?* "." fortran-mode-syntax-table)
   (modify-syntax-entry ?/ "." fortran-mode-syntax-table)
   (modify-syntax-entry ?\' "\"" fortran-mode-syntax-table)
   (modify-syntax-entry ?\" "\"" fortran-mode-syntax-table)
   (modify-syntax-entry ?\\ "/" fortran-mode-syntax-table)
   (modify-syntax-entry ?. "w" fortran-mode-syntax-table)
   (modify-syntax-entry ?_ "w" fortran-mode-syntax-table)
-  (modify-syntax-entry ?\n ">" fortran-mode-syntax-table))
+  ;;(modify-syntax-entry ?\n ">" fortran-mode-syntax-table)
+
+  ;; lemacs: an attempt to make font-lock understand fortran comments.
+  (modify-syntax-entry ?\n "> 1" fortran-mode-syntax-table)
+  (modify-syntax-entry ?*  ". 2" fortran-mode-syntax-table)
+  (modify-syntax-entry ?c  "w 2" fortran-mode-syntax-table)
+  (modify-syntax-entry ?C  "w 2" fortran-mode-syntax-table)
+
+  )
 
 (defvar fortran-mode-map () 
   "Keymap used in Fortran mode.")
@@ -774,7 +782,7 @@ An abbrev before point is expanded if `abbrev-mode' is non-nil."
   (save-excursion
     (mark-fortran-subprogram)
     (message "Indenting subprogram...")
-    (indent-region (point) (mark) nil))
+    (indent-region (point) (mark t) nil)) ; lemacs change
   (message "Indenting subprogram...done."))
 
 (defun calculate-fortran-indent ()

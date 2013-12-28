@@ -51,7 +51,7 @@
 (defvar shell-font-current-face 'shell-input)
 
 (defun shell-font-fontify-region (start end delete-count)
-  ;; for use as an after-change-function; fontifies the inserted text.
+  ;; for use as an element of after-change-functions; fontifies the inserted text.
   (if (= start end)
       nil
 ;    ;; This creates lots of extents (one per user-typed character)
@@ -112,8 +112,8 @@ face-manipulation functions."
 		   (error "no process in %S" (current-buffer))))
 	 (old (or (process-filter proc)
 		  (error "no process filter on %S" proc))))
-    (make-local-variable 'after-change-function)
-    (setq after-change-function 'shell-font-fontify-region)
+    (make-local-variable 'after-change-functions)
+    (add-hook 'after-change-functions 'shell-font-fontify-region)
     (make-local-variable 'shell-font-current-face)
     (setq shell-font-current-face 'shell-input)
     (make-local-variable 'shell-font-process-filter)
@@ -127,7 +127,7 @@ face-manipulation functions."
 (add-hook 'gdb-mode-hook	'install-shell-fonts)
 
 ;; for compatibility with the 19.8 version
-(fset 'install-shell-font-prompt 'install-shell-fonts)
+;(fset 'install-shell-font-prompt 'install-shell-fonts)
 (make-obsolete 'install-shell-font-prompt 'install-shell-fonts)
 
 (provide 'shell-font)

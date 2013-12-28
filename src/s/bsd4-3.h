@@ -5,7 +5,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -55,11 +55,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
  *	Define HAVE_TIMEVAL if the system supports the BSD style clock values.
- *	Define HAVE_SYS_TIME_H to include <sys/time.h> for a timeval structure.
+ *	Look in <sys/time.h> for a timeval structure.
  */
 
 #define HAVE_TIMEVAL
-#define HAVE_SYS_TIME_H
  
 /*
  *	Define HAVE_SELECT if the system supports the `select' system call.
@@ -80,10 +79,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Define HAVE_SOCKETS if system supports 4.2-compatible sockets.  */
 
 #define HAVE_SOCKETS
-
-/* Define HAVE_RENAME if system provides rename(2) */
-
-#define HAVE_RENAME
 
 /*
  *	Define NONSYSTEM_DIR_LIBRARY to make Emacs emulate
@@ -138,3 +133,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Send signals to subprocesses by "typing" special chars at them.  */
 
 #define SIGNALS_VIA_CHARACTERS
+
+/* We do have vfork.  */
+
+#define HAVE_VFORK

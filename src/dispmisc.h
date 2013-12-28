@@ -1,5 +1,5 @@
 /* Various display-releated prototypes.
-   Copyright (C) 1993 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -58,7 +58,7 @@ extern int initial_screen_is_tty (void);
 extern void set_terminal_modes (void);
 extern void reset_terminal_modes (void);
 extern void cursor_to (struct line_header *l, struct char_block *cb, int row,
-		       int col, struct window *win, struct screen *s);
+		       int col, struct window_mirror *mir, struct screen *s);
 extern void calculate_costs (struct screen *);
 extern void term_init (char *terminal_type);
 extern void set_terminal_window (int size);
@@ -108,16 +108,22 @@ extern void CXTupdate_begin (struct window *w);
 extern void CXTupdate_end (struct window *w);
 
 /* defined in xdisp.c */
+struct extent;
+
 extern void redisplay_preserving_echo_area (void);
-extern void initialize_first_screen (void);
+extern void redisplay_1 (int force);
 extern struct line_header *get_line (void);
 extern void free_line (struct line_header *);
 extern struct char_block *get_char_block (void);
 extern void free_char_blocks (struct char_block *b, struct char_block *e);
 extern void update_window (struct window *);
-extern void update_window_attributes (struct window *);
-extern void lock_redisplay (void);
+extern void lock_redisplay (int state);
 extern void unlock_redisplay (void);
+extern GLYPH extent_glyph (struct extent *e, int begin);
+#define REDISPLAY_LOCK_COMPLETELY 1
+#define REDISPLAY_LOCK_CURSOR 2
+
+extern void clear_display_structs (struct window_mirror *mir);
 extern int redisplay_lock;
 /* Can't declare this, as including file might not grok Lisp_Object
    extern void clear_display_structs (Lisp_Object window); */
@@ -140,8 +146,6 @@ extern void change_screen_size (struct screen *,
                                 int newlength, int newwidth, 
                                 int pretend);
 struct buffer;
-extern struct face *get_face_at_bufpos (struct screen *, struct buffer *,
-                                        register int, int *, int *);
 
 /* defined in scroll.c */
 extern void do_line_insertion_deletion_costs (struct screen *,

@@ -1,6 +1,6 @@
 ;;; vc-hooks.el --- resident support for version-control
 
-;; Copyright (C) 1992, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; Author: Eric S. Raymond <esr@snark.thyrsus.com>
 ;; Version: 5.3
@@ -34,9 +34,16 @@
 The first pair corresponding to a given back end is used as a template
 when creating new masters.")
 
+;; lemacs change by warsaw@nlm.nih.gov
+(defvar vc-no-vc-on-regexp (and (boundp 'ange-ftp-path-format)
+				(car ange-ftp-path-format))
+  "*If non-nil, describes files which do not get revision controlled.
+This is useful for turning off the scanning for revision files on
+ange-ftp remotely visited files.")
+
 (defvar vc-make-backup-files nil
   "*If non-nil, backups of registered files are made as with other files.
-If nil (the default), for files covered by version control don't get backups.")
+If nil (the default), files covered by version control don't get backups.")
 
 (defvar vc-rcs-status t
   "*If non-nil, revision and locks on RCS working file displayed in modeline.
@@ -155,8 +162,14 @@ visiting FILE."
 	 (require 'vc)
 	 (not (string-equal (user-login-name) (vc-locking-user file)))
 	 (setq buffer-read-only t))
-    ;; force update of mode line
-    (set-buffer-modified-p (buffer-modified-p))
+    (and (null vc-type)
+	 (file-symlink-p file)
+	 (let ((link-type (vc-backend-deduce (file-symlink-p file))))
+	   (if link-type
+	       (message "Warning: symbolic link to %s-controlled source file"
+			link-type))))
+    (force-mode-line-update)
+    ;;(set-buffer-modified-p (buffer-modified-p))  ;;use this if Emacs 18
     vc-type))
 
 (defun vc-rcs-status (file)
@@ -243,12 +256,18 @@ visiting FILE."
 (defun vc-find-file-hook ()
   ;; Recompute whether file is version controlled,
   ;; if user has killed the buffer and revisited.
-  (if buffer-file-name
-      (vc-file-setprop buffer-file-name 'vc-backend nil))
-  (if (and (vc-mode-line buffer-file-name) (not vc-make-backup-files))
+  ;; Perhaps ignore certain file names -- lemacs change by warsaw@nlm.nih.gov
+  (if (and buffer-file-name
+	   (or (not vc-no-vc-on-regexp)
+	       (not (string-match vc-no-vc-on-regexp buffer-file-name))))
       (progn
-	(make-local-variable 'make-backup-files)
-	(setq make-backup-files nil))))
+	(vc-file-setprop buffer-file-name 'vc-backend nil)
+	(if (and (vc-mode-line buffer-file-name) (not vc-make-backup-files))
+	    (progn
+              ;; Use this variable, not make-backup-files,
+              ;; because this is for things that depend on the file name.
+              (make-local-variable 'backup-inhibited)
+	      (setq backup-inhibited t))))))
 
 (add-hook 'find-file-hooks 'vc-find-file-hook)
 
@@ -256,10 +275,15 @@ visiting FILE."
 (defun vc-file-not-found-hook ()
   "When file is not found, try to check it out from RCS or SCCS.
 Returns t if checkout was successful, nil otherwise."
-  (if (vc-backend-deduce buffer-file-name)
-      (progn
-	(require 'vc)
-	(not (vc-error-occurred (vc-checkout buffer-file-name))))))
+  ;; ignore certain file names (e.g. ange-ftp files)
+  ;; lemacs change by warsaw@nlm.nih.gov
+  (if (and buffer-file-name
+	   (or (not vc-no-vc-on-regexp)
+	       (not (string-match vc-no-vc-on-regexp buffer-file-name))))
+      (if (vc-backend-deduce buffer-file-name)
+	  (progn
+	    (require 'vc)
+	    (not (vc-error-occurred (vc-checkout buffer-file-name)))))))
 
 (add-hook 'find-file-not-found-hooks 'vc-file-not-found-hook)
 

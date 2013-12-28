@@ -88,7 +88,9 @@ extern "C"
 {
 #endif
 
-#if defined (__cplusplus) || (defined (__STDC__) && __STDC__)
+/* #### lemacs change for Solaris */
+#if defined (__cplusplus) || (defined (__STDC__) && __STDC__) || \
+    (defined (__STDC__) && defined (sparc) && defined (USG))
 #undef	__P
 #define	__P(args)	args
 #undef	__ptr_t
@@ -105,10 +107,17 @@ extern "C"
 #ifdef	__STDC__
 #include <stddef.h>
 #else
+#ifdef OSF1		/* from grunwald@foobar.cs.colorado.edu */
+#undef	size_t
+#define	size_t		unsigned long
+#undef	ptrdiff_t
+#define	ptrdiff_t	long
+#else
 #undef	size_t
 #define	size_t		unsigned int
 #undef	ptrdiff_t
 #define	ptrdiff_t	int
+#endif /* OSF1 */
 #endif
 
 #ifndef	NULL
@@ -1177,7 +1186,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define	__sbrk	sbrk
 #endif
 
+#ifdef OSF1
+extern __ptr_t __sbrk __P ((ssize_t increment));
+#else
 extern __ptr_t __sbrk __P ((int increment));
+#endif
 
 #ifndef NULL
 #define NULL 0
@@ -1190,7 +1203,11 @@ __ptr_t
 __default_morecore (increment)
      ptrdiff_t increment;
 {
+#ifdef OSF1
+  __ptr_t result = __sbrk ((ssize_t) increment);
+#else
   __ptr_t result = __sbrk ((int) increment);
+#endif
   if (result == (__ptr_t) -1)
     return NULL;
   return result;

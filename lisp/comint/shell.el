@@ -162,7 +162,8 @@ on lines which don't start with a prompt.
 
 This is a fine thing to set in your `.emacs' file.")
 
-(defvar shell-delimiter-argument-list '("|" "&" "<" ">" "(" ")" ";")
+;jwz: turned this off; it's way too broken.
+(defvar shell-delimiter-argument-list nil;'("|" "&" "<" ">" "(" ")" ";")
   "List of characters to recognise as separate arguments.
 Defaults to \(\"|\" \"&\" \"\(\" \")\" \";\"), which works pretty well.
 This variable is used to initialise `comint-delimiter-argument-list' in the

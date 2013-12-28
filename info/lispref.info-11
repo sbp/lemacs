@@ -1,23 +1,21 @@
-Info file elisp, produced by Makeinfo, -*- Text -*- from input file
-elisp.texi.
+This is Info file ../../info/lispref.info, produced by Makeinfo-1.56
+from the input file lispref.texinfo.
 
-   This file documents GNU Emacs Lisp.
+   This version is newer than the second printed edition of the GNU
+Emacs Lisp Reference Manual.  It corresponds to Emacs Version 19.19.
 
-   This is edition 1.03 of the GNU Emacs Lisp Reference Manual,   for
-Emacs Version 18.
+   Published by the Free Software Foundation 675 Massachusetts Avenue
+Cambridge, MA 02139 USA
 
-   Published by the Free Software Foundation, 675 Massachusetts
-Avenue,  Cambridge, MA 02139 USA
+   Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
 
-   Copyright (C) 1990 Free Software Foundation, Inc.
-
-   Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
 
    Permission is granted to copy and distribute modified versions of
-this manual under the conditions for verbatim copying, provided that
-the entire resulting derived work is distributed under the terms of a
+this manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
 permission notice identical to this one.
 
    Permission is granted to copy and distribute translations of this
@@ -25,1210 +23,1236 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be stated in a
 translation approved by the Foundation.
 
- 
-
-File: elisp,  Node: Using Interactive,  Next: Interactive Codes,  Prev: Defining Commands,  Up: Defining Commands
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
 
-Using `interactive'
--------------------
-
-   This section describes how to write the `interactive' form that
-makes a Lisp function an interactively-callable command.
-
- * Special Form: interactive ARG-DESCRIPTOR
-     This special form declares that the function in which it appears
-     is a command, and that it may therefore be called interactively
-     (via `M-x' or by entering a key sequence bound to it).  The
-     argument ARG-DESCRIPTOR declares the way the arguments to the
-     command are to be computed when the command is called
-     interactively.
-
-     A command may be called from Lisp programs like any other
-     function, but then the arguments are supplied by the caller and
-     ARG-DESCRIPTOR has no effect.
-
-     The `interactive' form has its effect because the command loop
-     (actually, its subroutine `call-interactively') scans through
-     the function definition looking for it, before calling the
-     function.  Once the function is called, all its body forms
-     including the `interactive' form are executed, but at this time
-     `interactive' simply returns `nil' without even evaluating its
-     argument.
-
-   There are three possibilities for the argument ARG-DESCRIPTOR:
-
-   * It may be omitted or `nil'; then the command is called with no
-     arguments.  This leads quickly to an error if the command
-     requires one or more arguments.
-
-   * It may be a Lisp expression that is not a string; then it should
-     be a form that is evaluated to get a list of arguments to pass
-     to the command.
-
-   * It may be a string; then its contents should consist of a code
-     character followed by a prompt (if required for that code
-     character).  The prompt ends either with the end of the string
-     or with a newline.  Here is a simple example:
-
-          (interactive "bFrobnicate buffer: ")
-
-     The code letter `b' says to read the name of an existing buffer,
-     with completion.  The buffer name will be the sole argument
-     passed to the command.  The rest of the string is a prompt.
-
-     If there is a newline character in the string, it terminates the
-     prompt.  If the string does not end there, then the rest of the
-     string should contain another code character and prompt,
-     specifying another argument.  Any number of arguments may be
-     specified in this way.
-
-     If the first character in the string is `*', then an error is
-     signaled if the buffer is read-only.  Otherwise, the following
-     character is the first code character.
-
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the Free Software
+Foundation instead of in the original English.
 
 
-File: elisp,  Node: Interactive Codes,  Next: Interactive Examples,  Prev: Using Interactive,  Up: Defining Commands
+File: lispref.info,  Node: Invoking the Debugger,  Next: Internals of Debugger,  Prev: Debugger Commands,  Up: Debugger
 
-Code Characters for `interactive'
----------------------------------
+Invoking the Debugger
+---------------------
 
-   The code character descriptions below contain a number of key
-words, defined here as follows:
+   Here we describe fully the function used to invoke the debugger.
 
-Completion
-     Provide completion.  TAB, SPC, and RET perform name completion
-     because the argument is read using `completing-read' (*note
-     Completion::.).  `?' displays a list of possible completions.
+ - Function: debug &rest DEBUGGER-ARGS
+     This function enters the debugger.  It switches buffers to a buffer
+     named `*Backtrace*' (or `*Backtrace*<2>' if it is the second
+     recursive entry to the debugger, etc.), and fills it with
+     information about the stack of Lisp function calls.  It then
+     enters a recursive edit, leaving that buffer in Debugger mode and
+     displayed in the selected window.
 
-Existing
-     Require the name of an existing object.  An invalid name is not
-     accepted; the commands to exit the minibuffer do not exit if the
-     current input is not valid.
+     Debugger mode provides a `c' command which operates by exiting the
+     recursive edit, switching back to the previous buffer, and
+     returning to whatever called `debug'.  The `r' command also
+     returns from `debug'.  These are the only ways the function
+     `debug' can return to its caller.
 
-Default
-     A default value of some sort is used if the user enters no text
-     in the minibuffer.  The default depends on the code character.
+     If the first of the DEBUGGER-ARGS passed to `debug' is `nil' (or
+     if it is not one of the following special values), then the rest
+     of the arguments to `debug' are printed at the top of the
+     `*Backtrace*' buffer.  This mechanism is used to display a message
+     to the user.
 
-Prompt
-     A prompt immediately follows the code character.  The prompt
-     ends either with the end of the string or with a newline.
+     However, if the first argument passed to `debug' is one of the
+     following special values, then it has special significance.
+     Normally, these values are passed to `debug' only by the internals
+     of Emacs and the debugger, and not by programmers calling `debug'.
 
-No I/O
-     This code letter computes an argument without reading any input.
-     Therefore, it does not use a prompt string, and any prompt
-     string you supply is ignored.
+     The special values are:
 
-   Here are the code character descriptions for use with `interactive':
+    `lambda'
+          When the first argument is `lambda', the debugger displays
+          `Entering:' as a line of text at the top of the buffer.  This
+          means that a function is being entered when
+          `debug-on-next-call' is non-`nil'.
 
-`a'
-     A function name (i.e., a symbol which is `fboundp').  Existing,
-     Completion, Prompt.
+    `debug'
+          When the first argument is `debug', the debugger displays
+          `Entering:' just as in the `lambda' case.  However, `debug'
+          as the argument indicates that the reason for entering the
+          debugger is that a function set to debug on entry is being
+          entered.
 
-`b'
-     The name of an existing buffer.  By default, uses the name of
-     the current buffer (*note Buffers::.).  Existing, Completion,
-     Default, Prompt.
+          In addition, `debug' as the first argument directs the
+          debugger to mark the function that called `debug' so that it
+          will invoke the debugger when exited.  (When `lambda' is the
+          first argument, the debugger does not do this, because it has
+          already been done by the interpreter.)
 
-`B'
-     A buffer name.  The buffer need not exist.  By default, uses the
-     name of a recently used buffer other than the current buffer. 
-     Completion, Prompt.
+    `t'
+          When the first argument is `t', the debugger displays the
+          following as the top line in the buffer:
 
-`c'
-     A character.  The cursor does not move into the echo area. 
-     Prompt.
+               Beginning evaluation of function call form:
 
-`C'
-     A command name (i.e., a symbol satisfying `commandp'). 
-     Existing, Completion, Prompt.
+          This indicates that it was entered due to the evaluation of a
+          list form at a time when `debug-on-next-call' is non-`nil'.
 
-`d'
-     The position of point as a number (*note Point::.).  No I/O.
+    `exit'
+          When the first argument is `exit', it indicates the exit of a
+          stack frame previously marked to invoke the debugger on exit.
+          The second argument given to `debug' in this case is the
+          value being returned from the frame.  The debugger displays
+          `Return value:' on the top line of the buffer, followed by
+          the value being returned.
 
-`D'
-     A directory name.  The default is the current default directory
-     of the current buffer, `default-directory' (*note System
-     Environment::.).  Existing, Completion, Default, Prompt.
+    `error'
+          When the first argument is `error', the debugger indicates
+          that it is being entered because an error or `quit' was
+          signaled and not handled, by displaying `Signaling:' followed
+          by the error signaled and any arguments to `signal'.  For
+          example,
 
-`f'
-     A file name of an existing file (*note File Names::.).  The
-     default directory is `default-directory'.  Existing, Completion,
-     Default, Prompt.
+               (let ((debug-on-error t))
+                    (/ 1 0))
+               
+               ------ Buffer: *Backtrace* ------
+               Signaling: (arith-error)
+                 /(1 0)
+               ...
+               ------ Buffer: *Backtrace* ------
 
-`F'
-     A file name.  The file need not exist.  Completion, Default,
-     Prompt.
+          If an error was signaled, presumably the variable
+          `debug-on-error' is non-`nil'.  If `quit' was signaled, then
+          presumably the variable `debug-on-quit' is non-`nil'.
 
-`k'
-     A key sequence (*note Keymap Terms::.).  This keeps reading
-     characters until a command (or undefined command) is found in
-     the current key maps.  The key sequence argument is represented
-     as a string.  The cursor does not move into the echo area. 
-     Prompt.
-
-     This kind of input is used by commands such as `describe-key'
-     and `global-set-key'.
-
-`m'
-     The position of the mark as a number.  No I/O.
-
-`n'
-     A number read with the minibuffer.  If the input is not a
-     number, the user is asked to try again.  The prefix argument, if
-     any, is not used.  Prompt.
-
-`N'
-     The raw prefix argument.  If the prefix argument is `nil', then
-     a number is read as with `n'.  Requires a number.  Prompt.
-
-`p'
-     The numeric prefix argument.  (Note that this `p' is lower
-     case.) No I/O.
-
-`P'
-     The raw prefix argument.  (Note that this `P' is upper case.)
-     *Note Prefix Command Arguments::.  No I/O.
-
-`r'
-     Point and the mark, as two numeric arguments, smallest first. 
-     This is the only code letter that specifies two successive
-     arguments rather than one.  No I/O.
-
-`s'
-     Arbitrary text, read in the minibuffer and returned as a string
-     (*note Text from Minibuffer::.).  Terminate the input with
-     either LFD or RET.  (`C-q' may be used to include either of
-     these characters in the input.)  Prompt.
-
-`S'
-     An interned symbol whose name is read in the minibuffer.  Any
-     whitespace character terminates the input.  (Use `C-q' to
-     include whitespace in the string.)  Other characters that
-     normally terminate a symbol (e.g., parentheses and brackets) do
-     not do so here.  Prompt.
-
-`v'
-     A variable declared to be a user option (i.e., satisfying
-     `user-variable-p').  *Note High-Level Completion::.  Existing,
-     Completion, Prompt.
-
-`x'
-     A Lisp object specified in printed representation, terminated
-     with a LFD or RET.  The object is not evaluated.  *Note Object
-     from Minibuffer::.  Prompt.
-
-`X'
-     A Lisp form is read as with `x', but then evaluated so that its
-     value becomes the argument for the command.  Prompt.
-
+    `nil'
+          Use `nil' as the first of the DEBUGGER-ARGS when you want to
+          enter the debugger explicitly.  The rest of the DEBUGGER-ARGS
+          are printed on the top line of the buffer.  You can use this
+          feature to display messages--for example, to remind yourself
+          of the conditions under which `debug' is called.
 
 
-File: elisp,  Node: Interactive Examples,  Prev: Interactive Codes,  Up: Defining Commands
+File: lispref.info,  Node: Internals of Debugger,  Prev: Invoking the Debugger,  Up: Debugger
 
-Examples of Using `interactive'
--------------------------------
+Internals of the Debugger
+-------------------------
 
-   Here are some examples of `interactive':
+   This section describes functions and variables used internally by the
+debugger.
 
-     (defun foo1 ()                ; `foo1' takes no arguments,
-         (interactive)             ; just moves forward two words.
-         (forward-word 2))
-          => foo1
-     
-     (defun foo2 (n)               ; `foo2' takes one argument,
-         (interactive "p")         ; which is the numeric prefix.
-         (forward-word (* 2 n)))
-          => foo2
-     
-     (defun foo3 (n)               ; `foo3' takes one argument,
-         (interactive "nCount:")   ; which is read with the Minibuffer.
-         (forward-word (* 2 n)))
-          => foo3
-     
-     (defun three-b (b1 b2 b3)
-       "Select three existing buffers (prompting for them in
-     the Minibuffer).  Put them into three windows, selecting the
-     last one."
-         (interactive "bBuffer1:\nbBuffer2:\nbBuffer3:")
-         (delete-other-windows)
-         (split-window (selected-window) 8)
-         (switch-to-buffer b1)
-         (other-window 1)
-         (split-window (selected-window) 8)
-         (switch-to-buffer b2)
-         (other-window 1)
-         (switch-to-buffer b3))
-          => three-b
-     (three-b "*scratch*" "declarations.texi" "*mail*")
-          => nil
+ - Variable: debugger
+     The value of this variable is the function to call to invoke the
+     debugger.  Its value must be a function of any number of arguments
+     (or, more typically, the name of a function).  Presumably this
+     function will enter some kind of debugger.  The default value of
+     the variable is `debug'.
 
+     The first argument that Lisp hands to the function indicates why it
+     was called.  The convention for arguments is detailed in the
+     description of `debug'.
 
-
-File: elisp,  Node: Interactive Call,  Next: Command Loop Info,  Prev: Defining Commands,  Up: Command Loop
+ - Command: backtrace
+     This function prints a trace of Lisp function calls currently
+     active.  This is the function used by `debug' to fill up the
+     `*Backtrace*' buffer.  It is written in C, since it must have
+     access to the stack to determine which function calls are active.
+     The return value is always `nil'.
 
-Interactive Call
-================
+     In the following example, `backtrace' is called explicitly in a
+     Lisp expression.  When the expression is evaluated, the backtrace
+     is printed to the stream `standard-output': in this case, to the
+     buffer `backtrace-output'.  Each line of the backtrace represents
+     one function call.  If the arguments of the function call are all
+     known, they are displayed; if they are being computed, that fact
+     is stated.  The arguments of special forms are elided.
 
-   After the command loop has translated a key sequence into a
-definition, it invokes that definition using the function
-`command-execute'.  If the definition is a function that is a
-command, `command-execute' calls `call-interactively', which reads
-the arguments and calls the command.  You can also call these
-functions yourself.
-
- * Function: commandp OBJECT
-     Returns `t' if OBJECT is suitable for calling interactively;
-     that is, if OBJECT is a command.  Otherwise, returns `nil'.
-
-     The interactively callable objects include strings (treated as
-     keyboard macros), lambda expressions that contain a top-level
-     call to `interactive', autoload objects that are declared as
-     interactive (non-`nil' fourth argument to `autoload'), and some
-     of the primitive functions.
-
-     A symbol is `commandp' if its function definition is `commandp'.
-
-     Keys and keymaps are not commands.  Rather, they are used to
-     look up commands (*note Keymaps::.).
-
-     See `documentation' in *Note Accessing Documentation::, for a
-     realistic example of using `commandp'.
-
- * Function: call-interactively COMMAND &optional RECORD-FLAG
-     This function calls the interactively callable function COMMAND,
-     reading arguments according to its interactive calling
-     specifications.  An error is signaled if COMMAND cannot be
-     called interactively (i.e., it is not a command).  Note that
-     strings are not accepted,  even though they are considered
-     commands.
-
-     If RECORD-FLAG is non-`nil', then this command and its arguments
-     are unconditionally added to the list `command-history'. 
-     Otherwise, the command is added only if it uses the minibuffer
-     to read an argument.  *Note Command History::.
-
- * Function: command-execute COMMAND &optional RECORD-FLAG
-     This function executes COMMAND as an editing command.  The
-     argument COMMAND must satisfy the `commandp' predicate; i.e., it
-     must be an interactively callable function or a string.
-
-     A string as COMMAND is executed with `execute-kbd-macro'.  A
-     function is passed to `call-interactively', along with the
-     optional RECORD-FLAG.
-
-     A symbol is handled by using its function definition in its
-     place.  A symbol with an `autoload' definition counts as a
-     command if it was declared to stand for an interactively
-     callable function.  Such a definition is handled by loading the
-     specified library and then rechecking the definition of the
-     symbol.
-
- * Command: execute-extended-command PREFIX-ARGUMENT
-     This primitive function reads a command name from the minibuffer
-     using `completing-read' (*note Completion::.).  Then it uses
-     `command-execute' to call the specified command.  Whatever that
-     command returns becomes the value of `execute-extended-command'.
-
-     If the command asks for a prefix argument, the value
-     PREFIX-ARGUMENT is supplied.  If `execute-extended-command' is
-     called interactively, the current raw prefix argument is used
-     for PREFIX-ARGUMENT, and thus passed on to whatever command is
-     run.
-
-     `execute-extended-command' is the normal definition of `M-x', so
-     it uses the string `M-x ' as a prompt.  (It would be better to
-     take the prompt from the characters used to invoke
-     `execute-extended-command', but that is painful to implement.) 
-     A description of the value of the prefix argument, if any, also
-     becomes part of the prompt.
-
-          (execute-extended-command 1)
-          ---------- Buffer: Minibuffer ----------
-          M-x forward-word RET
-          ---------- Buffer: Minibuffer ----------
-               => t
-
- * Function: interactive-p
-     This function returns `t' if the containing function (the one
-     that called `interactive-p') was called interactively, with
-     `call-interactively'.  (It makes no difference whether
-     `call-interactively' was called from Lisp or directly from the
-     editor command loop.)  Note that if the containing function was
-     called by Lisp evaluation (or with `apply' or `funcall'), then
-     it was not called interactively.
-
-     The usual application of `interactive-p' is for deciding whether
-     to print an informative message.  As a special exception,
-     `interactive-p' returns `nil' whenever a keyboard macro is being
-     run.  This is to suppress the informative messages and speed
-     execution of the macro.
-
-     For example:
-
-          (defun foo ()
-            (interactive)
-            (and (interactive-p)
-                 (message "foo")))
-               => foo
-
-             (defun bar ()
-            (interactive)
-            (setq foobar (list (foo) (interactive-p))))
-               => bar
-
-
-                    ;; Type `M-x foo'.
-               -| foo
+          (with-output-to-temp-buffer "backtrace-output"
+            (let ((var 1))
+              (save-excursion
+                (setq var (eval '(progn
+                                   (1+ var)
+                                   (list 'testing (backtrace))))))))
           
-          ;; Type `M-x bar'.
-          ;; This does not print anything.
-          
-          foobar
-               => (nil t)
-
-
-
-File: elisp,  Node: Command Loop Info,  Next: Keyboard Input,  Prev: Interactive Call,  Up: Command Loop
-
-Information from the Command Loop
-=================================
-
-   The editor command loop sets several Lisp variables to keep status
-records for itself and for commands that are run.
-
- * Variable: last-command
-     This variable records the name of the previous command executed
-     by the command loop (the one before the current command). 
-     Normally the value is a symbol with a function definition, but
-     this is not guaranteed.
-
-     The value is set by copying the value of `this-command' when a
-     command returns to the command loop, except when the command
-     specifies a prefix argument for the following command.
-
- * Variable: this-command
-     This variable records the name of the command now being executed
-     by editor command loop.  Like `last-command', it is normally a
-     symbol with a function definition.
-
-     This variable is set by the command loop just before the command
-     is run, and its value is copied into `last-command' when the
-     command finishes (unless the command specifies a prefix argument
-     for the following command).
-
-     Some commands change the value of this variable during their
-     execution, simply as a flag for whatever command runs next.  In
-     particular, the functions that kill text set `this-command' to
-     `kill-region' so that any kill commands immediately following
-     will know to append the killed text to the previous kill.
-
- * Function: this-command-keys
-     This function returns a string containing the key sequence that
-     invoked the present command, plus any previous commands that
-     generated the prefix argument for this command.
-
-          (this-command-keys) ;; Now type `C-u C-x C-e'.
-               => "^U^X^E"
-
- * Variable: last-command-char
-     This variable is set to the last character that was typed on the
-     terminal and was part of a command.  The principal use of this
-     variable is in `self-insert-command', which uses it to decide
-     which character to insert.
-
-          last-command-char ;; Now type `C-u C-x C-e'.
-               => 5
-
-     The value is 5 because that is the ASCII code for `C-e'.
-
- * Variable: echo-keystrokes
-     This variable determines how much time should elapse before
-     command characters are echoed.  Its value must be an integer,
-     which specifies the number of seconds to wait before echoing. 
-     If the user types a prefix key (say `C-x') and then delays this
-     many seconds before continuing, the key `C-x' is echoed in the
-     echo area.  Any subsequent characters in the same command will
-     be echoed as well.
-
-     If the value is zero, then command input is not echoed.
-
-
-
-File: elisp,  Node: Keyboard Input,  Next: Quitting,  Prev: Command Loop Info,  Up: Command Loop
-
-Keyboard Input
-==============
-
-   The editor command loop reads keyboard input using
-`read-key-sequence', which uses `read-char'.  These and other
-functions for keyboard input are also available for use in Lisp
-programs.  See also `momentary-string-display' in *Note Temporary
-Displays::, and `sit-for' in *Note Waiting::.  *Note Terminal
-Input::, for functions and variables for controlling terminal input
-modes and debugging terminal input.
-
- * Function: read-char
-     This function reads a character from the command input (either
-     from direct keyboard input or from an executing keyboard macro),
-     and returns it.
-
-     No message is displayed to indicate that keyboard input is
-     expected.  If you want to display a message, call `message'
-     first.  If `cursor-in-echo-area' is non-`nil', then the cursor
-     moves to the echo area, to the end of any message displayed
-     there.  Otherwise the cursor does not move.  *Note The Echo
-     Area::.
-
-     In the first example, the user types `1' (which is ASCII code
-     49).  The second example shows a keyboard macro definition that
-     calls `read-char' from the minibuffer.  `read-char' reads the
-     keyboard macro's very next character, which is `1'.  The value
-     of this function is displayed in the echo area by the command
-     `eval-expression'.
-
-          (read-char)
-               => 49
-          
-          (symbol-function 'foo)
-               => "^[^[(read-char)^M1"
-          (execute-kbd-macro foo)
-               -| 49
                => nil
 
- * Function: read-quoted-char &optional PROMPT
-     This function is like `read-char', except that if the first
-     character read is an octal digit (0-7), it reads up to two more
-     octal digits (but stopping if a non-octal digit is found) and
-     returns the character represented by those digits as an octal
-     number.
+          ----------- Buffer: backtrace-output ------------
+            backtrace()
+            (list ...computing arguments...)
+            (progn ...)
+            eval((progn (1+ var) (list (quote testing) (backtrace))))
+            (setq ...)
+            (save-excursion ...)
+            (let ...)
+            (with-output-to-temp-buffer ...)
+            eval-region(1973 2142 #<buffer *scratch*>)
+            byte-code("...  for eval-print-last-sexp ...")
+            eval-print-last-sexp(nil)
+          * call-interactively(eval-print-last-sexp)
+          ----------- Buffer: backtrace-output ------------
 
-     Quitting is suppressed when the first character is read, so that
-     the user can enter a `C-g'.  *Note Quitting::.
+     The character `*' indicates a frame whose debug-on-exit flag is
+     set.
 
-     If PROMPT is supplied, it specifies a string for prompting the
-     user.  The prompt string is always printed in the echo area and
-     followed by a single `-'.
+ - Variable: debug-on-next-call
+     This variable determines whether the debugger is called before the
+     next `eval', `apply' or `funcall'.  It is automatically reset to
+     `nil' when the debugger is entered.
 
-     In the following example, the user types in the octal number 177
-     (which is 127 in decimal).
+     The `d' command in the debugger works by setting this variable.
 
-          (read-quoted-char "What character")
-          
-          ---------- Echo Area ----------
-          What character-`177'
-          ---------- Echo Area ----------
-          
-               => 127
+ - Function: backtrace-debug LEVEL FLAG
+     This function sets the debug-on-exit flag of the eval frame LEVEL
+     levels down to FLAG.  If FLAG is non-`nil', this will cause the
+     debugger to be entered when that frame exits.  Even a nonlocal
+     exit through that frame will enter the debugger.
 
- * Function: read-key-sequence PROMPT
-     This function reads a key sequence and returns it as a string. 
-     It keeps reading characters until it has accumulated a full key
-     sequence; that is, enough characters to specify a non-prefix
-     command using the current local and global keymaps. 
-     `read-key-sequence' is used by the command loop to read command
-     input.
+     The debug-on-exit flag is an entry in the stack frame of a
+     function call.  This flag is examined on every exit from a
+     function.
 
-     If an input character is an upper case letter and has no
-     definition, but the lower case equivalent is defined, then the
-     character is converted to lower case.  Note that `lookup-key'
-     does not perform case conversion in this way.
+     Normally, this function is only called by the debugger.
 
-     Quitting is suppressed inside `read-key-sequence'.  In other
-     words, a `C-g' typed while reading with this function is treated
-     like any other character, and `quit-flag' is not set.  *Note
-     Quitting::.
+ - Variable: command-debug-status
+     This variable records the debugging status of current interactive
+     command.  Each time a command is called interactively, this
+     variable is bound to `nil'.  The debugger can set this variable to
+     leave information for future debugger invocations during the same
+     command.
 
-     The argument PROMPT is either a string to be displayed in the
-     echo area as a prompt, or `nil', meaning that no prompt is
-     displayed.
+     The advantage of using this variable rather that defining another
+     global variable is that the data will never carry over to a later
+     other command invocation.
 
-     In the example below, the prompt `?' is displayed in the echo
-     area, and the user types `C-x C-f'.
+ - Function: backtrace-frame FRAME-NUMBER
+     The function `backtrace-frame' is intended for use in Lisp
+     debuggers.  It returns information about what computation is
+     happening in the eval frame LEVEL levels down.
 
-          (read-key-sequence "?")
-          
-          ---------- Echo Area ----------
-          ?`C-x C-f'
-          ---------- Echo Area ----------
-          
-               => "^X^F"
+     If that frame has not evaluated the arguments yet (or is a special
+     form), the value is `(nil FUNCTION ARG-FORMS...)'.
 
- * Variable: unread-command-char
-     This variable holds a character waiting to be read as the next
-     input from the command input stream, or to the integer -1 if no
-     character is waiting.  The variable is used because in some
-     cases an input function reads a character and then decides not
-     to use it.  Storing the character in this variable causes it to
-     be processed normally by the command loop or when `read-char' is
-     next called.
+     If that frame has evaluated its arguments and called its function
+     already, the value is `(t FUNCTION ARG-VALUES...)'.
 
-     For example, the function that governs prefix arguments reads
-     any number of digits.  When it finds a non-digit character, it
-     must unread the character so that it becomes input for the next
-     command.  Likewise, incremental search uses this feature to
-     unread a control character used to terminate the search.
+     In the return value, FUNCTION is whatever was supplied as CAR of
+     evaluated list, or a `lambda' expression in the case of a macro
+     call.  If the function has a `&rest' argument, that is represented
+     as the tail of the list ARG-VALUES.
 
- * Function: input-pending-p
-     This function determines whether command input is currently
-     available.  It returns immediately, with value `t' if there is
-     input, `nil' otherwise.  On rare occasions it may return `t'
-     when no input is available.
-
- * Variable: last-input-char
-     This variable records the last terminal input character read,
-     whether as part of a command or explicitly by a Lisp program.
-
-     In the example below, a character is read (the character `1',
-     ASCII code 49).  It becomes the value of `last-input-char',
-     while `C-e' (from the `C-x C-e' command used to evaluate this
-     expression) remains the value of `last-command-char'.
-
-          (progn (print (read-char))
-                 (print last-command-char)
-                 last-input-char)
-               -| 49
-               -| 5
-               => 49
-
- * Function: discard-input
-     This function discards the contents of the terminal input buffer
-     and cancels any keyboard macro that might be in the process of
-     definition.  It returns `nil'.
-
-     In the following example, the user may type a number of
-     characters right after starting the evaluation of the form. 
-     After the `sleep-for' finishes sleeping, any characters that
-     have been typed are discarded.
-
-          (progn (sleep-for 2)
-            (discard-input))
-               => nil
-
+     If the argument is out of range, `backtrace-frame' returns `nil'.
 
 
-File: elisp,  Node: Quitting,  Next: Prefix Command Arguments,  Prev: Keyboard Input,  Up: Command Loop
-
-Quitting
-========
-
-   Typing `C-g' while the command loop has run a Lisp function causes
-Emacs to "quit" whatever it is doing.  This means that control
-returns to the innermost active command loop.
-
-   Typing `C-g' while the command loop is waiting for keyboard input
-does not cause a quit; it acts as an ordinary input character.  In
-the simplest case, you cannot tell the difference, because `C-g'
-normally runs the command `keyboard-quit', whose effect is to quit. 
-However, when `C-g' follows a prefix key, the result is an undefined
-key.  The effect is to cancel the prefix key as well as any prefix
-argument.
-
-   In the minibuffer, `C-g' has a different definition: it aborts out
-of the minibuffer.  This means, in effect, that it exits the
-minibuffer and then quits.  (Simply quitting would return to the
-command loop *within* the minibuffer.)  The reason why `C-g' does not
-quit directly when the command reader is reading input is so that its
-meaning can be redefined in the minibuffer in this way.  `C-g'
-following a prefix key is not redefined in the minibuffer, and it has
-its normal effect of canceling the prefix key and prefix argument. 
-This too would not be possible if `C-g' quit directly.
-
-   `C-g' causes a quit by setting the variable `quit-flag' to a
-non-`nil' value.  Emacs checks this variable at appropriate times and
-quits if it is not `nil'.  Setting `quit-flag' non-`nil' in any way
-thus causes a quit.
-
-   At the level of C code, quits cannot happen just anywhere; only at
-the special places which check `quit-flag'.  The reason for this is
-that quitting at other places might leave an inconsistency in Emacs's
-internal state.  Because quitting is delayed until a safe place,
-quitting  cannot make Emacs crash.
-
-   Certain functions such as `read-key-sequence' or
-`read-quoted-char' prevent quitting entirely even though they wait
-for input.  Instead of quitting, `C-g' serves as the requested input.
-In the case of `read-key-sequence', this serves to bring about the
-special behavior of `C-g' in the command loop.  In the case of
-`read-quoted-char', this is so that `C-q' can be used to quote a
-`C-g'.
-
-   You can prevent quitting for a portion of a Lisp function by
-binding the variable `inhibit-quit' to a non-`nil' value.  Then,
-although `C-g' still sets `quit-flag' to `t' as usual, the usual
-result of this--a quit--is prevented.  Eventually, `inhibit-quit'
-will become `nil' again, such as when its binding is unwound at the
-end of a `let' form.  At that time, if `quit-flag' is still
-non-`nil', the requested quit happens immediately.  This behavior is
-ideal for a "critical section", where you wish to make sure that
-quitting does not happen within that part of the program.
-
-   In some functions (such as `read-quoted-char'), `C-g' is handled
-in a special way which does not involve quitting.  This is done by
-reading the input with `inhibit-quit' bound to `t' and setting
-`quit-flag' to `nil' before `inhibit-quit' becomes `nil' again.  This
-excerpt from the definition of `read-quoted-char' shows how this is
-done; it also shows that normal quitting is permitted after the first
-character of input.
-
-     (defun read-quoted-char (&optional prompt)
-       "...DOCUMENTATION..."
-       (let ((count 0) (code 0) char)
-         (while (< count 3)
-           (let ((inhibit-quit (zerop count))
-                 (help-form nil))
-             (and prompt (message "%s-" prompt))
-             (setq char (read-char))
-             (if inhibit-quit (setq quit-flag nil)))
-           ...)
-         (logand 255 code)))
-
- * Variable: quit-flag
-     If this variable is non-`nil', then Emacs quits immediately,
-     unless `inhibit-quit' is non-`nil'.  Typing `C-g' sets
-     `quit-flag' non-`nil', regardless of `inhibit-quit'.
-
- * Variable: inhibit-quit
-     This variable determines whether Emacs should quit when
-     `quit-flag' is set to a value other than `nil'.  If
-     `inhibit-quit' is non-`nil', then `quit-flag' has no special
-     effect.
-
- * Command: keyboard-quit
-     This function signals the `quit' condition with `(signal 'quit
-     nil)'.  This is the same thing that quitting does.  (See
-     `signal' in *Note Errors::.)
-
-   You can specify a character other than `C-g' to use for quitting. 
-See the function `set-input-mode' in *Note Terminal Input::.
-
-
-
-File: elisp,  Node: Prefix Command Arguments,  Next: Recursive Editing,  Prev: Quitting,  Up: Command Loop
-
-Prefix Command Arguments
-========================
-
-   Most Emacs commands can use a "prefix argument", a number
-specified before the command itself.  (Don't confuse prefix arguments
-with prefix keys.)  The prefix argument is represented by a value
-that is always available (though it may be `nil', meaning there is no
-prefix argument).  Each command may use the prefix argument or ignore
-it.
-
-   There are two representations of the prefix argument: "raw" and
-"numeric".  The editor command loop uses the raw representation
-internally, and so do the Lisp variables that store the information,
-but commands can request either representation.
-
-   Here are the possible values of a raw prefix argument:
-
-   * `nil', meaning there is no prefix argument.  Its numeric value
-     is 1, but numerous commands make a distinction between `nil' and
-     the integer 1.
-
-   * An integer, which stands for itself.
-
-   * A list of one element, which is an integer.  This form of prefix
-     argument results from one or a succession of `C-u''s with no
-     digits.  The numeric value is the integer in the list, but some
-     commands make a distinction between such a list and an integer
-     alone.
-
-   * The symbol `-'.  This indicates that `M--' or `C-u -' was typed,
-     without following digits.  The equivalent numeric value is -1,
-     but some commands make a distinction between the integer -1 and
-     the symbol `-'.
-
-   The various possibilities may be illustrated by calling the
-following function with various prefixes:
-
-     (defun print-prefix (arg)
-       "Print the value of the raw prefix arg at point."
-       (interactive "P")
-       (message "%s" arg))
-
-Here are the results of calling `print-prefix' with various raw
-prefix arguments:
-
-             M-x print-prefix  -| nil
-     
-     C-u     M-x print-prefix  -| (4)
-     
-     C-u C-u M-x print-prefix  -| (16)
-     
-     C-u 3   M-x print-prefix  -| 3
-     
-     M-3     M-x print-prefix  -| 3      ; (Same as `C-u 3'.)
-     
-     C-u -   M-x print-prefix  -| -      
-     
-     M- -    M-x print-prefix  -| -      ; (Same as `C-u -'.)
-     
-     C-u -7  M-x print-prefix  -| -7     
-     
-     M- -7   M-x print-prefix  -| -7     ; (Same as `C-u -7'.)
-
-   There are two variables used to store the prefix argument:
-`prefix-arg' and `current-prefix-arg'.  Commands such as
-`universal-argument' that set up prefix arguments for other commands
-store them in `prefix-arg'.  In contrast, `current-prefix-arg'
-conveys the prefix argument to the current command, so setting it has
-no effect on the prefix arguments for future commands.
-
-   Normally, commands specify which representation to use for the
-prefix argument, either numeric or raw, in the `interactive'
-declaration.  (*Note Interactive Call::.)  Alternatively, functions
-may look at the value of the prefix argument directly in the variable
-`current-prefix-arg', but this is less clean.
-
-   Don't call `universal-argument', `digit-argument', or
-`negative-argument' unless you intend to let the user enter the
-prefix argument for the *next* command.
-
- * Command: universal-argument
-     This command reads input and specifies a prefix argument for the
-     following command.  Don't call this command yourself unless you
-     know what you are doing.
-
- * Command: digit-argument ARG
-     This command adds to the prefix argument for the following
-     command.  The argument ARG is the raw prefix argument as it was
-     before this command; it is used to compute the updated prefix
-     argument.  Don't call this command yourself unless you know what
-     you are doing.
-
- * Command: negative-argument ARG
-     This command adds to the numeric argument for the next command. 
-     The argument ARG is the raw prefix argument as it was before
-     this command; its value is negated to form the new prefix
-     argument.  Don't call this command yourself unless you know what
-     you are doing.
-
- * Function: prefix-numeric-value ARG
-     This function returns the numeric meaning of a valid raw prefix
-     argument value, ARG.  The argument may be a symbol, a number, or
-     a list.  If it is `nil', the value 1 is returned; if it is any
-     other symbol, the value -1 is returned.  If it is a number, that
-     number is returned; if it is a list, the CAR of that list (which
-     should be a number) is returned.
-
- * Variable: current-prefix-arg
-     This variable is the value of the raw prefix argument for the
-     *current* command.  Commands may examine it directly, but the
-     usual way to access it is with `(interactive "P")'.
-
- * Variable: prefix-arg
-     The value of this variable is the raw prefix argument for the
-     *next* editing command.  Commands that specify prefix arguments
-     for the following command work by setting this variable.
-
-
-
-File: elisp,  Node: Recursive Editing,  Next: Disabling Commands,  Prev: Prefix Command Arguments,  Up: Command Loop
-
-Recursive Editing
-=================
-
-   The Emacs command loop is entered automatically when Emacs starts
-up.  This top-level invocation of the command loop is never exited
-until the Emacs is killed.  Lisp programs can also invoke the command
-loop.  Since this makes more than one activation of the command loop,
-we call it "recursive editing".  A recursive editing level has the
-effect of suspending whatever command invoked it and permitting the
-user to do arbitrary editing before resuming that command.
-
-   The commands available during recursive editing are the same ones
-available in the top-level editing loop and defined in the keymaps. 
-Only a few special commands exit the recursive editing level; the
-others return to the recursive editing level when finished.  (The
-special commands for exiting are always available, but do nothing
-when recursive editing is not in progress.)
-
-   All command loops, including recursive ones, set up all-purpose
-error handlers so that an error in a command run from the command
-loop will not exit the loop.
-
-   Minibuffer input is a special kind of recursive editing.  It has a
-few special wrinkles, such as enabling display of the minibuffer and
-the minibuffer window, but fewer than you might suppose.  Certain
-keys behave differently in the minibuffer, but that is only because
-of the minibuffer's local map; if you switch windows, you get the
-usual Emacs commands.
-
-   To invoke a recursive editing level, call the function
-`recursive-edit'.  This function contains the command loop; it also
-contains a call to `catch' with tag `exit', which makes it possible
-to exit the recursive editing level by throwing to `exit' (*note
-Catch and Throw::.).  If you throw a value other than `t', then
-`recursive-edit' returns normally to the function that called it. 
-The command `C-M-c' (`exit-recursive-edit') does this.  Throwing a
-`t' value causes `recursive-edit' to quit, so that control returns to
-the command loop one level up.  This is called "aborting", and is
-done by `C-]' (`abort-recursive-edit').
-
-   Most applications should not use recursive editing, except as part
-of using the minibuffer.  Usually it is more convenient for the user
-if you change the major mode of the current buffer temporarily to a
-special major mode, which has a command to go back to the previous
-mode.  (This technique is used by the `w' command in Rmail.)  Or, if
-you wish to give the user different text to edit "recursively",
-create and select a new buffer in a special mode.  In this mode,
-define a command to complete the processing and go back to the
-previous buffer.  (The `m' command in Rmail does this.)
-
-   Recursive edits are useful in debugging.  You can insert a call to
-`debug' into a function definition as a sort of breakpoint, so that
-you can look around when the function gets there.  `debug' invokes a
-recursive edit but also provides the other features of the debugger.
-
-   Recursive editing levels are also used when you type `C-r' in
-`query-replace' or use `C-x q' (`kbd-macro-query').
-
- * Function: recursive-edit
-     This function invokes the editor command loop.  It is called
-     automatically by the initialization of Emacs, to let the user
-     begin editing.  When called from a Lisp program, it enters a
-     recursive editing level.
-
-     In the following example, the function `simple-rec' first
-     advances point one word, then enters a recursive edit, printing
-     out a message in the echo area.  The user can then do any
-     editing desired, and then type `C-M-c' to exit and continue
-     executing `simple-rec'.
-
-          (defun simple-rec ()
-            (forward-word 1)
-            (message "Recursive edit in progress.")
-            (recursive-edit)
-            (forward-word 1))
-               => simple-rec
-          (simple-rec)
-               => nil
-
- * Command: exit-recursive-edit
-     This function exits from the innermost recursive edit (including
-     minibuffer input).  Its definition is effectively `(throw 'exit
-     nil)'.
-
- * Command: abort-recursive-edit
-     This function aborts the command that requested the innermost
-     recursive edit (including minibuffer input), by signaling `quit'
-     after exiting the recursive edit.  Its definition is effectively
-     `(throw 'exit t)'.  *Note Quitting::.
-
- * Command: top-level
-     This function exits all recursive editing levels; it does not
-     return a value, as it jumps completely out of any computation
-     directly back to the main command loop.
-
- * Function: recursion-depth
-     This function returns the current depth of recursive edits. 
-     When no recursive edit is active, it returns 0.
-
-
-
-File: elisp,  Node: Disabling Commands,  Next: Command History,  Prev: Recursive Editing,  Up: Command Loop
-
-Disabling Commands
-==================
-
-   "Disabling a command" marks the command as requiring user
-confirmation before it can be executed.  Disabling is used for
-commands which might be confusing to beginning users, to prevent them
-from using the commands by accident.
-
-   The low-level mechanism for disabling a command is to put a
-non-`nil' `disabled' property on the Lisp symbol for the command. 
-These properties are normally set up by the user's `.emacs' file with
-Lisp expressions such as this:
-
-     (put 'upcase-region 'disabled t)
-
-For a few commands, these properties are present by default and may
-be removed by the `.emacs' file.
-
-   If the value of the `disabled' property is a string, that string
-is included in the message printed when the command is used:
-
-     (put 'delete-region 'disabled
-          "Text deleted this way cannot be yanked back!\n")
-
-   *Note : (emacs)Disabling, for the details on what happens when a
-disabled command is invoked interactively.  Disabling a command has
-no effect on calling it as a function from Lisp programs.
-
- * Command: enable-command COMMAND
-     Allow COMMAND to be executed without special confirmation from
-     now on.  The user's `.emacs' file is optionally altered so that
-     this will apply to future sessions.
-
- * Command: disable-command COMMAND
-     Require special confirmation to execute COMMAND from now on. 
-     The user's `.emacs' file is optionally altered so that this will
-     apply to future sessions.
-
- * Variable: disabled-command-hook
-     The value of this variable is a function to be called instead of
-     any command that is disabled (i.e., that has a non-`nil'
-     disabled property).  By default, the value of
-     `disabled-command-hook' is a function defined to ask the user
-     whether to proceed.
-
-
-
-File: elisp,  Node: Command History,  Next: Keyboard Macros,  Prev: Disabling Commands,  Up: Command Loop
-
-Command History
-===============
-
-   The command loop keeps a history of the complex commands that have
-been executed, to make it convenient to repeat these commands.  A
-"complex command" is one for which the interactive argument reading
-uses the minibuffer.  This includes any `M-x' command, any `M-ESC'
-command, and any command whose `interactive' specification reads an
-argument from the minibuffer.  Explicit use of the minibuffer during
-the execution of the command itself does not cause the command to be
-considered complex.
-
- * Variable: command-history
-     This variable's value is a list of recent complex commands, each
-     represented as a form to evaluate.  It continues to accumulate
-     all complex commands for the duration of the editing session,
-     but all but the first (most recent) thirty elements are deleted
-     when a garbage collection takes place (*note Garbage
-     Collection::.).
-
-          command-history
-          => ((switch-to-buffer "chistory.texi")
-              (describe-key "^X^[")
-              (visit-tags-table "~/emacs/src/")
-              (find-tag "repeat-complex-command"))
-
-   There are a number of commands and even two entire modes devoted
-to facilitating the editing and recall of previous commands.  The
-commands `repeat-complex-command', and `list-command-history' are
-described in the user manual (*note : (emacs)Repetition.).
-
- * Variable: repeat-complex-command-map
-     The value of this variable is a sparse keymap used by the
-     minibuffer inside of `read-complex-command'.
-
-
-
-File: elisp,  Node: Keyboard Macros,  Prev: Command History,  Up: Command Loop
-
-Keyboard Macros
-===============
-
-   A "keyboard macro" is a canned sequence of keystrokes that can be
-considered a command and made the definition of a key.  Don't confuse
-keyboard macros with Lisp macros (*note Macros::.).
-
- * Function: execute-kbd-macro MACRO &optional COUNT
-     This function executes MACRO as a string of editor commands.  If
-     MACRO is a string, then the characters in that string are
-     executed exactly as if they had been typed as command input.
-
-     If MACRO is a symbol, then its function definition is used in
-     place of MACRO.  If that is another symbol, this process repeats.
-     Eventually the result should be a string.  If the result is
-     neither a symbol nor a string, an error is signaled.
-
-     The argument COUNT is a repeat count; MACRO is executed that
-     many times.  If COUNT is omitted or `nil', MACRO is executed
-     once.  If it is 0, MACRO is executed over and over until it
-     encounters an error or a failing search.
-
- * Variable: last-kbd-macro
-     This variable is the definition of the most recently defined
-     keyboard macro.  Its value is a string or `nil'.
-
- * Variable: executing-macro
-     This variable contains the string that defines the keyboard
-     macro that is currently executing.  It is `nil' if no macro is
-     currently executing.
-
- * Variable: defining-kbd-macro
-     This variable indicates whether a keyboard macro is being
-     defined.  It is set to `t' by `start-kbd-macro', and `nil' by
-     `end-kbd-macro'.  It is not hard to use this variable to make a
-     command behave differently when run from a keyboard macro
-     (perhaps indirectly by calling `interactive-p').  However, do
-     not set this variable yourself.
-
-   The user-level commands for defining, running and editing keyboard
-macros include `call-last-kbd-macro', `insert-kbd-macro',
-`start-kbd-macro', `end-kbd-macro', `kbd-macro-query', and
-`name-last-kbd-macro'.  They are described in the user's manual
-(*note : (emacs)Keyboard Macros.).
-
-
-
-File: elisp,  Node: Keymaps,  Next: Modes,  Prev: Command Loop,  Up: Top
-
-Keymaps
-*******
-
-   The bindings between keyboard input and commands are recorded in
-data structures called "keymaps".  Each binding in a keymap
-associates (or "binds") an individual character either with another
-keymap or with a command.  When a character is bound to a keymap,
-that keymap is used to look up the next character typed; this
-continues until a command is found.  This process is called "key
-lookup".
+File: lispref.info,  Node: Syntax Errors,  Next: Compilation Errors,  Prev: Debugger,  Up: Debugging
+
+Debugging Invalid Lisp Syntax
+=============================
+
+   The Lisp reader reports invalid syntax, but cannot say where the real
+problem is.  For example, the error "End of file during parsing" in
+evaluating an expression indicates an excess of open parentheses (or
+square brackets).  The reader detects this imbalance at the end of the
+file, but it cannot figure out where the close parenthesis should have
+been.  Likewise, "Invalid read syntax: ")"" indicates an excess close
+parenthesis or missing open parenthesis, but not where the missing
+parenthesis belongs.  How, then, to find what to change?
+
+   If the problem is not simply an imbalance of parentheses, a useful
+technique is to try `C-M-e' at the beginning of each defun, and see if
+it goes to the place where that defun appears to end.  If it does not,
+there is a problem in that defun.
+
+   However, unmatched parentheses are the most common syntax errors in
+Lisp, and we can give further advice for those cases.
 
 * Menu:
 
-* Keymap Terms::        Definitions of terms pertaining to keymaps.
-* Creating Keymaps::    Functions to create and copy keymaps.
-* Key Lookup::                  How extracting elements from keymaps works.
-* Functions for Key Lookup::    How to request key lookup.
-* Prefix Keys::                 Defining a key with a keymap as its definition.
-* Global and Local Keymaps::    Each buffer has a local keymap
-                                   to override the standard (global) bindings.
-* Changing Key Bindings::       Redefining a key in a keymap.
-* Key Binding Commands::        Interactive interfaces for redefining keys.
-* Scanning Keymaps::            Looking through all keymaps, for printing help.
-
- 
-
-File: elisp,  Node: Keymap Terms,  Next: Creating Keymaps,  Prev: Keymaps,  Up: Keymaps
-
-Keymaps: Terminology
-====================
-
-   A "keymap" is a table mapping characters to definitions (which can
-be any Lisp objects, though only certain types are meaningful for
-execution by the command loop).  Given a character and a keymap,
-Emacs can get the character's definition.
-
-   A sequence of keyboard input characters that form a unit is called
-a "key sequence", or "key" for short.  A sequence of one character is
-always a key sequence, and so are some multicharacter sequences.
-
-   A keymap determines a binding or definition for any key sequence. 
-If the key sequence is a single character, its binding is the
-definition of the character in the keymap.  The binding of a
-multicharacter key sequence is found by an iterative process: the
-binding of the first character is found, and must be a keymap; then
-the second character's binding is found in that keymap, and so on
-until all the characters in the key sequence are used up.
-
-   If the binding of a key sequence is a keymap, we call the key
-sequence a "prefix key".  Otherwise, we call it a "complete key"
-(because no more characters can be added to it).  If the binding is
-`nil', we call the key "undefined".  Examples of prefix keys are
-`C-c', `C-x', and `C-x 4'.  Examples of defined complete keys are
-`X', RET, and `C-x 4 C-f'.  Examples of undefined complete keys are
-`C-x C-g', and `C-c 3'.  *Note Prefix Keys::, for more details.
-
-   The rule for finding the binding of a key sequence assumes that
-the intermediate bindings (found for the characters before the last)
-are all keymaps; if this is not so, the sequence of characters does
-not form a unit--it is not really a key sequence.  In other words,
-removing one or more characters from the end of any key must always
-yield a prefix key.  For example, `C-f C-f' is not a key; `C-f' is
-not a prefix key, so a longer sequence starting with `C-f' cannot be
-a key.  Note that the set of possible multicharacter key sequences
-depends on the bindings for prefix keys; therefore, it can be
-different for different keymaps, and can change when bindings are
-changed.  However, a one-character sequence is always a key sequence,
-because it does not depend on any prefix keys for its validity.
-
-   At any time, two primary keymaps are in use for finding key
-bindings: the "global map", which is shared by all buffers, and the
-"local keymap", which is usually associated with a specific major
-mode.  The local keymap bindings shadow (i.e., take precedence over)
-the corresponding global bindings.  *Note Global and Local Keymaps::,
-for details.
-
+* Excess Open::     How to find a spurious open paren or missing close.
+* Excess Close::    How to find a spurious close paren or missing open.
 
 
-File: elisp,  Node: Creating Keymaps,  Next: Key Lookup,  Prev: Keymap Terms,  Up: Keymaps
+File: lispref.info,  Node: Excess Open,  Next: Excess Close,  Up: Syntax Errors
 
-Creating Keymaps
-================
+Excess Open Parentheses
+-----------------------
 
-   A keymap can be represented as one of two kinds of Lisp object: a
-vector or a list.  A "full keymap" is a vector of length 128.  The
-binding for a character in such a keymap is found by indexing into
-the vector with the character as the index.
+   The first step is to find the defun that is unbalanced.  If there is
+an excess open parenthesis, the way to do this is to insert a close
+parenthesis at the end of the file and type `C-M-b' (`backward-sexp').
+This will move you to the beginning of the defun that is unbalanced.
+(Then type `C-SPC C-_ C-u C-SPC' to set the mark there, undo the
+insertion of the close parenthesis, and finally return to the mark.)
 
-   A "sparse keymap" is a list whose CAR is the symbol `keymap', and
-whose remaining elements are cons cells of the form `(CHAR .
-BINDING)'.  It is called a sparse keymap because it stores only the
-entries which are significant.  Use a sparse keymap when you expect
-only a few entries.  (`define-key' automatically creates sparse
-keymaps for intermediate keymaps.)
+   The next step is to determine precisely what is wrong.  There is no
+way to be sure of this except to study the program, but often the
+existing indentation is a clue to where the parentheses should have
+been.  The easiest way to use this clue is to reindent with `C-M-q' and
+see what moves.
 
-   Keymaps record directly only character codes less than 128; they
-are unable to handle directly the META characters, whose codes are
-from 128 to 255.  Instead, META characters are regarded for purposes
-of key lookup as sequences of two characters, the first of which is
-ESC (the usual value of `meta-prefix-char').  Thus, the key `M-a' is
-really represented as `ESC a', and its global binding is found at the
-slot for `a' in `esc-map'.
+   Before you do this, make sure the defun has enough close parentheses.
+Otherwise, `C-M-q' will get an error, or will reindent all the rest of
+the file until the end.  So move to the end of the defun and insert a
+close parenthesis there.  Don't use `C-M-e' to move there, since that
+too will fail to work until the defun is balanced.
 
-   Here as an example is the local keymap for Lisp mode, a sparse
-keymap.  It defines `C-c C-l' as the `run-lisp' command, `M-C-q' as
-`indent-sexp', and `M-C-x' as `lisp-send-defun'.
+   Then go to the beginning of the defun and type `C-M-q'.  Usually all
+the lines from a certain point to the end of the function will shift to
+the right.  There is probably a missing close parenthesis, or a
+superfluous open parenthesis, near that point.  (However, don't assume
+this is true; study the code to make sure.)  Once you have found the
+discrepancy, undo the `C-M-q', since the old indentation is probably
+appropriate to the intended parentheses.
 
-     lisp-mode-map
-     => 
-     (keymap 
-      (9 . lisp-indent-line)                 ; TAB
-      (127 . backward-delete-char-untabify)  ; DEL
-      (3 keymap 
-         (12 . run-lisp))                    ; `C-c C-l'
-      (27 keymap 
-          (17 . indent-sexp)                 ; `M-C-q', treated as `ESC C-q'
-          (24 . lisp-send-defun)))           ; `M-C-x', treated as `ESC C-x'
+   After you think you have fixed the problem, use `C-M-q' again.  It
+should not change anything, if the problem is really fixed.
 
- * Function: keymapp OBJECT
-     This function returns `t' if OBJECT is a keymap, `nil'
-     otherwise.  A keymap is either a vector of length 128, or a list
-     with the form `(keymap PAIRS...)', where PAIRS stands for a
-     series of associations, cons cells of the form `(CHAR . BINDING)'.
+
+File: lispref.info,  Node: Excess Close,  Prev: Excess Open,  Up: Syntax Errors
 
-          (keymapp '(keymap))
-              => t
-          (keymapp (current-global-map))
-              => t
+Excess Close Parentheses
+------------------------
 
- * Function: make-keymap
-     This function creates and returns a new full keymap (i.e., a
-     vector of length 128).  All entries in the keymap are `nil',
-     which means that no characters are defined.
+   To deal with an excess close parenthesis, first insert an open
+parenthesis at the beginning of the file and type `C-M-f' to find the
+end of the unbalanced defun.  (Then type `C-SPC C-_ C-u C-SPC' to set
+the mark there, undo the insertion of the open parenthesis, and finally
+return to the mark.)
 
-          (make-keymap)
-              => [nil nil nil ... nil nil]
+   Then find the actual matching close parenthesis by typing `C-M-f' at
+the beginning of the defun.  This will leave you somewhere short of the
+place where the defun ought to end.  It is possible that you will find
+a spurious close parenthesis in that vicinity.
 
- * Function: make-sparse-keymap
-     This function creates and returns a new sparse keymap with no
-     entries.  In this keymap, no characters are defined.
+   If you don't see a problem at that point, the next thing to do is to
+type `C-M-q' at the beginning of the defun.  A range of lines will
+probably shift left; if so, the missing open parenthesis or spurious
+close parenthesis is probably near the first of those lines.  (However,
+don't assume this is true; study the code to make sure.)  Once you have
+found the discrepancy, undo the `C-M-q', since the old indentation is
+probably appropriate to the intended parentheses.
 
-          (make-sparse-keymap)
-              => (keymap)
+
+File: lispref.info,  Node: Compilation Errors,  Next: Edebug,  Prev: Syntax Errors,  Up: Debugging
 
- * Function: copy-keymap KEYMAP
-     This function returns a copy of KEYMAP.  Any keymaps which
-     appear directly as bindings in KEYMAP are also copied
-     recursively, and so on to any number of levels.  However,
-     recursive copying does not take place when the definition of a
-     character is a symbol whose function definition is a keymap; the
-     same symbol appears in the new copy.
+Debugging Problems in Compilation
+=================================
 
-          (setq map (copy-keymap (current-local-map)))
-          => (keymap
-               (27 keymap         ; (This implements META characters.)
-                 (83 . center-paragraph)
-                 (115 . center-line))
-               (9 . tab-to-tab-stop))
-          
-          (eq map (current-local-map))
-              => nil
-          (equal map (current-local-map))
-              => t
+   When an error happens during byte compilation, it is normally due to
+invalid syntax in the program you are compiling.  The compiler prints a
+suitable error message in the `*Compile-Log*' buffer, and then stops.
+The message may state a function name in which the error was found, or
+it may not.  Regardless, here is how to find out where in the file the
+error occurred.
 
+   What you should do is switch to the buffer ` *Compiler Input*'.
+(Note that the buffer name starts with a space, so it does not show up
+in `M-x list-buffers'.)  This buffer contains the program being
+compiled, and point shows how far the byte compiler was able to read.
+
+   If the error was due to invalid Lisp syntax, point shows exactly
+where the invalid syntax was *detected*.  The cause of the error is not
+necessarily near by!  Use the techniques in the previous section to find
+the error.
+
+   If the error was detected while compiling a form that had been read
+successfully, then point is located at the end of the form.  In this
+case, it can't localize the error precisely, but can still show you
+which function to check.
+
+
+File: lispref.info,  Node: Edebug,  Prev: Compilation Errors,  Up: Debugging
+
+Edebug
+======
+
+   Edebug is a source-level debugger for GNU Emacs Lisp programs that
+provides the following features:
+
+   * Step through evaluation, stopping before and after each expression.
+
+   * Set conditional or unconditional breakpoints, install persistent
+     breakpoints, or a global break event.
+
+   * Trace slow or fast stopping briefly at each stop point, or each
+     breakpoint.
+
+   * Display expression results and evaluate expressions as if outside
+     of edebug.  Interface with the custom printing package for
+     printing circular structures.
+
+   * Automatically reevaluate a list of expressions and display their
+     results each time Edebug updates the display.
+
+   * Output trace info on function enter and exit.
+
+   * Errors stop before the source causing the error.
+
+   * Display backtrace without edebug calls.
+
+   * Allow specification of argument evaluation for macros and defining
+     forms.
+
+   * Provide rudimentary coverage testing and display of frequency
+     counts.
+
+   The first three sections of this chapter should tell you enough about
+Edebug to enable you to use it.
+
+* Menu:
+
+* Using Edebug::		Introduction to use of Edebug.
+* Instrumenting::		You must first instrument code.
+* Edebug Execution Modes::	Execution modes, stopping more or less often.
+* Jumping::			Commands to jump to a specified place.
+* Edebug Misc::			Miscellaneous commands.
+* Breakpoints::			Setting breakpoints to make the program stop.
+* Views::			Viewing the outside buffer and window status.
+* Edebug Eval::			Evaluating expressions within Edebug.
+* Eval List::			Automatic expression evaluation.
+* Printing::			Printing circular structure in Edebug.
+* Coverage Testing::		How to test evaluation coverage.
+* The Outside Context::		Data that Edebug saves and restores.
+* Macro Calls::			Specifying how to handle macro calls.
+* Edebug Options::		Option variables for customizing Edebug.
+
+
+File: lispref.info,  Node: Using Edebug,  Next: Instrumenting,  Prev: Edebug,  Up: Edebug
+
+Using Edebug
+------------
+
+   To debug a Emacs Lisp program with Edebug, you must first
+"instrument" the Lisp functions that you want to debug.  *Note
+Instrumenting::.
+
+   Once a function is instrumented, any call to the function activates
+Edebug.  Activating Edebug may stop execution and let you step through
+the function, or it may update the display and continue execution while
+checking for debugging commands, depending on the selected Edebug
+execution mode.  The initial execution mode is `step', by default,
+which does stop execution.  *Note Edebug Execution Modes::.
+
+   Within Edebug, you normally view an Emacs buffer showing the source
+of the Lisp function you are debugging.  We call this the "Edebug
+buffer"--but note that it is not always the same buffer, and it is not
+reserved for Edebug use.
+
+   An arrow at the left margin indicates the line where the function is
+executing.  Point initially shows where within the line the function is
+executing, but this ceases to be true if you move point yourself.
+
+   If you instrument the definition of `fac' (shown below) for Edebug
+and then execute `(fac 3)', here is what you normally see.  Point is at
+the open-parenthesis before `if'.
+
+     (defun fac (n)
+     =>-!-(if (< 0 n)
+           (* n (fac (1- n)))
+         1))
+
+   The places within a function where Edebug can stop execution are
+called "stop points".  These occur both before and after each
+subexpression that is a list, and also after each variable reference.
+Here we show with periods the stop points found in the function `fac':
+
+     (defun fac (n)
+       .(if .(< 0 n.).
+           .(* n. .(fac (1- n.).).).
+         1).)
+
+   While a buffer is the Edebug buffer, the special commands of Edebug
+are available in it, instead of many usual editing commands.  Type `?'
+to display a list of Edebug commands.  In particular, you can exit just
+the innermost Edebug activation level with `C-]', and you can return
+all the way to top level with `q'.
+
+   For example, you can type the Edebug command SPC to execute until
+the next stop point.  If you type SPC once after entry to `fac', here
+is the state that you get:
+
+     (defun fac (n)
+     =>(if -!-(< 0 n)
+           (* n (fac (1- n)))
+         1))
+
+   When Edebug stops execution after an expression, it displays the
+expression's value in the echo area.  Use the `r' command to display
+the value again later.
+
+   If no instrumented code is currently being executed, `debug' is run
+normally.  But while Edebug is active, it catches all errors (if
+`debug-on-error' is non-`nil') and quits (if `debug-on-quit' is
+non-`nil').  When this happens, Edebug displays the last stop point
+that it knows about.  This may be the location of a call to a function
+which was not instrumented, within which the error actually occurred.
+Note that you can also get a full backtrace inside of Edebug (see *Note
+Edebug Misc::).
+
+
+File: lispref.info,  Node: Instrumenting,  Next: Edebug Execution Modes,  Prev: Using Edebug,  Up: Edebug
+
+Instrumenting for Edebug
+------------------------
+
+   In order to use Edebug to debug Lisp code, you must first
+"instrument" the code.  Instrumenting a form inserts additional code
+into it which invokes Edebug at the proper places.  When instrumenting
+any kind of definition (not just `defun' or `defmacro'), only the
+executable expressions inside of the definition are instrumented.  If
+any syntax error is found while instrumenting, point is left at the
+error and an `invalid-read-syntax' error is signaled.
+
+   Edebug knows how to instrument all the standard special forms,
+interactive forms with or without expression arguments, anonymous lambda
+expressions, and other defining forms.  It cannot know what a
+user-defined macro will do with the arguments of a macro call so you
+must tell it; *note Macro Calls::. for the details.
+
+   Once you have loaded Edebug, the command `C-M-x' (`eval-defun') is
+redefined so that when used with a prefix argument on a definition, it
+instruments the definition.  If the variable `edebug-all-defs' is
+non-`nil', that inverts the meaning of the prefix argument: then
+`C-M-x' instruments the definition *unless* it has a prefix argument.
+The default value of `edebug-all-defs' is `nil'.  The command `M-x
+edebug-all-defs' toggles the value of the variable `edebug-all-defs'.
+
+   If `edebug-all-defs' is non-`nil', then the commands `eval-region'
+and `eval-current-buffer' also instrument any definitions they
+evaluate.  Similarly, `edebug-all-forms' controls whether `eval-region'
+should instrument *any* form, even non-defining forms.  The command
+`M-x edebug-all-forms' toggles this option.
+
+   Another command, `M-x edebug-eval-top-level-form', is available to
+instrument any top-level form regardless of the value of
+`edebug-all-defs'.  Additionally, this command will instrument
+top-level forms that are not definitions.
+
+   Loading a file does not instrument expressions for Edebug.
+Evaluations in the minibuffer via `eval-expression' (`M-ESC') are never
+instrumented.
+
+   To remove instrumentation from a definition, simply reevaluate it
+with one of the non-instrumenting commands that evaluate definitions, or
+reload the file.
+
+   See *Note Edebug Eval:: for discussion of other evaluation functions
+available inside of Edebug.
+
+
+File: lispref.info,  Node: Edebug Execution Modes,  Next: Jumping,  Prev: Instrumenting,  Up: Edebug
+
+Edebug Execution Modes
+----------------------
+
+   Edebug supports several execution modes for running the program you
+are debugging.  We call these alternatives "Edebug execution modes"; do
+not confuse them with major modes or minor modes.  The current Edebug
+execution mode determines how Edebug displays the progress of the
+evaluation, whether it stops at each stop point, or continues to the
+next breakpoint, for example.
+
+   Normally, you specify the Edebug execution mode by typing a command
+to continue the program in a certain mode.  Here is a table of these
+commands.  All except for `S' resume execution of the program, at least
+for a certain distance.
+
+`S'
+     Stop: don't execute any more of the program for now, just wait for
+     more Edebug commands.  (`edebug-stop')
+
+`SPC'
+     Step: stop at the next stop point encountered. (`edebug-step-mode')
+
+`n'
+     Next: stop at the next stop point encountered after an expression.
+     Also see `edebug-forward-sexp' in *Note Edebug Misc::.
+     (`edebug-next-mode')
+
+`t'
+     Trace: pause one second at each Edebug stop point.
+     (`edebug-trace-mode')
+
+`T'
+     Rapid trace: update at each stop point, but don't actually pause.
+     (`edebug-Trace-fast-mode')
+
+`g'
+     Go: run until the next breakpoint.  *Note Breakpoints::.
+     (`edebug-go-mode')
+
+`c'
+     Continue: pause for one second at each breakpoint, but don't stop.
+     (`edebug-continue-mode')
+
+`C'
+     Rapid continue: update at each breakpoint, but don't actually
+     pause.  (`edebug-Continue-fast-mode')
+
+`G'
+     Go non-stop: ignore breakpoints.  You can still stop the program
+     by typing `S'. (`edebug-Go-nonstop-mode')
+
+   In general, the execution modes earlier in the above list run the
+program more slowly or stop sooner.
+
+   When you enter a new Edebug level, the mode comes from the value of
+the variable `edebug-initial-mode'.  By default, this specifies "step"
+mode.  If the mode thus specified does not stop, then the Edebug level
+executes the program (or part of it).
+
+   While executing or tracing, you can interrupt the execution by typing
+any Edebug command.  Edebug stops the program at the next stop point and
+then executes the command that you typed.  For example, typing `t'
+during execution switches to trace mode at the next stop point.
+
+   You can use the `S' command to stop execution without doing anything
+else.
+
+   If your function happens to read input, a character you hit
+intending to interrupt execution may be read by the function instead.
+You can avoid such unintended results by paying attention to when your
+program wants input.
+
+   Keyboard macros containing the commands in this section do not
+completely work: exiting from Edebug, to resume the program, loses
+track of the keyboard macro.  This is not easy to fix.
+
+
+File: lispref.info,  Node: Jumping,  Next: Edebug Misc,  Prev: Edebug Execution Modes,  Up: Edebug
+
+Jumping
+-------
+
+   Commands described here let you jump to a specified location.  All,
+except `i', use temporary breakpoints to establish the stop point and
+then switch to `go' mode.  Any other breakpoint reached before the
+intended stop point will also stop execution.  See *Note Breakpoints::
+for the details on breakpoints.
+
+`f'
+     Run the program forward over one expression.  More precisely, set a
+     temporary breakpoint at the position that `C-M-f' would reach,
+     then execute in `go' mode so that the program will stop at
+     breakpoints.
+
+     With a prefix argument N, the temporary breakpoint is placed N
+     sexps beyond point.  If the containing list ends before N more
+     elements, then the place to stop is after the containing
+     expression.
+
+     Be careful that the position `C-M-f' finds is a place that the
+     program will really get to; this may not be true in a
+     `condition-case', for example.
+
+     This command does `forward-sexp' starting at point rather than the
+     stop point, thus providing more flexibility.  If you want to
+     execute one expression from the current stop point, type `w'
+     first, to move point there.
+
+     (`edebug-forward-sexp')
+
+`o'
+     Continue "out of" an expression.  It places a temporary breakpoint
+     at the end of the sexp containing point.  If the containing sexp
+     is the definition itself, it continues until just before the
+     returns.  If that is where you are now, it returns from the
+     function and then stops.
+
+     In other words, this command does not exit the currently executing
+     definition unless you are positioned after the last sexp.
+
+     (`edebug-step-out')
+
+`i'
+     Step into the definition of the function or macro about to be
+     called, whether or not it has been instrumented.  If its location
+     is not known to Edebug, this command cannot be used.  After
+     loading Edebug, `eval-region' records the position of every
+     definition it evaluates, even if not instrumented.
+
+     Use this command when stopped before the call, since otherwise it
+     is too late.
+
+     This command does not switch to `go' mode; instead you must execute
+     the arguments before stepping into the function manually.  (A
+     future version will probably do as expected: set a temporary
+     breakpoint on the first expression in the function and switch to
+     `go' mode.)
+
+     Although the automatic instrumentation is convenient, one
+     undesirable side effect of using `edebug-step-in' is that it
+     doesn't later uninstrument the stepped-into function.
+
+`h'
+     Proceed to the stop point near where point is using a temporary
+     breakpoint.
+
+     (`edebug-goto-here')
+
+   All the commands in this section may fail to work as expected in case
+of nonlocal exit, because a nonlocal exit can bypass the temporary
+breakpoint where you expected the program to stop.
+
+
+File: lispref.info,  Node: Edebug Misc,  Next: Breakpoints,  Prev: Jumping,  Up: Edebug
+
+Miscellaneous
+-------------
+
+   Some miscellaneous commands are described here.
+
+`?'
+     Display the help message for Edebug.  (`edebug-help')
+
+`C-]'
+     Abort one level back to the previous command level.
+     (`abort-recursive-edit')
+
+`q'
+     Return to the top level editor command loop.  This exits all
+     recursive editing levels, including all levels of Edebug activity.
+     However, instrumented code protected with `unwind-protect' or
+     `condition-case' forms may resume debugging.  (`top-level')
+
+`Q'
+     Like `q' but don't stop even for protected code.
+     (`top-level-nonstop')
+
+`r'
+     Redisplay the most recently known expression result in the echo
+     area.  (`edebug-previous-result')
+
+`d'
+     Display a backtrace, excluding Edebug's own functions for clarity.
+
+     You cannot use debugger commands in the backtrace buffer in Edebug
+     as you would in the standard debugger.
+
+     The backtrace buffer is killed automatically when you continue
+     execution.
+
+   From the Edebug recursive edit, you may invoke commands that activate
+Edebug again recursively.  Any time Edebug is active, you can quit to
+the top level with `q' or abort one recursive edit level with `C-]'.
+You can display a backtrace of all the currently active function and
+macro calls with `d'.
+
+
+File: lispref.info,  Node: Breakpoints,  Next: Views,  Prev: Edebug Misc,  Up: Edebug
+
+Breakpoints
+-----------
+
+   Three more ways to stop execution once it has started are:
+breakpoints, the global break condition, and persistent breakpoints.
+
+   While using Edebug, you can specify "breakpoints" in the program you
+are testing: points where execution should stop.  You can set a
+breakpoint at any stop point, as defined in *Note Using Edebug::.  For
+setting and unsetting breakpoints, the stop point that is affected is
+the first one at or after point in the Edebug buffer.  Here are the
+Edebug commands for breakpoints:
+
+`b'
+     Set a breakpoint at the stop point at or after point.  If you use a
+     prefix argument, the breakpoint is temporary (it turns off the
+     first time it stops the program). (`edebug-set-breakpoint')
+
+`u'
+     Unset the breakpoint (if any) at the stop point at or after the
+     current point. (`edebug-unset-breakpoint')
+
+`x CONDITION RET'
+     Set a conditional breakpoint which stops the program only if
+     CONDITION evaluates to a non-`nil' value.  If you use a prefix
+     argument, the breakpoint is temporary (it turns off the first time
+     it stops the program). (`edebug-set-conditional-breakpoint')
+
+`B'
+     Move point to the next breakpoint in the current definition.
+     (`edebug-next-breakpoint')
+
+   While in Edebug, you can set a breakpoint with `b' and unset one
+with `u'.  First you must move point to a position at or before the
+desired Edebug stop point, then hit the key to change the breakpoint.
+Unsetting a breakpoint that has not been set does nothing.
+
+   Reinstrumenting a definition clears all its breakpoints.
+
+   A "conditional breakpoint" tests a condition each time the program
+gets there, to decide whether to stop.  To set a conditional breakpoint,
+use `x', and specify the condition expression in the minibuffer.
+Setting a conditional breakpoint again will put the previously entered
+expression in the minibuffer.
+
+   You can make both conditional and unconditional breakpoints
+"temporary" by using a prefix arg to the command to set the breakpoint.
+After breaking at a temporary breakpoint, it is automatically cleared.
+
+   Edebug always stops or pauses at a breakpoint except when the Edebug
+mode is Go-nonstop.  In that mode, it ignores breakpoints entirely.
+
+   To find out where your breakpoints are, use the `B' command, which
+moves point to the next breakpoint in the definition following point, or
+to the first breakpoint if there are no following breakpoints.  This
+command does not continue execution--it just moves point in the buffer.
+
+* Menu:
+
+* Global Break Condition::	Breaking on an event.
+* Persistent Breakpoints::	Embedding breakpoints in code.
+
+
+File: lispref.info,  Node: Global Break Condition,  Next: Persistent Breakpoints,  Prev: Breakpoints,  Up: Breakpoints
+
+Global Break Condition
+......................
+
+   In contrast to breaking when execution reaches specified locations,
+you can also cause a break when a certain event occurs.  The "global
+break condition" is a condition that is repeatedly evaluated at every
+stop point.  If it evaluates to a non-`nil' value, then execution is
+stopped or paused depending on the execution mode, just like a
+breakpoint.  Any errors that might occur as a result of evaluating the
+condition are ignored, as if the result were `nil'.
+
+   You can set or edit the condition expression, stored in
+`edebug-global-break-condition', using `X'
+(`edebug-set-global-break-condition').
+
+   Using the global break condition is perhaps the fastest way to find
+where in your code some event occurs, but since it is rather expensive
+you should reset the condition to `nil' when not in use.
+
+
+File: lispref.info,  Node: Persistent Breakpoints,  Prev: Global Break Condition,  Up: Breakpoints
+
+Persistent Breakpoints
+......................
+
+   Since all breakpoints in a definition are cleared each time you
+reinstrument it, you might rather install a "persistent breakpoint"
+which is simply a call to the function `edebug'.  You can, of course,
+make such a call conditional.  For example, in the `fac' function,
+insert the first line as shown below to stop when the argument reaches
+zero:
+
+     (defun fac (n)
+       (if (= n 0) (edebug))
+       (if (< 0 n)
+           (* n (fac (1- n)))
+         1))
+
+   When the `fac' definition is instrumented and the function is called,
+edebug will cause a break before the call to `edebug'.  Depending on
+the execution mode, edebug will stop or pause.
+
+   However, if no instrumented code is being executed, calling `edebug'
+will instead invoke `debug'.
+
+
+File: lispref.info,  Node: Views,  Next: Edebug Eval,  Prev: Breakpoints,  Up: Edebug
+
+Views
+-----
+
+   These Edebug commands let you view aspects of the buffer and window
+status that obtained before entry to Edebug.
+
+`v'
+     View the outside window configuration. (`edebug-view-outside')
+
+`p'
+     Temporarily display the outside current buffer with point at its
+     outside position. If prefix arg is supplied, sit for that many
+     seconds instead.  (`edebug-bounce-point')
+
+`w'
+     Switch back to the buffer showing the currently executing
+     function, and move point back to the current stop point.
+     (`edebug-where')
+
+`W'
+     Toggle the `edebug-save-windows' variable which indicates whether
+     the outside window configuration is saved and restored.  Also,
+     each time it is toggled on, make the outside window configuration
+     the same as the current window configuration.
+     (`edebug-toggle-save-windows')
+
+   You can view the outside window configuration with `v' or just
+bounce to the current point in the current buffer with `p', even if it
+is not normally displayed.  After moving point, you may wish to pop
+back to the stop point with `w' from the Edebug buffer.
+
+   By using the `W' command twice, Edebug again saves and restores the
+outside window configuration, but to the current configuration.  This is
+a convenient way to, for example, add another buffer to be displayed
+whenever Edebug is active.  However, the automatic redisplay of
+`*edebug*' and `*edebug-trace*' may conflict with the buffers you wish
+to see unless you have enough windows open.
+
+
+File: lispref.info,  Node: Edebug Eval,  Next: Eval List,  Prev: Views,  Up: Edebug
+
+Evaluation
+----------
+
+   While within Edebug, you can evaluate expressions "as if" Edebug were
+not running.  Edebug tries to be invisible to the expression's
+evaluation and printing.  See *Note The Outside Context:: for details on
+this process.  Also see *Note Printing:: for how to control printing.
+
+`e EXP RET'
+     Evaluate expression EXP in the context outside of Edebug.  That
+     is, Edebug tries to avoid altering the effect of EXP.
+     (`edebug-eval-expression')
+
+`M-ESC EXP RET'
+     Evaluate expression EXP in the context of Edebug itself.
+
+`C-x C-e'
+     Evaluate the expression before point, in the context outside of
+     Edebug.  (`edebug-eval-last-sexp')
+
+
+File: lispref.info,  Node: Eval List,  Next: Printing,  Prev: Edebug Eval,  Up: Edebug
+
+Evaluation List Buffer
+----------------------
+
+   You can use the "evaluation list buffer", called `*edebug*', to
+evaluate expressions interactively.  You can also set up the
+"evaluation list" of expressions to be evaluated automatically each
+time Edebug updates the display.
+
+`E'
+     Switch to the evaluation list buffer `*edebug*'.
+     (`edebug-visit-eval-list')
+
+   In the `*edebug*' buffer you can use the commands of Lisp
+Interaction as well as these special commands:
+
+`LFD'
+     Evaluate the expression before point, in the context outside of
+     Edebug, and insert the value in the buffer.
+     (`edebug-eval-print-last-sexp')
+
+`C-x C-e'
+     Evaluate the expression before point, in the context outside of
+     Edebug.  (`edebug-eval-last-sexp')
+
+`C-c C-u'
+     Build a new evaluation list from the first expression of each
+     group, reevaluate and redisplay.  Groups are separated by comment
+     lines.  (`edebug-update-eval-list')
+
+`C-c C-d'
+     Delete the evaluation list group that point is in.
+     (`edebug-delete-eval-item')
+
+`C-c C-w'
+     Switch back to the Edebug buffer at the current stop point.
+     (`edebug-where')
+
+   You can evaluate expressions in the evaluation list window with
+`LFD' or `C-x C-e', just as you would in `*scratch*'; but they are
+evaluated in the context outside of Edebug.
+
+   The expressions you enter interactively (and their results) are lost
+when you continue execution unless you add them to the evaluation list
+with `C-c C-u'.  This command builds a new list from the first
+expression of each "evaluation list group".  Groups are separated by
+comment lines.  Be careful not to add expressions that execute
+instrumented code otherwise an infinite loop will result.
+
+   When the evaluation list is redisplayed, each expression is displayed
+followed by the result of evaluating it, and a comment line.  If an
+error occurs during an evaluation, the error message is displayed in a
+string as if it were the result.  Therefore expressions that use
+variables not currently valid, for example, do not interrupt your
+debugging.
+
+   Here is an example of what the evaluation list window looks like
+after several expressions have been added to it:
+
+     (current-buffer)
+     #<buffer *scratch*>
+     ;---------------------------------------------------------------
+     (selected-window)
+     #<window 16 on *scratch*>
+     ;---------------------------------------------------------------
+     (point)
+     196
+     ;---------------------------------------------------------------
+     bad-var
+     "Symbol's value as variable is void: bad-var"
+     ;---------------------------------------------------------------
+     (recursion-depth)
+     0
+     ;---------------------------------------------------------------
+     this-command
+     eval-last-sexp
+     ;---------------------------------------------------------------
+
+   To delete a group, move point into it and type `C-c C-d', or simply
+delete the text for the group and update the evaluation list with `C-c
+C-u'.  When you add a new group, be sure it is separated from its
+neighbors by a comment line.
+
+   After selecting `*edebug*', you can return to the source code buffer
+(the Edebug buffer) with `C-c C-w'.  The `*edebug*' buffer is killed
+when you continue execution, and recreated next time it is needed.
+
+
+File: lispref.info,  Node: Printing,  Next: Coverage Testing,  Prev: Eval List,  Up: Edebug
+
+Printing
+--------
+
+   If some structures that may be printed contain circular references to
+other parts of the same structure, you can print them more usefully with
+the `cust-print' package.
+
+   To load the package and activate custom printing only for Edebug,
+simply use the command `edebug-install-custom-print-funcs'.  To restore
+the standard print functions, use `edebug-uninstall-custom-print-funcs'.
+
+   While printing results, edebug binds `print-length', `print-level',
+and `print-circle' to `edebug-print-length' (`50'), `edebug-print-level'
+(`50'), and `edebug-print-circle' (`t') respectively, if these values
+are non-`nil'.
+
+   Here is an example of circular structure printing.  An error will
+still be generated when `format' executes.
+
+     (progn
+       (edebug-install-custom-print-funcs)
+       (setq a '(1 2))
+       (format "%s" (setcar a a)))
+
+
+File: lispref.info,  Node: Coverage Testing,  Next: The Outside Context,  Prev: Printing,  Up: Edebug
+
+Coverage Testing
+----------------
+
+   Edebug provides a rudimentary coverage tester and frequency of
+execution display.  Frequency counts are always accumulated, both
+before and after evaluation of each instrumented expression, even if
+the execution mode is Go-nonstop.  Coverage testing is only done if the
+option `edebug-test-coverage' is non-`nil' because this is relatively
+expensive.  Both data sets are displayed by `edebug-display-freq-count'.
+
+ - Function: edebug-display-freq-count
+     Display the frequency count data for each line of the current
+     definition.  The frequency counts are inserted as comment lines
+     after each line, and you can undo all insertions with one `undo'
+     command.  The counts are inserted starting under the `(' before an
+     expression or the `)' after an expression, or on the last char of
+     a symbol.  The counts are only displayed when they differ from
+     previous counts on the same line.
+
+     If coverage is being tested, whenever all known results of an
+     expression are `eq', the char `=' will be appended after the count
+     for that expression.  Note that this is always the case for an
+     expression only evaluated once.
+
+     To clear the frequency count and coverage data for a definition,
+     reinstrument it.
+
+
+   For example, after evaluating `(fac 5)' with a persistent
+breakpoint, and setting `edebug-test-coverage' to `t', the frequency
+data is looks like this:
+
+     (defun fac (n)
+       (if (= n 0) (edebug))
+     ;#6           1      0 =5
+       (if (< 0 n)
+     ;#5         =
+           (* n (fac (1- n)))
+     ;#    5               0
+         1))
+     ;#   0
+
+
+File: lispref.info,  Node: The Outside Context,  Next: Macro Calls,  Prev: Coverage Testing,  Up: Edebug
+
+The Outside Context
+-------------------
+
+   Edebug tries to be transparent to the program you are debugging.  In
+addition, most evaluations you do within Edebug (see *Note Edebug
+Eval::) occur in the same outside context which is temporarily restored
+for the evaluation.  But Edebug is not completely successful and this
+section explains precisely how it fails.
+
+* Menu:
+
+* Just Checking::		When Edebug decides what to do.
+* Outside Window Configuration::  When Edebug updates the display.
+* Edebug Recursive Edit::	When Edebug stops execution.
+* Side Effects::		How Edebug fails to be transparent.
+
+
+File: lispref.info,  Node: Just Checking,  Next: Outside Window Configuration,  Prev: The Outside Context,  Up: The Outside Context
+
+Just Checking
+.............
+
+   Whenever Edebug is entered just to think about whether to take some
+action, it needs to save and restore certain data.
+
+   * `max-lisp-eval-depth' and `max-specpdl-size' are both incremented
+     so that your code should not be impacted by Edebug frames on the
+     stack.
+
+   * The state of keyboard macro execution is saved and cleared out.
+
+
+File: lispref.info,  Node: Outside Window Configuration,  Next: Edebug Recursive Edit,  Prev: Just Checking,  Up: The Outside Context
+
+Outside Window Configuration
+............................
+
+   When Edebug needs to display something (e.g., in trace mode), it
+saves the current window configuration from "outside" Edebug.  When you
+exit Edebug (by continuing the program), it restores the previous window
+configuration.
+
+   Emacs redisplays only when it pauses.  Usually, when you continue
+execution, the program comes back into Edebug at a breakpoint or after
+stepping, without pausing or reading input in between.  In such cases,
+Emacs never gets a chance to redisplay the "outside" configuration.
+What you see is the window configuration for within Edebug, with no
+interruption.
+
+   Entry to Edebug for displaying something also saves and restores the
+following data.  (Some of these variables are deliberately not restored
+if an error or quit signal occurs.)
+
+   * The window configuration proper does not include which buffer is
+     current or where point and mark are in the current buffer, but
+     Edebug saves and restores these also.  However, the position of
+     point in the Edebug buffer is only saved and restored if the
+     outside current buffer is the same as the Edebug buffer.
+
+   * The outside window configuration, is saved and restored if
+     `edebug-save-windows' is non-`nil'.  It is not restored on error
+     or quit, but the outside selected window is reselected even on
+     error or quit in case a `save-excursion' is active.  The window
+     start for the Edebug buffer is not restored, however.
+
+   * The value of point in each displayed buffer is saved and restored
+     if `edebug-save-displayed-buffer-points' is non-`nil'.
+
+   * The variables `overlay-arrow-position' and `overlay-arrow-string'
+     are saved and restored.  This permits recursive use of Edebug, and
+     use of Edebug while using GUD.
+
+   * `cursor-in-echo-area' is locally bound to `nil' so that the cursor
+     shows up in the window.
+
+
+File: lispref.info,  Node: Edebug Recursive Edit,  Next: Side Effects,  Prev: Outside Window Configuration,  Up: The Outside Context
+
+Edebug Recursive Edit
+.....................
+
+   When Edebug is entered and actually reads commands from the user, it
+saves (and later restores) these additional data:
+
+   * The current match data, for whichever buffer was current.
+
+   * `last-command', `this-command', `last-command-char', and
+     `last-input-char'.  Commands used within Edebug do not affect these
+     variables outside of Edebug.
+
+     But note that it is not possible to preserve the status reported by
+     `(this-command-keys)' and the variables `unread-command-char' and
+     `unread-command-event'.
+
+   * `standard-output' and `standard-input'.
+
+
+File: lispref.info,  Node: Side Effects,  Prev: Edebug Recursive Edit,  Up: The Outside Context
+
+Side Effects
+............
+
+   Edebug operation unavoidably alters some data in Emacs, and this can
+interfere with debugging certain programs.
+
+   * Lisp stack usage is increased, but the limits,
+     `max-lisp-eval-depth' and `max-specpdl-size', are also increased
+     proportionally.
+
+   * The key sequence returned by `this-command-keys' is changed by
+     executing commands within Edebug and there is no way to reset the
+     key sequence from Lisp.
+
+   * Edebug cannot save and restore the value of `unread-command-char'
+     or `unread-command-event'.  Entering Edebug while these variables
+     have nontrivial values can interfere with execution of the program
+     you are debugging.
+
+   * Complex commands executed while in Edebug are added to the variable
+     `command-history'.  In rare cases this can alter execution.
+
+   * Within Edebug, the recursion depth appears one deeper than the
+     recursion depth outside Edebug.  This is not true of the
+     automatically updated evaluation list window.
+
+   * Horizontal scrolling of the Edebug buffer is not recovered.
+
+
+File: lispref.info,  Node: Macro Calls,  Next: Edebug Options,  Prev: The Outside Context,  Up: Edebug
+
+Macro Calls
+-----------
+
+   When Edebug instruments an expression that calls a Lisp macro, it
+needs additional advice to do the job properly.  This is because there
+is no way to tell which subexpressions of the macro call may be
+evaluated.  (Evaluation may occur explicitly in the macro body, or when
+the resulting expansion is evaluated, or any time later.)  You must
+explain the format of macro call arguments by using `def-edebug-spec' to
+define an "Edebug specification" for each macro.
+
+ - Macro: def-edebug-spec MACRO SPECIFICATION
+     Specify which parts of a call to macro MACRO are subexpressions to
+     be evaluated.  The second argument, SPECIFICATION, often looks like
+     the formal macro argument list, but it specifies the structure of
+     the macro call arguments.
+
+     The MACRO argument may be any symbol, not just a macro name, as
+     explained below.
+
+   Here is a table of the possibilities for SPECIFICATION and how each
+directs processing of arguments.
+
+*`t'
+     All arguments are instrumented for evaluation.
+
+*`0'
+     None of the arguments is instrumented.
+
+*a symbol
+     The symbol must have an Edebug specification which is used instead.
+     This indirection is repeated until another kind of specification is
+     found.  This allows you to inherit the specification for another
+     macro.
+
+*a list
+     The elements of the list describe the types of the arguments of a
+     calling form.  The possible elements of a specification list are
+     described below.
+
+* Menu:
+
+* Specification List::		How to specify complex patterns of evaluation.
+* Backtracking::		What Edebug does when matching fails.
+* Specification Examples::
 

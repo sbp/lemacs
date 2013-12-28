@@ -10,17 +10,22 @@ NOTE-START
 Use -opsystem=osf1 for OSF/1, and -opsystem=bsd4-3 otherwise.
 NOTE-END  */
 
-#undef BIG_ENDIAN
 #undef LIB_STANDARD
 #undef START_FILES
 #undef COFF
 #undef TERMINFO
 #define MAIL_USE_FLOCK
 #define HAVE_UNION_WAIT
+#define LOCALTIME_CACHE /* lemacs: jimb says so */
 
+/* lemacs change from dkindred+@CMU.EDU */
+#ifdef MACH
+#define START_FILES pre-crt0.o /usr/lib/crt0.o
+#else
 /* This line starts being needed with ultrix 4.0.  */
 /* You must delete it for version 3.1.  */
 #define START_FILES pre-crt0.o /usr/lib/cmplrs/cc/crt0.o
+#endif
 
 /* Supposedly the following will overcome a kernel bug.  */
 #undef LD_SWITCH_MACHINE
@@ -45,7 +50,45 @@ NOTE-END  */
    and it causes hanging in read_process_output.  */
 #define BROKEN_O_NONBLOCK
 
-#ifdef OSF1
+/* lemacs change */
+#if defined (OSF1) || defined (MACH)
 #undef C_ALLOCA
 #define HAVE_ALLOCA
 #endif
+
+/* mcc@timessqr.gc.cuny.edu says this makes Emacs work with DECnet.  */
+#ifdef HAVE_LIBDNET
+#define LIBS_MACHINE -ldnet
+#endif
+
+/* mcc@timessqr.gc.cuny.edu says it is /vmunix on Ultrix 4.2a.  */
+#undef KERNEL_FILE
+#define KERNEL_FILE "/vmunix"
+
+/* Jim Wilson writes:
+   [...] The X11 include files that Dec distributes with Ultrix
+   are bogus.
+
+   When __STDC__ is defined (which is true with gcc), the X11 include files
+   try to define prototypes.  The prototypes however use types which haven't
+   been defined yet, and thus we get syntax/parse errors.
+
+   You can not fix this by changing the include files, because the prototypes
+   create circular dependencies, in particular Xutil.h depends on types defined
+   in Xlib.h, and Xlib.h depends on types defined in Xutil.h.  So, no matter
+   which order you try to include them in, it will still fail.
+
+   Compiling with -DNeedFunctionPrototypes=0 will solve the problem by
+   directly inhibiting the bad prototypes.  This could perhaps just be put in
+   an a Ultrix configuration file.
+
+   Using the MIT X11 distribution instead of the one provided by Dec will
+   also solve the problem, but I doubt you can convince everyone to do this. */
+
+/* lemacs change by osyjm@schizo.coe.montana.edu (Jaye Mathisen) */
+#ifdef ultrix
+#define C_SWITCH_X_MACHINE -DNeedFunctionPrototypes=0 -DNeedVarargsPrototypes=0
+#endif
+
+/* Enable a fix in process.c.  */
+#define SET_CHILD_PTY_PGRP

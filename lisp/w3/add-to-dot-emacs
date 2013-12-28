@@ -5,3 +5,7 @@
 (autoload 'w3-open-local "w3" "Open local file for WWW browsing" t)
 (autoload 'w3-fetch "w3" "Open remote file for WWW browsing" t)
 (autoload 'w3-use-hotlist "w3" "Use shortcuts to view WWW docs" t)
+(autoload 'w3-follow-link "w3" "Follow a hypertext link.")
+(autoload 'gopher-dispatch-object "gopher" "Fetch gopher dir" t)
+(autoload 'html-mode "html-mode" "Edit HTML docs" t)
+

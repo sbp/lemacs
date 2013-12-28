@@ -2,7 +2,8 @@
 
 (defconst auto-save-version "cvs ate me")
 
-;;;; Copyright (C) 1992, 1993 by Sebastian Kremer <sk@thp.uni-koeln.de>
+;;;; Copyright (C) 1992, 1993, 1994 by Sebastian Kremer <sk@thp.uni-koeln.de>
+;;;; Modified by jwz
 
 ;;;; This program is free software; you can redistribute it and/or modify
 ;;;; it under the terms of the GNU General Public License as published by
@@ -22,7 +23,6 @@
 ;;;;    LCD Archive Entry:
 ;;;;    auto-save|Sebastian Kremer|sk@thp.uni-koeln.de
 ;;;;    |safer auto saving with support for ange-ftp and /tmp
-;;;;    |$Date: 1993/11/23 19:58:05 $|$Revision: 1.3 $|
 
 ;;;; OVERVIEW ==========================================================
 
@@ -193,6 +193,10 @@ created by you, never nil.")
 	(if (fboundp 'make-directory)	; V19 or tree dired
 	    (make-directory dir)
 	  (call-process "mkdir" nil nil nil dir))
+	;; This is 1300, aka "d-wx-----T"
+	;; The sticky bit means that you can only delete your own files,
+	;; even if you have write permission in the directory (which is
+	;; moot, since the directory is only writable by owner.)
 	(set-file-modes dir (* 7 8 8))))))
 
 (mapcar (function auto-save-check-directory)
@@ -419,6 +423,8 @@ Hashed files are not understood, see `auto-save-hash-p'."
 
 ;;; Recovering files
 
+;; jwz: changed this to also offer to recover auto-saved buffers which
+;; had no associated file name (such as sendmail buffers.)
 (defun recover-all-files ()
   "Do recover-file for all autosave files which are current.
 Only works if you have a non-nil `auto-save-directory'.
@@ -438,30 +444,34 @@ Hashed files (see `auto-save-hash-p') are not understood, use
       (setq afile (car savefiles)
 	    file (auto-save-original-name afile)
 	    savefiles (cdr savefiles))
-      (if file
-	  (cond ((not (file-newer-than-file-p afile file))
-		 (message "autosave file \"%s\" is not current." afile)
-		 (sit-for 2))
-		(t
-		 (setq total (1+ total))
-		 (with-output-to-temp-buffer "*Directory*"
-		   (call-process "ls" nil standard-output nil
-				 "-l" afile file))
-		 (if (yes-or-no-p (format "Recover %s from auto save file? "
-					  file))
-		     (let* ((obuf (current-buffer))
-			    (buf (set-buffer (find-file-noselect file t)))
-			    (buffer-read-only nil))
-		       (erase-buffer)
-		       (insert-file-contents afile nil)
+      (cond ((and file (not (file-newer-than-file-p afile file)))
+	     (message "autosave file \"%s\" is not current." afile)
+	     (sit-for 2))
+	    (t
+	     (setq total (1+ total))
+	     (with-output-to-temp-buffer "*Directory*"
+	       (apply 'call-process "ls" nil standard-output nil
+		      "-l" afile (if file (list file))))
+	     (if (yes-or-no-p (format "Recover %s from auto save file? "
+				      (or file "non-file buffer")))
+		 (let* ((obuf (current-buffer))
+			(buf (set-buffer
+			      (if file
+				  (find-file-noselect file t)
+				(generate-new-buffer "*recovered*"))))
+			(buffer-read-only nil))
+		   (erase-buffer)
+		   (insert-file-contents afile nil)
+		   (condition-case ()
 		       (after-find-file nil)
-		       (setq buffer-auto-save-file-name nil)
-		       (setq count (1+ count))
-		       (message "\
+		     (error nil))
+		   (setq buffer-auto-save-file-name nil)
+		   (setq count (1+ count))
+		   (message "\
 Auto-save off in buffer \"%s\" till you do M-x auto-save-mode."
-				(buffer-name))
-		       (set-buffer obuf)
-		       (sit-for 1)))))))
+			    (buffer-name))
+		   (set-buffer obuf)
+		   (sit-for 1))))))
     (if (zerop total)
 	(message "Nothing to recover.")
       (message "%d/%d file%s recovered." count total (if (= count 1) "" "s"))))

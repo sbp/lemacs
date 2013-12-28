@@ -785,13 +785,20 @@ Subscribers to bug-vm get all info-vm messages.
 This list dicusses the View Mail mode for GNU Emacs, an alternative to
 rmail mode.
 
-* supercite-request@warsaw.nlm.nih.gov to subscribe to supercite
+* supercite-request@anthem.nlm.nih.gov to subscribe to supercite
 ** gnUSENET newsgroup: NONE PLANNED
-** Send articles to: supercite@warsaw.nlm.nih.gov
-*** UUCP: ..!uunet!warsaw.nlm.nih.gov!supercite-request
+** Send articles to: supercite@anthem.nlm.nih.gov
+*** UUCP: ..!uunet!anthem.nlm.nih.gov!supercite-request
 
 The supercite mailing list covers issues related to the advanced
 mail/news citation package called Supercite for GNU Emacs.
+
+* cc-mode-victims-request@anthem.nlm.nih.gov to subscribe to cc-mode-victims
+** gnUSENET newsgroup: NONE PLANNED
+** Send articles to: cc-mode-victims@anthem.nlm.nih.gov
+*** UUCP: ..!uunet!anthem.nlm.nih.gov!cc-mode-victims-request
+
+This is a list of beta testers for cc-mode, a new C and C++ editing mode.
 
 * auc-tex-request@iesd.auc.dk to subscribe
 ** USENET newsgroup: NONE YET

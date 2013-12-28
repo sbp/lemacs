@@ -1,5 +1,5 @@
 ;; Find and display Unix manual pages.
-;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1993, 1994 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GNU Emacs.
 ;;
@@ -24,7 +24,7 @@
 ;;  o  Query the user as to which pages are desired
 ;;  o  Use of the prefix arg to toggle/bypass the above features
 ;;  o  Buffers named by the first topic in the buffer
-;;  o  Automatic uncompress for compressed man pages (.Z and .z)
+;;  o  Automatic uncompress for compressed man pages (.Z, .z, and .gz)
 ;;  o  View the resulting buffer using M-x view mode
 ;;
 ;; Modified 16-mar-91 by Jamie Zawinski <jwz@lucid.com> to default the 
@@ -35,7 +35,9 @@
 ;; Modified 16-apr-93 by Dave Gillespie <daveg@synaptics.com> to make
 ;; apropos work nicely; work correctly when bold or italic is unavailable; 
 ;; reuse old buffer if topic is re-selected (in Manual-topic-buffer mode).
-
+;;
+;; Modified 4-apr-94 by jwz: merged in Tibor Polgar's code for manpath.conf.
+;;
 ;; This file defines "manual-entry", and the remaining definitions all
 ;; begin with "Manual-".  This makes the autocompletion on "M-x man" work.
 ;;
@@ -100,6 +102,9 @@ Initialized by \\[Manual-directory-list-init].")
 (defvar Manual-page-history nil "\
 A list of names of previously visited man page buffers.")
 
+(defvar Manual-manpath-config-file "/usr/lib/manpath.config"
+  "*Location of the manpath.config file, if any.")
+
 (make-face 'man-italic)
 (or (face-differs-from-default-p 'man-italic)
     (copy-face 'italic 'man-italic))
@@ -120,20 +125,24 @@ A list of names of previously visited man page buffers.")
 ;; Manual-directory-list-init
 ;; Initialize the directory lists.
 
-(defun Manual-directory-list-init (&optional arg) "\
-Unless the variable Manual-directory-list is nil, initialize it using the
-MANPATH environment variable.  Once this variable is set,
-\\[Manual-directory-list-init] will not reinitialize it unless a prefix
-argument is given."
+(defun Manual-directory-list-init (&optional arg) 
+  "Initialize the Manual-directory-list variable from $MANPATH
+if it is not already set, or if a prefix argument is provided."
   (interactive "P")
   (if arg (setq Manual-directory-list nil))
   (if (null Manual-directory-list)
-      (let ((manpath (or (getenv "MANPATH") ""))
-	    (dirlist nil))
+      (let ((manpath (getenv "MANPATH"))
+	    (global (Manual-manpath-config-contents))
+	    (dirlist nil)
+	    dir)
+	(cond ((and manpath global)
+	       (setq manpath (concat manpath ":" global)))
+	      (global
+	       (setq manpath global)))
 	(while (string-match "\\`:*\\([^:]+\\)" manpath)
-	  (setq dirlist (cons (substring manpath
-					 (match-beginning 1) (match-end 1))
-			      dirlist))
+	  (setq dir (substring manpath (match-beginning 1) (match-end 1)))
+	  (and (not (member dir dirlist))
+	       (setq dirlist (cons dir dirlist)))
 	  (setq manpath (substring manpath (match-end 0))))
 	(setq dirlist (nreverse dirlist))
 	(setq Manual-directory-list dirlist)
@@ -146,6 +155,25 @@ argument is given."
       (setq Manual-unformatted-directory-list
 	    (Manual-select-subdirectories Manual-directory-list "man"))))
 
+(defun Manual-manpath-config-contents ()
+  "Parse the `Manual-manpath-config-file' file, if any.
+Returns a string like in $MANPATH."
+  (if (and Manual-manpath-config-file
+	   (file-readable-p Manual-manpath-config-file))
+      (let ((buf (get-buffer-create " *Manual-config*"))
+	    path)
+	(set-buffer buf)
+	(buffer-disable-undo buf)
+	(erase-buffer)
+	(insert-file-contents Manual-manpath-config-file)
+	(while (re-search-forward "^\\(MANDATORY_MANPATH\\|MANPATH_MAP\\)"
+				  nil t)
+	  (and (re-search-forward "\\(/[^ \t\n]+\\)[ \t]*$")
+	       (setq path (concat path (buffer-substring (match-beginning 1)
+							 (match-end 1))
+				  ":"))))
+	(kill-buffer buf)
+	path)))
 ;;
 ;; manual-entry  -- The "main" user function
 ;;
@@ -187,7 +215,6 @@ Manual-query-multiple-pages, and Manual-buffer-view-mode."
 	(force (if (>= arg 3)
                    t
                    nil))
-	(sep (make-string 65 ?-))
 	section fmtlist manlist apropos-mode)
     (let ((case-fold-search nil))
       (if (and (null section)
@@ -283,74 +310,7 @@ Manual-query-multiple-pages, and Manual-buffer-view-mode."
                (set-buffer standard-output)
                (setq buffer-read-only nil)
                (erase-buffer)
-               (let (name start end topic section)
-                 (while fmtlist         ; insert any formatted files
-                   (setq name (car fmtlist))
-                   (goto-char (point-max))
-                   (setq start (point))
-                   ;; In case the file can't be read or uncompressed or
-                   ;; something like that.
-                   (condition-case ()
-                       (Manual-insert-man-file name)
-                     (file-error nil))
-                   (goto-char (point-max))
-                   (setq end (point))
-                   (save-excursion
-                     (save-restriction
-                       (message "Cleaning manual entry for %s..."
-                                (file-name-nondirectory name))
-                       (narrow-to-region start end)
-                       (Manual-nuke-nroff-bs)
-		       (goto-char (point-min))
-		       (insert "File: " name "\n")
-		       (goto-char (point-max))
-		       ))
-                   (if (or (cdr fmtlist) manlist)
-                       (insert "\n\n" sep "\n"))
-                   (setq fmtlist (cdr fmtlist)))
-                 (while manlist         ; process any unformatted files
-                   (setq name (car manlist))
-                   (string-match "\\([^/]+\\)\\.\\([^./]+\\)\\'" name)
-                   (setq topic (substring name (match-beginning 1)
-                                          (match-end 1)))
-                   (setq section (substring name (match-beginning 2)
-                                            (match-end 2)))
-                   (message "Invoking man %s%s %s..."
-                            (if Manual-section-switch
-                                (concat Manual-section-switch " ")
-                                "")
-                            section topic)
-                   (setq start (point))
-                   (cond ((string-match "roff\\'" Manual-program)
-                          ;; kludge kludge
-                          (call-process Manual-program nil t nil
-                                        "-Tman" "-man" name))
-                         (Manual-section-switch
-                          (call-process Manual-program nil t nil 
-                                        Manual-section-switch
-                                        section topic))
-                         (t
-                          (call-process Manual-program nil t nil 
-                                        section topic)))
-                   (setq end (point))
-                   (save-excursion
-                     (save-restriction
-                       (message "Cleaning manual entry for %s(%s)..."
-                                topic section)
-                       (narrow-to-region start end)
-                       (Manual-nuke-nroff-bs apropos-mode)
-		       (goto-char (point-min))
-		       (insert "File: " name "\n")
-		       (goto-char (point-max))
-		       ))
-                   (if (cdr manlist)
-                       (insert "\n\n" sep "\n"))
-                   (setq manlist (cdr manlist))))
-               (if (< (buffer-size) 80)
-                   (progn
-                     (goto-char (point-min))
-                     (end-of-line)
-                     (error (buffer-substring 1 (point)))))
+	       (Manual-insert-pages fmtlist manlist apropos-mode)
                (set-buffer-modified-p nil)
                (Manual-mode)
                ))))
@@ -359,6 +319,79 @@ Manual-query-multiple-pages, and Manual-buffer-view-mode."
                     (delete (buffer-name) Manual-page-history)))
         (message nil)
         t))))
+
+(defun Manual-insert-pages (fmtlist manlist apropos-mode)
+  (let ((sep (make-string 65 ?-))
+	name start end topic section)
+    (while fmtlist			; insert any formatted files
+      (setq name (car fmtlist))
+      (goto-char (point-max))
+      (setq start (point))
+      ;; In case the file can't be read or uncompressed or
+      ;; something like that.
+      (condition-case ()
+	  (Manual-insert-man-file name)
+	(file-error nil))
+      (goto-char (point-max))
+      (setq end (point))
+      (save-excursion
+	(save-restriction
+	  (message "Cleaning manual entry for %s..."
+		   (file-name-nondirectory name))
+	  (narrow-to-region start end)
+	  (Manual-nuke-nroff-bs)
+	  (goto-char (point-min))
+	  (insert "File: " name "\n")
+	  (goto-char (point-max))
+	  ))
+      (if (or (cdr fmtlist) manlist)
+	  (insert "\n\n" sep "\n"))
+      (setq fmtlist (cdr fmtlist)))
+
+    (while manlist			; process any unformatted files
+      (setq name (car manlist))
+      (string-match "\\([^/]+\\)\\.\\([^./]+\\)\\'" name)
+      (setq topic (substring name (match-beginning 1) (match-end 1)))
+      (setq section (substring name (match-beginning 2) (match-end 2)))
+      (message "Invoking man %s%s %s..."
+	       (if Manual-section-switch
+		   (concat Manual-section-switch " ")
+		 "")
+	       section topic)
+      (setq start (point))
+      (Manual-run-formatter name topic section)
+      (setq end (point))
+      (save-excursion
+	(save-restriction
+	  (message "Cleaning manual entry for %s(%s)..." topic section)
+	  (narrow-to-region start end)
+	  (Manual-nuke-nroff-bs apropos-mode)
+	  (goto-char (point-min))
+	  (insert "File: " name "\n")
+	  (goto-char (point-max))
+	  ))
+      (if (cdr manlist)
+	  (insert "\n\n" sep "\n"))
+      (setq manlist (cdr manlist))))
+  (if (< (buffer-size) 200)
+      (progn
+	(goto-char (point-min))
+	(if (looking-at "^File: ")
+	    (forward-line 1))
+	(error (buffer-substring (point) (progn (end-of-line) (point))))))
+  nil)
+
+
+(defun Manual-run-formatter (name topic section)
+  (cond ((string-match "roff\\'" Manual-program)
+	 ;; kludge kludge
+	 (call-process Manual-program nil t nil "-Tman" "-man" name))
+	(Manual-section-switch
+	 (call-process Manual-program nil t nil Manual-section-switch
+		       section topic))
+	(t
+	 (call-process Manual-program nil t nil section topic))))
+
 
 (defvar Manual-mode-map
   (let ((m (make-sparse-keymap)))
@@ -401,13 +434,17 @@ Manual-query-multiple-pages, and Manual-buffer-view-mode."
     (while dirlist
       (setq d (car dirlist) dirlist (cdr dirlist))
       (if (file-directory-p d)
-          (let ((files (directory-files d t match nil 'dirs-only)))
+          (let ((files (directory-files d t match nil 'dirs-only))
+		(dir-temp '()))
             (while files
               (if (file-executable-p (car files))
-                  (setq dirs (cons (file-name-as-directory (car files))
-                                   dirs)))
-              (setq files (cdr files))))))
-    (nreverse dirs)))
+                  (setq dir-temp (cons (file-name-as-directory (car files))
+                                   dir-temp)))
+              (setq files (cdr files)))
+	    (and dir-temp
+		 (setq dirs (append (nreverse dir-temp)
+				    dirs))))))
+    dirs))
 
 
 (defvar Manual-bogus-file-pattern "\\.\\(lpr\\|ps\\|PS\\)\\'"
@@ -492,7 +529,7 @@ This pattern is used to prune those files.")
 (defun Manual-insert-man-file (name)
   ;; Insert manual file (unpacked as necessary) into buffer
   (cond ((equal (substring name -3) ".gz")
-	 (call-process "gunzip" nil t nil name))
+	 (call-process "gunzip" nil t nil "--stdout" name))
         ((or (equal (substring name -2) ".Z")
 	     ;; HPUX uses directory names that end in .Z and compressed
 	     ;; files that don't.  How gratuitously random.
@@ -550,7 +587,8 @@ This pattern is used to prune those files.")
   (while (search-forward "\b" nil t)
     (Manual-delete-char -2))
 
-  (Manual-nuke-nroff-bs-footers)
+  (if (> (buffer-size) 100) ; minor kludge
+      (Manual-nuke-nroff-bs-footers))
   ;;
   ;; turn subsection header lines into bold
   ;;
@@ -840,3 +878,5 @@ on the menu in the order in which they appear in the buffer."
                            (vector (concat prefix item)
                                    (list 'Manual-follow-xref item) t)))
 		     (nreverse items)))))))
+
+(provide 'man)

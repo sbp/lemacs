@@ -1,5 +1,6 @@
 /* Fundamental definitions for GNU Emacs Lisp interpreter.
-   Copyright (C) 1985, 1986, 1987, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1992, 1993, 1994
+   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -17,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-#if (!!defined (BIG_ENDIAN) != !!defined (LOWTAGS))
+#if (!!defined (WORDS_BIGENDIAN) != !!defined (LOWTAGS))
 
 /* Big-endian lowtags, little-endian hightags */
 typedef
@@ -45,9 +46,9 @@ union Lisp_Object
   }
 Lisp_Object;
 
-#else /* If BIG_ENDIAN, or little-endian hightags */
+#else /* If WORDS_BIGENDIAN, or little-endian hightags */
 
-/* Big-endian hightags, big-endian lowtags */
+/* Big-endian hightags, little-endian lowtags */
 typedef
 union Lisp_Object
   {
@@ -77,7 +78,7 @@ Lisp_Object;
 
 
 #ifndef XMAKE_LISP
-#ifdef __GNUC__
+#if (__GNUC__ > 1)
 /* Use GCC's struct initializers feature */
 #define XMAKE_LISP(vartype,ptr) \
    ((union Lisp_Object) { gu: { markbit: 0, \
@@ -107,7 +108,24 @@ extern Lisp_Object Qzero;
 #define XFASTINT(a) ((a).gu.val + 0)
 
 #define XUINT(a) ((a).gu.val)
-#define XPNTR(a) ((void *) ((a).gu.val)) /* >>> DATA_SEG_BITS, HAVE_SHM >>> */
+#ifdef HAVE_SHM
+/* In this representation, data is found in two widely separated segments.  */
+extern int pure_size;
+# define XPNTR(a) \
+  ((void *)(((a).gu.val) | ((a).gu.val > pure_size ? DATA_SEG_BITS : PURE_SEG_BITS)))
+#else /* not HAVE_SHM */
+# ifdef DATA_SEG_BITS
+/* This case is used for the rt-pc and hp-pa.
+   In the diffs I was given, it checked for ptr = 0
+   and did not adjust it in that case.
+   But I don't think that zero should ever be found
+   in a Lisp object whose data type says it points to something.
+ */
+#  define XPNTR(a) ((void *)(((a).gu.val) | DATA_SEG_BITS))
+# else /* not DATA_SEG_BITS */
+#  define XPNTR(a) ((void *) ((a).gu.val))
+# endif /* not DATA_SEG_BITS */
+#endif /* not HAVE_SHM */        
 #define XSETINT(a,b) do { ((a) = make_number (b)); } while (0)
 
 #ifdef XMAKE_LISP

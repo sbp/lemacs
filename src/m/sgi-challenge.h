@@ -38,14 +38,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define LONGBITS 32		/* Number of bits in a long */
 
-/* By Tor Arntsen <tor@spacetec.no> for lemacs.
-   This is already defined in IRIX 5.x (IRIX 4.x does not run on Challenge),
-   but it is defined as 4321 and shouldn't be redefined here.
-   It really is supposed to be used as '#if BYTE_ORDER == BIG_ENDIAN' but
-   it works ok for us as it is. */
-  
-/* #define BIG_ENDIAN */
-
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
 
@@ -77,8 +69,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  * For some reason I don't understand, the most expensive machines
  * SGI makes are the only SGI machines that don't come with sound
  */
-#ifdef USE_SOUND
-#undef USE_SOUND
+#ifdef HAVE_NATIVE_SOUND
+#undef HAVE_NATIVE_SOUND
 #endif
 
 /* Use type int rather than a union, to represent Lisp_Object */
@@ -203,10 +195,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Turn off some "helpful" error checks for type mismatches
    that we can't fix without breaking other machines.  */
 # define C_SWITCH_MACHINE -D_BSD_TYPES -cckr -acpp -mips2
-#endif
-
-#ifndef TIME_WITH_SYS_TIME
-#define TIME_WITH_SYS_TIME
 #endif
 
 #ifdef SYSV_SYSTEM_DIR

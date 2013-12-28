@@ -80,7 +80,7 @@ instead of in the original English.
 @page
 
 @ifinfo
-@node Top, Introduction,, (DIR)
+@node Top, Distribution,, (DIR)
 
 The GNUS Newsreader
 *******************
@@ -361,7 +361,7 @@ Jordan K.  Hubbard helped with proofreading of this Texinfo manual.
 sent comments, suggestions, and bug fixes.  Thanks also go to Richard
 Stallman and the Free Software Foundation for their good work.
 
-@node Introduction, Installation, Top, Top
+@node Introduction, Installation, Acknowledgments, Top
 @unnumbered Introduction
 
   GNUS is a program for reading and writing USENET news using GNU Emacs.

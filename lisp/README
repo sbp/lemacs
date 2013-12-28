@@ -10,6 +10,11 @@ speed up this process, this directory has been rearranged to have very few
 files at the top-level, so that emacs doesn't have to stat() several hundred
 files to find the dozen or so which are actually subdirectories.
 
+After emacs adds all subdirectories of this directory it will add all
+subdirectories of the site-lisp directory.  The site-lisp directory normally
+exists only in installation trees.  For more information about the site-lisp
+directory see the NEWS file.
+
 Directories whose names begin with "-" or "." are not added to the default
 load-path.
 
@@ -97,3 +102,5 @@ Some packages are fairly large; those have been given their own	directories:
 	rmail		A BABYL-format mail reader.
 
 	vm		View Mail, an UNIX-format alternative to RMAIL.
+
+	w3		A World Wide Web interface.

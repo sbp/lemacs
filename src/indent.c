@@ -1,5 +1,5 @@
 /* Indentation functions.
-   Copyright (C) 1985, 1986, 1987, 1988, 1992, 1993 
+   Copyright (C) 1985, 1986, 1987, 1988, 1992, 1993, 1994 
    Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -144,12 +144,15 @@ current_column ()
 	  col = 0;
 	  tab_seen = 1;
 	}
-      else if (BUF_CHAR_AT (buffer, pos) == '\n')
+      else if (BUF_CHAR_AT (buffer, pos) == '\n' ||
+	       (EQ (current_buffer->selective_display, Qt) &&
+		BUF_CHAR_AT (buffer, pos) == '\r'))
 	break;
       else
 	{
-	  displayed_glyphs = glyphs_from_bufpos (selected_screen, buffer, pos,
-						 dp, 0, col, 0, 0, 0);
+	  displayed_glyphs = glyphs_from_bufpos (selected_screen, buffer,
+						 XWINDOW (selected_window),
+						 pos, dp, 0, col, 0, 0, 0);
 	  col += (displayed_glyphs->columns
 		  - (displayed_glyphs->begin_columns
 		     + displayed_glyphs->end_columns));
@@ -343,8 +346,9 @@ and if COLUMN is in the middle of a tab character, change it to spaces.")
       else
 	{
 	  displayed_glyphs = glyphs_from_bufpos (selected_screen,
-						 current_buffer, pos,
-						 dp, 0, col, 0, 0, 0);
+						 current_buffer,
+						 XWINDOW (selected_window),
+						 pos, dp, 0, col, 0, 0, 0);
 	  col += (displayed_glyphs->columns
 		  - (displayed_glyphs->begin_columns
 		     + displayed_glyphs->end_columns));
@@ -392,18 +396,27 @@ static struct position val_compute_motion;
     } else {\
       vpos++; hpos = 0; pixpos = 0;\
       vpixpos += max_line_height;\
+      if (vpixpos <= disp_pheight) disp_height++;\
       max_line_height = font->height;\
       new_line = 1;\
       tab_offset += window_char_width(w) - 1;\
-      if (vpos > tovpos || (vpos == tovpos && hpos >= tohpos))\
+      if (/* tovpos != -1 && */ \
+          (vpos > tovpos || (vpos == tovpos && hpos >= tohpos)))\
         goto foundpos;\
       hpos = 1; pixpos = wid;\
     }\
   } else {\
-    hpos++; pixpos += wid;\
+    hpos++; if (hpos >=0) pixpos += wid;\
+    if (/* tovpos != -1  && */ \
+        (vpos > tovpos || (vpos == tovpos && hpos > tohpos)))\
+      goto foundpos;\
   }\
 }
 
+/*
+ * The commented out -1's are an attempt to make things better.  It
+ * was a cheap attempt to save adding another flag to compute motion
+ * which failed badly. */
 struct position *
 compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 		int to,int tovpos,int tohpos,int hscroll, int tab_offset)
@@ -427,6 +440,7 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 #endif
   int flag = 0;
   int loop;
+  int glyph_end = 0;		/* set to true if line ends with a glyph */
 
   struct screen *s = XSCREEN (w->screen);
   struct buffer *b = XBUFFER (w->buffer);
@@ -444,17 +458,15 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 		       : ((EQ (ctl_arrow, Qt) || EQ (ctl_arrow, Qnil))
 			  ? 256 : 160));
   int truncate = hscroll || !NILP(b->truncate_lines)
-    || (truncate_partial_width_windows && w->pixwidth < PIXW(s));
+    || (truncate_partial_width_windows && window_needs_vertical_divider (w));
   int selective = FIXNUMP(b->selective_display)
     ? XINT (b->selective_display)
       : !NILP (b->selective_display) ? -1 : 0;
+  int disp_height = 0;
+  int disp_pheight = w->pixheight - (MINI_WINDOW_P (w)
+				    ? 0
+				    : XFONT (SCREEN_DEFAULT_FONT (s))->height);
   int pwidth = w->pixwidth - LEFT_MARGIN (b, s, w) - RIGHT_MARGIN (b, s, w);
-  int pheight = (((window_char_height(w) - 1) == tovpos)
-		 ? (w->pixheight
-		    - (MINI_WINDOW_P (w)
-		       ? 0
-		       : XFONT (SCREEN_DEFAULT_FONT (s))->height))
-		 : 100000);
   int char_width;
 
   /* don't run off the end of the buffer */
@@ -466,11 +478,14 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
   vpixpos = vpos * XFONT (SCREEN_DEFAULT_FONT (s))->height;
 
   display_info =
-    glyphs_from_bufpos (s,b,from,0,hscroll,0,tab_offset,0,1);
+    glyphs_from_bufpos (s,b,w,from,0,hscroll,0,tab_offset,0,1);
 
   e_face = display_info->faceptr;
   e_start = display_info->run_pos_lower;
   e_end = display_info->run_pos_upper;
+
+  if (display_info->begin_columns || display_info->end_columns)
+    e_end = e_start;
 
   if (e_face)
     {
@@ -483,8 +498,13 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
     }
   else
     lfont = SCREEN_DEFAULT_FONT (s);
-
   font = XFONT (lfont);
+
+/* This was purged from layout_text_line a long time ago and should
+   have been removed from here at the same time.  The same code in the
+   main loop will now do what this used to do (catch glyphs at the
+   very beginning of a line. */
+#if 0
   /* Skip any textual glyphs. */
   for (loop = 0; loop < 2; loop++)
     {
@@ -508,6 +528,7 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 	    }
 	}
     }
+#endif
 
   max_line_height = font->height;
   new_line = 1;
@@ -532,11 +553,15 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
   prevpos = from;
   for (bufpos = from; bufpos < to; bufpos++)
     {
-      if (vpos > tovpos || (vpos == tovpos && hpos >= tohpos))
+      if (/* tovpos != -1
+	  && */ (vpos > tovpos || (vpos == tovpos && hpos >= tohpos)))
 	break;
-      if (vpixpos + max_line_height > pheight)
+      if (vpixpos + max_line_height > disp_pheight)
 	{
-	  flag = 1;
+	  if (disp_height && ((disp_height - 1) == tovpos))
+	    flag = 1;
+/*	  if (tovpos == -1)
+	    break; */
 	}
 
       prevvpos = vpos; prevhpos = hpos;
@@ -544,7 +569,7 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
       if (bufpos == e_start || bufpos == e_end || e_start == -1)
 	{
 	  display_info =
-	    glyphs_from_bufpos (s,b,bufpos,0,hscroll,0,tab_offset,0,1);
+	    glyphs_from_bufpos (s,b,w,bufpos,0,hscroll,0,tab_offset,0,1);
 
 	  e_face = display_info->faceptr;
 	  e_start = display_info->run_pos_lower;
@@ -573,13 +598,14 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 	  /* Skip any textual glyphs. */
 	  for (loop = 0; loop < 2; loop++)
 	    {
-	      int col_cnt;
+	      int col_cnt, eflag;
 	      Lisp_Object *class;
 
 	      col_cnt = loop ? display_info->begin_columns
 		: display_info->end_columns;
 	      class = loop ? display_info->begin_class
 		: display_info->end_class;
+	      eflag = loop ? 1 : 0;
 
 	      if (col_cnt)
 		{
@@ -589,34 +615,21 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 		      struct extent *e = XEXTENT(class[i]);
 
 		      if (EXTENT_GLYPH_LAYOUT_P (e, GL_TEXT))
-			pixpos += glyph_width (extent_glyph (e), lfont);
+			pixpos += glyph_width (extent_glyph(e, eflag), lfont);
 		    }
 		}
 	    }
 	}
 
       c = BUF_CHAR_AT(b,bufpos);
+      if (c == 0240) c = ' ';	/* nobreakspace displayed as a regular space */
       a[0] = c;
       char_width = text_width (lfont, a, 1);
 
-      if (c >= printable_min && char_width)
-	{
-	  CHECK_NEXT(c);
-	}
-      else if (c == '\t')
-	{
-	  int i;
-	  int inc = tab_width -
-	    ((hpos + tab_offset + hscroll - (hscroll > 0)
-	      /* Add tab_width here to make sure positive.
-		 hpos can be negative after continuation but
-		 can't be less than -tab_width. */
-	      + tab_width)
-	      % tab_width);
-	  for (i = 0; i < inc; i++)
-	    CHECK_NEXT(' ');
-	}
-      else if (c == '\n')
+      /* '\n' is now checked first to make sure it gets handled
+         regardless of the setting of ctl-arrow.  This means we can't
+         make it print as something else.  Oh for character maps. */
+      if (c == '\n')
 	{
 	  if (selective > 0 && 
 	      position_indentation(b, bufpos + 1) >= selective)
@@ -643,6 +656,8 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 	      vpos++;
 	      prevpos = bufpos;
 	      vpixpos += max_line_height;
+	      if (vpixpos <= disp_pheight)
+		disp_height++;
 	      max_line_height = font->height;
 	      new_line = 1;
 	      pixpos = hpos = 0;
@@ -653,6 +668,23 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 	      CHECK_NEXT('$');
 	    }
 	  tab_offset = 0;
+	}
+      else if (c >= printable_min && char_width)
+	{
+	  CHECK_NEXT(c);
+	}
+      else if (c == '\t')
+	{
+	  int i;
+	  int inc = tab_width -
+	    ((hpos + tab_offset + hscroll - (hscroll > 0)
+	      /* Add tab_width here to make sure positive.
+		 hpos can be negative after continuation but
+		 can't be less than -tab_width. */
+	      + tab_width)
+	      % tab_width);
+	  for (i = 0; i < inc; i++)
+	    CHECK_NEXT(' ');
 	}
       else if (c == CR && selective < 0)
 	{
@@ -667,7 +699,7 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
 		CHECK_NEXT('.');
 	    }
 	}
-      else if (char_width && ((c < 040 && ctl_p) || c == 0177))
+      else if ((c < 040 && ctl_p) || c == 0177)
 	{
 	  /* Insert control character as a 2-char sequence */
 	  CHECK_NEXT('^');
@@ -701,6 +733,82 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
       new_line = 0;
     }
 
+  /* Mass quantities of code duplication just to handle the case of a
+     glyph being at the very end of the line.  I really hate this
+     fucking function.  I'm not going to bother cleaning this crap up
+     because this function is on the verge of some truly major
+     overhauling. */
+  if (bufpos == e_start || bufpos == e_end || e_start == -1)
+    {
+      display_info =
+	glyphs_from_bufpos (s,b,w,bufpos,0,hscroll,0,tab_offset,0,1);
+
+      e_face = display_info->faceptr;
+      e_start = display_info->run_pos_lower;
+      e_end = display_info->run_pos_upper;
+
+      if (e_start == e_end)
+	e_start = e_end = -1;
+
+      if (e_face)
+	{
+	  /* Set font according to the extent's font (if any) */
+	  cur_face = e_face;
+	  if (!NILP (FACE_FONT (e_face)))
+	    lfont = FACE_FONT (e_face);
+	  else
+	    lfont = SCREEN_DEFAULT_FONT (s);
+	}
+      else
+	lfont = SCREEN_DEFAULT_FONT (s);
+      font = XFONT (lfont);
+      if (new_line)
+	max_line_height = font->height;
+      else
+	max_line_height = max ((int) font->height, max_line_height);
+
+      /* Skip any textual glyphs. */
+      for (loop = 0; loop < 2; loop++)
+	{
+	  int col_cnt, eflag;
+	  Lisp_Object *class;
+
+	  col_cnt = loop ? display_info->begin_columns
+	    : display_info->end_columns;
+	  class = loop ? display_info->begin_class
+	    : display_info->end_class;
+	  eflag = loop ? 1 : 0;
+
+	  if (col_cnt)
+	    {
+	      int i;
+	      for (i = 0; i < col_cnt; i++)
+		{
+		  struct extent *e = XEXTENT(class[i]);
+
+		  if (EXTENT_GLYPH_LAYOUT_P (e, GL_TEXT))
+		    pixpos += glyph_width (extent_glyph(e, eflag), lfont);
+		}
+	    }
+	}
+
+      if (pixpos > pwidth)
+	{
+	  glyph_end = 1;
+
+	  if (truncate)
+	    bufpos--;
+	  else
+	    {
+	      vpos++;
+	      if (vpixpos <= disp_pheight)
+		disp_height++;
+	      hpos = 0;
+	    }
+	}
+    }
+
+
   savevpos = vpos;
   savehpos = hpos;
   savepos = bufpos;
@@ -709,7 +817,7 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
    * it isn't there.  Fake it with last character of buffer.
    */
   c1 = ((bufpos < BUF_ZV(b)) ? BUF_CHAR_AT(b,bufpos) : c);
-  if (c1)
+  if (c1 && !glyph_end)
     CHECK_NEXT(c1);
   if (vpos != savevpos && savepos < BUF_ZV(b) && (c1 != '\n') && !truncate)
     {
@@ -726,6 +834,7 @@ compute_motion (struct window *w, int from, int fromvpos, int fromhpos,
   val_compute_motion.hpos = hpos;
   val_compute_motion.vpos = vpos;
   val_compute_motion.prevhpos = prevhpos;
+  val_compute_motion.height = disp_height;
 
   val_compute_motion.contin
     = bufpos != from && (val_compute_motion.vpos != prevvpos) && c != '\n';

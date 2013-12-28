@@ -18,21 +18,22 @@
 ;; file named COPYING.  Among other things, the copyright notice
 ;; and this notice must be preserved on all copies.
 ;;;
-;;; You can blame this one on Eric S. Raymond (eric@snark.thyrsus.com).
+;;; Author: Eric S. Raymond (eric@snark.thyrsus.com).
+;;;
 ;;; It is distantly derived from an rcs mode written by Ed Simpson
 ;;; ({decvax, seismo}!mcnc!duke!dukecdu!evs) in years gone by
 ;;; and revised at MIT's Project Athena.
 ;;; 
-;;; Made to work for Lucid Emacs by persons who don't know SCCS.
+;;; Modified: Made to work for Lucid Emacs by persons who don't know SCCS.
+;;; Modified: Ben Wing (Ben.Wing@eng.sun.com) -- fixed up and redid menus
+;;;
 
 ;; User options
 
-(defvar sccs-bin-directory
-  (cond ((file-executable-p "/usr/sccs/unget") "/usr/sccs")
-	((file-executable-p "/usr/bin/unget") "/usr/bin")
-	((file-directory-p "/usr/sccs") "/usr/sccs")
-	((file-directory-p "/usr/bin/sccs") "/usr/bin/sccs")
-	(t "/usr/bin")))
+(defvar sccs-bin-directory nil
+  "*Directory that holds the SCCS executables.
+Initialized automatically the first time you execute an SCCS command,
+if not already set.")
 
 (defvar sccs-max-log-size 510
   "*Maximum allowable size of an SCCS log message.")
@@ -111,6 +112,14 @@ Return nil if there is no such person."
       (setq sccs-current-major-version "1"))
 )
 
+(defun sccs-init-bin-directory ()
+  (setq sccs-bin-directory
+	(cond ((file-executable-p "/usr/sccs/unget") "/usr/sccs")
+	      ((file-executable-p "/usr/bin/unget") "/usr/bin")
+	      ((file-directory-p "/usr/sccs") "/usr/sccs")
+	      ((file-directory-p "/usr/bin/sccs") "/usr/bin/sccs")
+	      (t "/usr/bin"))))
+
 ;; The following functions do most of the real work
 
 (defun sccs-get-version (file sid)
@@ -152,6 +161,7 @@ FILE is the file being visited to put in the modeline."
   "  Execute an SCCS command, notifying the user and checking for errors."
   (setq file (expand-file-name file))
   (message (format "Running %s on %s..." command file))
+  (or sccs-bin-directory (sccs-init-bin-directory))
   (let ((status
 	 (save-window-excursion
 	   (set-buffer (get-buffer-create buffer))
@@ -203,17 +213,23 @@ If present, OPTARGS are also passed."
   )
 
 (defun sccs-init ()
-  (define-key (current-global-map) "\C-c?" 'describe-mode)
-  (define-key (current-global-map) "\C-cn" 'sccs)
-  (define-key (current-global-map) "\C-cm" 'sccs-register-file)
-  (define-key (current-global-map) "\C-ch" 'sccs-insert-headers)
-  (define-key (current-global-map) "\C-cd" 'sccs-revert-diff)
-  (define-key (current-global-map) "\C-cp" 'sccs-prs)
-  (define-key (current-global-map) "\C-cr" 'sccs-revert-buffer)
-  (define-key (current-global-map) "\C-c\C-d" 'sccs-version-diff)
-  (define-key (current-global-map) "\C-c\C-p" 'sccs-pending)
-  (define-key (current-global-map) "\C-c\C-r" 'sccs-registered)
-  )
+  (or (current-local-map) (use-local-map (make-sparse-keymap)))
+  (condition-case nil
+      ;; If C-c s is already defined by another mode, then we
+      ;; will get an error.  In that case, just don't do anything.
+      (progn
+	(define-key (current-local-map) "\C-cs?" 'describe-mode)
+	(define-key (current-local-map) "\C-csn" 'sccs)
+	(define-key (current-local-map) "\C-csm" 'sccs-register-file)
+	(define-key (current-local-map) "\C-csh" 'sccs-insert-headers)
+	(define-key (current-local-map) "\C-csd" 'sccs-revert-diff)
+	(define-key (current-local-map) "\C-csp" 'sccs-prs)
+	(define-key (current-local-map) "\C-csr" 'sccs-revert-buffer)
+	(define-key (current-local-map) "\C-cs\C-d" 'sccs-version-diff)
+	(define-key (current-local-map) "\C-cs\C-p" 'sccs-pending)
+	(define-key (current-local-map) "\C-cs\C-r" 'sccs-registered)
+	)
+    (error nil)))
 
 ;; Here's the major entry point
 
@@ -311,8 +327,12 @@ returned indicating who has locked it."
 		      ;; sccs-delta already turned off write-privileges on the
 		      ;; file, let's not re-fetch it unless there's something
 		      ;; in it that get would expand
-		      (if (sccs-check-headers)
-			  (sccs-get file nil))
+		      ;;
+		      ;; fooey on this.  You always need to refetch the
+		      ;; file; otherwise weirdness will ensue when you're
+		      ;; trying to do a make. --bpw
+		      ; (if (sccs-check-headers)
+		      (sccs-get file nil)
 		      (revert-buffer nil t)
 		      (sccs-mode-line file)
 		      (run-hooks 'sccs-delta-ok)
@@ -813,27 +833,25 @@ Global user options:
   )
 
 
-;;; Lucid Emacs supprot
+;;; Lucid Emacs support
 
 (defconst sccs-menu
   '("SCCS Commands"
 
-    ["SCCS"			sccs			t	nil] ; C-c n
-    ["Insert Headers"		sccs-insert-headers	t]	     ; C-c h
+    ["SCCS"			sccs			t	nil] ; C-c s n
+    ["Insert Headers"		sccs-insert-headers	t]	     ; C-c s h
+    ["Archive History:"		sccs-prs		t	nil] ; C-c s p
+    ["Diffs from Archive:"	sccs-revert-diff	t	nil] ; C-c s d
+    ["Revert to Archive:"	sccs-revert-buffer	t	nil] ; C-c s r
     "----"
-    ["Delta file"		sccs-dummy-delta	t	nil]
-    ["Register file"		sccs-register-file	t	nil] ; C-c h
-    ["Revert File"		sccs-revert-buffer	t	nil] ; C-c r
-    ["Rename File"		sccs-rename-file	t	nil]
+    ["Check In..."		sccs-dummy-delta	t]
+    ["Create Archive..."	sccs-register-file	t] ; C-c s h
+    ["Rename Archive..."	sccs-rename-file	t]
     "----"
-    ["Show Log of"		sccs-prs		t	nil] ; C-c p
-    ["Diff File"		sccs-revert-diff	t	nil] ; C-c d
-;    ["Diff Files"		sccs-version-diff	t]	     ; C-c d
-    "----"
-    ["List Locked Files"	sccs-pending		t]	     ; C-c C-p
-    ["List Registered Files"	sccs-registered		t]	     ; C-c C-r
+    ["List Checked-Out Files"	sccs-pending		t]	   ; C-c s C-p
+    ["List Registered Files"	sccs-registered		t]	   ; C-c s C-r
     ["Diff Directory"		sccs-release-diff	t]
-    ["Delta directory"		sccs-delta-release	t]
+    ["Delta Directory"		sccs-delta-release	t]
     ))
 
 (progn
@@ -850,6 +868,8 @@ Global user options:
 	       (if buffer-file-name buffer-file-name default-directory)))
 	 (sccs-file (and buffer-file-name (sccs-name buffer-file-name)))
 	 (known-p (and sccs-file (file-exists-p sccs-file)))
+	 (checked-out-p (and known-p
+			     (file-exists-p (sccs-name buffer-file-name "p"))))
 	 command
 	 item)
     (while rest
@@ -857,28 +877,29 @@ Global user options:
       (if (not (vectorp item))
 	  nil
 	(setq command (aref item 1))
-	(cond ((eq 'sccs command)
-	       (aset item 0
-		     (cond ((or (null sccs-file) (not known-p))
-			    "SCCS Create")
-			   ((not (file-exists-p
-				  (sccs-name buffer-file-name "p")))
-			    "SCCS Edit")
-			   (t
-			    "SCCS Delta"))))
-	      ((and (> (length item) 3)
-		    (string-match "directory" (aref item 0)))
-	       (aset item 3 dir))
-	      ((> (length item) 3)
-	       (aset item 3 file))
-	      (t nil))
+	(if (eq 'sccs command)
+	    (aset item 0
+		  (cond ((or (null sccs-file) (not known-p))
+			 "Create Archive:")
+			((not checked-out-p)
+			 "Check Out")
+			(t
+			 "Check In"))))
+	(cond
+	 ((and (> (length item) 3)
+	       (string-match "directory" (aref item 0)))
+	  (aset item 3 dir))
+	 ((> (length item) 3)
+	  (aset item 3 file))
+	 (t nil))
 	(aset item 2
-	      (if (memq command '(sccs sccs-insert-headers sccs-release-diff
-				  sccs-version-diff sccs-pending
-				  sccs-registered sccs-delta-release))
-		  t
-		known-p)))
-      (setq rest (cdr rest))))
+	      (cond
+	       ((memq command '(sccs-prs))
+		known-p)
+	       ((memq command '(sccs-revert-diff sccs-revert-buffer))
+		checked-out-p)
+	       (t))))
+	(setq rest (cdr rest))))
   nil)
 
 (add-hook 'activate-menubar-hook 'sccs-sensitize-menu)

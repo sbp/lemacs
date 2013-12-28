@@ -21,6 +21,12 @@
 (load "energize/energize-advice")
 (load "energize/energize-font-lock")
 
+(autoload 'energize-annotate-print-ps "energize-annoprint" t)
+(autoload 'energize-set-font-family "energize-font-size" t)
+(autoload 'energize-set-font-size "energize-font-size" t)
+(autoload 'energize-set-font-boldness "energize-font-size" t)
+(autoload 'blink-paren-init "blink-paren" t)
+
 (if (fboundp (intern-soft "initialize-backtrace-logging-internal"))
     (load "energize/backtrace-logging"))
 

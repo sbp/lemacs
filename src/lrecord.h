@@ -1,5 +1,5 @@
 /* The "lrecord" structure (header of a compound lisp object.)
-   Copyright (C) 1993 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -28,7 +28,7 @@ struct lrecord_header
      *  and "wasting" 32 bits on the below pointer.
      *  The type-id would then be a 7 or 15
      *  bit index into a table of lrecord-implementations rather than a
-     *  direct pointer.)  There would be 8 (or 16) bits left over for
+     *  direct pointer.)  There would be 24 (or 16) bits left over for
      *  datatype-specific per-instance flags
      * The below is the simplest thing to do for the present,
      *  and doesn't incur that much overhead as most Emacs records
@@ -45,6 +45,7 @@ struct lrecord_header
      */
     CONST struct lrecord_implementation *implementation;
   };
+#define set_lheader_implementation(header,imp) (header)->implementation=(imp)
 
 struct lcrecord_header
   {
@@ -59,10 +60,6 @@ struct lcrecord_header
      *  events by sweeping through the elements of the list of chunks)
      */
     struct lcrecord_header *next;
-    /* This is just for debugging/printing convenience.
-       Having this slot doesn't hurt us much spacewise, since an lcrecord
-       already has the above slots together with malloc overhead. */
-    int uid;
   };
 
 /* This as the value of lheader->implementation->finaliser 
@@ -71,16 +68,38 @@ extern void this_marks_a_marked_record (void *, int);
 
 struct lrecord_implementation
   {
+    CONST char *name;
     Lisp_Object (*marker) (Lisp_Object, void (*mark_object) (Lisp_Object));
     void (*printer) (Lisp_Object, Lisp_Object printcharfun, int escapeflag);
     void (*finaliser) (void *header, int for_disksave);
-    int (*size_in_bytes) (void *header);
     int (*equal) (Lisp_Object obj1, Lisp_Object obj2, int depth);
+
+    /* Only one of these is non-0.  If both are 0, it means that this type
+       is not instantiable by alloc_lcrecord(). */
+    unsigned int static_size;
+    unsigned int (*size_in_bytes_method) (CONST void *header);
+    /* A unique subtag-code (dynamically) assigned to this datatype. */
+    /* (This is a pointer so the rest of this structure can be read-only.) */
+    int *lrecord_type_index;
   };
-#define DEFINE_LRECORD_IMPLEMENTATION(name,marker,printer,nuker,sizer,equal) \
- CONST struct lrecord_implementation name[2] = \
-   { { (marker), (printer), (nuker), (sizer), (equal) }, \
-     { 0, 0, this_marks_a_marked_record, 0, 0 } }
+
+/* DEFINE_LRECORD_IMPLEMENTATION is for objects with constant size.
+   DEFINE_LRECORD_SEQUENCE_IMPLEMENTATION is for objects whose size varies.
+ */
+
+#define DEFINE_LRECORD_IMPLEMENTATION(name,c_name,marker,printer,nuker,equal,size) \
+ static int c_name##_lrecord_type_index; \
+ CONST struct lrecord_implementation c_name[2] = \
+   { { (name), (marker), (printer), (nuker), (equal), (size), 0, \
+       &(c_name##_lrecord_type_index) }, \
+     { 0, 0, 0, this_marks_a_marked_record, 0, 0, 0, 0 } }
+
+#define DEFINE_LRECORD_SEQUENCE_IMPLEMENTATION(name,c_name,marker,printer,nuker,equal,sizer) \
+ static int c_name##_lrecord_type_index; \
+ CONST struct lrecord_implementation c_name[2] = \
+   { { (name), (marker), (printer), (nuker), (equal), 0, (sizer), \
+       &(c_name##_lrecord_type_index) }, \
+     { 0, 0, 0, this_marks_a_marked_record, 0, 0, 0 } }
 
 #define XRECORD(a) ((void *) XPNTR(a))
 #define LRECORDP(a) (XTYPE((a)) == Lisp_Record)
@@ -96,7 +115,6 @@ struct lrecord_implementation
 #define XSETR(var, type, ptr) XSET(var, Lisp_Record, ptr)
 
 extern void *alloc_lcrecord (int size, CONST struct lrecord_implementation *);
-extern void free_lcrecord (struct lcrecord_header *);
 
 extern int gc_record_type_p (Lisp_Object frob,
 			     CONST struct lrecord_implementation *type);

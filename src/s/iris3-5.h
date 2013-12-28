@@ -1,5 +1,5 @@
 /* Definitions file for GNU Emacs running on Silicon Graphics 3.5
-   Copyright (C) 1987, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1987 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -143,7 +143,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define sigsetmask(mask)	/* Null expansion */
 
 /* The IRIS defines SIGIO in signal.h, but doesn't implement it. */
-/* #undef SIGIO		use BROKEN_SIGIO instead of this kludge -- jwz */
 #define BROKEN_SIGIO
 
 #define LIBS_MACHINE -lbsd -ldbm -lPW
@@ -155,7 +154,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define _setjmp setjmp
 #define _longjmp longjmp
 
-/* On USG systems the system calls are interruptable by signals
+/* On USG systems the system calls are interruptible by signals
  that the user program has elected to catch.  Thus the system call
  must be retried in these cases.  To handle this without massive
  changes in the source code, we remap the standard system call names

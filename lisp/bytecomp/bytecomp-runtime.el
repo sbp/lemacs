@@ -2,7 +2,7 @@
 
 ;; Runtime support for the new optimizing byte compiler.  
 ;; By Jamie Zawinski <jwz@lucid.com>.
-;; Last Modified: 23-dec-93.
+;; Last Modified: 17-mar-94.
 ;;
 ;; The code in this file should always be loaded, because it defines things 
 ;; like "defsubst" which should work interpreted as well.  The code in 
@@ -75,29 +75,32 @@
 
 (defmacro proclaim-inline (&rest fns)
   "Cause the named functions to be open-coded when called from compiled code.
-They will only be compiled open-coded when byte-compile-optimize is true."
+They will only be compiled open-coded when byte-optimize is true."
   (cons 'eval-and-compile
-	(mapcar '(lambda (x)
-		   (or (memq (get x 'byte-optimizer)
-			     '(nil byte-compile-inline-expand))
-		       (error
-			"%s already has a byte-optimizer, can't make it inline"
-			x))
-		   (list 'put (list 'quote x)
-			 ''byte-optimizer ''byte-compile-inline-expand))
-		fns)))
+	(apply
+	 'nconc
+	 (mapcar
+	  '(lambda (x)
+	     (` ((or (memq (get '(, x) 'byte-optimizer)
+			   '(nil byte-compile-inline-expand))
+		     (error
+		      "%s already has a byte-optimizer, can't make it inline"
+		      '(, x)))
+		 (put '(, x) 'byte-optimizer 'byte-compile-inline-expand))))
+	  fns))))
 
 
 (defmacro proclaim-notinline (&rest fns)
   "Cause the named functions to no longer be open-coded."
   (cons 'eval-and-compile
-	(mapcar '(lambda (x)
-		   (if (eq (get x 'byte-optimizer) 'byte-compile-inline-expand)
-		       (put x 'byte-optimizer nil))
-		   (list 'if (list 'eq (list 'get (list 'quote x) ''byte-optimizer)
-				   ''byte-compile-inline-expand)
-			 (list 'put x ''byte-optimizer nil)))
-		fns)))
+	(apply
+	 'nconc
+	 (mapcar
+	  '(lambda (x)
+	     (` ((if (eq (get '(, x) 'byte-optimizer)
+			 'byte-compile-inline-expand)
+		     (put '(, x) 'byte-optimizer nil)))))
+	  fns))))
 
 ;; This has a special byte-hunk-handler in bytecomp.el.
 (defmacro defsubst (name arglist &rest body)
@@ -175,7 +178,7 @@ Each argument to this macro must be a list of a key and a value.
   Keys:		  Values:		Corresponding variable:
 
   verbose	  t, nil		byte-compile-verbose
-  optimize	  t, nil, source, byte	byte-compile-optimize
+  optimize	  t, nil, source, byte	byte-optimize
   warnings	  list of warnings	byte-compile-warnings
   file-format	  emacs18, emacs19	byte-compile-emacs18-compatibility
   new-bytecodes	  t, nil		byte-compile-generate-emacs19-bytecodes

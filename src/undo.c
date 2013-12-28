@@ -24,6 +24,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "buffer.h"
 #include "extents.h"
 
+#define last_point_position PT /* >>> RMSmacs NYI */
+#define last_point_position_buffer (Fcurrent_buffer ()) /* >>> RMSmacs NYI */
+
+
 /* Extent code needs to know about undo because the behavior of insert()
    with regard to extents varies depending on whether we are inside
    and undo or not. */
@@ -34,21 +38,66 @@ static Lisp_Object last_undo_buffer;
 
 Lisp_Object Qinhibit_read_only;
 
-
-/* Record that an unmodified buffer is about to be changed.
-   Record the file modification date so that when undoing this entry
-   we can tell whether it is obsolete because the file was saved again.  */
+/* The first time a command records something for undo.
+   it also allocates the undo-boundary object
+   which will be added to the list at the end of the command.
+   This ensures we can't run out of space while trying to make
+   an undo-boundary.  */
+Lisp_Object pending_boundary;
 
 static void
-record_first_change ()
+undo_boundary (struct buffer *b)
 {
-  Lisp_Object high, low;
-  high = make_number ((current_buffer->modtime >> 16) & 0xffff);
-  low = make_number (current_buffer->modtime & 0xffff);
-  current_buffer->undo_list = Fcons (Fcons (Qt, Fcons (high, low)),
-                                     current_buffer->undo_list);
+  Lisp_Object tem = Fcar (b->undo_list);
+  if (!NILP (tem))
+    {
+      /* One way or another, cons nil onto the front of the undo list.  */
+      if (CONSP (pending_boundary))
+	{
+	  /* If we have preallocated the cons cell to use here,
+	     use that one.  */
+	  XCONS (pending_boundary)->cdr = b->undo_list;
+	  b->undo_list = pending_boundary;
+	  pending_boundary = Qnil;
+	}
+      else
+	b->undo_list = Fcons (Qnil, b->undo_list);
+    }
 }
 
+
+static int
+undo_prelude (struct buffer *b, int hack_pending_boundary)
+{
+  if (EQ (b->undo_list, Qt))
+    return (0);
+
+  if (b != XBUFFER (last_undo_buffer))
+  {
+    undo_boundary (b);
+    XSETR (last_undo_buffer, Lisp_Buffer, b);
+  }
+  
+  /* Allocate a cons cell to be the undo boundary after this command.  */
+  if (hack_pending_boundary && NILP (pending_boundary))
+    pending_boundary = Fcons (Qnil, Qnil);
+
+  if (BUF_MODIFF (b) <= b->save_modified)
+  {
+    /* Record that an unmodified buffer is about to be changed.
+       Record the file modification date so that when undoing this entry
+       we can tell whether it is obsolete because the file was saved again.  */
+    b->undo_list
+      = Fcons (Fcons (Qt,
+                      Fcons (make_number ((b->modtime >> 16) & 0xffff),
+                             make_number (b->modtime & 0xffff))),
+               b->undo_list);
+  }
+  return (1);
+}
+
+
+
 static Lisp_Object
 restore_inside_undo (Lisp_Object val)
 {
@@ -66,28 +115,16 @@ void
 record_insert (beg, length)
      int beg, length;
 {
-  int noundo = EQ (current_buffer->undo_list, Qt);
-
-  if (current_buffer == XBUFFER (last_undo_buffer))
-    {
-      if (noundo) return;
-    }
-  else
-    {
-      last_undo_buffer = Fcurrent_buffer ();
-      if (noundo) return;
-      Fundo_boundary ();
-    }
-
-  if (MODIFF <= current_buffer->save_modified)
-    record_first_change ();
+  struct buffer *b = current_buffer;
+  if (!undo_prelude (b, 1))
+    return;
 
   /* If this is following another insertion and consecutive with it
      in the buffer, combine the two.  */
-  if (CONSP (current_buffer->undo_list))
+  if (CONSP (b->undo_list))
     {
       Lisp_Object elt;
-      elt = XCONS (current_buffer->undo_list)->car;
+      elt = XCONS (b->undo_list)->car;
       if (CONSP (elt)
 	  && FIXNUMP (XCONS (elt)->car)
 	  && FIXNUMP (XCONS (elt)->cdr)
@@ -98,9 +135,9 @@ record_insert (beg, length)
 	}
     }
 
-  current_buffer->undo_list = Fcons (Fcons (make_number (beg), 
-                                            make_number (beg + length)),
-                                     current_buffer->undo_list);
+  b->undo_list = Fcons (Fcons (make_number (beg), 
+                               make_number (beg + length)),
+                        b->undo_list);
 }
 
 /* Record that a deletion is about to take place,
@@ -110,100 +147,30 @@ void
 record_delete (int beg, int length)
 {
   Lisp_Object sbeg;
-  int noundo = EQ (current_buffer->undo_list, Qt);
+  struct buffer *b = current_buffer;
+  int at_boundary;
 
-  if (current_buffer == XBUFFER (last_undo_buffer))
-    {
-      if (noundo) return;
-    }
-  else
-    {
-      last_undo_buffer = Fcurrent_buffer ();
-      if (noundo) return;
-      Fundo_boundary ();
-    }
+  if (!undo_prelude (b, 1))
+    return;
 
-  if (MODIFF <= current_buffer->save_modified)
-    record_first_change ();
+  at_boundary = (CONSP (current_buffer->undo_list)
+		 && NILP (XCONS (current_buffer->undo_list)->car));
 
-  if (PT == beg + length)
+  if (BUF_PT (b) == beg + length)
     sbeg = make_number (-beg);
   else
     sbeg = make_number (beg);
 
-  {
-/*
- * record_delete is called from many places other than undo so why this was
- * being marked as being inside_undo is beyond me.  It had the effect of
- * overriding the duplicable flag on extents making all extents appear
- * to be duplicable.
- */
-/*
- *  int speccount = specpdl_depth ();
- *  record_unwind_protect (restore_inside_undo, make_number (inside_undo));
- *  inside_undo = 1;
- */
-    /* If point isn't at start of deleted range, record where it is.  */
-    if (PT != XFASTINT (sbeg))
-      current_buffer->undo_list
-        = Fcons (make_number (PT), current_buffer->undo_list);
+  /* If we are just after an undo boundary, and 
+     point wasn't at start of deleted range, record where it was.  */
+  if (at_boundary
+      && last_point_position != XFASTINT (sbeg)
+      && current_buffer == XBUFFER (last_point_position_buffer))
+    b->undo_list = Fcons (make_number (last_point_position), b->undo_list);
 
-    current_buffer->undo_list
-      = Fcons (Fcons (make_string_from_buffer (current_buffer, beg, length),
-		      sbeg),
-               current_buffer->undo_list);
-
-/*  unbind_to (speccount, Qnil); */
-  }
-}
-
-/* Record that an EXTENT is about to be attached or detached in its buffer.
-   This works much like a deletion or insertion, except that there's no string.
-   The tricky part is that the buffer we operate on comes from EXTENT.
-   Most extent changes happen as a side effect of string insertion and
-   deletion; this call is solely for Fdetach_extent() and Finsert_extent().
-   */
-
-void
-record_extent (Lisp_Object extent, int attached)
-{
-  Lisp_Object buffer = Fextent_buffer (extent);
-  Lisp_Object token;
-
-  if (XBUFFER (buffer) != current_buffer)
-    {
-      /* Temporarily switch buffers. */
-      Lisp_Object current = Fcurrent_buffer ();
-      Fset_buffer (buffer);
-      record_extent (extent, attached);
-      Fset_buffer (current);
-      return;
-    }
-
-  if (current_buffer != XBUFFER (last_undo_buffer))
-    Fundo_boundary ();
-  XSETR (last_undo_buffer, Lisp_Buffer, current_buffer);
-
-  if (EQ (current_buffer->undo_list, Qt))
-    return;
-
-#if 0 /* ?? */
-  if (MODIFF <= current_buffer->save_modified)
-    record_first_change ();
-#endif
-
-  if (attached)
-    token = extent;
-  else
-    {
-      Lisp_Object xbeg, xend;
-      xbeg = Fextent_start_position (extent);
-      xend = Fextent_end_position (extent);
-      XSETEXTENT (token,
-		  make_extent_replica (extent, XINT (xbeg), XINT (xend)));
-    }
-
-  current_buffer->undo_list = Fcons (token, current_buffer->undo_list);
+  b->undo_list = Fcons (Fcons (make_string_from_buffer (b, beg, length),
+                               sbeg),
+                        b->undo_list);
 }
 
 /* Record that a replacement is about to take place,
@@ -217,40 +184,52 @@ record_change (int beg, int length)
   record_insert (beg, length);
 }
 
+/* Record that an EXTENT is about to be attached or detached in its buffer.
+   This works much like a deletion or insertion, except that there's no string.
+   The tricky part is that the buffer we operate on comes from EXTENT.
+   Most extent changes happen as a side effect of string insertion and
+   deletion; this call is solely for Fdetach_extent() and Finsert_extent().
+   */
+void
+record_extent (Lisp_Object extent, int attached)
+{
+  Lisp_Object buffer = Fextent_buffer (extent);
+  struct buffer *b = XBUFFER (buffer);
+  Lisp_Object token;
+
+  if (!undo_prelude (b, 1))
+    return;
+
+  if (attached)
+    token = extent;
+  else
+    {
+      Lisp_Object xbeg = Fextent_start_position (extent);
+      Lisp_Object xend = Fextent_end_position (extent);
+      XSETEXTENT (token,
+                  make_extent_replica (extent, XINT (xbeg), XINT (xend)));
+    }
+  b->undo_list = Fcons (token, b->undo_list);
+}
+
 #if 0 /* RMSmacs */
 /* Record a change in property PROP (whose old value was VAL)
    for LENGTH characters starting at position BEG in BUFFER.  */
 
-record_property_change (beg, length, prop, value, buffer)
-     int beg, length;
-     Lisp_Object prop, value, buffer;
+record_property_change (int beg, int length,
+                        Lisp_Object prop, Lisp_Object value,
+                        Lisp_Object buffer)
 {
   Lisp_Object lbeg, lend, entry;
-  struct buffer *obuf = current_buffer;
-  int boundary = 0;
+  struct buffer *b = XBUFFER (buffer);
 
-  if (EQ (current_buffer->undo_list, Qt))
+  if (!undo_prelude (b, 1))
     return;
 
-  if (!EQ (buffer, last_undo_buffer))
-    boundary = 1;
-  last_undo_buffer = buffer;
-
-  /* Switch temporarily to the buffer that was changed.  */
-  current_buffer = XBUFFER (buffer);
-
-  if (boundary)
-    Fundo_boundary ();
-
-  if (MODIFF <= current_buffer->save_modified)
-    record_first_change ();
-
-  XSET (lbeg, Lisp_Int, beg);
-  XSET (lend, Lisp_Int, beg + length);
+  lbeg = make_number (beg);
+  lend = make_number (beg + length);
   entry = Fcons (Qnil, Fcons (prop, Fcons (value, Fcons (lbeg, lend))));
-  current_buffer->undo_list = Fcons (entry, current_buffer->undo_list);
-
-  current_buffer = obuf;
+  b->undo_list = Fcons (entry, b->undo_list);
 }
 #endif /* RMSmacs */
 
@@ -261,12 +240,9 @@ An undo command will stop at this point,\n\
 but another undo command will undo to the previous boundary.")
   ()
 {
-  Lisp_Object tem;
   if (EQ (current_buffer->undo_list, Qt))
     return Qnil;
-  tem = Fcar (current_buffer->undo_list);
-  if (!NILP (tem))
-    current_buffer->undo_list = Fcons (Qnil, current_buffer->undo_list);
+  undo_boundary (current_buffer);
   return Qnil;
 }
 
@@ -547,6 +523,9 @@ syms_of_undo ()
 {
   inside_undo = 0;
   defsymbol (&Qinhibit_read_only, "inhibit-read-only");
+  pending_boundary = Qnil;
+  staticpro (&pending_boundary);
+
   defsubr (&Sprimitive_undo);
   defsubr (&Sundo_boundary);
 }

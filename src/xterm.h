@@ -43,24 +43,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define MAX_LINE_WIDTH(s) (PIXEL_WIDTH (s) \
 			    - (2 * (s)->display.x->internal_border_width))
 
-extern GLYPH truncator_glyph, continuer_glyph, lucid_glyph;
+extern GLYPH truncator_glyph, continuer_glyph;
 extern Lisp_Object glyph_to_pixmap (GLYPH g);
 extern unsigned short glyph_width (GLYPH g, Lisp_Object font);
-extern Lisp_Object Vlucid_logo;
+extern unsigned short glyph_height (GLYPH g, Lisp_Object font);
 
 #define EOL_CURSOR_WIDTH 4
 
 #define XFlushQueue() {BLOCK_INPUT; XFlush(x_current_display); UNBLOCK_INPUT;}
-
-extern XCharStruct *x_char_info ();
-
-#ifdef I18N4
-#define X_CHAR_WIDTH(fontset,ch) x_char_width (fontset, ch)
-#else
-#define X_CHAR_WIDTH(font,ch) ((font)->per_char 		    \
-			       ? x_char_info ((font), (ch))->width  \
-			       : ((ch), (font)->min_bounds.width))
-#endif
 
 #ifdef I18N4
 #define FONT_WIDTH(f)	(int) (XExtentsOfFontSet (f)->max_logical_extent.width)
@@ -96,15 +86,20 @@ extern Lisp_Object Vx_scrollbar_pointer_shape;
 #define PIXEL_WIDTH(s) ((s)->display.x->pixel_width)
 #define PIXEL_HEIGHT(s) ((s)->display.x->pixel_height)
 
+/* The maximum number of widgets that can be displayed above the text
+   area at one time.  Currently no more than 3 will ever actually be
+   displayed (menubar, psheet, debugger panel). */
+#define MAX_CONCURRENT_TOP_WIDGETS 8
+
 /* Each X screen object points to its own struct x_display object
    in the display.x field.  The x_display structure contains all
    the information that is specific to X windows.  */
 
 struct x_display
 {
-  /* Position of the X window (x and y offsets in root window).  */
-  int left_pos;
-  int top_pos;
+  /******************** Info about the X window **********************/
+
+  /* This info is copied from the EmacsScreen, for easy reference */
 
   /* Size of the X window in pixels, including internal border. */
   int pixel_height, pixel_width;
@@ -113,21 +108,15 @@ struct x_display
      just inside the window's border. */
   int internal_border_width;
 
-  int text_height;
+  /***************************** Xt fields ***************************/
 
-
-  /* The widget of this screen; this is generally a TopLevelShell. */
+  /* The widget of this screen.  This is an EmacsShell or an
+     ExternalShell. */
   Widget widget;
 
   /* The parent of the EmacsScreen, the menubar, and the scrollbar area.
-     In Motif, this is an XmMainWindow.  In Athena, this is a Paned. */
+     This is an EmacsManager. */
   Widget container;
-
-#ifndef LWLIB_USES_MOTIF
-  /* In Athena, this is a Paned holding the text area and scrollbars.
-     It's a child of `container' and a sibling of the menubar. */
-  Widget container2;
-#endif
 
   /* The widget of the menubar, of whatever widget class it happens to be. */
   Widget menubar_widget;
@@ -136,9 +125,12 @@ struct x_display
      and the window of this widget is what the redisplay code draws on. */
   Widget edit_widget;
 
-  /* The parent of the scrollbars (a child of the `container'.)
-     This is used as the "vertical scroll area" of an XmMainWindow. */
+  /* The parent of the scrollbars (a child of the `container'). */
   Widget scrollbar_manager;
+
+  /* Lists the widgets above the text area, in the proper order.
+     Used by the EmacsManager. */
+  Widget top_widgets[MAX_CONCURRENT_TOP_WIDGETS];
 
 #ifdef ENERGIZE
   /* The Energize property-sheets.  The current_ slots are the ones which are
@@ -151,12 +143,9 @@ struct x_display
   int desired_psheet_count;
   Lisp_Object current_psheet_buffer;
   Lisp_Object desired_psheet_buffer;
-
-  /* The parent in which the psheets live; this is used as the value of
-     the "command area" of the XmMainWindow. */
-  Widget psheet_manager;
 #endif
 
+  /*************************** Miscellaneous **************************/
 
   /* The icon pixmaps; these are Lisp_Pixmap objects, or Qnil. */
   Lisp_Object icon_pixmap;
@@ -179,23 +168,23 @@ struct x_display
   
   /* 1 if the screen is completely visible on the display, 0 otherwise.
      if 0 the screen may have been iconified or may be totally
-     or parrtially hidden by another X window */
+     or partially hidden by another X window */
   char totally_visible_p;
 
+  /* NB: Both of the following flags are derivable from the 'shell'
+     field above, but it's easier if we also have them separately here. */
+
+  /* Are we a top-level screen?  This means that our shell is a
+     TopLevelShell, and we should do certain things to interact with
+     the window manager. */
+  char top_level_screen_p;
+
 #ifdef EXTERNAL_WIDGET
-  /* are we an EmacsShell?  This means we are using somebody else's window
-     for our shell window. */
-  char emacs_shell_p;
-
-  /* due to stupidities in Emacs and Motif, we need to do some EmacsShell
-     initializations very late in the game (inside of the main command
-     loop), so we keep track of whether this has been done.
-
-     (I have my doubts about this. -jwz)
-  */
-  char emacs_shell_inited_p;
+  /* Are we using somebody else's window for our shell window?  This
+     means that our shell is an ExternalShell.  If this flag is set, then
+     `top_level_screen_p' will never be set. */
+  char external_window_p;
 #endif /* EXTERNAL_WIDGET */
-
 };
 
 /* Number of pixels below each line. */
@@ -220,6 +209,8 @@ extern void x_report_screen_params (struct screen *s, Lisp_Object *alistptr);
 extern void x_set_screen_values (struct screen *s, Lisp_Object alist);
 extern void x_set_window_size (struct screen *s, int cols, int rows);
 extern void x_set_offset (struct screen *s, int xoff, int yoff);
+extern void x_set_scrollbar_width (struct screen *s, int width);
+extern int x_scrollbar_width (struct screen *s);
 extern void x_raise_screen (struct screen *s, int force);
 extern void x_lower_screen (struct screen *s);
 extern void x_format_screen_title (struct screen *s);
@@ -267,10 +258,20 @@ extern Lisp_Object modeline_part_sym; /* 'modeline-part */
 
 extern Lisp_Object x_term_init (Lisp_Object);
 extern void Xatoms_of_xselect (void);
+extern void Xatoms_of_xobjs (void);
 
 extern void init_bitmap_tables_1 (void); /* xterm.c */
 extern Lisp_Object WM_COMMAND_screen; /* in xfns.c */
 
+extern void unmap_unmarked_subwindows_of_screen (struct screen *);
+extern void mark_subwindow_display_status (struct screen *, int);
+
+extern void x_wm_mark_shell_size_user_specified (Widget wmshell);
+extern void x_wm_mark_shell_position_user_specified (Widget wmshell);
+extern void x_wm_set_shell_iconic_p (Widget shell, int iconic_p);
+extern void x_wm_set_cell_size (Widget wmshell, int cw, int ch);
+extern void x_wm_set_variable_size (Widget wmshell, int width, int height);
+extern void x_wm_maybe_move_wm_command (struct screen *s);
 
 #ifdef DUBIOUS_X_ERROR_HANDLING
 

@@ -1,4 +1,4 @@
-/* Lisp functions for making directory listings.
+ /* Lisp functions for making directory listings.
    Copyright (C) 1985, 1986, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -47,19 +47,31 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <dirent.h>
 #define DIRENTRY struct dirent
 
-#else
+#else /* not SYSV_SYSTEM_DIR */
 
 #ifdef NONSYSTEM_DIR_LIBRARY
 #include "ndir.h"
 #else /* not NONSYSTEM_DIR_LIBRARY */
+#ifdef MSDOS
+#include <dirent.h>
+#else
 #include <sys/dir.h>
+#endif
 #endif /* not NONSYSTEM_DIR_LIBRARY */
 
+#ifndef MSDOS
 #define DIRENTRY struct direct
 
 extern DIR *opendir ();
 extern struct direct *readdir ();
 
+#endif /* not MSDOS */
+#endif /* not SYSV_SYSTEM_DIR */
+
+#ifdef MSDOS
+#define DIRENTRY_NONEMPTY(p) ((p)->d_name[0] != 0)
+#else
+#define DIRENTRY_NONEMPTY(p) ((p)->d_ino)
 #endif
 
 #include "lisp.h"
@@ -118,7 +130,7 @@ If FILES-ONLY is the symbol t, then only the \"files\" in the directory\n\
 
   /* If the file name has special constructs in it,
      call the corresponding file handler.  */
-  handler = Ffind_file_name_handler (dirname);
+  handler = Ffind_file_name_handler (dirname, Qdirectory_files);
   if (!NILP (handler))
   {
     UNGCPRO;
@@ -193,7 +205,7 @@ If FILES-ONLY is the symbol t, then only the \"files\" in the directory\n\
 
       if (!dp) break;
       len = NAMLEN (dp);
-      if (dp->d_ino)
+      if (DIRENTRY_NONEMPTY (dp))
 	{
 	  strncpy (filename, dp->d_name, len);
 	  filename[len] = 0;
@@ -274,7 +286,7 @@ to the names of directories.")
 
   /* If the file name has special constructs in it,
      call the corresponding file handler.  */
-  handler = Ffind_file_name_handler (dirname);
+  handler = Ffind_file_name_handler (dirname, Qfile_name_completion);
   if (!NILP (handler))
     return call3 (handler, Qfile_name_completion, file, dirname);
 
@@ -297,7 +309,7 @@ to the names of directories.")
 
   /* If the file name has special constructs in it,
      call the corresponding file handler.  */
-  handler = Ffind_file_name_handler (dirname);
+  handler = Ffind_file_name_handler (dirname, Qfile_name_all_completions);
   if (!NILP (handler))
     return call3 (handler, Qfile_name_all_completions, file, dirname);
 
@@ -312,6 +324,7 @@ file_name_completion_stat (dirname, dp, st_addr)
 {
   int len = NAMLEN (dp);
   int pos = XSTRING (dirname)->size;
+  int value;
   char *fullname = (char *) alloca (len + pos + 2);
 
   memcpy (fullname, XSTRING (dirname)->data, pos);
@@ -323,12 +336,21 @@ file_name_completion_stat (dirname, dp, st_addr)
   memcpy (fullname + pos, dp->d_name, len);
   fullname[pos + len] = 0;
 
-  return stat (fullname, st_addr);
+#ifdef S_IFLNK
+  /* We want to return success if a link points to a nonexistent file,
+     but we want to return the status for what the link points to,
+     in case it is a directory.  */
+  value = lstat (fullname, st_addr);
+  stat (fullname, st_addr);
+#else
+  value = stat (fullname, st_addr);
+#endif
+  return (value);
 }
 
 
 #ifdef VMS
-extern DIRENTRY * readdirver ();
+extern DIRENTRY * readdirver (DIR *);
 #endif
 
 static Lisp_Object
@@ -343,7 +365,8 @@ file_name_completion (file, dirname, all_flag, ver_flag)
   struct stat st;
   int passcount;
   int speccount = specpdl_depth ();
-  DIRENTRY *((*readfunc) ()) = readdir;
+  int file_name_length;
+  DIRENTRY *((*readfunc) (DIR *)) = readdir;
   struct gcpro gcpro1, gcpro2, gcpro3;
 
   GCPRO3 (file, dirname, bestmatch);
@@ -356,11 +379,14 @@ file_name_completion (file, dirname, all_flag, ver_flag)
 
   if (ver_flag)
     readfunc = readdirver;
-  file = Fupcase (file);
 #endif /* VMS */
 
+#ifdef FILE_SYSTEM_CASE
+  file = FILE_SYSTEM_CASE (file);
+#endif
   dirname = Fexpand_file_name (dirname, Qnil);
   bestmatch = Qnil;
+  file_name_length = string_length (XSTRING (file));
 
   /* With passcount = 0, ignore files that end in an ignored extension.
      If nothing found then try again with passcount = 1, don't ignore them.
@@ -392,11 +418,11 @@ file_name_completion (file, dirname, all_flag, ver_flag)
 
 	  if (!NILP (Vquit_flag) && NILP (Vinhibit_quit))
 	    goto quit;
-	  if (!dp->d_ino
-	      || len < XSTRING (file)->size
+	  if (! DIRENTRY_NONEMPTY (dp)
+	      || len < file_name_length
 	      || 0 <= scmp ((unsigned char *) dp->d_name,
 			    XSTRING (file)->data,
-			    XSTRING (file)->size))
+			    file_name_length))
 	    continue;
 
           if (file_name_completion_stat (dirname, dp, &st) < 0)
@@ -407,18 +433,19 @@ file_name_completion (file, dirname, all_flag, ver_flag)
             {
 	      /* Compare extensions-to-be-ignored against end of this file name */
 	      /* if name is not an exact match against specified string */
-	      if (!passcount && len > XSTRING (file)->size)
+	      if (!passcount && len > file_name_length)
 		{
 		  Lisp_Object tem;
 		  /* and exit this for loop if a match is found */
 		  for (tem = Vcompletion_ignored_extensions;
-		       CONSP (tem); tem = XCONS (tem)->cdr)
+		       CONSP (tem);
+                       tem = XCONS (tem)->cdr)
 		    {
 		      Lisp_Object elt = XCONS (tem)->car;
 		      int skip;
 
 		      if (!STRINGP (elt)) continue;
-		      skip = len - XSTRING (elt)->size;
+		      skip = len - string_length (XSTRING (elt));
 		      if (skip < 0) continue;
 
 		      if (0 > scmp ((unsigned char *) dp->d_name + skip,
@@ -432,89 +459,89 @@ file_name_completion (file, dirname, all_flag, ver_flag)
 		}
 	    }
 
-	  /* Unless an ignored-extensions match was found,
-             process this name as a completion */
-	  if (passcount || !ignored_extension_p)
-	    {
-	      /* Update computation of how much all possible completions match */
+	  /* If an ignored-extensions match was found,
+	     don't process this name as a completion.  */
+	  if (!passcount && ignored_extension_p)
+	    continue;
 
-	      matchcount++;
+	  if (!passcount && regexp_ignore_completion_p (dp->d_name, len))
+            continue;
 
-	      if (all_flag || NILP (bestmatch))
-		{
-                  Lisp_Object name = Qnil;
-                  struct gcpro gcpro1;
-                  GCPRO1 (name);
-		  /* This is a possible completion */
-		  if (directoryp)
-		    {
-		      /* This completion is a directory; make it end with '/' */
-		      name = Ffile_name_as_directory (make_string (dp->d_name, len));
-		    }
-		  else
-		    name = make_string (dp->d_name, len);
-		  if (all_flag)
-		    {
-		      bestmatch = Fcons (name, bestmatch);
-		    }
-		  else
-		    {
-		      bestmatch = name;
-		      bestmatchsize = XSTRING (name)->size;
-		    }
-                  UNGCPRO;
-		}
-	      else
-		{
-		  int compare = min (bestmatchsize, len);
-		  unsigned char *p1 = XSTRING (bestmatch)->data;
-		  unsigned char *p2 = (unsigned char *) dp->d_name;
-		  int matchsize = scmp (p1, p2, compare);
+          /* Update computation of how much all possible completions match */
+          matchcount++;
 
-		  if (matchsize < 0)
-		    matchsize = compare;
-		  if (completion_ignore_case)
-		    {
-		      /* If this is an exact match except for case,
-			 use it as the best match rather than one that is not
-			 an exact match.  This way, we get the case pattern
-			 of the actual match.  */
-		      if ((matchsize == len
-			   && matchsize + !!directoryp 
-			      < XSTRING (bestmatch)->size)
-			  ||
-			  /* If there is no exact match ignoring case,
-			     prefer a match that does not change the case
-			     of the input.  */
-			  (((matchsize == len)
-			    ==
-			    (matchsize + !!directoryp 
-			     == string_length (XSTRING (bestmatch))))
-			   /* If there is more than one exact match aside from
-			      case, and one of them is exact including case,
-			      prefer that one.  */
-			   && !memcmp (p2, XSTRING (file)->data,
-				       string_length (XSTRING (file)))
-			   && memcmp (p1, XSTRING (file)->data,
-				      string_length (XSTRING (file)))))
-			{
-			  bestmatch = make_string (dp->d_name, len);
-			  if (directoryp)
-			    bestmatch = Ffile_name_as_directory (bestmatch);
-			}
-		    }
+          if (all_flag || NILP (bestmatch))
+            {
+              Lisp_Object name = Qnil;
+              struct gcpro gcpro1;
+              GCPRO1 (name);
+              /* This is a possible completion */
+              if (directoryp)
+                {
+                  /* This completion is a directory; make it end with '/' */
+                  name = Ffile_name_as_directory (make_string (dp->d_name, len));
+                }
+              else
+                name = make_string (dp->d_name, len);
+              if (all_flag)
+                {
+                  bestmatch = Fcons (name, bestmatch);
+                }
+              else
+                {
+                  bestmatch = name;
+                  bestmatchsize = XSTRING (name)->size;
+                }
+              UNGCPRO;
+            }
+          else
+            {
+              int compare = min (bestmatchsize, len);
+              unsigned char *p1 = XSTRING (bestmatch)->data;
+              unsigned char *p2 = (unsigned char *) dp->d_name;
+              int matchsize = scmp (p1, p2, compare);
 
-		  /* If this dirname all matches,
-		     see if implicit following slash does too.  */
-		  if (directoryp
-		      && compare == matchsize
-		      && bestmatchsize > matchsize
-		      && p1[matchsize] == '/')
-		    matchsize++;
-		  bestmatchsize = matchsize;
-		}
-	    }
-	}
+              if (matchsize < 0)
+                matchsize = compare;
+              if (completion_ignore_case)
+                {
+                  /* If this is an exact match except for case,
+                     use it as the best match rather than one that is not
+                     an exact match.  This way, we get the case pattern
+                     of the actual match.  */
+                  if ((matchsize == len
+                       && matchsize + !!directoryp 
+                       < XSTRING (bestmatch)->size)
+                      ||
+                      /* If there is no exact match ignoring case,
+                         prefer a match that does not change the case
+                         of the input.  */
+                      (((matchsize == len)
+                        ==
+                        (matchsize + !!directoryp 
+                         == string_length (XSTRING (bestmatch))))
+                       /* If there is more than one exact match aside from
+                          case, and one of them is exact including case,
+                          prefer that one.  */
+                       && !memcmp (p2, XSTRING (file)->data, file_name_length)
+                       && memcmp (p1, XSTRING (file)->data, file_name_length)))
+                    {
+                      bestmatch = make_string (dp->d_name, len);
+                      if (directoryp)
+                        bestmatch = Ffile_name_as_directory (bestmatch);
+                    }
+                }
+
+              /* If this dirname all matches,
+                 see if implicit following slash does too.  */
+              if (directoryp
+                  && compare == matchsize
+                  && bestmatchsize > matchsize
+                  && p1[matchsize] == '/')
+                matchsize++;
+              bestmatchsize = matchsize;
+            }
+        }
       closedir (d);
     }
 
@@ -524,7 +551,7 @@ file_name_completion (file, dirname, all_flag, ver_flag)
 
   if (all_flag || NILP (bestmatch))
     return bestmatch;
-  if (matchcount == 1 && bestmatchsize == XSTRING (file)->size)
+  if (matchcount == 1 && bestmatchsize == file_name_length)
     return Qt;
   return Fsubstring (bestmatch, make_number (0), make_number (bestmatchsize));
  quit:
@@ -621,7 +648,7 @@ If file does not exist, returns nil.")
 
   /* If the file name has special constructs in it,
      call the corresponding file handler.  */
-  handler = Ffind_file_name_handler (filename);
+  handler = Ffind_file_name_handler (filename, Qfile_attributes);
   if (!NILP (handler))
     return call2 (handler, Qfile_attributes, filename);
 
@@ -633,6 +660,22 @@ If file does not exist, returns nil.")
 #ifdef BSD4_2
   dirname = Ffile_name_directory (filename);
 #endif
+
+#ifdef MSDOS
+  {
+    char *tmpnam = XSTRING (Ffile_name_nondirectory (filename))->data;
+    int l = strlen (tmpnam);
+
+    if (l >= 5 
+	&& S_ISREG (s.st_mode)
+	&& (stricmp (&tmpnam[l - 4], ".com") == 0
+	    || stricmp (&tmpnam[l - 4], ".exe") == 0
+	    || stricmp (&tmpnam[l - 4], ".bat") == 0))
+      {
+	s.st_mode |= S_IEXEC;
+      }
+  }
+#endif /* MSDOS */
 
   switch (s.st_mode & S_IFMT)
     {
@@ -654,7 +697,7 @@ If file does not exist, returns nil.")
   values[4] = wasteful_word_to_lisp (s.st_atime);
   values[5] = wasteful_word_to_lisp (s.st_mtime);
   values[6] = wasteful_word_to_lisp (s.st_ctime);
-  values[7] = make_number (s.st_size);
+  values[7] = make_number ((LISP_WORD_TYPE) s.st_size);
   /* If the size is out of range, give back -1.  */
   /* >>> Fix when Emacs gets bignums! */
   if (XINT (values[7]) != s.st_size)

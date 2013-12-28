@@ -1,8 +1,8 @@
 ;;; Abbrev-expansion of mail aliases.
-;;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
+;;; Copyright (C) 1985-1994 Free Software Foundation, Inc.
 ;;; Created: 19 oct 90, Jamie Zawinski <jwz@lucid.com>
 ;;; Modified: 5 apr 92, Roland McGrath <roland@gnu.ai.mit.edu>
-;;; Last change 30-dec-93. jwz
+;;; Last change  4-may-94. jwz
 
 ;;; This file is part of GNU Emacs.
 
@@ -372,8 +372,9 @@ line."
 
 ;;; Syntax tables and abbrev-expansion
 
-(defvar mail-abbrev-mode-regexp "^\\(Resent-\\)?\\(To\\|From\\|CC\\|BCC\\):"
-  "*Regexp to select mail-headers in which mail-aliases should be expanded.
+(defvar mail-abbrev-mode-regexp
+  "^\\(Resent-\\)?\\(To\\|From\\|CC\\|BCC\\|Reply-to\\):"
+  "*Regexp to select mail-headers in which mail aliases should be expanded.
 This string it will be handed to `looking-at' with the point at the beginning
 of the current line; if it matches, abbrev mode will be turned on, otherwise
 it will be turned off.  (You don't need to worry about continuation lines.)
@@ -567,7 +568,9 @@ characters which may be a part of the name of a mail-alias.")
   "Just like `next-line' (\\<global-map>\\[next-line]) but expands abbrevs \
 when at end of line."
   (interactive)
-  (if (looking-at "[ \t]*\n") (expand-abbrev))
+  (if (and (looking-at "[ \t]*\n")
+	   (= (char-syntax (preceding-char)) ?w))
+      (expand-abbrev))
   (setq this-command 'next-line)
   (call-interactively 'next-line))
 
@@ -575,14 +578,30 @@ when at end of line."
   "Just like `end-of-buffer' (\\<global-map>\\[end-of-buffer]) but expands \
 abbrevs when at end of line."
   (interactive)
-  (if (looking-at "[ \t]*\n") (expand-abbrev))
+  (if (and (looking-at "[ \t]*\n")
+	   (= (char-syntax (preceding-char)) ?w))
+      (expand-abbrev))
   (setq this-command 'end-of-buffer)
   (call-interactively 'end-of-buffer))
 
 (define-key mail-mode-map "\C-c\C-a" 'mail-interactive-insert-alias)
 
-(define-key mail-mode-map "\C-n" 'abbrev-hacking-next-line)
-(define-key mail-mode-map "\M->" 'abbrev-hacking-end-of-buffer)
+;(define-key mail-mode-map "\C-n" 'abbrev-hacking-next-line)
+;(define-key mail-mode-map "\M->" 'abbrev-hacking-end-of-buffer)
+(let ((subst '((next-line	   . abbrev-hacking-next-line)
+	       (fkey-next-line	   . abbrev-hacking-next-line)
+	       (end-of-buffer	   . abbrev-hacking-end-of-buffer)
+	       (fkey-end-of-buffer . abbrev-hacking-end-of-buffer)
+	       )))
+  (while subst
+    (let ((keys
+	   (delq nil
+		 (nconc (where-is-internal (car (car subst)) mail-mode-map)
+			(where-is-internal (car (car subst)))))))
+      (while keys
+	(define-key mail-mode-map (car keys) (cdr (car subst)))
+	(setq keys (cdr keys))))
+    (setq subst (cdr subst))))
 
 (provide 'mail-abbrevs)
 

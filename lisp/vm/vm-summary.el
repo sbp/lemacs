@@ -1,5 +1,5 @@
 ;;; Summary gathering and formatting routines for VM
-;;; Copyright (C) 1989, 1990 Kyle E. Jones
+;;; Copyright (C) 1989, 1990, 1993, 1994 Kyle E. Jones
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@ for a list of available commands."
 	mode-line-format vm-mode-line-format
 	buffer-read-only t
 	vm-summary-pointer nil
+	vm-summary-=> (if (stringp vm-summary-arrow) vm-summary-arrow "")
+	vm-summary-no-=> (make-string (length vm-summary-=>) ? )
 	truncate-lines t)
   (use-local-map vm-summary-mode-map)
   (run-hooks 'vm-summary-mode-hook)
@@ -40,75 +42,92 @@ mandatory."
   (interactive "p")
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
-;  (vm-error-if-folder-empty)
   (if (null vm-summary-buffer)
-      (let ((b (current-buffer)))
+      (let ((b (current-buffer))
+	    (read-only vm-folder-read-only))
 	(setq vm-summary-buffer
 	      (get-buffer-create (format "%s Summary" (buffer-name))))
 	(save-excursion
 	  (set-buffer vm-summary-buffer)
 	  (abbrev-mode 0)
 	  (auto-fill-mode 0)
-	  (setq vm-mail-buffer b)
+	  (if (fboundp 'buffer-disable-undo)
+	      (buffer-disable-undo (current-buffer))
+	    ;; obfuscation to make the v19 compiler not whine
+	    ;; about obsolete functions.
+	    (let ((x 'buffer-flush-undo))
+	      (funcall x (current-buffer))))
+	  (setq vm-mail-buffer b
+		vm-folder-read-only read-only)
 	  (vm-summary-mode))
 	(vm-set-summary-redo-start-point t)))
   (if display
-      (if (not (vm-set-window-configuration 'summarize))
-	  (progn
-	    (vm-display-buffer vm-summary-buffer)
-	    (if (eq vm-mutable-windows t)
-		(vm-proportion-windows)))))
-  (vm-select-folder-buffer)
+      (vm-display vm-summary-buffer t
+		  '(vm-summarize
+		    vm-summarize-other-frame)
+		  (list this-command))
+    (vm-display nil nil '(vm-summarize vm-summarize-other-frame)
+		(list this-command)))
   (vm-update-summary-and-mode-line))
 
-(defun vm-set-summary-redo-start-point (start-point)
-  (sets-set-insert vm-buffers-needing-display-update (current-buffer))
-  (if (and (consp start-point) (consp vm-summary-redo-start-point))
-      (let ((mp vm-message-list))
-	(while (not (or (eq mp start-point)
-			(eq mp vm-summary-redo-start-point)))
-	  (setq mp (cdr mp)))
-	(if (null mp)
-	    (error "Something is wrong in vm-set-summary-redo-start-point"))
-	(if (eq mp start-point)
-	    (setq vm-summary-redo-start-point start-point)))
-    (setq vm-summary-redo-start-point start-point)))
+(defun vm-summarize-other-frame (&optional display)
+  "Like vm-summarize, but run in a newly created frame."
+  (interactive "p")
+  (vm-goto-new-frame)
+  (vm-summarize display))
 
 (defun vm-do-summary (&optional start-point)
-  (let ((mp (or start-point vm-message-list))
+  (let ((m-list (or start-point vm-message-list))
+	mp
 	(n 0)
 	;; Just for laughs, make the update interval vary.
 	(modulus (+ (% (vm-abs (random)) 11) 10))
 	summary)
+    (setq mp m-list)
     (save-excursion
       (set-buffer vm-summary-buffer)
-      (let ((buffer-read-only nil))
-	(if start-point
-	    (if (vm-su-start-of (car mp))
-		(progn
-		  (goto-char (vm-su-start-of (car mp)))
-		  (delete-region (point) (point-max)))
-	      (goto-char (point-max)))
-	  (erase-buffer)
-	  (setq vm-summary-pointer nil))
-	(while mp
-	  (set-buffer vm-mail-buffer)
-	  (setq summary (vm-sprintf 'vm-summary-format (car mp)))
-	  (set-buffer vm-summary-buffer)
-	  (vm-set-su-start-of (car mp) (point-marker))
-	  ;; the leading spaces are for the summary arrow
-	  (insert "  " summary)
-	  (vm-set-su-end-of (car mp) (point-marker))
-	  (setq mp (cdr mp) n (1+ n))
-	  (if (zerop (% n modulus))
-	      (message "Generating summary... %d" n)))))
+      (let ((buffer-read-only nil)
+	    (modified (buffer-modified-p)))
+	(unwind-protect
+	    (progn
+	      (if start-point
+		  (if (vm-su-start-of (car mp))
+		      (progn
+			(goto-char (vm-su-start-of (car mp)))
+			(delete-region (point) (point-max)))
+		    (goto-char (point-max)))
+		(erase-buffer)
+		(setq vm-summary-pointer nil))
+	      ;; avoid doing long runs down the marker chain while
+	      ;; building the summary.  use integers to store positions
+	      ;; and then convert them to markers after all the
+	      ;; insertions are done.
+	      (while mp
+		(setq summary (vm-su-summary (car mp)))
+		(vm-set-su-start-of (car mp) (point))
+		(insert vm-summary-no-=>)
+		(vm-tokenized-summary-insert (car mp) (vm-su-summary (car mp)))
+		(vm-set-su-end-of (car mp) (point))
+		(setq mp (cdr mp) n (1+ n))
+		(if (zerop (% n modulus))
+		    (message "Generating summary... %d" n)))
+	      ;; now convert the ints to markers.
+	      (if (>= n modulus)
+		  (message "Generating summary markers... "))
+	      (setq mp m-list)
+	      (while mp
+		(vm-set-su-start-of (car mp) (vm-marker (vm-su-start-of (car mp))))
+		(vm-set-su-end-of (car mp) (vm-marker (vm-su-end-of (car mp))))
+		(setq mp (cdr mp))))
+	  (set-buffer-modified-p modified))
+	(run-hooks 'vm-summary-redo-hook)))
     (if (>= n modulus)
-	(message "Generating summary... done"))
-    (run-hooks vm-summary-redo-hook)))
+	(message "Generating summary... done"))))
 
 (defun vm-do-needed-summary-rebuild ()
   (if (and vm-summary-redo-start-point vm-summary-buffer)
       (progn
+	(vm-copy-local-variables vm-summary-buffer 'vm-summary-show-threads)
 	(vm-do-summary (and (consp vm-summary-redo-start-point)
 			    vm-summary-redo-start-point))
 	(setq vm-summary-redo-start-point nil)
@@ -123,21 +142,35 @@ mandatory."
 	   (setq vm-need-summary-pointer-update nil)))))
 
 (defun vm-update-message-summary (m)
-  (let (summary)
+  (let ((modified (buffer-modified-p))
+	summary)
     (if (and (vm-su-start-of m)
 	     (marker-buffer (vm-su-start-of m)))
 	(save-excursion
-	  (setq summary (vm-sprintf 'vm-summary-format m))
+	  (setq summary (vm-su-summary m))
 	  (set-buffer (marker-buffer (vm-su-start-of m)))
-	  (let ((buffer-read-only nil))
-	    (save-excursion
-	      (goto-char (vm-su-start-of m))
-	      (insert (if (= (following-char) ?\ ) "  " "->") summary)
-	      (delete-region (point) (vm-su-end-of m))))))))
+	  (let ((buffer-read-only nil)
+		(selected nil)
+		(modified (buffer-modified-p)))
+	    (unwind-protect
+		(save-excursion
+		  (goto-char (vm-su-start-of m))
+		  (if (looking-at vm-summary-no-=>)
+		      (insert vm-summary-no-=>)
+		    (setq selected t)
+		    (if vm-summary-overlay
+			(vm-summary-delete-overlay))
+		    (insert vm-summary-=>))
+		  (vm-tokenized-summary-insert m (vm-su-summary m))
+		  (delete-region (point) (vm-su-end-of m))
+		  (if (and selected vm-summary-highlight-face)
+		      (vm-summary-highlight-region (vm-su-start-of m) (point)
+						   vm-summary-highlight-face)))
+	      (set-buffer-modified-p modified)))))))
 
 (defun vm-set-summary-pointer (m)
   (if vm-summary-buffer
-      (let ((w (get-buffer-window vm-summary-buffer))
+      (let ((w (vm-get-buffer-window vm-summary-buffer))
 	    (old-window nil))
 	(vm-save-buffer-excursion
 	  (unwind-protect
@@ -151,273 +184,241 @@ mandatory."
 		  (if vm-summary-pointer
 		      (progn
 			(goto-char (vm-su-start-of vm-summary-pointer))
-			(insert "  ")
-			(delete-char 2)))
+			(insert vm-summary-no-=>)
+			(delete-char (length vm-summary-=>))
+			(if vm-summary-overlay
+			    (vm-summary-delete-overlay))))
 		  (setq vm-summary-pointer m)
 		  (goto-char (vm-su-start-of m))
-		  (insert "->")
-		  (delete-char 2)
-		  (forward-char -2)
-		  (and w vm-auto-center-summary (vm-auto-center-summary))))
+		  (let ((modified (buffer-modified-p)))
+		    (unwind-protect
+			(progn
+			  (insert vm-summary-=>)
+			  (delete-char (length vm-summary-=>)))
+		      (set-buffer-modified-p modified)))
+		  (forward-char (- (length vm-summary-=>)))
+		  (if vm-summary-highlight-face
+		      (vm-summary-highlight-region
+		       (vm-su-start-of m) (vm-su-end-of m)
+		       vm-summary-highlight-face))
+		  (and w vm-auto-center-summary (vm-auto-center-summary))
+		  (run-hooks 'vm-summary-pointer-update-hook)))
 	    (and old-window (select-window old-window)))))))
 
-(defun vm-mark-for-summary-update (m)
-  (let ((m-list (vm-virtual-messages-of m)))
-    (while m-list
-      (if (eq (vm-attributes-of m) (vm-attributes-of (car m-list)))
-	  (progn
-	    (sets-set-insert vm-buffers-needing-display-update
-			     (marker-buffer (vm-start-of (car m-list))))
-	    (sets-set-insert vm-messages-needing-summary-update (car m-list))))
-      (setq m-list (cdr m-list)))
-    (if (or (not (vm-virtual-message-p m)) (null (vm-virtual-messages-of m)))
-	(progn
-	  (sets-set-insert vm-buffers-needing-display-update
-			   (marker-buffer (vm-start-of m)))
-	  (sets-set-insert vm-messages-needing-summary-update m)))))
+(defun vm-summary-highlight-region (start end face)
+  (cond ((fboundp 'make-overlay)
+	 (setq vm-summary-overlay (make-overlay start end))
+	 (overlay-put vm-summary-overlay 'face face))
+	((fboundp 'make-extent)
+	 (setq vm-summary-overlay (make-extent start end))
+	 (set-extent-property vm-summary-overlay 'face face))))
 
-(defun vm-force-mode-line-update ()
-  (save-excursion
-    (set-buffer (other-buffer))
-    (set-buffer-modified-p (buffer-modified-p))))
-
-(defun vm-do-needed-mode-line-update ()
-  (if (null vm-message-pointer)
-      ;; erase the leftover message if the folder is really empty.
-      (if (eq major-mode 'vm-virtual-mode)
-	  (erase-buffer))
-    (setq vm-ml-message-number (vm-number-of (car vm-message-pointer)))
-    (setq vm-ml-message-new (vm-new-flag (car vm-message-pointer)))
-    (setq vm-ml-message-unread (vm-unread-flag (car vm-message-pointer)))
-    (setq vm-ml-message-read
-	  (and (not (vm-new-flag (car vm-message-pointer)))
-	       (not (vm-unread-flag (car vm-message-pointer)))))
-    (setq vm-ml-message-edited (vm-edited-flag (car vm-message-pointer)))
-    (setq vm-ml-message-filed (vm-filed-flag (car vm-message-pointer)))
-    (setq vm-ml-message-written (vm-written-flag (car vm-message-pointer)))
-    (setq vm-ml-message-replied (vm-replied-flag (car vm-message-pointer)))
-    (setq vm-ml-message-forwarded (vm-forwarded-flag (car vm-message-pointer)))
-    (setq vm-ml-message-deleted (vm-deleted-flag (car vm-message-pointer)))
-    (setq vm-ml-message-marked (vm-mark-of (car vm-message-pointer))))
-  (if vm-summary-buffer
-      (let ((modified (buffer-modified-p)))
-	(save-excursion
-	  (vm-copy-local-variables vm-summary-buffer
-				   'vm-ml-message-new
-				   'vm-ml-message-unread
-				   'vm-ml-message-read
-				   'vm-ml-message-edited
-				   'vm-ml-message-replied
-				   'vm-ml-message-forwarded
-				   'vm-ml-message-filed
-				   'vm-ml-message-written
-				   'vm-ml-message-deleted
-				   'vm-ml-message-marked
-				   'vm-ml-message-number
-				   'vm-ml-highest-message-number
-				   'vm-message-list)
-	  (set-buffer vm-summary-buffer)
-	  (set-buffer-modified-p modified))))
-  (vm-force-mode-line-update))
-
-(defun vm-update-summary-and-mode-line ()
-  (and vm-buffers-needing-display-update
-       (save-excursion
-	 (sets-mapset (function
-		       (lambda (b)
-			 (if (and (bufferp b) (buffer-name b))
-			     (progn
-			       (set-buffer b)
-			       (vm-do-needed-renumbering)
-			       (vm-do-needed-summary-rebuild)
-			       (vm-do-needed-mode-line-update)))))
-		      vm-buffers-needing-display-update)))
-  (setq vm-buffers-needing-display-update (sets-make-set))
-  (and vm-messages-needing-summary-update
-       (sets-mapset 'vm-update-message-summary
-		    vm-messages-needing-summary-update))
-  (setq vm-messages-needing-summary-update (vm-make-message-set))
-  (vm-force-mode-line-update))
+(defun vm-summary-delete-overlay ()
+  (let ((o vm-summary-overlay))
+    (setq vm-summary-overlay nil)
+    (cond ((fboundp 'delete-overlay)
+	   (delete-overlay o))
+	  ((fboundp 'delete-extent)
+	   (delete-extent o)))))
 
 (defun vm-auto-center-summary ()
   (if vm-auto-center-summary
       (if (or (eq vm-auto-center-summary t) (not (one-window-p t)))
 	  (recenter '(4)))))
 
-(defun vm-follow-summary-cursor ()
-  (and vm-follow-summary-cursor (eq major-mode 'vm-summary-mode)
-       (let ((point (point))
-	     message-pointer message-list mp)
-	 (save-excursion
-	   (set-buffer vm-mail-buffer)
-	   (setq message-pointer vm-message-pointer
-		 message-list vm-message-list))
-	 (if (or (null message-pointer)
-		 (and (>= point (vm-su-start-of (car message-pointer)))
-		      (< point (vm-su-end-of (car message-pointer)))))
-	     ()
-	   (if (< point (vm-su-start-of (car message-pointer)))
-	       (setq mp message-list)
-	     (setq mp (cdr message-pointer) message-pointer nil))
-	   (while (and (not (eq mp message-pointer))
-		       (>= point (vm-su-end-of (car mp))))
-	     (setq mp (cdr mp)))
-	   (if (not (eq mp message-pointer))
-	       (save-excursion
-		 (set-buffer vm-mail-buffer)
-		 (vm-record-and-change-message-pointer
-		  vm-message-pointer mp)
-		 (setq vm-need-summary-pointer-update t)
-		 (vm-preview-current-message)
-		 ;; return non-nil so the caller will know that
-		 ;; a new message was selected.
-		 t ))))))
-
-(defun vm-sprintf (format-variable message)
+(defun vm-sprintf (format-variable message &optional tokenize)
   ;; compile the format into an eval'able s-expression
   ;; if it hasn't been compiled already.
   (if (not (eq (get format-variable 'vm-compiled-format)
 	       (symbol-value format-variable)))
-      (vm-compile-format format-variable))
+      (vm-compile-format format-variable tokenize))
   ;; The local variable name `vm-su-message' is mandatory here for
   ;; the format s-expression to work.
   (let ((vm-su-message message))
     (eval (get format-variable 'vm-format-sexp))))
 
-(defun vm-compile-format (format-variable)
+(defun vm-tokenized-summary-insert (message tokens)
+  (if (stringp tokens)
+      (insert tokens)
+    (let (token)
+      (while tokens
+	(setq token (car tokens))
+	(cond ((stringp token)
+	       (insert token))
+	      ((eq token 'number)
+	       (insert (vm-padded-number-of message)))
+	      ((eq token 'mark)
+	       (insert (vm-su-mark message)))
+	      ((eq token 'thread-indent)
+	       (if (and vm-summary-show-threads
+			(natnump vm-summary-thread-indent-level))
+		   (insert-char ?\ (* vm-summary-thread-indent-level
+				      (vm-th-thread-indention message))))))
+	(setq tokens (cdr tokens))))))
+
+(defun vm-compile-format (format-variable &optional tokenize)
   (let ((format (symbol-value format-variable))
 	(case-fold-search nil)
-	sexp sexp-fmt conv-spec last-match-end)
+	(done nil)
+	(list nil)
+	(sexp nil)
+	(sexp-fmt nil)
+	(last-match-end 0)
+	token conv-spec)
     (store-match-data nil)
-    (while (string-match
-"%\\(-\\)?\\([0-9]+\\)?\\(\\.\\(-?[0-9]+\\)\\)?\\([aAcdfFhHilmMnstTwyz*%]\\|U[A-Za-z]\\)"
-	    format (match-end 0))
-      (setq conv-spec (aref format (match-beginning 5)))
-      (if (memq conv-spec '(?a ?A ?c ?d ?f ?F ?h ?H ?i ?l ?M
-			    ?m ?n ?s ?t ?T ?U ?w ?y ?z ?*))
-	  (progn
-	    (cond ((= conv-spec ?a)
-		   (setq sexp (cons (list 'vm-su-attribute-indicators
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?A)
-		   (setq sexp (cons (list 'vm-su-attribute-indicators-long
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?c)
-		   (setq sexp (cons (list 'vm-su-byte-count
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?d)
-		   (setq sexp (cons (list 'vm-su-monthday
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?f)
-		   (setq sexp (cons (list 'vm-su-interesting-from
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?F)
-		   (setq sexp (cons (list 'vm-su-interesting-full-name
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?h)
-		   (setq sexp (cons (list 'vm-su-hour
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?H)
-		   (setq sexp (cons (list 'vm-su-hour-short
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?i)
-		   (setq sexp (cons (list 'vm-su-message-id
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?l)
-		   (setq sexp (cons (list 'vm-su-line-count
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?m)
-		   (setq sexp (cons (list 'vm-su-month
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?M)
-		   (setq sexp (cons (list 'vm-su-month-number
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?n)
-		   (setq sexp (cons (list 'vm-su-message-number
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?s)
-		   (setq sexp (cons (list (if vm-summary-no-newlines-in-subject
-					      'vm-su-subject-no-newlines
-					      'vm-su-subject)
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?T)
-		   (setq sexp (cons (list 'vm-su-to-names
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?t)
-		   (setq sexp (cons (list 'vm-su-to
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?U)
-		   (setq sexp
-			 (cons (list 'vm-run-user-summary-function
-				     (list 'quote
-					   (intern
-					    (concat
-					     "vm-summary-function-"
-					     (substring
-					      format
-					      (1+ (match-beginning 5))
-					      (+ 2 (match-beginning 5))))))
-				     'vm-su-message) sexp)))
-		  ((= conv-spec ?w)
-		   (setq sexp (cons (list 'vm-su-weekday
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?y)
-		   (setq sexp (cons (list 'vm-su-year
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?z)
-		   (setq sexp (cons (list 'vm-su-zone
-					  'vm-su-message) sexp)))
-		  ((= conv-spec ?*)
-		   (setq sexp (cons (list 'vm-su-mark
-					  'vm-su-message) sexp))))
-	    (cond ((match-beginning 1)
-		   (setcar sexp
-			   (list 'vm-left-justify-string (car sexp)
-				 (string-to-int (substring format
-							   (match-beginning 2)
-							   (match-end 2))))))
-		  ((match-beginning 2)
-		   (setcar sexp
-			   (list 'vm-right-justify-string (car sexp)
-				 (string-to-int (substring format
-							   (match-beginning 2)
-							   (match-end 2)))))))
-	    (cond ((match-beginning 3)
-		   (setcar sexp
-			   (list 'vm-truncate-string (car sexp)
-				 (string-to-int (substring format
-							   (match-beginning 4)
-							   (match-end 4)))))))
-	    (setq sexp-fmt
-		  (cons "%s"
-			(cons (substring format
-					 (or last-match-end 0)
-					 (match-beginning 0))
-			      sexp-fmt))))
-	(setq sexp-fmt
-	      (cons "%%"
-		    (cons (substring format
-				     (or last-match-end 0)
-				     (match-beginning 0))
-			  sexp-fmt))))
-      (setq last-match-end (match-end 0)))
-    (setq sexp-fmt 
-	  (cons (substring format
-			   (or last-match-end 0)
-			   (length format))
-		sexp-fmt)
-	  sexp-fmt (apply 'concat (nreverse sexp-fmt))
-	  sexp (cons 'format (cons sexp-fmt (nreverse sexp))))
-    (put format-variable 'vm-format-sexp sexp)
-    (put format-variable 'vm-compiled-format format)))
+    (while (not done)
+      (setq token nil)
+      (while
+	  (and (not token)
+	       (string-match
+		"%\\(-\\)?\\([0-9]+\\)?\\(\\.\\(-?[0-9]+\\)\\)?\\([aAcdfFhHiIlLmMnstTwyz*%]\\|U[A-Za-z]\\)"
+		format (match-end 0)))
+	(setq conv-spec (aref format (match-beginning 5)))
+	(if (memq conv-spec '(?a ?A ?c ?d ?f ?F ?h ?H ?i ?L ?I ?l ?M
+				 ?m ?n ?s ?t ?T ?U ?w ?y ?z ?* ))
+	    (progn
+	      (cond ((= conv-spec ?a)
+		     (setq sexp (cons (list 'vm-su-attribute-indicators
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?A)
+		     (setq sexp (cons (list 'vm-su-attribute-indicators-long
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?c)
+		     (setq sexp (cons (list 'vm-su-byte-count
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?d)
+		     (setq sexp (cons (list 'vm-su-monthday
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?f)
+		     (setq sexp (cons (list 'vm-su-interesting-from
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?F)
+		     (setq sexp (cons (list 'vm-su-interesting-full-name
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?h)
+		     (setq sexp (cons (list 'vm-su-hour
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?H)
+		     (setq sexp (cons (list 'vm-su-hour-short
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?i)
+		     (setq sexp (cons (list 'vm-su-message-id
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?I)
+		     (if tokenize
+			 (setq token ''thread-indent)
+		       (setq sexp (cons (list 'vm-su-thread-indent
+					      'vm-su-message) sexp))))
+		    ((= conv-spec ?l)
+		     (setq sexp (cons (list 'vm-su-line-count
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?L)
+		     (setq sexp (cons (list 'vm-su-labels
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?m)
+		     (setq sexp (cons (list 'vm-su-month
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?M)
+		     (setq sexp (cons (list 'vm-su-month-number
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?n)
+		     (if tokenize
+			 (setq token ''number)
+		       (setq sexp (cons (list 'vm-padded-number-of
+					      'vm-su-message) sexp))))
+		    ((= conv-spec ?s)
+		     (setq sexp (cons (list 'vm-su-subject
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?T)
+		     (setq sexp (cons (list 'vm-su-to-names
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?t)
+		     (setq sexp (cons (list 'vm-su-to
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?U)
+		     (setq sexp
+			   (cons (list 'vm-run-user-summary-function
+				       (list 'quote
+					     (intern
+					      (concat
+					       "vm-summary-function-"
+					       (substring
+						format
+						(1+ (match-beginning 5))
+						(+ 2 (match-beginning 5))))))
+				       'vm-su-message) sexp)))
+		    ((= conv-spec ?w)
+		     (setq sexp (cons (list 'vm-su-weekday
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?y)
+		     (setq sexp (cons (list 'vm-su-year
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?z)
+		     (setq sexp (cons (list 'vm-su-zone
+					    'vm-su-message) sexp)))
+		    ((= conv-spec ?*)
+		     (if tokenize
+			 (setq token ''mark)
+		       (setq sexp (cons (list 'vm-su-mark
+					      'vm-su-message) sexp)))))
+	      (cond ((and (not token) (match-beginning 1))
+		     (setcar sexp
+			     (list 'vm-left-justify-string (car sexp)
+				   (string-to-int
+				    (substring format
+					       (match-beginning 2)
+					       (match-end 2))))))
+		    ((and (not token) (match-beginning 2))
+		     (setcar sexp
+			     (list 'vm-right-justify-string (car sexp)
+				   (string-to-int
+				    (substring format
+					       (match-beginning 2)
+					       (match-end 2)))))))
+	      (cond ((and (not token) (match-beginning 3))
+		     (setcar sexp
+			     (list 'vm-truncate-string (car sexp)
+				   (string-to-int
+				    (substring format
+					       (match-beginning 4)
+					       (match-end 4)))))))
+	      (setq sexp-fmt
+		    (cons (if token "" "%s")
+			  (cons (substring format
+					   last-match-end
+					   (match-beginning 0))
+				sexp-fmt))))
+	  (setq sexp-fmt
+		(cons "%%"
+		      (cons (substring format
+				       (or last-match-end 0)
+				       (match-beginning 0))
+			    sexp-fmt))))
+	  (setq last-match-end (match-end 0)))
+      (if (not token)
+	  (setq sexp-fmt
+		(cons (substring format last-match-end (length format))
+		      sexp-fmt)
+		done t))
+      (setq sexp-fmt (apply 'concat (nreverse sexp-fmt)))
+      (if sexp
+	  (setq sexp (cons 'format (cons sexp-fmt (nreverse sexp))))
+	(setq sexp sexp-fmt))
+      (if tokenize
+	  (setq list (nconc list (if (equal sexp "") nil (list sexp))
+			    (and token (list token)))
+		sexp nil
+		sexp-fmt nil)))
+    (put format-variable 'vm-compiled-format format)
+    (put format-variable 'vm-format-sexp (if list (cons 'list list) sexp))))
 
 (defun vm-get-header-contents (message header-name-regexp)
   (let ((contents nil)
 	regexp)
-    (setq regexp (concat "^" header-name-regexp)
+    (setq regexp (concat "^\\(" header-name-regexp "\\)")
 	  message (vm-real-message-of message))
     (save-excursion
-      (set-buffer (marker-buffer (vm-start-of (vm-real-message-of message))))
+      (set-buffer (vm-buffer-of (vm-real-message-of message)))
       (save-restriction
 	(widen)
 	(goto-char (vm-headers-of message))
@@ -460,6 +461,7 @@ mandatory."
 	 (t " "))
    (cond ((vm-replied-flag m) "R")
 	 ((vm-forwarded-flag m) "Z")
+	 ((vm-redistributed-flag m) "B")
 	 (t " "))
    (cond ((vm-edited-flag m) "E")
 	 (t " "))))
@@ -472,6 +474,7 @@ mandatory."
 	 (t " "))
    (if (vm-replied-flag m) "r" " ")
    (if (vm-forwarded-flag m) "z" " ")
+   (if (vm-redistributed-flag m) "b" " ")
    (if (vm-filed-flag m) "f" " ")
    (if (vm-written-flag m) "w" " ")
    (if (vm-edited-flag m) "e" " ")))
@@ -507,7 +510,7 @@ mandatory."
 (defun vm-su-hour-short (m)
   (let ((string (vm-su-hour m)))
     (if (> (length string) 5)
-	(substring string 0 -3)
+	(substring string 0 5)
       string)))
 
 (defun vm-su-hour (m)
@@ -526,7 +529,7 @@ mandatory."
   (if (eq (vm-message-type-of message) 'mmdf)
       nil
     (save-excursion
-      (set-buffer (marker-buffer (vm-start-of (vm-real-message-of message))))
+      (set-buffer (vm-buffer-of (vm-real-message-of message)))
       (save-restriction
 	(widen)
 	(goto-char (vm-start-of message))
@@ -534,7 +537,6 @@ mandatory."
 	  (if (looking-at "From [^ \t\n]*[ \t]+\\([^ \t\n].*\\)")
 	      (buffer-substring (match-beginning 1) (match-end 1))))))))
 
-(defvar vm-parse-date-workspace (make-vector 6 nil)) ; a little GC avoidance
 (defun vm-parse-date (date)
   (let ((weekday "")
 	(monthday "")
@@ -603,13 +605,15 @@ mandatory."
       (vm-su-do-month m (substring date (match-beginning 4) (match-end 4)))
       (vm-set-year-of m (substring date (match-beginning 5) (match-end 5)))
       (if (= 2 (length (vm-year-of m)))
+;;	  (vm-set-year-of m (concat "19" (vm-year-of m)))
 	  (vm-set-year-of m
 	   (concat
 	    ;; In an unprescedented burst of optomism that the world won't be
 	    ;; plunged into chaos and darkness on 1-Jan-2000, let's assume that
 	    ;; two digit years <70 are in the 21st century and not the 20th.
 	    (if (memq (aref (vm-year-of m) 0) '(?7 ?8 ?9)) "19" "20")
-	    (vm-year-of m))))
+	    (vm-year-of m)))
+	)
       (vm-set-hour-of m (substring date (match-beginning 6) (match-end 6)))
       (vm-set-zone-of m (substring date (match-beginning 7) (match-end 7))))
      ((string-match
@@ -638,8 +642,6 @@ mandatory."
   ;; If the hour is " 3:..." or "3:...", turn it into "03:...".
   ;; If the date is "03" or "3", turn it into " 3".
   (cond ((null (vm-hour-of m)) nil)
-	((string-match "\\`0[0-9]:" (vm-hour-of m))
-	 (aset (vm-hour-of m) 0 ?0))
 	((string-match "\\`[0-9]:" (vm-hour-of m))
 	 (vm-set-hour-of m (concat "0" (vm-hour-of m)))))
   (cond ((null (vm-monthday-of m)) nil)
@@ -650,17 +652,16 @@ mandatory."
   )
 
 (defun vm-su-do-month (m month-abbrev)
-  (condition-case ()
-      (let ((val (symbol-value (intern (concat "vm-su-month-sym-"
-					       (downcase month-abbrev))))))
-	(vm-set-month-of m (car val))
-	(vm-set-month-number-of m (car (cdr val))))
-    (error (vm-set-month-of m "")
-	   (vm-set-month-number-of m ""))))
+  (let ((val (assoc (downcase month-abbrev) vm-month-alist)))
+    (if val
+	(progn (vm-set-month-of m (nth 1 val))
+	       (vm-set-month-number-of m (nth 2 val)))
+      (vm-set-month-of m "")
+      (vm-set-month-number-of m ""))))
 
 (defun vm-run-user-summary-function (function message)
   (save-excursion
-    (set-buffer (marker-buffer (vm-start-of (vm-real-message-of message))))
+    (set-buffer (vm-buffer-of (vm-real-message-of message)))
     (save-restriction
       (widen)
       (save-excursion
@@ -697,7 +698,7 @@ mandatory."
   (if (eq vm-folder-type 'mmdf)
       nil
     (save-excursion
-      (set-buffer (marker-buffer (vm-start-of message)))
+      (set-buffer (vm-buffer-of message))
       (save-restriction
 	(widen)
 	(goto-char (vm-start-of message))
@@ -715,14 +716,17 @@ mandatory."
 	  (setq from "???")
 	  (if (null full-name)
 	      (setq full-name "???")))
-      (setq pair (funcall vm-chop-full-name-hook from)
+      (setq pair (funcall vm-chop-full-name-function from)
 	    from (or (nth 1 pair) from)
 	    full-name (or full-name (nth 0 pair) from)))
+    (if (string-match "\\`\"\\([^\"]+\\)\"\\'" full-name)
+ 	(setq full-name
+ 	      (substring full-name (match-beginning 1) (match-end 1))))
     (vm-set-full-name-of m full-name)
     (vm-set-from-of m from)))
 
 (defun vm-default-chop-full-name (address)
-  (let ((from nil)
+  (let ((from address)
 	(full-name nil))
     (cond ((string-match
 "\\`[ \t\n]*\\([^< \t\n]+\\([ \t\n]+[^< \t\n]+\\)*\\)?[ \t\n]*<\\([^>]+\\)>[ \t\n]*\\'"
@@ -742,31 +746,37 @@ mandatory."
 		 (substring address (match-beginning 1) (match-end 1)))))
     (list full-name from)))
 
-(autoload 'rfc822-addresses "rfc822")
-(autoload 'mail-extract-address-components "mail-extr")
-
 ;; test for existence and functionality of mail-extract-address-components
 ;; there are versions out there that don't work right, so we run
 ;; some test data through it to see if we can trust it.
-(defun vm-choose-chop-full-name-hook (address)
-  (let ((test-data '(("kyle@uunet.uu.net" . (nil "kyle@uunet.uu.net"))))
+(defun vm-choose-chop-full-name-function (address)
+  (let ((test-data '(("kyle@uunet.uu.net" .
+		      (nil "kyle@uunet.uu.net"))
+		     ("c++std=lib@inet.research.att.com" .
+		      (nil "c++std=lib@inet.research.att.com"))
+		     ("\"Piet.Rypens\" <rypens@reks.uia.ac.be>" .
+		      ("Piet Rypens" "rypens@reks.uia.ac.be"))
+		     ("makke@wins.uia.ac.be (Marc.Gemis)" .
+		      ("Marc Gemis" "makke@wins.uia.ac.be"))))
 	(failed nil)
 	result)
     (while test-data
-      (setq result (condition-case nil
+      (setq result (condition-case c
 		       (mail-extract-address-components (car (car test-data)))
-		     (error nil)))
+		     (error c)))
       (if (not (equal result (cdr (car test-data))))
 	  ;; failed test, use default
-	  (setq failed t
+	  (setq failed (car test-data)
 		test-data nil)
 	(setq test-data (cdr test-data))))
     (if failed
 	;; it failed, use default
-	(setq vm-chop-full-name-hook 'vm-default-chop-full-name)
+	;;(setq vm-chop-full-name-function 'vm-default-chop-full-name)
+	;; jwz wants to know this...
+	(error "mail-extr.el failed tests: %s %s" failed result)
       ;; it passed the tests
-      (setq vm-chop-full-name-hook 'mail-extract-address-components))
-    (funcall vm-chop-full-name-hook address)))
+      (setq vm-chop-full-name-function 'mail-extract-address-components))
+    (funcall vm-chop-full-name-function address)))
 
 (defun vm-su-do-recipients (m)
   (let ((mail-use-rfc822 t) names addresses to cc all list)
@@ -802,27 +812,6 @@ mandatory."
 	    (t (setq names (cons (car list) names))))
       (setq list (cdr list)))
     (setq names (nreverse names)) ; added by jwz for fixed vm-parse-addresses
-    (if vm-gargle-uucp
-	(while list
-	  (if (string-match
-"\\([^!@:.]+\\)\\(\\.[^!@:]+\\)?!\\([^!@: \t\n]+\\)\\(@\\([^!@:. \t\n]+\\)\\(.[^ \t\n]+\\)?\\)?[ \t\n]*$"
-	       (car list))
-	      (setcar
-	       list
-	       (concat
-		(substring (car list) (match-beginning 3)
-			   (match-end 3))
-		"@"
-		(if (and (match-beginning 5) (match-beginning 2)
-			 (not (match-beginning 6)))
-		    (concat (substring (car list) (match-beginning 5)
-				       (match-end 5))
-			    ".")
-		  "")
-		(substring (car list) (match-beginning 1)
-			   (or (match-end 2) (match-end 1)))
-		(if (match-end 2) "" ".UUCP"))))
-	  (setq list (cdr list))))
     (vm-set-to-of m (mapconcat 'identity addresses ", "))
     (vm-set-to-names-of m (mapconcat 'identity names ", "))))
 
@@ -834,32 +823,86 @@ mandatory."
 				  
 (defun vm-su-message-id (m)
   (or (vm-message-id-of m)
-      (vm-set-message-id-of m
-			    (or (vm-get-header-contents m "Message-Id:")
-				""))))
+      (vm-set-message-id-of
+       m
+       (or (vm-get-header-contents m "Message-Id:")
+	   ;; try running md5 on the message body to produce an ID
+	   ;; better than nothing.
+	   (save-excursion
+	     (set-buffer (vm-buffer-of (vm-real-message-of m)))
+	     (save-restriction
+	       (widen)
+	       (condition-case nil
+		   (concat "<fake-VM-id."
+			   (vm-pop-md5-string
+			    (buffer-substring
+			     (vm-text-of (vm-real-message-of m))
+			     (vm-text-end-of (vm-real-message-of m))))
+			   "@talos.iv>")
+		 (error nil))))
+	   (concat "<" (int-to-string (vm-abs (random))) "@toto.iv>")))))
 
 (defun vm-su-line-count (m)
   (or (vm-line-count-of m)
       (vm-set-line-count-of
        m
        (save-excursion
-	 (set-buffer (marker-buffer (vm-start-of (vm-real-message-of m))))
+	 (set-buffer (vm-buffer-of (vm-real-message-of m)))
 	 (save-restriction
 	   (widen)
 	   (int-to-string
-	    (count-lines (vm-text-of m) (vm-text-end-of m))))))))
-
-(defun vm-su-message-number (m)
-  (vm-number-of m))
+	    (count-lines (vm-text-of (vm-real-message-of m))
+			 (vm-text-end-of (vm-real-message-of m)))))))))
 
 (defun vm-su-subject (m)
   (or (vm-subject-of m)
-      (vm-set-subject-of m
-			 (or (vm-get-header-contents m "Subject:") ""))))
+      (vm-set-subject-of
+       m
+       (let ((subject (or (vm-get-header-contents m "Subject:") ""))
+	     (i nil))
+	 (if vm-summary-subject-no-newlines
+	     (while (setq i (string-match "\n" subject i))
+	       (aset subject i ?\ )))
+	 subject ))))
 
-(defun vm-su-subject-no-newlines (m)
-  (let ((s (vm-su-subject m)))
-    (while (string-match "[ \t]*\n[ \t\n]*" s)
-      (setq s (concat (substring s 0 (match-beginning 0)) " "
-		      (substring s (match-end 0)))))
-    s))
+(defun vm-su-summary (m)
+  (if (and (vm-virtual-message-p m) (not (vm-virtual-messages-of m)))
+      (or (vm-virtual-summary-of m)
+	  (save-excursion
+	    (vm-select-folder-buffer)
+	    (vm-set-virtual-summary-of m (vm-sprintf 'vm-summary-format m t))
+	    (vm-virtual-summary-of m)))
+    (or (vm-summary-of m)
+	(save-excursion
+	  (vm-select-folder-buffer)
+	  (vm-set-summary-of m (vm-sprintf 'vm-summary-format m t))
+	  (vm-summary-of m)))))
+
+(defun vm-fix-my-summary!!! ()
+  (interactive)
+  (vm-select-folder-buffer)
+  (vm-check-for-killed-summary)
+  (vm-error-if-folder-empty)
+  (message "Fixing your summary...")
+  (let ((mp vm-message-list))
+    (while mp
+      (vm-set-summary-of (car mp) nil)
+      (vm-mark-for-summary-update (car mp))
+      (vm-stuff-attributes (car mp))
+      (setq mp (cdr mp)))
+    (set-buffer-modified-p t)
+    (vm-update-summary-and-mode-line))
+  (message "Fixing your summary... done"))
+
+(defun vm-su-thread-indent (m)
+  (if (natnump vm-summary-thread-indent-level)
+      (make-string (* (vm-thread-indention m) vm-summary-thread-indent-level)
+		   ?\ )
+    "" ))
+
+(defun vm-su-labels (m)
+  (or (vm-label-string-of m)
+      (vm-set-label-string-of
+       m
+       (mapconcat 'identity (vm-labels-of m) ","))
+      (vm-label-string-of m)))

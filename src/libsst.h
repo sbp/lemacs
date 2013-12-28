@@ -36,13 +36,10 @@ void sst_tones( /* int fd, dhz1, dhz2, thz, rhz, usec */ );
 void sst_dtmf( /* int fd, char *dial, int usecper, usecpause */ );
 
 #ifdef emacs
-extern char *sys_errlist[];
-extern int errno, sys_nerr;
+extern char *strerror ();
 extern void message ();
 # define perror(string) \
-    message("audio: %s, %s", string, \
-	    (errno < sys_nerr) ? sys_errlist[errno] : \
-	    "unknown")
+    message("audio: %s, %s", string, strerror (errno))
 # define warn(str) message ("audio: %s", (str))
 #else /* !emacs */
 # define warn(str) fprintf (stderr, "%s\n", (str))

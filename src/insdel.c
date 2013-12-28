@@ -1,5 +1,6 @@
 /* Buffer insertion/deletion and gap motion for GNU Emacs.
-   Copyright (C) 1985, 1986, 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1991, 1992, 1993, 1994
+   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -245,6 +246,8 @@ gap_right (struct buffer *buf, int pos)
 void
 move_gap (struct buffer *buf, int pos)
 {
+  if (! BUF_BEG_ADDR(buf))
+    abort ();
   if (pos < BUF_GPT (buf))
     gap_left (buf, pos, 0);
   else if (pos > BUF_GPT (buf))
@@ -310,6 +313,10 @@ prepare_to_modify_buffer (start, end)
     Fbarf_if_buffer_read_only ();
 
   verify_extent_modification (current_buffer, start, end);
+
+  /* >>> At this point should map over extents calling
+   * >>>  modification-hooks, insert-before-hooks and insert-after-hooks
+   * >>>  of relevant extents */
 
 #ifdef CLASH_DETECTION
   if (!NILP (current_buffer->filename)
@@ -400,7 +407,7 @@ signal_first_change (void)
     }
 }
 
-/* Signal a change to the buffer immediatly before it happens.
+/* Signal a change to the buffer immediately before it happens.
    START and END are the bounds of the text to be changed,
    as Lisp objects.  */
 
@@ -414,18 +421,23 @@ signal_before_change (int start, int end)
     signal_first_change();
 
   /* Now in any case run the before-change-function if any.  */
-  if (!NILP (Vbefore_change_function) && !inside_change_hook)
+  if ((!NILP (Vbefore_change_functions) ||
+       !NILP (Vbefore_change_function)) &&  /* #### Obsolete, for compatibility */
+      !inside_change_hook)
     {
       int speccount = specpdl_depth ();
       record_unwind_protect (change_function_restore, Qzero);
       inside_change_hook = 1;
+      run_hook_with_args (Qbefore_change_functions,
+			  2, make_number (start), make_number (end));
+      /* #### Obsolete, for compatibility */
       run_hook_with_args (Qbefore_change_function,
 			  2, make_number (start), make_number (end));
       unbind_to (speccount, Qnil);
     }
 }
 
-/* Signal a change immediatly after it happens.
+/* Signal a change immediately after it happens.
    POS is the address of the start of the changed text.
    LENDEL is the number of characters of the text before the change.
    (Not the whole buffer; just the part that was changed.)
@@ -435,11 +447,18 @@ void
 signal_after_change (pos, lendel, lenins)
      int pos, lendel, lenins;
 {
-  if (!NILP (Vafter_change_function) && !inside_change_hook)
+  if ((!NILP (Vafter_change_functions) ||
+       !NILP (Vafter_change_function)) &&     /* #### Obsolete, for compatibility */
+      !inside_change_hook)
     {
       int speccount = specpdl_depth ();
       record_unwind_protect (change_function_restore, Qzero);
       inside_change_hook = 1;
+      run_hook_with_args (Qafter_change_functions, 3, 
+                          make_number (pos), 
+                          make_number (pos + lenins),
+                          make_number (lendel));
+      /* #### Obsolete, for compatibility */
       run_hook_with_args (Qafter_change_function, 3, 
                           make_number (pos), 
                           make_number (pos + lenins),
@@ -487,12 +506,19 @@ insert_wide_string (CONST wchar_t *string, int length, Lisp_Object obj)
 
   memcpy (GPT_ADDR, string, length * sizeof (wchar_t));
 
-  process_extents_for_insertion (opoint, length, current_buffer);
+  /* OLD CODE - this should be moved below
+  ** process_extents_for_insertion (opoint, length, current_buffer);
+  */
 
   GAP_SIZE -= length;
   GPT += length;
   ZV += length;
   Z += length;
+
+  /* NEW CODE - this should be called after buffer parameters are fixed up 
+  */
+  process_extents_for_insertion (opoint, length, current_buffer);
+
   SET_PT (opoint + length);
 
   splice_in_extent_replicas (opoint, length, 0, dup_list, current_buffer);
@@ -648,7 +674,8 @@ extern int inside_parse_buffer; /* total kludge */
 #endif
 
 void
-del_range (int from, int to)
+del_range_1 (int from, int to,
+             int call_prepare_to_modify_buffer)
 {
   int numdel;
 
@@ -667,7 +694,8 @@ del_range (int from, int to)
   if (from > GPT)
     gap_right (current_buffer, from);
 
-  prepare_to_modify_buffer (from, to);
+  if (call_prepare_to_modify_buffer)
+    prepare_to_modify_buffer (from, to);
 
 #ifdef ENERGIZE
   if (!inside_parse_buffer)

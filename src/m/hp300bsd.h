@@ -37,10 +37,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define LONGBITS 32		/* Number of bits in a long */
 
-/* 68000 has lowest-numbered byte as most significant */
-
-/* done in endian.h: #define BIG_ENDIAN */
-
 /* One CRT0 Dummy variable */
 
 #define CRT0_DUMMIES one_dummy,

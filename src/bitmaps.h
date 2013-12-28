@@ -7,7 +7,7 @@
 #include "../etc/gnu.xbm"
 #endif /* 0 */
 
-#include "../etc/lucid.xbm"
+#include "../etc/lemacs2.xbm"
 
 #if 0
 /* Vertical bars */

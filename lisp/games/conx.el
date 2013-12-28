@@ -4,7 +4,7 @@
 ;;; Original design by Skef Wholey <skef@cs.cmu.edu>;
 ;;; ported to Emacs-Lisp by Jamie Zawinski <jwz@lucid.com>, 5-mar-91.
 ;;;
-(defconst conx-version "1.6, 30-dec-93.")
+(defconst conx-version "1.6,  6-may-94.")
 ;;;
 ;;; Run this compiled.  It will be an order of magnitude faster.
 ;;;
@@ -341,8 +341,8 @@
 ;;; GNUS interface; grab words from the current message.
 
 (defun conx-gnus-snarf ()
-  "For use as a gnus-Select-article-hook."
-  (set-buffer gnus-Article-buffer)
+  "For use as a gnus-select-article-hook."
+  (set-buffer gnus-article-buffer)
   (save-excursion
     (save-restriction
       (widen)
@@ -350,14 +350,7 @@
       (search-forward "\n\n" nil t)
       (conx-region (point) (point-max)))))
 
-(if nil ;## (featurep 'gnus)
-    (setq gnus-Select-article-hook
-	  (cons 'conx-gnus-snarf
-		(delq 'conx-gnus-snarf
-		      (if (and (consp gnus-Select-article-hook)
-			       (not (eq 'lambda (car gnus-Select-article-hook))))
-			  gnus-Select-article-hook
-			  (cons gnus-Select-article-hook nil))))))
+;;(add-hook 'gnus-select-article-hook 'conx-gnus-snarf)
 
 (defun psychoanalyze-conx ()
   "Mr. Random goes to the analyst."
@@ -442,7 +435,9 @@ This clears the database currently in memory."
 (defun conx-emit-c-data (&optional ansi-p)
   (let ((all '())
 	(standard-output (current-buffer))
-	(after-change-function nil) ; turning off font-lock speeds it up x2
+	(after-change-functions nil) ; turning off font-lock speeds it up x2
+	(before-change-functions nil)
+	(after-change-function nil)
 	(before-change-function nil)
 	(float-output-format "%.2f")
 	count total total100)

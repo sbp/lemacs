@@ -90,6 +90,18 @@
       (if valid
 	  (set-extent-endpoints previous-extent start end)
 	(setq previous-extent (make-extent start end buffer))
+
+	;; Make the extent be closed on the right, which means that if
+	;; characters are inserted exactly at the end of the extent, the
+	;; extent will grow to cover them.  This is important for shell
+	;; buffers - suppose one makes a selection, and one end is at
+	;; point-max.  If the shell produces output, that marker will remain
+	;; at point-max (its position will increase.)  So it's important that
+	;; the extent exhibit the same behavior, lest the region covered by
+	;; the extent (the visual indication), and the region between point
+	;; and mark (the actual selection value) become different!
+	(set-extent-property previous-extent 'end-open nil)
+
 	;; use same priority as mouse-highlighting so that conflicts between
 	;; the selection extent and a mouse-highlighted extent are resolved
 	;; by the usual size-and-endpoint-comparison method.
@@ -426,8 +438,14 @@ Cut buffers are considered obsolete\; you should use selections instead."
 			buf (marker-buffer (car value)))))
 	   (save-excursion
 	     (set-buffer buf)
-	     (setq a (count-lines 1 a)
-		   b (count-lines 1 b)))
+	     (save-restriction
+	       (widen)
+	       (goto-char a)
+	       (beginning-of-line)
+	       (setq a (1+ (count-lines 1 (point))))
+	       (goto-char b)
+	       (beginning-of-line)
+	       (setq b (1+ (count-lines 1 (point))))))
 	   (if (< b a) (setq tmp a a b b tmp))
 	   (cons 'SPAN
 		 (vector (cons (ash a -16) (logand a 65535))
@@ -474,8 +492,14 @@ Cut buffers are considered obsolete\; you should use selections instead."
 			file-name (buffer-file-name buf))))
 	   (save-excursion
 	     (set-buffer buf)
-	     (setq a (count-lines 1 a)
-		   b (count-lines 1 b)))
+	     (save-restriction
+	       (widen)
+	       (goto-char a)
+	       (beginning-of-line)
+	       (setq a (1+ (count-lines 1 (point))))
+	       (goto-char b)
+	       (beginning-of-line)
+	       (setq b (1+ (count-lines 1 (point))))))
 	   (if (< b a) (setq tmp a a b b tmp))
 	   (format "%s:%d" file-name a)))))
 

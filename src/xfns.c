@@ -26,20 +26,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "syssignal.h"
 
 #include "xintrinsicp.h"	/* CoreP.h needs this */
-#include <X11/CoreP.h>		/* foul, but we need this to use our own
-				   window inside a widget instead of one 
-				   that Xt creates... */
+#include <X11/CoreP.h>		/* Numerous places access the fields of
+				   a core widget directly.  We could
+				   use XtVaGetValues(), but ... */
+#include <X11/Shell.h>
 #include <X11/StringDefs.h>
 #include <X11/Xresource.h>
-#include <X11/ShellP.h>
 
-#ifdef LWLIB_USES_MOTIF
-# include <Xm/MainW.h>
-# include <Xm/PanedW.h>
-#else /* Athena */
-# include <X11/Xmu/Converters.h>	/* For XtorientVertical */
-# include <X11/Xaw/Paned.h>
-#endif
+#include "EmacsManager.h"
 
 #ifdef USG
 #undef USG	/* ####KLUDGE for Solaris 2.2 and up */
@@ -58,9 +52,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "EmacsScreenP.h"
 
-#ifdef EXTERNAL_WIDGET
 #include "EmacsShell.h"
-#include "EmacsShellP.h"
+#ifdef EXTERNAL_WIDGET
+#include "ExternalShell.h"
 #endif
 
 /* Do the EDITRES protocol if running the X11R5 version of Athena */
@@ -69,7 +63,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 extern void _XEditResCheckMessages();
 #endif /* R5 + Athena */
 
-#ifdef USE_SOUND
+#ifdef HAVE_NATIVE_SOUND
 # include <netdb.h>
 #endif
 
@@ -90,6 +84,8 @@ extern void _XEditResCheckMessages();
 #include "xgccache.h"
 struct gc_cache *the_gc_cache;
 #endif
+
+extern Time mouse_timestamp;
 
 #define min(a,b) ((a) < (b) ? (a) : (b))
 #define max(a,b) ((a) > (b) ? (a) : (b))
@@ -131,7 +127,13 @@ Lisp_Object Vx_screen_defaults;
 /* Do we accept events send by other clients? */
 int x_allow_sendevents;
 
+extern void make_argc_argv (Lisp_Object argv_list, int *argc, char ***argv);
+
 
+/************************************************************************/
+/*			X-window-to-screen conversion			*/
+/************************************************************************/
+
 /* Return the Emacs screen-object corresponding to an X window */
 struct screen *
 x_window_to_screen (wdesc)
@@ -153,7 +155,7 @@ x_window_to_screen (wdesc)
 }
 
 /* Like x_window_to_screen but also compares the window with the widget's
-   widows */
+   windows */
 struct screen *
 x_any_window_to_screen (wdesc)
      Window wdesc;
@@ -174,9 +176,6 @@ x_any_window_to_screen (wdesc)
       /* This screen matches if the window is any of its widgets. */
       if (wdesc == XtWindow (x->widget) ||
 	  wdesc == XtWindow (x->container) ||
-#ifndef LWLIB_USES_MOTIF
-	  wdesc == XtWindow (x->container2) ||
-#endif
 	  wdesc == XtWindow (x->edit_widget))
 	return s;
       /* Match if the window is this screen's menubar. */
@@ -191,11 +190,242 @@ x_any_window_to_screen (wdesc)
     }
   return 0;
 }
+
+/************************************************************************/
+/*			window-manager interactions			*/
+/************************************************************************/
+
+#if 0
+/* Not currently used. */
+
+void
+x_wm_mark_shell_size_user_specified (Widget wmshell)
+{
+  if (! XtIsWMShell (wmshell)) abort ();
+  EmacsShellSetSizeUserSpecified (wmshell);
+}
+
+void
+x_wm_mark_shell_position_user_specified (Widget wmshell)
+{
+  if (! XtIsWMShell (wmshell)) abort ();
+  EmacsShellSetPositionUserSpecified (wmshell);
+}
+
+#endif
+
+void
+x_wm_set_shell_iconic_p (Widget shell, int iconic_p)
+{
+  BLOCK_INPUT;
+  if (! XtIsWMShell (shell)) abort ();
+
+  /* Because of questionable logic in Shell.c, this sequence can't work:
+
+       w = XtCreatePopupShell (...);
+       XtVaSetValues (w, XtNiconic, True, 0);
+       XtRealizeWidget (w);
+
+     The iconic resource is only consulted at initialization time (when
+     XtCreatePopupShell is called) instead of at realization time (just
+     before the window gets created, which would be more sensible) or
+     at management-time (just before the window gets mapped, which would
+     be most sensible of all).
+
+     The bug is that Shell's SetValues method doesn't do anything to
+     w->wm.wm_hints.initial_state until after the widget has been realized.
+     Calls to XtSetValues are ignored in the window between creation and
+     realization.  This is true of MIT X11R5 patch level 25, at least.
+     (Apparently some other versions of Xt don't have this bug?)
+   */
+  XtVaSetValues (shell, XtNiconic, iconic_p, 0);
+  EmacsShellSmashIconicHint (shell, iconic_p);
+  UNBLOCK_INPUT;
+}
+
+void
+x_wm_set_cell_size (Widget wmshell, int cw, int ch)
+{
+  BLOCK_INPUT;
+  if (!XtIsWMShell (wmshell))
+    abort ();
+  if (cw <= 0 || ch <= 0)
+    abort ();
+
+  XtVaSetValues (wmshell,
+		 XtNwidthInc, cw, 
+		 XtNheightInc, ch,
+		 0);
+  UNBLOCK_INPUT;
+}
+
+void
+x_wm_set_variable_size (Widget wmshell, int width, int height)
+{
+  BLOCK_INPUT;
+  if (!XtIsWMShell (wmshell))
+    abort ();
+#ifdef DEBUG_GEOMETRY_MANAGEMENT
+  /* See comment in EmacsShell.c */
+  printf ("x_wm_set_variable_size: %d %d\n", width, height);
+  fflush (stdout);
+#endif
+  XtVaSetValues (wmshell,
+		 XtNwidthCells, width,
+		 XtNheightCells, height,
+		 0);
+  UNBLOCK_INPUT;
+}
+
+/* If the WM_PROTOCOLS property does not already contain WM_TAKE_FOCUS
+   and WM_DELETE_WINDOW, then add them.  (They may already be present
+   because of the toolkit (Motif adds them, for example, but Xt doesn't.)
+ */
+static void
+x_wm_hack_wm_protocols (Widget widget)
+{
+  Display *dpy = XtDisplay (widget);
+  Window w = XtWindow (widget);
+  int need_delete = 1;
+  int need_focus = 1;
+
+  if (!XtIsWMShell (widget))
+    abort ();
+
+  BLOCK_INPUT;
+  {
+    Atom type, *atoms = 0;
+    int format = 0;
+    unsigned long nitems = 0;
+    unsigned long bytes_after;
+
+    if (Success == XGetWindowProperty (dpy, w, Xatom_WM_PROTOCOLS,
+				       0, 100, False, XA_ATOM,
+				       &type, &format, &nitems, &bytes_after,
+				       (unsigned char **) &atoms)
+	&& format == 32 && type == XA_ATOM)
+      while (nitems > 0)
+	{
+	  nitems--;
+	  if (atoms [nitems] == Xatom_WM_DELETE_WINDOW)   need_delete = 0;
+	  else if (atoms [nitems] == Xatom_WM_TAKE_FOCUS) need_focus = 0;
+	}
+    if (atoms) XFree ((char *) atoms);
+  }
+  {
+    Atom props [10];
+    int count = 0;
+    if (need_delete) props [count++] = Xatom_WM_DELETE_WINDOW;
+    if (need_focus)  props [count++] = Xatom_WM_TAKE_FOCUS;
+    if (count)
+      XChangeProperty (dpy, w, Xatom_WM_PROTOCOLS, XA_ATOM, 32, PropModeAppend,
+		       (unsigned char *) props, count);
+  }
+  UNBLOCK_INPUT;
+}
+
+static void
+x_wm_store_class_hints (Widget shell, char *screen_name)
+{
+  Display *dpy = XtDisplay (shell);
+  char *app_name, *app_class;
+  XClassHint classhint;
+
+  BLOCK_INPUT;
+  if (!XtIsWMShell (shell))
+    abort ();
+
+  XtGetApplicationNameAndClass (dpy, &app_name, &app_class);
+  classhint.res_name = screen_name;
+  classhint.res_class = app_class;
+  XSetClassHint (dpy, XtWindow (shell), &classhint);
+  UNBLOCK_INPUT;
+}
+
+static void
+x_wm_maybe_store_wm_command (struct screen *s)
+{
+  Widget w = s->display.x->widget;
+
+  BLOCK_INPUT;
+  if (!XtIsWMShell (w))
+    abort ();
+  UNBLOCK_INPUT;
+
+  if (NILP (WM_COMMAND_screen))
+    {
+      int argc;
+      char **argv;
+      make_argc_argv (Vcommand_line_args, &argc, &argv);
+      BLOCK_INPUT;
+      XSetCommand (XtDisplay (w), XtWindow (w), argv, argc);
+      xfree (argv);
+      XSETR (WM_COMMAND_screen, Lisp_Screen, s);
+      UNBLOCK_INPUT;
+    }
+}
+
+/* If we're deleting the screen on which the WM_COMMAND property has been
+   set, then move that property to another screen so that there is exactly
+   one screen that has that property set.
+ */
+void
+x_wm_maybe_move_wm_command (struct screen *s)
+{
+  if (s == XSCREEN (WM_COMMAND_screen))
+    {
+      Lisp_Object rest = Vscreen_list;
+      /* find some random other X screen that is not this one, or give up */
+      while (!NILP (rest) &&
+	     (s == XSCREEN (XCONS (rest)->car) ||
+	      !SCREEN_IS_X (XSCREEN (XCONS (rest)->car))))
+	rest = XCONS (rest)->cdr;
+      if (NILP (rest)) return;
+      s = XSCREEN (XCONS (rest)->car);
+      WM_COMMAND_screen = Qnil;
+      x_wm_maybe_store_wm_command (s);
+    }
+}
+
+int
+x_screen_iconified_p (Lisp_Object screen)
+{
+  Atom actual_type;
+  int actual_format;
+  unsigned long nitems, bytesafter;
+  unsigned long *datap = 0;
+  Widget widget;
+  int result = 0;
+
+  if (!SCREEN_IS_X (XSCREEN (screen)))
+    return 0;
+
+  widget = XSCREEN (screen)->display.x->widget;
+  BLOCK_INPUT;
+  if (Success == XGetWindowProperty (XtDisplay (widget), XtWindow (widget),
+				     Xatom_WM_STATE, 0, 2, False,
+				     Xatom_WM_STATE, &actual_type,
+				     &actual_format, &nitems, &bytesafter,
+				     (unsigned char **) &datap)
+      && datap)
+    {
+      if (nitems <= 2	/* "suggested" by ICCCM version 1 */
+	  && datap [0] == IconicState)
+	result = 1;
+      XFree ((char *) datap);
+    }
+  UNBLOCK_INPUT;
+  return result;
+}
+
+
+/************************************************************************/
+/*			screen parameters / X resources 		*/
+/************************************************************************/
 
 Lisp_Object text_part_sym;
 Lisp_Object modeline_part_sym;
 
-
 /* Connect the screen-parameter names (symbols) to the corresponding
    X Resource Manager names.  The name of a parameter, as a Lisp symbol,
    has an `x-resource-name' property which is a Lisp_String. */
@@ -217,15 +447,17 @@ init_x_parm_symbols ()
   def ("border-color", XtNborderColor);
   defi("border-width", XtNborderWidth);
   defi("internal-border-width", XtNinternalBorderWidth);
+  defi("scrollbar-width", XtNscrollBarWidth);
   defi("width", XtNwidth);
   defi("height", XtNheight);
-  defi("x", XtNx);
-  defi("y", XtNy);
+  defi("left", XtNx);
+  defi("top", XtNy);
   def ("iconic", XtNiconic);
   def ("minibuffer", XtNminibuffer);
   def ("unsplittable", XtNunsplittable);
   defi("inter-line-space", XtNinterline);
   def ("menubar", XtNmenubar);
+  def ("initially-unmapped", XtNinitiallyUnmapped);
   
 #undef def
 }
@@ -257,7 +489,7 @@ x_report_screen_params (s, alistptr)
      struct screen *s;
      Lisp_Object *alistptr;
 {
-  TopLevelShellWidget shell = (TopLevelShellWidget)s->display.x->widget;
+  Widget shell = s->display.x->widget;
   EmacsScreen w = (EmacsScreen)s->display.x->edit_widget;
   char buf [255];
 
@@ -270,7 +502,6 @@ x_report_screen_params (s, alistptr)
 #define store_color(sym, slot) \
   color_to_string ((Widget) w, slot, buf); \
   store_in_alist (alistptr, sym, build_string (buf))
-#define store_curs(sym, slot) /* #### don't have the strings any more... */
 
   store_color ("cursor-color", w->emacs_screen.cursor_color);
   store_color ("border-color", w->core.border_pixel);
@@ -278,12 +509,13 @@ x_report_screen_params (s, alistptr)
   store_int ("top", shell->core.y);
   store_int ("border-width", w->core.border_width);
   store_int ("internal-border-width", w->emacs_screen.internal_border_width);
+  store_int ("scrollbar-width", w->emacs_screen.scrollbar_width);
   store_int ("inter-line-space", w->emacs_screen.interline);
   store_bool ("minibuffer", w->emacs_screen.minibuffer);
   store_bool ("unsplittable", w->emacs_screen.minibuffer);
 /*  store_bool ("visual-bell", w->emacs_screen.visual_bell); */
 /*  store_bool ("bar-cursor",  w->emacs_screen.bar_cursor); */
-  sprintf (buf, "0x%x", XtWindow (w));
+  sprintf (buf, "0x%x", (int) XtWindow (w));
   store_str ("window-id", buf);
 }
 
@@ -327,13 +559,17 @@ x_set_icon_name_from_char (struct screen* s, char* name)
    If the parameter is not specially recognized, do nothing.
  */
 
+void update_scrollbars (void);
+
 void
 x_set_screen_values (struct screen *s, Lisp_Object alist)
 {
   int x = 0, y = 0;
   Dimension width = 0, height = 0;
-  Bool size_specified_p = False;
-  Bool position_specified_p = False;
+  Bool width_specified_p = False;
+  Bool height_specified_p = False;
+  Bool x_position_specified_p = False;
+  Bool y_position_specified_p = False;
   Lisp_Object tail;
   Widget w = s->display.x->edit_widget;
   
@@ -388,14 +624,14 @@ x_set_screen_values (struct screen *s, Lisp_Object alist)
 	    {
 	      CHECK_FIXNUM (val, 0);
 	      width = XINT (val);
-	      size_specified_p = True;
+	      width_specified_p = True;
 	      continue;
 	    }
 	  if (!strcmp ((char *) XSTRING (str)->data, "height"))
 	    {
 	      CHECK_FIXNUM (val, 0);
 	      height = XINT (val);
-	      size_specified_p = True;
+	      height_specified_p = True;
 	      continue;
 	    }
 	  /* Further kludge the x/y. */
@@ -403,14 +639,14 @@ x_set_screen_values (struct screen *s, Lisp_Object alist)
 	    {
 	      CHECK_FIXNUM (val, 0);
 	      x = XINT (val);
-	      position_specified_p = True;
+	      x_position_specified_p = True;
 	      continue;
 	    }
 	  if (!strcmp ((char *) XSTRING (str)->data, "y"))
 	    {
 	      CHECK_FIXNUM (val, 0);
 	      y = XINT (val);
-	      position_specified_p = True;
+	      y_position_specified_p = True;
 	      continue;
 	    }
 
@@ -439,6 +675,9 @@ x_set_screen_values (struct screen *s, Lisp_Object alist)
 			     0);
 	    }
 	  UNBLOCK_INPUT;
+
+	  if (!strcmp ((char *) XSTRING (str)->data, "scrollBarWidth"))
+	    update_scrollbars();
 	}
     }
 
@@ -462,7 +701,12 @@ x_set_screen_values (struct screen *s, Lisp_Object alist)
       XtVaSetValues (w, XtNgeometry, xstrdup (geom), 0);
     }
 #else
-  if (size_specified_p)
+  if (!width_specified_p)
+    width = SCREEN_WIDTH (s);
+  if (!height_specified_p)
+    height = SCREEN_HEIGHT (s);
+
+  if (width_specified_p || height_specified_p)
     {
       Lisp_Object screen;
       XSETR (screen, Lisp_Screen, s);
@@ -472,7 +716,12 @@ x_set_screen_values (struct screen *s, Lisp_Object alist)
 			Qnil);
     }
   /* Kludge kludge kludge kludge. */
-  if (position_specified_p)
+  if (!x_position_specified_p)
+    x = (int) (s->display.x->widget->core.x);
+  if (!y_position_specified_p)
+    y = (int) (s->display.x->widget->core.y);
+    
+  if (x_position_specified_p || y_position_specified_p)
     {
       Lisp_Object screen;
       XSETR (screen, Lisp_Screen, s);
@@ -534,23 +783,373 @@ maybe_set_screen_title_format (shell)
     }
   UNBLOCK_INPUT;
 }
+
+/************************************************************************/
+/*				widget creation				*/
+/************************************************************************/
+
+/* The widget hierarchy is
+
+	argv[0]			shell		pane		SCREEN-NAME
+	ApplicationShell	EmacsShell	EmacsManager	EmacsScreen
+
+   We accept geometry specs in this order:
+
+	*SCREEN-NAME.geometry
+	*EmacsScreen.geometry
+	Emacs.geometry
+
+   Other possibilities for widget hierarchies might be
+
+	argv[0]			screen		pane		SCREEN-NAME
+	ApplicationShell	EmacsShell	EmacsManager	EmacsScreen
+   or
+	argv[0]			SCREEN-NAME	pane		SCREEN-NAME
+	ApplicationShell	EmacsShell	EmacsManager	EmacsScreen
+   or
+	argv[0]			SCREEN-NAME	pane		emacsTextPane
+	ApplicationShell	EmacsShell	EmacsManager	EmacsScreen
+
+   With the current setup, the text-display-area is the part which is
+   an emacs "screen", since that's the only part managed by emacs proper
+   (the menubar and the parent of the menubar and all that sort of thing
+   are managed by lwlib.)
+
+#ifdef EXTERNAL_WIDGET
+   The ExternalShell widget is simply a replacement for the Shell widget 
+   which is able to deal with using an externally-supplied window instead
+   of always creating its own.
+#endif
+
+*/
+
+#ifdef EXTERNAL_WIDGET
+
+static int cvw_error_occurred;
+
+int cvw_handler (Display *display, XErrorEvent *ev)
+{
+  cvw_error_occurred = 1;
+  return 0;
+}
+
+int is_valid_window (Window w)
+{
+  XWindowAttributes xwa;
+  int (*old_handler)(Display *, XErrorEvent *);
+
+  BLOCK_INPUT;
+  XSync (x_current_display, False);
+  cvw_error_occurred = 0;
+  old_handler = XSetErrorHandler (cvw_handler);
+  XGetWindowAttributes (x_current_display, w, &xwa);
+  XSetErrorHandler (old_handler);
+  UNBLOCK_INPUT;
+  return !cvw_error_occurred;
+}
+
+#endif /* EXTERNAL_WIDGET */
+
+/* This sends a synthetic mouse-motion event to the screen, if the mouse
+   is over the screen.  This ensures that the cursor gets set properly
+   before the user moves the mouse for the first time. */
+
+static void
+x_send_synthetic_mouse_event (struct screen *s)
+{
+  /* #### write this function. */
+}
 
 
-extern void maybe_store_wm_command (struct screen *);
+static int
+first_x_screen_p (struct screen *s)
+{
+  Lisp_Object rest = Vscreen_list;
+  while (!NILP (rest) &&
+	 (s == XSCREEN (XCONS (rest)->car) ||
+	  !SCREEN_IS_X (XSCREEN (XCONS (rest)->car))))
+    rest = XCONS (rest)->cdr;
+  return (NILP (rest));
+}
 
-static void hack_wm_protocols (Widget);
-static void store_class_hints (Widget, char *);
+/* Figure out what size the EmacsScreen widget should initially be,
+   and set it.  Should be called after the default font has been
+   determined but before the widget has been realized. */
+
+static void
+x_initialize_screen_size (struct screen *s)
+{
+  /* Geometry of the AppShell */
+  int app_flags = 0;
+  int app_x = 0;
+  int app_y = 0;
+  unsigned int app_w = 0;
+  unsigned int app_h = 0;
+  
+  /* Geometry of the EmacsScreen */
+  int screen_flags = 0;
+  int screen_x = 0;
+  int screen_y = 0;
+  unsigned int screen_w = 0;
+  unsigned int screen_h = 0;
+  
+  /* Hairily merged geometry */
+  int x = 0;
+  int y = 0;
+  unsigned int w = 80;
+  unsigned int h = 40;
+  int flags = 0;
+
+  char *geom = 0, *ew_geom = 0;
+  Boolean iconic_p = False, ew_iconic_p = False;
+
+  Widget wmshell = s->display.x->widget;
+  Widget app_shell = XtParent (wmshell);
+  Widget ew = s->display.x->edit_widget;
+
+/* set the position of the screen's root window now.  When the
+   screen was created, the position was initialized to (0,0). */
+
+  XWINDOW (s->root_window)->pixleft = SCREEN_INT_BORDER (s);
+  XWINDOW (s->root_window)->pixtop = SCREEN_INT_BORDER (s);
+  if (!NILP (s->minibuffer_window))
+    XWINDOW (s->minibuffer_window)->pixleft = SCREEN_INT_BORDER (s);
+
+#ifdef EXTERNAL_WIDGET
+  /* If we're an external widget, then the size of the screen is predetermined
+     (by the client) and is not our decision to make. */
+  if (s->display.x->external_window_p)
+    return;
+#endif
+
+#if 0
+  /* #### this junk has not been tested; therefore it's
+     probably wrong.  Doesn't really matter at this point because
+     currently all screens are either top-level or external widgets. */
+
+  /* If we're not our own top-level window, then we shouldn't go messing around
+     with top-level shells or "Emacs.geometry" or any such stuff.  Therefore,
+     we do as follows to determine the size of the screen:
+
+     1) If a value for the screen's "geometry" resource was specified, then
+        use it.  (This specifies a size in characters.)
+     2) Else, if the "width" and "height" resources were specified, then
+        leave them alone.  (This is a value in pixels.  Sorry, we can't break Xt
+	conventions here.)
+     3) Else, assume a size of 64x12.  (This is somewhat arbitrary, but
+        it's unlikely that a size of 80x40 is desirable because we're probably
+	inside of a dialog box.
+
+     Set the widget's x, y, height, and width as determined.  Don't set the
+     top-level container widget, because we don't necessarily know what it
+     is. (Assume it is smart and pays attention to our values.)
+  */
+
+  if (!s->display.x->top_level_screen_p)
+    {
+      XtVaGetValues (ew, XtNgeometry, &ew_geom, 0);
+      if (ew_geom)
+	screen_flags = XParseGeometry (ew_geom, &screen_x, &screen_y,
+				       &screen_w, &screen_h);
+      if (! (screen_flags & (WidthValue | HeightValue)))
+	{
+	  XtVaGetValues (ew, XtNwidth, &screen_w,
+			 XtNheight, &screen_h, 0);
+	  if (!screen_w && !screen_h)
+	    {
+	      screen_w = 64;
+	      screen_h = 12;
+	      screen_flags |= WidthValue | HeightValue;
+	    }
+	}
+      if (screen_flags & (WidthValue | HeightValue))
+	EmacsScreenSetCharSize (ew, screen_w, screen_h);
+      if (screen_flags & (XValue | YValue))
+	{
+	  XtVaGetValues (ew, XtNwidth, &screen_w,
+			 XtNheight, &screen_h, 0);
+	  if (screen_flags & XNegative)
+	    screen_x += screen_w;
+	  if (screen_flags & YNegative)
+	    screen_y += screen_h;
+	  XtVaSetValues (ew, XtNx, screen_x, XtNy, screen_y, 0);
+	}
+      return;
+    }
+#endif
+
+  /* OK, we're a top-level shell. */
+
+  if (!XtIsWMShell (wmshell))
+    abort ();
+  if (!XtIsApplicationShell (app_shell))
+    abort ();
+
+  /* If the EmacsScreen doesn't have a geometry but the shell does,
+     treat that as the geometry of the screen.  (Is this bogus?
+     I'm not sure.) */
+
+  XtVaGetValues (ew, XtNgeometry, &ew_geom, 0);
+  if (!ew_geom)
+    {
+      XtVaGetValues (wmshell, XtNgeometry, &geom, 0);
+      if (geom)
+	{
+	  ew_geom = geom;
+	  XtVaSetValues (ew, XtNgeometry, ew_geom, 0);
+	}
+    }
+
+  /* If the Shell is iconic, then the EmacsScreen is iconic.  (Is
+     this bogus? I'm not sure.) */
+  XtVaGetValues (ew, XtNiconic, &ew_iconic_p, 0);
+  if (!ew_iconic_p)
+    {
+      XtVaGetValues (wmshell, XtNiconic, &iconic_p, 0);
+      if (iconic_p)
+	{
+	  ew_iconic_p = iconic_p;
+	  XtVaSetValues (ew, XtNiconic, iconic_p, 0);
+	}
+    }
+  
+  XtVaGetValues (app_shell, XtNgeometry, &geom, 0);
+  if (geom)
+    app_flags = XParseGeometry (geom, &app_x, &app_y, &app_w, &app_h);
+
+  if (ew_geom)
+    screen_flags = XParseGeometry (ew_geom, &screen_x, &screen_y,
+				   &screen_w, &screen_h);
+  
+  if (first_x_screen_p (s))
+    {
+      /* If this is the first screen created:
+         ====================================
+
+         - Use the ApplicationShell's size/position, if specified.
+           (This is "Emacs.geometry", or the "-geometry" command line arg.)
+         - Else use the EmacsScreen's size/position.
+           (This is "*SCREEN-NAME.geometry")
+
+	 - If the AppShell is iconic, the screen should be iconic.
+
+	 AppShell comes first so that -geometry always applies to the first
+	 screen created, even if there is an "every screen" entry in the
+	 resource database.
+       */
+      if (app_flags & (XValue | YValue))
+	{
+	  x = app_x; y = app_y;
+	  flags |= (app_flags & (XValue | YValue | XNegative | YNegative));
+	}
+      else if (screen_flags & (XValue | YValue))
+	{
+	  x = screen_x; y = screen_y;
+	  flags |= (screen_flags & (XValue | YValue | XNegative | YNegative));
+	}
+
+      if (app_flags & (WidthValue | HeightValue))
+	{
+	  w = app_w; h = app_h;
+	  flags |= (app_flags & (WidthValue | HeightValue));
+	}
+      else if (screen_flags & (WidthValue | HeightValue))
+	{
+	  w = screen_w; h = screen_h;
+	  flags |= (screen_flags & (WidthValue | HeightValue));
+	}
+
+      /* If the AppShell is iconic, then the EmacsScreen is iconic. */
+      if (!ew_iconic_p)
+	{
+	  XtVaGetValues (app_shell, XtNiconic, &iconic_p, 0);
+	  if (iconic_p)
+	    {
+	      ew_iconic_p = iconic_p;
+	      XtVaSetValues (ew, XtNiconic, iconic_p, 0);
+	    }
+	}
+    }
+  else
+    {
+      /* If this is not the first screen created:
+         ========================================
+
+         - use the EmacsScreen's size/position if specified
+         - Otherwise, use the ApplicationShell's size, but not position.
+
+         So that means that one can specify the position of the first screen
+         with "Emacs.geometry" or `-geometry'; but can only specify the
+	 position of subsequent screens with "*SCREEN-NAME.geometry".
+
+	 AppShell comes second so that -geometry does not apply to subsequent
+	 screens when there is an "every screen" entry in the resource db,
+	 but does apply to the first screen.
+       */
+      if (screen_flags & (XValue | YValue))
+	{
+	  x = screen_x; y = screen_y;
+	  flags |= (screen_flags & (XValue | YValue | XNegative | YNegative));
+	}
+
+      if (screen_flags & (WidthValue | HeightValue))
+	{
+	  w = screen_w; h = screen_h;
+	  flags |= (screen_flags & (WidthValue | HeightValue));
+	}
+      else if (app_flags & (WidthValue | HeightValue))
+	{
+	  w = app_w;
+	  h = app_h;
+	  flags |= (app_flags & (WidthValue | HeightValue));
+	}
+    }
+
+  {
+    char shell_geom [255];
+    int xval, yval;
+    char xsign, ysign;
+    char uspos = !!(flags & (XValue | YValue));
+    char ussize = !!(flags & (WidthValue | HeightValue));
+    char *temp;
+
+    /* assign the correct size to the EmacsScreen widget ... */
+    EmacsScreenSetCharSize (ew, w, h);
+
+    /* and also set the WMShell's geometry */
+    (flags & XNegative) ? (xval = -x, xsign = '-') : (xval = x, xsign = '+');
+    (flags & YNegative) ? (yval = -y, ysign = '-') : (yval = y, ysign = '+');
+
+    if (uspos && ussize)
+      sprintf (shell_geom, "=%dx%d%c%d%c%d", w, h, xsign, xval, ysign, yval);
+    else if (uspos)
+      sprintf (shell_geom, "=%c%d%c%d", xsign, xval, ysign, yval);
+    else if (ussize)
+      sprintf (shell_geom, "=%dx%d", w, h);
+
+    if (uspos || ussize)
+      {
+	/* #### this causes a slight memory leak each time a screen
+	   is created.  I'm not going to worry about it now. */
+	temp = xmalloc (1 + strlen (shell_geom));
+	strcpy (temp, shell_geom);
+      }
+    else
+	temp = NULL;
+    XtVaSetValues (wmshell, XtNgeometry, temp, 0);
+  }
+}
 
 /* Creates the widgets for a screen.  Parms is an alist of
    resources/values to use for the screen.  (ignored right now).
    lisp_window_id is a Lisp description of an X window or Xt
    widget to parse.
 
-   This function does not map the window.
+   This function does not create or map the windows.  (That is
+   done by x_popup_screen().)
  */
 static void
-x_create_widgets (struct screen *s,
-		  Lisp_Object parms
+x_create_widgets (struct screen *s
 #ifdef EXTERNAL_WIDGET
 		  , Lisp_Object lisp_window_id
 #endif
@@ -559,16 +1158,12 @@ x_create_widgets (struct screen *s,
   Widget shell_widget;
   Widget pane_widget;
   Widget screen_widget;
-  Widget scrollbar_manager;
-#ifndef LWLIB_USES_MOTIF
-  Widget lower_pane;
-#endif
-#ifdef ENERGIZE
-  Widget psheet_manager;
-#endif
   Widget menubar_widget;
+  Widget scrollbar_manager;
+  int menubar_visible, scrollbar_visible;
+  struct x_display *x = s->display.x;
 #ifdef EXTERNAL_WIDGET
-  Window window_id;
+  Window window_id = 0;
 #endif
   char *name;
   Arg av [25];
@@ -584,20 +1179,21 @@ x_create_widgets (struct screen *s,
   /* The widget hierarchy is
 
 	argv[0]			shell		pane		SCREEN-NAME
-	ApplicationShell	TopLevelShell	XmMainWindow	EmacsScreen
+	ApplicationShell	EmacsShell	EmacsManager	EmacsScreen
 
-     However the shell/EmacsShell widget has WM_CLASS of SCREEN-NAME/Emacs.
-     Normally such shells have name/class shellname/appclass, which in this
-     case would be "shell/Emacs" instead of "screen-name/Emacs".  We could
-     also get around this by naming the shell "screen-name", but that would
-     be confusing because the text area (the EmacsScreen widget inferior of
-     the shell) is also called that.  So we just set the WM_CLASS property.
+	(the type of the shell is ExternalShell if this screen is running
+	in another client's window)
+
+	However the EmacsShell widget has WM_CLASS of SCREEN-NAME/Emacs.
+	Normally such shells have name/class shellname/appclass, which in this
+	case would be "shell/Emacs" instead of "screen-name/Emacs".  We could
+	also get around this by naming the shell "screen-name", but that would
+	be confusing because the text area (the EmacsScreen widget inferior of
+	the shell) is also called that.  So we just set the WM_CLASS property.
    */
 
 #ifdef EXTERNAL_WIDGET
-  if (NILP (lisp_window_id))
-    window_id = 0;
-  else
+  if (!NILP (lisp_window_id))
     {
       char *string;
 
@@ -615,8 +1211,12 @@ x_create_widgets (struct screen *s,
 #endif
       else
 	sscanf (string, "%lu", &window_id);
-    }
+      if (!is_valid_window (window_id))
+	error ("Invalid window %d", window_id);
+      x->external_window_p = 1;
+    } else
 #endif /* EXTERNAL_WIDGET */
+      x->top_level_screen_p = 1;
 
   ac = 0;
   XtSetArg (av[ac], XtNallowShellResize, True); ac++;
@@ -630,165 +1230,110 @@ x_create_widgets (struct screen *s,
 #endif
     {
       XtSetArg (av[ac], XtNinput, True); ac++;
+      XtSetArg (av[ac], XtNminWidthCells, 10); ac++;
+      XtSetArg (av[ac], XtNminHeightCells, 4); ac++;
     }
+  /* there is no need to mess around with mappedWhenManaged any more */
+  /* XtSetArg (av[ac], XtNmappedWhenManaged, False); ac++; */
 
   shell_widget = XtCreatePopupShell ("shell",
 				     (
 #ifdef EXTERNAL_WIDGET
-				      window_id ? emacsShellWidgetClass :
+				      window_id ? externalShellWidgetClass :
 #endif
-				      topLevelShellWidgetClass
+				      emacsShellWidgetClass
 				      ),
 				     Xt_app_shell,
 				     av, ac);
   maybe_set_screen_title_format (shell_widget);
 
-#ifdef LWLIB_USES_MOTIF
-  ac = 0;
-  XtSetArg (av[ac], XtNborderWidth, 0); ac++;
-  XtSetArg (av[ac], XmNspacing, 0); ac++;
-  pane_widget = XmCreateMainWindow (shell_widget, "pane", av, ac);
-
-  /* Now create the initial menubar widget. */
-  s->display.x->container = pane_widget;
-  initialize_screen_menubar (s);
-  menubar_widget = s->display.x->menubar_widget;
-
-  ac = 0;
-  XtSetArg (av[ac], XtNmappedWhenManaged, False); ac++;
-  XtSetArg (av[ac], XtNemacsScreen, s); ac++;
-  screen_widget = XtCreateWidget (name,
-				  emacsScreenClass,
-				  pane_widget, av, ac);
-
-  initialize_screen_scrollbars (s);
-  scrollbar_manager = s->display.x->scrollbar_manager;
-
-  if (scrollbar_manager)
-    {
-      Dimension sb_manager_width;
-      XtVaGetValues (scrollbar_manager, XmNwidth, &sb_manager_width, 0);
-      if (sb_manager_width != 0 && sb_manager_width != scrollbar_width)
-	scrollbar_width = sb_manager_width;
-    }
-  else
-    scrollbar_width = 0;
-
-# ifdef ENERGIZE
-  ac = 0;
-  XtSetArg (av[ac], XtNmappedWhenManaged, True); ac++;
-  XtSetArg (av[ac], XmNseparatorOn, False); ac++;
-  XtSetArg (av[ac], XmNmarginHeight, 0); ac++;
-  XtSetArg (av[ac], XmNmarginWidth, 0); ac++;
-  XtSetArg (av[ac], XmNsashHeight, 0); ac++;
-  XtSetArg (av[ac], XmNsashIndent, 0); ac++;
-  XtSetArg (av[ac], XmNsashWidth, 0); ac++;
-  XtSetArg (av[ac], XmNsashShadowThickness, 0); ac++;
-  XtSetArg (av[ac], XmNspacing, 0); ac++;
-  XtSetArg (av[ac], XmNshadowThickness, 0); ac++;
-  psheet_manager = XmCreatePanedWindow (pane_widget, "psheet_manager", av, ac);
-# endif /* ENERGIZE */
-
-  XmMainWindowSetAreas (pane_widget,
-			menubar_widget,		/* menubar (maybe 0) */
-			0,			/* command area (psheets) */
-			0,			/* horizontal scroll */
-			scrollbar_manager,	/* vertical scroll (maybe 0) */
-			screen_widget);		/* work area */
-
-#else /* !LWLIB_USES_MOTIF (meaning Athena) */
-
-  /* Create a vertical Paned to hold menubar / psheets / and-the-rest */
-  ac = 0;
-  XtSetArg (av[ac], XtNborderWidth, 0); ac++;
-  XtSetArg (av[ac], XtNorientation, XtorientVertical); ac++;
-  pane_widget = XtCreateWidget ("pane",
-				panedWidgetClass,
-				shell_widget, av, ac);
+  /* Create the manager widget */
+  pane_widget = XtVaCreateWidget ("pane",
+				  emacsManagerWidgetClass,
+				  shell_widget, 0);
+  x->container = pane_widget;
 
   /* Create the initial menubar widget. */
-  s->display.x->container = pane_widget;
-  initialize_screen_menubar (s);
-  menubar_widget = s->display.x->menubar_widget;
-
-  /* Create a horizontal Paned to hold scrollbars and the text area */
-  ac = 0;
-  XtSetArg (av[ac], XtNmappedWhenManaged, True); ac++;
-  XtSetArg (av[ac], XtNshowGrip, False); ac++;
-  XtSetArg (av[ac], XtNallowResize, True); ac++;
-  XtSetArg (av[ac], XtNresizeToPreferred, True); ac++;
-  XtSetArg (av[ac], XtNorientation, XtorientHorizontal); ac++;
-  XtSetArg (av[ac], XtNinternalBorderWidth, 1); ac++; /* sb_margin... */
-  lower_pane = XtCreateWidget ("lower_pane",
-				panedWidgetClass,
-				pane_widget, av, ac);
-
-  /* Create the initial scrollbars */
-  s->display.x->container2 = lower_pane;
-  initialize_screen_scrollbars (s);
-  scrollbar_manager = s->display.x->scrollbar_manager;
+  menubar_visible = initialize_screen_menubar (s);
+  menubar_widget = x->menubar_widget;
+  x->top_widgets[0] = menubar_widget;
 
   /* Create the text area */
   ac = 0;
-  XtSetArg (av[ac], XtNmappedWhenManaged, True); ac++;
-  XtSetArg (av[ac], XtNshowGrip, False); ac++;
-  XtSetArg (av[ac], XtNallowResize, True); ac++;
-  XtSetArg (av[ac], XtNresizeToPreferred, True); ac++;
   XtSetArg (av[ac], XtNborderWidth, 0); ac++;	/* should this be settable? */
   XtSetArg (av[ac], XtNemacsScreen, s); ac++;
   screen_widget = XtCreateWidget (name,
 				  emacsScreenClass,
-				  lower_pane, av, ac);
+				  pane_widget, av, ac);
+  /* We need this set to get the scrollbar width set correctly */
+  x->edit_widget = screen_widget;
 
-#endif /* !LWLIB_USES_MOTIF (meaning Athena) */
+  /* Create the initial scrollbars */
+  scrollbar_visible = initialize_screen_scrollbars (s);
+  scrollbar_manager = x->scrollbar_manager;
 
-  s->display.x->widget = shell_widget;
-  s->display.x->edit_widget = screen_widget;
+  XtVaSetValues (pane_widget,
+		 XtNtopAreaWidgets, x->top_widgets,
+		 XtNnumTopAreaWidgets, 1, /* menubar */
+		 XtNtextArea, screen_widget,
+		 XtNscrollbarWidget, scrollbar_manager,
+		 0);
 
-#ifdef ENERGIZE
-  /* Initially unmanaged; no psheets yet. */
-  s->display.x->psheet_manager = psheet_manager;
-#endif
+  x->widget = shell_widget;
 
-  if (menubar_widget)
+  if (menubar_visible)
     XtManageChild (menubar_widget);
-  if (scrollbar_manager)
+  if (scrollbar_visible)
     XtManageChild (scrollbar_manager);
   XtManageChild (screen_widget);
-#ifndef LWLIB_USES_MOTIF /* Athena */
-  XtManageChild (lower_pane);
-#endif
   XtManageChild (pane_widget);
+  UNBLOCK_INPUT;
+}
 
-#ifdef LWLIB_USES_MOTIF
-  {
-    /* The MainWindow likes to borrow the space for the menubar and scrollbar
-       from the text area; this is not good, so after realizing it (but before
-       mapping it) reset the size of the text area to what it wanted to be
-       created with. */
-    Dimension width, height;
-    XtVaGetValues (screen_widget, XtNwidth, &width, XtNheight, &height, 0);
-    XtRealizeWidget (shell_widget);
-    XtVaSetValues (screen_widget, XtNwidth, width, XtNheight, height, 0);
-  }
-#else
-  XtRealizeWidget (shell_widget);
+/* create the windows for the specified screen and display them.
+   Note that the widgets have already been created, and any
+   necessary geometry calculations have already been done. */
+
+static void
+x_popup_screen (struct screen *s)
+{
+  struct x_display *x = s->display.x;
+  Widget shell_widget = x->widget;
+  Widget screen_widget = x->edit_widget;
+
+  /* Before mapping the window, make sure that the WMShell's notion of
+     whether it should be iconified is synchronized with the EmacsScreen's
+     notion.
+   */
+  if (x->top_level_screen_p)
+    x_wm_set_shell_iconic_p (x->widget,
+			     ((EmacsScreen) screen_widget)
+			     ->emacs_screen.iconic);
+
+  if (((EmacsScreen) screen_widget)->emacs_screen.initially_unmapped)
+    return;
+
+  BLOCK_INPUT;
+
+  XtPopup (shell_widget, XtGrabNone);
+
+#ifdef EXTERNAL_WIDGET
+  if (x->external_window_p)
+    ExternalShellReady (shell_widget, XtWindow (screen_widget), KeyPressMask);
+  else
 #endif
-
-  if (!NILP (Vx_screen_defaults) || !NILP (parms))
-    x_set_screen_values (s, (NILP (parms)
-			     ? Vx_screen_defaults
-			     : nconc2 (Fcopy_sequence (parms),
-				       Vx_screen_defaults)));
-
-  store_class_hints (shell_widget, name);
-  maybe_store_wm_command (s);
-  hack_wm_protocols (shell_widget);
+    if (x->top_level_screen_p)
+      {
+	/* tell the window manager about us. */
+	x_wm_store_class_hints (shell_widget, XtName (screen_widget));
+	x_wm_maybe_store_wm_command (s);
+	x_wm_hack_wm_protocols (shell_widget);
+      }
 
 #ifdef I18N4
   if (input_context)
     {
-      main_window = XtWindow (screen_widget);
+      Window main_window = XtWindow (screen_widget);
       XSetICValues (input_context,
 		    XNClientWindow, main_window,
 		    XNFocusWindow, main_window,
@@ -808,65 +1353,8 @@ x_create_widgets (struct screen *s,
 		   Xatom_WM_PROTOCOLS, XA_ATOM, 32, PropModeAppend,
 		   (unsigned char*) NULL, 0);
 
-  XtMapWidget (screen_widget);
-  UNBLOCK_INPUT;
-}
+  x_send_synthetic_mouse_event (s);
 
-
-/* If the WM_PROTOCOLS property does not already contain WM_TAKE_FOCUS
-   and WM_DELETE_WINDOW, then add them.  (They may already be present
-   because of the toolkit (Motif adds them, for example, but Xt doesn't.)
- */
-static void
-hack_wm_protocols (Widget widget)
-{
-  Display *dpy = XtDisplay (widget);
-  Window w = XtWindow (widget);
-  int need_delete = 1;
-  int need_focus = 1;
-  BLOCK_INPUT;
-  {
-    Atom type, *atoms = 0;
-    int format = 0;
-    unsigned long nitems = 0;
-    unsigned long bytes_after;
-
-    if (Success == XGetWindowProperty (dpy, w, Xatom_WM_PROTOCOLS,
-				       0, 100, False, XA_ATOM,
-				       &type, &format, &nitems, &bytes_after,
-				       (unsigned char **) &atoms)
-	&& format == 32 && type == XA_ATOM)
-      while (nitems > 0)
-	{
-	  nitems--;
-	  if (atoms [nitems] == Xatom_WM_DELETE_WINDOW)   need_delete = 0;
-	  else if (atoms [nitems] == Xatom_WM_TAKE_FOCUS) need_focus = 0;
-	}
-    if (atoms) XFree ((char *) atoms);
-  }
-  {
-    Atom props [10];
-    int count = 0;
-    if (need_delete) props [count++] = Xatom_WM_DELETE_WINDOW;
-    if (need_focus)  props [count++] = Xatom_WM_TAKE_FOCUS;
-    if (count)
-      XChangeProperty (dpy, w, Xatom_WM_PROTOCOLS, XA_ATOM, 32, PropModeAppend,
-		       (unsigned char *) props, count);
-  }
-  UNBLOCK_INPUT;
-}
-
-static void
-store_class_hints (Widget shell, char *screen_name)
-{
-  Display *dpy = XtDisplay (shell);
-  char *app_name, *app_class;
-  XClassHint classhint;
-  BLOCK_INPUT;
-  XtGetApplicationNameAndClass (dpy, &app_name, &app_class);
-  classhint.res_name = screen_name;
-  classhint.res_class = app_class;
-  XSetClassHint (dpy, XtWindow (shell), &classhint);
   UNBLOCK_INPUT;
 }
 
@@ -887,38 +1375,10 @@ allocate_x_display_struct (s)
   s->display.x->desired_psheet_buffer = Qnil;
 #endif
 }
-
-int
-x_screen_iconified_p (Lisp_Object screen)
-{
-  Atom actual_type;
-  int actual_format;
-  unsigned long nitems, bytesafter;
-  unsigned long *datap = 0;
-  Widget widget;
-  int result = 0;
-
-  if (!SCREEN_IS_X (XSCREEN (screen)))
-    return 0;
-
-  widget = XSCREEN (screen)->display.x->widget;
-  BLOCK_INPUT;
-  if (Success == XGetWindowProperty (XtDisplay (widget), XtWindow (widget),
-				     Xatom_WM_STATE, 0, 2, False,
-				     Xatom_WM_STATE, &actual_type,
-				     &actual_format, &nitems, &bytesafter,
-				     (unsigned char **) &datap)
-      && datap)
-    {
-      if (nitems <= 2	/* "suggested" by ICCCM version 1 */
-	  && datap [0] == IconicState)
-	result = 1;
-      XFree ((char *) datap);
-    }
-  UNBLOCK_INPUT;
-  return result;
-}
-
+
+/************************************************************************/
+/*				Lisp functions				*/
+/************************************************************************/
 
 Lisp_Object Vdefault_screen_name;
 
@@ -970,52 +1430,46 @@ with \"0x\".")
 
   XSETR (screen, Lisp_Screen, s);
 
-  x_create_widgets (s, parms
+  x_create_widgets (s
 #ifdef EXTERNAL_WIDGET
 		    , lisp_window_id
 #endif
 		    );
-  
-  /* do this after anything that might call Fsignal() before the screen
-   * is in a usable state. */
-  Vscreen_list = Fcons (screen, Vscreen_list);
 
-  /* This runs lisp code, and thus might GC.  If the selected screen is still
-     the terminal screen (meaning that we're in the middle of creating the
-     initial X screen) then select the X screen now, so that GC messages don't
-     get written on the terminal screen.  This is kind of a hack...
-   */
   if (selected_screen == XSCREEN (Vterminal_screen))
-    select_screen_internal (s);
-  init_screen_faces (s);
-  /* This is the first place all the needed information is available to
-     initialize these variables.
-     */
-  XWINDOW (s->root_window)->pixleft = INT_BORDER (s);
-  XWINDOW (s->root_window)->pixtop = INT_BORDER (s);
-  if (!NILP (XWINDOW (s->root_window)->next))
     {
-      int font_height = XFONT (SCREEN_DEFAULT_FONT (s))->height;
-      struct window *mini_window = XWINDOW(XWINDOW(s->root_window)->next);
-
-      mini_window->pixleft = INT_BORDER (s);
-      mini_window->pixtop = PIXH (s) + INT_BORDER(s) - font_height;
-      mini_window->pixwidth = PIXW (s);
-      mini_window->pixheight = font_height;
+      /* Yes yes yes it's visible, short-circuit the delay in processing the
+	 initial MapNotify event so that output on the first screen shows up
+	 right away... */
+      s->visible = 1;
     }
 
-  x_format_screen_title (s);
+  /* Set up the values of the widget/screen.  A case could be made for putting
+     this inside of the widget's initialize method. */
 
-  /* Now map the window (shell widget) if appropriate. */
-  BLOCK_INPUT;
-  XtPopup (s->display.x->widget, XtGrabNone);
-  UNBLOCK_INPUT;
+  init_screen_faces (s);
+  x_initialize_screen_size (s);
+  x_format_screen_title (s);
+  if (!NILP (Vx_screen_defaults) || !NILP (parms))
+    x_set_screen_values (s, (NILP (parms)
+			     ? Vx_screen_defaults
+			     : nconc2 (Fcopy_sequence (parms),
+				       Vx_screen_defaults)));
+
+  /* Pop up the screen. */
+
+  x_popup_screen (s);
+
+  Vscreen_list = Fcons (screen, Vscreen_list);
 
   run_hook_with_args (Qcreate_screen_hook, 1, screen);
   UNGCPRO;
   return screen;
 }
 
+
+
+#if 0	/* wishful thinking */
 
 struct screen *
 get_screen_on_screen (Screen *sc)
@@ -1052,6 +1506,9 @@ get_screen_on_display (Display *d)
     }
   return 0;
 }
+
+#endif /* 0 */
+
 
 struct screen *
 get_x_screen (Lisp_Object screen)
@@ -1098,26 +1555,6 @@ StaticColor, PseudoColor, TrueColor, or DirectColor.")
     default:
       error (GETTEXT ("display has an unknown visual class"));
     }
-}
-
-DEFUN ("x-pixel-width", Fx_pixel_width, Sx_pixel_width, 0, 1, 0,
-  "Returns the width in pixels of the given screen.")
-  (screen)
-     Lisp_Object screen;
-{
-  struct screen *s = get_x_screen (screen);
-
-  return make_number (PIXEL_WIDTH (s));
-}
-
-DEFUN ("x-pixel-height", Fx_pixel_height, Sx_pixel_height, 0, 1, 0,
-  "Returns the height in pixels of the given screen.")
-  (screen)
-     Lisp_Object screen;
-{
-  struct screen *s = get_x_screen (screen);
-
-  return make_number (PIXEL_HEIGHT (s));
 }
 
 DEFUN ("x-display-pixel-width", Fx_display_pixel_width, Sx_display_pixel_width,
@@ -1315,6 +1752,48 @@ DEFUN ("x-ungrab-pointer", Fx_ungrab_pointer, Sx_ungrab_pointer, 0, 0, 0,
   return Qnil;
 }
 
+DEFUN ("x-grab-keyboard", Fx_grab_keyboard, Sx_grab_keyboard, 0, 1, 0,
+  "Grab the keyboard on the given screen (defaulting to the selected one).\n\
+So long as the keyboard is grabbed, all keyboard events will be delivered\n\
+to emacs - it is not possible for other X clients to evesdrop on them.\n\
+Ungrab the keyboard with `x-ungrab-keyboard' (use unwind-protect.)\n\
+Returns t if the grab was successful; nil otherwise.")
+     (screen)
+     Lisp_Object screen;
+{
+  struct screen *s = get_x_screen (screen);
+  Display *dpy = XtDisplay (s->display.x->widget);
+  Window window = XtWindow (s->display.x->widget);
+  Status status;
+  BLOCK_INPUT;
+  XSync (dpy, False);
+  status = XGrabKeyboard (dpy, window, True,
+			  /* I don't really understand sync-vs-async
+			     grabs, but this is what xterm does. */
+			  GrabModeAsync, GrabModeAsync,
+			  /* Use the timestamp of the last user action
+			     read by emacs proper; xterm uses CurrentTime
+			     but there's a comment that says "wrong"...
+			     (Despite the name this is the time of the
+			     last key or mouse event.) */
+			  mouse_timestamp);
+  UNBLOCK_INPUT;
+  return ((status == GrabSuccess) ? Qt : Qnil);
+}
+
+DEFUN ("x-ungrab-keyboard", Fx_ungrab_keyboard, Sx_ungrab_keyboard, 0, 1, 0,
+       "Release a keyboard grab made with `x-grab-keyboard.'")
+     (screen)
+     Lisp_Object screen;
+{
+  struct screen *s = get_x_screen (screen);
+  Display *dpy = XtDisplay (s->display.x->widget);
+  BLOCK_INPUT;
+  XUngrabKeyboard (dpy, CurrentTime);
+  UNBLOCK_INPUT;
+  return Qnil;
+}
+
 
 /* handlers for the eval-events pushed on the queue by event-Xt.c */
 
@@ -1489,7 +1968,12 @@ DEFUN ("x-MapNotify-internal", Fx_MapNotify_internal,
   if (! XSCREEN (screen)->visible)
     {
       XSCREEN (screen)->visible = 1;
-      SET_SCREEN_GARBAGED (XSCREEN (screen));
+      /* This improves the double flicker when uniconifying a screen
+         some.  A lot if it is not showing a buffer which has changed
+         while the screen was iconified.  To fix it further requires
+	 the good 'ol double redisplay structure. */
+/*      SET_SCREEN_GARBAGED (XSCREEN (screen)); */
+      windows_changed++;
       run_hook_with_args (Qmap_screen_hook, 1, screen);
     }
   return Qnil;
@@ -1638,7 +2122,7 @@ screen widget, so the call\n\
 is an interface to a C call something like\n\
 \n\
     XrmGetResource (db, \"lemacs.shell.pane.this_screen_name.font\",\n\
-			\"Emacs.Shell.Paned.EmacsScreen.Font\",\n\
+			\"Emacs.EmacsShell.EmacsManager.EmacsScreen.Font\",\n\
 			\"String\");\n\
 \n\
 Therefore if you want to retrieve a deeper resource, for example,\n\
@@ -1650,7 +2134,7 @@ in the class path:\n\
 which is equivalent to something like\n\
 \n\
     XrmGetResource (db, \"lemacs.shell.pane.this_screen_name.foo.foreground\",\n\
-			\"Emacs.Shell.Paned.EmacsScreen.Thing.Foreground\",\n\
+			\"Emacs.EmacsShell.EmacsManager.EmacsScreen.Thing.Foreground\",\n\
 			\"String\");\n\
 \n\
 The returned value of this function is nil if the queried resource is not\n\
@@ -1662,7 +2146,7 @@ mean ``unspecified.''")
 */
 
 
-static void
+void
 construct_name_list (Widget widget, char *name, char *class)
 {
   char *stack [100][2];
@@ -1869,16 +2353,19 @@ which should be an object returned by `make-cursor'.")
   CHECK_SCREEN (screen, 0);
   if (! SCREEN_IS_X (XSCREEN (screen)))
     return Qnil;
-  BLOCK_INPUT;
-  XDefineCursor (XtDisplay (XSCREEN (screen)->display.x->edit_widget),
-		 XtWindow (XSCREEN (screen)->display.x->edit_widget),
-		 XCURSOR (cursor)->cursor);
-  XSync (XtDisplay (XSCREEN (screen)->display.x->edit_widget), 0);
-  UNBLOCK_INPUT;
-  /* #### If the user cuts this pointer, we'll get X errors.
-     This needs to be rethunk. */
-  /* change_cursor_for_gc() acesses this */
-  store_screen_param (XSCREEN (screen), Qpointer, cursor);
+  if (! EQ (get_screen_param (XSCREEN (screen), Qpointer), cursor))
+    {
+      BLOCK_INPUT;
+      XDefineCursor (XtDisplay (XSCREEN (screen)->display.x->edit_widget),
+   		     XtWindow (XSCREEN (screen)->display.x->edit_widget),
+		     XCURSOR (cursor)->cursor);
+      XSync (XtDisplay (XSCREEN (screen)->display.x->edit_widget), 0);
+      UNBLOCK_INPUT;
+      /* #### If the user cuts this pointer, we'll get X errors.
+         This needs to be rethunk. */
+      /* change_cursor_for_gc() acesses this */
+      store_screen_param (XSCREEN (screen), Qpointer, cursor);
+    }
   return Qnil;
 }
 
@@ -1898,13 +2385,17 @@ cursor, which should be an object returned by `make-cursor'.")
   sbm = XSCREEN (screen)->display.x->scrollbar_manager;
   if (! sbm)
     return Qnil;
-  BLOCK_INPUT;
-  XDefineCursor (XtDisplay (sbm), XtWindow (sbm), XCURSOR (cursor)->cursor);
-  XSync (XtDisplay (sbm), 0);
-  UNBLOCK_INPUT;
-  /* #### If the user cuts this pointer, we'll get X errors.
-     This needs to be rethunk. */
-  store_screen_param (XSCREEN (screen), Qscrollbar_pointer, cursor);
+  if (! EQ (get_screen_param (XSCREEN (screen), Qscrollbar_pointer), cursor))
+    {
+      BLOCK_INPUT;
+      XDefineCursor (XtDisplay (sbm), XtWindow (sbm), 
+		     XCURSOR (cursor)->cursor);
+      XSync (XtDisplay (sbm), 0);
+      UNBLOCK_INPUT;
+      /* #### If the user cuts this pointer, we'll get X errors.
+         This needs to be rethunk. */
+      store_screen_param (XSCREEN (screen), Qscrollbar_pointer, cursor);
+    }
   return Qnil;
 }
 
@@ -1918,7 +2409,12 @@ static Lisp_Object Vpre_gc_cursor;
 int
 x_show_gc_cursor (struct screen* s, Lisp_Object cursor)
 {
+  int speccount = specpdl_depth ();
   Lisp_Object screen;
+  int changed = 0;
+
+  specbind (Qinhibit_quit, Qt);		/* some losers in here call Fassq() */
+
   XSETR (screen, Lisp_Screen, s);
   if (NILP (cursor))
     {
@@ -1928,54 +2424,45 @@ x_show_gc_cursor (struct screen* s, Lisp_Object cursor)
 	  /* We know it's a screen, we know it's a pointer, so
 	     x-set-screen-pointer won't error. */
 	  Fx_set_screen_pointer (screen, Vpre_gc_cursor);
-	  return 1;
+	  changed = 1;
 	}
-      return 0;
     }
   else if (CURSORP (cursor))
     {
       Vpre_gc_cursor = get_screen_param (XSCREEN (screen), Qpointer);
 
-      if (!CURSORP (Vpre_gc_cursor))
+      if (CURSORP (Vpre_gc_cursor))
 	/* if we don't know what cursor is there, don't change to the GC
 	   cursor, because we'd have no way of changing back... */
-	return 0;
-
-      /* We know it's a screen, we know it's a pointer, so
-	 x-set-screen-pointer won't error. */
-      Fx_set_screen_pointer (screen, cursor);
-      return 1;
+	{
+	  /* We know it's a screen, we know it's a pointer, so
+	     x-set-screen-pointer won't error. */
+	  Fx_set_screen_pointer (screen, cursor);
+	  changed = 1;
+	}
     }
-  else
-    return 0;
+
+  unbind_to (speccount, Qnil);
+  return changed;
 }
 
 
 static void Xatoms_of_xfns (void);
 
-#ifdef TOOLTALK
-extern void init_tooltalk (int *argc, char **argv);
-#ifdef SPARCWORKS
-extern void init_sparcworks (int *argc, char **argv);
+#ifdef HAVE_NETAUDIO_SOUND
+extern char *netaudio_init_play (Display *);
 #endif
-#endif
+
 
 DEFUN ("x-open-connection", Fx_open_connection, Sx_open_connection,
        1, 1, 0, "Open a connection to an X server.\n\
 Argument ARGV is a list of strings describing the command line options.\n\
 Returns a copy of ARGV from which the arguments used by the Xt code\n\
-to open the connect have been removed.")
+to open the connection have been removed.")
  	(argv_list)
 	Lisp_Object argv_list;
 {
   Lisp_Object argv_rest;
-
-#ifdef TOOLTALK
-  extern void make_argc_argv(Lisp_Object argv_list, int *argc, char ***argv);
-  extern Lisp_Object make_arg_list(int argc, char **argv);
-  int argc;
-  char **argv;
-#endif
 
   if (x_current_display != 0)
     error (GETTEXT ("X server connection is already initialized"));
@@ -1987,11 +2474,20 @@ to open the connect have been removed.")
   Vwindow_system_version = make_number (11);
   Xatoms_of_xfns ();
   Xatoms_of_xselect ();
+  Xatoms_of_xobjs ();
 
-#ifdef USE_SOUND
-  /* When running on a SparcStation or SGI, we cannot use digitized sounds as
-     beeps unless emacs is running on the same machine that $DISPLAY points
-     to, and $DISPLAY points to screen 0 of that machine.
+#ifdef HAVE_NETAUDIO_SOUND
+  {
+    char *error = netaudio_init_play (x_current_display);
+    connected_to_netaudio_p = !error;
+    /* Print out the message? */
+  }
+#endif /* HAVE_NETAUDIO_SOUND */
+
+#ifdef HAVE_NATIVE_SOUND
+  /* When running on a machine with native sound support, we cannot use
+     digitized sounds as beeps unless emacs is running on the same machine
+     that $DISPLAY points to, and $DISPLAY points to screen 0 of that machine.
    */
   {
     char *dpy = DisplayString (x_current_display);
@@ -1999,34 +2495,44 @@ to open the connect have been removed.")
     if (! tail ||
 	strncmp (tail, ":0", 2))
       not_on_console = 1;
-    else {
-      char dpyname[255], localname[255];
-      strncpy (dpyname, dpy, tail-dpy);
-      dpyname [tail-dpy] = 0;
-      if (!*dpyname ||
-	  !strcmp(dpyname, "unix") ||
-	  !strcmp(dpyname, "localhost"))
-	not_on_console = 0;
-      else if (gethostname (localname, sizeof (localname)))
-	not_on_console = 1;  /* can't find hostname? */
-      else {
-	/* gethostbyname() reuses the structure it returns,
-	   so we have to copy the string out of it. */
-	struct hostent *h = gethostbyname (dpyname);
-	not_on_console = !h || !!(strcmp (localname, h->h_name));
+    else
+      {
+	char dpyname[255], localname[255];
+	strncpy (dpyname, dpy, tail-dpy);
+	dpyname [tail-dpy] = 0;
+	if (!*dpyname ||
+	    !strcmp(dpyname, "unix") ||
+	    !strcmp(dpyname, "localhost"))
+	  not_on_console = 0;
+	else if (gethostname (localname, sizeof (localname)))
+	  not_on_console = 1;	/* can't find hostname? */
+	else
+	  {
+	    /* We have to call gethostbyname() on the result of gethostname()
+	       because the two aren't guarenteed to be the same name for the
+	       same host: on some losing systems, one is a FQDN and the other
+	       is not.  Here in the wide wonderful world of Unix it's rocket
+	       science to obtain the local hostname in a portable fashion.
+	       
+	       And don't forget, gethostbyname() reuses the structure it
+	       returns, so we have to copy the fucker before calling it again.
+	       Thank you master, may I have another.
+	     */
+	    struct hostent *h = gethostbyname (dpyname);
+	    if (!h)
+	      not_on_console = 1;
+	    else
+	      {
+		char hn [255];
+		struct hostent *l;
+		strcpy (hn, h->h_name);
+		l = gethostbyname (localname);
+		not_on_console = (!l || !!(strcmp (l->h_name, hn)));
+	      }
+	  }
       }
-    }
   }
-#endif /* USE_SOUND */
-
-#ifdef TOOLTALK
-  make_argc_argv (argv_rest, &argc, &argv);
-#ifdef SPARCWORKS
-  init_sparcworks (&argc, argv);
-#endif
-  init_tooltalk (&argc, argv);
-  argv_rest = make_arg_list (argc, argv);
-#endif
+#endif /* HAVE_NATIVE_SOUND */
 
   return argv_rest;
 }
@@ -2038,7 +2544,7 @@ unsigned long, we return it as a string.")
   (screen)
   Lisp_Object screen;
 {
-  char str[20];
+  char str[255];
 
   CHECK_SCREEN (screen, 0);
   if (! SCREEN_IS_X (XSCREEN (screen)))
@@ -2080,41 +2586,30 @@ DEFUN ("x-close-current-connection", Fx_close_current_connection,
       UNBLOCK_INPUT;
     }
   else
-    fatal (GETTEXT ("No current X display connection to close"));
+    fatal (GETTEXT ("No current X display connection to close."));
   return Qnil;
 }
 
-static int
-emacs_safe_XSyncFunction(dpy)
-     register Display *dpy;
-{
-  BLOCK_INPUT;
-  XSync (dpy, 0);
-  UNBLOCK_INPUT;
-  return 0;
-}
-
 DEFUN ("x-debug-mode", Fx_debug_mode, Sx_debug_mode, 1, 1, 0,
-       "With a true arg, put the connection to the X server in synchronous\n\
-mode; this is slower.  False turns it off.\n\
-Do not simply call XSynchronize() from gdb; that won't work.")
+       "With a true arg, make the connection to the X server synchronous.\n\
+With false, make it asynchronous.  Synchronous connections are much slower,\n\
+but are useful for debugging (if you get X errors, make the connection\n\
+synchronous, and use a debugger to set a breakpoint on `x_error_handler'.\n\
+Your backtrace of the C stack will now be useful.  In asynchronous mode,\n\
+the stack above `x_error_handler' isn't helpful because of buffering.)\n\
+\n\
+Calling this function is the same as calling the C function `XSynchronize',\n\
+or starting the program with the `-sync' command line argument.")
     (arg)
     Lisp_Object arg;
 {
+  BLOCK_INPUT;
+  XSynchronize (x_current_display, !NILP (arg));
+  UNBLOCK_INPUT;
   if (!NILP (arg))
-    {
-      BLOCK_INPUT;
-      XSetAfterFunction (x_current_display, emacs_safe_XSyncFunction);
-      UNBLOCK_INPUT;
-      message (GETTEXT ("X connection is synchronous"));
-    }
+    message ("X connection is synchronous");
   else
-    {
-      BLOCK_INPUT;
-      XSetAfterFunction (x_current_display, 0);
-      UNBLOCK_INPUT;
-      message (GETTEXT ("X connection is asynchronous"));
-    }
+    message ("X connection is asynchronous");
   return arg;
 }
 
@@ -2139,13 +2634,16 @@ will be used instead.");
   Vx_scrollbar_pointer_shape = Qnil;
 
   DEFVAR_LISP ("bar-cursor", &Vbar_cursor,
-	       "Use vertical bar cursor if non-nil.");
+  "Use vertical bar cursor if non-nil.  If t width is 1 pixel, otherwise 2.");
   Vbar_cursor = Qnil;
 
   DEFVAR_LISP ("x-screen-defaults", &Vx_screen_defaults,
-    "Alist of default screen-creation parameters for X-window screens.\n\
-These override what is specified in `~/.Xdefaults' but are overridden\n\
-by the arguments to the particular call to `x-create-screen'.");
+    "Alist of default screen-creation parameters for X screens.\n\
+These override what is specified in the resource database, but are\n\
+overridden by the arguments to the particular call to `x-create-screen'.\n\
+\n\
+See also `default-screen-alist', which specifies parameters which apply\n\
+to all screens, not just X screens.");
   Vx_screen_defaults = Qnil;
 
   DEFVAR_LISP ("default-screen-name", &Vdefault_screen_name,
@@ -2168,16 +2666,10 @@ in the file lisp/term/x-win.el.");
 Beware: allowing emacs to process SendEvents opens a big security hole.");
   x_allow_sendevents = 0;
 
-  /* This isn't really the right place for this...  Initialized in xterm.c */
-  DEFVAR_LISP ("lucid-logo", &Vlucid_logo, 0);
-  Vlucid_logo = Qnil;
-
   staticpro (&Vpre_gc_cursor);
   Vpre_gc_cursor = Qnil;
 
   defsubr (&Sx_display_visual_class);
-  defsubr (&Sx_pixel_width);
-  defsubr (&Sx_pixel_height);
   defsubr (&Sx_display_pixel_width);
   defsubr (&Sx_display_pixel_height);
   defsubr (&Sx_display_planes);
@@ -2187,6 +2679,8 @@ Beware: allowing emacs to process SendEvents opens a big security hole.");
   defsubr (&Sx_window_id);
   defsubr (&Sx_grab_pointer);
   defsubr (&Sx_ungrab_pointer);
+  defsubr (&Sx_grab_keyboard);
+  defsubr (&Sx_ungrab_keyboard);
   defsubr (&Sx_create_screen);
   defsubr (&Sx_open_connection);
   defsubr (&Sx_close_current_connection);

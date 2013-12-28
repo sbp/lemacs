@@ -238,7 +238,7 @@ struct Lisp_Event;
 struct Lisp_Process;
 
 struct event_stream {
-  int  (*event_pending_p)	(int);
+  int  (*event_pending_p)	(int, int);
   void (*next_event_cb)		(struct Lisp_Event *);
   void (*handle_magic_event_cb)	(struct Lisp_Event *);
   int  (*generate_wakeup_cb)	(unsigned int, unsigned int,
@@ -276,7 +276,7 @@ typedef enum emacs_event_type {
 
 
 struct key_data {
-  Lisp_Object       key;
+  Lisp_Object       keysym;
   unsigned char     modifiers;
 };
 
@@ -352,6 +352,9 @@ struct Lisp_Event {
       struct eval_data    eval;		/* menu_event uses this too */
       struct magic_data   magic;
     } event;
+#ifdef EPOCH
+  Lisp_Object		epoch_event;
+#endif
 };
 
 extern CONST struct lrecord_implementation lrecord_event[];
@@ -385,8 +388,21 @@ extern CONST struct lrecord_implementation lrecord_event[];
 extern void format_event_object (char *buf, struct Lisp_Event *e, int brief);
 extern void character_to_event (unsigned int c, struct Lisp_Event *event);
 
+
+/* True is this is a non-internal event
+   (keyboard press, menu, mouse button) */
+extern int command_event_p (struct Lisp_Event *event);
+
 extern Lisp_Object Fenqueue_command_event (Lisp_Object function,
 					   Lisp_Object object);
+
+#ifdef EPOCH
+extern Lisp_Object Qx_property_change, Qx_client_message, Qx_map, Qx_unmap;
+extern Lisp_Object Vepoch_event, Vepoch_event_handler;
+
+extern void dispatch_epoch_event (struct Lisp_Event *event, Lisp_Object type);
+#endif
+
 #endif /* emacs */
 
 #endif /* _EMACS_EVENTS_H_ */

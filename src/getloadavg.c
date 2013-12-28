@@ -232,6 +232,10 @@
 /* VAX C can't handle multi-line #ifs, or lines longer that 256 characters.  */
 #ifndef NLIST_STRUCT
 
+#ifdef _AIX
+#define NLIST_STRUCT
+#endif
+
 #ifdef MORE_BSD
 #define NLIST_STRUCT
 #endif

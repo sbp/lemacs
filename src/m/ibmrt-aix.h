@@ -5,7 +5,7 @@ This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -30,11 +30,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define INTBITS 32		/* Number of bits in an int */
 
 #define LONGBITS 32		/* Number of bits in a long */
-
-/* Define BIG_ENDIAN iff lowest-numbered byte in a word
-   is the most significant byte.  */
-
-#define BIG_ENDIAN
 
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
@@ -166,12 +161,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Setup to do some things BSD way - these won't work previous to AIX 2.1.2 */
 
-#ifdef emacs /* Don't do this when making xmakefile! */
 #include </usr/include/bsd/BSDtoAIX.h>
-#endif
 #define BSTRING
-#define HAVE_DUP2
-#define HAVE_GETTIMEOFDAY
 #define HAVE_SELECT
 #define HAVE_TIMEVAL
 #define HAVE_VFORK
@@ -181,3 +172,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* AIX defines FIONREAD, but it does not work.  */
 #define BROKEN_FIONREAD
+
+/* rocky@watson.ibm.com says this is needed.  */
+#define HAVE_FTIME

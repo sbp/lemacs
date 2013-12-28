@@ -88,7 +88,7 @@ find_defun_start (pos)
     return find_start_value;
 
   /* Back up to start of line.  */
-  tem = scan_buffer (current_buffer, '\n', pos, -1, &shortage);
+  tem = scan_buffer (current_buffer, '\n', pos, -1, &shortage, 1);
 
   while (tem > BEGV)
     {
@@ -96,7 +96,7 @@ find_defun_start (pos)
       if (SYNTAX (table, FETCH_CHAR (tem)) == Sopen)
 	break;
       /* Move to beg of previous line.  */
-      tem = scan_buffer (current_buffer, '\n', tem, -2, &shortage);
+      tem = scan_buffer (current_buffer, '\n', tem, -2, &shortage, 1);
     }
 
   /* Record what we found, for the next try.  */

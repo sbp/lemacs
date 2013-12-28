@@ -35,7 +35,6 @@
 #undef static
 
 /* Don't try to use SIGIO or FIONREAD even though they are defined.  */
-/* #undef SIGIO		use BROKEN_SIGIO instead of this kludge -- jwz */
 #define BROKEN_SIGIO
 #define BROKEN_FIONREAD
 
@@ -44,17 +43,13 @@
 #define HAVE_SYSVIPC
 
 #define HAVE_TIMEVAL
-#ifdef emacs /* Don't do this when making xmakefile! */
+#if defined(emacs)
 #include <bsd/sys/time.h>
 #endif
 
 /* #define HAVE_SELECT
    The `select' in the system won't work for pipes,
    so don't use it.  */
-
-#define HAVE_DUP2
-#define HAVE_GETWD
-#define HAVE_GETTIMEOFDAY
 
 #define HAVE_PTYS
 #define HAVE_SOCKETS
@@ -64,7 +59,7 @@
 
 #define CLASH_DETECTION
 
-#if defined(HAVE_X_WINDOWS) && defined(HAVE_X11)
+#if defined(HAVE_X_WINDOWS)
 #define HAVE_VFORK		/* Graciously provided by libX.a */
 #endif
 

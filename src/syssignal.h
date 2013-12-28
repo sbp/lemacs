@@ -84,7 +84,9 @@ extern sigset_t sys_sigmask ();
    appears to be assumed in the source, for example data.c:arith_error() */
 typedef SIGTYPE (*signal_handler_t) (int);
 
+#if 0		/* not being used but at least the linux ld still complains */
 signal_handler_t sys_signal (int signal_number, signal_handler_t action);
+#endif
 int sys_sigpause (sigset_t new_mask);
 sigset_t sys_sigblock (sigset_t new_mask);
 sigset_t sys_sigunblock (sigset_t new_mask);

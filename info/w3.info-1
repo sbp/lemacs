@@ -1,0 +1,1158 @@
+This is Info file ./w3.info, produced by Makeinfo-1.55 from the input
+file w3.texi.
+
+   This file documents the W3 World Wide Web browser.
+
+   Copyright (C) 1993, 1994 William M. Perry
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+
+File: w3.info,  Node: Top,  Next: Introduction,  Up: (DIR)
+
+   This manual documents the W3 World Wide Web browser, a Lisp program
+which runs as a subsystem under Emacs.  The manual is divided into the
+following chapters.
+
+* Menu:
+
+* Introduction::                What exactly is W3?
+* Setting Up::                       How to set up and install W3.
+* Basic Usage::                 Basic movement and usage of W3.
+* Compatibility w/Mosaic::      Explanation of how W3 is compatible with
+                                NCSA Mosaic for Xwindows.
+* Controlling Formatting::	How to control how W3 formats lists,
+				paragraphs, links, etc.
+* HTTP/1.0 Support::		A detailed explanation of the HTTP/1.0
+				and MIME support in W3.
+* Advanced Features::           Some of the more arcane features.
+* More Help::                   How to get more help - mailing lists,
+                                newsgroups, etc
+* Future Directions::           What is planned for future revisions of W3
+* Programming Interface::       How to use w3 from your own programs.
+
+Indices:
+* Concept Index::               Concept Index
+* Key Index::                   Menus of command keys and their references
+* Command Index::               Menus of commands and their references
+* Variable Index::              Menus of variables and their references
+
+
+File: w3.info,  Node: Introduction,  Next: Setting Up,  Prev: Top,  Up: Top
+
+Introduction
+************
+
+   W3 is an Emacs subsystem that allows the user to browse the wonderful
+World Wide Web.
+
+   The World Wide Web was started at the CERN physics institute in
+Switzerland in 1991.  The project was initially started by Tim
+Berners-Lee (timbl@info.cern.ch) for distributing data between
+different research groups effectively.
+
+   The Web has since grown into the most advanced information system
+currently on the internet.  It is now a global hypertext system with
+servers and browsers (programs written to interpret the hypertext
+language and display it correctly, and allow the user to follow links)
+exist for all major platforms (VMS, Windows, DOS, Unix, VM, NeXTstep,
+and Macintosh).
+
+   The basic concepts used in the Web are hypertext and hypermedia.
+Hypertext is the same as regular text, with one exception - it can
+contain links (cross-references) to other textual documents.  Hypermedia
+is slightly different - it can contain links to other forms of media
+(movies, sounds, interactive programs, etc).
+
+   WWW also allows searches of indices that are located anywhere on the
+network; in this respect, it mirrors certain capabilities found in both
+WAIS and Gopher.
+
+                            ---------------
+
+                           CLIENT SIDE VIEW
+
+                            ---------------
+
+   The WWW world consists of documents, and links.  Indexes are special
+documents which, rather than being read, may be searched.  The result of
+such a search is another virtual document containing links to the
+documents found.  A simple protocol, HTTP is used to allow a browser
+program to request a keyword search by a remote information server.
+
+   The web contains documents in many formats.  Those documents which
+are hypertext, (real or virtual) contain links to other documents, or
+places within documents.  All documents, whether real, virtual or
+indexes, look similar to the reader and are contained within the same
+addressing scheme.
+
+                       ------------------------
+
+                       INFORMATION PROVIDER VIEW
+
+                       ------------------------
+
+   The WWW browsers can access many existing data systems via existing
+protocols (FTP, NNTP) or via HTTP and a gateway.  In this way, the
+critical mass of data is quickly exceeded, and the increasing use of the
+system by readers and information suppliers encourage each other.
+
+   Providing information is as simple as running the WWW server and
+pointing it at an existing directory structure.  The server
+automatically generates the a hypertext view of your files to guide the
+user around.
+
+   To personalize it, you can write a few SGML hypertext files to give
+an even more friendly view.  Also, any file available by anonymous FTP,
+or any internet newsgroup can be immediately linked into the web.  The
+very small start-up effort is designed to allow small contributions.  At
+the other end of the scale, large information providers may provide an
+HTTP server with full text or keyword indexing.  This may allow access
+to a large existing database without changing the way that database is
+managed.  Such gateways have already been made into Oracle(tm), WAIS,
+and Digital's VMS/Help systems, to name but a few.
+
+   The WWW model gets over the frustrating incompatibilities of data
+format between suppliers and reader by allowing negotiation of format
+between a smart browser and a smart server.  This should provide a
+basis for extension into multimedia, and allow those who share
+application standards to make full use of them across the web.
+
+   Here is some more specific information about what W3 does and does
+not understand:
+
+* Menu:
+
+* Markup Languages Supported::	The different markup languages that
+				W3 understands natively.
+* Supported Protocols::		The different network protocols that
+				W3 speaks to.
+
+
+File: w3.info,  Node: Markup Languages Supported,  Next: Supported Protocols,  Prev: Introduction,  Up: Introduction
+
+Supported Markup Languages
+**************************
+
+   Two different markup languages are supported by W3.
+
+                               ---------
+
+                                 HTML
+
+                               ---------
+
+   HTML is composed of a set of elements that define a document and
+guide its display.  An HTML element may include a name, some attributes
+and some text or hypertext, and will appear in an HTML document as
+<tag_name> text </tag_name>,<tag_name attribute_name=argument> text
+</tag_name>, or just <tag_name>.
+
+   For example: `<title> My Useful Document </title>', and `<pre
+width=60> A lot of text here.  </pre>'.
+
+   An HTML document is composed of a single element: <html>...</html>,
+that is, in turn, composed of head and body elements: <head>...</head>,
+and <body>...</body>.  To allow older HTML documents to remain readable,
+<html>, <head>, and <body> are actually optional within HTML documents.
+
+   All the tags and attributes of HTML are fully supported in W3.
+
+                               ---------
+
+                                 HTML+
+
+                               ---------
+
+   The HTML+ language is an extension of HTML, with a large degree of
+backwards compatibility.  See the internet draft by Dave Raggett for
+more information.  The following HTML+ language elements are supported
+by W3:
+
+   * FORMS - forms are one of the most powerful aspects of HTML+.  They
+     allow the author of an HTML document to request information from
+     the person viewing the document.  Passwords, checkboxes, radio
+     buttons, and many more types of entry fields are possible.  W3
+     supports all the input tags, as well as GET and POST submission
+     methods.  W3 also supports the Mosaic 2.0 hack of automatically
+     submitting forms with a NAME of isindex.
+
+   * ID tags for headers and paragraphs.  This makes it possible to
+     reference points within a document and not require empty hypertext
+     links to do it.
+
+   * LINK support.  LINKs allow you to specify the relevance between
+     documents easily.  This makes it possible to point to dictionaries,
+     glossaries, or indices, or to specify the author of a document.
+
+   * Annotations.  Can have <footnote> and <margin> notes that show up
+     as footnotes at the bottom of a document.
+
+   * BR tag for explicit line breaks
+
+   * Notes and admonishments.  A way to specify a warning or other
+     standard information.  Shows appropriate bitmap if possible.
+     Similar to warning dialogs in Windows/Macintosh.
+
+   * Infinitely nested lists, and use of paragraphs and headers within
+     lists.
+
+                               ---------
+
+                                Extras
+
+                               ---------
+
+   There are several different markup elements that are not officially
+part of HTML or HTML+ that W3 supports.  These are either items that
+have been dropped from HTML+ because they would be too difficult for
+other browsers to implement or have been moved into another tag.
+   * RENDER support.  The render tag can be used to convert one tag into
+     another.  Syntax is <RENDER TAG="PROPNAME" STYLE="I">, which will
+     replace all <PROPNAME> tags with <I>, and all </PROPNAME> tags with
+     </I>.
+
+   * Entity definitions within documents.  This allows you to define
+     per-document macros.  Syntax is <!ENTITY TAG "Expansion of Tag">,
+     which will replace all occurences of &TAG; with Expansion of Tag.
+
+   * Roman numerals for ordered lists.  If an ordered list has an
+     optional ROMAN attribute (`<OL ROMAN>', then roman numerals will
+     be used instead of normal arabic numbers.
+
+   * IMG and ALT support for list items.  If a list item has an IMG or
+     ALT tag (`<LI IMG="some.gif" ALT="text"'), then the list character
+     will be replaced with either an icon or the ALT text.
+
+   * Specifying the hostname and port of an NNTP server in a news URL.
+     URLs of the form news://hostname:port/messageID will work.
+
+
+File: w3.info,  Node: Supported Protocols,  Prev: Markup Languages Supported,  Up: Introduction
+
+Supported Protocols
+*******************
+
+   W3 supports the following protocols
+Usenet News
+     Can either display an entire newsgroup or specific articles by
+     Message-ID: header.  No parsing of your .newsrc is done, so beware
+     of heavily trafficed newsgroups.
+
+HTTP
+     Supports both HTTP/0.9 and HTTP/1.0 protocols.  Fully
+     MIME-compliant with regards to HTTP/1.0. *Note HTTP/1.0 Support::
+
+Gopher
+     Support for all gopher types, include CSO searches.
+
+Gopher+
+     Support for Gopher+ retrievals. Support for converting ASK blocks
+     into HTML+ FORMS and submitting them back to the server.
+
+FTP
+     FTP is handled by either ange-ftp or efs, the choice is up to the
+     individual user.
+
+Local files
+     Local files are handled, and MIME content-types are derived from
+     the file extensions.
+
+Telnet
+     Telnet is handled by running the emacs-lisp function `telnet', or
+     spawning an xterm running telnet.
+
+TN3270
+     TN3270 is handled by running a tn3270 program in an Emacs buffer,
+     or spawning an xterm running tn3270.
+
+Mail
+     W3 supports the mailto: url scheme that causes a mail message to be
+     started to a specific address.
+
+
+File: w3.info,  Node: Setting Up,  Next: Retrieving W3,  Prev: Introduction,  Up: Top
+
+Setting Up
+**********
+
+   This section of the manual will deal with getting, compiling, and
+configuring Emacs-W3 for your site.
+
+* Menu:
+
+* Retrieving W3::               Retrieving W3 via anonymous ftp
+* Compiling W3::                Compiling W3 and its associated files
+* Basic Setup::                 Basic setup that everyone will need to do
+* Firewalls::                   How to set W3 up to use your particular
+                                firewall setup.
+* Proxy Gateways::              Using CERN's proxy HTTP server
+
+
+File: w3.info,  Node: Retrieving W3,  Next: Compiling W3,  Prev: Setting Up,  Up: Setting Up
+
+Retrieving W3
+=============
+
+   If you are using Lucid Emacs 19.9, you should be able to safely skip
+to the section on starting W3.  W3 comes standard with all versions of
+Lucid Emacs from 19.9 onwards.
+
+   First off, you will need the file w3.tar.gz, which is available from
+cs.indiana.edu:/pub/elisp/w3 via anonymous ftp.  You will also need the
+icons.tar.gz file.  This file contains approximately fifty small icons
+that w3 uses, and that are available to HTML authors. If you do not have
+ange-ftp, html-mode, or the nntp package by Masanobu Umeda, then you
+will also need the extras.tar.gz file.
+
+   After you have retrieved the files unpack them with the following
+commands: `zcat w3.tar.gz | tar xvvf -', `zcat icons.tar.gz | tar xvvf
+-', and `zcat extras.tar.gz | tar xvvf -'.  This will unpack
+distribution into three subdirectories `w3', `icons', and `extras'.  To
+compile and install all the packages in the extras directory, please
+see the comments at the top of each lisp file.
+
+
+File: w3.info,  Node: Compiling W3,  Next: Basic Setup,  Prev: Retrieving W3,  Up: Setting Up
+
+Compiling W3
+============
+
+   To install W3, go into the `w3' subdirectory and edit the
+`Makefile'.  You need to change three variables:
+`EMACS'
+     This variable controls what version of Emacs is used to compile the
+     programs.  It should be the full path to the Emacs executable on
+     your system.  The default is to use Lucid Emacs (`lemacs').
+
+`LISPDIR'
+     This variable controls where the lisp code will be copied to when
+     it is installed (with `make install').  This will usually be your
+     personal lisp code directory (I prefer `~/lisp').  The value will
+     be run through "expand-file-name" and then added to your load-path.
+
+`DOTEMACS'
+     This variable points to your Emacs customization file, usually
+     `~/.emacs'.  If you keep yours in a different place, you must
+     change this variable.  Otherwise `make emacs' will not work.
+
+`INFODIR'
+     This variable points to your local info directory (usually
+     `/usr/local/info').  This can be any valid directory, as long as it
+     is in `Info-default-directory-list' so that info-mode can find it.
+
+`MAKEINFO'
+     This variables controls how the info files are built.  Possible
+     values are `makeinfo' or `emacs -batch -q -f batch-texinfo-format'.
+Once you have modified the `Makefile', you should be able to build
+several different targets.
+`make w3'
+     This will compile all the .el files into the much faster .elc
+     files.  If you are using Jamie Zawinski's optimizing byte compiler
+     (standard in Emacs 19 and Lucid Emacs), then you may see a few
+     compilation warnings (not many hopefully).  These can be safely
+     ignored as long as everything finishes compiling.  This is the
+     default target for `make' with no arguments.
+
+`make install'
+     This will compile all the .el files and then copy .el and .elc
+     files into the directory specified by `LISPDIR'.
+
+`make emacs'
+     This will modify the file specified by `DOTEMACS'.  A statement
+     modifying the load-path variable and size autoload statements will
+     be added to the end of the file.
+
+`make all'
+     This will compile and install the .el files, and also
+     modify/create the `DOTEMACS' file.
+
+`make w3.info'
+     This will create the emacs-readable info files.  They will be
+     created in the directory specified by `INFODIR'.  The makefile
+     variable `MAKEINFO' determines how the info file is built.
+
+`make w3.dvi'
+     This will create the printable documentation, using tex and
+     texindex to properly generate the indices.  The w3.dvi file is
+     left in the current directory.
+
+
+File: w3.info,  Node: Basic Setup,  Next: Firewalls,  Prev: Compiling W3,  Up: Setting Up
+
+Basic Setup
+===========
+
+   There are a few variables that almost all people will need to change.
+
+`w3-bad-port-list'
+     List of ports to warn the user about connecting to.  Defaults to
+     just the mail and NNTP ports so you cannot be tricked into sending
+     fake mail or forging messages by a malicious HTML document.
+
+`w3-be-asynchronous'
+     Controls whether document retrievals over HTTP should be done in
+     the background.  This allows you to keep working in other windows
+     while large downloads occur.
+
+`w3-confirmation-func'
+     What function to use for asking yes or no functions.  Possible
+     values are 'yes-or-no-p or 'y-or-n-p, or any function that takes a
+     single argument (the prompt), and returns t only if a positive
+     answer is gotten.
+
+`w3-default-action'
+     A lisp symbol specifying what action to take for files with
+     extensions that are not in the w3-mime-extensions assoc list.
+     This is useful in case you ever run across files with weird
+     extensions (.foo, .README, .READMEFIRST, etc).  This should not be
+     required anymore.
+
+     Possible values: any lisp symbol.  Should be a function that takes
+     no arguments.  The return value does not matter, it is ignored.
+     Some examples are
+
+          Action			Value
+          ----------------------------------------------
+          Parse as HTML		'w3-prepare-buffer
+          View as text		'indented-text-mode
+
+`w3-default-homepage'
+     The url to open at startup.  It can be any valid URL.  This will
+     default to the environment variable WWW_HOME if you do not set it
+     in your .emacs file. If WWW_HOME is undefined, then it will
+     default to the hypertext documentation for W3 at Indiana
+     University.
+
+`w3-delay-image-loads'
+     Whether to delay loading inlined images.  If non-`nil', images are
+     not loaded.  If you are on a slow network link, I would recommend
+     setting this to `t'.
+
+`w3-delimit-emphasis'
+     Whether to use characters at the start and end of each bold/italic
+     region.  Types of characters are specified in
+     `w3-style-chars-assoc'.
+
+`w3-delimit-links'
+     Put brackets around links?  If this variable is eq to 'linkname,
+     then it will put the link # in brackets after the link text.  If
+     it is nil, then it will not put anything.  If it is non-nil and
+     not eq to 'linkname, then it will put [[ & ]] around the entire
+     text of the link.  Is initially set to be t iff in normal emacs.
+     Nil if in epoch or lucid emacs, since links should be in different
+     colors/fonts.
+
+`w3-global-history-file'
+     The global history file used by both Mosaic/X and W3.  This file
+     contains a list of all the URLs you have visited.  This file is
+     parsed at startup and used to provide URL completion.
+
+`w3-hotlist-file'
+     Hotlist filename.  This should be the name of a file that is
+     stored in NCSA's Mosaic/X format (ncsa-mosaic-hotlist-format-1).
+     It is used to keep a listing of commonly accessed URL's without
+     having to go through 20 levels of menus to get to them.
+
+`w3-personal-annotation-directory'
+     Directory where w3 looks for personal annotations.  This is a
+     directory that should hold the personal annotations stored in a
+     Mosaic-compatible format.
+     (ncsa-mosaic-personal-annotation-log-format-1)
+
+`w3-personal-mail-address'
+     Your full email address.  This is what is sent to HTTP/1.0 servers
+     as the FROM field.  If not set when w3-do-setup is run, it
+     defaults to `(user-real-login-name)'@`(system-name)', which can
+     often be wrong.
+
+`w3-right-border'
+     Amount of space to leave on right margin of WWW buffers.  This
+     amount is subtracted from `(window-width)' for each new WWW buffer
+     and used as the new fill-column.
+
+`w3-track-mouse'
+     Whether to track the mouse and message the url under the mouse.
+     This also changes the mouse cursor to be the cursor specified by
+     w3-link-cursor.
+
+`w3-use-forms-index'
+     Non-nil means translate <ISINDEX> tags into a hypertext form.  A
+     single text entry box will be drawn where the ISINDEX tag appears.
+     If t, the isindex handling will be the same as Mosaic for X.
+
+`w3-use-hypertext-gopher'
+     Controls how gopher documents are retrieved.  If non-`nil', the
+     gopher pages will be converted into HTML and parsed just like any
+     other page.  If nil, the requests will be passed off to the
+     `gopher.el' package by Scott Snyder.  Using the `gopher.el'
+     package will lose the gopher+ support, and inlined searching.
+
+`w3-wais-gateway-port'
+     The port # of the WAIS gateway to pass all wais:// requests to.
+     *Note Native WAIS Support::
+
+`w3-wais-gateway-server'
+     The machine name where the WAIS gateway lives.  *Note Native WAIS
+     Support::
+
+`w3-xterm-command'
+     Command used to start an xterm window
+
+
+File: w3.info,  Node: Firewalls,  Next: Proxy Gateways,  Prev: Basic Setup,  Up: Setting Up
+
+Firewalls
+=========
+
+   There are several different reasons why you may need to use the
+gateway support in W3.
+  1. You are behind a firewall.  This is usually the case at large
+     corporations with moderately paranoid system-administrators.
+
+  2. You are using TERM (1) for slip-like access to the internet.
+     NOTE: Emacs 19.22 has patches to enable native TERM networking,
+     mail me for details.
+
+  3. For some reason your version of emacs can't resolve hostnames.
+     This happens quite often on Sun workstations and some ultrix
+     machines.  Some C libraries do not include the hostname resolver
+     routines in their static libraries.  If emacs was linked
+     statically, this means it won't be able to get to any machines off
+     your local net.  This is characterized by being able to reach
+     someplace with a raw ip number, but not its hostname (ie:
+     http://129.79.254.191/ works, but http://cs.indiana.edu/ doesn't).
+
+     If for some reason your system administrator will not recompile
+     emacs with the `-lresolv' library or dynamic linking, you will
+     need to act as if you were behind a firewall.
+
+  4. You are running Lucid Emacs 19.x and Solaris 2.x (SunOS 5.x).  For
+     some reason, network processes under Solaris and Lucid Emacs never
+     get a status of `exit' or `closed'.  This will cause retrieval of
+     HTTP and gopher pages to hang indefinitely, with emacs chewing up
+     large amounts of your CPU time.
+
+     The fix is to wait until we figure out what is wrong with Lucid
+     Emacs and Solaris, and use either the `tcp' or `program' gateway
+     methods until then.
+
+   W3 has support for using the gateway mechanism only for certain
+domains.  To use this, you must change the value of
+`w3-gateway-local-host-regexp'.  This should be a regular expression
+(2) that matches local hosts that do not require the use of a gateway.
+If `nil', then all connections will be made through the gateway.
+
+   W3 supports several methods of getting around gateways.  The variable
+`w3-gateway-method' controls which of these methods is used.  This
+variable can have several values (use these as symbol names, not
+strings):
+"program"
+     Run a program in a subprocess to connect to remote hosts (examples
+     are itelnet(3), an expect(4) script, etc).
+
+"host"
+     This allows you to log into another local computer that has access
+     to the internet, and run a telnet-like program from there.
+
+"tcp"
+     Masanobu UMEDA <umerin@mse.kyutech.ac.jp> has written a very nice
+     replacement for the standard networking in emacs.  This does
+     basically the same thing that a method of `program' does, but is
+     slightly more transparent to the user.
+
+"native"
+     This means that W3 should use the builtin networking code of emacs.
+     This should be used only if there is no firewall, or someone at
+     your site has already hacked the emacs source to get around your
+     firewall.  Two of these need a bit more explanation than that: If
+you are running a program in a subprocess to emulate a network
+connection, you will need to set a few extra variables.  The variable
+`w3-gateway-telnet-program' should point to an executable that accepts
+a hostname and port # as its arguments, and passes standard input to
+the remote host.  This can be either the full path to the executable or
+just the basename.  The variable `w3-gateway-telnet-ready-regexp'
+controls how long W3 should wait after spawning the subprocess to start
+sending to its standard input.  This gets around a bug where telnet
+would miss the beginning of requests becausse it did not buffer its
+input before opening a connection.  This should be a regular expression
+to watch for that signifies the end of the setup of
+`w3-gateway-telnet-program'.  The default should work fine for telnet.
+
+   If you are using the `host'-based gatway method, things get a bit
+more complicated.  This is basically my attempt to do some of the basic
+stuff of expect within elisp.  First off, set the variable
+`w3-gateway-host' to be the name of your gateway machine.
+
+   The variable `w3-gateway-host-program' controls how the host is
+reached.  The easiest way is to have a program that does not require a
+username and password to allow you to login.  The most common of these
+is the "rsh" command.
+
+   If you do not have rsh, then things get very ugly.  First, set the
+variable `w3-gateway-program-interactive' to non-`nil'.  Then you need
+to define the variables `w3-gateway-host-username' and
+`w3-gateway-host-password' to be the username and password necessary to
+log into the gateway machine.  The regular expressions in the variables
+`w3-gateway-handholding-login-regexp' and
+`w3-gateway-handholding-password-regexp' should match the login and
+password prompts on the gateway system respectively.  For example:
+
+     (setq w3-gateway-host-program "telnet"
+           w3-gateway-program-interactive t
+           w3-gateway-host-username "wmperry"
+           w3-gateway-host-password "yeahrightkeepdreaming"
+           w3-gateway-host "moose.cs.indiana.edu"
+           w3-gateway-host-program-ready-regexp "Escape character is .*"
+           w3-gateway-handholding-login-regexp "ogin:"
+           w3-gateway-handholding-password-regexp "ord:")
+
+   This should take care of you logging into the remote system.  The
+variable `w3-gateway-host-prompt-pattern' should contain a regular
+expression that matches the shell prompt on the remote machine.  This
+should appear no where in the login banner/setup, or things could get
+very confused.
+
+   Now you are ready to actually get off of your local network!  The
+variable `w3-gateway-host-program-ready-regexp' should contain a
+regular expression that matches the end of the setup of
+`w3-gateway-host-program' when it tries to make a connection to an
+off-firewall machine.  (Basically the same as
+`w3-gateway-telnet-ready-regexp'.
+
+   Now you should be all set up to get outside your local network.  If
+none of this makes sense, its probably my fault.  Please check with your
+network administrators to see if they have a program that does most of
+this for you already, since somebody somewhere at your company has
+probably been through something similar to this before, and would be
+much more helpful/knowledgeable about your local setup than I would be.
+But feel free to mail me as a last resort.
+
+   ---------- Footnotes ----------
+
+   (1)  TERM is a user-level protocol for emulating IP over a serial
+line.  More information is available at
+sunsite.unc.edu:/pub/Linux/apps/comm/term
+
+   (2)  Please see the full emacs distribution for a description of
+regular expressions
+
+   (3)  Itelnet is a standard name for a telnet executable that is
+capable of escaping the firewall.  Check with your system
+administrators to see if you have anything similar
+
+   (4)  Expect is a scripting language that allows you to control
+interactive programs (like telnet) very easily.  It is available from
+gatekeeper.dec.com:/pub/GNU/expect-3.24.0.tar.gz
+
+
+File: w3.info,  Node: Proxy Gateways,  Next: Basic Usage,  Prev: Firewalls,  Up: Setting Up
+
+Proxy Gateways
+==============
+
+   In late January, Kevin Altis and Lou Montulli proposed and
+implemented a new proxy service.  This service requires the use of
+environment variables to specify a gateway server/port # to send
+protocol requests to.  Each protocol (http, wais, gopher, ftp, etc) can
+have a different gateway server.  The environment variables are
+PROTOCOL_proxy, where PROTOCOL is one of gopher, telnet, file, http,
+ftp, tn3270, news, mailto, www, or wais.
+
+   The main thing to understand about the proxy gateway is that instead
+of a partial URL being sent to the HTTP server, which is what we do
+today when a client talks directly to an HTTP server, a client must
+send a full URL (http://..., gopher://..., ftp://...) to the proxy
+gateway server, the rest of the HTTP message is the same. For gopher
+and ftp, the proxy gateway server will return the data encapsulated as
+a MIME content type to the client like a normal HTTP message. HTTP MIME
+content types are returned for all URL requests, regardless of the
+protocol type of the URL. FTP directories, Gopher directories, etc. are
+returned as text/html.
+
+
+File: w3.info,  Node: Basic Usage,  Prev: Proxy Gateways,  Up: Top
+
+Basic Usage
+***********
+
+   W3 is similar to the Info package all emacs users hold near and dear
+to their heart (*Note Info: (info)Top, for a description of Info).
+Basically, `space' and `backspace' control scrolling, and `return' or
+`mouse2' will follow a hypertext link.  The `f' and `b' keys maneuver
+around the various links on the page.
+
+   On non-graphic terminals (vt100, DOS, etc), or with a graphics
+terminal and old versions (18.xx) of emacs, hypertext links will be
+surrounded by '[[' and ']]' by default.  On a graphics terminal with
+newer versions of emacs (epoch, lucid, or FSF 19), the links will be in
+bold print.  *Note Controlling Formatting:: for information on how to
+change this, or for help on getting the highlighting to work on graphics
+terminals.
+
+   There are approximately 50 keys bound to special W3 functions.  The
+basic rule of thumb regarding keybindings in W3 is that a lowercase key
+will take an action on the current document, and an uppercase key will
+take an action on the document pointed to by the hypertext link under
+the cursor.
+
+   There are several areas that the keybindings fall into: movement,
+information, action, and miscellaneous.
+
+* Menu:
+
+* Movement::		Moving around in a W3 buffer
+* Information::		Getting information about the W3 document you
+			are viewing, and/or links within that document.
+* Action::		Taking actions in a W3 buffer (following links,
+			printing, etc)
+* Miscellaneous::	Miscellaneous keybindings
+
+
+File: w3.info,  Node: Movement,  Next: Information,  Prev: Basic Usage,  Up: Basic Usage
+
+Movement
+========
+
+`SPC'
+     Scroll downward in the buffer.  With prefix arg, scroll down that
+     many screenfuls.
+
+`DEL'
+     Scroll upward in the buffer.  With prefix arg, scroll up that many
+     screenfuls.
+
+`<, M-x w3-start-of-document'
+     Go to start of document
+
+`>, M-x w3-end-of-document'
+     Go to end of document
+
+`b, M-x w3-back-link'
+     Attempts to move backward one link area in the current document.
+     Signals an error if no previous links are found.
+
+`M-x w3-show-hotlist'
+     Possibly go to a link in the hotlist.  A hypertext listing of the
+     items in the hotlist is generated on the fly, and the links can be
+     followed normally.
+
+`H, M-x w3-use-hotlist'
+     Possibly go to a link in the hotlist.  A new buffer is created for
+     the new document.
+
+`m, M-x w3-complete-link'
+     Choose a link from the current buffer and follow it.  A
+     completing-read is done on all the links, so `space' and `TAB' can
+     be used for completion.
+
+`f, n, M-x w3-forward-link'
+     Attempts to move forward one link area in the current document.
+     Signals an error if no more links are found.
+
+
+File: w3.info,  Node: Information,  Next: Action,  Prev: Movement,  Up: Basic Usage
+
+Information
+===========
+
+   These functions relate information about one or more links on the
+current document.
+`v, M-x w3-view-url'
+     This will show the URL of the current document in the minibuffer.
+
+`V, M-x w3-view-this-url'
+     This will show the URL of the hypertext link under point in the
+     minibuffer.  If there is not a hypertext link under point, then it
+     will show the type of form entry area under point.  If there is no
+     form entry area under point, thn it will show the inlined image's
+     URL that is under point, if any.
+
+`s, M-x w3-source-document'
+     This will show the HTML source of the current document in a
+     separate buffer.  The buffer-name will be based on the document's
+     URL.
+
+`S, M-x w3-source-document-at-point'
+     This will show the HTML source of the hypertext link under point
+     in a separate buffer.  The buffer-name will be based on the
+     document's URL.
+
+`k, C-k, M-x w3-save-url'
+     This will store the current document's URL in the kill ring, and
+     also in the current window-system's clipboard, if possible.
+
+`K, M-x w3-save-this-url'
+     This will store the URL of the document under point in the kill
+     ring, and also in the current window-system's clipboard, if
+     possible.
+
+
+File: w3.info,  Node: Action,  Next: Miscellaneous,  Prev: Information,  Up: Basic Usage
+
+Action
+======
+
+   First, here are the keys and functions that will bring up a new
+hypertext page, usually creating a new buffer.
+`return'
+     Pressing return attempts to follow the link under the cursor.
+
+`button2, M-x w3-follow-mouse'
+     This function expects to be bound to a mouse button.  It movess to
+     the point under mouse and try to fetch the link that was clicked
+     on.  If no link is found, a message is displayed in the minibuffer.
+
+`C-button2, M-return, M-x w3-follow-inlined-image'
+     This function tries to retrieve the inlined image that is under
+     point.  It ignores any form entry areas or hyperlinks, and blindly
+     follows any inlined image.  Useful for seeing images that are
+     meant to be used as hyperlinks when you are not on a terminal
+     capable of displaying graphics.
+
+`m, M-x w3-complete-link'
+     This will do a completing-read on all the hypertext links in the
+     current buffer.  You can use `space' and `tab' to complete on the
+     links.
+
+`r, g, M-x w3-reload-document'
+     This reloads the current document - the current buffer is killed,
+     and the URL it was visiting is fetched and redisplayed.  Your
+     position within the buffer remains the same (unless the document
+     has changed since you last retrieved it, in which case it should
+     be relatively close).
+
+`C-o, M-x w3-fetch'
+     This function prompts for a URL in the minibuffer, and attempts to
+     fetch it.  If there are any errors, or W3 cannot understand the
+     type of link you requested, the errors are displayed in a
+     hypertext buffer.
+
+`o, M-x w3-open-local'
+     Find a local file, interactively.  This prompts you for a local
+     file name to open.  The file must exist, and may be a directory.
+     If the requested file is a directory and `w3-directory-format' is
+     `'dired', then a dired-mode buffer is displayed.  If `'hypertext',
+     then W3 automatically generates a hypertext listing of the
+     directory.  `'hypertext' is the default, so that all the keys and
+     functions remain the same.
+
+`M-s, M-x w3-search'
+     Perform a search, if this is a searchable index.  This sends a
+     string of the type `'URL?search-terms'' to the server this
+     document was retrieved from.  Searching requires a server, W3 can
+     not do local file searching, as there are too many possible types
+     of searches people could want to do.
+
+`C-c C-b, M-x w3-show-history-list'
+     If `w3-keep-history' is non-`nil', then W3 keeps track of all the
+     URLs you visit in an Emacs session.  This function takes all the
+     links that are in that internal list, and formats them as hypertext
+     links in a list.
+
+   And here are the commands to move around between W3 buffers:
+
+`l, M-x w3-goto-last-buffer'
+     Go to last WWW buffer visited
+
+`q, M-x w3-quit'
+     Quits WWW mode.  This kills the current buffer and goes to the most
+     recently visited buffer.
+
+`u, M-x w3-leave-buffer'
+     This is similar to w3-quit, but the buffer is not killed, it is
+     moved to the bottom of the buffer list (so it is the least likely
+     to show up as the default with switch-to-buffer).
+
+`B, M-x w3-backward-in-history'
+     This will take you one step back along the path in the current
+     history.  Will have no effect if you are at the beginning of your
+     history list.
+
+`F, M-x w3-forward-in-history'
+     This will take you one step forward along the path in the current
+     history.  Will have no effect if you are at the end of your history
+     list.
+
+
+File: w3.info,  Node: Miscellaneous,  Prev: Action,  Up: Basic Usage
+
+Miscellaneous
+=============
+
+`M-m, M-x w3-mail-current-document'
+     This will mail the current document to someone.  You can choose
+     from 3 different formats to mail: formatted text, HTML source, or
+     LaTeX source.  If you mail the HTML source, then an appropriate
+     <base> tag is inserted at the beginning of the document so that
+     relative links may be followed correctly by whoever receives the
+     mail.
+
+`M-M, M-x w3-mail-document-under-point'
+     This will mail document pointed to by the hypertext link under
+     point to someone.  You can choose from 3 different formats to
+     mail: formatted text, HTML source, or LaTeX source.  If you mail
+     the HTML source, then an appropriate <base> tag is inserted at the
+     beginning of the document so that relative links may be followed
+     correctly by whoever receives the mail.
+
+`p, M-x w3-print-this-url'
+     This will print the current document.  You can choose from 3
+     different formats to mail: formatted text, HTML source, or
+     postscript (by using LaTeX and dvips).
+
+     If you print the formatted text, the normal `lpr-buffer' function
+     is called, and the variables `lpr-command' and `lpr-switches' will
+     control how the document is printed.
+
+     If you print the HTML source, then an appropriate <base> tag is
+     inserted at the beginning of the document.  If postscript is
+     chosen, then the HTML source of the document is converted into
+     LaTeX source.  If the variable `w3-use-html2latex' is non-`nil',
+     then the program specified by `w3-html2latex-prog' is run in a
+     subprocess with the arguments in `w3-html2latex-args'.  The
+     `w3-html2latex-prog' should accept HTML source on its standard
+     input and send the LaTeX output to standard output.  If
+     `w3-use-html2latex' is `nil', then an emacs lisp function will use
+     regular expressions to replace the HTML code with LaTeX markup.
+     The variable `w3-latex-docstyle' controls how the document will be
+     laid out in this case, and postscript figures will be printed as
+     well.
+
+`P, M-x w3-print-url-under-point'
+     This will print the document pointed to by the hypertext link under
+     point.  Please see the documentation for `w3-print-this-url'
+     directly above for more information.
+
+`M-x w3-insert-formatted-url'
+     This will insert a fully formatted HTML link into another buffer.
+     This will get the name and URL of either the current buffer, or,
+     with a prefix arg, of the link under point, and construct the
+     appropriate <a...>...</a> markup and insert it into the desired
+     buffer.
+
+`M-tab, M-x w3-insert-this-url'
+     This will insert the URL of the current document into another
+     buffer.  Buffer is prompted for in the minibuffer.  With prefix
+     arg, uses the URL of the link under point.
+
+`U, M-x w3-use-links'
+     Select one of the <LINK> tags from this document and fetch it.
+     Links are attributes of a specific document, and can tell such
+     things as who made the document, where a table of contents is
+     located, etc.
+
+     This will allow you to follow the <link...> tags in the current
+     document.  Link tags specify relationships between documents in two
+     ways.  Normal (forward) relationships (where the link has a
+     REL="xxx" attribute), and reverse relationships (where the link
+     has a REV="xxx" attribute).  This will first ask what type of link
+     you want to follow (Normal or Reverse), then will do a
+     completing-read on only the links that have that type of
+     relationship.
+
+
+File: w3.info,  Node: Compatibility w/Mosaic,  Up: Top
+
+Compatibility with NCSA Mosaic
+******************************
+
+   Since NCSA Mosaic is the de-facto hypertext browser at most sites,
+W3 is compatible with it in several ways.
+
+* Menu:
+
+* Hotlist Handling::            A hotlist is an easy way to keep track of
+				interesting Web pages without having to
+				remember the exact path to get there.
+* Session History::             Keeping a history of where you have been
+				in one emacs sessions allows the use of
+				'forward' and 'back' buttons easily.
+* Global History::		Keeping a history of all the places you
+				have visited on the web.
+* Annotations::                 Annotations allow you to write comments
+				on other people's Web documents without
+				needing to change their document.  Your
+				comments can be local, or made available
+				to all other Web users.
+
+
+File: w3.info,  Node: Hotlist Handling,  Next: Session History,  Prev: Compatibility w/Mosaic,  Up: Compatibility w/Mosaic
+
+Hotlist Handling
+================
+
+   In order to avoid having to traverse many documents to get to the
+same document over and over, W3 supports a "hotlist" like Mosaic.  This
+is a file that contains URLs and aliases.  You can quickly go to any
+document in the Web, providing you've been there before and added it to
+your hotlist.  The variable `w3-hotlist-file' determines where this
+information is saved.  The structure of the file is compatible with
+Mosaic's hotlist file, so this defaults to `~/.mosaic-hotlist-default'.
+
+   Hotlist commands are:
+`a, M-x w3-hotlist-add-document'
+     This adds the current document to your hotlist, with the buffer
+     name as its identifier.  Modifies the file specified by
+     `w3-hotlist-file'.
+
+`M-x w3-hotlist-refresh'
+     This will reread the default hostlist file specified by
+     `w3-hotlist-file'.
+
+`d, M-x w3-hotlist-delete'
+     You will be prompted for the alias of the entry to kill.  You may
+     press the spacebar or tab key for partial completions.  Once you
+     select the item to delete, the internal representation of the
+     hotlist is updated, and the file specified by `w3-hotlist-file' is
+     updated.
+
+`M-x w3-hotlist-rename-entry'
+     Some hotlist item names can be very unwieldy (`Mosaic for X level
+     2 fill out form support'), or uninformative (`Index of /').  If
+     you are not satisfied with how a specific item is labeled, you may
+     change it by typing `M-x w3-rename-hotlist-entry'.  You will be
+     prompted for the item to rename in the minibuffer - you may use
+     the spacebar or tab key for completion.  After you have chosen an
+     item to rename, you will be prompted for a new title until you
+     enter one that does not already exists in the hotlist.  This
+     function modifies the  file specified by `w3-hotlist-file'.
+
+`H, M-x w3-use-hotlist'
+     Prompts you for the alias to jump to.  You may press the spacebar
+     or tab key for partial completions.
+
+`M-x w3-show-hotlist'
+     This converts your hotlist into an ordered list and parse it as
+     HTML.
+
+
+File: w3.info,  Node: Session History,  Next: Global History,  Prev: Hotlist Handling,  Up: Compatibility w/Mosaic
+
+History
+=======
+
+   NCSA Mosaic keeps track of the URLs you have followed from a page, so
+that it can provide forward and back buttons to keep a path of URLs
+that you can review easily.  If you set the variable `w3-keep-history'
+to `t', then W3 will keeep a list of all the URLs you visit in a
+session.  To see a listing of your history for this session of W3, you
+can type `M-x w3-show-history' from any buffer, and W3 will generate an
+HTML document showing every URL you have visited since you started
+Emacs (or cleared the history list), and then format it.  Any of the
+links can be chosen and followed to the original document.  To clear
+the history list, you can choose 'Clear History' from the 'Options'
+menu.
+
+   Another twist on the history list mechanism is the fact that all W3
+buffers remember what URL, buffer, and buffer position you were at
+before jumping to this document, and also keeps track of where you jump
+to from that buffer.  This means that you can go forwards and backwards
+very easily along the path you took to reach a particular document.  To
+go forward, use the function `w3-forward-in-history', to go backward,
+use the function `w3-backward-in-history'.  These are fairly stable
+functions, but may not work as expected all the time.  First, the
+buffer-list is used to look at the URL of every buffer, and if it
+matches the item in the history list you are looking for, then it is
+brought forward.  If no buffer containing the desired URL is found,
+then the URL is fetched.  Then the desired position in the buffer is
+searched for.
+
+
+File: w3.info,  Node: Global History,  Next: Annotations,  Prev: Session History,  Up: Compatibility w/Mosaic
+
+Global History
+==============
+
+   Mosaic supports the idea of a "history" of URLs you have visited, and
+it displays them in a different style than normal URLs so you will not
+visit someplace again on accident.  If you set the variable
+`w3-keep-history' to `t', then W3 will keeep a list of all the URLs you
+visit in a session.  To write the file out, you can press `C-q' in a W3
+buffer, or `M-x w3-write-global-history' in any buffer.  The list will
+be added to those already in the file specified by
+`w3-global-history-file', which defaults to `~/.mosaic-global-history'.
+
+   You no longer have to explicitly save the history file - w3 uses the
+`kill-emacs-hook' to write it out whenever you exit emacs.
+
+   If any URL in the list is found in the file, it is not saved, but new
+ones are added at the end of the file.
+
+   One of the nice things about keeping a global history files is that
+W3 can use it as a completion table.  When doing `M-x w3-fetch', you
+can hit the `tab' or `space' keys to complete on a partial URL.  This
+is very useful, especially for very long URLs that you didn't add to
+your hotlist, or for seeing all the pages from a particular web server
+before choosing which you want to see.
+
+
+File: w3.info,  Node: Annotations,  Next: Group Annotations,  Prev: Global History,  Up: Compatibility w/Mosaic
+
+Annotations
+===========
+
+   Mosaic allows you to annotate documents.  You can type in comments
+about the current document, and these annotations will appear as a link
+to your comments at the end of the document when you browse it in
+Mosaic.  The original file is not changed.  There are two types of
+annotations supported in Mosaic, and both are supported by W3 as well.
+
+* Menu:
+
+* Group Annotations::             Annotations accessible by everyone
+* Personal Annotations::          Private annotations only you see
+
+
+File: w3.info,  Node: Group Annotations,  Next: Personal Annotations,  Prev: Annotations,  Up: Annotations
+
+Group Annotations
+-----------------
+
+   NOTE: The group annotation experiment has been terminated.  NCSA is
+running the annotation server temporarily, but it will not be around
+much longer.  It will be replaced with support on the server side for
+adding <LINK> tags to documents.
+
+   An experimental annotation server is running at NCSA.  This server
+allows people to annotate any document on the Web, and have anyone else
+see it.  To activate this feature in Mosaic, set the resource
+Mosaic*annotationServer to hoohoo.ncsa.uiuc.edu:8001.
+
+   In W3, if the variable `w3-group-annotation-server' is defined, then
+it will try to contact the server and retrieve any annotations for the
+current document.  This variable should be a string containing the name
+of the annotation server (defaults to "hoohoo.ncsa.uiuc.edu").  To turn
+off group annotation support, set this variable to `nil'.  If you have
+a slow connection to NCSA, I'd recommend doing this.  The variable
+`w3-group-annotation-port' defaults to 8001, and should be an integer
+representing the port number the server is running on.
+
+   The group annotations (if any) will appear as normal links at the
+bottom of your document.  They can be selected just like any other link.
+
+   Both Mosaic and W3 support multiple levels of annotation
+(Annotations on annotations ad infitim).
+
+   To create a new annotation, type `M-x w3-add-group-annotation'.
+This will put you in a new buffer, in HTML-mode.  If you are not
+familiar with HTML-mode, hit `C-h m' for instructions, and see the file
+html-mode.el that came with W3.  At the top of this buffer is an HTML
+tag (</PRE>).  If you don't want to use any HTML commands, you can
+delete this and just type in your message and it should be formatted
+just as you type it.  If you leave this in, you can use any HTML
+formatting command (italics, headings, bold, etc) except adding a title.
+When you are finished editing your annotation, type `C-c C-c'.  W3 will
+then prompt you for a title for your annotation, defaulting to
+"Annotation by <user information>".  Hit return after typing in your
+title.  If any errors are received, they will be reported in a separate
+buffer.
+
+   To delete an annotation, you must be reading it.  Then type `M-x
+w3-delete-group-annotation'.  If any errors are received, they will be
+displayed in a separate buffer.
+
+   I do not currently support editing group annotations.
+

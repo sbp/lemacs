@@ -36,57 +36,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifdef I18N4
 
-/**********************************************************************/
-/* Dubious crud                                                       */
-/**********************************************************************/
-
-#define DYNAMIC_ARRAY(data_type)                                   \
-  data_type *data;   /* data[ 0 ] .. data[ in_use-1 ], or NULL. */   \
-  size_t size;               /* Number of elements allocated. */             \
-  size_t in_use              /* Number of elements in use. */
-
-
-#define EMPTY_DYNAMIC_ARRAY  NULL, 0, 0
-
-#define ARRAY_FULL(array)  ((array)->in_use == (array)->size)
-
-/* SET_ARRAY_SIZE -- Make sure ARRAY can accomodate LENGTH elements.
-*/
-#define SET_ARRAY_SIZE(array, length, data_type)                    \
-{                                                                    \
-  if ((length) > (array)->size) {                                    \
-    data_type *new_data;                                             \
-    new_data = (data_type *) xmalloc ((length) * sizeof (data_type));        \
-    memcpy (new_data,(array)->data,(array)->size * sizeof(data_type));       \
-    if ((array)->data)                                                       \
-      xfree ((array)->data);                                         \
-    (array)->size = (length);                                                \
-    (array)->data = new_data;                                                \
-  }                                                                  \
-}
-
-/* GROW_ARRAY -- Increase ARRAY size by GROWTH_SIZE.
-*/
-#define GROW_ARRAY(array, growth_size, data_type)  \
-  SET_ARRAY_SIZE (array, (array)->size + (growth_size), data_type)
-
-typedef struct {
-  wchar_t wchar;
-  int value;
-} wchar_int_pair;
-
-typedef struct {
-  DYNAMIC_ARRAY (wchar_int_pair);
-  int default_value;
-} assoc_array;
-
-#define EMPTY_ASSOC_ARRAY  { EMPTY_DYNAMIC_ARRAY, 0 }
-
-#define SET_ASSOC_ARRAY_SIZE(array, length)  \
-  SET_ARRAY_SIZE (array, length, wchar_int_pair)
-
-#define GROW_ASSOC_ARRAY(array, growth_size)  \
-  GROW_ARRAY (array, growth_size, wchar_int_pair)
 
 /* search_assoc_array -- Search associative array for a pair matching c.
 */
@@ -129,24 +78,6 @@ assoc_array_lookup (assoc_array *array, wchar_t c)
   else
     return array->default_value;
 }
-
-typedef struct {
-  DYNAMIC_ARRAY (wchar_t);
-  char complement;             /* If TRUE, use complement of set. */
-  char anychar;                  /* If TRUE, set is considered to contain
-                                 all possible characters. */
-} set_of_chars;
-
-#define EMPTY_SET_OF_CHARS  { EMPTY_DYNAMIC_ARRAY, 0, 0 }
-
-#define SET_SETOFCHARS_SIZE(set, length)  SET_ARRAY_SIZE (set, length, wchar_t)
-
-#define GROW_SET_OF_CHARS(set, growth_size)  GROW_ARRAY (set, growth_size, wchar_t)
-
-/* IN_SET_OF_CHARS_RAW -- Test for membership, ignoring complement flag.
-*/
-#define IN_SET_OF_CHARS_RAW(set, c)  \
-  (((set)->anychar || wschr ((set)->data, (c))) ? 1 : 0)
 
 /* empty_set_of_chars -- Make set empty with room to grow.
 */
@@ -240,6 +171,8 @@ static Lisp_Object last_thing_searched;
 
 /* error condition signalled when regexp compile_pattern fails */
 Lisp_Object Qinvalid_regexp;
+
+static void set_search_regs (int, int);
 
 static void
 matcher_overflow ()
@@ -407,18 +340,14 @@ matched by parenthesis constructs in the pattern.")
    This does not clobber the match data.  */
 
 int
-fast_string_match (regexp, string)
-     Lisp_Object regexp, string;
+fast_string_match (Lisp_Object regexp, CONST char *string, int len)
 {
   int val;
 
   compile_pattern (regexp, &searchbuf, 0, 0);
   immediate_quit = 1;
   val = re_search (&searchbuf,
-                   (char *) XSTRING (string)->data,
-		   string_length (XSTRING (string)),
-                   0,
-                   string_length (XSTRING (string)),
+                   string, len, 0, len,
 		   0);
   immediate_quit = 0;
   return val;
@@ -434,12 +363,17 @@ fast_string_match (regexp, string)
    If we don't find COUNT instances before reaching the end of the
    buffer (or the beginning, if scanning backwards), set *SHORTAGE to
    the number of TARGETs left unfound, and return the end of the
-   buffer we bumped up against.  */
+   buffer we bumped up against.
+
+   If ALLOW_QUIT is non-zero, set immediate_quit.  That's good to do
+   except when inside redisplay.  */
+
 int
-scan_buffer (buf, target, start, count, shortage)
+scan_buffer (buf, target, start, count, shortage, allow_quit)
      struct buffer *buf;
      int *shortage, start;
      register int count, target;
+     int allow_quit;
 {
   int limit = ((count > 0) ? BUF_ZV(buf) - 1 : BUF_BEGV(buf));
   int direction = ((count > 0) ? 1 : -1);
@@ -462,7 +396,7 @@ scan_buffer (buf, target, start, count, shortage)
   if (shortage != 0)
     *shortage = 0;
 
-  immediate_quit = 1;
+  immediate_quit = allow_quit;
 
   if (count > 0)
     while (start != limit + 1)
@@ -530,7 +464,7 @@ find_next_newline (buf, from, cnt)
      register struct buffer *buf;
      register int from, cnt;
 {
-  return (scan_buffer (buf, '\n', from, cnt, (int *) 0));
+  return (scan_buffer (buf, '\n', from, cnt, (int *) 0, 1));
 }
 
 static Lisp_Object
@@ -625,6 +559,9 @@ skip_chars (int forwardp, int syntaxp, Lisp_Object string, Lisp_Object lim)
     }
 
 #ifndef I18N4
+  if (syntaxp && fastmap['-'] != 0)
+    fastmap[' '] = 1;
+
   /* If ^ was the first character, complement the fastmap. */
 
   if (negate)
@@ -818,7 +755,7 @@ search_command (string, bound, noerror, count, direction, RE)
   return make_number (np);
 }
 
-/* search for the n'th occurrence of STRING in the current buffer,
+/* Search for the n'th occurrence of STRING in the current buffer,
    starting at position POS and stopping at position LIM,
    treating PAT as a literal string if RE is false or as
    a regular expression if RE is true.
@@ -870,7 +807,10 @@ search_buffer (string, pos, lim, n, RE, trt, inverse_trt)
 
   /* Null string is found at starting position.  */
   if (len == 0)
+  {
+    set_search_regs (pos, 0);
     return (pos);
+  }
 
   /* Searching 0 times means don't move.  */
   if (n == 0)
@@ -1227,28 +1167,10 @@ search_buffer (string, pos, lim, n, RE, trt, inverse_trt)
 		    {
 		      cursor -= direction;
 
-#ifdef NEW_REGEX
-		      /* Make sure we have registers in which to store
-			 the match position.  */
-		      if (search_regs.num_regs == 0)
-			{
-			  regoff_t *starts, *ends;
+                      set_search_regs (pos + cursor - p2 + ((direction > 0)
+							    ? 1 - len : 0),
+				       len);
 
-			  starts =
-			    (regoff_t *) xmalloc (2 * sizeof (regoff_t));
-			  ends =
-			    (regoff_t *) xmalloc (2 * sizeof (regoff_t));
-                          re_set_registers (&searchbuf,
-					    &search_regs,
-					    2, starts, ends);
-			}
-#endif /* NEW_REGEX */
-
-		      search_regs.start[0]
-			= pos + cursor - p2 + ((direction > 0)
-					       ? 1 - len : 0);
-		      search_regs.end[0] = len + search_regs.start[0];
-		      XSETR (last_thing_searched, Lisp_Buffer, current_buffer);
 		      if ((n -= direction) != 0)
 			cursor += dirlen; /* to resume search */
 		      else
@@ -1312,27 +1234,9 @@ search_buffer (string, pos, lim, n, RE, trt, inverse_trt)
 		    {
 		      pos -= direction;
 
-#ifdef NEW_REGEX
-		      /* Make sure we have registers in which to store
-			 the match position.  */
-		      if (search_regs.num_regs == 0)
-			{
-			  regoff_t *starts, *ends;
+		      set_search_regs (pos + ((direction > 0) ? 1 - len : 0),
+				       len);
 
-			  starts =
-			    (regoff_t *) xmalloc (2 * sizeof (regoff_t));
-			  ends =
-			    (regoff_t *) xmalloc (2 * sizeof (regoff_t));
-			  re_set_registers (&searchbuf,
-					    &search_regs,
-					    2, starts, ends);
-			}
-#endif /* NEW_REGEX */
-
-		      search_regs.start[0]
-			= pos + ((direction > 0) ? 1 - len : 0);
-		      search_regs.end[0] = len + search_regs.start[0];
-		      XSETR (last_thing_searched, Lisp_Buffer, current_buffer);
 		      if ((n -= direction) != 0)
 			pos += dirlen; /* to resume search */
 		      else
@@ -1350,6 +1254,33 @@ search_buffer (string, pos, lim, n, RE, trt, inverse_trt)
       return pos;
     }
 }
+
+/* Record beginning BEG and end BEG + LEN
+   for a match just found in the current buffer.  */
+
+static void
+set_search_regs (int beg, int len)
+{
+#ifdef NEW_REGEX
+  /* Make sure we have registers in which to store
+     the match position.  */
+  if (search_regs.num_regs == 0)
+  {
+    regoff_t *starts, *ends;
+
+    starts = (regoff_t *) xmalloc (2 * sizeof (regoff_t));
+    ends = (regoff_t *) xmalloc (2 * sizeof (regoff_t));
+    re_set_registers (&searchbuf,
+                      &search_regs,
+                      2, starts, ends);
+  }
+#endif /* NEW_REGEX */
+
+  search_regs.start[0] = beg;
+  search_regs.end[0] = beg + len;
+  XSETR (last_thing_searched, Lisp_Buffer, current_buffer);
+}
+
 
 /* Given a string of words separated by word delimiters,
   compute a regexp that matches those exact words
@@ -1473,17 +1404,17 @@ DEFUN ("re-search-backward", Fre_search_backward, Sre_search_backward, 1, 4,
   "Search backward from point for match for regular expression REGEXP.\n\
 Set point to the beginning of the match, and return point.\n\
 The match found is the one starting last in the buffer\n\
-and yet ending before the place the origin of the search.\n\
+and yet ending before the origin of the search.\n\
 An optional second argument bounds the search; it is a buffer position.\n\
 The match found must start at or after that position.\n\
 Optional third argument, if t, means if fail just return nil (no error).\n\
   If not nil and not t, move to limit of search and return nil.\n\
 Optional fourth argument is repeat count--search for successive occurrences.\n\
 See also the functions `match-beginning', `match-end' and `replace-match'.")
-  (string, bound, noerror, count)
-     Lisp_Object string, bound, noerror, count;
+  (regexp, bound, noerror, count)
+     Lisp_Object regexp, bound, noerror, count;
 {
-  return search_command (string, bound, noerror, count, -1, 1);
+  return search_command (regexp, bound, noerror, count, -1, 1);
 }
 
 DEFUN ("re-search-forward", Fre_search_forward, Sre_search_forward, 1, 4,
@@ -1496,10 +1427,10 @@ Optional third argument, if t, means if fail just return nil (no error).\n\
   If not nil and not t, move to limit of search and return nil.\n\
 Optional fourth argument is repeat count--search for successive occurrences.\n\
 See also the functions `match-beginning', `match-end' and `replace-match'.")
-  (string, bound, noerror, count)
-     Lisp_Object string, bound, noerror, count;
+  (regexp, bound, noerror, count)
+     Lisp_Object regexp, bound, noerror, count;
 {
-  return search_command (string, bound, noerror, count, 1, 1);
+  return search_command (regexp, bound, noerror, count, 1, 1);
 }
 
 DEFUN ("replace-match", Freplace_match, Sreplace_match, 1, 3, 0,
@@ -1615,7 +1546,10 @@ Leaves point at end of replacement text.")
                   (Fcurrent_buffer (),
                    make_number (search_regs.start[0] + offset),
                    make_number (search_regs.end[0] + offset));
-	      else if (c >= '1' && c <= SEARCH_NREGS (&search_regs) + '0')
+	      /* lemacs change: even if SEARCH_NREGS is > 10, be sure only
+		 to use the digits as match indicators.  */
+	      else if (c >= '1' && c <= '9' &&
+		       c <= SEARCH_NREGS (&search_regs) + '0')
 		{
 		  if (search_regs.start[c - '0'] >= 1)
 		    Finsert_buffer_substring

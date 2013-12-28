@@ -1,23 +1,21 @@
-Info file elisp, produced by Makeinfo, -*- Text -*- from input file
-elisp.texi.
+This is Info file ../../info/lispref.info, produced by Makeinfo-1.56
+from the input file lispref.texinfo.
 
-   This file documents GNU Emacs Lisp.
+   This version is newer than the second printed edition of the GNU
+Emacs Lisp Reference Manual.  It corresponds to Emacs Version 19.19.
 
-   This is edition 1.03 of the GNU Emacs Lisp Reference Manual,   for
-Emacs Version 18.
+   Published by the Free Software Foundation 675 Massachusetts Avenue
+Cambridge, MA 02139 USA
 
-   Published by the Free Software Foundation, 675 Massachusetts
-Avenue,  Cambridge, MA 02139 USA
+   Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
 
-   Copyright (C) 1990 Free Software Foundation, Inc.
-
-   Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
 
    Permission is granted to copy and distribute modified versions of
-this manual under the conditions for verbatim copying, provided that
-the entire resulting derived work is distributed under the terms of a
+this manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
 permission notice identical to this one.
 
    Permission is granted to copy and distribute translations of this
@@ -25,1159 +23,1283 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be stated in a
 translation approved by the Foundation.
 
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the Free Software
+Foundation instead of in the original English.
 
 
-File: elisp,  Node: Key Lookup,  Next: Functions for Key Lookup,  Prev: Creating Keymaps,  Up: Keymaps
+File: lispref.info,  Node: Specification List,  Next: Backtracking,  Prev: Macro Calls,  Up: Macro Calls
 
-Key Lookup
-==========
+Specification List
+..................
 
-   "Key lookup" is the process of finding the binding of a key
-sequence from a given keymap.  Actual execution of the definition is
-not part of key lookup.
+   A "specification list" is required if some arguments of a macro call
+are evaluated while others are not.  Some specification elements in a
+specification list match one or more arguments, but others modify the
+processing of all following specification elements.  The latter, called
+"special specifications", are symbols beginning with ``&'' (e.g.
+`&optional').
 
-   When the key sequence consists of multiple characters, the
-characters are handled sequentially: the binding of the first
-character is found, and must be a keymap; then the second character's
-binding is found in that keymap, and so on until all the characters
-in the key sequence are used up.  (The binding thus found for the
-last character may or may not be a keymap.)  Thus, the process of key
-lookup is defined in terms of a simpler process for looking up a
-single character in a keymap.  How this is done depends on the type
-of object associated with the character in that keymap.
+   A specification list may contain sublists which match arguments that
+are themselves lists, or it may contain vectors used for grouping.
+Sublists and groups thus subdivide the specification list into a
+hierarchy of levels.  Special specifications only apply to the
+remainder of the sublist or group they are contained in.  There is an
+implicit grouping around each special specification and all following
+elements in the sublist or group.
 
-   The value directly associated with a character in a keymap is
-called a "keymap entry".  While any Lisp object may be stored in a
-keymap entry, only a few types of object make sense for key lookup. 
-Here is a list of them, and what they mean:
+   If a specification list fails at some level, then backtracking may
+be invoked to find some alternative at a higher level, or if no
+alternatives remain, an error will be signaled.  See *Note
+Backtracking:: for more details.
+
+   Edebug specifications provide at least the power of regular
+expression matching.  Additionally, some context free (i.e. finite
+state with stack) constructs are supported: the matching of sublists
+with balanced parentheses, recursive processing of forms, and indirect
+specifications.
+
+   Each element of a specification list may be one of the following,
+with the corresponding type of argument:
+
+`sexp'
+     A single unevaluated expression.
+
+`form'
+     A single evaluated expression, which is instrumented.
+
+`place'
+     A place as in the Common Lisp `setf' place argument.  It will be
+     instrumented just like a form, but the macro is expected to strip
+     the instrumentation using `edebug-unwrap' or `edebug-unwrap*'.
+
+`body'
+     Short for `&rest form'.  See `&rest' below.
+
+`function-form'
+     A function form: a quoted function symbol, a quoted lambda
+     expression, or a form (that should evaluate to a function symbol
+     or lambda expression).  This is useful when function arguments
+     might be quoted with `quote' rather than `function' since the body
+     of a lambda expression will be instrumented either way.  See the
+     `apply' example below.
+
+`lambda-expr'
+     An unquoted anonymous lambda expression.
+
+`&optional'
+     All following elements in the specification list are optional; as
+     soon as one does not match, Edebug stops matching at this level.
+     To make just one item optional, use `[&optional SPEC]'.  See the
+     `defun' example below.
+
+`&rest'
+     All following elements in the specification list are repeated zero
+     or more times.  All the elements need not be used in the last
+     repetition, however.
+
+     To specify repetition of certain types of arguments, followed by
+     dissimilar arguments, use `[&rest SPECS...]'.  To specify all
+     elements must match on the last repetition, use `&rest [SPECS...]'.
+
+`&or'
+     Each of the following elements in the specification list is an
+     alternative, processed left to right until one matches.  One of the
+     alternatives must match otherwise the `&or' specification fails.
+     To group two or more list elements as a single alternative,
+     enclose them in `[...]'.
+
+`&not'
+     Each of the following elements is matched as alternatives, and if
+     any of them match, the specification fails.  If none of them
+     match, nothing is matched, but the `&not' specification succeeds.
+     See the `lambda-list' example below.
+
+`&define'
+     Indicates that the specification is for a defining form.  The
+     defining form itself is not instrumented, but forms inside it may
+     be.  The `&define' keyword must appear first in a top-level list
+     specification.
+
+     Other specifications that may only appear after `&define' are
+     described here.  See the `defun' example below.
+
+    `name'
+          The argument, a symbol, is the name of the defining form.
+          But a defining form need not be named at all in which case a
+          unique name will be created for it.
+
+          The `name' specification may be used more than once in the
+          specification and each subsequent use will append the
+          corresponding symbol argument to the previous name with ``@''
+          between them.  This is useful for generating unique but
+          meaningful names for definitions such as `defadvice' and
+          `defmethod'.
+
+    `:name'
+          The specification following `:name' is used as an additional
+          name component for the definition.  This is useful to add a
+          unique component to the definition name.  It may be used more
+          than once, and it does not affect matching of arguments.
+
+    `arg'
+          The argument, a symbol, is the name of an argument of the
+          defining form.  However, lambda list keywords (symbols
+          starting with ``&'') are not allowed.  See `lambda-list' and
+          the example below.
+
+    `lambda-list'
+          This matches the whole argument list of an Emacs Lisp lambda
+          expression, which is a list of symbols and the keywords
+          `&optional' and `&rest'
+
+    `def-body'
+          The argument is the body of code in a definition.  This is
+          like `body', described above, but a definition body must be
+          instrumented with a special Edebug call.  Use `def-body' for
+          the highest level list of forms within the definition.
+
+    `def-form'
+          The argument is a single top-level form in a definition.
+          This is like `def-body', except use this to match a single
+          form rather than a list of forms.  As a special case,
+          `def-form' also means that tracing information is not output
+          when the form is executed.  See the `interactive' example
+          below.
 
 `nil'
-     `nil' means that the characters used so far in the lookup form
-     an undefined key.  When a sparse keymap fails to mention a
-     character, that is equivalent to an entry of `nil'.
+     This is successful when there are no more arguments to match;
+     otherwise it fails.  See sublist specifications and the `backquote'
+     example below.
 
-KEYMAP
-     The characters used so far in the lookup form a prefix key.  The
-     next character of the key sequence is looked up in KEYMAP, which
-     may be full or sparse.
+`fence'
+     No argument is matched but backtracking through the fence is
+     disabled while matching the remainder of the specifications at
+     this level.  See *Note Backtracking:: for more details.  Also see
+     the `let' example below.
 
-COMMAND
-     The characters used so far in the lookup form a complete key,
-     and COMMAND is its definition.
+`OTHER-SYMBOL'
+     Any other symbol in a specification list may be a predicate or an
+     indirect specification.
+
+     If the symbol has an Edebug specification, this "indirect
+     specification" should be a list that is used in-line.  The
+     specification may be defined with `def-edebug-spec' just as for
+     macros. See the `defun' example below.
+
+     Otherwise, the symbol should be a predicate.  The predicate is
+     called with the argument and the specification fails if the
+     predicate fails.  The argument is not instrumented.
+
+     Predicates that may be used include: `symbolp', `integerp',
+     `stringp', `vectorp', `atom' (which matches a number, string,
+     symbol, or vector), `keywordp', and `lambda-list-keywordp'.  The
+     last two, defined in `edebug.el', test whether the argument is a
+     symbol starting with ``:'' and ``&'' respectively.
+
+`[ELEMENTS...]'
+     Rather than matching a vector argument, a vector treats the
+     ELEMENTS as a single "group specification".
+
+`"STRING"'
+     A symbol named STRING.
+
+`'SYMBOL or (quote SYMBOL)'
+     The precise symbol SYMBOL, treated as unevaluated.  Use a string
+     instead.
+
+`(vector ELEMENTS...)'
+     A vector whose elements must match the ELEMENTS in the
+     specification.  See the `backquote' example below.
+
+`(ELEMENTS...)'
+     Any other list is a "sublist specification" and the argument must
+     be a list whose elements match the specification ELEMENTS.
+
+     A sublist specification may be a dotted list and the corresponding
+     list argument may then be a dotted list.  Alternatively, the last
+     cdr of a dotted list specification may be another sublist
+     specification (via a grouping or an indirect specification) whose
+     elements match the non-dotted list arguments.  This is useful in
+     recursive specifications such as in the `backquote' example below.
+     Also see the description of a `nil' specification above for
+     terminating such recursion.
+
+     Note that a sublist specification that is printed like `(specs .
+     nil)' means the same as `(specs)', and `(specs .
+     (sublist-elements...))' means the same as `(specs
+     sublist-elements...)'.
+
+
+File: lispref.info,  Node: Backtracking,  Next: Specification Examples,  Prev: Specification List,  Up: Macro Calls
+
+Backtracking
+............
+
+   If a specification fails to match at some point, this does not
+necessarily mean a syntax error will be signaled; instead,
+"backtracking" will take place until all alternatives have been
+exhausted.  Eventually every element of the argument list must be
+matched by some element in the specification, and every required element
+in the specification must match some argument.
+
+   The special specifications `&optional', `&rest', or `&or' establish
+alternatives.
+
+   Backtracking is disabled for the remainder of a sublist or group when
+certain conditions occur, described below, and is reenabled when
+another alternative is established.  You might want to disable
+backtracking to commit to some alternative so that Edebug can provide
+more specific syntax error messages.  Normally, if no alternative
+matches, Edebug reports that none matched, but if one alternative is
+committed to, Edebug can report how it failed to match.
+
+   First, backtracking is disabled while matching any of the form
+specifications (i.e. `form', `body', `def-form', and `def-body').
+These specifications will match any form so any error must be in the
+form itself rather than at a higher level.
+
+   Second, backtracking is disabled after successfully matching a quoted
+symbol or string specification.  If you have a set of alternative
+constructs that all begin with the same symbol, you can usually work
+around this limitation by factoring the symbol out of the alternatives,
+e.g., `["foo" &or [first case] [second case] ...]'.
+
+   Third, backtracking may be explicitly disabled by using the `fence'
+specification.  This is useful when you know that there can be no
+higher alternatives.
+
+
+File: lispref.info,  Node: Specification Examples,  Prev: Backtracking,  Up: Macro Calls
+
+Specification Examples
+......................
+
+   This section provides several examples of Edebug specifications to
+show most of its capabilities.
+
+   A `let' special form has a sequence of bindings and a body where
+each of the bindings is a symbol or a sublist with a symbol and optional
+value.  In the specification below notice the `fence' inside of the
+sublist to prevent backtracking.
+
+     (def-edebug-spec let
+       ((&rest
+         &or symbolp (fence symbolp &optional form))
+        body))
+
+   Here are the specifications for the `case' and `do' macros in
+`cl.el'.  (Specifications for all the macros defined by `cl.el'
+(version 2.02) are in `cl-specs.el'.)
+
+     (def-edebug-spec case (form &rest (sexp body)))
+     
+     (def-edebug-spec do
+      ((&rest &or symbolp (symbolp &optional form form))
+       (form body) body))
+
+   Edebug uses the following specifications for `defun' and `defmacro'
+and the associated argument list and `interactive' specifications.  It
+is necessary to specially process the argument of an interactive form
+to allow debugging of a list argument outside of the function body,
+while not stopping on the interactive form itself.
+
+     (def-edebug-spec defmacro defun)      ; Indirect ref to `defun' spec
+     (def-edebug-spec defun
+       (&define name lambda-list
+                [&optional stringp]        ; Match the doc string, if present.
+                [&optional ("interactive" interactive)]
+                def-body))
+     
+     (def-edebug-spec lambda-list
+       (([&rest arg]
+         [&optional ["&optional" arg &rest arg]]
+         &optional ["&rest" arg]
+         )))
+     
+     (def-edebug-spec interactive
+       (&optional &or stringp def-form))    ; Notice: `def-form'
+
+   The `backquote' specification illustrates how to use `nil' to
+terminate recursion.  Also a vector may be matched.
+
+   Note that backquote (``') is a macro that results in an expression
+that is not necessarily evaluated.  It is often used to simplify the
+definition of a macro where the result of the macro call is evaluated,
+but Edebug does not know when this is the case.  So do not be surprised
+when you cannot step through your backquoted code.  However, `,' and
+`,@' forms within backquoted forms are evaluated and Edebug instruments
+them.
+
+   Nested backquotes are supported to a limited extent.  Quoted forms
+are not normally evaluated, but if the quoted form appears immediately
+within `,' and `,@' forms, Edebug treats this as a backquoted form at
+the next higher level.
+
+     (def-edebug-spec ` (backquote-form))
+     
+     (def-edebug-spec backquote-form
+       (&or ([&or "," ",@"] &or ("quote" backquote-form) form)
+            (backquote-form . [&or nil backquote-form])
+            (vector &rest backquote-form)
+            sexp))
+
+   Finally, the standard functions `mapcar', `mapconcat', `mapatoms',
+`apply', and `funcall' all take function arguments.  Here is one
+example:
+
+     (def-edebug-spec apply (function-form &rest form))
+
+
+File: lispref.info,  Node: Edebug Options,  Prev: Macro Calls,  Up: Edebug
+
+Edebug Options
+--------------
+
+   These options affect the behavior of Edebug:
+
+ - User Option: edebug-setup-hook
+     Functions to call before Edebug is used.  Each time it is set to a
+     new function, Edebug will call that function once and then
+     `edebug-setup-hook' is reset to `nil'.  You could use this to load
+     up Edebug specifications associated with a package you are using
+     only when you also use Edebug.
+
+ - User Option: edebug-all-defs
+     If non-`nil', normal evaluation of any defining forms (e.g.
+     `defun' and `defmacro') will instrument them for Edebug.  This
+     applies to `eval-defun', `eval-region', and `eval-current-buffer'.
+
+     Use the command `edebug-all-defs' to toggle the value of this
+     variable. You may want to make this variable local to each buffer
+     by calling `(make-local-variable 'edebug-all-defs)' in your
+     `emacs-lisp-mode-hook'.
+
+     The default value is `nil'.
+
+ - User Option: edebug-all-forms
+     If non-`nil', normal evaluation of any forms by `eval-defun',
+     `eval-region', and `eval-current-buffer' will instrument them for
+     Edebug.
+
+     Use the command `edebug-all-forms' to toggle the value of this
+     option.
+
+ - User Option: edebug-save-windows
+     If non-`nil', save and restore window configuration on Edebug
+     calls.  It takes some time to save and restore, so if your program
+     does not care what happens to the window configurations, it is
+     better to set this variable to `nil'.
+
+ - User Option: edebug-save-displayed-buffer-points
+     If non-`nil', save and restore point in all displayed buffers.
+     This is necessary if you are debugging code that changes the point
+     of a buffer which is displayed in a non-selected window.  If
+     Edebug or the user then selects the window, the buffer's point
+     will be changed to the window's point.
+
+     This is an expensive operation since it visits each window and each
+     displayed buffer twice for each Edebug activation, so it is best to
+     avoid it if you can.
+
+ - User Option: edebug-initial-mode
+     If this variable is non-`nil', it specifies the initial execution
+     mode for Edebug when it is first activated.  Possible values are
+     `step', `next', `go', `Go-nonstop', `trace', `Trace-fast',
+     `continue', and `Continue-fast'.
+
+     The default value is `step'.
+
+ - User Option: edebug-trace
+     Non-`nil' means display a trace of function entry and exit.
+     Tracing output is displayed in a buffer named `*edebug-trace*', one
+     function entry or exit per line, indented by the recursion level.
+     You can customize this display by replacing functions
+     `edebug-print-trace-before' and `edebug-print-trace-after'.
+
+     The default value is `nil'.
+
+ - User Option: edebug-test-coverage
+     If non-`nil', Edebug tests coverage of all expressions debugged.
+     This is done by comparing the result of each expression with the
+     previous result. Coverage is considered OK if two different
+     results are found.  So to sufficiently test the coverage of your
+     code, try to execute it under conditions that evaluate all
+     expressions more than once, and produce different results for each
+     expression.
+
+     Use `edebug-display-freq-count' to display the frequency count and
+     coverage information for a definition.
+
+ - User Option: edebug-continue-kbd-macro
+     If non-`nil', continue defining or executing any keyboard macro
+     that is executing outside of Edebug.
+
+ - User Option: edebug-print-length
+     If non-`nil', set `print-length' to this while printing results in
+     Edebug.  The default value is `50'.
+
+ - User Option: edebug-print-level
+     If non-`nil', set `print-level' to this while printing results in
+     Edebug.  The default value is `50'.
+
+ - User Option: edebug-print-circle
+     If non-`nil', set `print-circle' to this while printing results in
+     Edebug.  The default value is `nil'.
+
+
+File: lispref.info,  Node: Streams,  Next: Minibuffers,  Prev: Debugging,  Up: Top
+
+Reading and Printing Lisp Objects
+*********************************
+
+   "Printing" and "reading" are the operations of converting Lisp
+objects to textual form and vice versa.  They use the printed
+representations and read syntax described in *Note Types of Lisp
+Object::.
+
+   This chapter describes the Lisp functions for reading and printing.
+It also describes "streams", which specify where to get the text (if
+reading) or where to put it (if printing).
+
+* Menu:
+
+* Streams Intro::     Overview of streams, reading and printing.
+* Input Streams::     Various data types that can be used as input streams.
+* Input Functions::   Functions to read Lisp objects from text.
+* Output Streams::    Various data types that can be used as output streams.
+* Output Functions::  Functions to print Lisp objects as text.
+* Output Variables::  Variables that control what the printing functions do.
+
+
+File: lispref.info,  Node: Streams Intro,  Next: Input Streams,  Up: Streams
+
+Introduction to Reading and Printing
+====================================
+
+   "Reading" a Lisp object means parsing a Lisp expression in textual
+form and producing a corresponding Lisp object.  This is how Lisp
+programs get into Lisp from files of Lisp code.  We call the text the
+"read syntax" of the object.  For example, reading the text `(a . 5)'
+returns a cons cell whose CAR is `a' and whose CDR is the number 5.
+
+   "Printing" a Lisp object means producing text that represents that
+object--converting the object to its printed representation.  Printing
+the cons cell described above produces the text `(a . 5)'.
+
+   Reading and printing are more or less inverse operations: printing
+the object that results from reading a given piece of text often
+produces the same text, and reading the text that results from printing
+an object usually produces a similar-looking object.  For example,
+printing the symbol `foo' produces the text `foo', and reading that text
+returns the symbol `foo'.  Printing a list whose elements are `a' and
+`b' produces the text `(a b)', and reading that text produces a list
+(but not the same list) with elements are `a' and `b'.
+
+   However, these two operations are not precisely inverses.  There are
+two kinds of exceptions:
+
+   * Printing can produce text that cannot be read.  For example,
+     buffers, windows, subprocesses and markers print into text that
+     starts with `#'; if you try to read this text, you get an error.
+     There is no way to read those data types.
+
+   * One object can have multiple textual representations.  For example,
+     `1' and `01' represent the same integer, and `(a b)' and `(a .
+     (b))' represent the same list.  Reading will accept any of the
+     alternatives, but printing must choose one of them.
+
+
+File: lispref.info,  Node: Input Streams,  Next: Input Functions,  Prev: Streams Intro,  Up: Streams
+
+Input Streams
+=============
+
+   Most of the Lisp functions for reading text take an "input stream"
+as an argument.  The input stream specifies where or how to get the
+characters of the text to be read.  Here are the possible types of input
+stream:
+
+BUFFER
+     The input characters are read from BUFFER, starting with the
+     character directly after point.  Point advances as characters are
+     read.
+
+MARKER
+     The input characters are read from the buffer that MARKER is in,
+     starting with the character directly after the marker.  The marker
+     position advances as characters are read.  The value of point in
+     the buffer has no effect when the stream is a marker.
 
 STRING
-     STRING represents a keyboard macro.  The characters used so far
-     in the lookup form a complete key, and STRING is its definition.
-     (See *Note Keyboard Macros::, for more information.)
+     The input characters are taken from STRING, starting at the first
+     character in the string and using as many characters as required.
 
-LIST
-     The meaning of a list depends on the types of the elements of
-     the list.
+FUNCTION
+     The input characters are generated by FUNCTION, one character per
+     call.  Normally FUNCTION is called with no arguments, and should
+     return a character.
 
-        * If the CAR of LIST is the symbol `keymap', then the list is
-          a sparse keymap, and is treated as a keymap (see above).
+     Occasionally FUNCTION is called with one argument (always a
+     character).  When that happens, FUNCTION should save the argument
+     and arrange to return it on the next call.  This is called
+     "unreading" the character; it happens when the Lisp reader reads
+     one character too many and want to "put it back where it came
+     from".
 
-        * If the CAR of LIST is `lambda', then the list is a lambda
-          expression.  This is presumed to be a command, and is
-          treated as such (see above).
+`t'
+     `t' used as a stream means that the input is read from the
+     minibuffer.  In fact, the minibuffer is invoked once and the text
+     given by the user is made into a string that is then used as the
+     input stream.
 
-        * If the CAR of LIST is a keymap and the CDR is a character,
-          then this entry is an indirection to a slot in the other
-          keymap.  When an indirect entry is found in key lookup, it
-          is immediately replaced by the entry in the specified
-          keymap for the specified character.  This permits you to
-          define one key as an alias for another key.  For example,
-          an entry whose CAR is the keymap called `esc-map' and whose
-          CDR is 32 (the code for space) means, "Use the global
-          definition of `Meta-SPC', whatever that may be."
+`nil'
+     `nil' used as a stream means that the value of `standard-input'
+     should be used instead; that value is the "default input stream",
+     and must be a non-`nil' input stream.
 
 SYMBOL
-     The function definition of SYMBOL is used in place of SYMBOL. 
-     If that too is a symbol, then this process is repeated, any
-     number of times.  Ultimately this should lead to a definition
-     which is a keymap, a command or a string.  A list is allowed if
-     it is a keymap or a command, but indirect entries are not
-     understood when found via symbols.
+     A symbol as output stream is equivalent to the symbol's function
+     definition (if any).
 
-     Note that keymaps and strings are not valid functions, so a
-     symbol with a keymap or string as its function definition is
-     likewise not valid as a function.  It is, however, valid as a
-     key binding.  If the definition is a string, then the symbol is
-     also valid as an argument to `command-execute' (*note
-     Interactive Call::.).
+   Here is an example of reading from a stream which is a buffer,
+showing where point is located before and after:
 
-     The symbol `undefined' is worth special mention: it means to
-     treat the key as undefined.  Strictly speaking, the key is
-     defined, and its definition is the symbol `undefined', but that
-     command does the same thing that is done automatically for an
-     undefined key: it rings the bell (by calling `ding') but does
-     not signal an error.
-
-     `undefined' is used in local keymaps to override a global key
-     binding and make the key undefined locally.  A local binding of
-     `nil' would fail to do this because it would not override the
-     global binding.
-
-ANYTHING ELSE
-     If any other type of object is found, the characters used so far
-     in the lookup form a complete key, and the object is its
-     definition.
-
-   In short, a keymap entry may be a keymap, a command, a string, a
-symbol which leads to one of them, or an indirection or `nil'.  Here
-is an example of a sparse keymap with two characters bound to
-commands and one bound to another keymap.  This map is the normal
-value of `emacs-lisp-mode-map'.  Note that 9 is the code for TAB, 127
-for DEL, 27 for ESC, 17 for `C-q' and 24 for `C-x'.
-
-     (keymap (9 . lisp-indent-line)
-             (127 . backward-delete-char-untabify)
-             (27 keymap (17 . indent-sexp) (24 . eval-defun)))
-
-
-
-File: elisp,  Node: Functions for Key Lookup,  Next: Prefix Keys,  Prev: Key Lookup,  Up: Keymaps
-
-Functions for Key Lookup
-========================
-
-   Here are the functions and variables pertaining to key lookup.
-
- * Function: lookup-key KEYMAP KEY
-     This function returns the definition of KEY in KEYMAP.  If the
-     string KEY is not a valid key sequence according to the prefix
-     keys specified in KEYMAP (which means it is "too long" and has
-     extra characters at the end), then the value is a number, the
-     number of characters at the front of KEY that compose a complete
-     key.
-
-     All the other functions described in this chapter that look up
-     keys use `lookup-key'.
-
-          (lookup-key (current-global-map) "\C-x\C-f")
-              => find-file
-          (lookup-key (current-global-map) "\C-x\C-f12345")
-              => 2
-
-     If KEY contains a meta-character, that character is implicitly
-     replaced by a two-character sequence: the value of
-     `meta-prefix-char', followed by the corresponding non-meta
-     character.  Thus, the first example below is handled by
-     conversion into the second example.
-
-          (lookup-key (current-global-map) "\M-f")
-              => forward-word
-          (lookup-key (current-global-map) "\ef")
-              => forward-word
-
-     This function does not perform automatic downcasing like that of
-     `read-key-sequence' (*note Keyboard Input::.).
-
- * Command: undefined
-     Used in keymaps to undefine keys.  It calls `ding', but does not
-     cause an error.
-
- * Variable: meta-prefix-char
-     This variable is the meta-prefix character code.  It is used
-     when translating a meta-character to a two-character sequence so
-     it can be looked up in a keymap.  For useful results, the value
-     should be a prefix character (*note Prefix Keys::.).  The
-     default value is 27, which is the ASCII code for ESC.
-
-     As long as the value of `meta-prefix-char' remains 27, key
-     lookup translates `M-b' into `ESC b', which is normally defined
-     as the `backward-word' command.  However, if you set
-     `meta-prefix-char' to 24, the code for `C-x', then Emacs will
-     translate `M-b' into `C-x b', and call the `switch-to-buffer'
-     command.
-
-          meta-prefix-char                    ; The default value.
-               => 27
-          (key-binding "\M-b")
-               => backward-word
-          ?\C-x                               ; The print representation
-               => 24                          ; of a character.
-          (setq meta-prefix-char 24)
-               => 24      
-          (key-binding "\M-b")
-               => switch-to-buffer            ; Now, typing `M-b' is
-                                              ; like typing `C-x b'.
-          
-          (setq meta-prefix-char 27)          ; Avoid confusion!
-               => 27                          ; Restore the default value!
-
- 
-
-File: elisp,  Node: Prefix Keys,  Next: Global and Local Keymaps,  Prev: Functions for Key Lookup,  Up: Keymaps
-
-Prefix Keys
-===========
-
-   A "prefix key" has an associated keymap which defines what to do
-with key sequences that start with the prefix key.  For example,
-`ctl-x-map' is the keymap used for characters following the prefix
-key `C-x'.  Here is a list of the standard prefix keys of Emacs and
-their keymaps:
-
-   * `ctl-x-map' is the variable name for the map used for characters
-     that follow `C-x'.  This map is also the function definition of
-     `Control-X-prefix'.
-
-   * `ctl-x-4-map' used is for characters that follow `C-x 4'.
-
-   * `esc-map' is used for characters that follow ESC.  Thus, the
-     global definitions of all Meta characters are actually found
-     here.  This map is also the function definition of `ESC-prefix'.
-
-   * `help-map' is used for characters that follow `C-h'.
-
-   * `mode-specific-map' is for characters that follow `C-c'.  This
-     map is not actually mode specific; its name was chosen to be
-     informative for the user in `C-h b' (`display-bindings'), where
-     it describes the main use of the `C-c' prefix key.
-
-   The binding of a prefix key is the keymap to use for looking up
-the characters that follow the prefix key.  (It may instead be a
-symbol whose function definition is a keymap.  The effect is the
-same, but the symbol serves as a name for the prefix key.)  Thus, the
-binding of `C-x' is the symbol `Control-X-prefix', whose function
-definition is the keymap for `C-x' commands.  This keymap is also the
-value of `ctl-x-map'.
-
-   Prefix key definitions of this sort can appear in either the
-global map or a local map.  The definitions of `C-c', `C-x', `C-h'
-and ESC as prefix keys appear in the global map, so these prefix keys
-are always available.  Major modes can locally redefine a key as a
-prefix by putting a prefix key definition for it in the local map.
-
-   If a key is defined as a prefix in both the local map and the
-global, the two definitions are effectively merged: the commands
-defined in the local map's prefix definition take priority; those not
-defined there are taken from the global map.
-
-   In the following example, `C-p' is made a prefix key in the local
-keymap (so that `C-p' is identical to `C-x').  Then the binding for
-`C-p C-f' is the function `find-file', just like `C-x C-f'.  The key
-sequence `C-p 6' is not found in either the local map or global map.
-
-     (use-local-map (make-sparse-keymap))
-         => nil
-     (local-set-key "\C-p" ctl-x-map)
-         => nil
-     (key-binding "\C-p\C-f")
-         => find-file
+     ---------- Buffer: foo ----------
+     This-!- is the contents of foo.
+     ---------- Buffer: foo ----------
      
-     (key-binding "\C-p6")
-         => nil
+     (read (get-buffer "foo"))
+          => is
+     (read (get-buffer "foo"))
+          => the
+     
+     ---------- Buffer: foo ----------
+     This is the-!- contents of foo.
+     ---------- Buffer: foo ----------
 
- * Function: define-prefix-command SYMBOL
-     This function defines SYMBOL as a prefix command: it creates a
-     full keymap and stores it as SYMBOL's function definition. 
-     Storing the symbol as the binding of a key makes the key a
-     prefix key which has a name.  This function returns SYMBOL.
+Note that the first read skips a space at the beginning of the buffer.
+Reading skips any amount of whitespace preceding the significant text.
 
-     It is convenient to store the keymap as the value of a variable
-     as well.  In version 19, this function stores the keymap in both
-     the function definition and value of SYMBOL.  However, in
-     version 18, only the function definition of SYMBOL is set, not
-     the value.
+   In Emacs 18, reading a symbol discarded the delimiter terminating the
+symbol.  Thus, point would end up at the beginning of `contents' rather
+than after `the'.  The Emacs 19 behavior is superior because it
+correctly handles input such as `bar(foo)' where the delimiter that
+ends one object is needed as the beginning of another object.
+
+   Here is an example of reading from a stream that is a marker,
+initialized to point at the beginning of the buffer shown.  The value
+read is the symbol `This'.
 
 
-
-File: elisp,  Node: Global and Local Keymaps,  Next: Changing Key Bindings,  Prev: Prefix Keys,  Up: Keymaps
+     ---------- Buffer: foo ----------
+     This is the contents of foo.
+     ---------- Buffer: foo ----------
+     
+     (setq m (set-marker (make-marker) 1 (get-buffer "foo")))
+          => #<marker at 1 in foo>
+     (read m)
+          => This
+     m
+          => #<marker at 6 in foo>   ;; After the first space.
 
-Global and Local Keymaps
-========================
+   Here we read from the contents of a string:
 
-   The "global keymap" holds the bindings of keys that are defined
-regardless of the current buffer, such as `C-f'.  The variable
-`global-map' holds this keymap.
+     (read "(When in) the course")
+          => (When in)
 
-   Each buffer may have another keymap, its "local keymap", which may
-contain new or overriding definitions for keys.  Each buffer records
-which local keymap is used with it.
+   The following example reads from the minibuffer.  The prompt is:
+`Lisp expression: '.  (That is always the prompt used when you read
+from the stream `t'.)  The user's input is shown following the prompt.
 
-   Both the global and local keymaps are used to determine what
-command to execute when a key is entered.  The key lookup proceeds as
-described earlier (*note Key Lookup::.), but Emacs *first* searches
-for the key in the local map; if Emacs does not find a local
-definition, Emacs then searches the global map.
+     (read t)
+          => 23
+     ---------- Buffer: Minibuffer ----------
+     Lisp expression: `23 RET'
+     ---------- Buffer: Minibuffer ----------
 
-   Since every buffer that uses the same major mode normally uses the
-very same local keymap, it may appear as if the keymap is local to
-the mode.  A change to the local keymap of a buffer (using
-`local-set-key', for example) will be seen also in the other buffers
-that share that keymap.
+   Finally, here is an example of a stream that is a function, named
+`useless-stream'.  Before we use the stream, we initialize the variable
+`useless-list' to a list of characters.  Then each call to the function
+`useless-stream' obtains the next characters in the list or unreads a
+character by adding it to the front of the list.
 
-   The local keymaps that are used for Lisp mode, C mode, and several
-other major modes exist even if they have not yet been used.  These
-local maps are the values of the variables `lisp-mode-map',
-`c-mode-map', and so on.  For most other modes, which are less
-frequently used, the local keymap is constructed only when the mode
-is used for the first time in a session.
+     (setq useless-list (append "XY()" nil))
+          => (88 89 40 41)
+     
+     (defun useless-stream (&optional unread)
+       (if unread
+           (setq useless-list (cons unread useless-list))
+         (prog1 (car useless-list)
+                (setq useless-list (cdr useless-list)))))
+          => useless-stream
 
-   The minibuffer has local keymaps, too; they contain various
-completion and exit commands.  *Note Minibuffers::.
+Now we read using the stream thus constructed:
 
-   *Note Standard Keymaps::, for a list of standard keymaps.
+     (read 'useless-stream)
+          => XY
+     
+     useless-list
+          => (41)
 
- * Variable: global-map
-     This variable contains the default global keymap that maps Emacs
-     keyboard input to commands.  Normally this keymap is the global
-     keymap.  The default global keymap is a full keymap that binds
-     `self-insert-command' to all of the printing characters.
+Note that the close parenthesis remains in the list.  The reader has
+read it, discovered that it ended the input, and unread it.  Another
+attempt to read from the stream at this point would get an error due to
+the unmatched close parenthesis.
 
- * Function: current-global-map
-     This function returns the current global keymap.  Normally, this
-     is the same as the value of the `global-map'.
-
-          (current-global-map)
-          => [set-mark-command beginning-of-line ... delete-backward-char]
-
- * Function: current-local-map
-     This function returns the current buffer's local keymap, or
-     `nil' if it has none.  In the following example, the keymap for
-     the `*scratch*' buffer (using Lisp Interaction mode) is a sparse
-     keymap in which the entry for ESC, ASCII code 27, is another
-     sparse keymap.
-
-          (current-local-map)
-          => (keymap 
-              (10 . eval-print-last-sexp) 
-              (9 . lisp-indent-line) 
-              (127 . backward-delete-char-untabify) 
-              (27 keymap 
-                  (24 . eval-defun) 
-                  (17 . indent-sexp)))
-
- * Function: use-global-map KEYMAP
-     This function makes KEYMAP the new current global keymap.  The
-     KEYMAP map must be a full keymap (a vector of length 128).  It
-     returns `nil'.
-
-     It is very unusual to change the global keymap.
-
- * Function: use-local-map KEYMAP
-     This function makes KEYMAP the new current local keymap of the
-     current buffer.  If KEYMAP is `nil', then there will be no local
-     keymap.  It returns `nil'.  Most major modes use this function.
-
- * Function: key-binding KEY
-     This function returns the definition for KEY in the current
-     keymaps trying the current buffer's local map and then the
-     global map.  The result is `nil' if KEY is undefined in the
-     keymaps.
-
-     An error is signaled if KEY is not a string.
-
-          (key-binding "\C-x\C-f")
-              => find-file
-
- * Function: local-key-binding KEY
-     This function returns the definition for KEY in the current
-     local keymap, or `nil' if it is undefined there.
-
- * Function: global-key-binding KEY
-     This function returns the definition for command KEY in the
-     current global keymap, or `nil' if it is undefined there.
-
+ - Function: get-file-char
+     This function is used internally as an input stream to read from
+     the input file opened by the function `load'.  Don't use this
+     function yourself.
 
 
-File: elisp,  Node: Changing Key Bindings,  Next: Key Binding Commands,  Prev: Global and Local Keymaps,  Up: Keymaps
+File: lispref.info,  Node: Input Functions,  Next: Output Streams,  Prev: Input Streams,  Up: Streams
 
-Changing Key Bindings
-=====================
+Input Functions
+===============
 
-   The way to rebind a key is to change its entry in a keymap.  You
-can change the global keymap, so that the change is effective in all
-buffers (except those that override the global definition with a
-local one).  Or you can change the current buffer's local map, which
-usually affects all buffers using the same major mode.  The
-`global-set-key' and `local-set-key' functions are convenient
-interfaces for these operations.  Or you can change bindings in any
-map by specifying it explicitly in `define-key'.
+   This section describes the Lisp functions and variables that pertain
+to reading.
 
-   People often use `global-set-key' in their `.emacs' file for
-simple customization.  For example,
+   In the functions below, STREAM stands for an input stream (see the
+previous section).  If STREAM is `nil' or omitted, it defaults to the
+value of `standard-input'.
 
-     (global-set-key "\C-x\C-\\" 'next-line)
+   An `end-of-file' error results if an unterminated list or vector is
+found.
 
-redefines `C-x C-\' to move down a line.
+ - Function: read &optional STREAM
+     This function reads one textual Lisp expression from STREAM,
+     returning it as a Lisp object.  This is the basic Lisp input
+     function.
 
-   In writing the string for the key sequence to rebind, it is useful
-to use the special escape sequences for control and meta characters
-(*note String Type::.).  In a string, the syntax `\C-' means that the
-following character is a control character and `\M-' means that the
-following character is a META character.  Thus, the string `"\M-x"'
-is read as containing a single `M-x', `"\C-f"' is read as containing
-a single `C-f', and `"\M-\C-x"' and `"\C-\M-x"' are both read as
-containing a single `C-M-x'.
+ - Function: read-from-string STRING &optional START END
+     This function reads the first textual Lisp expression from the
+     text in STRING.  It returns a cons cell whose CAR is that
+     expression, and whose CDR is an integer giving the position of the
+     next remaining character in the string (i.e., the first one not
+     read).
 
-   For the functions below, an error is signaled if KEYMAP is not a
-keymap or if KEY is not a string representing a key sequence.
+     If START is supplied, then reading begins at index START in the
+     string (where the first character is at index 0).  If END is also
+     supplied, then reading stops at that index as if the rest of the
+     string were not there.
 
- * Function: define-key KEYMAP KEY DEFINITION
-     This function sets the binding for KEY in KEYMAP.  (If KEY is
-     more than one character long, the change is actually made in
-     another keymap reached from KEYMAP.)  The argument DEFINITION
-     can be any Lisp object, but only certain types are meaningful. 
-     (For a list of meaningful types, see *Note Key Lookup::.) The
-     value returned by `define-key' is DEFINITION.
+     For example:
 
-     Every prefix of KEY must be a prefix key (i.e., bound to a
-     keymap) or undefined; otherwise an error is signaled (with data
-     `(error "Key sequence KEY uses invalid prefix characters")'). 
-     If some prefix of KEY is undefined, then `define-key' defines it
-     as a prefix key so that the rest of KEY may be defined as
-     specified.
-
-     In the following example, a sparse keymap is created and a
-     number of bindings are added to it.
-
-          (setq map (make-sparse-keymap))
-              => (keymap)
-          (define-key map "\C-f" 'forward-char)
-              => forward-char
-          map
-              => (keymap (6 . forward-char))
-
-             ;; Build sparse submap for `C-x' and bind `f' in that.
-          (define-key map "\C-xf" 'forward-word)
-              => forward-word
-
-          map
-          => (keymap 
-              (24 keymap                ; `C-x'
-                  (102 . forward-word)) ;      `f'
-              (6 . forward-char))       ; `C-f'
+          (read-from-string "(setq x 55) (setq y 5)")
+               => ((setq x 55) . 11)
+          (read-from-string "\"A short string\"")
+               => ("A short string" . 16)
           
-          ;; Bind `C-p' to the `ctl-x-map'.
-          (define-key map "\C-p" ctl-x-map)
-          => [nil ...  find-file ... backward-kill-sentence] ; `ctl-x-map'
-          
-          ;; Bind `C-f' to `foo' in the `ctl-x-map'.
-          (define-key map "\C-p\C-f" 'foo)
-          => 'foo
-          map
-          => (keymap     ; Note `foo' in `ctl-x-map'.
-              (16 . [nil ...  foo ... backward-kill-sentence])
-              (24 keymap 
-                  (102 . forward-word))
-              (6 . forward-char))
+          ;; Read starting at the first character.
+          (read-from-string "(list 112)" 0)
+               => ((list 112) . 10)
+          ;; Read starting at the second character.
+          (read-from-string "(list 112)" 1)
+               => (list . 6)
+          ;; Read starting at the seventh character,
+          ;;   and stopping at the ninth.
+          (read-from-string "(list 112)" 6 8)
+               => (11 . 8)
 
-     Note that storing a new binding for `C-p C-f' actually works by
-     changing an entry in `ctl-x-map', and this has the effect of
-     changing the bindings of both `C-p C-f' and `C-x C-f' in the
-     default global map.
+ - Variable: standard-input
+     This variable holds the default input stream: the stream that
+     `read' uses when the STREAM argument is `nil'.
 
- * Function: substitute-key-definition OLDDEF NEWDEF KEYMAP
-     This function replaces OLDDEF with NEWDEF for any keys in KEYMAP
-     that were bound to OLDDEF.  In other words, OLDDEF is replaced
-     with NEWDEF wherever it appears.  It returns `nil'.
+
+File: lispref.info,  Node: Output Streams,  Next: Output Functions,  Prev: Input Functions,  Up: Streams
 
-     Prefix keymaps that appear within KEYMAP are not checked
-     recursively for keys bound to OLDDEF; they are not changed at all.
-     Perhaps it would be better to check nested keymaps recursively.
+Output Streams
+==============
 
-          (setq map '(keymap 
-                      (?1 . olddef-1) 
-                      (?2 . olddef-2) 
-                      (?3 . olddef-1)))
-          => (keymap (49 . olddef-1) (50 . olddef-2) (51 . olddef-1))
-          
-          (substitute-key-definition 'olddef-1 'newdef map)
+   An output stream specifies what to do with the characters produced
+by printing.  Most print functions accept an output stream as an
+optional argument.  Here are the possible types of output stream:
+
+BUFFER
+     The output characters are inserted into BUFFER at point.  Point
+     advances as characters are inserted.
+
+MARKER
+     The output characters are inserted into the buffer that MARKER is
+     in at the marker position.  The position advances as characters are
+     inserted.  The value of point in the buffer has no effect when the
+     stream is a marker.
+
+FUNCTION
+     The output characters are passed to FUNCTION, which is responsible
+     for storing them away.  It is called with a single character as
+     argument, as many times as there are characters to be output, and
+     is free to do anything at all with the characters it receives.
+
+`t'
+     The output characters are displayed in the echo area.
+
+`nil'
+     `nil' specified as an output stream means that the value of
+     `standard-output' should be used as the output stream; that value
+     is the "default output stream", and must be a non-`nil' output
+     stream.
+
+SYMBOL
+     A symbol as output stream is equivalent to the symbol's function
+     definition (if any).
+
+   Here is an example of a buffer used as an output stream.  Point is
+initially located as shown immediately before the `h' in `the'.  At the
+end, point is located directly before that same `h'.
+
+     ---------- Buffer: foo ----------
+     This is t-!-he contents of foo.
+     ---------- Buffer: foo ----------
+     
+     (print "This is the output" (get-buffer "foo"))
+          => "This is the output"
+     
+     ---------- Buffer: foo ----------
+     This is t
+     "This is the output"
+     -!-he contents of foo.
+     ---------- Buffer: foo ----------
+
+   Now we show a use of a marker as an output stream.  Initially, the
+marker points in buffer `foo', between the `t' and the `h' in the word
+`the'.  At the end, the marker has been advanced over the inserted text
+so that it still points before the same `h'.  Note that the location of
+point, shown in the usual fashion, has no effect.
+
+     ---------- Buffer: foo ----------
+     "This is the -!-output"
+     ---------- Buffer: foo ----------
+     
+     m
+          => #<marker at 11 in foo>
+     
+     (print "More output for foo." m)
+          => "More output for foo."
+     
+     ---------- Buffer: foo ----------
+     "This is t
+     "More output for foo."
+     he -!-output"
+     ---------- Buffer: foo ----------
+     
+     m
+          => #<marker at 35 in foo>
+
+   The following example shows output to the echo area:
+
+     (print "Echo Area output" t)
+          => "Echo Area output"
+     ---------- Echo Area ----------
+     "Echo Area output"
+     ---------- Echo Area ----------
+
+   Finally, we show an output stream which is a function.  The function
+`eat-output' takes each character that it is given and conses it onto
+the front of the list `last-output' (*note Building Lists::.).  At the
+end, the list contains all the characters output, but in reverse order.
+
+     (setq last-output nil)
           => nil
-          map
-          => (keymap (49 . newdef) (50 . olddef-2) (51 . newdef))
-          
-          ;; The following will redefine `C-x C-f', if you do it in an
-          ;; Emacs with standard bindings.
-          
-          (substitute-key-definition 
-           'find-file 'find-file-read-only (current-global-map))
+     
+     (defun eat-output (c)
+       (setq last-output (cons c last-output)))
+          => eat-output
+     
+     (print "This is the output" 'eat-output)
+          => "This is the output"
+     
+     last-output
+          => (10 34 116 117 112 116 117 111 32 101 104
+         116 32 115 105 32 115 105 104 84 34 10)
 
- * Function: suppress-keymap KEYMAP &optional NODIGITS
-     This function changes the contents of the full keymap KEYMAP by
-     replacing the self-insertion commands for numbers with the
-     `digit-argument' function, unless NODIGITS is non-`nil', and by
-     replacing the functions for the rest of the printing characters
-     with `undefined'.  This means that ordinary insertion of text is
-     impossible in a buffer with a local keymap on which
-     `suppress-keymap' has been called.
+Now we can put the output in the proper order by reversing the list:
 
-     `suppress-keymap' returns `nil'.
-
-     The `suppress-keymap' function does not make it impossible to
-     modify a buffer, as it does not suppress commands such as `yank'
-     and `quote-insert'.  To prevent any modification of a buffer,
-     make it read-only (*note Read Only Buffers::.).
-
-     Since this function modifies KEYMAP, you would normally use it
-     on a newly created keymap.  Operating on an existing keymap that
-     is used for some other purpose is likely to cause trouble; for
-     example, suppressing `global-map' would make it impossible to
-     use most of Emacs.
-
-     Most often, `suppress-keymap' is used for initializing local
-     keymaps of modes such as Rmail and Dired where insertion of text
-     is not desirable and the buffer is read-only.  Here is an
-     example taken from the file `emacs/lisp/dired.el', showing how
-     the local keymap for Dired mode is set up:
-
-            ...
-            (setq dired-mode-map (make-keymap))
-            (suppress-keymap dired-mode-map)
-            (define-key dired-mode-map "r" 'dired-rename-file)
-            (define-key dired-mode-map "\C-d" 'dired-flag-file-deleted)
-            (define-key dired-mode-map "d" 'dired-flag-file-deleted)
-            (define-key dired-mode-map "v" 'dired-view-file)
-            (define-key dired-mode-map "e" 'dired-find-file)
-            (define-key dired-mode-map "f" 'dired-find-file)
-            ...
-
- 
-
-File: elisp,  Node: Key Binding Commands,  Next: Scanning Keymaps,  Prev: Changing Key Bindings,  Up: Keymaps
-
-Commands for Binding Keys
-=========================
-
-   This section describes some convenient interactive interfaces for
-changing key bindings.  They work by calling `define-key'.
-
- * Command: global-set-key KEY DEFINITION
-     This function sets the binding of KEY in the current global map
-     to DEFINITION.
-
-          (global-set-key KEY DEFINITION)
-          ==
-          (define-key (current-global-map) KEY DEFINITION)
-
- * Command: global-unset-key KEY
-     This function removes the binding of KEY from the current global
-     map.
-
-     One use of this function is in preparation for defining a longer
-     key which uses it implicitly as a prefix--which would not be
-     allowed otherwise.  For example:
-
-          (global-unset-key "\C-l")
-              => nil
-          (global-set-key "\C-l\C-l" 'redraw-display)
-              => nil
-
-     This function is implemented simply using `define-key':
-
-          (global-unset-key KEY)
-          ==
-          (define-key (current-global-map) KEY nil)
-
- * Command: local-set-key KEY DEFINITION
-     This function sets the binding of KEY in the current local
-     keymap to DEFINITION.
-
-          (local-set-key KEY DEFINITION)
-          ==
-          (define-key (current-local-map) KEY DEFINITION)
-
- * Command: local-unset-key KEY
-     This function removes the binding of KEY from the current local
-     map.
-
-          (local-unset-key KEY)
-          ==
-          (define-key (current-local-map) KEY nil)
-
+     (concat (nreverse last-output))
+          => "
+     \"This is the output\"
+     "
 
 
-File: elisp,  Node: Scanning Keymaps,  Prev: Key Binding Commands,  Up: Keymaps
+File: lispref.info,  Node: Output Functions,  Next: Output Variables,  Prev: Output Streams,  Up: Streams
 
-Scanning Keymaps
+Output Functions
 ================
 
-   This section describes functions used to scan all the current
-keymaps for the sake of printing help information.
+   This section describes the Lisp functions for printing Lisp objects.
 
- * Function: accessible-keymaps KEYMAP
-     This function returns a list of all the keymaps that can be
-     accessed (via prefix keys) from KEYMAP.  The list returned is an
-     association list with elements of the form `(KEY . MAP)', where
-     KEY is a prefix whose definition in KEYMAP is MAP.
+   Some of the Emacs printing functions add quoting characters to the
+output when necessary so that it can be read properly.  The quoting
+characters used are `\' and `"'; they are used to distinguish strings
+from symbols, and to prevent punctuation characters in strings and
+symbols from being taken as delimiters.  *Note Printed
+Representation::, for full details.  You specify quoting or no quoting
+by the choice of printing function.
 
-     The elements of the alist are ordered so that the KEY increases
-     in length.  The first element is always `("" . KEYMAP)', because
-     the specified keymap is accessible from itself with a prefix of
-     no characters.
+   If the text is to be read back into Lisp, then it is best to print
+with quoting characters to avoid ambiguity.  Likewise, if the purpose is
+to describe a Lisp object clearly for a Lisp programmer.  However, if
+the purpose of the output is to look nice for humans, then it is better
+to print without quoting.
 
-     In the example below, the returned alist indicates that the key
-     ESC, which is displayed as `"^["', is a prefix key whose
-     definition is the sparse keymap `(keymap (83 . center-paragraph)
-     (115 . foo))'.
+   Printing a self-referent Lisp object requires an infinite amount of
+text.  In certain cases, trying to produce this text leads to a stack
+overflow.  Emacs detects such recursion and prints `#LEVEL' instead of
+recursively printing an object already being printed.  For example,
+here `#0' indicates a recursive reference to the object at level 0 of
+the current print operation:
 
-          (accessible-keymaps (current-local-map))
-          =>(("" keymap 
-                (27 keymap   ; Note this keymap for ESC is repeated below.
-                    (83 . center-paragraph)
-                    (115 . center-line))
-                (9 . tab-to-tab-stop))
+     (setq foo (list nil))
+          => (nil)
+     (setcar foo foo)
+          => (#0)
+
+   In the functions below, STREAM stands for an output stream.  (See
+the previous section for a description of output streams.)  If STREAM
+is `nil' or omitted, it defaults to the value of `standard-output'.
+
+ - Function: print OBJECT &optional STREAM
+     The `print' is a convenient way of printing.  It outputs the
+     printed representation of OBJECT to STREAM, printing in addition
+     one newline before OBJECT and another after it.  Quoting
+     characters are used.  `print' returns OBJECT.  For example:
+
+          (progn (print 'The\ cat\ in)
+                 (print "the hat")
+                 (print " came back"))
+               -|
+               -| The\ cat\ in
+               -|
+               -| "the hat"
+               -|
+               -| " came back"
+               -|
+               => " came back"
+
+ - Function: prin1 OBJECT &optional STREAM
+     This function outputs the printed representation of OBJECT to
+     STREAM.  It does not print any spaces or newlines to separate
+     output as `print' does, but it does use quoting characters just
+     like `print'.  It returns OBJECT.
+
+          (progn (prin1 'The\ cat\ in)
+                 (prin1 "the hat")
+                 (prin1 " came back"))
+               -| The\ cat\ in"the hat"" came back"
+               => " came back"
+
+ - Function: princ OBJECT &optional STREAM
+     This function outputs the printed representation of OBJECT to
+     STREAM.  It returns OBJECT.
+
+     This function is intended to produce output that is readable by
+     people, not by `read', so quoting characters are not used and
+     double-quotes are not printed around the contents of strings.  It
+     does not add any spacing between calls.
+
+          (progn
+            (princ 'The\ cat)
+            (princ " in the \"hat\""))
+               -| The cat in the "hat"
+               => " in the \"hat\""
+
+ - Function: terpri &optional STREAM
+     This function outputs a newline to STREAM.  The name stands for
+     "terminate print".
+
+ - Function: write-char CHARACTER &optional STREAM
+     This function outputs CHARACTER to STREAM.  It returns CHARACTER.
+
+ - Function: prin1-to-string OBJECT &optional NOESCAPE
+     This function returns a string containing the text that `prin1'
+     would have printed for the same argument.
+
+          (prin1-to-string 'foo)
+               => "foo"
+          (prin1-to-string (mark-marker))
+               => "#<marker at 2773 in strings.texi>"
+
+     If NOESCAPE is non-`nil', that inhibits use of quoting characters
+     in the output.  (This argument is supported in Emacs versions 19
+     and later.)
+
+          (prin1-to-string "foo")
+               => "\"foo\""
+          (prin1-to-string "foo" t)
+               => "foo"
+
+     See `format', in *Note String Conversion::, for other ways to
+     obtain the printed representation of a Lisp object as a string.
+
+
+File: lispref.info,  Node: Output Variables,  Prev: Output Functions,  Up: Streams
+
+Variables Affecting Output
+==========================
+
+ - Variable: standard-output
+     The value of this variable is the default output stream, used when
+     the STREAM argument is omitted or `nil'.
+
+ - Variable: print-escape-newlines
+     If this variable is non-`nil', then newline characters in strings
+     are printed as `\n'.  Normally they are printed as actual newlines.
+
+     This variable affects the print functions `prin1' and `print', as
+     well as everything that uses them.  It does not affect `princ'.
+     Here is an example using `prin1':
+
+          (prin1 "a\nb")
+               -| "a
+               -| b"
+               => "a
+               => b"
           
-             ("^[" keymap 
-              (83 . center-paragraph) 
-              (115 . foo)))
+          (let ((print-escape-newlines t))
+            (prin1 "a\nb"))
+               -| "a\nb"
+               => "a
+               => b"
 
-     In the following example, `C-h' is a prefix key that uses a
-     sparse keymap starting `(118 . describe-variable) ...'.  Another
-     prefix, `C-x 4', uses the full keymap beginning `[nil ...]'
-     (which happens to be `ctl-x-4-map').
+     In the second expression, the local binding of
+     `print-escape-newlines' is in effect during the call to `prin1',
+     but not during the printing of the result.
 
-          (accessible-keymaps (current-global-map))
-          => (("" . [set-mark-command beginning-of-line ... 
-                        delete-backward-char])
-              ("^C" keymap (13 . x-flush-mouse-queue))
-              ("^H" keymap (118 . describe-variable) ... (8 . help-for-help))
-              ("^X" . [x-flush-mouse-queue  ... backward-kill-sentence])
-              ("^[" . [mark-sexp backward-sexp ... backward-kill-word])
-              ("^X4" . [nil ... find-file-other-window nil ... nil nil]))
+ - Variable: print-length
+     The value of this variable is the maximum number of elements of a
+     list that will be printed.  If the list being printed has more
+     than this many elements, then it is abbreviated with an ellipsis.
 
- * Function: where-is-internal COMMAND &optional KEYMAP FIRSTONLY
-     This function returns a list of key sequences (of any length)
-     that are bound to COMMAND in KEYMAP and the global keymap.  The
-     argument COMMAND can be any object; it is compared with all
-     keymap entries using `eq'.  If KEYMAP is not supplied, then the
-     global map alone is used.
+     If the value is `nil' (the default), then there is no limit.
 
-     If FIRSTONLY is non-`nil', then the value is a single string
-     representing the first key sequence found, rather than a list of
-     all possible key sequences.
+          (setq print-length 2)
+               => 2
+          (print '(1 2 3 4 5))
+               -| (1 2 ...)
+               => (1 2 ...)
 
-     This function is used by `where-is' (*note : (emacs)Help.).
+ - Variable: print-level
+     The value of this variable is the maximum depth of nesting of
+     parentheses that will be printed.  Any list or vector at a depth
+     exceeding this limit is abbreviated with an ellipsis.  A value of
+     `nil' (which is the default) means no limit.
 
-          (where-is-internal 'describe-function)
-              => ("\^hf" "\^hd")
-
- * Command: describe-bindings
-     This function creates a listing of all defined keys, and their
-     definitions.  The listing is put in a buffer named `*Help*',
-     which is then displayed in a window.
-
-     A meta character is shown as ESC followed by the corresponding
-     non-meta character.  Control characters are indicated with `C-'.
-
-     When several consecutive characters have the same definition,
-     they are shown together, as `FIRSTCHAR..LASTCHAR'.  In this
-     instance, you need to know the ASCII codes to understand which
-     characters this means.  For example, in the default global map,
-     the characters `SPC .. ~' are described by a single line.  SPC
-     is ASCII 32, `~' is ASCII 126, and the characters between them
-     include all the normal printing characters, (e.g., letters,
-     digits, punctuation, etc.); all these characters are bound to
-     `self-insert-command'.
-
+     This variable exists in version 19 and later versions.
 
 
-File: elisp,  Node: Modes,  Next: Documentation,  Prev: Keymaps,  Up: Top
+File: lispref.info,  Node: Minibuffers,  Next: Command Loop,  Prev: Streams,  Up: Top
 
-Major and Minor Modes
-*********************
+Minibuffers
+***********
 
-   A "mode" is a set of definitions that customize Emacs and can be
-turned on and off while you edit.  There are two varieties of modes:
-"major modes", which are mutually exclusive and used for editing
-particular kinds of text, and "minor modes", which provide features
-that may be enabled individually.
-
-   This chapter covers both major and minor modes, the way they are
-indicated in the mode line, and how they run hooks supplied by the
-user.  Related topics such as keymaps and syntax tables are covered
-in separate chapters.  (*Note Keymaps::, and *Note Syntax Tables::.)
+   A "minibuffer" is a special buffer that Emacs commands use to read
+arguments more complicated than the single numeric prefix argument.
+These arguments include file names, buffer names, and command names (as
+in `M-x').  The minibuffer is displayed on the bottom line of the
+screen, in the same place as the echo area, but only while it is in use
+for reading an argument.
 
 * Menu:
 
-* Major Modes::        Defining major modes.
-* Minor Modes::        Defining minor modes.
-* Mode Line Format::   Customizing the text that appears in the mode line.
-* Hooks::              How to use hooks; how to write code that provides hooks.
-
- 
-
-File: elisp,  Node: Major Modes,  Next: Minor Modes,  Prev: Modes,  Up: Modes
-
-Major Modes
-===========
-
-   Major modes specialize Emacs for editing particular kinds of text.
-Each buffer has only one major mode at a time.
-
-   The least specialized major mode is called "Fundamental mode". 
-This mode has no mode-specific definitions or variable settings, so
-each Emacs command behaves in its default manner, and each option is
-in its default state.  All other major modes redefine various keys
-and options.  For example, Lisp Interaction mode provides special key
-bindings for LFD (`eval-print-last-sexp'), TAB (`lisp-indent-line'),
-and other keys.
-
-   When you need to write several editing commands to help you
-perform a specialized editing task, creating a new major mode is
-usually a good idea.  In practice, writing a major mode is easy (in
-sharp contrast to writing a minor mode, which is often difficult).
-
-   If the new mode is similar to an old one, it is often unwise to
-modify the old one to serve two purposes, since it may become harder
-to use and maintain.  Instead, copy and rename an existing major mode
-definition and alter it for its new function.  For example, Rmail
-Edit mode, which is in `emacs/lisp/rmailedit.el', is a major mode
-that is very similar to Text mode except that it provides three
-additional commands.  Its definition is distinct from that of Text
-mode, but was derived from it.
-
-   Rmail Edit mode is an example of a case where one piece of text is
-put temporarily into a different major mode so it can be edited in a
-different way (with ordinary Emacs commands rather than Rmail).  In
-such cases, the temporary major mode usually has a command to switch
-back to the buffer's usual mode (Rmail mode, in this case).  You
-might be tempted to present the temporary redefinitions inside a
-recursive edit and restore the usual ones when the user exits; but
-this is a bad idea because it constrains the user's options when it
-is done in more than one buffer: recursive edits must be exited
-most-recently-entered first.  Using alternative major modes avoids
-this limitation.  *Note Recursive Editing::.
-
-   The standard GNU Emacs Lisp library directory contains the code
-for several major modes, in files including `text-mode.el',
-`texinfo.el', `lisp-mode.el', `c-mode.el', and `rmail.el'.  You can
-look at these libraries to see how modes are written.  Text mode is
-perhaps the simplest major mode aside from Fundamental mode.  Rmail
-mode is a rather complicated, full-featured mode.
-
-* Menu:
-
-* Major Mode Conventions::  Coding conventions for keymaps, etc.
-* Example Major Modes::     Text mode and Lisp modes.
-* Auto Major Mode::         How Emacs chooses the major mode automatically.
-* Mode Help::               Finding out how to use a mode.
-
- 
-
-File: elisp,  Node: Major Mode Conventions,  Next: Example Major Modes,  Prev: Major Modes,  Up: Major Modes
-
-Major Mode Conventions
-----------------------
-
-   The code for existing major modes follows various coding
-conventions, including conventions for local keymap and syntax table
-initialization, global names, and hooks.  Please keep these
-conventions in mind when you create a new major mode:
-
-   * Define a command whose name ends in `-mode', with no arguments,
-     that switches to the new mode in the current buffer.  This
-     command should set up the keymap, syntax table, and local
-     variables in an existing buffer without changing the buffer's
-     text.
-
-   * Write a documentation string for this command which describes
-     the special commands available in this mode.  `C-h m'
-     (`describe-mode') will print this.
-
-     The documentation string may include the special documentation
-     substrings, `\[COMMAND]', `\{KEYMAP}', and `\<KEYMAP>', that
-     enable the documentation to adapt automatically to the user's
-     own key bindings.  The `describe-mode' function replaces these
-     special documentation substrings with their current meanings. 
-     *Note Accessing Documentation::.
-
-   * The major mode command should set the variable `major-mode' to
-     the major mode command symbol.  This is how `describe-mode'
-     discovers which documentation to print.
-
-   * The major mode command should set the variable `mode-name' to
-     the "pretty" name of the mode, as a string.  This appears in the
-     mode line.
-
-   * Since all global names are in the same name space, all the
-     global variables, constants, and functions that are part of the
-     mode should have names that start with the major mode name (or
-     with an abbreviation of it if the name is long).
-
-   * The major mode should usually have its own keymap, which is used
-     as the local keymap in all buffers in that mode.  The major mode
-     function should call `use-local-map' to install this local map. 
-     *Note Global and Local Keymaps::, for more information.
-
-     This keymap should be kept in a global variable named
-     `MODENAME-mode-map'.  This variable is usually set up when the
-     library that defines the mode is loaded.  Use `defvar' to set
-     the variable, so that it is not reinitialized if it already has
-     a value.  (Such reinitialization could discard customizations
-     made by the user.)
-
-   * The mode may have its own syntax table or may share one with
-     other related modes.  If it has its own syntax table, it should
-     store this in a variable named `MODENAME-mode-syntax-table'. 
-     The reasons for this are the same as for using a keymap
-     variable.  *Note Syntax Tables::.
-
-   * The mode may have its own abbrev table or may share one with
-     other related modes.  If it has its own abbrev table, it should
-     store this in a variable named `MODENAME-mode-abbrev-table'. 
-     *Note Abbrev Tables::.
-
-   * To give a variable a buffer-local binding, use
-     `make-local-variable' in the major mode command, not
-     `make-variable-buffer-local'.  The latter function would make
-     the variable local to every buffer in which it is subsequently
-     set, which would affect buffers that do not use this mode.  It
-     is undesirable for a mode to have such global effects.  *Note
-     Buffer-Local Variables::.
-
-   * If hooks are appropriate for the mode, the major mode command
-     should run the hooks after completing all other initialization
-     so the user may further customize any of the settings.  *Note
-     Hooks::.
-
-   * If this mode is appropriate only for specially-prepared text,
-     then the major mode command symbol should have a property named
-     `mode-class' with value `special', put on as follows:
-
-          (put 'funny-mode 'mode-class 'special)
-
-     This tells Emacs that new buffers created while the current
-     buffer has Funny mode should not inherit Funny mode.  Modes such
-     as Dired, Rmail, and Buffer List use this feature.
-
-   * If it is desirable that Emacs use the new mode by default after
-     visiting files with certain recognizable names, add an element
-     to `auto-mode-alist' to select the mode for those file names. 
-     If you define the mode command to autoload, you should add this
-     element at the same time.  Otherwise, it is sufficient to add
-     the element in the file that contains the mode definition. 
-     *Note Auto Major Mode::.
-
-   * In the documentation, you should provide a sample `autoload'
-     form and a sample `auto-mode-alist' addition that users can
-     include in their `.emacs' files.
-
-   * The top level forms in the file defining the mode should be
-     written so that they may be evaluated more than once without
-     adverse consequences.  Even if you never load the file more than
-     once, someone else will.
-
+* Intro to Minibuffers::      Basic information about minibuffers.
+* Text from Minibuffer::      How to read a straight text string.
+* Object from Minibuffer::    How to read a Lisp object or expression.
+* Minibuffer History::	      Recording previous minibuffer inputs
+				so the user can reuse them.
+* Completion::                How to invoke and customize completion.
+* Yes-or-No Queries::         Asking a question with a simple answer.
+* Multiple Queries::	      Asking a series of similar questions.
+* Minibuffer Misc::           Various customization hooks and variables.
 
 
-File: elisp,  Node: Example Major Modes,  Next: Auto Major Mode,  Prev: Major Mode Conventions,  Up: Major Modes
+File: lispref.info,  Node: Intro to Minibuffers,  Next: Text from Minibuffer,  Up: Minibuffers
 
-Major Mode Examples
--------------------
+Introduction to Minibuffers
+===========================
 
-   Text mode is perhaps the simplest mode besides Fundamental mode. 
-Here are excerpts from  `text-mode.el' that illustrate many of the
-conventions listed above:
+   In most ways, a minibuffer is a normal Emacs buffer.  Most operations
+*within* a buffer, such as editing commands, work normally in a
+minibuffer.  However, many operations for managing buffers do not apply
+to minibuffers.  The name of a minibuffer always has the form
+` *Minibuf-NUMBER', and it cannot be changed.  Minibuffers are
+displayed only in special windows used only for minibuffers; these
+windows always appear at the bottom of a screen.  (Sometime screens have
+no minibuffer window, and sometimes a special kind of screen contains
+nothing but a minibuffer window; see *Note Minibuffers and Screens::.)
 
-     ;; Create mode-specific tables.
-     (defvar text-mode-syntax-table nil 
-       "Syntax table used while in text mode.")
-     
-     (if text-mode-syntax-table
-         ()              ; Do not change the table if it is already set up.
-       (setq text-mode-syntax-table (make-syntax-table))
-       (set-syntax-table text-mode-syntax-table)
-       (modify-syntax-entry ?\" ".   " text-mode-syntax-table)
-       (modify-syntax-entry ?\\ ".   " text-mode-syntax-table)
-       (modify-syntax-entry ?' "w   " text-mode-syntax-table))
-     
-     (defvar text-mode-abbrev-table nil
-       "Abbrev table used while in text mode.")
-     (define-abbrev-table 'text-mode-abbrev-table ())
-     
-     (defvar text-mode-map nil "")   ; Create a mode-specific keymap.
-     
-     (if text-mode-map
-         ()              ; Do not change the keymap if it is already set up.
-       (setq text-mode-map (make-sparse-keymap))
-       (define-key text-mode-map "\t" 'tab-to-tab-stop)
-       (define-key text-mode-map "\es" 'center-line)
-       (define-key text-mode-map "\eS" 'center-paragraph))
+   The minibuffers window is normally a single line; you can resize it
+temporarily with the window sizing commands, but reverts to its normal
+size when the minibuffer is exited.
 
-   Here is the complete major mode function definition for Text mode:
+   A "recursive minibuffer" may be created when there is an active
+minibuffer and a command is invoked that requires input from a
+minibuffer.  The first minibuffer is named ` *Minibuf-0*'.  Recursive
+minibuffers are named by incrementing the number at the end of the
+name.  (The names begin with a space so that they won't show up in
+normal buffer lists.)  Of several recursive minibuffers, the innermost
+(or most recently entered) is the active minibuffer.  We usually call
+this "the" minibuffer.  You can permit or forbid recursive minibuffers
+by setting the variable `enable-recursive-minibuffers' or by putting
+properties of that name on command symbols (*note Minibuffer Misc::.).
 
-     (defun text-mode ()
-       "Major mode for editing text intended for humans to read. 
-      Special commands: \\{text-mode-map}
-     Turning on text-mode calls the value of the variable text-mode-hook,
-     if that value is non-nil."
-       (interactive)
-       (kill-all-local-variables)
-       (use-local-map text-mode-map)     ; This provides the local keymap.
-       (setq mode-name "Text")           ; This name goes into the mode line.
-       (setq major-mode 'text-mode)      ; This is how `describe-mode'
-                                         ;     finds the doc string to print.
-       (setq local-abbrev-table text-mode-abbrev-table)
-       (set-syntax-table text-mode-syntax-table)
-       (run-hooks 'text-mode-hook))      ; Finally, this permits the user to
-                                         ;     customize the mode with a hook.
+   Like other buffers, a minibuffer may use any of several local keymaps
+(*note Keymaps::.); these contain various exit commands and in some
+cases completion commands.  *Note Completion::.
 
-    The three Lisp modes (Lisp mode, Emacs Lisp mode, and Lisp
-Interaction mode) have more features than Text mode and the code is
-correspondingly more complicated.  Here are excerpts from
-`lisp-mode.el' that illustrate how these modes are written.
+   * `minibuffer-local-map' is for ordinary input (no completion).
 
-     ;; Create mode-specific table variables.
-     (defvar lisp-mode-syntax-table nil "")  
-     (defvar emacs-lisp-mode-syntax-table nil "")
-     (defvar lisp-mode-abbrev-table nil "")
-     
-     (if (not emacs-lisp-mode-syntax-table) ; Do not change the table
-                                            ; if it is already set.
-         (let ((i 0))
-           (setq emacs-lisp-mode-syntax-table (make-syntax-table))
-     
-           ;; Set syntax of chars up to 0 to class of chars that are
-           ;; part of symbol names but not words.
-           ;; (The number 0 is `48' in the ASCII character set.)
-           (while (< i ?0) 
-             (modify-syntax-entry i "_   " emacs-lisp-mode-syntax-table)
-             (setq i (1+ i)))
-           ...
-           ;; Set the syntax for other characters.
-           (modify-syntax-entry ?  "    " emacs-lisp-mode-syntax-table)
-           (modify-syntax-entry ?\t "    " emacs-lisp-mode-syntax-table)
-           ...
-           (modify-syntax-entry ?\( "()  " emacs-lisp-mode-syntax-table)
-           (modify-syntax-entry ?\) ")(  " emacs-lisp-mode-syntax-table)
-           ...))
-     ;; Create an abbrev table for lisp-mode.
-     (define-abbrev-table 'lisp-mode-abbrev-table ())
+   * `minibuffer-local-ns-map' is similar, except that SPC exits just
+     like RET.  This is used mainly for Mocklisp compatibility.
 
-   Much code is shared among the three Lisp modes; the code is all in
-one library.  The following function sets various variables; it is
-called by each of the major Lisp mode functions:
+   * `minibuffer-local-completion-map' is for permissive completion.
 
-     (defun lisp-mode-variables (lisp-syntax)
-       ;; The `lisp-syntax' argument is `nil' in Emacs Lisp mode,
-       ;; and `t' in the other two Lisp modes.
-       (cond (lisp-syntax
-              (if (not lisp-mode-syntax-table)
-                  ;; The Emacs Lisp mode syntax table always exists, but
-                  ;; the Lisp Mode syntax table is created the first time a
-                  ;; mode that needs it is called.  This is to save space.
-                  (progn (setq lisp-mode-syntax-table
-                            (copy-syntax-table emacs-lisp-mode-syntax-table))
-                         ;; Change some entries for Lisp mode.
-                         (modify-syntax-entry ?\| "\"   "
-                                              lisp-mode-syntax-table)
-                         (modify-syntax-entry ?\[ "_   "
-                                              lisp-mode-syntax-table)
-                         (modify-syntax-entry ?\] "_   "
-                                              lisp-mode-syntax-table)))
-
-        (set-syntax-table lisp-mode-syntax-table)))
-       (setq local-abbrev-table lisp-mode-abbrev-table)
-       ...)
-
-   Functions such as `forward-word' use the value of the
-`paragraph-start' variable.  Since Lisp code is different from
-ordinary text, the `paragraph-start' variable needs to be set
-specially to handle Lisp.  Also, comments are indented in a special
-fashion in Lisp and the Lisp modes need their own mode-specific
-`comment-indent-hook'.  The code to set these variables is the rest
-of `lisp-mode-variables'.
-
-       (make-local-variable 'paragraph-start)
-       (setq paragraph-start (concat "^$\\|" page-delimiter))
-       ...
-       (make-local-variable 'comment-indent-hook)
-       (setq comment-indent-hook 'lisp-comment-indent))
-
-   Each of the different Lisp modes has a slightly different keymap. 
-For example, Lisp mode binds `C-c C-l' to `run-lisp', but the other
-Lisp modes do not.  However, all Lisp modes have some commands in
-common.  The following function adds these common commands to a given
-keymap.
-
-     (defun lisp-mode-commands (map)
-       (define-key map "\e\C-q" 'indent-sexp)
-       (define-key map "\177" 'backward-delete-char-untabify)
-       (define-key map "\t" 'lisp-indent-line))
-
-   Here is an example of using `lisp-mode-commands' to initialize a
-keymap, as part of the code for Emacs Lisp mode.  First `defvar' is
-used to declare a mode-specific keymap variable.  Then `boundp' tests
-whether the `emacs-lisp-mode-map' variable has a value (is not void).
-If the variable does have a value, we do not change it.  This lets
-the user customize the keymap if he or she so wishes.  Otherwise, we
-initialize it to a new sparse keymap and install the default key
-bindings.
-
-     (defvar emacs-lisp-mode-map () "") 
-     
-     (if emacs-lisp-mode-map
-         ()
-       (setq emacs-lisp-mode-map (make-sparse-keymap))
-       (define-key emacs-lisp-mode-map "\e\C-x" 'eval-defun)
-       (lisp-mode-commands emacs-lisp-mode-map))
-
-   Finally, here is the complete major mode function definition for
-Emacs Lisp mode.
-
-     (defun emacs-lisp-mode ()
-       "Major mode for editing Lisp code to run in Emacs.
-     Commands:
-     Delete converts tabs to spaces as it moves back.
-     Blank lines separate paragraphs.  Semicolons start comments.
-     \\{emacs-lisp-mode-map}
-     Entry to this mode calls the value of emacs-lisp-mode-hook
-     if that value is non-nil."
-       (interactive)
-       (kill-all-local-variables)
-       (use-local-map emacs-lisp-mode-map)    ; This provides the local keymap.
-       (set-syntax-table emacs-lisp-mode-syntax-table)
-       (setq major-mode 'emacs-lisp-mode)     ; This is how `describe-mode'
-                                              ;   finds out what to describe.
-       (setq mode-name "Emacs-Lisp")          ; This goes into the mode line.
-       (lisp-mode-variables nil)              ; This define various variables.
-       (run-hooks 'emacs-lisp-mode-hook))     ; This permits the user to use a
-                                              ;   hook to customize the mode.
-
- 
-
-File: elisp,  Node: Auto Major Mode,  Next: Mode Help,  Prev: Example Major Modes,  Up: Major Modes
-
-How Emacs Chooses a Major Mode Automatically
---------------------------------------------
-
-   Based on information in the file name or in the file itself, Emacs
-automatically selects a major mode for the new buffer when a file is
-visited.
-
- * Command: fundamental-mode
-     Fundamental mode is a major mode that is not specialized for
-     anything in particular.  Other major modes are defined in effect
-     by comparison with this one--their definitions say what to
-     change, starting from Fundamental mode.  The `fundamental-mode'
-     function does *not* run any hooks, so it is not readily
-     customizable.
-
- * Command: normal-mode &optional FIND-FILE
-     This function establishes the proper major mode and local
-     variable bindings for the current buffer.  First it calls
-     `set-auto-mode', then it runs `hack-local-variables' to parse,
-     and bind or evaluate as appropriate, any local variables.
-
-     If the FIND-FILE argument to `normal-mode' is non-`nil',
-     `normal-mode' assumes that the `find-file' function is calling
-     it.  In this case, if `inhibit-local-variables' is non-`nil', it
-     asks for confirmation before processing a local variables list. 
-     If you run `normal-mode' yourself, the argument FIND-FILE is
-     normally `nil', so confirmation is not requested.
-
-     `normal-mode' uses `condition-case' around the call to the major
-     mode function, so errors are caught and reported as a `File mode
-     specification error',  followed by the original error message.
-
- * Function: set-auto-mode
-     This function selects the major mode that is appropriate for the
-     current buffer.  It may base its decision on the value of the
-     `-*-' line, on the visited file name (using `auto-mode-alist'),
-     or on the value of a local variable).  However, this function
-     does not look for the `mode:' local variable near the end of a
-     file; the `hack-local-variables' function does that.  *Note :
-     (emacs)Choosing Modes.
-
- * User Option: default-major-mode
-     This variable holds the default major mode for new buffers.  The
-     standard value is `fundamental-mode'.
-
-     If the value of `default-major-mode' is `nil', Emacs uses the
-     (previously) current buffer's major mode for major mode of a new
-     buffer.  However, if the major mode symbol has a `mode-class'
-     property with value `special', then it is not used for new
-     buffers; Fundamental mode is used instead.  The modes that have
-     this property are those such as Dired and Rmail that are useful
-     only with text that has been specially prepared.
-
- * Variable: initial-major-mode
-     The value of this variable determines the major mode of the
-     initial `*scratch*' buffer.  The value should be a symbol that
-     is a major mode command name.  The default value is
-     `lisp-interaction-mode'.
-
- * Variable: auto-mode-alist
-     This variable contains an association list of file name patterns
-     (regular expressions; *note Regular Expressions::.) and
-     corresponding major mode functions.  Usually, the file name
-     patterns test for suffixes, such as `.el' and `.c', but this
-     need not be the case.  Each element of the alist looks like
-     `(REGEXP .  MODE-FUNCTION)'.
-
-     For example,
-
-          (("^/tmp/fol/" . text-mode)
-           ("\\.texinfo$" . texinfo-mode)
-           ("\\.texi$" . texinfo-mode)
-           ("\\.el$" . emacs-lisp-mode)
-           ("\\.c$" . c-mode) 
-           ("\\.h$" . c-mode)
-           ...)
-
-     When you visit a file whose *full* path name matches a REGEXP,
-     `set-auto-mode' calls the corresponding MODE-FUNCTION.  This
-     feature enables Emacs to select the proper major mode for most
-     files.
-
-     Here is an example of how to prepend several pattern pairs to an
-     existing `auto-mode-alist'.  (You might use this sort of
-     expression in your `.emacs' file.)
-
-          (setq auto-mode-alist
-            (append 
-             '(("/\\.[^/]*$" . fundamental-mode)  ; Filename starts with a dot.
-               ("[^\\./]*$" . fundamental-mode)   ; Filename has no dot.
-               ("\\.C$" . c++-mode))
-             auto-mode-alist))
-
- * Function: hack-local-variables &optional FORCE
-     This function parses, and binds or evaluates as appropriate, any
-     local variables for the current buffer.
-
-     If the variable `inhibit-local-variables' is non-`nil', and
-     FORCE is `nil', then the user is asked for confirmation if the
-     buffer does contain local variable specifications.  A non-`nil'
-     value of FORCE is passed by `normal-mode' when it is called
-     explicitly by the user.
-
-     *Note : (emacs)File variables, for the syntax of the local
-     variables section of a file.
-
- * User Option: inhibit-local-variables
-     When this variable is non-`nil', `hack-local-variables' asks the
-     user for confirmation before obeying a file's local-variables
-     list.
-
+   * `minibuffer-local-must-match-map' is for strict completion and for
+     cautious completion.
 
 
-File: elisp,  Node: Mode Help,  Prev: Auto Major Mode,  Up: Major Modes
+File: lispref.info,  Node: Text from Minibuffer,  Next: Object from Minibuffer,  Prev: Intro to Minibuffers,  Up: Minibuffers
 
-Getting Help about a Major Mode
--------------------------------
+Reading Text Strings with the Minibuffer
+========================================
 
-   The `describe-mode' function is used to provide information about
-major modes.  It is normally called with `C-h m'.  The
-`describe-mode' function uses the value of `major-mode', which is why
-every major mode function needs to set the `major-mode' variable.
+   The minibuffer is usually used to read text which is returned as a
+string, but can also be used to read a Lisp object in textual form.  The
+most basic primitive for minibuffer input is `read-from-minibuffer'.
 
- * Command: describe-mode
-     This function displays the documentation of the current major
-     mode.
+ - Function: read-from-minibuffer PROMPT-STRING &optional INITIAL
+          KEYMAP READ HIST
+     This function is the most general way to get input through the
+     minibuffer.  By default, it accepts arbitrary text and returns it
+     as a string; however, if READ is non-`nil', then it uses `read' to
+     convert the text into a Lisp object (*note Input Functions::.).
 
-     The `describe-mode' function calls the `documentation' function
-     using the value of `major-mode' as an argument.  Thus, it
-     displays the documentation string of the major mode function. 
-     (*Note Accessing Documentation::.)
+     The first thing this function does is to activate a minibuffer and
+     display it with PROMPT-STRING as the prompt.  This value must be a
+     string.
 
- * Variable: major-mode
-     This variable holds the symbol for the current buffer's major
-     mode.  This symbol should be the name of the function that is
-     called to initialize the mode.  The `describe-mode' function
-     uses the documentation string of this symbol as the
-     documentation of the major mode.
+     Then, if INITIAL is a string; its contents are inserted into the
+     minibuffer as initial contents.  The text thus inserted is treated
+     as if the user had inserted it; the user can alter it with Emacs
+     editing commands.
 
+     The value of INITIAL may also be a cons cell of the form `(STRING
+     . POSITION)'.  This means to insert STRING in the minibuffer but
+     put the cursor POSITION characters from the beginning, rather than
+     at the end.
+
+     If KEYMAP is non-`nil', that keymap is the local keymap to use
+     while reading.  If KEYMAP is omitted or `nil', the value of
+     `minibuffer-local-map' is used as the keymap.  Specifying a keymap
+     is the most important way to customize minibuffer input for
+     various applications including completion.
+
+     The argument HIST specifies which history list variable to use for
+     saving the input and for history commands used in the minibuffer.
+     It defaults to `minibuffer-history'.  *Note Minibuffer History::.
+
+     When the user types a command to exit the minibuffer, the current
+     minibuffer contents are usually made into a string which becomes
+     the value of `read-from-minibuffer'.  However, if READ is
+     non-`nil', `read-from-minibuffer' converts the result to a Lisp
+     object, and returns that object, unevaluated.
+
+     Suppose, for example, you are writing a search command and want to
+     record the last search string and provide it as a default for the
+     next search.  Suppose that the previous search string is stored in
+     the variable `last-search-string'.  Here is how you can read a
+     search string while providing the previous string as initial input
+     to be edited:
+
+          (read-from-minibuffer "Find string: " last-search-string)
+
+     Assuming the value of `last-search-string' is `No', and the user
+     wants to search for `Nope', the interaction looks like this:
+
+          (setq last-search-string "No")
+          
+          (read-from-minibuffer "Find string: " last-search-string)
+          ---------- Buffer: Minibuffer ----------
+          Find string: No-!-
+          ---------- Buffer: Minibuffer ----------
+          ;; The user now types `pe RET':
+               => "Nope"
+
+     This technique is no longer preferred for most applications; it is
+     usually better to use a history list.
+
+ - Function: read-string PROMPT &optional INITIAL
+     This function reads a string from the minibuffer and returns it.
+     The arguments PROMPT and INITIAL are used as in
+     `read-from-minibuffer'.
+
+     This is a simplified interface to the `read-from-minibuffer'
+     function:
+
+          (read-string PROMPT INITIAL)
+          ==
+          (read-from-minibuffer PROMPT INITIAL nil nil)
+
+ - Variable: minibuffer-local-map
+     This is the default local keymap for reading from the minibuffer.
+     It is the keymap used by the minibuffer for local bindings in the
+     function `read-string'.  By default, it makes the following
+     bindings:
+
+    LFD
+          `exit-minibuffer'
+
+    RET
+          `exit-minibuffer'
+
+    `C-g'
+          `abort-recursive-edit'
+
+    `M-n' and `M-p'
+          `next-history-element' and `previous-history-element'
+
+    `M-r'
+          `next-matching-history-element'
+
+    `M-s'
+          `previous-matching-history-element'
+
+ - Function: read-no-blanks-input PROMPT &optional INITIAL
+     This function reads a string from the minibuffer, but does not
+     allow whitespace characters as part of the input: instead, those
+     characters terminate the input.  The arguments PROMPT and INITIAL
+     are used as in `read-from-minibuffer'.
+
+     This is a simplified interface to the `read-from-minibuffer'
+     function, and passes the value of the `minibuffer-local-ns-map'
+     keymap as the KEYMAP argument for that function.  Since the keymap
+     `minibuffer-local-ns-map' does not rebind `C-q', it *is* possible
+     to put a space into the string, by quoting it.
+
+          (read-no-blanks-input PROMPT INITIAL)
+          ==
+          (read-from-minibuffer PROMPT INITIAL minibuffer-local-ns-map)
+
+ - Variable: minibuffer-local-ns-map
+     This built-in variable is the keymap used as the minibuffer local
+     keymap in the function `read-no-blanks-input'.  By default, it
+     makes the following bindings:
+
+    LFD
+          `exit-minibuffer'
+
+    SPC
+          `exit-minibuffer'
+
+    TAB
+          `exit-minibuffer'
+
+    RET
+          `exit-minibuffer'
+
+    `C-g'
+          `abort-recursive-edit'
+
+    `?'
+          `self-insert-and-exit'
+
+    `M-n' and `M-p'
+          `next-history-element' and `previous-history-element'
+
+    `M-r'
+          `next-matching-history-element'
+
+    `M-s'
+          `previous-matching-history-element'
+
+
+File: lispref.info,  Node: Object from Minibuffer,  Next: Minibuffer History,  Prev: Text from Minibuffer,  Up: Minibuffers
+
+Reading Lisp Objects with the Minibuffer
+========================================
+
+   This section describes functions for reading Lisp objects with the
+minibuffer.
+
+ - Function: read-minibuffer PROMPT &optional INITIAL
+     This function reads a Lisp object in the minibuffer and returns it,
+     without evaluating it.  The arguments PROMPT and INITIAL are used
+     as in `read-from-minibuffer'; in particular, INITIAL must be a
+     string or `nil'.
+
+     This is a simplified interface to the `read-from-minibuffer'
+     function:
+
+          (read-minibuffer PROMPT INITIAL)
+          ==
+          (read-from-minibuffer PROMPT INITIAL nil t)
+
+     Here is an example in which we supply the string `"(testing)"' as
+     initial input:
+
+          (read-minibuffer
+           "Enter an expression: " (format "%s" '(testing)))
+          
+          ;; Here is how the minibuffer is displayed:
+
+          ---------- Buffer: Minibuffer ----------
+          Enter an expression: (testing)-!-
+          ---------- Buffer: Minibuffer ----------
+
+     The user can type RET immediately to use the initial input as a
+     default, or can edit the input.
+
+ - Function: eval-minibuffer PROMPT &optional INITIAL
+     This function reads a Lisp expression in the minibuffer, evaluates
+     it, then returns the result.  The arguments PROMPT and INITIAL are
+     used as in `read-from-minibuffer'.
+
+     This function simply evaluates the result of a call to
+     `read-minibuffer':
+
+          (eval-minibuffer PROMPT INITIAL)
+          ==
+          (eval (read-minibuffer PROMPT INITIAL))
+
+ - Function: edit-and-eval-command PROMPT FORM
+     This function reads a Lisp expression in the minibuffer, and then
+     evaluates it.  The difference between this command and
+     `eval-minibuffer' is that here the initial FORM is not optional
+     and it is treated as a Lisp object to be converted to printed
+     representation rather than as a string of text.  It is printed with
+     `prin1', so if it is a string, double-quote characters (`"')
+     appear in the initial text.  *Note Output Functions::.
+
+     The first thing `edit-and-eval-command' does is to activate the
+     minibuffer with PROMPT as the prompt.  Then it inserts the printed
+     representation of FORM in the minibuffer, and lets the user edit.
+     When the user exits the minibuffer, the edited text is read with
+     `read' and then evaluated.  The resulting value becomes the value
+     of `edit-and-eval-command'.
+
+     In the following example, we offer the user an expression with
+     initial text which is a valid form already:
+
+          (edit-and-eval-command "Please edit: " '(forward-word 1))
+          
+          ;; After evaluating the preceding expression,
+          ;;   the following appears in the minibuffer:
+
+          ---------- Buffer: Minibuffer ----------
+          Please edit: (forward-word 1)-!-
+          ---------- Buffer: Minibuffer ----------
+
+     Typing RET right away would exit the minibuffer and evaluate the
+     expression, thus moving point forward one word.
+     `edit-and-eval-command' returns `nil' in this example.
 

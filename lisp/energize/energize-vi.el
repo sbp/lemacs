@@ -45,19 +45,19 @@
 
 (defun energize-external-editor-set-menubar ()
   "Set the menubar to be used for the external editor"
-  (delete-menu-item '("File" "Open File..."))
-  (add-menu-item '("File") "View File..." 'find-file-other-window t
-		 "Save Buffer")
-  (add-menu-item '("File") '("Edit File" . "")
-		 'energize-edit-buffer-externally t "Save Buffer")
+  (delete-menu-item '("File" "Open..."))
+  (add-menu-item '("File") "View..." 'find-file-other-window t
+		 "Save")
+  (add-menu-item '("File") '("Edit" . "")
+		 'energize-edit-buffer-externally t "Save")
   (delete-menu-item '("File" "Exit Emacs")))
 
 (defun energize-internal-editor-set-menubar ()
   "Set the menubar to be used for the internal editor"
-  (add-menu-item '("File") "Open File..." 'find-file t "Save Buffer")
-  (delete-menu-item '("File" "View File..."))
-  (delete-menu-item '("File" "Edit File"))
-  (add-menu-item '("File") "Exit Emacs" 'save-buffers-kill-emacs t "quit"))
+  (add-menu-item '("File") "Open..." 'find-file t "Save")
+  (delete-menu-item '("File" "View..."))
+  (delete-menu-item '("File" "Edit"))
+  (add-menu-item '("File") "Exit Emacs" 'save-buffers-kill-emacs t))
 
 
 (defun sensitize-external-editor-menus-hook ()

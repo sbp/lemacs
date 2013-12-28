@@ -245,7 +245,7 @@ Will return nil instead."
       nil
     (if (eq (car function) 'macro)
 	(setq function (cdr function)))
-    (if (not (memq (car function) '(lambda autoload)))
+    (if (not (and (consp function) (memq (car function) '(lambda autoload))))
 	nil
       (setq function (nth 2 function))
       (if (stringp function)

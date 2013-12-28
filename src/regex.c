@@ -1,5 +1,5 @@
 /* Extended regular expression matching and search.
-   Copyright (C) 1985, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1992, 1993, 1994 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,6 +25,11 @@ what you give them.   Help stamp out software-hoarding!  */
  which reads a pattern, describes how it compiles,
  then reads a string and searches for it.  */
 
+/* define this to add in a speedup for patterns anchored at the beginning
+   of a line.  (Even when we're sure this works, keep the ifdefs so that
+   it's easier to tell where/why this code has diverged from v18.)
+ */
+#define REGEX_BEGLINE_CHECK
 
 #ifdef emacs
 
@@ -107,7 +112,7 @@ init_syntax_once ()
 #endif
 #else /* not I18N4 */
 #undef SIGN_EXTEND_CHAR
-#if __STDC__
+#if __STDC__ || defined(STDC_HEADERS)
 #define SIGN_EXTEND_CHAR(c) ((signed char) (c))
 #else  /* not __STDC__ */
 /* As in Harbison and Steele.  */
@@ -956,7 +961,7 @@ re_compile_fastmap (bufp)
 #endif
 	case anychar:
 #ifdef I18N4
-	  fastmap->anychar = TRUE;
+	  fastmap->anychar = 1;
 #else
 	  for (j = 0; j < (1 << BYTEWIDTH); j++)
 	    if (j != '\n')
@@ -1039,7 +1044,7 @@ re_compile_fastmap (bufp)
 #endif
 
 #ifdef I18N4
-	  fastmap->complement = TRUE;
+	  fastmap->complement = 1;
 	  for (; *p; p++)
 	    add_to_set_of_chars (fastmap, DO_TRANSLATE (translate, *p));
 #else
@@ -1127,13 +1132,16 @@ re_search_2 (struct re_pattern_buffer *pbufp, char *string1, int size1,
   register unsigned char *translate = (unsigned char *) pbufp->translate;
   int total = size1 + size2;
   int val;
+#ifdef REGEX_BEGLINE_CHECK
+  int anchored_at_begline = 0;
+#endif
 
   /* Update the fastmap now if not correct already */
   if (fastmap && !pbufp->fastmap_accurate)
     re_compile_fastmap (pbufp);
   
   /* Don't waste time in a long search for a pattern
-     that says it is anchored.  */
+     that says it is anchored at beginning of buffer.  */
   if (pbufp->used > 0 && (enum regexpcode) pbufp->buffer[0] == begbuf
       && range > 0)
     {
@@ -1143,8 +1151,71 @@ re_search_2 (struct re_pattern_buffer *pbufp, char *string1, int size1,
 	range = 1;
     }
 
+#ifdef REGEX_BEGLINE_CHECK
+  {
+    int i=0;
+
+    while (i < pbufp->used)
+      {
+	if (pbufp->buffer[i] == start_memory ||
+	    pbufp->buffer[i] == stop_memory)
+	  i += 2;
+	else
+	  break;
+      }
+    anchored_at_begline = i < pbufp->used && pbufp->buffer[i] == begline;
+  }
+#endif
+
   while (1)
     {
+#ifdef REGEX_BEGLINE_CHECK
+      /* If the regex is anchored at the beginning of a line (i.e. with a ^),
+	 then we can speed things up by skipping to the next beginning-of-
+	 line. */
+      if (anchored_at_begline && startpos > 0 && startpos != size1 &&
+	  range > 0)
+	{
+	  /* whose stupid idea was it anyway to make this
+	     function take two strings to match?? */
+	  register int lim = 0;
+#ifdef I18N4
+	  register wchar_t *p;
+#else
+	  register unsigned char *p;
+#endif
+	  int irange = range;
+	  if (startpos < size1 && startpos + range >= size1)
+	    lim = range - (size1 - startpos);
+
+#ifdef I18N4
+	  p = &(startpos >= size1 ? string2 - size1 : string1)[startpos];
+#else
+	  p = ((unsigned char *)
+	       &(startpos >= size1 ? string2 - size1 : string1)[startpos]);
+#endif
+	  p--;
+
+#ifdef I18N4
+	  while (range > lim &&
+		 DO_TRANSLATE (translate, *p++) != '\n')
+	    range--;
+#else /* not I18N4 */
+	  if (translate)
+	    {
+	      while (range > lim && translate[*p++] != '\n')
+		range--;
+	    }
+	  else
+	    {
+	      while (range > lim && *p++ != '\n')
+		range--;
+	    }
+#endif /* not I18N4 */
+	  startpos += irange - range;
+	}
+#endif /* REGEXP_BEGLINE_CHECK */
+      
       /* If a fastmap is supplied, skip quickly over characters
 	 that cannot possibly be the start of a match.
 	 Note, however, that if the pattern can possibly match
@@ -1576,6 +1647,7 @@ re_match_2 (struct re_pattern_buffer *pbufp, unsigned char *string1, int size1,
 	  }
 
 	case begline:
+      /* #### won't this fail if a translation for '\n' is given? */
 	  if (d == string1 || d[-1] == '\n')
 	    break;
 	  goto fail;

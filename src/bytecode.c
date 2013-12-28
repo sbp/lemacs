@@ -40,11 +40,12 @@ by Hallvard:
 
 /*
  * define BYTE_CODE_SAFE to enable some minor sanity checking (useful for 
- * debugging the byte compiler...)
+ * debugging the byte compiler...)  Somewhat surprisingly, defining this
+ * makes Fbyte_code about 8% slower.
  *
  * define BYTE_CODE_METER to enable generation of a byte-op usage histogram. 
  */
-#define BYTE_CODE_SAFE
+/* #define BYTE_CODE_SAFE */
 /* #define BYTE_CODE_METER */
 
 
@@ -1100,11 +1101,7 @@ If the third argument is incorrect, Emacs may crash.")
   UNGCPRO;
   /* Binds and unbinds are supposed to be compiled balanced.  */
   if (specpdl_depth() != speccount)
-#ifdef BYTE_CODE_SAFE
     error (GETTEXT ("binding stack not balanced (serious byte compiler bug)"));
-#else
-    abort ();
-#endif
   return v1;
 }
 

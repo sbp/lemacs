@@ -83,7 +83,7 @@
   "*If T, then each component of a filename will be completed,
 otherwise just the final component will be completed.")
 
-(defvar completer-use-words t
+(defvar completer-use-words nil ; jwz: this is HATEFUL!
   "*If T, then prefer completions with the same number of words as the
 pattern.")
 
@@ -574,12 +574,13 @@ each possible completion and should return a string."
 	    (display-completion-list
 	     (sort
 	      (if display
-		  (let ((new))
-		    (while choices
-		      (setq new (cons (funcall display (car choices)) new)
-			    choices (cdr choices)))
-		    (setq choices new))
-		choices)
+		  (let ((old choices)
+			(new nil))
+		    (while old
+		      (setq new (cons (funcall display (car old)) new)
+			    old (cdr old)))
+		    new)
+		(copy-sequence choices))
 	      (function (lambda (x y)
 			  (string-lessp (or (car-safe x) x)
 					(or (car-safe y) y)))))))
@@ -896,36 +897,47 @@ See completer-minibuf for more information."
 (define-key minibuffer-local-must-match-map "\M-\r" 'completer-match-exit)
 
 ;;;%comint 
-(defun completer-comint-dynamic-list-completions (prefix)
-  "Display the list of possible file name completions.  With a
-negative prefix, undo the last completion."
-  (interactive "P")
-  (completer-comint-dynamic-complete prefix 'help))
+(defun completer-comint-dynamic-list-completions (completions)
+  "List in help buffer sorted COMPLETIONS.
+Typing SPC flushes the help buffer."
+  (completer-comint-dynamic-complete-1 nil 'help))
+
+(defun completer-comint-dynamic-complete-filename ()
+  "Dynamically complete the filename at point."
+  (completer-comint-dynamic-complete-1 nil t))
 
 ;;;
-(defun completer-comint-dynamic-complete (&optional undo mode)
+(defun completer-comint-dynamic-complete-1 (&optional undo mode)
   "Complete the previous filename or display possibilities if done
 twice in a row.  If called with a prefix, undo the last completion."
   (interactive "P")
   (if undo
       (completer-undo)
-      ;; added by jwz: don't cache completions in shell buffer!
-      (setq completer-string nil)
+    ;; added by jwz: don't cache completions in shell buffer!
+    (setq completer-string nil)
+    (let ((conf (current-window-configuration)));; lemacs change
       (completer-complete-goto 
        "^ \t\n\""
        completer-words
        'read-file-name-internal
        default-directory
-       mode)))
-(fset 'comint-dynamic-complete 'completer-comint-dynamic-complete)
+       mode)
+      ;; lemacs change
+      (if (eq mode 'help) (comint-restore-window-config conf))
+      )))
+;(fset 'comint-dynamic-complete 'completer-comint-dynamic-complete)
+(fset 'comint-dynamic-complete-filename
+      'completer-comint-dynamic-complete-filename)
 (fset 'comint-dynamic-list-completions 
       'completer-comint-dynamic-list-completions)
 
 ;;; Set the functions again if comint is loaded
 (setq comint-load-hook 
       (cons (function (lambda ()
-	      (fset 'comint-dynamic-complete 
-		    'completer-comint-dynamic-complete)
+;;	      (fset 'comint-dynamic-complete 
+;;		    'completer-comint-dynamic-complete)
+			(fset 'comint-dynamic-complete-filename
+			      'completer-comint-dynamic-complete-filename)
 	      (fset 'comint-dynamic-list-completions 
 		    'completer-comint-dynamic-list-completions)))
 	    (if (and (boundp 'comint-load-hook) comint-load-hook)

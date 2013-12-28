@@ -1,5 +1,5 @@
 ;; Generic Interface to Source Control Systems, devin@lucid.com
-;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -32,11 +32,27 @@
 (defvar sc-diff-command '("diff")
   "*The command/flags list to be used in constructing diff commands.")
 
+;; Duplicated from pcl-cvs.
+(defvar cvs-program "cvs"
+  "*The command name of the cvs program.")
+
 (defvar sc-mode-expert ()
   "*Treat user as expert; suppress yes-no prompts on some things.")
 
 (defvar sc-max-log-size 510
   "*Maximum allowable size of a source control log message.")
+
+(defvar sc-ccase-comment-on '(checkout checkout-dir checkin-dir rename
+				       new-brtype new-branch checkin-merge
+				       create-label label-sources)
+  "*Operations on which comments would be appreciated.
+We check the values checkout, checkout-dir, checkin-dir,
+rename, new-brtype, new-branch, create-label,
+and label-sources as symbols.")
+
+(defvar sc-ccase-reserve nil
+  "Whether to reserve checkouts or not. By default, this is nil - don't.
+Other values are t - do, and anything else, eg. 'ask - ask.")
 
 ;; default keybindings
 (defvar sc-prefix-map (lookup-key global-map "\C-xv"))
@@ -68,6 +84,12 @@
 (defvar sc-log-entry-keymap ()
   "Additional keybindings used when entering the log message")
 
+(defvar sc-can-hack-dir ()
+  "Does the SC system allow users to play directly with directories")
+
+(defvar sc-ccase-mfs-prefixes ()
+  "Prefixes known to the system to be MFS ... ignore all others")
+
 (defmacro chmod (perms file)
   (list 'call-process "chmod" nil nil nil perms file))
 
@@ -96,6 +118,8 @@ returned indicating who has locked it."
 	 (sc-generic-log-buf
 	  (get-buffer-create (format "*%s-Log*" sc-generic-name)))
 	 (err-msg nil))
+    (if (eq lock-info 'na)
+	(error "The file associated with buffer %s is not registered" (buffer-name)))
 	
     ;; if file is not registered register it and set lock-info to show it's not locked
     (if (not lock-info)
@@ -109,7 +133,8 @@ returned indicating who has locked it."
 	   (revert-buffer nil t)
 	   (sc-mode-line))
 	      
-	  ((not (string-equal (car lock-info) (user-login-name)))
+	  ((and (not (equal sc-generic-name "CCase"))
+	       (not (equal (car lock-info) (user-login-name))))
 	   ;; file is locked by someone else
 	   (error "Sorry, %s has that file locked." (car lock-info)))
 
@@ -389,7 +414,8 @@ Prefix argument register it under an explicit revision number."
   (let ((owner (sc-locking-user old)))
     (if (and owner (not (string-equal owner (user-login-name))))
 	(error "Sorry, %s has that file checked out" owner)))
-  (rename-file old new)
+  (if sc-can-hack-dir
+      (rename-file old new t))
   (sc-rename old new))
 
 (defun sc-rename-this-file (new)
@@ -527,6 +553,26 @@ MESSAGE is a string describing the changes."
       (display-buffer buffer)
       (error (format "Running %s...FAILED" message)))))
 
+(defun sc-enter-comment ()
+  "Enter a comment. Return it as a string."
+  (let ((buffer (sc-temp-buffer)))
+    (setq sc-generic-log-buf
+	  (get-buffer-create (format "*%s-Log*" sc-generic-name)))
+    (save-window-excursion
+      ;; this excursion returns t if the new version was saved OK
+      (pop-to-buffer buffer)
+      (erase-buffer)
+      (set-buffer-modified-p nil)
+      (sc-log-entry-mode)
+      (message 
+	   "Enter log message. Type C-c C-c when done, C-c ? for help.")
+      (prog1
+	  (and (not (error-occurred (recursive-edit)))
+	       (let ((bs (buffer-string)))
+		 (if (> (length bs) 0) bs)))
+	(setq buffer-file-name nil)
+	(bury-buffer buffer)))))
+
 (defun sc-locking-user (file)
   "Return the login name of the locker of FILE.  Return nil if FILE is not locked"
   (car (sc-lock-info file)))
@@ -548,7 +594,9 @@ FILE is the file being visited."
 	      (append global-mode-string '(sc-mode-line-string))))
     (make-local-variable 'sc-mode-line-string)
     (setq sc-mode-line-string
-	  (cond ((null lock-info) ())
+	  (cond ((or
+		  (eq lock-info 'na)
+		  (null lock-info))     ())
 		((null (car lock-info))
 		 (format " <%s:>" sc-generic-name))
 		((equal (car lock-info) (user-login-name))
@@ -607,7 +655,7 @@ FUNC is passed the file path and ARGS."
 The text is retrieved into a tempfile.  Return the tempfile name."
   (let* ((oldversion
 	  (make-temp-name
-	   (concat (or revision "current")
+	   (concat (or (ccase-protect-expanded-name revision) "current")
 		   "-"
 		   (file-name-nondirectory file)
 		   "-")))
@@ -639,7 +687,10 @@ The text is retrieved into a tempfile.  Return the tempfile name."
 
 (defun sc-list-file (file)
   (let ((lock-info (sc-lock-info file)))
-    (cond ((car lock-info)
+    (cond ((eq lock-info 'na)
+	   (indent-to-column 16 1)
+	   (insert (file-name-nondirectory file) "\n"))
+	  ((car lock-info)
 	   (sc-insert-file-lock-info file lock-info))
 	  ((sc-new-revision-p file)
 	   (insert "needs update")
@@ -656,7 +707,7 @@ The text is retrieved into a tempfile.  Return the tempfile name."
   (if (sc-new-revision-p file)
       (let ((file-name (file-name-nondirectory file)))
 	;; get the latest copy
-	(rename-file (sc-get-version-in-temp-file file nil) file)
+	(rename-file (sc-get-version-in-temp-file file nil) file t)
 	(let ((b (get-file-buffer file)))
 	  (if b
 	      (save-excursion
@@ -687,6 +738,7 @@ The text is retrieved into a tempfile.  Return the tempfile name."
 (defvar sc-mode ()
   "The currently active source control mode.  Use M-x sc-mode to set it")
 
+;;;###autoload
 (defun sc-mode (system)
   "Toggle sc-mode.
 SYSTEM can be sccs, rcs or cvs.
@@ -758,7 +810,7 @@ When using CVS you have additional commands
 	   (if (not (fboundp f))
 	       (error
 		"No source control interface for \"%s\".  \
-Please use SCCS, RCS, or CVS."
+Please use SCCS, RCS, CVS, or Atria."
 		system)
 	     (funcall f)
 	     (add-hook 'find-file-hooks 'sc-mode-line)
@@ -1033,9 +1085,9 @@ the variable sccs-headers-wanted"
 (defun sccs-rename (old new)
   "Rename the SCCS archives for OLD to NEW"
   (if (file-exists-p (sccs-name old "p"))
-      (rename-file (sccs-name old "p") (sccs-name new "p")))
+      (rename-file (sccs-name old "p") (sccs-name new "p") t))
   (if (file-exists-p (sccs-name old "s"))
-      (rename-file (sccs-name old "s") (sccs-name new "s"))))
+      (rename-file (sccs-name old "s") (sccs-name new "s") t)))
 
 
 ;;; RCS specific part
@@ -1130,7 +1182,7 @@ the variable sccs-headers-wanted"
 (defun rcs-rename (old new)
   "Rename the archives for OLD to NEW"
   (if (file-exists-p (rcs-name old))
-      (rename-file (rcs-name old) (rcs-name new))))
+      (rename-file (rcs-name old) (rcs-name new) t)))
 
 
 ;;; CVS specific part
@@ -1145,7 +1197,7 @@ File are never locked in CVS."
   (list () ()))
 
 (defun cvs-register (file revision)
-  (sc-do-command "*CVS*" "cvs add" "cvs" file
+  (sc-do-command "*CVS*" "cvs add" cvs-program file
 		 (file-name-nondirectory file)
 		 "add" "-mInitial revision"))
 
@@ -1153,23 +1205,23 @@ File are never locked in CVS."
   )
 
 (defun cvs-get-version (file buffer revision)
-  (sc-do-command buffer "cvs update" "cvs" file file "update" 
+  (sc-do-command buffer "cvs update" cvs-program file file "update" 
 		 (if revision (concat "-r" revision))
 		 "-p" "-q"))
 
 (defun cvs-check-in (file revision comment)
   "Check-in a given version of the given file with the given comment."
-  (sc-do-command "*CVS*" "cvs commit" "cvs" file file "commit"
+  (sc-do-command "*CVS*" "cvs commit" cvs-program file file "commit"
 		 (and revision (format "-r%s" revision))
 		 (format "-m%s" comment)))
 
 (defun cvs-history (file)
-  (sc-do-command (current-buffer) "cvs log" "cvs" file file "log"))
+  (sc-do-command (current-buffer) "cvs log" cvs-program file file "log"))
 
 (defun cvs-revert (file)
   "Cancel a check-out and get a fresh copy of the file"
   (delete-file file)
-  (sc-do-command "*CVS*" "cvs update" "cvs" file file "update"))
+  (sc-do-command "*CVS*" "cvs update" cvs-program file file "update"))
 
 (defun sc-cvs-update-directory ()
   "Update the current directory by calling cvs-update from pcl-cvs"
@@ -1182,14 +1234,277 @@ File are never locked in CVS."
   (if (not buffer-file-name)
       (error "There is no file associated with buffer %s" (buffer-name)))
   (let ((file buffer-file-name))
-    (sc-do-command "*CVS*" "cvs status" "cvs" file file "status" "-v"))
+    (sc-do-command "*CVS*" "cvs status" cvs-program file file "status" "-v"))
   (save-excursion
     (set-buffer "*CVS*")
     (goto-char (point-min)))
   (display-buffer "*CVS*"))
 
 
-;;; Instanciation and installation of the menus
+;;; ClearCase specific part
+
+(defun ccase-is-registered-3 (fod)
+  (if (or (not fod)
+	  (not (file-readable-p fod)))
+      'na
+    (let ((dirs sc-ccase-mfs-prefixes)
+	  (f nil)
+	  (file (expand-file-name fod)))
+      (while (and (null f) dirs)
+	(if (string-match (car dirs) file)
+	    (setq f t)
+	  (setq dirs (cdr dirs))))
+      (if (null f)
+	  'na
+	(sc-do-command "*CCase*" "describe" "cleartool" fod fod "describe")
+	(save-excursion
+	  (set-buffer "*CCase*")
+	  (let ((s (buffer-string)))
+	    (cond
+	     ((string-match "@@" s) t)
+	     ((string-match "^Unix" s) 'na)
+	     (t nil)
+	     )))))))
+
+(defun ccase-is-registered (fod)
+  (eq (ccase-is-registered-3 fod) t))
+
+(defun ccase-lock-info (file)
+  (let ((cc (ccase-is-registered-3 file))
+	s)
+    (if (eq cc 't)
+	(progn
+	  (save-excursion
+	    (set-buffer "*CCase*")
+	    (setq s (buffer-string)))
+	  (if (string-match "@@[^\n]*CHECKEDOUT\" from \\([^ ]*\\)[^\n]*\n[^\n]* by \\([^(\n]*\\) (" s)
+	      (list
+	       (substring s (match-beginning 1) (match-end 1))
+	       (substring s (match-beginning 2) (match-end 2)))
+	    (list nil nil)))
+      cc)))
+
+(defun ccase-maybe-comment (tag)
+  (if (memq tag sc-ccase-comment-on)
+      (sc-enter-comment)))
+
+(defun ccase-register (file revision)
+  "Registers the file. We don't support the revision argument.
+Also, we have to checkout the directory first."
+  ;; probably need proper error handling to catch the 
+  ;; cases where we co the directory, but don't get to
+  ;; ci it back (want to uco in this case)
+  (let ((dpath (file-name-directory file)))
+    (if (not (ccase-is-registered dpath))
+	(error "Cannot register file outside of VOB")
+      (sc-do-command "*CCase*" "co - dir" "cleartool" dpath dpath "co")
+      (sc-do-command "*CCase*" "register" "cleartool" file file "mkelem")
+      (sc-do-command "*CCase*" "ci - dir" "cleartool" dpath dpath "ci"))))
+
+(defun ccase-check-out (file lockp)
+  "Checks out the latest version of FILE.  
+If LOCKP is not NIL, FILE is also locked."
+  (let ((comment (ccase-maybe-comment 'checkout)))
+    (sc-do-command "*CCase*" "co" "cleartool" file file "co"
+		   (if comment "-c" "-nc")
+		   (if comment comment)
+  ;; this locking does not correspond to what we actually want. It's a
+  ;; hack from the days when this was SCCS-only
+		   (if (ccase-reserve-p) "-res" "-unr"))
+))
+
+(defun ccase-reserve-p ()
+  "Determine whether the user wants a reserved or unreserved checkout"
+  (cond
+   ((eq sc-ccase-reserve t)   t)
+   ((eq sc-ccase-reserve nil) nil)
+   (t (y-or-n-p "Reserve Checkout? "))))
+   
+(defun ccase-get-version (file buffer revision)
+  "Insert a previous revison of FILE in BUFFER.  
+REVISION is the revision number requested."
+  (save-excursion
+    (set-buffer buffer)
+    (delete-region (point-min) (point-max))
+    (insert-file-contents (concat file "@@/" revision)))
+)
+
+(defun ccase-check-in (file revision message)
+  "Check in FILE with revision REVISION.
+MESSAGE is a string describing the changes."
+  ;; we ignore revision since we can't use it
+  (sc-do-command "*CCase*" "ci" "cleartool" file file "ci" "-c" message (if sc-mode-expert "-ide"))
+)
+
+(defun ccase-history (file)
+  "Insert the edit history of FILE in the current buffer."
+  (sc-do-command (buffer-name) "history" "cleartool" file file "lsh")
+)
+
+(defun ccase-tree-list ()
+  "List in the current buffer the files registered in the source control system"
+  ;;; This isn't going to fly as a practicality. We abstract everything out.
+  ;;  (sc-do-command (buffer-name) "listing" "cleartool" (default-directory) (default-directory) "ls" "-r" "-short" "-vis" "-nxname")
+)
+  
+(defun ccase-new-revision-p (file)
+  "True if a new revision of FILE was checked in since we last got a copy of it"
+  (save-excursion
+  (let (pos newfile res br1 br2)
+    (sc-do-command "*CCase*" "Describe" "cleartool" file file "des")
+    (set-buffer "*CCase*")
+    (goto-char (point-min))
+    (if (setq pos (search-forward-regexp "@@\\([^ \"]*\\)CHECKEDOUT\" from \\([^ ]*\\) (\\([a-z]*\\))" nil t))
+;;    (if (setq pos (search-forward-regexp "@@\\([^ \"]*\\)CHECKEDOUT\"" nil t))
+	(progn
+	  (setq res (buffer-substring (match-beginning 3) (match-end 3)))
+	  (if (equal res "unreserved")
+	      (progn
+		(setq newfile (concat file "@@"
+				      (buffer-substring (match-beginning 1)
+							(match-end 1))
+				      "LATEST"))
+		(setq br1 (buffer-substring (match-beginning 2) (match-end 2)))
+		(sc-do-command "*CCase*" "Describe" "cleartool" file newfile
+			       "des")
+		(search-forward-regexp "@@\\([^ \"]*\\)" nil t)
+		(setq br2 (buffer-substring (match-beginning 1) (match-end 1)))
+		(not (equal br1 br2)))
+	    nil))
+      (error "%s not currently checked out" file)))))
+
+(defun ccase-revert (file)
+  "Cancel a check out of FILE and get back the latest checked in version"
+  (sc-do-command "*CCase*" "uco" "cleartool" file file "unco")
+)
+
+(defun ccase-rename (old new)
+  "Rename the source control archives for OLD to NEW"
+  (let ((dpath (file-name-directory old))
+	(comment (ccase-maybe-comment 'rename)))
+    (if (not (ccase-is-registered dpath))
+	(error "Cannot rename file outside of VOB")
+      (sc-do-command "*CCase*" "co - dir" "cleartool" dpath dpath "co"
+		   (if comment "-c" "-nc")
+		   (if comment comment))
+      (sc-do-command "*CCase*" "mv" "cleartool" new new "mv" 
+		   (if comment "-c" "-nc")
+		   (if comment comment)
+		   old)
+      (sc-do-command "*CCase*" "ci - dir" "cleartool" dpath dpath "ci" 
+		     (if comment "-c" "-nc")
+		     (if comment comment)))))
+
+(defun sc-ccase-checkout-dir ()
+  "Checkout the directory this file is in"
+  (interactive)
+  (let ((dpath default-directory)
+	(comment (ccase-maybe-comment 'checkout-dir)))
+    (if (not (ccase-is-registered dpath))
+	(error "Cannot checkout directory outside of VOB")
+      (sc-do-command "*CCase*" "co - dir" "cleartool" dpath dpath "co"
+		   (if comment "-c" "-nc")
+		   (if comment comment)))))
+
+(defun sc-ccase-checkin-dir ()
+  "Checkin the directory this file is in"
+  (interactive)
+  (let ((dpath default-directory)
+	(comment (ccase-maybe-comment 'checkin-dir)))
+    (if (not (ccase-is-registered dpath))
+	(error "Cannot checkout directory outside of VOB")
+      (sc-do-command "*CCase*" "ci - dir" "cleartool" dpath dpath "ci"
+		   (if comment "-c" "-nc")
+		   (if comment comment)))))
+
+(defun sc-ccase-editcs ()
+  "Edit Config Spec for this view"
+  (interactive)
+  (sc-do-command "*CCase-cs*" "catcs" "cleartool" "" nil "catcs")
+  (switch-to-buffer-other-window "*CCase-cs*")
+  (local-set-key "\C-c\C-c" 'exit-recursive-edit)
+  (recursive-edit)
+  (set-buffer "*CCase-cs*")
+  (let ((name (make-temp-name "/tmp/configspec")))
+    (write-region (point-min) (point-max) name)
+    (kill-buffer "*CCase-cs*")
+    (sc-do-command "*CCase*" "setcs" "cleartool" name name "setcs"))
+)
+
+(defun sc-ccase-new-brtype (brt)
+  "Create a new branch type"
+  (interactive "sBranch Name: ")
+  (let ((comment (ccase-maybe-comment 'new-brtype)))
+    (sc-do-command "*CCase*" "mkbrt" "cleartool" brt brt "mkbrtype"
+		   (if comment "-c" "-nc")
+		   (if comment comment))))
+
+(defun sc-ccase-new-branch (brch)
+  "Create a new branch for element"
+  (interactive "sBranch: ")
+  (let ((file (buffer-file-name))
+	(comment (ccase-maybe-comment 'new-branch)))
+    (sc-do-command "*CCase*" "mkbrch" "cleartool" file file "mkbranch" 
+		   (if comment "-c" "-nc")
+		   (if comment comment)
+		   brch)))
+
+(defun sc-ccase-checkin-merge ()
+  "Merge in changes to enable checkin"
+  (interactive)
+  (save-excursion
+  (let ((file (buffer-file-name))
+	(buf (current-buffer))
+	(comment (ccase-maybe-comment 'checkin-merge)))
+    (sc-do-command "*CCase*" "Describe" "cleartool" file file "des")
+    (set-buffer "*CCase*")
+    (goto-char (point-min))
+    (if (search-forward-regexp "@@\\([^ \"]*\\)CHECKEDOUT\" from \\([^ ]*\\) (\\([a-z]*\\))" nil t)
+	(progn
+	  (sc-do-command "*CCase*" "Merging" "cleartool" file
+			 (concat (buffer-substring (match-beginning 1)
+						   (match-end 1)) "LATEST")
+			 "merge"
+			 (if comment "-c" "-nc")
+			 (if comment comment)
+			 "-abort" "-to" file "-ver")
+	  (set-buffer buf)
+	  (revert-buffer t t)
+	  (display-buffer "*CCase*"))
+      (error "File %s not checked out" file)))))
+	  
+(defun sc-ccase-version-tree ()
+  "List version tree for file"
+  (interactive)
+  (let ((p (buffer-file-name)))
+    (sc-do-command "*CCase*" "lsvtree" "cleartool" p p "lsvtree")
+    (display-buffer "*CCase*")))
+
+(defun ccase-protect-expanded-name (revision)
+  "Protect ccase extended names from being used as temp names. Munge /s into :s"
+  (if (equal sc-generic-name "CCase")
+      (progn
+	(if (string-match "/" revision)
+	    (let ((str (substring revision 0)) ;; copy string
+		  i)
+	      (while (setq i (string-match "/" str))
+		(aset str i 58)) ; 58 is for :
+	      str)))))
+
+(defun sc-ccase-list-locked-files ()
+  (interactive)
+  (sc-do-command "*CCase directory*" "listing" "cleartool" (default-directory) nil "lsco" "-cview"))
+
+(defun sc-ccase-list-all-locked-files ()
+  (interactive)
+  (sc-do-command "*CCase directory*" "listing" "cleartool" (default-directory) nil "lsco"))
+
+(defun sc-ccase-list-registered-files ()
+  "List files registered in clearcase"
+  (interactive)
+  (sc-do-command "*CCase directory*" "listing" "cleartool" (default-directory) nil "ls" "-r" "-vis" "-nxname"))
+
+;;; Instantiation and installation of the menus
 
 ;;; Set the menubar for Lucid Emacs
 (defvar sc-default-menu
@@ -1220,6 +1535,32 @@ File are never locked in CVS."
     ["Show Edit History"		sc-show-history		t])
   "Menubar entry for using the revision control system with CVS.")
 
+(defvar sc-ccase-menu
+  '(["NEXT-OPERATION"			sc-next-operation		t nil]
+    ["Revert File"			sc-revert-file			t nil]
+    ["Checkin Merge"			sc-ccase-checkin-merge  	t]
+    "----"
+    ["Show Changes"			sc-show-changes			t]
+    ["Show Changes Since Revision..."	sc-show-revision-changes	t]
+    ["Visit Previous Revision..."	sc-visit-previous-revision	t]
+    ["Show Edit History"		sc-show-history			t]
+    "----"
+    ("Directories" 
+     ["Checkout Directory"		sc-ccase-checkout-dir		t]
+     ["Checkin Directory"		sc-ccase-checkin-dir		t]
+     ["Rename File..."			sc-rename-this-file		t nil])
+    ("Configs"
+     ["Edit Config Spec..."		sc-ccase-editcs			t]
+     ["Create New Branch..."		sc-ccase-new-brtype		t]
+     ["Make New Branch..."		sc-ccase-new-branch		t])
+    ("Listings"
+     ["List Version Tree"		sc-ccase-version-tree		t]
+     ["List Locked Files"		sc-ccase-list-locked-files	t]
+     ["List Locked Files Any User"	sc-ccase-list-all-locked-files	t]
+     ["List Registered Files"		sc-ccase-list-registered-files	t]
+     ))
+  "Menubar entry for using the revision control system.")
+
 (defun sc-sensitize-menu ()
   (let* ((rest (cdr (car
 		     (find-menu-item current-menubar (list sc-generic-name)))))
@@ -1231,46 +1572,78 @@ File are never locked in CVS."
 	       (if buffer-file-name buffer-file-name default-directory)))
 	 (lock-info (sc-lock-info buffer-file-name))
 	 command
+	 nested-rest
 	 item)
     (while rest
       (setq item (car rest))
-      (if (not (vectorp item))
-	  nil
-	(setq command (aref item 1))
-	(cond ((eq 'sc-next-operation command)
-	       (aset item 0
-		     (cond ((not lock-info) "Register File")
-			   ((not (car lock-info)) "Check out File")
-			   (t "Check in File")))
-	       ;; if locked by somebody else disable the next-operation
-	       (if (or (not buffer-file-name)
-		       (and (car lock-info)
-			    (not (equal (car lock-info) (user-login-name)))))
-		   (aset item 2 ())
-		 (aset item 2 t)))
-	      ((> (length item) 3)
-	       (aset item 3 file))
-	      (t nil))
-	(let ((enable-file-items
-	       (if (eq sc-mode 'CVS) buffer-file-name lock-info)))
-	  (if (memq command
-		    '(sc-force-check-in-file
-		      sc-register-file
-		      sc-revert-file
-		      sc-rename-this-file
-		      sc-show-history
-		      sc-show-changes
-		      sc-show-revision-changes
-		      sc-visit-previous-revision
-		      sc-cvs-file-status))
-	      (aset item 2 enable-file-items))))
-      (setq rest (cdr rest)))
+      (if (listp item)
+	  (progn
+	    (setq nested-rest (cons (cdr rest) nested-rest))
+	    (setq rest (cdr item)))
+	(if (vectorp item)
+	    (progn
+	      (setq command (aref item 1))
+	      (cond ((eq 'sc-next-operation command)
+		     (aset item 0
+			   (cond ((eq lock-info 'na) "Not Available")
+				 ((not lock-info) "Register File")
+				 ((not (car lock-info)) "Check out File")
+				 (t "Check in File")))
+		     ;; if locked by somebody else disable the next-operation
+		     (if (or (not buffer-file-name)
+			     (eq lock-info 'na)
+			     (and (car lock-info)
+				  (not (equal sc-generic-name "CCase"))
+				  (not (equal (car lock-info) (user-login-name)))))
+			 (aset item 2 ())
+		       (aset item 2 t)))
+		    ((eq lock-info 'na) (aset item 2 ()))
+		    ((> (length item) 3)
+		     (aset item 3 file))
+		    (t nil))
+	      (if (not (eq lock-info 'na))
+		  (let ((enable-file-items
+			 (if (member sc-generic-name '("CVS" "CCase"))
+			     buffer-file-name
+			   (if lock-info t ()))))
+		    (if (memq command
+			      '(sc-force-check-in-file
+				sc-register-file
+				sc-revert-file
+				sc-rename-this-file
+				sc-show-history
+				sc-show-changes
+				sc-show-revision-changes
+				sc-visit-previous-revision
+				sc-cvs-file-status
+				sc-ccase-checkout-dir
+				sc-ccase-checkin-dir
+				sc-ccase-editcs
+				sc-ccase-new-brtype
+				sc-ccase-new-branch
+				sc-ccase-checkin-merge
+				sc-ccase-needs-merge
+				sc-ccase-merge-changes
+				sc-ccase-create-label
+				sc-ccase-label-sources
+				sc-ccase-version-tree
+				sc-list-locked-files
+				sc-list-all-locked-files
+				sc-ccase-list-registered-files
+				))
+			(aset item 2 enable-file-items))))))
+	(if (not (setq rest (cdr rest)))
+	    (if nested-rest
+		(progn
+		  (setq rest (car nested-rest))
+		  (setq nested-rest (cdr nested-rest)))))))
     nil))
 
 
 ;;; Function to decide which Source control to use
 (defun sc-set-SCCS-mode ()
   (setq sc-generic-name "SCCS")
+  (setq sc-can-hack-dir t)
   (setq sc-generic-lock-info 'sccs-lock-info)
   (setq sc-generic-register 'sccs-register)
   (setq sc-generic-check-out 'sccs-check-out)
@@ -1290,6 +1663,7 @@ File are never locked in CVS."
 
 (defun sc-set-RCS-mode ()
   (setq sc-generic-name "RCS")
+  (setq sc-can-hack-dir t)
   (setq sc-generic-lock-info 'rcs-lock-info)
   (setq sc-generic-register 'rcs-register)
   (setq sc-generic-check-out 'rcs-check-out)
@@ -1306,6 +1680,7 @@ File are never locked in CVS."
 (defun sc-set-CVS-mode ()
   (require 'pcl-cvs)
   (setq sc-generic-name "CVS")
+  (setq sc-can-hack-dir t)
   (setq sc-generic-lock-info 'cvs-lock-info)
   (setq sc-generic-register 'cvs-register)
   (setq sc-generic-check-out 'cvs-check-out)
@@ -1320,6 +1695,39 @@ File are never locked in CVS."
   (define-key sc-prefix-map "\C-d" 'sc-cvs-update-directory)
   (define-key sc-prefix-map "s" 'sc-cvs-file-status))
 
+(defun sc-set-CLEARCASE-mode ()
+  (setq sc-generic-name "CCase")
+  (setq sc-can-hack-dir nil)
+  (setq sc-generic-lock-info 'ccase-lock-info)
+  (setq sc-generic-register 'ccase-register)
+  (setq sc-generic-check-out 'ccase-check-out)
+  (setq sc-generic-get-version 'ccase-get-version)
+  (setq sc-generic-check-in 'ccase-check-in)
+  (setq sc-generic-history 'ccase-history)
+  (setq sc-generic-tree-list 'ccase-tree-list)
+  (setq sc-generic-new-revision-p 'ccase-new-revision-p)
+  (setq sc-generic-revert 'ccase-revert)
+  (setq sc-generic-rename 'ccase-rename)
+  (setq sc-menu sc-ccase-menu)
+
+  ;; caching for file directory types
+  (save-excursion
+    (set-buffer (get-buffer-create "*CCase*"))
+    (shell-command-on-region (point-min) (point-max) "df -t mfs | sed -n 's%.*[       ]\\(/[^ ]*\\)$%\\1%p'" t)
+    (goto-char (point-min))
+    (let (x l)
+      (while (condition-case nil (setq x (read (current-buffer)))
+	       (error nil))
+	(setq l (cons (prin1-to-string x) l)))
+      (setq sc-ccase-mfs-prefixes (nreverse l))))
+)
+
+(defun sc-set-ATRIA-mode ()
+  (sc-set-CLEARCASE-mode))
+
+(defun sc-set-CCASE-mode ()
+  (sc-set-CLEARCASE-mode))
 
+
 ;; the module is sucessfully loaded!
 (provide 'generic-sc)

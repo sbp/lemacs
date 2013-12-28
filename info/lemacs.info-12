@@ -1,5 +1,5 @@
-This is Info file ../info/lemacs.info, produced by Makeinfo-1.55 from
-the input file lemacs.texinfo.
+This is Info file ../../info/lemacs.info, produced by Makeinfo-1.56
+from the input file lemacs.texinfo.
 
    This file documents the GNU Emacs editor.
 
@@ -24,1139 +24,1208 @@ versions, except that the sections entitled "The GNU Manifesto",
 translation approved by the author instead of in the original English.
 
 
-File: lemacs.info,  Node: Sorting,  Next: Shell,  Prev: Narrowing,  Up: Top
+File: lemacs.info,  Node: Rmail Make Summary,  Next: Rmail Summary Edit,  Prev: Rmail Summary,  Up: Rmail Summary
 
-Sorting Text
-============
+Making Summaries
+----------------
 
-   Emacs provides several commands for sorting text in a buffer.  All
-operate on the contents of the region (the text between point and the
-mark).  They divide the text of the region into many "sort records",
-identify a "sort key" for each record, and then reorder the records
-using the order determined by the sort keys.  The records are ordered so
-that their keys are in alphabetical order, or, for numeric sorting, in
-numeric order.  In alphabetic sorting, all upper case letters `A'
-through `Z' come before lower case `a', in accord with the ASCII
-character sequence.
+   Here are the commands to create a summary for the current Rmail file.
+Summaries do not update automatically; to make an updated summary, you
+must use one of the commands again.
 
-   The sort commands differ in how they divide the text into sort
-records and in which part of each record they use as the sort key.
-Most of the commands make each line a separate sort record, but some
-commands use paragraphs or pages as sort records.  Most of the sort
-commands use each entire sort record as its own sort key, but some use
-only a portion of the record as the sort key.
+`h'
+`C-M-h'
+     Summarize all messages (`rmail-summary').
 
-`M-x sort-lines'
-     Divide the region into lines, and sort by comparing the entire
-     text of a line.  A prefix argument means sort in descending order.
+`l LABELS RET'
+`C-M-l LABELS RET'
+     Summarize message that have one or more of the specified labels
+     (`rmail-summary-by-labels').
 
-`M-x sort-paragraphs'
-     Divide the region into paragraphs and sort by comparing the entire
-     text of a paragraph (except for leading blank lines).  A prefix
-     argument means sort in descending order.
+`C-M-r RCPTS RET'
+     Summarize messages that have one or more of the specified
+     recipients (`rmail-summary-by-recipients').
 
-`M-x sort-pages'
-     Divide the region into pages, and sort by comparing the entire
-     text of a page (except for leading blank lines).  A prefix
-     argument means sort in descending order.
+   The `h' or `C-M-h' (`rmail-summary') command fills the summary
+buffer for the current Rmail file with a summary of all the messages in
+the file.  It then displays and selects the summary buffer in another
+window.
 
-`M-x sort-fields'
-     Divide the region into lines, and sort by comparing the contents of
-     one field in each line.  Fields are defined as separated by
-     whitespace, so the first run of consecutive non-whitespace
-     characters in a line constitutes field 1, the second such run
-     constitutes field 2, etc.
+   The `l' or `C-M-l LABELS RET' (`rmail-summary-by-labels') makes a
+partial summary mentioning only the messages that have one or more of
+the labels LABELS.  LABELS should contain label names separated by
+commas.
 
-     You specify which field to sort by with a numeric argument: 1 to
-     sort by field 1, etc.  A negative argument means sort in descending
-     order.  Thus, minus 2 means sort by field 2 in reverse-alphabetical
-     order.
+   `C-M-r RCPTS RET' (`rmail-summary-by-recipients') makes a partial
+summary mentioning only the messages that have one or more of the
+recipients RCPTS.  RCPTS should contain mailing addresses separated by
+commas.
 
-`M-x sort-numeric-fields'
-     Like `M-x sort-fields' except the specified field is converted to
-     a number for each line, and the numbers are compared.  `10' comes
-     before `2' when considered as text, but after it when considered
-     as a number.
-
-`M-x sort-columns'
-     Like `M-x sort-fields' except that the text within each line used
-     for comparison comes from a fixed range of columns.  An explanation
-     is given below.
-
-   For example, if the buffer contains
-
-     On systems where clash detection (locking of files being edited) is
-     implemented, Emacs also checks the first time you modify a buffer
-     whether the file has changed on disk since it was last visited or
-     saved.  If it has, you are asked to confirm that you want to change
-     the buffer.
-
-then if you apply `M-x sort-lines' to the entire buffer you get
-
-     On systems where clash detection (locking of files being edited) is
-     implemented, Emacs also checks the first time you modify a buffer
-     saved.  If it has, you are asked to confirm that you want to change
-     the buffer.
-     whether the file has changed on disk since it was last visited or
-
-where the upper case `O' comes before all lower case letters.  If you
-apply instead `C-u 2 M-x sort-fields' you get
-
-     implemented, Emacs also checks the first time you modify a buffer
-     saved.  If it has, you are asked to confirm that you want to change
-     the buffer.
-     On systems where clash detection (locking of files being edited) is
-     whether the file has changed on disk since it was last visited or
-
-where the sort keys were `Emacs', `If', `buffer', `systems' and `the'.
-
-   `M-x sort-columns' requires more explanation.  You specify the
-columns by putting point at one of the columns and the mark at the other
-column.  Because this means you cannot put point or the mark at the
-beginning of the first line to sort, this command uses an unusual
-definition of `region': all of the line point is in is considered part
-of the region, and so is all of the line the mark is in.
-
-   For example, to sort a table by information found in columns 10 to
-15, you could put the mark on column 10 in the first line of the table,
-and point on column 15 in the last line of the table, and then use this
-command.  Or you could put the mark on column 15 in the first line and
-point on column 10 in the last line.
-
-   This can be thought of as sorting the rectangle specified by point
-and the mark, except that the text on each line to the left or right of
-the rectangle moves along with the text inside the rectangle.  *Note
-Rectangles::.
+   Note that there is only one summary buffer for any Rmail file;
+making one kind of summary discards any previously made summary.
 
 
-File: lemacs.info,  Node: Shell,  Next: Hardcopy,  Prev: Sorting,  Up: Top
+File: lemacs.info,  Node: Rmail Summary Edit,  Prev: Rmail Make Summary,  Up: Rmail Summary
 
-Running Shell Commands from Emacs
-=================================
+Editing in Summaries
+--------------------
 
-   Emacs has commands for passing single command lines to inferior shell
-processes; it can also run a shell interactively with input and output
-to an Emacs buffer `*shell*'.
+   Summary buffers are given the major mode Rmail Summary mode, which
+provides the following special commands:
 
-`M-!'
-     Run a specified shell command line and display the output
-     (`shell-command').
+`j'
+     Select the message described by the line that point is on
+     (`rmail-summary-goto-msg').
 
-`M-|'
-     Run a specified shell command line with region contents as input;
-     optionally replace the region with the output
-     (`shell-command-on-region').
+`C-n'
+     Move to next line and select its message in Rmail
+     (`rmail-summary-next-all').
 
-`M-x shell'
-     Run a subshell with input and output through an Emacs buffer.  You
-     can then give commands interactively.
-
-* Menu:
-
-* Single Shell::         How to run one shell command and return.
-* Interactive Shell::    Permanent shell taking input via Emacs.
-* Shell Mode::           Special Emacs commands used with permanent shell.
-
-
-File: lemacs.info,  Node: Single Shell,  Next: Interactive Shell,  Prev: Shell,  Up: Shell
-
-Single Shell Commands
----------------------
-
-   `M-!' (`shell-command') reads a line of text using the minibuffer
-and creates an inferior shell to execute the line as a command.
-Standard input from the command comes from the null device.  If the
-shell command produces any output, the output goes to an Emacs buffer
-named `*Shell Command Output*', which is displayed in another window
-but not selected.  A numeric argument, as in `M-1 M-!', directs this
-command to insert any output into the current buffer.  In that case,
-point is left before the output and the mark is set after the output.
-
-   `M-|' (`shell-command-on-region') is like `M-!' but passes the
-contents of the region as input to the shell command, instead of no
-input.  If a numeric argument is used to direct  output to the current
-buffer, then the old region is deleted first and the output replaces it
-as the contents of the region.
-
-   Both `M-!' and `M-|' use `shell-file-name' to specify the shell to
-use.  This variable is initialized based on your `SHELL' environment
-variable when you start Emacs.  If the file name does not specify a
-directory, the directories in the list `exec-path' are searched; this
-list is initialized based on the `PATH' environment variable when you
-start Emacs.  You can override either or both of these default
-initializations in your `.emacs' file .
-
-   When you use `M-!' and `M-|', Emacs has to wait until the shell
-command completes.  You can quit with `C-g'; that terminates the shell
-command.
-
-
-File: lemacs.info,  Node: Interactive Shell,  Next: Shell Mode,  Prev: Single Shell,  Up: Shell
-
-Interactive Inferior Shell
---------------------------
-
-   To run a subshell interactively with its typescript in an Emacs
-buffer, use `M-x shell'.  This creates (or reuses) a buffer named
-`*shell*' and runs a subshell with input coming from and output going
-to that buffer.  That is to say, any "terminal output" from the subshell
-will go into the buffer, advancing point, and any "terminal input" for
-the subshell comes from text in the buffer.  To give input to the
-subshell, go to the end of the buffer and type the input, terminated by
-RET.
-
-   Emacs does not wait for the subshell to do anything.  You can switch
-windows or buffers and edit them while the shell is waiting, or while
-it is running a command.  Output from the subshell waits until Emacs
-has time to process it; this happens whenever Emacs is waiting for
-keyboard input or for time to elapse.
-
-   To get multiple subshells, change the name of buffer `*shell*' to
-something different by using `M-x rename-buffer'.  The next use of `M-x
-shell' creates a new buffer `*shell*' with its own subshell.  By
-renaming this buffer as well you can create a third one, and so on.
-All the subshells run independently and in parallel.
-
-   The file name used to load the subshell is the value of the variable
-`explicit-shell-file-name', if that is non-`nil'.  Otherwise, the
-environment variable `ESHELL' is used, or the environment variable
-`SHELL' if there is no `ESHELL'.  If the file name specified is
-relative, the directories in the list `exec-path' are searched (*note
-Single Shell Commands: Single Shell.).
-
-   As soon as the subshell is started, it is sent as input the contents
-of the file `~/.emacs_SHELLNAME', if that file exists, where SHELLNAME
-is the name of the file that the shell was loaded from.  For example,
-if you use `csh', the file sent to it is `~/.emacs_csh'.
-
-   `cd', `pushd' and `popd' commands given to the inferior shell are
-watched by Emacs so it can keep the `*shell*' buffer's default
-directory the same as the shell's working directory.  These commands
-are recognized syntactically by examining lines of input that are sent.
-If you use aliases for these commands, you can tell Emacs to recognize
-them also.  For example, if the value of the variable
-`shell-pushd-regexp' matches the beginning of a shell command line,
-that line is regarded as a `pushd' command.  Change this variable when
-you add aliases for `pushd'.  Likewise, `shell-popd-regexp' and
-`shell-cd-regexp' are used to recognize commands with the meaning of
-`popd' and `cd'.
-
-   `M-x shell-resync-dirs' queries the shell and resynchronizes Emacs'
-idea of what the current directory stack is.  `M-x
-shell-dirtrack-toggle' turns directory tracking on and off.
-
-   Emacs keeps a history of the most recent commands you have typed in
-the `*shell*' buffer.  If you are at the beginning of a shell command
-line and type M-p, the previous shell input is inserted into the buffer
-before point.  Immediately typing M-p again deletes that input and
-inserts the one before it.  By repeating M-p you can move backward
-through your commands until you find one you want to repeat.  You may
-then edit the command before typing RET if you wish. M-n moves forward
-through the command history, in case you moved backward past the one
-you wanted while using M-p.  If you type the first few characters of a
-previous command and then type M-p, the most recent shell input
-starting with those characters is inserted.  This can be very
-convenient when you are repeating a sequence of shell commands.  The
-variable `input-ring-size' controls how many commands are saved in your
-input history.  The default is 30.
-
-
-File: lemacs.info,  Node: Shell Mode,  Prev: Interactive Shell,  Up: Shell
-
-Shell Mode
-----------
-
-   The shell buffer uses Shell mode, which defines several special keys
-attached to the `C-c' prefix.  They are chosen to resemble the usual
-editing and job control characters present in shells that are not under
-Emacs, except that you must type `C-c' first.  Here is a list of the
-special key bindings of Shell mode:
-
-`RET'
-     At end of buffer send line as input; otherwise, copy current line
-     to end of buffer and send it (`send-shell-input').  When a line is
-     copied, any text at the beginning of the line that matches the
-     variable `shell-prompt-pattern' is left out; this variable's value
-     should be a regexp string that matches the prompts that you use in
-     your subshell.
-
-`C-c C-d'
-     Send end-of-file as input, probably causing the shell or its
-     current subjob to finish (`shell-send-eof').
-
-`C-d'
-     If point is not at the end of the buffer, delete the next
-     character just like most other modes.  If point is at the end of
-     the buffer, send end-of-file as input (instead of generating an
-     error as in other modes).
-
-`C-c C-u'
-     Kill all text that has yet to be sent as input
-     (`kill-shell-input').
-
-`C-c C-w'
-     Kill a word before point (`backward-kill-word').
-
-`C-c C-c'
-     Interrupt the shell or its current subjob if any
-     (`interrupt-shell-subjob').
-
-`C-c C-z'
-     Stop the shell or its current subjob if any (`stop-shell-subjob').
-
-`C-c C-\'
-     Send quit signal to the shell or its current subjob if any
-     (`quit-shell-subjob').
-
-`C-c C-o'
-     Delete last batch of output from shell (`kill-output-from-shell').
-
-`C-c C-r'
-     Scroll top of last batch of output to top of window
-     (`show-output-from-shell').
-
-`C-c C-y'
-     Copy the previous bunch of shell input, and insert it into the
-     buffer before point (`copy-last-shell-input').  No final newline
-     is inserted, and the input copied is not resubmitted until you type
-     RET.
-
-`M-p'
-     Move backward through the input history.  Search for a matching
-     command if you have typed the beginning of a command.
-
-`M-n'
-     Move forward through the input history.  Useful when you are using
-     M-p quickly and go past the desired command.
-
-`TAB'
-     Complete the file name preceding point.
-
-
-File: lemacs.info,  Node: Hardcopy,  Next: Dissociated Press,  Prev: Shell,  Up: Top
-
-Hardcopy Output
-===============
-
-   The Emacs commands for making hardcopy derive their names from the
-Unix commands `print' and `lpr'.
-
-`M-x print-buffer'
-     Print hardcopy of current buffer using Unix command `print'
-     (`lpr -p').  This command adds page headings containing the file
-     name and page number.
-
-`M-x lpr-buffer'
-     Print hardcopy of current buffer using Unix command `lpr'.  This
-     command does not add page headings.
-
-`M-x print-region'
-     Like `print-buffer' but prints only the current region.
-
-`M-x lpr-region'
-     Like `lpr-buffer' but prints only the current region.
-
-   All the hardcopy commands pass extra switches to the `lpr' program
-based on the value of the variable `lpr-switches'.  Its value should be
-a list of strings, each string a switch starting with `-'.  For
-example, the value could be `("-Pfoo")' to print on printer `foo'.
-
-
-File: lemacs.info,  Node: Dissociated Press,  Next: CONX,  Prev: Hardcopy,  Up: Top
-
-Dissociated Press
-=================
-
-   `M-x dissociated-press' is a command for scrambling a file of text
-either word by word or character by character.  Starting from a buffer
-of straight English, it produces extremely amusing output.  The input
-comes from the current Emacs buffer.  Dissociated Press writes its
-output in a buffer named `*Dissociation*', and redisplays that buffer
-after every couple of lines (approximately) to facilitate reading it.
-
-   `dissociated-press' asks every so often whether to continue
-operating.  Answer `n' to stop it.  You can also stop at any time by
-typing `C-g'.  The dissociation output remains in the `*Dissociation*'
-buffer for you to copy elsewhere if you wish.
-
-   Dissociated Press operates by jumping at random from one point in the
-buffer to another.  In order to produce plausible output rather than
-gibberish, it insists on a certain amount of overlap between the end of
-one run of consecutive words or characters and the start of the next.
-That is, if it has just printed out `president' and then decides to
-jump to a different point in the file, it might spot the `ent' in
-`pentagon' and continue from there, producing `presidentagon'.  Long
-sample texts produce the best results.
-
-   A positive argument to `M-x dissociated-press' tells it to operate
-character by character, and specifies the number of overlap characters.
-A negative argument tells it to operate word by word and specifies the
-number of overlap words.  In this mode, whole words are treated as the
-elements to be permuted, rather than characters.  No argument is
-equivalent to an argument of two.  For your againformation, the output
-goes only into the buffer `*Dissociation*'.  The buffer you start with
-is not changed.
-
-   Dissociated Press produces nearly the same results as a Markov chain
-based on a frequency table constructed from the sample text.  It is,
-however, an independent, ignoriginal invention.  Dissociated Press
-techniquitously copies several consecutive characters from the sample
-between random choices, whereas a Markov chain would choose randomly for
-each word or character.  This makes for more plausible sounding results,
-and runs faster.
-
-   It is a mustatement that too much use of Dissociated Press can be a
-developediment to your real work.  Sometimes to the point of outragedy.
-And keep dissociwords out of your documentation, if you want it to be
-well userenced and properbose.  Have fun.  Your buggestions are welcome.
-
-
-File: lemacs.info,  Node: CONX,  Next: Amusements,  Prev: Dissociated Press,  Up: Top
-
-CONX
-====
-
-   Besides producing a file of scrambled text with Dissociated Press,
-you can generate random sentences by using CONX.
-
-`M-x conx'
-     Generate random sentences in the *conx* buffer.
-
-`M-x conx-buffer'
-     Absorb the text in the current buffer into the `conx' database.
-
-`M-x conx-init'
-     Forget the current word-frequency tree.
-
-`M-x conx-load'
-     Load a `conx' database that has been previously saved with `M-x
-     conx-save'.
-
-`M-x conx-region'
-     Absorb the text in the current buffer into the conx database.
-
-`M-x conx-save'
-     Save the current conx database to a file for future retrieval.
-
-   Copy text from a buffer using `M-x conx-buffer' or `M-x conx-region'
-and then type `M-x conx'.  Output is continuously generated until you
-type ^G. You can save the `conx' database to a file with `M-x
-conx-save', which you can retrieve with `M-x conx-load'.  To clear the
-database, use `M-x conx-init'.
-
-
-File: lemacs.info,  Node: Amusements,  Next: Emulation,  Prev: CONX,  Up: Top
-
-Other Amusements
-================
-
-   If you are a little bit bored, you can try `M-x hanoi'.  If you are
-considerably bored, give it a numeric argument.  If you are very very
-bored, try an argument of 9.  Sit back and watch.
-
-   When you are frustrated, try the famous Eliza program.  Just do `M-x
-doctor'.  End each input by typing `RET' twice.
-
-   When you are feeling strange, type `M-x yow'.
-
-
-File: lemacs.info,  Node: Emulation,  Next: Customization,  Prev: Amusements,  Up: Top
-
-Emulation
-=========
-
-   GNU Emacs can be programmed to emulate (more or less) most other
-editors.  Standard facilities can emulate these:
-
-EDT (DEC VMS editor)
-     Turn on EDT emulation with `M-x edt-emulation-on'.  `M-x
-     edt-emulation-off' restores normal Emacs command bindings.
-
-     Most of the EDT emulation commands are keypad keys, and most
-     standard Emacs key bindings are still available.  The EDT
-     emulation rebindings are done in the global keymap, so there is no
-     problem switching buffers or major modes while in EDT emulation.
-
-Gosling Emacs
-     Turn on emulation of Gosling Emacs (aka Unipress Emacs) with `M-x
-     set-gosmacs-bindings'.  This redefines many keys, mostly on the
-     `C-x' and `ESC' prefixes, to work as they do in Gosmacs.  `M-x
-     set-gnu-bindings' returns to normal GNU Emacs by rebinding the
-     same keys to the definitions they had at the time `M-x
-     set-gosmacs-bindings' was done.
-
-     It is also possible to run Mocklisp code written for Gosling Emacs.
-     *Note Mocklisp::.
-
-evi (vi emulation in Lucid Emacs)
-     In Lucid Emacs, evi is the preferred emulation of vi within Emacs.
-     By default, evi-mode is as close as possible to regular vi.  To
-     start evi mode from Emacs, type: `Meta-x evi'.
-
-     If you want be in evi mode whenever you bring up Emacs, include
-     this line in your `.emacs' file:
-          (setq term-setup-hook 'evi)
-     *Note evi Mode:: for more information on evi Mode.
-
-vi (Berkeley Unix editor)
-     Turn on vi emulation with `M-x vi-mode'.  This is a major mode
-     that replaces the previously established major mode.  All of the
-     vi commands that, in real vi, enter "input" mode are programmed in
-     the Emacs emulator to return to the previous major mode.  Thus,
-     ordinary Emacs serves as vi's "input" mode.
-
-     Because vi emulation works through major modes, it does not work
-     to switch buffers during emulation.  Return to normal Emacs first.
-
-     If you plan to use vi emulation much, you probably want to bind a
-     key to the `vi-mode' command.
-
-vi (alternate emulator)
-     Another vi emulator said to resemble real vi more thoroughly is
-     invoked by `M-x vip-mode'.  "Input" mode in this emulator is
-     changed from ordinary Emacs so you can use ESC to go back to
-     emulated vi command mode.  To get from emulated vi command mode
-     back to ordinary Emacs, type `C-z'.
-
-     This emulation does not work through major modes, and it is
-     possible to switch buffers in various ways within the emulator.
-     It is not so necessary to assign a key to the command `vip-mode' as
-     it is with `vi-mode' because terminating insert mode does not use
-     it.
-
-     For full information, see the long comment at the beginning of the
-     source file, which is `lisp/vip.el' in the Emacs distribution.
-
-   Warning: loading more than one vi emulator at once may cause name
-conficts; no one has checked.
-
-* Menu:
-
-* evi Mode:: Brief discussion of evi, the vi Emulation mode within Lucid Emacs
-
-
-File: lemacs.info,  Node: evi Mode,  Prev: Emulation,  Up: Emulation
-
-Using evi Mode
---------------
-
-   In Lucid Emacs, evi provides vi emulation within Emacs.  By default,
-evi-mode is as close as possible to regular vi.  To start evi mode from
-Emacs, type: `Meta-x evi' If you want be in evi mode whenever you bring
-up Emacs, include this line in your `.emacs' file:
-     (setq term-setup-hook 'evi)
-
-   You can find a customization file for evi-mode in `~/.evirc'.  This
-file has to contain Lisp code, just like the `.emacs' file, and is
-loaded whenever you invoke evi mode.  The file allows you to rebind
-keys in evi mode, just as you can in other Emacs modes.
-
-   Note that evi also loads a file of vi commands from `.exrc', just
-like vi.
-
-   By default, all Emacs commands are disabled in evi mode.  This
-leaves you with only vi commands.  You may customize evi mode to make
-certain keybindings accessible.  For example, to enable all emacs
-command sequences that begin with `Control-x' or with `Meta', include
-the following lines in your `.evirc' file:
-     (evi-define-key evi-all-keymaps "\C-x" ctl-x-map)
-     (setq evi-meta-prefix-char ?\C-a)
-     (evi-define-key evi-all-keymaps "\C-a" esc-map)
-
-   When you are in evi mode, typing `Control-z' stops vi emulation,
-leaving you in Emacs.  To get back into evi mode, use `Meta-x evi'
-again.  To exit Emacs, use `Control-x Control-c'.
-
-   The file management commands used by vi have been adapted to Emacs.
-They have slightly different meanings than the vi commands itself:
-
-`:e'
-     Edit a file in the current window.  With no argument, brings in a
-     new copy of the file, if it has been subsequently modified on disk.
-     `:e' overrides any complaints about the current buffer being
-     modified and discards all modifications.  With a filename
-     argument, it edits that file in the current window, using the copy
-     already in the editor if it was previously read in.  There is no
-     difference between `:e!  filename' and `:e filename'.  As a
-     shorthand for editing the most recently accessed buffer not in the
-     window, use `:e#'.
-
-`:E'
-     Same as `:e', but edits the file in another window, creating that
-     window if necessary.  If used with no filename, this command
-     splits the current buffer into two windows.
-
-`:n'
-     Switch to the next file in the buffer list that is not currently
-     displayed.  Rotates the current file to the end of the buffer
-     list, so the command effectively cycles through all buffers.
-
-`:N'
-     Same as `:n', but switches to another window or creates another
-     window and puts the next file into it.
-
-   All `ex' commands that accept filenames as arguments perform file
-completion using `Space' or `Tab'.  Completion begins after the space
-that separates the command from the filename.
-
-   Many of the `ex' commands are not implemented.  The following
-commands are implemented:
-     cd, chdir, copy, delete, edit, file, global, map, move, next print,
-     put, quit, read, set, source, substitute, tag, write, wq, yank, !, <, >
-
-   The following `ex' options are implemented:
-     autoindent, ignorecase, magic, notimeout, shiftwidth, showmatch,
-     tabstop, wrapscan
-
-
-File: lemacs.info,  Node: Customization,  Next: Quitting,  Prev: Emulation,  Up: Top
-
-Customization
-*************
-
-   This chapter talks about various topics relevant to adapting the
-behavior of Emacs in minor ways.
-
-   All kinds of customization affect only the particular Emacs job that
-you do them in.  They are completely lost when you kill the Emacs job,
-and have no effect on other Emacs jobs you may run at the same time or
-later.  The only way an Emacs job can affect anything outside of it is
-by writing a file; in particular, the only way to make a customization
-`permanent' is to put something in your `.emacs' file or other
-appropriate file to do the customization in each session.  *Note Init
-File::.
-
-* Menu:
-
-* Minor Modes::     Each minor mode is one feature you can turn on
-                     independently of any others.
-* Variables::       Many Emacs commands examine Emacs variables
-                     to decide what to do; by setting variables,
-                     you can control their functioning.
-* Keyboard Macros:: A keyboard macro records a sequence of keystrokes
-                     to be replayed with a single command.
-* Key Bindings::    The keymaps say what command each key runs.
-                     By changing them, you can "redefine keys".
-* Syntax::          The syntax table controls how words and expressions
-                     are parsed.
-* Init File::       How to write common customizations in the `.emacs'
-                     file.
-* Audible Bell::    Changing how Emacs sounds the bell.
-* Faces::
-                    Changing the fonts and colors of a region of text.
-
-
-File: lemacs.info,  Node: Minor Modes,  Next: Variables,  Up: Customization
-
-Minor Modes
-===========
-
-   Minor modes are options which you can use or not.  For example, Auto
-Fill mode is a minor mode in which SPC breaks lines between words as
-you type.  All the minor modes are independent of each other and of the
-selected major mode.  Most minor modes inform you in the mode line when
-they are on; for example, `Fill' in the mode line means that Auto Fill
-mode is on.
-
-   Append `-mode' to the name of a minor mode to get the name of a
-command function that turns the mode on or off.  Thus, the command to
-enable or disable Auto Fill mode is called `M-x auto-fill-mode'.  These
-commands are usually invoked with `M-x', but you can bind keys to them
-if you wish.  With no argument, the function turns the mode on if it was
-off and off if it was on.  This is known as "toggling".  A positive
-argument always turns the mode on, and an explicit zero argument or a
-negative argument always turns it off.
-
-   Auto Fill mode allows you to enter filled text without breaking lines
-explicitly.  Emacs inserts newlines as necessary to prevent lines from
-becoming too long.  *Note Filling::.
-
-   Overwrite mode causes ordinary printing characters to replace
-existing text instead of moving it to the right.  For example, if point
-is in front of the `B' in `FOOBAR', and you type a `G' in Overwrite
-mode, it changes to `FOOGAR', instead of `FOOGBAR'.
-
-   Abbrev mode allows you to define abbreviations that automatically
-expand as you type them.  For example, `amd' might expand to `abbrev
-mode'.  *Note Abbrevs::, for full information.
-
-
-File: lemacs.info,  Node: Variables,  Next: Keyboard Macros,  Prev: Minor Modes,  Up: Customization
-
-Variables
-=========
-
-   A "variable" is a Lisp symbol which has a value.  The symbol's name
-is also called the name of the variable.  Variable names can contain any
-characters, but conventionally they are chosen to be words separated by
-hyphens.  A variable can have a documentation string which describes
-what kind of value it should have and how the value will be used.
-
-   Lisp allows any variable to have any kind of value, but most
-variables that Emacs uses require a value of a certain type.  Often the
-value has to be a string, or has to be a number.  Sometimes we say that
-a certain feature is turned on if a variable is "non-`nil'," meaning
-that if the variable's value is `nil', the feature is off, but the
-feature is on for any other value.  The conventional value to turn on
-the feature--since you have to pick one particular value when you set
-the variable--is `t'.
-
-   Emacs uses many Lisp variables for internal recordkeeping, as any
-Lisp program must, but the most interesting variables for you are the
-ones that exist for the sake of customization.  Emacs does not
-(usually) change the values of these variables; instead, you set the
-values, and thereby alter and control the behavior of certain Emacs
-commands.  These variables are called "options".  Most options are
-documented in this manual, and appear in the Variable Index (*note
-Variable Index::.).
-
-   One example of a variable which is an option is `fill-column', which
-specifies the position of the right margin (as a number of characters
-from the left margin) to be used by the fill commands (*note
-Filling::.).
-
-* Menu:
-
-* Examining::           Examining or setting one variable's value.
-* Edit Options::        Examining or editing list of all variables' values.
-* Locals::              Per-buffer values of variables.
-* File Variables::      How files can specify variable values.
-
-
-File: lemacs.info,  Node: Examining,  Next: Edit Options,  Prev: Variables,  Up: Variables
-
-Examining and Setting Variables
--------------------------------
-
-`C-h v'
-`M-x describe-variable'
-     Print the value and documentation of a variable.
-
-`M-x set-variable'
-     Change the value of a variable.
-
-   To examine the value of a single variable, use `C-h v'
-(`describe-variable'), which reads a variable name using the
-minibuffer, with completion.  It prints both the value and the
-documentation of the variable.
-
-     C-h v fill-column RET
-
-prints something like
-
-     fill-column's value is 75
-     
-     Documentation:
-     *Column beyond which automatic line-wrapping should happen.
-     Automatically becomes local when set in any fashion.
-
-The star at the beginning of the documentation indicates that this
-variable is an option.  `C-h v' is not restricted to options; it allows
-any variable name.
-
-   If you know which option you want to set, you can use `M-x
-set-variable' to set it.  This prompts for the variable name in the
-minibuffer (with completion), and then prompts for a Lisp expression
-for the new value using the minibuffer a second time.  For example,
-
-     M-x set-variable RET fill-column RET 75 RET
-
-sets `fill-column' to 75, like executing the Lisp expression
-
-     (setq fill-column 75)
-
-   Setting variables in this way, like all means of customizing Emacs
-except where explicitly stated, affects only the current Emacs session.
-
-
-File: lemacs.info,  Node: Edit Options,  Next: Locals,  Prev: Examining,  Up: Variables
-
-Editing Variable Values
------------------------
-
-`M-x list-options'
-     Display a buffer listing names, values and documentation of all
-     options.
-
-`M-x edit-options'
-     Change option values by editing a list of options.
-
-   `M-x list-options' displays a list of all Emacs option variables, in
-an Emacs buffer named `*List Options*'.  Each option is shown with its
-documentation and its current value.  Here is what a portion of it might
-look like:
-
-     ;; exec-path:
-     ("." "/usr/local/bin" "/usr/ucb" "/bin" "/usr/bin" "/u2/emacs/etc")
-     *List of directories to search programs to run in subprocesses.
-     Each element is a string (directory name)
-     or nil (try the default directory).
-     ;;
-     ;; fill-column:
-     75
-     *Column beyond which automatic line-wrapping should happen.
-     Automatically becomes local when set in any fashion.
-     ;;
-
-   `M-x edit-options' goes one step further and immediately selects the
-`*List Options*' buffer; this buffer uses the major mode Options mode,
-which provides commands that allow you to point at an option and change
-its value:
-
-`s'
-     Set the variable point is in or near to a new value read using the
-     minibuffer.
-
-`x'
-     Toggle the variable point is in or near: if the value was `nil',
-     it becomes `t'; otherwise it becomes `nil'.
-
-`1'
-     Set the variable point is in or near to `t'.
-
-`0'
-     Set the variable point is in or near to `nil'.
+`C-p'
+     Move to previous line and select its message (`rmail-summary-
+     previous-all').
 
 `n'
+     Move to next line, skipping lines saying `deleted', and select its
+     message (`rmail-summary-next-msg').
+
 `p'
-     Move to the next or previous variable.
+     Move to previous line, skipping lines saying `deleted', and select
+     its message (`rmail-summary-previous-msg').
+
+`d'
+     Delete the current line's message, then do like `n'
+     (`rmail-summary-delete-forward').
+
+`u'
+     Undelete and select this message or the previous deleted message in
+     the summary (`rmail-summary-undelete').
+
+`SPC'
+     Scroll the other window (presumably Rmail) forward
+     (`rmail-summary-scroll-msg-up').
+
+`DEL'
+     Scroll the other window backward (`rmail-summary-scroll-msg-down').
+
+`x'
+     Kill the summary window (`rmail-summary-exit').
+
+`q'
+     Exit Rmail (`rmail-summary-quit').
+
+   The keys `C-n'(`rmail-summary-next-all') and `C-p'
+(`rmail-summary-previous-all') are modified in Rmail Summary mode.  In
+addition to moving point in the summary buffer, they also cause the
+line's message to become current in the associated Rmail buffer.  That
+buffer is also made visible in another window if it is not currently
+visible.
+
+   `n' and `p' are similar to `C-n' and `C-p', but skip lines that say
+`message deleted'.  They are like the `n' and `p' keys of Rmail itself.
+Note, however, that in a partial summary these commands move only
+among the message listed in the summary.
+
+   The other Emacs cursor motion commands are not changed in Rmail
+Summary mode, so it is easy to get the point on a line whose message is
+not selected in Rmail.  This can also happen if you switch to the Rmail
+window and switch messages there.  To get the Rmail buffer back in sync
+with the summary, use the `j' (`rmail-summary-goto-msg') command, which
+selects the message of the current summary line in Rmail.
+
+   Deletion and undeletion can also be done from the summary buffer.
+They always work based on where point is located in the summary buffer,
+ignoring which message is selected in Rmail.  `d'
+(`rmail-summary-delete-forward') deletes the current line's message,
+then moves to the next line whose message is not deleted and selects
+that message.  The inverse is `u' (`rmail-summary-undelete'), which
+moves back (if necessary) to a line whose message is deleted, undeletes
+that message, and selects it in Rmail.
+
+   When moving through messages with the summary buffer, it is
+convenient to be able to scroll the message while remaining in the
+summary window.  The commands SPC (`rmail-summary-scroll-msg-up') and
+DEL (`rmail-summary-scroll-msg-down') do this.  They scroll the message
+just as they do when the Rmail buffer is selected.
+
+   When you are finished using the summary, type `x'
+(`rmail-summary-exit') to kill the summary buffer's window.
+
+   You can also exit Rmail while in the summary.  `q'
+(`rmail-summary-quit') kills the summary window, then saves the Rmail
+file and switches to another buffer.
 
 
-File: lemacs.info,  Node: Locals,  Next: File Variables,  Prev: Edit Options,  Up: Variables
+File: lemacs.info,  Node: Rmail Reply,  Next: Rmail Editing,  Prev: Rmail Summary,  Up: Rmail
 
-Local Variables
----------------
-
-`M-x make-local-variable'
-     Make a variable have a local value in the current buffer.
-
-`M-x kill-local-variable'
-     Make a variable use its global value in the current buffer.
-
-`M-x make-variable-buffer-local'
-     Mark a variable so that setting it will make it local to the
-     buffer that is current at that time.
-
-   You can make any variable "local" to a specific Emacs buffer.  This
-means that the variable's value in that buffer is independent of its
-value in other buffers.  A few variables are always local in every
-buffer.  All other Emacs variables have a "global" value which is in
-effect in all buffers that have not made the variable local.
-
-   Major modes always make the variables they set local to the buffer.
-This is why changing major modes in one buffer has no effect on other
-buffers.
-
-   `M-x make-local-variable' reads the name of a variable and makes it
-local to the current buffer.  Further changes in this buffer will not
-affect others, and changes in the global value will not affect this
-buffer.
-
-   `M-x make-variable-buffer-local' reads the name of a variable and
-changes the future behavior of the variable so that it automatically
-becomes local when it is set.  More precisely, once you have marked a
-variable in this way, the usual ways of setting the variable will
-automatically invoke `make-local-variable' first.  We call such
-variables "per-buffer" variables.
-
-   Some important variables have been marked per-buffer already.  They
-include `abbrev-mode', `auto-fill-function', `case-fold-search',
-`comment-column', `ctl-arrow', `fill-column', `fill-prefix',
-`indent-tabs-mode', `left-margin',
-`mode-line-format', `overwrite-mode', `selective-display-ellipses',
-`selective-display', `tab-width', and `truncate-lines'.  Some other
-variables are always local in every buffer, but they are used for
-internal purposes.
-
-   Note: the variable `auto-fill-function' was formerly named
-`auto-fill-hook'.
-
-   If you want that a variable ceases to be local to the current buffer,
-call `M-x kill-local-variable' and provide the name of a variable to
-the prompt.  The global value of the variable is again in effect in
-this buffer.  Setting the major mode kills all the local variables of
-the buffer.
-
-   To set the global value of a variable, regardless of whether the
-variable has a local value in the current buffer, you can use the Lisp
-function `setq-default'.  It works like `setq'.  If there is a local
-value in the current buffer, the local value is not affected by
-`setq-default'; thus, the new global value may not be visible until you
-switch to another buffer.  For example,
-
-     (setq-default fill-column 75)
-
-`setq-default' is the only way to set the global value of a variable
-that has been marked with `make-variable-buffer-local'.
-
-   Programs can look at a variable's default value with `default-value'.
-This function takes a symbol as an argument and returns its default
-value.  The argument is evaluated; usually you must quote it
-explicitly.  For example,
-
-     (default-value 'fill-column)
-
-
-File: lemacs.info,  Node: File Variables,  Prev: Locals,  Up: Variables
-
-Local Variables in Files
-------------------------
-
-   A file can contain a "local variables list", which specifies the
-values to use for certain Emacs variables when that file is edited.
-Visiting the file checks for a local variables list and makes each
-variable in the list local to the buffer in which the file is visited,
-with the value specified in the file.
-
-   A local variables list goes near the end of the file, in the last
-page.  (It is often best to put it on a page by itself.)  The local
-variables list starts with a line containing the string `Local
-Variables:', and ends with a line containing the string `End:'.  In
-between come the variable names and values, one set per line, as
-`VARIABLE: VALUE'.  The VALUEs are not evaluated; they are used
-literally.
-
-   The line which starts the local variables list does not have to say
-just `Local Variables:'.  If there is other text before `Local
-Variables:', that text is called the "prefix", and if there is other
-text after, that is called the "suffix".  If a prefix or suffix are
-present, each entry in the local variables list should have the prefix
-before it and the suffix after it.  This includes the `End:' line.  The
-prefix and suffix are included to disguise the local variables list as
-a comment so the compiler or text formatter  will ignore it.  If you do
-not need to disguise the local variables list as a comment in this way,
-there is no need to include a prefix or a suffix.
-
-   Two "variable" names are special in a local variables list: a value
-for the variable `mode' sets the major mode, and a value for the
-variable `eval' is simply evaluated as an expression and the value is
-ignored.  These are not real variables; setting them in any other
-context does not have the same effect.  If `mode' is used in a local
-variables list, it should be the first entry in the list.
-
-   Here is an example of a local variables list:
-     ;;; Local Variables: ***
-     ;;; mode:lisp ***
-     ;;; comment-column:0 ***
-     ;;; comment-start: ";;; "  ***
-     ;;; comment-end:"***" ***
-     ;;; End: ***
-
-   Note that the prefix is `;;; ' and the suffix is ` ***'.  Note also
-that comments in the file begin with and end with the same strings.
-Presumably the file contains code in a language which is enough like
-Lisp for Lisp mode to be useful but in which comments start and end
-differently.  The prefix and suffix are used in the local variables
-list to make the list appear as several lines of comments when the
-compiler or interpreter for that language reads the file.
-
-   The start of the local variables list must be no more than 3000
-characters from the end of the file, and must be in the last page if the
-file is divided into pages.  Otherwise, Emacs will not notice it is
-there.  The purpose is twofold: A stray `Local Variables:' not in the
-last page does not confuse Emacs, and Emacs never needs to search a
-long file that contains no page markers and has no local variables list.
-
-   You may be tempted to turn on Auto Fill mode with a local variable
-list.  That is inappropriate.  Whether you use Auto Fill mode or not is
-a matter of personal taste, not a matter of the contents of particular
-files.  If you want to use Auto Fill, set up major mode hooks with your
-`.emacs' file to turn it on (when appropriate) for you alone (*note
-Init File::.).  Don't try to use a local variable list that would
-impose your taste on everyone working with the file.
-
-   Lucid Emacs allows you to specify local variables in the first line
-of a file, in addition to specifying them in the `Local variables'
-section at the end of a file.
-
-   If the first line of a file contains two occurences of ``-*-'', Emacs
-uses the information between them to determine what the major mode and
-variable settings should be.  For example, these are all legal:
-
-     	;;; -*- mode: emacs-lisp -*-
-     	;;; -*- mode: postscript; version-control: never -*-
-     	;;; -*- tags-file-name: "/foo/bar/TAGS" -*-
-
-   For historical reasons, the syntax ``-*- modename -*-'' is allowed
-as well, for example, you can use:
-
-     	;;; -*- emacs-lisp -*-
-
-   The variable `enable-local-variables' controls the use of local
-variables lists in files you visit.  The value can be `t', `nil' or
-something else.  A value of `t' means local variables lists are obeyed;
-`nil' means they are ignored; anything else means query.
-
-   The command `M-x normal-mode' always obeys local variables lists and
-ignores this variable.
-
-
-File: lemacs.info,  Node: Keyboard Macros,  Next: Key Bindings,  Prev: Variables,  Up: Customization
-
-Keyboard Macros
+Sending Replies
 ===============
 
-   A "keyboard macro" is a command defined by the user to abbreviate a
-sequence of keys.  For example, if you discover that you are about to
-type `C-n C-d' forty times, you can speed your work by defining a
-keyboard macro to invoke `C-n C-d' and calling it with a repeat count
-of forty.
+   Rmail has several commands that use Mail mode to send mail.  *Note
+Sending Mail::, for information on using Mail mode.  Only the special
+commands of Rmail for entering Mail mode are documented here.  Note
+that the usual keys for sending mail, `C-x m' and `C-x 4 m', are
+available in Rmail mode and work just as they usually do.
 
-`C-x ('
-     Start defining a keyboard macro (`start-kbd-macro').
+`m'
+     Send a message (`rmail-mail').
 
-`C-x )'
-     End the definition of a keyboard macro (`end-kbd-macro').
+`c'
+     Continue editing already started outgoing message
+     (`rmail-continue').
 
-`C-x e'
-     Execute the most recent keyboard macro (`call-last-kbd-macro').
+`r'
+     Send a reply to the current Rmail message (`rmail-reply').
 
-`C-u C-x ('
-     Re-execute last keyboard macro, then add more keys to its
-     definition.
+`f'
+     Forward current message to other users (`rmail-forward').
 
-`C-x q'
-     When this point is reached during macro execution, ask for
-     confirmation (`kbd-macro-query').
+   To reply to a the message you are reading in Rmail, type `r'
+(`rmail-reply').  This displays the `*mail*' buffer in another window,
+much like `C-x 4 m', but pre-initializes the `Subject', `To', `CC', and
+`In-reply-to' header fields based on the message you reply to.  The
+`To' field is given the sender of that message, and the `CC' gets all
+the recipients of that message.  Recipients that match elements of the
+list `rmail-dont-reply-to' are omitted; by default, this list contains
+your own mailing address.
 
-`M-x name-last-kbd-macro'
-     Give a command name (for the duration of the session) to the most
-     recently defined keyboard macro.
+   Once you have initialized the `*mail*' buffer this way, sending the
+mail goes as usual (*note Sending Mail::.).  You can edit the
+presupplied header fields if they are not what you want.
 
-`M-x insert-kbd-macro'
-     Insert in the buffer a keyboard macro's definition, as Lisp code.
+   One additional Mail mode command is available when you invoke mail
+from Rmail: `C-c C-y' (`mail-yank-original') inserts into the outgoing
+message a copy of the current Rmail message.  Normally this is the
+message you are replying to, but you can also switch to the Rmail
+buffer, select a different message, switch back, and yank the new
+current message.  Normally the yanked message is indented four spaces
+and has most header fields deleted from it; an argument to `C-c C-y'
+specifies the amount to indent.  `C-u C-c C-y' neither indents the
+message nor deletes any header fields.
 
-   Keyboard macros differ from other Emacs commands in that they are
-written in the Emacs command language rather than in Lisp.  This makes
-it easier for the novice to write them, and makes them more convenient
-as temporary hacks.  However, the Emacs command language is not powerful
-enough as a programming language to be useful for writing anything
-general or complex.  For such things, Lisp must be used.
+   Another frequent reason to send mail in Rmail is to forward the
+current message to other users.  `f' (`rmail-forward') makes this easy
+by preinitializing the `*mail*' buffer with the current message as the
+text and a subject designating a forwarded message.  All you have to do
+is fill in the recipients and send.
 
-   You define a keyboard macro by executing the commands which are its
-definition.  Put differently, as you are defining a keyboard macro, the
-definition is being executed for the first time.  This way, you see
-what the effects of your commands are, and don't have to figure them
-out in your head.  When you are finished, the keyboard macro is defined
-and also has been executed once.  You can then execute the same set of
-commands again by invoking the macro.
+   You can use the `m' (`rmail-mail') command to start editing an
+outgoing message that is not a reply.  It leaves the header fields
+empty.  Its only difference from `C-x 4 m' is that it makes the Rmail
+buffer accessible for `C-c y', just as `r' does.  Thus `m' can be used
+to reply to or forward a message; it can do anything `r' or `f' can do.
+
+   The `c' (`rmail-continue') command resumes editing the `*mail*'
+buffer, to finish editing an outgoing message you were already
+composing, or to alter a message you have sent.
+
+
+File: lemacs.info,  Node: Rmail Editing,  Next: Rmail Digest,  Prev: Rmail Reply,  Up: Rmail
+
+Editing Within a Message
+========================
+
+   Rmail mode provides a few special commands for moving within and
+editing the current message.  In addition, the usual Emacs commands are
+available (except for a few, such as `C-M-n' and `C-M-h', that are
+redefined by Rmail for other purposes).  However, the Rmail buffer is
+normally read-only, and to alter it you must use the Rmail command `w'
+described below.
+
+`t'
+     Toggle display of original headers (`rmail-toggle-headers').
+
+`w'
+     Edit current message (`rmail-edit-current-message').
+
+   Rmail reformats the header of each message before displaying it.
+Normally this involves deleting most header fields, on the grounds that
+they are not interesting.  The variable `rmail-ignored-headers' should
+contain a regexp that matches the header fields to discard in this way.
+The original headers are saved permanently; to see what they look
+like, use the `t' (`rmail-toggle-headers') command.  This discards the
+reformatted headers of the current message and displays it with the
+original headers.  Repeating `t' reformats the message again.
+Selecting the message again also reformats.
+
+   The Rmail buffer is normally read-only, and most of the characters
+you would type to modify it (including most letters) are redefined as
+Rmail commands.  This is usually not a problem since people rarely want
+to change the text of a message.  When you do want to do this, type `w'
+(`rmail-edit-current-message'), which changes from Rmail mode to Rmail
+Edit mode, another major mode which is nearly the same as Text mode.
+The mode line indicates this change.
+
+   In Rmail Edit mode, letters insert themselves as usual and the Rmail
+commands are not available.  When you are finished editing the message
+and are ready to go back to Rmail, type `C-c C-c', which switches back
+to Rmail mode.  To return to Rmail mode but cancel all the editing you
+have done, type `C-c C-]'.
+
+   Entering Rmail Edit mode calls the value of the variable
+`text-mode-hook' with no arguments, if that value exists and is not
+`nil'.  It then does the same with the variable `rmail-edit-mode-hook'
+and finally adds the attribute `edited' to the message.
+
+
+File: lemacs.info,  Node: Rmail Digest,  Prev: Rmail Editing,  Up: Rmail
+
+Digest Messages
+===============
+
+   A "digest message" is a message which exists to contain and carry
+several other messages.  Digests are used on moderated mailing lists.
+All messages that arrive for the list during a period of time, such as
+one day, are put inside a single digest which is then sent to the
+subscribers.  Transmitting the single digest uses much less computer
+time than transmitting the individual messages even though the total
+size is the same, because the per-message overhead in network mail
+transmission is considerable.
+
+   When you receive a digest message, the most convenient way to read
+it is to "undigestify" it: to turn it back into many individual
+messages.  You can then read and delete the individual messages as it
+suits you.
+
+   To undigestify a message, select it and then type `M-x
+undigestify-rmail-message'.  This copies each submessage as a separate
+Rmail message and inserts them all following the digest.  The digest
+message itself is flagged as deleted.
+
+
+File: lemacs.info,  Node: Calendar/Diary,  Next: Sorting,  Prev: Rmail,  Up: Top
+
+Calendar Mode and the Diary
+===========================
+
+   Emacs provides the functions of a desk calendar, with a diary of past
+or planned events.  Display the calendar by typing `M-x calendar'.
+This command creates a window containing a three-month calendar centered
+on the current month, with point on the current date.  Or, provide a
+prefix argument by typing `C-u M-x calendar'; then you are prompted for
+the month and year to be the center of the three-month calendar.  In
+either case, you are now in Calendar mode.
+
+   Calendar mode makes it easy to look at the holidays or diary entries
+associated with various dates, and to change the diary entries.  You
+can move freely between the Calendar window and other windows.  To exit
+the calendar, type `q'.
 
 * Menu:
 
-* Basic Kbd Macro::     Defining and running keyboard macros.
-* Save Kbd Macro::      Giving keyboard macros names; saving them in files.
-* Kbd Macro Query::     Keyboard macros that do different things each use.
+* Calendar Motion::        Moving through the calendar; selecting a date.
+* Scroll Calendar::        Bringing earlier or later months onto the screen.
+* Mark and Region::        Remembering dates, the mark ring.
+* General Calendar::       Conveniences for moving about.
+* Holidays::               Displaying dates of holidays.
+* Sunrise/Sunset::         Displaying local times of sunrise and sunset.
+* Lunar Phases::           Displaying phases of the moon.
+* Other Calendars::        Converting dates to other calendar systems.
+* Diary::                  Displaying events from your diary.
+* Calendar Customization:: Altering the behavior of the features above.
 
 
-File: lemacs.info,  Node: Basic Kbd Macro,  Next: Save Kbd Macro,  Prev: Keyboard Macros,  Up: Keyboard Macros
+File: lemacs.info,  Node: Calendar Motion,  Next: Scroll Calendar,  Prev: Calendar/Diary,  Up: Calendar/Diary
 
-Basic Use
----------
+Movement in the Calendar
+------------------------
 
-   To start defining a keyboard macro, type `C-x ('
-(`start-kbd-macro').  From then on, anything you type continues to be
-executed, but also becomes part of the definition of the macro.  `Def'
-appears in the mode line to remind you of what is going on.  When you
-are finished, the `C-x )' command (`end-kbd-macro') terminates the
-definition, without becoming part of it.
+   Calendar mode lets you move in logical units of time such as days,
+weeks, months, and years.  Sometimes you need to move to a specific date
+in order to enter commands affecting its display or the associated diary
+entries.  If you move outside the three months originally displayed, the
+calendar display scrolls automatically through time.
 
-   For example
+* Menu:
 
-     C-x ( M-f foo C-x )
-
-defines a macro to move forward a word and then insert `foo'.
-
-   You can give `C-x )' a repeat count as an argument, in which case it
-repeats the macro that many times right after defining it, but defining
-the macro counts as the first repetition (since it is executed as you
-define it).  If you give `C-x )' an argument of 4, it executes the
-macro immediately 3 additional times.  An argument of zero to `C-x e'
-or `C-x )' means repeat the macro indefinitely (until it gets an error
-or you type `C-g').
-
-   Once you have defined a macro, you can invoke it again with the `C-x
-e' command (`call-last-kbd-macro').  You can give the command a repeat
-count numeric argument to execute the macro many times.
-
-   To repeat an operation at regularly spaced places in the text,
-define a macro and include as part of the macro the commands to move to
-the next place you want to use it.  For example, if you want to change
-each line, you should position point at the start of a line, and define
-a macro to change that line and leave point at the start of the next
-line.  Repeating the macro will then operate on successive lines.
-
-   After you have terminated the definition of a keyboard macro, you
-can add to the end of its definition by typing `C-u C-x ('.  This is
-equivalent to plain `C-x (' followed by retyping the whole definition
-so far.  As a consequence it re-executes the macro as previously
-defined.
+* Calendar Unit Motion::       Moving by days, weeks, months, and years.
+* Move to Beginning or End::   Moving to start/end of weeks, months, and years.
+* Specified Dates::            Moving to the current date or another specific date.
 
 
-File: lemacs.info,  Node: Save Kbd Macro,  Next: Kbd Macro Query,  Prev: Basic Kbd Macro,  Up: Keyboard Macros
+File: lemacs.info,  Node: Calendar Unit Motion,  Next: Move to Beginning or End,  Prev: Calendar Motion,  Up: Calendar Motion
 
-Naming and Saving Keyboard Macros
----------------------------------
+Motion by Integral Days, Weeks, Months, Years
+.............................................
 
-   To save a keyboard macro for longer than until you define the next
-one, you must give it a name using `M-x name-last-kbd-macro'.  This
-reads a name as an argument using the minibuffer and defines that name
-to execute the macro.  The macro name is a Lisp symbol, and defining it
-in this way makes it a valid command name for calling with `M-x' or for
-binding a key to with `global-set-key' (*note Keymaps::.).  If you
-specify a name that has a prior definition other than another keyboard
-macro, Emacs prints an error message and nothing is changed.
+   The commands for movement in the calendar buffer parallel the
+commands for movement in text.  You can move forward and backward by
+days, weeks, months, and years.
 
-   Once a macro has a command name, you can save its definition in a
-file.  You can then use it in another editing session.  First visit the
-file you want to save the definition in.  Then use the command
+`C-f'
+     Move point one day forward (`calendar-forward-day').
 
-     M-x insert-kbd-macro RET MACRONAME RET
+`C-b'
+     Move point one day backward (`calendar-backward-day').
 
-This inserts some Lisp code that, when executed later, will define the
-same macro with the same definition it has now.  You need not
-understand Lisp code to do this, because `insert-kbd-macro' writes the
-Lisp code for you.  Then save the file.  You can load the file with
-`load-file' (*note Lisp Libraries::.).  If the file you save in is your
-initialization file `~/.emacs' (*note Init File::.) then the macro will
-be defined each time you run Emacs.
+`C-n'
+     Move point one week forward (`calendar-forward-week').
 
-   If you give `insert-kbd-macro' a prefix argument, it creates
-additional Lisp code to record the keys (if any) that you have bound to
-the keyboard macro, so that the macro is reassigned the same keys when
-you load the file.
+`C-p'
+     Move point one week backward (`calendar-backward-week').
+
+`M-}'
+     Move point one month forward (`calendar-forward-month').
+
+`M-{'
+     Move point one month backward (`calendar-backward-month').
+
+`C-x ]'
+     Move point one year forward (`calendar-forward-year').
+
+`C-x ['
+     Move point one year backward (`calendar-forward-year').
+
+   The day and week commands are natural analogues of the usual Emacs
+commands for moving by characters and by lines.  Just as `C-n' usually
+moves to the same column in the following line, in Calendar mode it
+moves to the same day in the following week.  And `C-p' moves to the
+same day in the previous week.
+
+   The commands for motion by months and years work like those for
+weeks, but move a larger distance.  The month commands `M-}' and `M-{'
+move forward or backward by an entire month's time.  The year commands
+`C-x ]' and `C-x [' move forward or backward a whole year.
+
+   The easiest way to remember these commands is to consider months and
+years analogous to paragraphs and pages of text, respectively.  But the
+commands themselves are not quite analogous.  The ordinary Emacs
+paragraph commands move to the beginning or end of a paragraph, whereas
+these month and year commands move by an entire month or an entire
+year, which usually involves skipping across the end of a month or year.
+
+   Each of these commands accepts a numeric argument as a repeat count.
+For convenience, the digit keys and the minus sign are bound in
+Calendar mode so that it is unnecessary to type the `M-' prefix.  For
+example, `100 C-f' moves point 100 days forward from its present
+location.
 
 
-File: lemacs.info,  Node: Kbd Macro Query,  Prev: Save Kbd Macro,  Up: Keyboard Macros
+File: lemacs.info,  Node: Move to Beginning or End,  Next: Specified Dates,  Prev: Calendar Unit Motion,  Up: Calendar Motion
 
-Executing Macros with Variations
+Beginning or End of Week, Month or Year
+.......................................
+
+   A week (or month, or year) is not just a quantity of days; we think
+of new weeks (months, years) as starting on particular days.  So
+Calendar mode provides commands to move to the beginning or end of the
+week, month or year:
+
+`C-a'
+     Move point to beginning of week (`calendar-beginning-of-week').
+
+`C-e'
+     Move point to end of week (`calendar-end-of-week').
+
+`M-a'
+     Move point to beginning of month (`calendar-beginning-of-month').
+
+`M-e'
+     Move point to end of month (`calendar-end-of-month').
+
+`M-<'
+     Move point to beginning of year (`calendar-beginning-of-year').
+
+`M->'
+     Move point to end of year (`calendar-end-of-year').
+
+   These commands also take numeric arguments as repeat counts, with the
+repeat count indicating how many weeks, months, or years to move
+backward or forward.
+
+
+File: lemacs.info,  Node: Specified Dates,  Prev: Move to Beginning or End,  Up: Calendar Motion
+
+Particular Dates
+................
+
+   Calendar mode provides some commands for getting to a particular date
+quickly.
+
+`g d'
+     Move point to specified date (`calendar-goto-date').
+
+`o'
+     Center calendar around specified month (`calendar-other-month').
+
+`.'
+     Move point to today's date (`calendar-current-month').
+
+   `g d' (`calendar-goto-date') prompts for a year, a month, and a day
+of the month, and then goes to that date.  Because the calendar
+includes all dates from the beginning of the current era, you must type
+the year in its entirety; that is, type `1990', not `90'.
+
+   `o' (`calendar-other-month') prompts for a month and year, then
+centers the three-month calendar around that month.
+
+   You can return to the current date with `.'
+(`calendar-current-month').
+
+
+File: lemacs.info,  Node: Scroll Calendar,  Next: Mark and Region,  Prev: Calendar Motion,  Up: Calendar/Diary
+
+Scrolling the Calendar through Time
+-----------------------------------
+
+   The calendar display scrolls automatically through time when you
+move out of the visible portion.  You can also scroll it manually.
+Imagine that the calendar window contains a long strip of paper with
+the months on it.  Scrolling it means moving the strip so that new
+months become visible in the window.
+
+`C-x <'
+     Scroll calendar one month forward (`scroll-calendar-left').
+
+`C-x >'
+     Scroll calendar one month backward (`scroll-calendar-right').
+
+`C-v'
+     Scroll calendar three months forward
+     (`scroll-calendar-left-three-months').
+
+`M-v'
+     Scroll calendar three months backward
+     (`scroll-calendar-right-three-months').
+
+   The most basic calendar scroll commands scroll by one month at a
+time.  This means that there are two months of overlap between the
+display before the command and the display after.  `C-x <' scrolls the
+calendar contents one month to the left; that is, it moves the display
+forward in time.  `C-x >' scrolls the contents to the right, which
+moves backwards in time.
+
+   The commands `C-v' and `M-v' scroll the calendar by an entire
+"screenful"--three months--in analogy with the usual meaning of these
+commands.  `C-v' makes later dates visible and `M-v' makes earlier
+dates visible.  These commands also take a numeric argument as a repeat
+count; in particular, since `C-u' (`universal-argument') multiplies the
+next command by four, typing `C-u C-v' scrolls the calendar forward by
+a year and typing `C-u M-v' scrolls the calendar backward by a year.
+
+   Any of the special Calendar mode commands scrolls the calendar
+automatically as necessary to ensure that the date you have moved to is
+visible.
+
+
+File: lemacs.info,  Node: Mark and Region,  Next: General Calendar,  Prev: Scroll Calendar,  Up: Calendar/Diary
+
+The Mark and the Region
+-----------------------
+
+   The concept of the mark applies to the calendar just as to any other
+buffer, but it marks a *date*, not a *position* in the buffer.  The
+region consists of the days between the mark and point (including the
+starting and stopping dates).
+
+`C-SPC'
+     Set the mark to today's date (`calendar-set-mark').
+
+`C-@'
+     The same.
+
+`C-x C-x'
+     Interchange mark and point (`calendar-exchange-point-and-mark').
+
+`M-='
+     Display the number of days in the current region
+     (`calendar-count-days-region').
+
+   You set the mark in the calendar, as in any other buffer, by using
+`C-@' or `C-SPC' (`calendar-set-mark').  You return to the marked date
+with the command `C-x C-x' (`calendar-exchange-point-and-mark') which
+puts the mark where point was and point where mark was.  The calendar
+is scrolled as necessary, if the marked date was not visible on the
+screen.  This does not change the extent of the region.
+
+   To determine the number of days in the region, type `M-='
+(`calendar-count-days-region').  The numbers of days printed is
+*inclusive*, that is, includes the days specified by mark and point.
+
+   The main use of the mark in the calendar is to remember dates that
+you may want to go back to.  To make this feature more useful, the mark
+ring (*note Mark Ring::.) operates exactly as in other buffers:  Emacs
+remembers 16 previous locations of the mark.  To return to a marked
+date, type `C-u C-SPC' (or `C-u C-@'); this is the command
+`calendar-set-mark' given a numeric argument.  It moves point to where
+the mark was, restores the mark from the ring of former marks, and
+stores the previous point at the end of the mark ring.  So, repeated
+use of this command moves point through all the old marks on the ring,
+one by one.
+
+
+File: lemacs.info,  Node: General Calendar,  Next: Holidays,  Prev: Mark and Region,  Up: Calendar/Diary
+
+Miscellaneous Calendar Commands
+-------------------------------
+
+`p d'
+     Display day-in-year (`calendar-print-day-of-year').
+
+`?'
+     Briefly describe calendar commands (`describe-calendar-mode').
+
+`SPC'
+     Scroll the next window (`scroll-other-window').
+
+`C-c C-l'
+     Regenerate the calendar window (`redraw-calendar').
+
+`q'
+     Exit from calendar (`exit-calendar').
+
+   If you want to know how many days have elapsed since the start of
+the year, or the number of days remaining in the year, type the `p d'
+command (`calendar-print-day-of-year').  This displays both of those
+numbers in the echo area.
+
+   To display a brief description of the calendar commands, type `?'
+(`describe-calendar-mode').  For a fuller description, type `C-h m'.
+
+   You can use `SPC' (`scroll-other-window') to scroll the other
+window.  This is handy when you display a list of holidays or diary
+entries in another window.
+
+   If the calendar window gets corrupted, type `C-c C-l'
+(`redraw-calendar') to redraw it.
+
+   To exit from the calendar, type `q' (`exit-calendar').  This buries
+all buffers related to the calendar and returns the window display to
+what it was when you entered the calendar.
+
+
+File: lemacs.info,  Node: Holidays,  Next: Sunrise/Sunset,  Prev: General Calendar,  Up: Calendar/Diary
+
+Holidays
+--------
+
+   The Emacs calendar knows about all major and many minor holidays.
+
+`h'
+     Display holidays for the date indicated by point
+     (`calendar-cursor-holidays').
+
+`x'
+     Mark holidays in the calendar window (`mark-calendar-holidays').
+
+`u'
+     Unmark calendar window (`calendar-unmark').
+
+`a'
+     List all holidays for the displayed three months in another window
+     (`list-calendar-holidays').
+
+`M-x holidays'
+     List all holidays for three months around today's date in another
+     window.
+
+   To see if any holidays fall on a given date, position point on that
+date in the calendar window and use the `h' command.  The holidays are
+usually listed in the echo area, but if there are too many to fit in
+one line, then they are displayed in a separate window.
+
+   To find the distribution of holidays for a wider period, you can use
+the `x' command.  This places a `*' next to every date on which a
+holiday falls.  The command applies both to the currently visible dates
+and to new dates that become visible by scrolling.  To turn marking off
+and erase the current marks, type `u', which also erases any diary
+marks (*note Diary::.).
+
+   To get even more detailed information, use the `a' command, which
+displays a separate buffer containing a list of all holidays in the
+current three-month range.
+
+   You can display the list of holidays for the current month and the
+preceding and succeeding months even if you don't have a calendar
+window.  Use the command `M-x holidays'.  If you want the list of
+holidays centered around a different month, use `C-u M-x holidays' and
+type the month and year.
+
+   The holidays known to Emacs include American holidays and the major
+Christian, Jewish, and Islamic holidays; when floating point is
+available, Emacs also knows about solstices and equinoxes.  The dates
+used by Emacs for holidays are based on *current practice*, not
+historical fact.  Historically, for instance, the start of daylight
+savings time and even its existence have varied from year to year.
+However present American law mandates that daylight savings time begins
+on the first Sunday in April; this is the definition that Emacs uses,
+even though it is wrong for some prior years.
+
+
+File: lemacs.info,  Node: Sunrise/Sunset,  Next: Lunar Phases,  Prev: Holidays,  Up: Calendar/Diary
+
+Times of Sunrise and Sunset
+---------------------------
+
+   Emacs can tell you, to within a minute or two, the times of sunrise
+and sunset for any date, if floating point is available.
+
+`S'
+     Display times of sunrise and sunset for the date indicated by point
+     (`calendar-sunrise-sunset').
+
+`M-x sunrise-sunset'
+     Display times of sunrise and sunset for today's date.
+
+   Move point to the date you want, and type `S', to display the *local
+times* of sunrise and sunset in the echo area.
+
+   You can display the times of sunrise and sunset for the current date
+even if you don't have a calendar window.  Use the command `M-x
+sunrise-sunset'.  If you want the times of sunrise and sunset for a
+different date, use `C-u M-x sunrise-sunset' and type the year, month,
+and day.
+
+   Because the times of sunrise and sunset depend on the location on
+earth, you need to tell Emacs your latitude, longitude, and location
+name.  Here is an example of what to set:
+
+     (setq calendar-latitude 40.1)
+     (setq calendar-longitude -88.2)
+     (setq calendar-location-name "Urbana, IL")
+
+Use one decimal place in the values of `calendar-latitude' and
+`calendar-longitude'.
+
+   Your time zone also affects the local time of sunrise and sunset.
+Emacs usually gets this information from the operating system, but if
+these values are not what you want (or if the operating system does not
+supply them), you'll need to set them yourself, like this:
+
+     (setq calendar-time-zone -360)
+     (setq calendar-standard-time-zone-name "CST")
+     (setq calendar-daylight-time-zone-name "CDT")
+
+The value of `calendar-time-zone' is the number of minutes difference
+between your local standard time and Universal Time (Greenwich time).
+The values of `calendar-standard-time-zone-name' and
+`calendar-daylight-time-zone-name' are the abbreviations used in your
+time zone.
+
+   Emacs displays the times of sunrise and sunset *corrected for
+daylight savings time* (this convenience is unusual; most tables of
+sunrise and sunset use standard time).  The default rule for the
+starting and stopping dates of daylight savings time is the American
+rule.  *Note Daylight Savings::
+
+   You can display the times of sunrise and sunset for any location and
+any date with `C-u C-u M-x sunrise-sunset'.  Emacs asks you for a
+longitude, latitude, number of minutes difference from Universal time,
+and date, and then tells you the times of sunrise and sunset for that
+location on that date.  The times are usually given in the echo area,
+but if the message is too long fit in one line, they are displayed in a
+separate window.
+
+
+File: lemacs.info,  Node: Lunar Phases,  Next: Other Calendars,  Prev: Sunrise/Sunset,  Up: Calendar/Diary
+
+Phases of the Moon
+------------------
+
+   Emacs can tell you the dates and times of the phases of the moon (new
+moon, first quarter, full moon, last quarter), if floating point is
+available.
+
+`M'
+     List, in another window, the dates and times for all the quarters
+     of the moon for the three-month period shown in the calendar window
+     (`calendar-phases-of-moon').
+
+`M-x phases-of-moon'
+     List dates and times of the quarters of the moon for three months
+     around today's date in another window.
+
+   Use the `M' command to display a separate buffer of the phases of
+the moon for the current three-month range.  The dates and times listed
+are accurate to within a few minutes.
+
+   You can display the list of the phases of the moon for the current
+month and the preceding and succeeding months even if you don't have a
+calendar window.  Use the command `M-x phases-of-moon'.  If you want
+the phases of the moon centered around a different month, use `C-u M-x
+phases-of-moon' and type the month and year.
+
+   The dates and times given for the phases of the moon are given in
+local time (corrected for daylight savings, when appropriate); but if
+the variable `calendar-time-zone' is void, Universal Time (the
+Greenwich time zone) is used.  *Note Daylight Savings::
+
+
+File: lemacs.info,  Node: Other Calendars,  Next: Diary,  Prev: Lunar Phases,  Up: Calendar/Diary
+
+Our Calendar and Other Calendars
 --------------------------------
 
-   You can use `C-x q' (`kbd-macro-query'), to get an effect similar to
-that of `query-replace'.  The macro asks you  each time whether to make
-a change.  When you are defining the macro, type `C-x q' at the point
-where you want the query to occur.  During macro definition, the `C-x
-q' does nothing, but when you invoke the macro, `C-x q' reads a
-character from the terminal to decide whether to continue.
+   The Emacs calendar displayed is *always* the Gregorian calendar,
+sometimes called the "new style" calendar, which is used in most of the
+world today.  However, this calendar did not exist before the sixteenth
+century and was not widely used before the eighteenth century; it did
+not fully displace the Julian calendar and gain universal acceptance
+until the early twentieth century.  This poses a problem for the Emacs
+calendar: you can ask for the calendar of any month starting with
+January, year 1 of the current era, but the calendar displayed is the
+Gregorian, even for a date at which the Gregorian calendar did not
+exist!
 
-   The special answers to a `C-x q' query are SPC, DEL, `C-d', `C-l'
-and `C-r'.  Any other character terminates execution of the keyboard
-macro and is then read as a command.  SPC means to continue.  DEL means
-to skip the remainder of this repetition of the macro, starting again
-from the beginning in the next repetition.  `C-d' means to skip the
-remainder of this repetition and cancel further repetition.  `C-l'
-redraws the screen and asks you again for a character to specify what
-to do.  `C-r' enters a recursive editing level, in which you can
-perform editing which is not part of the macro.  When you exit the
-recursive edit using `C-M-c', you are asked again how to continue with
-the keyboard macro.  If you type a SPC at this time, the rest of the
-macro definition is executed.  It is up to you to leave point and the
-text in a state such that the rest of the macro will do what you want.
+   Emacs knows about several different calendars, though, not just the
+Gregorian calendar.  The following commands describe the date indicated
+by point in various calendar notations:
 
-   `C-u C-x q', which is `C-x q' with a numeric argument, performs a
-different function.  It enters a recursive edit reading input from the
-keyboard, both when you type it during the definition of the macro, and
-when it is executed from the macro.  During definition, the editing you
-do inside the recursive edit does not become part of the macro.  During
-macro execution, the recursive edit gives you a chance to do some
-particularized editing.  *Note Recursive Edit::.
+`p c'
+     Display ISO commercial calendar equivalent for selected day
+     (`calendar-print-iso-date').
+
+`p j'
+     Display Julian date for selected day
+     (`calendar-print-julian-date').
+
+`p a'
+     Display astronomical (Julian) day number for selected day
+     (`calendar-print-astro-day-number').
+
+`p h'
+     Display Hebrew date for selected day
+     (`calendar-print-hebrew-date').
+
+`p i'
+     Display Islamic date for selected day
+     (`calendar-print-islamic-date').
+
+`p f'
+     Display French Revolutionary date for selected day
+     (`calendar-print-french-date').
+
+`p m'
+     Display Mayan date for selected day (`calendar-print-mayan-date').
+
+   If you are interested in these calendars, you can convert dates one
+at a time.  Put point on the desired date of the Gregorian calendar and
+press the appropriate keys.  The `p' is a mnemonic for "print" since
+Emacs "prints' the equivalent date in the echo area.
+
+   The ISO commercial calendar is used largely in Europe.
+
+   The Julian calendar, named after Julius Caesar, was the one used in
+Europe throughout medieval times, and in many countries up until the
+nineteenth century.
+
+   Astronomers use a simple counting of days elapsed since noon, Monday,
+January 1, 4713 B.C. on the Julian calendar.  The number of days elapsed
+is called the *Julian day number* or the *Astronomical day number*.
+
+   The Hebrew calendar is the one used to determine the dates of Jewish
+holidays.  Hebrew calendar dates begin and end at sunset.
+
+   The Islamic (Moslem) calendar is the one used to determine the dates
+of Moslem holidays.  There is no universal agreement in the Islamic
+world about the calendar; Emacs uses a widely accepted version, but the
+precise dates of Islamic holidays often depend on proclamation by
+religious authorities, not on calculations.  As a consequence, the
+actual dates of occurrence can vary slightly from the dates computed by
+Emacs.  Islamic calendar dates begin and end at sunset.
+
+   The French Revolutionary calendar was created by the Jacobins after
+the 1789 revolution, to represent a more secular and nature-based view
+of the annual cycle, and to install a 10-day week in a rationalization
+measure similar to the metric system.  The French government officially
+abandoned this calendar at the end of 1805.
+
+   The Maya of Central America used three separate, overlapping calendar
+systems, the *long count*, the *tzolkin*, and the *haab*.  Emacs knows
+about all three of these calendars.  Experts dispute the exact
+correlation between the Mayan calendar and our calendar; Emacs uses the
+Goodman-Martinez-Thompson correlation in its calculations.
+
+   You can move to dates that you specify on the Commercial, Julian,
+astronomical, Hebrew, Islamic, or French calendars:
+
+`g c'
+     Move point to a date specified by the ISO commercial calendar
+     (`calendar-goto-iso-date').
+
+`g j'
+     Move point to a date specified by the Julian calendar
+     (`calendar-goto-julian-date').
+
+`g a'
+     Move point to a date specified by astronomical (Julian) day number
+     (`calendar-goto-astro-day-number').
+
+`g h'
+     Move point to a date specified by the Hebrew calendar
+     (`calendar-goto-hebrew-date').
+
+`g i'
+     Move point to a date specified by the Islamic calendar
+     (`calendar-goto-islamic-date').
+
+`g f'
+     Move point to a date specified by the French Revolutionary calendar
+     (`calendar-goto-french-date').
+
+   These commands ask you for a date on the other calendar, move point
+to the Gregorian calendar date equivalent to that date, and display the
+other calendar's date in the echo area.  Emacs uses strict completion
+(*note Completion::.) whenever it asks you to type a month name, so you
+don't have to worry about the spelling of Hebrew, Islamic, or French
+names.
+
+   One common question concerning the Hebrew calendar is the computation
+of the anniversary of a date of death, called a "yahrzeit."  The Emacs
+calendar includes a facility for such calculations.  If you are in the
+calendar, the command `M-x list-yahrzeit-dates' asks you for a range of
+years and then displays a list of the yahrzeit dates for those years
+for the date given by point.  If you are not in the calendar, this
+command first asks you for the date of death and the range of years,
+and then displays the list of yahrzeit dates.
+
+   Emacs also has many commands for movement on the Mayan calendars.
+
+`g m l'
+     Move point to a date specified by the Mayan long count calendar
+     (`calendar-goto-mayan-long-count-date').
+
+`g m p t'
+     Move point to the previous occurrence of a date specified by the
+     Mayan tzolkin calendar (`calendar-previous-tzolkin-date').
+
+`g m n t'
+     Move point to the next occurrence of a date specified by the Mayan
+     tzolkin calendar (`calendar-next-tzolkin-date').
+
+`g m p h'
+     Move point to the previous occurrence of a date specified by the
+     Mayan haab calendar (`calendar-previous-haab-date').
+
+`g m n h'
+     Move point to the next occurrence of a date specified by the Mayan
+     haab calendar (`calendar-next-haab-date').
+
+`g m p c'
+     Move point to the previous occurrence of a date specified by the
+     Mayan calendar round (`calendar-previous-calendar-round-date').
+
+`g m n c'
+     Move point to the next occurrence of a date specified by the Mayan
+     calendar round (`calendar-next-calendar-round-date').
+
+   To understand these commands, you need to understand the Mayan
+calendars.  The long count is a counting of days with units
+
+1 kin
+     = 1  day
+
+1 uinal
+     = 20 kin
+
+1 tun
+     = 18 uinal
+
+1 katun
+     = 20 tun
+
+1 baktun
+     = 20 katun
+
+Thus, the long count date 12.16.11.16.6 means 12 baktun, 16 katun, 11
+tun, 16 uinal, and 6 kin.  The Emacs calendar can handle Mayan long
+count dates as early as 7.17.18.13.1, but no earlier.  When you use the
+`g m l' command, type the Mayan long count date with the baktun, katun,
+tun, uinal, and kin separated by periods.
+
+   The Mayan tzolkin calendar is a cycle of 260 days formed by a pair of
+independent cycles of 13 and 20 days.  Like the haab cycle, this cycle
+repeats endlessly, and you can go backward and forward to the previous
+or next (respectively) point in the cycle.  When you type `g m p t',
+Emacs asks you for a tzolkin date and moves point to the previous
+occurrence of that date; type `g m n t' to go to the next occurrence.
+
+   The Mayan haab calendar is a cycle of 365 days arranged as 18 months
+of 20 days each, followed a 5-day monthless period.  Since this cycle
+repeats endlessly, Emacs lets you go backward and forward to the
+previous or next (respectively) point in the cycle.  Type `g m p h' to
+go to the previous haab date; Emacs asks you for a haab date and moves
+point to the previous occurrence of that date.  Similarly, type `g m n
+h' to go to the next haab date.
+
+   The Maya also used the combination of the tzolkin date and the haab
+date.  This combination is a cycle of about 52 years called a *calendar
+round*.  If you type `g m p c', Emacs asks you for both a haab and a
+tzolkin date and then moves point to the previous occurrence of that
+combination.  Use `g m p c' to move point to the next occurrence.
+Emacs signals an error if the haab/tzolkin date you have typed cannot
+occur.
+
+   Emacs uses strict completion (*note Completion::.) whenever it asks
+you to type a Mayan name, so you don't have to worry about spelling.
+
+
+File: lemacs.info,  Node: Diary,  Next: Calendar Customization,  Prev: Other Calendars,  Up: Calendar/Diary
+
+The Diary
+---------
+
+   Associated with the Emacs calendar is a diary that keeps track of
+appointments or other events on a daily basis.  To use the diary
+feature, you must first create a "diary file" containing a list of
+events and their dates.  Then Emacs can automatically pick out and
+display the events for today, for the immediate future, or for any
+specified date.
+
+   By default, Emacs expects your diary file to be named `~/diary'.  It
+uses the same format as the `calendar' utility.  A sample `~/diary'
+file is:
+
+     12/22/1988 Twentieth wedding anniversary!!
+     &1/1. Happy New Year!
+     10/22 Ruth's birthday.
+     * 21, *: Payday
+     Tuesday--weekly meeting with grad students at 10am
+              Supowit, Shen, Bitner, and Kapoor to attend.
+     1/13/89 Friday the thirteenth!!
+     &thu 4pm squash game with Lloyd.
+     mar 16 Dad's birthday
+     April 15, 1989 Income tax due.
+     &* 15 time cards due.
+
+   Although you probably will start by creating a diary manually, Emacs
+provides a number of commands to let you view, add, and change diary
+entries.  You can also share diary entries with other users (*note
+Included Diary Files::.).
+
+* Menu:
+
+* Diary Commands::         Viewing diary entries and associated calendar dates.
+* Format of Diary File::   Entering events in your diary.
+* Special Diary Entries::  Anniversaries, blocks of dates, cyclic entries, etc.
+
+
+File: lemacs.info,  Node: Diary Commands,  Next: Format of Diary File,  Prev: Diary,  Up: Diary
+
+Commands Displaying Diary Entries
+---------------------------------
+
+   Once you have created a `~/diary' file, you can view it within
+Calendar mode.  You can also view today's events independently of
+Calendar mode.
+
+`d'
+     Display any diary entries for the selected date
+     (`view-diary-entries').
+
+`s'
+     Display entire diary file (`show-all-diary-entries').
+
+`m'
+     Mark all visible dates that have diary entries
+     (`mark-diary-entries').
+
+`u'
+     Unmark calendar window (`calendar-unmark').
+
+`M-x print-diary-entries'
+     Print a hard copy of the diary display as it appears.
+
+`M-x diary'
+     Display any diary entries for today's date.
+
+   Displaying the diary entries with `d' shows in a separate window the
+diary entries for the date indicated by point in the calendar window.
+The mode line of the new window shows the date of the diary entries and
+any holidays that fall on that date.
+
+   If you specify a numeric argument with `d', then all the diary
+entries for that many successive days are shown.  Thus, `2 d' displays
+all the entries for the selected date and for the following day.
+
+   To get a broader overview of which days are mentioned in the diary,
+use the `m' command to mark those days in the calendar window.  The
+marks appear next to the dates to which they apply.  The `m' command
+affects the dates currently visible and, if you scroll the calendar,
+newly visible dates as well.  The `u' command deletes all diary marks
+(and all holiday marks too; *note Holidays::.), not only in the dates
+currently visible, but dates that become visible when you scroll the
+calendar.
+
+   For more detailed information, use the `s' command, which displays
+the entire diary file.
+
+   Display of selected diary entries uses the selective display feature,
+the same feature that Outline mode uses to show part of an outline
+(*note Outline Mode::.).  This involves hiding the diary entries that
+are not relevant, by changing the preceding newline into an ASCII
+control-m (code 015).  The hidden lines are part of the buffer's text,
+but they are invisible; they don't appear on the screen.  When you save
+the diary file, the control-m characters are saved as newlines; thus,
+the invisible lines become ordinary lines in the file.
+
+   Because the diary buffer as you see it is an illusion, simply
+printing the contents does not print what you see on your screen.  So
+there is a special command to print a hard copy of the buffer *as it
+appears*; this command is `M-x print-diary-entries'.  It sends the data
+directly to the printer.  You can customize it like `lpr-region' (*note
+Hardcopy::.).
+
+   The command `M-x diary' displays the diary entries for the current
+date, independently of the calendar display, and optionally for the next
+few days as well; the variable `number-of-diary-entries' specifies how
+many days to include (*note Customization::.).
+
+   If you put in your `.emacs' file:
+
+     (diary)
+
+it automatically displays a window with the day's diary entries, when
+you enter Emacs.  The mode line of the displayed window shows the date
+and any holidays that fall on that date.
+
+
+File: lemacs.info,  Node: Format of Diary File,  Next: Special Diary Entries,  Prev: Diary Commands,  Up: Diary
+
+The Diary File
+--------------
+
+   Your "diary file" is a file that records events associated with
+particular dates.  The name of the diary file is specified by the
+variable `diary-file'; `~/diary' is the default.  You can use the same
+file for the `calendar' utility program, since its formats are a subset
+of the ones allowed by the Emacs Calendar.
+
+   Each entry in the file describes one event and consists of one or
+more lines.  It always begins with a date specification at the left
+margin.  The rest of the entry is simply text to describe the event.
+If the entry has more than one line, then the lines after the first
+must begin with whitespace to indicate they continue a previous entry.
+
+   Here are some sample diary entries, illustrating different ways of
+formatting a date.  The examples all show dates in American order
+(month, day, year), but Calendar mode offers (day, month, year)
+ordering too.
+
+     4/20/93  Switch-over to new tabulation system
+     apr. 25  Start tabulating annual results
+     4/30  Results for April are due
+     */25  Monthly cycle finishes
+     Friday  Don't leave without backing up files
+
+   The first entry appears only once, on April 20, 1993.  The second and
+third appear every year on the specified dates, and the fourth uses a
+wildcard (asterisk) for the month, so it appears on the 25th of every
+month.  The final entry appears every week on Friday.
+
+   You can also use just numbers to express a date, as in `MONTH/DAY' or
+`MONTH/DAY/YEAR'.  This must be followed by a nondigit.  In the date
+itself, MONTH and DAY are numbers of one or two digits.  YEAR is a
+number and may be abbreviated to the last two digits; that is, you can
+use `11/12/1989' or `11/12/89'.
+
+   A date may be "generic", or partially unspecified.  Then the entry
+applies to all dates that match the specification.  If the date does
+not contain a year, it is generic and applies to any year.
+Alternatively, MONTH, DAY, or YEAR can be a `*'; this matches any
+month, day, or year, respectively.  Thus, a diary entry `3/*/*' matches
+any day in March of any year.
+
+   Dates can also have the form `MONTHNAME DAY' or `MONTHNAME DAY,
+YEAR', where the month's name can be spelled in full or abbreviated to
+three characters (with or without a period).  Case is not significant.
+If the date does not contain a year, it is generic and applies to any
+year.  Also, MONTHNAME, DAY, or YEAR can be a `*' which matches any
+month, day, or year, respectively.
+
+   If you prefer the European style of writing dates--in which the day
+comes before the month--type `M-x european-calendar' while in the
+calendar, or set the variable `european-calendar-style' to `t' in your
+`.emacs' file *before* the calendar or diary command.  This mode
+interprets all dates in the diary in the European manner, and also uses
+European style for displaying diary dates.  (Note that there is no
+comma after the MONTHNAME in the European style.)
+
+   To revert to the (default) American style of writing dates, type `M-x
+american-calendar'.
+
+   You can use the name of a day of the week as a generic date which
+applies to any date falling on that day of the week.  You can abbreviate
+the day of the week to three letters (with or without a period) or spell
+it in full; it need not be capitalized.
+
+   You can inhibit the marking of certain diary entries in the calendar
+window; to do this, insert an ampersand (`&') at the beginning of the
+entry, before the date.  This has no effect on display of the entry in
+the diary window; it affects only marks on dates in the calendar
+window.  Nonmarking entries are especially useful for generic entries
+that would otherwise mark many different dates.
+
+   Lines that do not begin with valid dates and do not continue a
+preceding entry are ignored.
+
+   If the first line of a diary entry consists only of the date or day
+name with no following blanks or punctuation, then the diary window
+display doesn't include that line; only the continuation lines appear.
+For example:
+
+     02/11/1989
+           Bill B. visits Princeton today
+           2pm Cognitive Studies Committee meeting
+           2:30-5:30 Liz at Lawrenceville
+           4:00pm Dentist appt
+           7:30pm Dinner at George's
+           8:00-10:00pm concert
+
+appears in the diary window without the date line at the beginning.
+This style of entry looks neater when you display just a single day's
+entries, but can cause confusion if you ask for more than one day's
+entries.
+
+   You can edit the diary entries as they appear in the window, but it
+is important to remember that the buffer displayed contains the *entire*
+diary file, with portions of it concealed from view.  This means, for
+instance, that the `C-f' (`forward-char') command can put point at what
+appears to be the end of the line, but what is in reality the middle of
+some concealed line.  *Be careful when editing the diary entries!*
+Inserting additional lines or adding/deleting characters in the middle
+of a visible line cannot cause problems.  Watch out for `C-e'
+(`end-of-line'), however; it may put you at the end of a concealed line
+far from where point appears to be!  Before editing the diary, it is
+best to display the entire file with `s' (`show-all-diary-entries').
+
+   While in the calendar, there are several commands to help you in
+making entries to your diary.
+
+`i d'
+     Add a diary entry for the selected date (`insert-diary-entry').
+
+`i w'
+     Add a diary entry for the selected day of the week
+     (`insert-weekly-diary-entry').
+
+`i m'
+     Add a diary entry for the selected day of the month
+     (`insert-monthly-diary-entry').
+
+`i y'
+     Add a diary entry for the selected day of the year
+     (`insert-yearly-diary-entry').
+
+   You can make a diary entry for a specific date by moving point to
+that date in the calendar window and using the `i d' command.  This
+command displays the end of your diary file in another window and
+inserts the date; you can then type the rest of the diary entry.
+
+   If you want to make a diary entry that applies to a specific day of
+the week, move point to that day of the week (any occurrence will do)
+and use the `i w' command.  This displays the end of your diary file in
+another window and inserts the day-of-week as a generic date; you can
+then type the rest of the diary entry.
+
+   You make a monthly diary entry in the same fashion.  Move point to
+the day of the month, use the `i m' command, and type the diary entry.
+Similarly, you make a yearly diary entry with the `i y' command.
+
+   All of the above commands make marking diary entries.  If you want
+the diary entry to be nonmarking, give a prefix argument to the
+command.  For example, `C-u i w' makes a nonmarking, weekly diary entry.
+
+   If you modify the diary, be sure to write the file before exiting
+from the calendar.
 

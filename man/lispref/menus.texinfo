@@ -1,0 +1,411 @@
+@c -*-texinfo-*-
+@c This is part of the GNU Emacs Lisp Reference Manual.
+@c Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc. 
+@c See the file lispref.texinfo for copying conditions.
+@setfilename ../../info/menu.info
+@node Menus, Dialog Boxes, Keymaps, Top
+@chapter Menus
+@cindex menu
+
+@menu
+* Menu Format::
+* Menubar Format::
+* Menubar::
+* Modifying Menus::
+* Pop-Up Menus::
+* Menu Hooks::
+* Buffers Menu::
+@end menu
+
+@node Menu Format
+@section Format of Menus
+@cindex menu format
+@cindex format of menus
+
+A menu is described using a @dfn{menu description}, which is a list of
+menu items, strings, and submenus.  The menu description specifies which
+items are present in the menu, what function each item invokes, and
+whether the item is selectable or not.  Pop-up menus are directly
+described with a menu description, while menubars are described slightly
+differently (see below).
+
+The first element of a menu must be a string, which is the name of the
+menu.  This is the string that will be displayed in the parent menu or
+menubar, if any.  This string is not displayed in the menu itself,
+except in the case of the top level pop-up menu, where there is no
+parent.  In this case, the string will be displayed at the top of the
+menu if @code{popup-menu-titles} is non-@code{nil}.
+
+The rest of the menu consists of elements as follows:
+
+@itemize @bullet
+@item
+A @dfn{menu item}, which is a vector of three or four elements as follows:
+
+@itemize @minus
+@item
+the name of the menu item (a string);
+@item
+the @dfn{callback} of that item;
+@item
+whether this item is active (selectable);
+@item
+and an optional string to append to the name.
+@end itemize
+
+If the callback of a menu item is a symbol, then it must name a command.
+It will be invoked with @code{call-interactively}.  If it is a list,
+then it is evaluated with @code{eval}.
+
+The third element of a menu item should either be @code{t}, @code{nil},
+or a form to evaluate (with no arguments) to decide whether this item
+should be selectable.
+
+The fourth element of a menu item is a convenient way of adding the name
+of a command's ``argument'' to the menu, like @samp{Kill Buffer NAME}.
+
+@item
+If an element of a menu is a string, then that string will be presented
+in the menu as unselectable text.
+
+@item
+If an element of a menu is a string consisting solely of hyphens, then
+that item will be presented as a solid horizontal line.
+
+@item
+If an element of a menu is a list, it is treated as a submenu.  The name
+of that submenu (the first element in the list) will be used as the name
+of the item representing this menu on the parent.
+@end itemize
+
+The syntax, more precisely:
+
+@example
+   form		:=  <something to pass to `eval'>
+   command	:=  <a symbol or string, to pass to `call-interactively'>
+   callback 	:=  command | form
+   active-p	:=  <t, nil, or a form to evaluate to decide whether this
+		    item should be selectable>
+   text		:=  <string, non selectable>
+   name		:=  <string>
+   argument	:=  <string>
+   menu-item	:=  '['  name callback active-p [ argument ]  ']'
+   menu		:=  '(' name [ menu-item | menu | text ]+ ')'
+@end example
+
+@node Menubar Format
+@section Format of the Menubar
+@cindex menubar format
+@cindex format of the menubar
+
+A menubar is a list of menus, menu items, and strings.  The format is
+similar to that of a menu, except:
+
+@itemize @bullet
+@item
+The first item need not be a string, and is not treated specially.
+
+@item
+A string consisting solely of hyphens is not treated specially.
+
+@item
+If an element of a menubar is @code{nil}, then it is used to represent
+the division between the set of menubar items which are flush-left and
+those which are flush-right.  (Note: this isn't completely implemented
+yet.)
+@end itemize
+
+@node Menubar
+@section Menubar
+@cindex menubar
+
+@defvar current-menubar
+This variable holds the description of the current menubar.  This may be
+buffer-local.  When the menubar is changed, the function
+@code{set-menubar-dirty-flag} has to be called in order for the menubar
+to be updated on the screen.
+@end defvar
+
+@defun set-menubar-dirty-flag
+This function tells Emacs that the menubar widget has to be updated.
+Changes to the menubar will generally not be visible until this function
+is called.
+@end defun
+
+The following convenience functions are provided for setting the
+menubar.  They are equivalent to doing the appropriate action to change
+@code{current-menubar}, and then calling @code{set-menubar-dirty-flag}.
+Note that these functions copy their argument using
+@code{copy-sequence}.
+
+@defun set-menubar menubar
+This function sets the default menubar to be @var{menubar} (@pxref{Menu
+Format}).  This is the menubar that will be visible in buffers that
+have not defined their own, buffer-local menubar.
+@end defun
+
+@defun set-buffer-menubar menubar
+This function sets the buffer-local menubar to be @var{menubar}.  This
+does not change the menubar in any buffers other than the current one.
+@end defun
+
+Miscellaneous:
+
+@defvar menubar-show-keybindings
+If true, the menubar will display keyboard equivalents.  If false, only
+the command names will be displayed.
+@end defvar
+
+@node Modifying Menus
+@section Modifying Menus
+
+The following functions are provided to modify the menubar of one of its
+submenus.  Note that these functions modify the menu in-place, rather
+than copying it and making a new menu.
+
+Some of these functions take a @dfn{menu path}, which is a list of
+strings identifying the menu to be modified.  For example,
+@code{("File")} names the top-level ``File'' menu.  @code{("File"
+"Foo")} names a hypothetical submenu of ``File''.
+
+Others take a @dfn{menu item path}, which is similar to a menu path but
+also specifies a particular item to be modified.  For example,
+@code{("File" "Save")} means the menu item called ``Save'' under the
+top-level ``File'' menu.  @code{("Menu" "Foo" "Item")} means the menu
+item called ``Item'' under the ``Foo'' submenu of ``Menu''.
+
+@defun add-menu menu-path menu-name menu-items &optional before
+This function adds a menu to the menubar or one of its submenus.  If the
+named menu exists already, it is changed.
+
+@var{menu-path} identifies the menu under which the new menu should be
+inserted.  If @var{menu-path} is @code{nil}, then the menu will be added
+to the menubar itself.
+
+@var{menu-name} is the string naming the menu to be added;
+@var{menu-items} is a list of menu items, strings, and submenus.  These
+two arguments are the same as the first and following elements of a menu
+description (@pxref{Menu Format}).
+
+@var{before}, if provided, is the name of a menu before which this
+menu should be added, if this menu is not on its parent already.  If the
+menu is already present, it will not be moved.
+@end defun
+
+@defun add-menu-item menu-path item-name function enabled-p &optional before
+This function adds a menu item to some menu, creating the menu first if
+necessary.  If the named item exists already, it is changed.
+
+@var{menu-path} identifies the menu under which the new menu item should
+be inserted. @var{item-name}, @var{function}, and @var{enabled-p} are
+the first, second, and third elements of a menu item vector (@pxref{Menu
+Format}).
+
+@var{before}, if provided, is the name of a menu item before which this
+item should be added, if this item is not on the menu already.  If the
+item is already present, it will not be moved.
+@end defun
+
+@defun delete-menu-item menu-item-path
+This function removes the menu item specified by @var{menu-item-path}
+from the menu hierarchy.
+@end defun
+
+@defun enable-menu-item menu-item-path
+This function makes the menu item specified by @var{menu-item-path} be
+selectable.
+@end defun
+
+@defun disable-menu-item menu-item-path
+This function makes the menu item specified by @var{menu-item-path} be
+unselectable.
+@end defun
+
+@defun relabel-menu-item menu-item-path new-name
+This function changes the string of the menu item specified by
+@var{menu-item-path}.  @var{new-name} is the string that the menu item
+will be printed as from now on.
+@end defun
+
+The following function can be used to search for a particular item in
+a menubar specification, given a path to the item.
+
+@defun find-menu-item menubar menu-item-path &optional parent
+This function searches @var{menubar} for the item given by
+@var{menu-item-path} starting from @var{parent} (@code{nil} means start
+at the top of @var{menubar}).  This function returns @code{(@var{item}
+. @var{parent})}, where @var{parent} is the immediate parent of the item
+found (a menu description), and @var{item} is either a vector, list, or
+string, depending on the nature of the menu item.
+
+This function signals an error if the item is not found.
+@end defun
+
+@node Menu Hooks
+@section Menu Hooks
+@cindex menu hooks
+
+@defvar menu-no-selection-hook
+This is a normal hook that will be called when a menu or dialog box is
+dismissed without a selection having been made.
+@end defvar
+
+@defvar activate-menubar-hook
+This is a function or list of functions that is called before a menubar
+menu is pulled down.  The functions in the hook should interrogate and
+modify the value of @code{current-menubar} as desired.
+
+The functions on this hook are invoked after the mouse goes down, but
+before the menu is mapped, and may be used to activate, deactivate, add,
+or delete items from the menus.
+
+These functions may return the symbol @code{t} to assert that they have
+made no changes to the menubar.  If any other value is returned, the
+menubar is recomputed.  If @code{t} is returned but the menubar has been
+changed, then the changes may not show up right away.  Returning
+@code{nil} when the menubar has not changed is not so bad; more
+computation will be done, but redisplay of the menubar will still be
+performed optimally.
+@end defvar
+
+The following two functions are provided for use in
+@code{activate-menubar-hook} and are automatically added to the hook at
+startup time.
+
+@defun sensitize-file-and-edit-menus-hook
+This function changes the sensitivity of these @samp{File} and
+@samp{Edit} menu items:
+
+@table @samp
+@item Cut
+Sensitive only when Emacs owns the primary X Selection (if
+@code{zmacs-regions} is @code{t}, this is equivalent to saying that
+there is a region selected).
+@item Copy
+Sensitive only when Emacs owns the primary X Selection.
+@item Clear
+Sensitive only when Emacs owns the primary X Selection.
+@item Paste
+Sensitive only when there is an owner for the X Clipboard Selection.
+@item Undo
+Sensitive only when there is undo information.  While in the midst of an
+undo, this is changed to @samp{Undo More}.
+
+@item Kill Buffer
+Has the name of the current buffer appended to it.
+@item Print Buffer
+Has the name of the current buffer appended to it.
+@item Save Buffer
+Has the name of the current buffer appended to it, and is sensitive only
+when the current buffer is modified.
+@item Revert Buffer
+Has the name of the current buffer appended to it, and is sensitive only
+when the current buffer has a file.
+@item Delete Screen
+Sensitive only when there is more than one visible screen.
+@end table
+@end defun
+
+@defun build-buffers-menu-hook
+This function changes the contents of the @samp{Buffers} menu to
+correspond to the current set of buffers.  Only the most-recently-used
+few buffers will be listed on the menu, for efficiency reasons.
+@xref{Buffers Menu}, for options controlling how the @samp{Buffers} menu
+will be displayed.
+@end defun
+
+@node Buffers Menu
+@section Buffers Menu
+@cindex buffers menu
+
+The following options control how the @samp{Buffers} menu is displayed.
+This is a list of all (or a subset of) the buffers currently in existence,
+and is updated dynamically.
+
+@defopt buffers-menu-max-size
+This user option holds the maximum number of entries which may appear on
+the @samp{Buffers} menu.  If this is 10, then only the ten
+most-recently-selected buffers will be shown.  If this is @code{nil},
+then all buffers will be shown.  Setting this to a large number or
+@code{nil} will slow down menu responsiveness.
+@end defopt
+
+@defun format-buffers-menu-line buffer
+This function returns a string to represent @var{buffer} in the
+@samp{Buffers} menu.  @code{nil} means the buffer shouldn't be listed.
+You can redefine this.
+@end defun
+
+@defopt complex-buffers-menu-p
+If true, the @samp{Buffers} menu will contain several commands, as submenus
+of each buffer line.  If this is false, then there will be only one command:
+select that buffer.
+@end defopt
+
+@defopt buffers-menu-switch-to-buffer-function
+This user option holds the function to call to select a buffer from the
+@samp{Buffers} menu.  @code{switch-to-buffer} is a good choice, as is
+@code{pop-to-buffer}.
+@end defopt
+
+@node Pop-Up Menus
+@section Pop-Up Menus
+@cindex pop-up menu
+
+@defun popup-menu menu-desc
+This function pops up a menu specified by @var{menu-desc}, which is a
+menu description (@pxref{Menu Format}).  The menu is displayed at the
+current mouse position.
+@end defun
+
+@defun popup-menu-up-p
+This function returns @code{t} if a pop-up menu is up, @code{nil}
+otherwise.
+@end defun
+
+@defvar popup-menu-titles
+If true (the default), pop-up menus will have title bars at the top.
+@end defvar
+@ignore  @c FSF stuff
+
+* Pop-Up Menus::		Displaying a menu for the user to select from.
+
+@node Pop-Up Menus
+@section Pop-Up Menus
+
+@defun x-popup-menu position menu
+This function displays a pop-up menu and returns an indication of
+what selection the user makes.
+
+The argument @var{position} specifies where on the screen to put the
+menu.  It can be either a mouse button event (which says to put the menu
+where the user actuated the button) or a list of this form:
+
+@example
+((@var{xoffset} @var{yoffset}) @var{window})
+@end example
+
+@noindent
+where @var{xoffset} and @var{yoffset} are positions measured in
+characters, counting from the top left corner of @var{window}'s screen.
+
+The argument @var{menu} says what to display in the menu.  It can be a
+keymap or a list of keymaps (@pxref{Menu Keymaps}).  Alternatively, it
+can have the following form:
+
+@example
+(@var{title} @var{pane1} @var{pane2}...)
+@end example
+
+@noindent
+where each pane is a list of form
+
+@example
+(@var{title} (@var{line} @var{item})...)
+@end example
+
+Each @var{line} should be a string, and each @var{item} should be the
+value to return if that @var{line} is chosen.
+@end defun
+
+@end ignore

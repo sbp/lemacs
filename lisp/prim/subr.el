@@ -1,5 +1,5 @@
 ;; Basic lisp subroutines for Emacs
-;; Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -76,13 +76,19 @@ not to count the minibuffer even if it is active.
 
 Optional third arg ALL-SCREENS t means include all windows in all screens;
 otherwise cycle within the selected screen."
-  (let* ((walk-windows-start (selected-window))
-	 (walk-windows-current walk-windows-start))
+  ;; Note that, like next-window & previous-window, this behaves a little 
+  ;; strangely if the selected window is on an invisible screen: it hits
+  ;; some of the windows on that screen, and all windows on visible screens.
+  (let* ((walk-windows-history nil)
+	 (walk-windows-current (selected-window)))
     (while (progn
 	     (setq walk-windows-current
 		   (next-window walk-windows-current minibuf all-screens))
-	     (funcall proc walk-windows-current)
-	     (not (eq walk-windows-current walk-windows-start))))))
+	     (not (memq walk-windows-current walk-windows-history)))
+      (setq walk-windows-history (cons walk-windows-current
+				       walk-windows-history))
+      (funcall proc walk-windows-current))))
+
 
 ; old names
 (define-function 'make-syntax-table 'copy-syntax-table)
@@ -102,12 +108,12 @@ otherwise cycle within the selected screen."
 (define-function 'truename 'file-truename)
 
 ; alternate names
+(define-function 'not 'null)
 (define-function 'string= 'string-equal)
 (define-function 'string< 'string-lessp)
 (if (not (fboundp 'mod)) (define-function 'mod '%))
 (define-function 'move-marker 'set-marker)
 (define-function 'eql 'eq)
-(define-function 'not 'null)
 (if (not (fboundp 'numberp))
     (define-function 'numberp 'integerp)) ; different when floats
 (define-function 'rplaca 'setcar)
@@ -223,16 +229,19 @@ First argument HOOK (a symbol) is the name of a hook, second
 (make-obsolete 'set-extent-data 'set-extent-property)
 (make-obsolete 'set-extent-attribute 'set-extent-property)
 (make-obsolete 'extent-attributes 'extent-property)
+(make-obsolete 'extent-glyph
+	       "use extent-begin-glyph or extent-end-glyph instead")
 
 (defun extent-data (extent)
-  "Returns the `data' property of the given extent."
+  "Obsolete.  Returns the `data' property of the given extent."
   (extent-property extent 'data))
 
 (defun set-extent-data (extent data)
-  "Sets the `data' property of the given extent."
+  "Obsolete.  Sets the `data' property of the given extent."
   (set-extent-property extent 'data data))
 
 (defun set-extent-attribute (extent attr &optional clearp)
+  "Obsolete; use set-extent-property instead."
   (cond ((eq attr 'write-protected)
 	 (set-extent-property extent 'read-only t))
 	((eq attr 'unhighlight)
@@ -243,6 +252,11 @@ First argument HOOK (a symbol) is the name of a hook, second
 	 (set-extent-property extent 'invisible nil))
 	(t
 	 (set-extent-property extent attr t))))
+
+(defun extent-glyph (extent)
+  "Obsolete.  Use extent-begin-glyph or extent-end-glyph instead."
+  (or (extent-begin-glyph extent)
+      (extent-end-glyph extent)))
 
 
 ;;;; Miscellanea.

@@ -1,5 +1,5 @@
 /* machine description file for Cydrome's CYDRA 5 mini super computer
-   Copyright (C) 1988, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1988 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -30,11 +30,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define INTBITS 32		/* Number of bits in an int */
 
 #define LONGBITS 32		/* Number of bits in a long */
-
-/* Define BIG_ENDIAN iff lowest-numbered byte in a word
-   is the most significant byte.  */
-
-#define BIG_ENDIAN
 
 /* Define NO_ARG_ARRAY if you cannot take the address of the first of a
  * group of arguments and treat it as an array of the arguments.  */
@@ -131,5 +126,4 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* We can't do interrupt-driven input, so don't let user try.  */
 
-/* #undef SIGIO		use BROKEN_SIGIO instead of this kludge -- jwz */
 #define BROKEN_SIGIO

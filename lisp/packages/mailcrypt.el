@@ -1,4 +1,4 @@
-;; mailcrypt.el v1.2, mail encryption with RIPEM and PGP
+;; mailcrypt.el v1.5, mail encryption with RIPEM and PGP
 ;; Copyright (C) 1993  Jin Choi <jsc@mit.edu>
 ;; Any comments or suggestions welcome.
 ;; Inspired by pgp.el, by Gray Watson <gray@antaire.com>.
@@ -6,7 +6,7 @@
 ;; LCD Archive Entry:
 ;; mailcrypt|Jin S Choi|jsc@mit.edu|
 ;; Encryption/decryption for mail using RIPEM or PGP. Supports RMAIL and VM.|
-;; 15-Aug-93|Version 1.2|~/interfaces/mailcrypt.el.Z|
+;; 2-Apr-1994|1.5|~/interfaces/mailcrypt.el.Z|
 
 ;;{{{ Licensing
 ;; This file is intended to be used with GNU Emacs.
@@ -27,6 +27,27 @@
 ;;}}}
 
 ;;{{{ Change Log
+;;{{{ Changes from 1.4:
+;; * Call mail-extract-address-components on the recipients if we guessed
+;;   them from the header fields.
+;; * If you don't replace a message with its decrypted version, it will now
+;;   pop you into a view buffer with the contents of the message.
+;; * Added support for mh-e, contributed by Fritz Knabe <Fritz.Knabe@ecrc.de>
+;; * Fixed bug in snarfing keys from menubar under GNUS.
+;; * Fixed RIPEM verification problem, thanks to Sergey Gleizer
+;;   <sgleizer@cs.nmsu.edu>.
+;;}}}
+;;{{{ Changes from 1.3:
+;; * Temp display function does not barf on F-keys or mouse events.
+;;     Thanks to Jonathan Stigelman <stig@key.amdahl.com>
+;; * Lucid emacs menu support provided by William Perry <wmperry@indiana.edu>
+;; * Cited signed messages would interfere with signature 
+;;	verification; fixed.
+;;}}}
+;;{{{ Changes from 1.2:
+;; * Added menu bar support for emacs 19.
+;; * Added GNUS support thanks to Samuel Druker <samuel@telmar.com>.
+;;}}}
 ;;{{{ Changes from 1.1:
 ;; * Added recipients field to mc-encrypt-message.
 ;;}}}
@@ -61,38 +82,52 @@
 ;;{{{ Usage:
 ;;{{{ Installation:
 
-;; To use, put the following elisp into your .emacs file.
+;; To use, put something like the following elisp into your .emacs file.
 ;; You may want to set some of the user variables there as well,
 ;; particularly mc-default-scheme.
 
+;; Currently supported modes are RMAIL, VM, mh-e, and gnus. Check out
+;; the section on mode specific functions to see what you can bind.
+
+;;{{{ A sample hook for a writing mode:
 ;;(autoload 'mc-encrypt-message "mailcrypt" nil t)
 ;;(autoload 'mc-sign-message "mailcrypt" nil t)
 ;;(autoload 'mc-insert-public-key "mailcrypt" nil t)
-;;(add-hook 'mail-mode-hook
-;;	  '(lambda ()
-;;	     (require 'mailcrypt)
-;;	     (define-key mail-mode-map "\C-ce" 'mc-encrypt-message)
-;;	     (define-key mail-mode-map "\C-cs" 'mc-sign-message)
-;;	     (define-key mail-mode-map "\C-ca" 'mc-insert-public-key)))
+;;(defun mc-install-write-mode ()
+;;  (require 'mailcrypt)
+;;  (if (eq window-system 'x)
+;;      (mc-create-write-menu-bar))
+;;  (local-set-key "\C-ce" 'mc-encrypt-message)
+;;  (local-set-key "\C-cs" 'mc-sign-message)
+;;  (local-set-key "\C-ca" 'mc-insert-public-key))
 
+;;(add-hook 'mail-mode-hook 'mc-install-write-mode)
+;;(add-hook 'news-reply-mode-hook 'mc-install-write-mode)
+;;}}}
+
+;;{{{ A sample hook for a reading mode:
 ;;(autoload 'mc-rmail-decrypt-message "mailcrypt" nil t)
 ;;(autoload 'mc-rmail-verify-signature "mailcrypt" nil t)
 ;;(autoload 'mc-snarf-keys "mailcrypt" nil t)
 ;;(add-hook 'rmail-mode-hook
 ;;	  '(lambda ()
 ;;	     (require 'mailcrypt)
-;;	     (define-key rmail-mode-map "\C-cd" 'mc-rmail-decrypt-message)
-;;	     (define-key rmail-mode-map "\C-cv" 'mc-rmail-verify-signature)
-;;	     (define-key rmail-mode-map "\C-cs" 'mc-snarf-keys)))
+;;	     (if (eq window-system 'x)
+;;		 (mc-create-read-menu-bar))
+;;	     (local-set-key "\C-cd" 'mc-rmail-decrypt-message)
+;;	     (local-set-key "\C-cv" 'mc-rmail-verify-signature)
+;;	     (local-set-key "\C-cs" 'mc-snarf-keys)))
+;;}}}
 
-;;(autoload 'mc-vm-decrypt-message "mailcrypt" nil t)
-;;(autoload 'mc-vm-verify-signature "mailcrypt" nil t)
-;;(add-hook 'vm-mode-hooks
-;;	  '(lambda ()
-;;	     (require 'mailcrypt)
-;;	     (define-key vm-mode-map "\C-cd" 'mc-vm-decrypt-message)
-;;	     (define-key vm-mode-map "\C-cv" 'mc-vm-verify-signature)
-;;	     (define-key vm-mode-map "\C-cs" 'mc-snarf-keys)))
+;; hooks to use:
+;; PACKAGE 	READ HOOK		WRITE HOOK
+;; -------	---------		----------
+;; rmail: 	rmail-mode-hook		mail-mode-hook
+;; vm:		vm-mode-hook		mail-mode-hook
+;; mh-e:	mh-folder-mode-hook	mh-letter-mode-hook
+;; gnus:	gnus-summary-mode-hook	news-reply-mode
+;;}}}
+
 
 ;;}}}
 ;;{{{ Security Considerations
@@ -136,7 +171,6 @@
 ;;{{{ Note:
 ;; The funny triple braces you see are used by `folding-mode', a minor
 ;; mode by Jamie Lokier, available from the elisp archive.
-;;}}}
 ;;}}}
 
 (require 'comint)
@@ -230,9 +264,13 @@ stripping initial and trailing whitespace."
 	(shrink-window-if-larger-than-buffer 
 	 (display-buffer (current-buffer)))
 	(message "Press any key to remove the %s window." name)
-	(read-char)
+
+	(cond ((and (string-match "19\\." emacs-version)
+		    (not (string-match "Lucid" (emacs-version))))
+	       (read-event))
+	      (t
+	       (read-char)))
 	(kill-buffer (current-buffer))))))
-  
 
 ;;}}}
 ;;{{{ Passphrase management
@@ -265,9 +303,19 @@ stripping initial and trailing whitespace."
 ;;}}}
 ;;{{{ Encryption
 
+(defun mc-cleanup-recipient-headers (str)
+  ;; Takes a comma separated string of recipients to encrypt for and,
+  ;; assuming they were possibly extracted from the headers of a reply,
+  ;; returns a list of the address componnts.
+  (mapcar (function
+	   (lambda (x)
+	     (car (cdr (mail-extract-address-components x)))))
+	  (mc-split "\\([ \t\n]*,[ \t\n]*\\)+" str)))
+
 (defun mc-encrypt-message (&optional recipients scheme)
   "*Encrypt the message to RECIPIENTS using the given encryption SCHEME.
-If SCHEME is nil, use the value of `mc-default-scheme'."
+RECIPIENTS is a comma separated string. If SCHEME is nil, use the value
+of `mc-default-scheme'."
   (interactive
    (if current-prefix-arg
        (list nil (read-from-minibuffer "Encryption Scheme: " nil nil t))))
@@ -276,16 +324,17 @@ If SCHEME is nil, use the value of `mc-default-scheme'."
     (or scheme (setq scheme mc-default-scheme))
     (setq recipients
 	  (cond (recipients		; given as function argument
-		 recipients)
+		 (mc-split "\\([ \t\n]*,[ \t\n]*\\)+" recipients))
 		(mc-use-default-recipients
-		 (concat (mail-fetch-field "to" nil t) ", "
-			 (mail-fetch-field "cc" nil t)))
+		 (mc-cleanup-recipient-headers
+		  (concat (mail-fetch-field "to" nil t) ", "
+			  (mail-fetch-field "cc" nil t))))
 		(t			; prompt for it
-		 (read-from-minibuffer
-		  "Recipients: " (concat (mail-fetch-field "to" nil t) ", "
-					 (mail-fetch-field "cc" nil t))))))
-    
-    (setq recipients (mc-split "\\([ \t\n]*,[ \t\n]*\\)+" recipients))
+		 (mc-cleanup-recipient-headers
+		  (read-from-minibuffer
+		   "Recipients: " (concat (mail-fetch-field "to" nil t) ", "
+					  (mail-fetch-field "cc" nil t)))))))
+
     (or recipients
 	(error "No recipients!"))
 
@@ -355,8 +404,8 @@ If SCHEME is nil, use the value of `mc-default-scheme'."
   (interactive)
   (let (start msg retval)
     (goto-char (point-min))
-    (cond ((search-forward mc-pgp-msg-begin-line nil t)
-	   (search-backward mc-pgp-msg-begin-line)
+    (cond ((re-search-forward (concat "^" mc-pgp-msg-begin-line) nil t)
+	   (re-search-backward (concat "^" mc-pgp-msg-begin-line))
 	   (setq start (point))
 	   (mc-activate-passwd 'pgp)
 	   (or buffer-read-only
@@ -401,41 +450,6 @@ If SCHEME is nil, use the value of `mc-default-scheme'."
 	   (message "Found no encrypted message in this buffer.")
 	   nil))))
 
-(defun mc-rmail-decrypt-message ()
-  "*Decrypt the contents of this message"
-  (interactive)
-  (if (not (equal mode-name "RMAIL"))
-      (error "mc-rmail-decrypt-message called in a non-RMAIL buffer"))
-  (rmail-edit-current-message)
-  (cond ((not (mc-decrypt-message))
-	 (rmail-abort-edit))
-	((or mc-always-replace
-	     (y-or-n-p "Replace encrypted message with decrypted? "))
-	 (rmail-cease-edit)
-	 (rmail-kill-label "edited")
-	 (rmail-add-label "decrypted"))
-	(t
-	 (rmail-abort-edit))))
-
-(defun mc-vm-decrypt-message ()
-  "*Decrypt the contents of the current VM message"
-  (interactive)
-  (if (interactive-p)
-      (vm-follow-summary-cursor))
-  (vm-select-folder-buffer)
-  (vm-check-for-killed-summary)
-  (vm-error-if-folder-read-only)
-  (vm-error-if-folder-empty)
-  (vm-edit-message)
-  (cond ((not (mc-decrypt-message))
-	 (progn (message "Decryption failed.")
-		(vm-edit-message-abort)))
-	((or mc-always-replace
-	     (y-or-n-p "Replace encrypted message with decrypted? "))
-	 (vm-edit-message-end))
-	(t
-	 (vm-edit-message-abort))))
-
 ;;}}}  
 ;;{{{ Signing
 
@@ -445,7 +459,7 @@ If SCHEME is nil, use the value of `mc-default-scheme'."
    (if current-prefix-arg
        (list (read-from-minibuffer "Encryption Scheme: " nil nil t))))
   (or scheme (setq scheme mc-default-scheme))
-  (let (start retval)
+  (let (start retval command)
     (cond ((eq scheme 'pgp)
 	   (goto-char (point-min))
 	   (search-forward (concat "\n" mail-header-separator "\n"))
@@ -496,7 +510,7 @@ if the signature is verified."
     (cond ((re-search-forward (concat "^" mc-pgp-signed-begin-line) nil t)
 	   (beginning-of-line)
 	   (setq start (point))
-	   (search-forward mc-pgp-signed-end-line)
+	   (re-search-forward (concat "^" mc-pgp-signed-end-line))
 	   (setq msg (buffer-substring start (point)))
 	   (save-excursion
 	     (set-buffer (generate-new-buffer "*Verification*"))
@@ -519,61 +533,31 @@ if the signature is verified."
 	  ((re-search-forward (concat "^" mc-ripem-msg-begin-line) nil t)
 	   (beginning-of-line)
 	   (setq start (point))
-	   (search-forward mc-ripem-msg-end-line)
+	   (re-search-forward (concat "^" mc-ripem-msg-end-line))
 	   (setq msg (buffer-substring start (point)))
+	   (mc-activate-passwd 'ripem)
 	   (save-excursion
 	     (set-buffer (generate-new-buffer "*Verification*"))
+	     (insert mc-ripem-passwd "\n")
 	     (insert msg)
+	     (message "Verifying...")
 	     (setq retval (call-process-region (point-min) (point-max)
-					       mc-ripem-path t t nil "-d"))
-
-	     ;; Theoretically, at this point retval should hold a 0 if
-	     ;; the signature was correct, and a 1 if it wasn't. In
-	     ;; practice, it holds whatever it feels like holding. I
-	     ;; believe this is a bug in call-process-region, but have
-	     ;; not been able to figure out why it works everywhere
-	     ;; else but not here. For now, I'm just going to display
-	     ;; the output.
-
-	     (mc-temp-display (point-min) (point-max))
-	     (kill-buffer (current-buffer))))
-
-;	     (if (/= 0 retval)
-;		 (progn (goto-char (point-min))
-;			(message (buffer-substring (point) (progn
-;							     (end-of-line)
-;							     (point))))
-;			(kill-buffer (current-buffer))
-;			nil)
-;	       (message "RIPEM signature verified")
-;	       (kill-buffer (current-buffer))
-;	       t)))
+					       mc-ripem-path t t nil 
+					       "-d" "-k" "-"))
+	     (or mc-passwd-timeout (mc-deactivate-passwd))
+	     (if (/= 0 retval)
+		 (progn (goto-char (point-min))
+			(message (buffer-substring (point) (progn
+							     (end-of-line)
+							     (point))))
+			(kill-buffer (current-buffer))
+			nil)
+	       (message "RIPEM signature verified")
+	       (kill-buffer (current-buffer))
+	       t)))
 	  (t
-	   (error "No signed message found.")))))
-
-;;}}}
-;;{{{ mc-rmail-verify-signature
-
-(defun mc-rmail-verify-signature ()
-  "*Verify the signature in the current message."
-  (interactive)
-  (if (not (equal mode-name "RMAIL"))
-      (error "mc-rmail-verify-signature called in a non-RMAIL buffer"))
-  (if (mc-verify-signature)
-      (rmail-add-label "verified")))
-
-;;}}}
-;;{{{ mc-vm-verify-signature
-
-(defun mc-vm-verify-signature ()
-  "*Verify the signature in the current VM message"
-  (interactive)
-  (if (interactive-p)
-      (vm-follow-summary-cursor))
-  (vm-select-folder-buffer)
-  (vm-check-for-killed-summary)
-  (vm-error-if-folder-empty)
-  (mc-verify-signature))
+	   (message "Found no signed message in this buffer.")
+	   nil))))
 
 ;;}}}
 
@@ -657,12 +641,225 @@ if the signature is verified."
 		 (if (not exists)
 		     (append-to-file start (point) mc-ripem-pubkeyfile)
 		   (message "RIPEM public key for this user already exists.")))
-	     (error "Can't write to file %s" mc-ripem-pubkeyfile))))))
+	     (error "Can't write to file %s" mc-ripem-pubkeyfile)))
+	  (t
+	   (error "No public key in current buffer")))))
 
 ;;}}}
 
 ;;}}}
+;;{{{ Mode specific functions
 
+(defvar mc-modes-alist
+  (list (cons 'rmail-mode (list 'mc-rmail-decrypt-message
+				'mc-rmail-verify-signature))
+	(cons 'vm-mode (list 'mc-vm-decrypt-message
+			     'mc-vm-verify-signature))
+	(cons 'mh-folder-mode (list 'mc-mh-decrypt-message
+				    'mc-mh-verify-message
+				    'mc-mh-snarf-keys))
+	(cons 'gnus-summary-mode (list 'mc-gnus-summary-decrypt-message
+				       'mc-gnus-summary-verify-signature
+				       'mc-gnus-summary-snarf-keys)))
+  "*Association list to specify mode specific functions for reading.
+Entries are of the form (MODE . (DECRYPT VERIFY SNARF)).
+The SNARF is optional and defaults to `mc-snarf-keys'.")
+
+;;{{{ RMAIL
+(defun mc-rmail-verify-signature ()
+  "*Verify the signature in the current message."
+  (interactive)
+  (if (not (equal mode-name "RMAIL"))
+      (error "mc-rmail-verify-signature called in a non-RMAIL buffer"))
+  (if (mc-verify-signature)
+      (rmail-add-label "verified")))
+
+(defun mc-rmail-decrypt-message ()
+  "*Decrypt the contents of this message"
+  (interactive)
+  (let ((oldbuf (current-buffer)))
+    (if (not (equal mode-name "RMAIL"))
+	(error "mc-rmail-decrypt-message called in a non-RMAIL buffer"))
+    (rmail-edit-current-message)
+    (cond ((not (mc-decrypt-message))
+	   (rmail-abort-edit))
+	  ((or mc-always-replace
+	       (y-or-n-p "Replace encrypted message with decrypted? "))
+	   (rmail-cease-edit)
+	   (rmail-kill-label "edited")
+	   (rmail-add-label "decrypted"))
+	  (t
+	   (let ((tmp (generate-new-buffer "*Mailcrypt Viewing*")))
+	     (copy-to-buffer tmp (point-min) (point-max))
+	     (rmail-abort-edit)
+	     (switch-to-buffer tmp t)
+	     ;; lemacs change
+	     (view-buffer oldbuf)
+	     ;;(view-mode oldbuf 'kill-buffer)
+	     )))))
+
+;;}}}
+;;{{{ VM
+(defun mc-vm-verify-signature ()
+  "*Verify the signature in the current VM message"
+  (interactive)
+  (if (interactive-p)
+      (vm-follow-summary-cursor))
+  (vm-select-folder-buffer)
+  (vm-check-for-killed-summary)
+  (vm-error-if-folder-empty)
+  (mc-verify-signature))
+
+(defun mc-vm-decrypt-message ()
+  "*Decrypt the contents of the current VM message"
+  (interactive)
+  (let ((oldbuf (current-buffer)))
+    (if (interactive-p)
+	(vm-follow-summary-cursor))
+    (vm-select-folder-buffer)
+    (vm-check-for-killed-summary)
+    (vm-error-if-folder-read-only)
+    (vm-error-if-folder-empty)
+    (vm-edit-message)
+    (cond ((not (mc-decrypt-message))
+	   (progn (message "Decryption failed.")
+		  (vm-edit-message-abort)))
+	  ((or mc-always-replace
+	       (y-or-n-p "Replace encrypted message with decrypted? "))
+	   (vm-edit-message-end))
+	  (t
+	   (let ((tmp (generate-new-buffer "*Mailcrypt Viewing*")))
+	     (copy-to-buffer tmp (point-min) (point-max))
+	     (vm-edit-message-abort)
+	     (switch-to-buffer tmp t)
+	     ;; lemacs change
+	     (view-buffer oldbuf)
+	     ;;(view-mode oldbuf 'kill-buffer)
+	     )))))
+	   
+;;}}}
+;;{{{ GNUS
+(defun mc-gnus-summary-verify-signature ()
+  (interactive)
+  (gnus-summary-select-article gnus-save-all-headers gnus-save-all-headers)
+  (gnus-eval-in-buffer-window gnus-article-buffer
+    (save-restriction (widen) (mc-verify-signature))))
+
+(defun mc-gnus-summary-snarf-keys ()
+  (interactive)
+  (gnus-summary-select-article gnus-save-all-headers gnus-save-all-headers)
+  (gnus-eval-in-buffer-window gnus-article-buffer
+    (save-restriction (widen) (mc-snarf-keys))))
+
+(defun mc-gnus-summary-decrypt-message ()
+  (interactive)
+  (gnus-summary-select-article gnus-save-all-headers gnus-save-all-headers)
+  (gnus-eval-in-buffer-window gnus-article-buffer
+    (save-restriction (widen) (mc-decrypt-message))))
+
+;;}}}		
+;;{{{ MH
+(defun mc-mh-decrypt-message (decrypt-on-disk)
+  "*Decrypt the contents of the current MH message in the show buffer. With
+prefix arg, decrypt the message on disk as well."
+  (interactive "P")
+  (let* ((msg (mh-get-msg-num t))
+	 (msg-filename (mh-msg-filename msg))
+	 (show-buffer (get-buffer mh-show-buffer))
+	 decrypt-okay)
+    (setq decrypt-on-disk (or mc-always-replace decrypt-on-disk))
+    (if decrypt-on-disk
+	(progn
+	  (save-excursion
+	    (set-buffer (create-file-buffer msg-filename))
+	    (insert-file-contents msg-filename t)
+	    (if (setq decrypt-okay (mc-decrypt-message))
+		(save-buffer)
+	      (message "Decryption failed.")
+	      (set-buffer-modified-p nil))
+	    (kill-buffer nil))
+	  (if decrypt-okay
+	      (if (and show-buffer
+		       (equal msg-filename (buffer-file-name show-buffer)))
+		  (save-excursion
+		    (save-window-excursion
+		      (mh-invalidate-show-buffer)))))
+	  (mh-show msg))
+      (mh-show msg)
+      (save-excursion
+	(set-buffer mh-show-buffer)
+	(if (setq decrypt-okay (mc-decrypt-message))
+	    (progn
+	      (goto-char (point-min))
+	      (set-buffer-modified-p nil))
+	  (message "Decryption failed.")))
+      (if (not decrypt-okay)
+	  (progn
+	    (mh-invalidate-show-buffer)
+	    (mh-show msg))))))
+
+(defun mc-mh-verify-signature ()
+  "*Verify the signature in the current MH message."
+  (interactive)
+  (let ((msg (mh-get-msg-num t)))
+    (mh-show msg)
+    (save-excursion
+      (set-buffer mh-show-buffer)
+      (mc-verify-signature))))
+
+(defun mc-mh-snarf-keys ()
+  (interactive)
+  (mh-show (mh-get-msg-num t))
+  (save-excursion
+    (set-buffer mh-show-buffer)
+    (mc-snarf-keys)))
+;;}}}
+
+;;}}}
+;;{{{ Menubar stuff
+(defun mc-create-read-menu-bar ()
+  ;; Create a menu bar entry for reading modes.
+  (let ((decrypt (nth 0 (cdr (assoc major-mode mc-modes-alist))))
+	(verify (nth 1 (cdr (assoc major-mode mc-modes-alist))))
+	(snarf (nth 2 (cdr (assoc major-mode mc-modes-alist)))))
+    (if (not (and decrypt verify))
+	(error "Decrypt and verify functions not defined for this major mode."))
+    (if (not snarf)
+	(setq snarf 'mc-snarf-keys))
+    (if (string-match "Lucid" (emacs-version))
+	(let ((x (list "Mailcrypt"
+		       (vector "Decrypt Message" decrypt t)
+		       (vector "Verify Signature" verify t)
+		       (vector "Snarf Public Key" snarf t))))
+	  (set-buffer-menubar current-menubar)
+	  (add-menu nil "Mailcrypt" (cdr x)))
+      (local-set-key [menu-bar mailcrypt]
+		     (cons "Mailcrypt" (make-sparse-keymap "Mailcrypt")))
+      (local-set-key [menu-bar mailcrypt decrypt]
+		     (cons "Decrypt Message" decrypt))
+      (local-set-key [menu-bar mailcrypt verify]
+		     (cons "Verify Signature" verify))
+      (local-set-key [menu-bar mailcrypt snarf]
+		     (cons "Snarf Public Key" snarf)))))
+
+(defun mc-create-write-menu-bar ()
+  ;; Create a menu bar entry for writing modes.
+  (if (string-match "Lucid" (emacs-version))
+      (let ((x (list "Mailcrypt"
+		     (vector "Encrypt Message" 'mc-encrypt-message t)
+		     (vector "Sign Message" 'mc-sign-message t)
+		     (vector "Insert Public Key" 'mc-insert-public-key t))))
+	(set-buffer-menubar current-menubar)
+	(add-menu nil "Mailcrypt" (cdr x)))
+    (local-set-key [menu-bar mailcrypt]
+		   (cons "Mailcrypt" (make-sparse-keymap "Mailcrypt")))
+    (local-set-key [menu-bar mailcrypt encrypt]
+		   (cons "Encrypt Message" 'mc-encrypt-message))
+    (local-set-key [menu-bar mailcrypt sign]
+		   (cons "Sign Message" 'mc-sign-message))
+    (local-set-key [menu-bar mailcrypt insert]
+		   (cons "Insert Public Key" 'mc-insert-public-key))))
+;;}}}
 (provide 'mailcrypt)
 
 

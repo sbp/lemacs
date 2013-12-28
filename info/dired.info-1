@@ -35,7 +35,7 @@ and will be the Dired of Emacs 19.  It is known to work with Emacs
 
 Revision of this manual:
 
-$Id: dired.info-1,v 1.1 1993/12/21 23:54:53 jwz Exp $
+$Id: dired.info-1,v 1.2 1994/03/24 01:05:23 jwz Exp $
 
 Report bugs to:
      Sebastian Kremer <sk@thp.uni-koeln.de>

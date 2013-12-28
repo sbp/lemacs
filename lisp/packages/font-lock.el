@@ -50,14 +50,22 @@
 ;; values of c-font-lock-keywords and related variables.  See the doc
 ;; string of the variable `font-lock-keywords' for the appropriate syntax.
 ;;
-;; To turn this on automatically, add this to your .emacs file:
+;; To turn this on automatically, add `turn-on-font-lock to the mode-hook
+;; for each mode you want to use font-lock.  For example, add this to your
+;; .emacs file:
 ;;
 ;;	(add-hook 'emacs-lisp-mode-hook	'turn-on-font-lock)
+;;	(add-hook 'lisp-mode-hook	'turn-on-font-lock)
 ;;	(add-hook 'c-mode-hook		'turn-on-font-lock)
 ;;	(add-hook 'c++-mode-hook	'turn-on-font-lock)
 ;;	(add-hook 'dired-mode-hook	'turn-on-font-lock)
-;;
-;; and so on.
+;;	(add-hook 'asm-mode-hook	'turn-on-font-lock)
+;;	(add-hook 'perl-mode-hook	'turn-on-font-lock)
+;;	(add-hook 'tex-mode-hook	'turn-on-font-lock)
+;;	(add-hook 'texinfo-mode-hook	'turn-on-font-lock)
+;;	(add-hook 'postscript-mode-hook	'turn-on-font-lock)
+;;	(add-hook 'ada-mode-hook	'turn-on-font-lock)
+;;	(add-hook 'fortran-mode-hook	'turn-on-font-lock)
 ;;
 ;; The default value for `lisp-font-lock-keywords' is the value of the variable
 ;; `lisp-font-lock-keywords-1'.  You may like `lisp-font-lock-keywords-2' 
@@ -139,7 +147,10 @@ Be careful composing regexps for this list; the wrong pattern can dramatically
 slow things down!")
 
 (defvar font-lock-keywords-case-fold-search nil
-  "*Whether the strings in `font-lock-keywords' should be case-folded.")
+  "*Whether the strings in `font-lock-keywords' should be case-folded.
+This variable is automatically buffer-local, as the correct value depends
+on the language in use.")
+(make-variable-buffer-local 'font-lock-keywords-case-fold-search)
 
 (defvar font-lock-verbose t
   "*Whether font-lock-fontify-buffer should print status messages.")
@@ -249,26 +260,31 @@ by examining the syntax table.")
   (if (null font-lock-mode)
       nil
     (save-excursion
-      (save-match-data
-	(let ((zmacs-region-stays zmacs-region-stays)) ; protect from change!
-	  (goto-char beg)
-	  ;; Maybe flush the internal cache used by syntactically-sectionize.
-	  ;; (It'd be nice if this was more automatic.)  Any deletions mean the
-	  ;; cache is invalid, and insertions at beginning or end of line mean
-	  ;; that the bol cache might be invalid.
-	  (if (or (> old-len 0) (bobp) (= (preceding-char) ?\n))
-	      (buffer-syntactic-context-flush-cache))
+      (save-restriction
+	;; if we don't widen, then fill-paragraph (and any command that
+	;; operates on a narrowed region) confuses things, because the C
+	;; code will fail to realize that we're inside a comment.
+	(widen)
+	(save-match-data
+	  (let ((zmacs-region-stays zmacs-region-stays)) ; protect from change!
+	    (goto-char beg)
+	    ;; Maybe flush the internal cache used by syntactically-sectionize.
+	    ;; (It'd be nice if this was more automatic.)  Any deletions mean
+	    ;; the cache is invalid, and insertions at beginning or end of line
+	    ;; mean that the bol cache might be invalid.
+	    (if (or (> old-len 0) (bobp) (= (preceding-char) ?\n))
+		(buffer-syntactic-context-flush-cache))
 
-	  ;; Always recompute the whole line.
-	  (goto-char end)
-	  (forward-line 1)
-	  (setq end (point))
-	  (goto-char beg)
-	  (beginning-of-line)
-	  (setq beg (point))
-	  (font-lock-unfontify-region beg end)
-	  (font-lock-fontify-region beg end)
-	  (font-lock-hack-keywords beg end))))))
+	    ;; Always recompute the whole line.
+	    (goto-char end)
+	    (forward-line 1)
+	    (setq end (point))
+	    (goto-char beg)
+	    (beginning-of-line)
+	    (setq beg (point))
+	    (font-lock-unfontify-region beg end)
+	    (font-lock-fontify-region beg end)
+	    (font-lock-hack-keywords beg end)))))))
 
 
 ;;; Fontifying arbitrary patterns
@@ -316,6 +332,7 @@ by examining the syntax table.")
 
 ;; The user level functions
 
+;;;###autoload
 (defvar font-lock-mode nil) ; for modeline
 (or (assq 'font-lock-mode minor-mode-alist)
     (setq minor-mode-alist
@@ -357,15 +374,14 @@ See the variable `font-lock-keywords' for customization."
     ;; things down.
     (if (or noninteractive (eq (aref (buffer-name) 0) ?\ ))
 	(setq on-p nil))
-    ;; It's somewhat bogus that there can be only one after-change-function
-    ;; per buffer, but that's the way it is right now.
-    (or (memq after-change-function '(nil font-lock-after-change-function))
-	(error "after-change-function is %S" after-change-function))
-    (if on-p (font-lock-examine-syntax-table))
-    (set (make-local-variable 'after-change-function)
-	 (if on-p 'font-lock-after-change-function nil))
+    (cond (on-p
+	   (make-local-variable 'after-change-functions)
+	   (add-hook 'after-change-functions 'font-lock-after-change-function))
+	  (t
+	   (remove-hook 'after-change-functions 'font-lock-after-change-function)))
     (set (make-local-variable 'font-lock-mode) on-p)
     (cond (on-p
+	   (font-lock-examine-syntax-table)
 	   (font-lock-set-defaults)
 	   (run-hooks 'font-lock-mode-hook)
 	   (or font-lock-fontified (font-lock-fontify-buffer)))
@@ -396,7 +412,8 @@ See the variable `font-lock-keywords' for customization."
 This can take a while for large buffers."
   (interactive)
   (let ((was-on font-lock-mode)
-	(font-lock-verbose (or font-lock-verbose (interactive-p))))
+	(font-lock-verbose (or font-lock-verbose (interactive-p)))
+	(aborted nil))
     (if font-lock-verbose (message "Fontifying %s..." (buffer-name)))
     ;; Turn it on to run hooks and get the right font-lock-keywords.
     (or was-on (font-lock-mode 1))
@@ -404,16 +421,34 @@ This can take a while for large buffers."
     (if font-lock-verbose (message "Fontifying %s... (syntactically...)"
 				   (buffer-name)))
     (buffer-syntactic-context-flush-cache)
-    (save-excursion
-      (font-lock-fontify-region (point-min) (point-max))
-      (if font-lock-verbose (message "Fontifying %s... (regexps...)"
-				     (buffer-name)))
-      (font-lock-hack-keywords (point-min) (point-max) font-lock-verbose))
+    
+    ;; If a ^G is typed during fontification, abort the fontification, but
+    ;; return normally (do not signal.)  This is to make it easy to abort
+    ;; fontification if it's taking a long time, without also causing the
+    ;; buffer not to pop up.  If a real abort is desired, the user can ^G
+    ;; again.
+    ;;
+    ;; Possibly this should happen down in font-lock-fontify-region instead
+    ;; of here, but since that happens from the after-change-hook (meaning
+    ;; much more frequently) I'm afraid of the bad consequences of stealing
+    ;; the interrupt character at inopportune times.
+    ;;
+    (condition-case nil
+	(save-excursion
+	  (font-lock-fontify-region (point-min) (point-max))
+	  (if font-lock-verbose (message "Fontifying %s... (regexps...)"
+					 (buffer-name)))
+	  (font-lock-hack-keywords (point-min) (point-max) font-lock-verbose))
+      (quit
+       (setq aborted t)))
+
     (or was-on		; turn it off if it was off.
 	(let ((font-lock-fontified nil)) ; kludge to prevent defontification
 	  (font-lock-mode 0)))
     (set (make-local-variable 'font-lock-fontified) t)
-    (if font-lock-verbose (message "Fontifying %s... done." (buffer-name)))
+    (if font-lock-verbose (message "Fontifying %s... %s."
+				   (buffer-name)
+				   (if aborted "aborted" "done")))
     ))
 
 (defun font-lock-examine-syntax-table ()
@@ -432,6 +467,74 @@ This can take a while for large buffers."
 	    (setq got-one t i 0))
 	(setq i (1- i))))
     (set (make-local-variable 'font-lock-use-syntax-tables) got-one)))
+
+
+;;; Cruftiness for the Options menu
+
+(defun font-lock-reset-face (face)
+  "Reset FACE its default state (from the X resource database).
+Returns whether it is indistinguishable from the default face."
+  (set-face-font face nil)
+  (set-face-foreground face nil)
+  (set-face-underline-p face nil)
+  (set-face-background face nil)
+  (set-face-background-pixmap face nil)
+  (x-resource-face face)
+  (face-differs-from-default-p face))
+
+(defun font-lock-copy-face (from to)
+  (if (font-lock-reset-face to)
+      (message (format "Warning: X resources override default for %s" to))
+    (copy-face from to)))
+
+(defun font-lock-set-foreground (color to)
+  (if (font-lock-reset-face to)
+      (message (format "Warning: X resources override default for %s" to))
+    (set-face-foreground to color)))
+
+(defun font-lock-use-default-fonts ()
+  "Reset the font-lock faces to a default set of fonts."
+  (font-lock-copy-face 'italic 'font-lock-comment-face)
+  (font-lock-copy-face 'font-lock-comment-face 'font-lock-string-face)
+  (font-lock-copy-face 'font-lock-string-face 'font-lock-doc-string-face)
+  (font-lock-copy-face 'bold-italic 'font-lock-function-name-face)
+  (font-lock-copy-face 'bold 'font-lock-keyword-face)
+  (font-lock-copy-face 'italic 'font-lock-type-face)
+  ;; is this necessary?
+  (remove-hook 'font-lock-mode-hook 'font-lock-use-default-fonts)
+  nil)
+
+(defun font-lock-use-default-colors ()
+  "Reset the font-lock faces to a default set of colors."
+  (font-lock-set-foreground "#6920ac" 'font-lock-comment-face)
+  (font-lock-set-foreground "green4" 'font-lock-string-face)
+  (font-lock-set-foreground "green4" 'font-lock-doc-string-face)
+  (font-lock-set-foreground "red3" 'font-lock-function-name-face)
+  (font-lock-set-foreground "blue3" 'font-lock-keyword-face)
+  (font-lock-set-foreground "blue3" 'font-lock-type-face)
+  ;; is this necessary?
+  (remove-hook 'font-lock-mode-hook 'font-lock-use-default-colors)
+  nil)
+
+(defun font-lock-use-default-minimal-decoration ()
+  "Reset the font-lock patterns to a fast, minimal set of decorations."
+  (setq lisp-font-lock-keywords lisp-font-lock-keywords-1)
+  (setq c-font-lock-keywords c-font-lock-keywords-1)
+  (setq c++-font-lock-keywords c-font-lock-keywords-1)
+  ;; is this necessary?
+  (remove-hook 'font-lock-mode-hook
+	       'font-lock-use-default-minimal-decoration)
+  nil)
+
+(defun font-lock-use-default-maximal-decoration ()
+  "Reset the font-lock patterns to a larger set of decorations."
+  (setq lisp-font-lock-keywords lisp-font-lock-keywords-2)
+  (setq c-font-lock-keywords c-font-lock-keywords-2)
+  (setq c++-font-lock-keywords c-font-lock-keywords-2)
+  ;; is this necessary?
+  (remove-hook 'font-lock-mode-hook
+	       'font-lock-use-default-maximal-decoration)
+  nil)
 
 
 ;;; Determining which set of font-lock keywords to use.
@@ -453,7 +556,10 @@ This can take a while for large buffers."
                                  (concat (substring 
                                           major 0 (match-beginning 0))
                                          "-font-lock-keywords")))
-               'font-lock-keywords)))))
+               'font-lock-keywords)))
+    (setq font-lock-keywords-case-fold-search ; buffer-local
+	  (get major-mode 'font-lock-keywords-case-fold-search))
+    ))
 
 ;; These are the modes where the font-lock keywords are not trivially
 ;; deducible from the mode name (that is, modes where `FOO-mode' does
@@ -481,9 +587,10 @@ This can take a while for large buffers."
    ;; is more important.
    ("^(def[-a-z]+\\s +\\([^ \t\n\)]+\\)" 1 font-lock-function-name-face)
    ;;
-   ;; highlight CL keywords
+   ;; highlight CL keywords (three clauses seems faster than one)
    ("\\s :\\(\\(\\sw\\|\\s_\\)+\\)\\>" . 1)
    ("(:\\(\\(\\sw\\|\\s_\\)+\\)\\>" . 1)
+   ("':\\(\\(\\sw\\|\\s_\\)+\\)\\>" . 1)
    ;;
    ;; this is highlights things like (def* (setf foo) (bar baz)), but may
    ;; be slower (I haven't really thought about it)
@@ -499,7 +606,7 @@ This does fairly subdued highlighting.")
    '(;;
      ;; Highlight control structures
      ("(\\(cond\\|if\\|when\\|unless\\|[ec]?\\(type\\)?case\\)[ \t\n]" . 1)
-     ("(\\(while\\|do\\|let*?\\|flet\\|labels\\|prog[nv12*]?\\)[ \t\n]" . 1)
+     ("(\\(while\\|do\\|let\\*?\\|flet\\|labels\\|prog[nv12*]?\\)[ \t\n]" . 1)
      ("(\\(catch\\|\\throw\\|block\\|return\\|return-from\\)[ \t\n]" . 1)
      ("(\\(save-restriction\\|save-window-restriction\\)[ \t\n]" . 1)
      ("(\\(save-excursion\\|unwind-protect\\|condition-case\\)[ \t\n]" . 1)
@@ -531,10 +638,10 @@ This does fairly subdued highlighting.")
 This does a lot more highlighting.")
 
 (let ((storage "auto\\|extern\\|register\\|static\\|volatile")
-      (prefixes "unsigned\\|short\\|long")
-      (types (concat "int\\|char\\|float\\|double\\|void\\|struct\\|"
+      (prefixes "unsigned\\|short\\|long\\|const")
+      (types (concat "int\\|long\\|char\\|float\\|double\\|void\\|struct\\|"
 		     "union\\|enum\\|typedef"))
-      (ctoken "\\(\\sw\\|\\s_\\|[:~*]\\)+")
+      (ctoken "\\(\\sw\\|\\s_\\|[:~*&]\\)+")
       )
   (setq c-font-lock-keywords-1 (purecopy
    (list
@@ -552,7 +659,8 @@ This does a lot more highlighting.")
     ;; fontify the filename in #include <...>
     ;; don't need to do this for #include "..." because those were
     ;; already fontified as strings by the syntactic pass.
-    '("^#[ \t]*include[ \t]+\\(<[^>\"\n]+>\\)" 1 font-lock-string-face)
+    ;; (Changed to not include the <> in the face, since "" aren't.)
+    '("^#[ \t]*include[ \t]+<\\([^>\"\n]+\\)>" 1 font-lock-string-face)
     ;;
     ;; fontify the names of functions being defined.
     ;; I think this should be fast because it's anchored at bol, but it's not.
@@ -592,8 +700,7 @@ This does a lot more highlighting.")
 	    "[ \t]\\("
 	    (mapconcat 'identity
 	     '("for" "while" "do" "return" "goto" "case" "break" "switch"
-	       "if" "then" "else if" "else" "return" "default" "continue"
-	       "default"
+	       "if" "then" "else if" "else" "return" "continue" "default"
 	       )
 	     "\\|")
 	    "\\)[ \t\n(){};,]")
@@ -623,6 +730,18 @@ This does a lot more highlighting.")
 (defconst c++-font-lock-keywords c-font-lock-keywords
   "Additional expressions to highlight in C++ mode.")
 
+
+;; Added by Bob Weiner, Motorola, Inc., 2/16/94.
+;; Lots of embedded developers still program in assembler and this
+;; works well for a number of assemblers.  Comments are handled by the
+;; syntax tables.
+(defconst asm-font-lock-keywords (purecopy
+ '(
+   ("^\\(\\sw\\|\\s_\\)+" 0 font-lock-function-name-face)
+   ("^\\(\\sw\\|\\s_\\)+:?\\s +\\(\\sw+\\)" 2 font-lock-keyword-face)
+   ("^\\s +\\(\\(\\sw\\|\\s_\\)+\\)" 1 font-lock-keyword-face)
+   ))
+ "Additional expressions to highlight in assembler mode.")
 
 (defconst perl-font-lock-keywords (purecopy
   (list
@@ -675,7 +794,7 @@ This does a lot more highlighting.")
 (defconst texinfo-font-lock-keywords (purecopy
   (list
    "@\\(@\\|[^}\t \n{]+\\)"					;commands
-   '("^\\(@c\\|@comment\\)[ \t].*$" . font-lock-comment-face)	;comments
+   '("^\\(@c\\|@comment\\)[ \t].*$" 0 font-lock-comment-face t)	;comments
    '("^\\(*.*\\)[\t ]*$" 1 font-lock-function-name-face t)	;menu items
    '("@\\(emph\\|strong\\|b\\|i\\){\\([^}]+\\)" 2 font-lock-comment-face t)
    '("@\\(file\\|kbd\\|key\\){\\([^}]+\\)" 2 font-lock-string-face t)
@@ -725,6 +844,99 @@ This does a lot more highlighting.")
      ;; backups; autosaves; core files?  Those with ignored-extensions?
      )))
   "Expressions to highlight in Dired buffers.")
+
+(defconst ada-font-lock-keywords (purecopy
+  (let ((ident  "\\(\\(\\sw\\|\\s_\\)+\\)") ; indent is 2nd capture
+	(decl-1 "\\(procedure\\|function\\|package\\)[ \t]+") ; 1 ()
+	(decl-2 "\\(task\\|package\\)[ \t]+body[ \t]+")	; 1()
+	(kwords-1			; "normal" keywords
+	 '("abort" "abs" "accept" "access" "array" "begin" "body" "case"
+	   "constant" "declare" "delay" "delta" "digits" "else" "elsif"
+	   "entry" "exception" "exit" "function"  "generic" "goto" "if"
+	   "others" "limited" "loop" "mod" "new" "null" "out" "subtype"
+	   "package" "pragma" "private" "procedure" "raise" "range" "record"
+	   "rem" "renames" "return" "reverse" "select" "separate" "task"
+	   "terminate" "then" "type" "when" "while" "with" "xor"))
+	(kwords-2	; keywords that may appear at the end of a word AND
+			; may also be preceeded by a non-space.
+	 '("and" "at" "do" "end" "for" "in" "is" "not" "of" "or" "use"))
+	)
+    (list
+     ;;'("\\(--.*\\)" 1 font-lock-comment-face t) ; syntax table should do this
+     (list (concat "^[ \t]*" decl-2 ident) 3 'font-lock-function-name-face)
+     (list (concat "^[ \t]*" decl-1 ident) 3 'font-lock-function-name-face)
+     (cons (concat "\\(" (mapconcat 'identity kwords-1 "\\|") "\\)[ \n\t;(]")
+	   1)
+     (cons (concat "[ \t+=*/---]\\(" (mapconcat 'identity kwords-2 "\\|")
+		   "\\)[ \n\t;(]")
+	   1)
+     (cons "^\\(end\\)[ \n\t;(]" 1)
+     (cons "\\.\\(all\\)" 1)
+     )))
+  "Expressions to highlight in Ada buffers.")
+
+
+(defconst fortran-font-lock-keywords-1
+  (purecopy
+   (list
+    ;; fontify comments
+    '("^[cC*].*$" . font-lock-comment-face)
+    ;; Subroutine and function declarations
+    '("^[ \t]*subroutine.*$" . font-lock-function-name-face)
+    '("^[ \t].*function.*$" . font-lock-function-name-face)
+    ))
+  "For consideration as a value of `fortran-font-lock-keywords'.
+This does fairly subdued highlighting of comments and function names.")
+
+(defconst fortran-font-lock-keywords-2
+  (purecopy
+   (list
+    ;; Variable declarations
+    '("^[ \t]*\\(\\(integer\\|logical\\|real\\|complex\\|double[ \t]*precision\\|character\\|parameter\\)[^ \t]*\\)" 
+      1 font-lock-keyword-face)
+    ;; Common blocks, external, etc
+    '("^[ \t]*\\(common\\|save\\|external\\|intrinsic\\|data\\)" 1 font-lock-keyword-face)
+    ;; Other keywords
+    '("^[ \t]*[0-9]*[ \t]*\\(if\\)[ \t]*("
+      1 font-lock-keyword-face)
+
+    ;; Then
+    ;; '("^\\(\\([ \t]*[0-9]*[ \t]*\\)\\|\\(      [^ ]\\)\\).*[ \t]*\\(then\\)[ \t]*"
+    ;;   4 font-lock-keyword-face)
+    '("\\(then\\)[ \t]*$" 1 font-lock-keyword-face)
+
+    ;; '("^[ \t]*[0-9]*[ \t]*\\(end[ \t]*if\\)[ \t]*$"
+    '("\\(end[ \t]*if\\)[ \t]*$"
+      1 font-lock-keyword-face)      
+    ;; '("^[ \t]*[0-9]*[ \t]*\\(else[ \t]*\\(if\\)?\\)"
+    '("\\(else[ \t]*\\(if\\)?\\)"
+      1 font-lock-keyword-face)
+    '("^[ \t]*[0-9]*[ \t]*\\(do\\)[ \t]*[0-9]+"
+      1 font-lock-keyword-face)
+    '("^[ \t]*[0-9]+[ \t]*\\(continue\\)" 1 font-lock-keyword-face)
+    '("^[ \t]*[0-9]*[ \t]*\\(call\\)" 1 font-lock-keyword-face)
+    '("^[ \t]*[0-9]*[ \t]*\\(go[ \t]*to\\)" 1 font-lock-keyword-face)
+
+    '("^[ \t]*[0-9]*[ \t]*\\(open\\|close\\|read\\|write\\|format\\)[ \t]*("
+      1 font-lock-keyword-face)
+    '("^[ \t]*[0-9]*[ \t]*\\(print\\)[ \t]*[*'0-9]+" 1 font-lock-keyword-face)
+
+    '("^[ \t]*[0-9]*[ \t]*\\(end\\|return\\)[ \t]*$" 1 font-lock-keyword-face)
+
+    '("^[ \t]*[0-9]*[ \t]*\\(stop\\)[ \t]*['0-9]*" 1 font-lock-keyword-face)
+
+    ;; Boolean and relational operations, logical true and false
+    '("\\.\\(and\\|or\\|not\\|lt\\|le\\|eq\\|ge\\|gt\\|ne\\|true\\|false\\)\\."
+      . font-lock-keyword-face)
+    ))
+  "For consideration as a value of `fortran-font-lock-keywords'.
+This highlights variable types, \"keywords,\" etc.")
+
+;; The keywords in the preceding lists assume case-insensitivity.
+(put 'fortran-mode 'font-lock-keywords-case-fold-search t)
+
+(defconst fortran-font-lock-keywords fortran-font-lock-keywords-1
+  "Additional expressions to highlight in Fortran mode.")
 
 
 (provide 'font-lock)

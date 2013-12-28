@@ -30,14 +30,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "dispmisc.h"
 #include "window.h"
 #include "buffer.h"
+#include "indent.h"
 #include "lwlib.h"
+#include "EmacsScreenP.h" /* so we can directly manipulate scrollbar width */
+#include "commands.h"
 
-#include "xintrinsicp.h"     /* for XtResizeWidget */
 #include <X11/StringDefs.h>
 
+#include "EmacsManager.h"
 #ifdef LWLIB_USES_MOTIF
 # include <Xm/Xm.h>
-# include <Xm/MainW.h>
 # include <Xm/PanedW.h>
 #else /* Athena */
 # include <X11/Xmu/Converters.h>	/* For XtorientVertical */
@@ -47,85 +49,56 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define min(a,b) ((a)<(b) ? (a) : (b))
 #define max(a,b) ((a)>(b) ? (a) : (b))
 
-int scrollbar_width;
+#define DEFAULT_SCROLLBAR_WIDTH 15
 
-/* We need a unique id for every scrollbar.  In order to avoid
-   tripping over the menus and dialog boxes, we just use their
-   counter.  I think this system sucks rocks, but that's life.  There
-   ought to be a common counter for all widgets using lwlib. */
-extern unsigned int popup_id_tick;
+#define SCROLLBAR_WIDTH(s) ((EmacsScreen) s->display.x->edit_widget)->emacs_screen.scrollbar_width
 
-
-void
-mark_scrollbar (struct scrollbar_instance *instance,
-		void (*markobj) (Lisp_Object))
-{
-  if (instance)
-    {
-      ((markobj) (instance->window));
-      mark_scrollbar (instance->next, markobj);
-    }
-}
+/* Used to prevent changing the size of the thumb while drag scrolling,
+   under Motif.  This is necessary because the Motif scrollbar is
+   incredibly stupid about updating the thumb and causes lots of flicker
+   if it is done too often.
+ */
+static int inhibit_thumb_size_change;
 
 
 /*
- * This is essentially Fforward_line, duplicated here because
- * Fforward_line only works with the current buffer in the current
- * window.
- *
- * The start arg was added to let this also act as a beginning_of_line
- * function.  This function gets more and more bastardized every week.
+ * If w->sb_point is on the top line then return w->sb_point else
+ * return w->start.  If flag, then return beginning point of line
+ * which w->sb_point lies on.
  */
-static Lisp_Object
-scrollbar_forward_line (struct screen *s, Lisp_Object win, int n,
-			Lisp_Object start)
+int
+scrollbar_point (struct window *w, int flag)
 {
+  int start_pos, end_pos, sb_pos, shortage;
   Lisp_Object buf;
-  struct buffer *b, *cur_buf;
-  int pos, pos2;
-  int count, shortage, negp;
+  struct buffer *b;
 
-  buf = get_buffer (XWINDOW (win)->buffer, 0);
+  if (NILP (w->buffer)) /* non-leaf window */
+    return 0;
+
+  start_pos = marker_position (w->start);
+  sb_pos = marker_position (w->sb_point);
+
+  if (!flag && sb_pos < start_pos)
+    return start_pos;
+
+  buf = get_buffer (w->buffer, 0);
   if (!NILP (buf))
     b = XBUFFER (buf);
   else
-    return Qnil;
+    return start_pos;
 
-  if (!NILP (start))
-    pos2 = XINT (start);
-  else if (!EQ (win, SCREEN_SELECTED_WINDOW (s)))
-    {
-      int pointm = marker_position (XWINDOW (win)->start);
-
-      if (pointm < BUF_BEGV (b))
-	pos2 = BUF_BEGV (b);
-      else if (pointm > BUF_ZV (b))
-	pos2 = BUF_ZV (b);
-      else
-	pos2 = pointm;
-    }
+  if (flag)
+    end_pos = scan_buffer (b, '\n', sb_pos, -1, &shortage, 0);
   else
-    pos2 = marker_position (XWINDOW (win)->start);
+    end_pos = scan_buffer (b, '\n', start_pos, 1, &shortage, 0);
 
-  count = n;
-  negp = count <= 0;
-
-  cur_buf = current_buffer;
-  set_buffer_internal (b);
-  pos = scan_buffer (current_buffer, '\n', pos2, count - negp, &shortage);
-  set_buffer_internal (cur_buf);
-
-  if (shortage > 0
-      && (negp
-	  || (BUF_ZV (b) > BUF_BEGV (b)
-	      && pos != pos2
-	      && BUF_CHAR_AT (b, pos - 1) != '\n')))
-    shortage--;
-
-  if (n == 0)
-    return make_number (pos);
+  if (flag)
+    return end_pos;
+  else if (sb_pos > end_pos)
+    return start_pos;
   else
-    return (Fset_window_point (win, make_number (pos)));
+    return sb_pos;
 }
 
 /*
@@ -134,7 +107,7 @@ scrollbar_forward_line (struct screen *s, Lisp_Object win, int n,
  * scrolled.
  */
 static void
-scrollbar_page (struct screen *s, Lisp_Object win, int count)
+scrollbar_page (struct screen *s, Lisp_Object win, int dir, Lisp_Object amount)
 {
   Lisp_Object cur_select = SCREEN_SELECTED_WINDOW (s);
   struct screen *cur_screen = selected_screen;
@@ -142,10 +115,10 @@ scrollbar_page (struct screen *s, Lisp_Object win, int count)
   if (!EQ (cur_select, win) || (s != cur_screen))
     Fselect_window (win);
 
-  if (count == 1)
-    scroll_command (Qnil, 1, 1);	/* no error */
+  if (dir == 1)
+    scroll_command (amount, 1, 1);	/* no error */
   else
-    scroll_command (Qnil, -1, 1);	/* no error */
+    scroll_command (amount, -1, 1);	/* no error */
 
   if (!EQ (cur_select, win) || (s != cur_screen))
     Fselect_window (cur_select);
@@ -164,16 +137,18 @@ redisplay_scrollbar_window (struct screen *s, Lisp_Object win)
   Lisp_Object cur_select = SCREEN_SELECTED_WINDOW (s);
   struct screen *cur_screen = selected_screen;
 
-  lock_redisplay ();
-
   if (!EQ (cur_select, win) || (s != cur_screen))
     {
+      lock_redisplay (REDISPLAY_LOCK_CURSOR);
       Fselect_window (win);
       redisplay ();
       Fselect_window (cur_select);
     }
   else
-    redisplay ();
+    {
+      lock_redisplay (REDISPLAY_LOCK_COMPLETELY);
+      redisplay ();
+    }
 
   unlock_redisplay ();
 }
@@ -188,17 +163,42 @@ recenter_scrollbar_window (struct screen *s, Lisp_Object win)
   Lisp_Object cur_select = SCREEN_SELECTED_WINDOW (s);
   struct screen *cur_screen = selected_screen;
 
-  lock_redisplay ();
-
   if (!EQ (cur_select, win) || (s != cur_screen))
     {
+      lock_redisplay (REDISPLAY_LOCK_CURSOR);
       Fselect_window (win);
       Frecenter (Qzero);
       redisplay ();
       Fselect_window (cur_select);
     }
   else
-    Frecenter (Qzero);
+    {
+      lock_redisplay (REDISPLAY_LOCK_COMPLETELY);
+      Frecenter (Qzero);
+    }
+
+  unlock_redisplay ();
+}
+
+static void
+scrollbar_move_to_window_line (struct screen *s, Lisp_Object win, int line)
+{
+  Lisp_Object cur_select = SCREEN_SELECTED_WINDOW (s);
+  struct screen *cur_screen = selected_screen;
+
+  if (!EQ (cur_select, win) || (s != cur_screen))
+    {
+      lock_redisplay (REDISPLAY_LOCK_CURSOR);
+      Fselect_window (win);
+      Fmove_to_window_line (make_number (line));
+      redisplay ();
+      Fselect_window (cur_select);
+    }
+  else
+    {
+      lock_redisplay (REDISPLAY_LOCK_COMPLETELY);
+      Fmove_to_window_line (make_number (line));
+    }
 
   unlock_redisplay ();
 }
@@ -238,7 +238,7 @@ scrollbar_reset_cursor (struct screen *s, Lisp_Object win, int orig_pt)
   else if (orig_pt >= end_pos)
     {
       Fmove_to_window_line (make_number (-1));
-      Fforward_line (Qnil);
+      Fbeginning_of_line (Qnil);
     }
   else
     Fgoto_char (make_number (orig_pt));
@@ -246,6 +246,12 @@ scrollbar_reset_cursor (struct screen *s, Lisp_Object win, int orig_pt)
   if (!EQ (cur_select, win) || (s != cur_screen))
     Fselect_window (cur_select);
 }
+
+extern void pre_command_hook (void);
+extern void post_command_hook (int old_region_p);
+static void update_one_screen_scrollbars (struct screen *s);
+static void update_one_screen_scrollbars_size (struct screen *s);
+static void update_one_scrollbar_bs (struct screen *s, Widget sb_widget);
 
 /*
  * This is the only callback provided.  It should be able to handle all
@@ -259,6 +265,7 @@ update_scrollbar_callback (Widget widget, LWLIB_ID id, XtPointer client_data)
   Lisp_Object win, buf;
   struct scrollbar_instance *instance;
   int orig_pt;
+  int old_region_p = zmacs_region_active_p;
 
   if (!s)
     s = x_any_window_to_screen (XtWindow (XtParent (widget)));
@@ -272,83 +279,159 @@ update_scrollbar_callback (Widget widget, LWLIB_ID id, XtPointer client_data)
     {
       if (instance->scrollbar_id == id)
 	{
-	  win = instance->window;
+	  win = real_window (instance->mirror, 1);
+	  if (NILP (win))
+	    return;
 	  break;
 	}
       instance = instance->next;
     }
 
-  if (NILP (win))
+  /* If the window has an hchild then it is actually not active so we
+     can just exit quietly. */
+  if (NILP (win) || !NILP (XWINDOW (win)->hchild))
     return;
 
   buf = get_buffer (XWINDOW (win)->buffer, 0);
-  if (NILP (buf))
-    orig_pt = 1;
-  else
-    orig_pt = BUF_PT (XBUFFER (buf));
+
+  /* Multiple windows may be showing the same buffer so make sure we
+     use the value of point in the window that is actually being
+     scrolled. */
+  orig_pt = XINT (Fwindow_point (win));
   
   switch (data->action)
     {
     case SCROLLBAR_LINE_UP:
-      scrollbar_forward_line (s, win, -1, Qnil);
-      recenter_scrollbar_window (s, win);
+      pre_command_hook ();
+      scrollbar_page (s, win, -1, make_number (1));
+      post_command_hook (old_region_p);
       break;
-    case SCROLLBAR_LINE_DOWN:
-      scrollbar_forward_line (s, win, 1, Qnil);
-      recenter_scrollbar_window (s, win);
-      break;
-    case SCROLLBAR_PAGE_UP:
-      scrollbar_page (s, win, -1);
-      break;
-    case SCROLLBAR_PAGE_DOWN:
-      scrollbar_page (s, win, 1);
-      break;
-    case SCROLLBAR_TOP:
-      Fset_window_point (win, Fpoint_min());
-      recenter_scrollbar_window (s, win);
-      break;
-    case SCROLLBAR_BOTTOM:
-      Fset_window_point (win, Fpoint_max());
-      recenter_scrollbar_window (s, win);
-      break;
-    case SCROLLBAR_CHANGE:
-      if ((data->slider_value + 1) <= instance->data.maximum)
-	data->slider_value++;
-      Fset_window_point (win, make_number (data->slider_value));
-      recenter_scrollbar_window (s, win);
-      break;
-    case SCROLLBAR_DRAG:
-      {
-	Lisp_Object start_pos;
 
-	start_pos = scrollbar_forward_line (s, win, 0,
-					    make_number (data->slider_value));
-	if (XINT (start_pos) == instance->data.slider_position &&
-	    data->slider_value >= instance->data.slider_position &&
-	    XINT (start_pos) < instance->data.maximum)
+    case SCROLLBAR_LINE_DOWN:
+      pre_command_hook ();
+      scrollbar_page (s, win, 1, make_number (1));
+      post_command_hook (old_region_p);
+      break;
+
+    case SCROLLBAR_PAGE_UP:
+      pre_command_hook ();
+
+      /* Motif and Athena scrollbars behave totally differently...  (wasn't
+	 this just the kind of nonsense lwlib was supposed to abstract away?)
+       */
+#ifdef LWLIB_USES_MOTIF
+      scrollbar_page (s, win, -1, Qnil);
+#else /* Athena */
+      {
+	struct position pos;
+	double tmp = ((double) data->slider_value /
+		      (double) instance->data.scrollbar_height);
+	double line = tmp * (double) window_displayed_height (XWINDOW (win),0);
+
+	if (line > -1.0)
+	  line = -1.0;
+	scrollbar_move_to_window_line (s, win, 0);
+	/* can't use Fvertical_motion() because it moves the buffer point
+	   rather than the window's point */
+	pos = *vmotion (XINT (Fwindow_point (win)), line,
+			XINT (XWINDOW (win)->hscroll), win);
+	Fset_window_point (win, make_number (pos.bufpos));
+	recenter_scrollbar_window (s, win);
+      }
+#endif /* Athena */
+      post_command_hook (old_region_p);
+      break;
+
+    case SCROLLBAR_PAGE_DOWN:
+      pre_command_hook ();
+
+#ifdef LWLIB_USES_MOTIF
+      scrollbar_page (s, win, 1, Qnil);
+#else /* Athena */
+      {
+	double tmp = ((double) data->slider_value /
+		      (double) instance->data.scrollbar_height);
+	double line = tmp * (double) window_displayed_height (XWINDOW (win),0);
+
+	if (instance->data.maximum >
+	    (instance->data.slider_size + instance->data.slider_position))
 	  {
-	    scrollbar_forward_line (s, win, 1, Qnil);
+	    if (line < 1.0)
+	      line = 1.0;
+	    scrollbar_move_to_window_line (s, win, (int) line);
 	    recenter_scrollbar_window (s, win);
 	  }
-	else
-	  Fset_window_start (win, start_pos, Qnil);
+      }
+#endif
+      post_command_hook (old_region_p);
+      break;
+
+    case SCROLLBAR_TOP:
+      pre_command_hook ();
+      Fset_window_point (win, Fpoint_min());
+      recenter_scrollbar_window (s, win);
+      /* post_command_hook ran at end of function */
+      break;
+
+    case SCROLLBAR_BOTTOM:
+      pre_command_hook ();
+      Fset_window_point (win, Fpoint_max());
+      recenter_scrollbar_window (s, win);
+      /* post_command_hook ran at end of function */
+      break;
+
+    case SCROLLBAR_CHANGE:
+      inhibit_thumb_size_change = 0;
+      break;
+
+    case SCROLLBAR_DRAG:
+      {
+	int start_pos;
+	int value;
+
+	inhibit_thumb_size_change = 1;
+
+#ifdef LWLIB_USES_MOTIF
+	value = ((double)(instance->data.maximum - instance->data.minimum) *
+		 (data->slider_value - instance->data.minimum)) /
+		   (instance->data.maximum - instance->data.minimum -
+		    instance->data.slider_size) + instance->data.minimum;
+#else
+	value = data->slider_value;
+#endif
+
+	if (value == instance->data.maximum)
+	  value = instance->data.maximum - 1;
+
+	pre_command_hook ();
+	Fset_marker (XWINDOW (win)->sb_point, make_number (value), buf);
+	start_pos = scrollbar_point (XWINDOW (win), 1);
+	Fset_window_start (win, make_number (start_pos), Qnil);
+	/* post_command_hook ran at end of function */
       }
       break;
+
     default:
       break;
     }
+
+  redisplay_scrollbar_window (s, win);
 
   /*
    * The paging operations are identical to calling Fscroll_up and
    * Fscroll_down.  Doing additional work just screws things up.
    */
   if (data->action != SCROLLBAR_PAGE_UP &&
-      data->action != SCROLLBAR_PAGE_DOWN)
+      data->action != SCROLLBAR_PAGE_DOWN &&
+      data->action != SCROLLBAR_LINE_UP &&
+      data->action != SCROLLBAR_LINE_DOWN)
     {
-      redisplay_scrollbar_window (s, win);
       scrollbar_reset_cursor (s, win, orig_pt);
+      post_command_hook (old_region_p);
     }
 }
+
+extern LWLIB_ID new_lwlib_id (void);
 
 /*
  * Create a new scrollbar for SCREEN.  Scrollbar's are only destroyed
@@ -362,7 +445,7 @@ create_scrollbar_instance (struct screen *s)
     (struct scrollbar_instance *) xmalloc (sizeof (struct scrollbar_instance));
 
   instance->next = NULL;
-  instance->window = Qnil;
+  instance->mirror = 0;
   instance->scrollbar_is_active = 0;
   instance->scrollbar_instance_changed = 0;
 
@@ -375,9 +458,10 @@ create_scrollbar_instance (struct screen *s)
   instance->data.scrollbar_height = 0;
   instance->data.scrollbar_pos = 0;
 
-  instance->scrollbar_id = ++popup_id_tick;
+  instance->scrollbar_id = new_lwlib_id ();
   sprintf (buffer, "scrollbar_%d", instance->scrollbar_id);
   instance->scrollbar_name = xstrdup (buffer);
+  instance->backing_store_initialized = 0;
 
   BLOCK_INPUT;
   instance->scrollbar_widget =
@@ -470,7 +554,7 @@ update_scrollbar_instance (struct screen *s, struct window *w,
 			   int next_pos)
 {
   struct buffer *buf;
-  int start_pos, end_pos, new_height;
+  int start_pos, end_pos, sb_pos, new_height;
 
   /*
    * If a window has vertical children, the scrollbars will actually
@@ -537,16 +621,29 @@ update_scrollbar_instance (struct screen *s, struct window *w,
   /*
    * Once we get to this point we are updating an actual scrollbar.
    */
-  buf = XBUFFER (w->buffer);
-  start_pos = marker_position (w->start);
-  end_pos = BUF_Z (buf) - w->window_end_pos;	/* This is a close approx. */
+  if (!NILP (w->buffer))
+    {
+      buf = XBUFFER (w->buffer);
+      start_pos = marker_position (w->start);
+      end_pos = BUF_Z (buf) - w->window_end_pos; /* This is a close approx. */
+      sb_pos = scrollbar_point (w, 0);
+      start_pos = sb_pos;
+    }
+  else
+    {
+      buf = 0;
+      start_pos = 0;
+      end_pos = 0;
+      sb_pos = 0;
+    }
 
   /*
    * The end position must be strictly greater than the start position,
    * at least for the Motify scrollbar.  It shouldn't hurt anything for
    * other scrollbar implmentations.
    */
-  if (end_pos <= start_pos) end_pos = start_pos + 1;
+  if (buf && (end_pos <= start_pos))
+    end_pos = start_pos + 1;
 
   /*
    * The calculation of the scrollbar height is complete bullshit at
@@ -582,9 +679,9 @@ update_scrollbar_instance (struct screen *s, struct window *w,
    * The UPDATE_DATA_FIELD macro won't work for this because it is
    * a Lisp object.
    */
-  if (XWINDOW (instance->window) != w)
+  if (!instance->mirror || XWINDOW (real_window (instance->mirror, 0)) != w)
     {
-      XSET (instance->window, Lisp_Record, w);
+      instance->mirror = find_window_mirror (w);
       instance->scrollbar_instance_changed = 1;
     }
       
@@ -592,11 +689,19 @@ update_scrollbar_instance (struct screen *s, struct window *w,
    * Only character-based scrollbars are implemented at the moment.
    * Line-based will be implemented in the future.
    */
-  UPDATE_DATA_FIELD (scrollbar_is_active, 1);
+
+  /* don't use UPDATE_DATA_FIELD because we want to set this without
+     tripping the changed field. */
+  instance->scrollbar_is_active = 1;
   UPDATE_DATA_FIELD (data.line_increment, 1);
   UPDATE_DATA_FIELD (data.page_increment, 1);
-  UPDATE_DATA_FIELD (data.scrollbar_height, new_height);
-  UPDATE_DATA_FIELD (data.scrollbar_pos, next_pos);
+#ifdef LWLIB_USES_MOTIF
+  if (!inhibit_thumb_size_change)
+#endif
+    {
+      UPDATE_DATA_FIELD (data.scrollbar_height, new_height);
+      UPDATE_DATA_FIELD (data.scrollbar_pos, next_pos);
+    }
 
   /*
    * A disabled scrollbar has its slider sized to the entire height of
@@ -605,15 +710,23 @@ update_scrollbar_instance (struct screen *s, struct window *w,
    */
   if (NILP (w->hchild) && !MINI_WINDOW_P (w))
     {
-      UPDATE_DATA_FIELD (data.minimum, BUF_BEGV (buf));
-      UPDATE_DATA_FIELD (data.maximum,
-			 max (BUF_ZV (buf),
-			      instance->data.minimum + 1));
-      UPDATE_DATA_FIELD (data.slider_size,
-			 min ((end_pos - start_pos),
-			      (instance->data.maximum -
-			       instance->data.minimum)));
-      UPDATE_DATA_FIELD (data.slider_position, start_pos);
+      int new_slider_size;
+
+      if (! buf) abort ();
+#ifdef LWLIB_USES_MOTIF
+      if (!inhibit_thumb_size_change)
+#endif
+	{
+	  UPDATE_DATA_FIELD (data.minimum, BUF_BEGV (buf));
+	  UPDATE_DATA_FIELD (data.maximum,
+			     max (BUF_ZV (buf),
+				  instance->data.minimum + 1));
+	  new_slider_size = min ((end_pos - start_pos),
+				 (instance->data.maximum -
+				  instance->data.minimum));
+	  UPDATE_DATA_FIELD (data.slider_size, new_slider_size);
+	  UPDATE_DATA_FIELD (data.slider_position, sb_pos);
+	}
     }
   else
     {
@@ -622,7 +735,14 @@ update_scrollbar_instance (struct screen *s, struct window *w,
       UPDATE_DATA_FIELD (data.slider_size, 1);
       UPDATE_DATA_FIELD (data.slider_position, 1);
       /* Actually, let's make these unusable scrollbars invisible. */
-      instance->scrollbar_is_active = 0;
+      /* No, that doesn't work because of FUCKING GEOMETRY MANAGEMENT
+	 when there are nothing but horizontally split windows (ie no
+	 scrollbars.)  Xt and Motif are such collossal steaming piles
+	 of shit I can hardly believe it.
+	 
+	 Only make it invisible if it's the minibuffer scrollbar.
+       */
+      instance->scrollbar_is_active = !MINI_WINDOW_P (w);
     }
 
   /*
@@ -639,14 +759,6 @@ update_scrollbar_instance (struct screen *s, struct window *w,
   return instance;
 }
 
-#ifdef LWLIB_USES_MOTIF
-# define sb_margin 0
-#else
-  /* We need to put a border next to the scrollbars for Athena, because
-     they don't border themselves... */
-# define sb_margin 1
-#endif
-
 /* For every screen, make sure all horizontal window areas have a
    scrollbar and that the scrollbars are up-to-date with the window view.
  */
@@ -654,7 +766,6 @@ static void
 update_one_screen_scrollbars (struct screen *s)
 {
   struct scrollbar_instance *instance, *cur_instance;
-  Widget scrollbar_manager = s->display.x->scrollbar_manager;
 
   BLOCK_INPUT;
 
@@ -667,15 +778,8 @@ update_one_screen_scrollbars (struct screen *s)
   while (instance)
     {
       instance->scrollbar_is_active = 0;
+      instance->mirror = 0;
       instance = instance->next;
-    }
-
-  /* If there are going to be any scrollbars, make sure there's a 
-     container before we try to create children of it. */
-  if (scrollbar_width > 0 && scrollbar_manager == 0)
-    {
-      initialize_screen_scrollbars (s);
-      scrollbar_manager = s->display.x->scrollbar_manager;
     }
 
   if (s->scrollbar_instances)
@@ -703,10 +807,37 @@ update_one_screen_scrollbars (struct screen *s)
 	  if (!cur_wv)		/* length (wv) != length (instance) */
 	    abort ();
 
-	  lw_modify_all_widgets (cur_instance->scrollbar_id, cur_wv, 0);
+	  if (cur_instance->scrollbar_instance_changed)
+	    lw_modify_all_widgets (cur_instance->scrollbar_id, cur_wv, 0);
+	  cur_instance->scrollbar_instance_changed = 0;
 
 	  active = cur_instance->scrollbar_is_active;
 	  managed = XtIsManaged (cur_instance->scrollbar_widget);
+
+	  /*
+	   * If the width gets changed while some scrollbars are
+	   * unmanaged their width doesn't get adjusted.  The next
+	   * time we attempt to manage it the geometry manager
+	   * goes into a spin.  Thus this butt-ugly hack.
+	   */
+	  {
+	    Dimension sb_width, new_width;
+
+	    XtVaGetValues (cur_instance->scrollbar_widget,
+			   XtNwidth, &sb_width,
+			   0);
+
+	    if (SCROLLBAR_WIDTH(s) < 1)
+	      new_width = 1;
+	    else if (SCROLLBAR_WIDTH(s) >= PIXW (s))
+	      new_width = PIXW (s) - 1;
+	    else
+	      new_width = SCROLLBAR_WIDTH(s);
+
+	    if (sb_width != new_width)
+	      XtVaSetValues (cur_instance->scrollbar_widget,
+			     XtNwidth, new_width, 0);
+	  }
 
 	  if (active && !managed)
 	    XtManageChild (cur_instance->scrollbar_widget);
@@ -716,55 +847,48 @@ update_one_screen_scrollbars (struct screen *s)
 	      XtUnmapWidget (cur_instance->scrollbar_widget);
 	    }
 
+	  if (active && !cur_instance->backing_store_initialized) 
+	    {
+	      update_one_scrollbar_bs (s, cur_instance->scrollbar_widget);
+	      cur_instance->backing_store_initialized = 1;
+	    }
 	  cur_instance = cur_instance->next;
 	  cur_wv = cur_wv->next;
 	}
 
       free_scrollbar_widget_value_tree (wv);
     }
+  UNBLOCK_INPUT;
 
-  /* Now update the visibility and size of the scrollbar container.
-   */
+  update_one_screen_scrollbars_size (s);
+}
 
-  if (scrollbar_width <= 0 && scrollbar_manager &&
+static void
+update_one_screen_scrollbars_size (struct screen *s)
+{
+  /* Update the visibility and size of the scrollbar container. */
+
+  Widget scrollbar_manager = s->display.x->scrollbar_manager;
+  int changed = 0;
+  int old_screen_width = SCREEN_WIDTH (s);
+
+  BLOCK_INPUT;
+
+  if (SCROLLBAR_WIDTH(s) <= 0 && scrollbar_manager &&
       XtIsManaged (scrollbar_manager))
     {
-      /* Scrollbar was on, and is going off.
-	 For Motif, we just need to unmanage the container.
-	 For Athena, we also need to reduce the window size by the
-	 size of the scrollbar margin, sigh...
-       */
-#ifndef LWLIB_USES_MOTIF	/* Athena */
-      Dimension width;
-      XtVaGetValues (s->display.x->widget, XtNwidth, &width, 0);
-#endif /* Athena */      
+      /* Scrollbar was on, and is going off. */
       XtUnmanageChild (scrollbar_manager);
-#ifndef LWLIB_USES_MOTIF	/* Athena */
-      XtVaSetValues (s->display.x->widget,
-		     XtNwidth, (width - (scrollbar_manager->core.width +
-					 sb_margin)),
-		     0);
-#endif /* Athena */
+
+      changed = 1;
     }
 
-   else if (scrollbar_width > 0 && !XtIsManaged (scrollbar_manager))
+   else if (SCROLLBAR_WIDTH(s) > 0 && !XtIsManaged (scrollbar_manager))
      {
        /* Scrollbar was off, and is going on */
-#ifndef LWLIB_USES_MOTIF	/* Athena */
-      Dimension width;
-      XtVaGetValues (s->display.x->widget, XtNwidth, &width, 0);
-      XtUnmanageChild (s->display.x->edit_widget);
-      XawPanedSetRefigureMode (s->display.x->container2, False);
-#endif /* Athena */      
        XtManageChild (scrollbar_manager);
-#ifndef LWLIB_USES_MOTIF	/* Athena */
-      XtManageChild (s->display.x->edit_widget);
-      XtVaSetValues (s->display.x->widget,
-		     XtNwidth, (width + scrollbar_manager->core.width +
-				sb_margin),
-		     0);
-      XawPanedSetRefigureMode (s->display.x->container2, True);
-#endif /* Athena */
+
+      changed = 1;
      }
 
   if (scrollbar_manager && XtIsManaged (scrollbar_manager))
@@ -777,52 +901,17 @@ update_one_screen_scrollbars (struct screen *s)
 		     XtNwidth, &sb_width,
 		     0);
 
-      if (scrollbar_width - sb_margin < 1)
+      if (SCROLLBAR_WIDTH(s) < 1)
 	new_width = 1;
-      else if (scrollbar_width - sb_margin >= PIXW (s))
+      else if (SCROLLBAR_WIDTH(s) >= PIXW (s))
 	new_width = PIXW (s) - 1;
       else
-	new_width = scrollbar_width - sb_margin;
+	new_width = SCROLLBAR_WIDTH(s);
 
       if (sb_width != new_width)
 	{
-	  Widget container = s->display.x->container;
-	  Dimension parent_width = (container->core.width +
-				    (new_width - sb_width));
-
-#ifdef LWLIB_USES_MOTIF
-	  XtResizeWidget (scrollbar_manager, new_width, sb_height, 0);
-	  XtVaSetValues (container, XtNwidth, parent_width, 0);
-#else /* Athena */
-	  Widget container2 = XtParent (scrollbar_manager);
-	  Widget text_area = s->display.x->edit_widget;
-	  Dimension text_width = text_area->core.width;
-	  Dimension text_height = text_area->core.height;
-
-	  XawPanedSetRefigureMode (container2, False);
-	  XawPanedSetRefigureMode (container, False);
-
-	  XtVaSetValues (container,  XtNwidth, parent_width, 0);
-	  XtVaSetValues (container2, XtNwidth, parent_width, 0);
-	  XtUnmanageChild (text_area);
-	  XtUnmanageChild (scrollbar_manager);
-	  XtResizeWidget (scrollbar_manager, new_width, sb_height, 0);
-	  XtResizeWidget (text_area, text_width, text_height, 0);
-	  XtManageChild (scrollbar_manager);
-	  XtManageChild (s->display.x->edit_widget);
-
-	  XawPanedSetRefigureMode (container, True);
-	  XawPanedSetRefigureMode (container2, True);
-/* ####	  if (container2->core.width != parent_width) abort (); */
-#endif /* Athena */
-
-	  /* We have just attempted to resize the scrollbar_manager and
-	     the scrollbar.  They'd better have the sizes we gave them.
-	   */
-/* ####	  if (container->core.width != parent_width ||
-	      scrollbar_manager->core.width != new_width ||
-	      scrollbar_manager->core.height != sb_height)
-	    abort (); */
+	  XtVaSetValues (scrollbar_manager, XtNwidth, new_width, 0);
+	  changed = 1;
 	}
 
       /* Update scrollbar pointer shape. */
@@ -832,16 +921,44 @@ update_one_screen_scrollbars (struct screen *s)
 	Fx_set_scrollbar_pointer (screen, Vx_scrollbar_pointer_shape);
       }
     }
-
   UNBLOCK_INPUT;
+
+  if (changed)
+    {
+      /* Ensure that the character width of the screen didn't change. */
+      Lisp_Object screen;
+      XSETR (screen, Lisp_Screen, s);
+      Fset_screen_width (screen, make_number (old_screen_width), Qnil);
+    }
 }
 
+static void
+update_one_scrollbar_bs (struct screen *s, Widget sb_widget)
+{
+  EmacsScreen ew = (EmacsScreen) s->display.x->edit_widget;
+
+  if (ew->emacs_screen.use_backing_store && sb_widget)
+    {
+      unsigned long mask = CWBackingStore;
+      XSetWindowAttributes attrs;
+	      
+      attrs.backing_store = Always;
+      XChangeWindowAttributes (XtDisplay(sb_widget),
+			       XtWindow(sb_widget),
+			       mask,
+			       &attrs);
+    }
+}
 
 void
 update_scrollbars ()
 {
   struct screen *s;
   Lisp_Object tail;
+
+  /* Consider this code to be "in_display" so that we abort() if Fsignal()
+     gets called. */
+  in_display++;
 
   for (tail = Vscreen_list; CONSP (tail); tail = XCONS (tail)->cdr)
     {
@@ -853,23 +970,90 @@ update_scrollbars ()
 	continue;
       update_one_screen_scrollbars (s);
     }
+
+  in_display--;
+  if (in_display < 0) abort ();
 }
+
+extern void construct_name_list (Widget widget, char *name, char *class);
 
 /* Called from x_create_widgets() to create the inital scrollbars of a screen
    before it is mapped, so that the window is mapped with the scrollbars
    already there instead of us tacking them on later and thrashing the window
    after it is visible. */
-void
+int
 initialize_screen_scrollbars (struct screen *s)
 {
-  if (!s->display.x->scrollbar_manager && scrollbar_width > 0)
+  /* If the width is -1 then the user didn't specify a value.  So, we
+     first check the toolkit resource to see if they are set and then
+     fallback to our own setting if they are not. */
+  if (SCROLLBAR_WIDTH(s) < 0)
+    {
+      Display *dpy = XtDisplay (s->display.x->container);
+      char name_str[1024], class_str[1024];
+      char *type;
+      XrmValue value;
+
+      /* The name strings are wrong, but the scrollbar name is
+	 non-deterministic so it is a poor way to set a resource for
+	 the scrollbar anyhow. */
+#ifdef LWLIB_USES_MOTIF
+      construct_name_list (s->display.x->container, name_str, class_str);
+      strcat (name_str, "sb_manager.scrollbar.width");
+      strcat (class_str, "XmPanedWindow.XmScrollBar.width");
+#else
+      construct_name_list (s->display.x->container, name_str, class_str);
+      strcat (name_str, "sb_manager.scrollbar.thickness");
+      strcat (class_str, "Paned.Scrollbar.thickness");
+#endif
+
+      if (XrmGetResource (XtDatabase (dpy), name_str, class_str, &type, &value)
+	  == True)
+	{
+	  if (!strcmp (type, XtRString))
+	    SCROLLBAR_WIDTH(s) = atoi (value.addr);
+	  else
+	    SCROLLBAR_WIDTH(s) = DEFAULT_SCROLLBAR_WIDTH;
+	}
+#ifndef LWLIB_USES_MOTIF
+	  /* The official Athena resource for specifying the scrollbar
+             width is 'thickness'.  But 'width' is also accepted at
+             least by xterm. */
+      else
+	{
+	  construct_name_list (s->display.x->container, name_str, class_str);
+	  strcat (name_str, "sb_manager.scrollbar.width");
+	  strcat (class_str, "Paned.Scrollbar.width");
+	  if (XrmGetResource (XtDatabase (dpy), name_str, class_str,
+			      &type, &value) == True)
+	    {
+	      if (!strcmp (type, XtRString))
+		SCROLLBAR_WIDTH(s) = atoi (value.addr);
+	      else
+		SCROLLBAR_WIDTH(s) = DEFAULT_SCROLLBAR_WIDTH;
+	    }
+	  else
+	    SCROLLBAR_WIDTH(s) = DEFAULT_SCROLLBAR_WIDTH;
+	}
+#else
+      else
+	SCROLLBAR_WIDTH(s) = DEFAULT_SCROLLBAR_WIDTH;
+#endif
+    }
+
     {
       Arg av [20];
       int ac = 0;
+      int width = SCROLLBAR_WIDTH(s);
+
+      /* If scrollbar width is 0, that means the scrollbar is not
+	 managed.  Go ahead and create it anyway, with a non-zero
+	 width to avoid problems.  It will be resized as ncessary. */
+      if (width <= 0)
+	width = DEFAULT_SCROLLBAR_WIDTH;
 
 #ifdef LWLIB_USES_MOTIF
 
-      Widget parent = s->display.x->container;
       XtSetArg (av[ac], XmNmarginHeight, 0); ac++;
       XtSetArg (av[ac], XmNmarginWidth, 0); ac++;
       XtSetArg (av[ac], XmNsashHeight, 0); ac++;
@@ -879,55 +1063,41 @@ initialize_screen_scrollbars (struct screen *s)
       XtSetArg (av[ac], XmNseparatorOn, False); ac++;
       XtSetArg (av[ac], XmNspacing, 0); ac++;
       XtSetArg (av[ac], XmNshadowThickness, 2); ac++;
-      XtSetArg (av[ac], XmNwidth, scrollbar_width); ac++;
+      XtSetArg (av[ac], XmNwidth, width); ac++;
       XtSetArg (av[ac], XmNtraversalOn, False); ac++;
 #if __alpha	/* Don't ask, I don't get it either. */
       XtSetArg (av[ac], XmNtopShadowColor, 0); ac++;
 #endif
+      /* Note:  If you change what widgets are created here you need
+	 to reflect that change above where the width resource is
+	 checked. */
       s->display.x->scrollbar_manager =
-	XmCreatePanedWindow (parent, "sb_manager", av, ac);
-
-      if (XtIsManaged (parent))
-	/* meaning we are adding scrollbars after the screen has been mapped,
-	   instead of adding it during the screen's initialization */
-	{
-	  /* I'm not certain that the MainWindow won't sometimes borrow the
-	     space for the scrollbar from the text area, so don't let it.
-	   */
-	  Dimension width, height;
-	  XtVaGetValues (XtParent (parent),
-			 XtNwidth, &width, XtNheight, &height, 0);
-	  XmMainWindowSetAreas (parent,
-				s->display.x->menubar_widget, 0, 0,
-				s->display.x->scrollbar_manager,
-				s->display.x->edit_widget);
-	  XtVaSetValues (XtParent (parent),
-			 XtNwidth, width, XtNheight, height, 0);
-	}
+	XmCreatePanedWindow (s->display.x->container, "sb_manager", av, ac);
 
 #else /* !LWLIB_USES_MOTIF (Athena) */
 
-      XtSetArg (av[ac], XtNshowGrip, False); ac++;
-      XtSetArg (av[ac], XtNallowResize, True); ac++;
-      XtSetArg (av[ac], XtNresizeToPreferred, True); ac++;
       XtSetArg (av[ac], XtNorientation, XtorientVertical); ac++;
-      /* #### This doesn't seem to work; possibly because the scrollbars
-	 themselves have 0 borderwidth?  I can't figure it out. */
-      XtSetArg (av[ac], XtNinternalBorderWidth, 1); ac++;
-      XtSetArg (av[ac], XtNwidth, scrollbar_width - sb_margin); ac++;
+      /* #### This doesn't seem to work all the time; the divider appears
+	 but sometimes disappears when you click on the scrollbar.
+	 Bug in Athena?  I can't figure it out. */
+      XtSetArg (av[ac], XtNinternalBorderWidth, 2); ac++;
+      XtSetArg (av[ac], XtNwidth, width); ac++;
       XtSetArg (av[ac], XtNheight, 10); ac++; /* reset later... */
-      XtSetArg (av[ac], XtNskipAdjust, True); ac++;
+      /* Note:  If you change what widgets are created here you need
+	 to reflect that change above where the width resource is
+	 checked. */
       s->display.x->scrollbar_manager =
 	XtCreateWidget ("sb_manager", panedWidgetClass,
-			s->display.x->container2, av, ac);
+			s->display.x->container, av, ac);
 
 #endif /* !LWLIB_USES_MOTIF (Athena) */
 
       if (!s->scrollbar_instances)
 	s->scrollbar_instances = create_scrollbar_instance (s);
     }
-}
 
+  return SCROLLBAR_WIDTH(s) > 0;
+}
 
 /* Destroy all scrollbars associated with SCREEN.  Only called from
    Fdelete_screen().
@@ -961,9 +1131,26 @@ free_screen_scrollbars (struct screen *s)
 }
 
 void
-syms_of_scrollbar ()
+x_set_scrollbar_width (struct screen *s, int width)
 {
-  DEFVAR_INT ("scrollbar-width", &scrollbar_width,
-    "The width (in pixels) of the scrollbars.");
-  scrollbar_width = 15;
+  Widget w = s->display.x->edit_widget;
+
+  if (width < 0)
+    width = 0;
+
+  BLOCK_INPUT;
+  XtVaSetValues (w, XtVaTypedArg, "scrollBarWidth", XtRInt, width,
+		 sizeof (int), 0);
+  UNBLOCK_INPUT;
+
+  update_one_screen_scrollbars (s);
 }
+
+int
+x_scrollbar_width (struct screen *s)
+{
+  EmacsScreen w = (EmacsScreen) s->display.x->edit_widget;
+
+  return w->emacs_screen.scrollbar_width;
+}
+

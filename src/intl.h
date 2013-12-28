@@ -61,7 +61,7 @@ extern Lisp_Object Vfile_domain;
 wchar_t do_translate (unsigned char *translate, register wchar_t c);
 
 /****************************/
-/*  dynamic array template  */
+/*  dubious crud            */
 /****************************/
 
 #define DYNAMIC_ARRAY(data_type)					\
@@ -93,8 +93,49 @@ wchar_t do_translate (unsigned char *translate, register wchar_t c);
 */
 #define GROW_ARRAY(array, growth_size, data_type)  \
   SET_ARRAY_SIZE (array, (array)->size + (growth_size), data_type)
+
+/*************************************************/
+/*    associative arrays (aka more dubious crud) */
+/*************************************************/
+
+typedef struct {
+  wchar_t wchar;
+  int value;
+} wchar_int_pair;
+
+typedef struct {
+  DYNAMIC_ARRAY (wchar_int_pair);
+  int default_value;
+} assoc_array;
+
+typedef struct {
+  DYNAMIC_ARRAY (wchar_t);
+  char complement;             /* If 1, use complement of set. */
+  char anychar;                  /* If 1, set is considered to contain
+                                 all possible characters. */
+} set_of_chars;
 
 
+#define EMPTY_ASSOC_ARRAY  { EMPTY_DYNAMIC_ARRAY, 0 }
+
+#define SET_ASSOC_ARRAY_SIZE(array, length)  \
+  SET_ARRAY_SIZE (array, length, wchar_int_pair)
+
+#define GROW_ASSOC_ARRAY(array, growth_size)  \
+  GROW_ARRAY (array, growth_size, wchar_int_pair)
+
+#define EMPTY_SET_OF_CHARS  { EMPTY_DYNAMIC_ARRAY, 0, 0 }
+
+#define SET_SETOFCHARS_SIZE(set, length)  SET_ARRAY_SIZE (set, length, wchar_t)
+
+#define GROW_SET_OF_CHARS(set, growth_size)  GROW_ARRAY (set, growth_size, wchar_t)
+
+/* IN_SET_OF_CHARS_RAW -- Test for membership, ignoring complement flag.
+*/
+#define IN_SET_OF_CHARS_RAW(set, c)  \
+  (((set)->anychar || wschr ((set)->data, (c))) ? 1 : 0)
+
+
 /****************************/
 /*  character string types  */
 /****************************/

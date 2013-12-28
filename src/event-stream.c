@@ -27,12 +27,18 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  *
  */
 
-#include "config.h"
-#include "intl.h"
+/* If you define the following, then you get a fix to the process code
+   to work around a problem where W3 can't access network sites under
+   Solaris.  This patch *shouldn't* make anything else break, but it
+   hasn't been sufficiently tested; so it's not going in right now. */
+/* #define FIX_SOLARIS_W3_BUG */
 
-#include <stdio.h>              /* for "graceful exit" kludge */
+#include "config.h"
+
+#include <stdio.h>
 
 #include "lisp.h"
+#include "intl.h"
 #include "buffer.h"
 #include "window.h"
 #include "process.h"
@@ -43,6 +49,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "systime.h"		/* to set Vlast_input_time */
 
+#ifdef FIX_SOLARIS_W3_BUG
+# ifdef subprocesses
+# include <errno.h>
+# endif
+#endif /* FIX_SOLARIS_W3_BUG */
+
 /* The number of keystrokes between auto-saves. */
 static int auto_save_interval;
 
@@ -51,8 +63,17 @@ Lisp_Object Qundefined_keystroke_sequence;
 
 Lisp_Object Qcommand_execute;
 
-static void pre_command_hook (void);
-static void post_command_hook (int old_region_p);
+Lisp_Object Vpre_command_hook, Vpost_command_hook;
+Lisp_Object Qpre_command_hook, Qpost_command_hook;
+
+#ifdef EPOCH
+Lisp_Object Qx_property_change, Qx_client_message, Qx_map, Qx_unmap;
+Lisp_Object Vepoch_event, Vepoch_event_handler;
+#endif
+
+/* These aren't static because the scrollbar code needs to call them. */
+void pre_command_hook (void);
+void post_command_hook (int old_region_p);
 
 
 /* The callback routines for the window system or terminal driver */
@@ -77,14 +98,19 @@ struct command_builder {
 
   char *echo_buf;
   int echo_buf_length;          /* size of echo_buf */
-  int echo_buf_index;           /* index into echo_buf */
-  int echo_previous_index;      /* for disgusting ESC => meta kludge */
+  int echo_buf_index;           /* index into echo_buf
+                                 * -1 before doing echoing for new cmd */
+  int echo_esc_index;           /* for disgusting ESC => meta kludge */
+  /* Self-insert-command is magic in that it doesn't always push an undo-
+     boundary: up to 20 consecutive self-inserts can happen before an undo-
+     boundary is pushed.  This variable is that counter.
+     */
+  int self_insert_countdown;
 };
 
 static struct command_builder *the_command_builder;
 
-static void echo_char_event (struct command_builder *, Lisp_Object event);
-static void maybe_echo_keys (struct command_builder *);
+static void echo_key_event (struct command_builder *, Lisp_Object event);
 
 /* This structure is basically a typeahead queue: things like
    wait-reading-process-output will delay the execution of
@@ -96,12 +122,15 @@ static void maybe_echo_keys (struct command_builder *);
 static Lisp_Object command_event_queue;
 static struct Lisp_Event *command_event_queue_tail;
 
-
+/* Nonzero means echo unfinished commands after this many seconds of pause. */
+static int echo_keystrokes;
 
 /* The number of keystrokes since the last auto-save. */
 static int keystrokes_since_auto_save;
 
 #define	max(a,b) ((a)>(b)?(a):(b))
+
+static int menu_event_sit_for_kludge; /* you don't want to know */
 
 
 /*
@@ -109,21 +138,34 @@ static int keystrokes_since_auto_save;
  */
 
 static void
-echo_char_event (struct command_builder *command_builder,
-                 Lisp_Object event)
+echo_key_event (struct command_builder *command_builder,
+		Lisp_Object event)
 {
   char buf[255];
-  int index = command_builder->echo_buf_index;
+  int buf_index = command_builder->echo_buf_index;
   char *e;
   int len;
 
-  command_builder->echo_previous_index = index;
+  if (buf_index < 0)
+  {
+    buf_index = 0;              /* We're echoing now */
+    if (echo_area_glyphs == command_builder->echo_buf)
+      /* Remove echo hanging about after execution of previous command */
+      echo_area_glyphs = 0;
+  }
+
+  if (command_builder->echo_esc_index < 0
+      && meta_prefix_char >= 0
+      && event_to_character (XEVENT (event), 0, 0, 0) == meta_prefix_char)
+    /* Icky-poo */
+    command_builder->echo_esc_index = buf_index;
+
   format_event_object (buf, XEVENT (event), 1);
   len = strlen (buf);
   
-  if (len + index + 5 > command_builder->echo_buf_length)
+  if (len + buf_index + 4 > command_builder->echo_buf_length)
     return;
-  e = command_builder->echo_buf + index;
+  e = command_builder->echo_buf + buf_index;
   memcpy (e, buf, len);
   e += len;
 
@@ -132,34 +174,42 @@ echo_char_event (struct command_builder *command_builder,
   e[2] = ' ';
   e[3] = 0;
 
-  command_builder->echo_buf_index = index + len + 1;
+  command_builder->echo_buf_index = buf_index + len + 1;
 }
 
-static int echo_keystrokes;
-
 static void
-maybe_echo_keys (struct command_builder *command_builder)
+maybe_echo_keys (struct command_builder *command_builder, int no_snooze)
 {
   /* Message turns off echoing unless more keystrokes turn it on again. */
-  if (echo_area_glyphs && *echo_area_glyphs &&
-      echo_area_glyphs != command_builder->echo_buf)
+  if (echo_area_glyphs && *echo_area_glyphs
+      && echo_area_glyphs != command_builder->echo_buf)
     return;
 
   if (minibuf_level == 0 
       && echo_keystrokes > 0 
-      && !NILP (Fsit_for (make_number (echo_keystrokes), Qnil)))
+      && (no_snooze || !NILP (Fsit_for (make_number (echo_keystrokes), Qnil))))
   {
     /* This is like calling message(), but trickier */
     echo_area_glyphs = command_builder->echo_buf;
   }
 }
 
-
+static void
+reset_key_echo (struct command_builder *command_builder,
+                int remove_echo_area_echo)
+{
+  command_builder->echo_buf_index = -1;
+  if (remove_echo_area_echo
+      && echo_area_glyphs == command_builder->echo_buf)
+    /* This is like calling clear_message (0), but trickier */
+    echo_area_glyphs = 0;
+}
+ 
 
+
 #if 0
 static void
-maybe_kbd_translate (event)
-     Lisp_Object event;
+maybe_kbd_translate (Lisp_Object event)
 {
   int c;
   if (!STRINGP (Vkeyboard_translate_table)) return;
@@ -184,7 +234,7 @@ maybe_do_auto_save ()
   keystrokes_since_auto_save++;
   if (auto_save_interval > 0 &&
       keystrokes_since_auto_save > max (auto_save_interval, 20) &&
-      !detect_input_pending ())
+      !detect_input_pending (0))
     {
       Fdo_auto_save (Qnil, Qnil);
       record_auto_save ();
@@ -193,8 +243,7 @@ maybe_do_auto_save ()
 
 
 static Lisp_Object
-print_help (object)
-     Lisp_Object object;
+print_help (Lisp_Object object)
 {
   Fprinc (object, Qnil);
   return Qnil;
@@ -205,53 +254,58 @@ static void
 execute_help_form (struct command_builder *command_builder,
                    Lisp_Object event)
 {
-  Lisp_Object tem0;
+  Lisp_Object help;
   int speccount = specpdl_depth ();
-  int kludge = command_builder->echo_previous_index;
-  Lisp_Object echo = make_string (command_builder->echo_buf,
-                                  command_builder->echo_buf_index);
+  int esc_index = command_builder->echo_esc_index;
+  int buf_index = command_builder->echo_buf_index;
+  Lisp_Object echo = ((buf_index <= 0)
+                      ? Qnil
+                      : make_string (command_builder->echo_buf, buf_index));
   struct gcpro gcpro1;
   GCPRO1 (echo);
 
   record_unwind_protect (Fset_window_configuration,
 			 Fcurrent_window_configuration (Qnil));
-  command_builder->echo_buf_index = 0;
-  command_builder->echo_previous_index = 0;
-  command_builder->echo_buf[0] = 0;
+  reset_key_echo (command_builder, 1);
 
-  tem0 = Feval (Vhelp_form);
-  if (STRINGP (tem0))
+  help = Feval (Vhelp_form);
+  if (STRINGP (help))
     internal_with_output_to_temp_buffer (GETTEXT ("*Help*"),
-					 print_help, tem0, Qnil);
-
+					 print_help, help, Qnil);
   Fnext_command_event (event);
-
   /* Remove the help from the screen */
   unbind_to (speccount, Qnil);
   redisplay ();
   if (event_to_character (XEVENT (event), 0, 0, 0) == ' ')
     {
-      command_builder->echo_buf_index = 0;
-      command_builder->echo_previous_index = 0;
-      command_builder->echo_buf[0] = 0;
+      /* Discard next key if is is a space */
+      reset_key_echo (command_builder, 1);
       Fnext_command_event (event);
     }
-  command_builder->echo_buf_index = XSTRING (echo)->size;
-  command_builder->echo_previous_index = kludge;
-  memcpy (command_builder->echo_buf,
-          XSTRING (echo)->data, XSTRING (echo)->size);
+
+  command_builder->echo_esc_index = esc_index;
+  command_builder->echo_buf_index = buf_index;
+  if (buf_index > 0)
+    memcpy (command_builder->echo_buf,
+            XSTRING (echo)->data, buf_index + 1); /* terminating 0 */
   UNGCPRO;
 }
 
-
+/*
+ * #### Redisplay is doing too much work so we need to preempt it
+ * after expose and focus events as well.  Doing so at other places
+ * (such as sit-for) can cause nondeterministic behavior.  This change
+ * should be able to go away after the new redisplay is working.
+ */
 int
-detect_input_pending ()
+detect_input_pending (int focus_and_expose_count_as_input_p)
 {
   /* Always call the event_pending_p hook even if there's an unread
      character, because that might do some needed ^G detection (on
      systems without SIGIO, for example).
    */
-  if (event_stream && event_stream->event_pending_p (1))
+  if (event_stream
+      && event_stream->event_pending_p (1, focus_and_expose_count_as_input_p))
     return 1;
   if (!NILP (Vunread_command_event))
     return 1;
@@ -262,13 +316,8 @@ detect_input_pending ()
            e;
            e = event_next (e))
       {
-        switch (e->event_type)
-	  {
-	  case eval_event:
-	    break;
-	  default:
-	    return (1);
-	  }
+        if (e->event_type != eval_event)
+          return (1);
       }
     }
   return 0;
@@ -292,7 +341,7 @@ DEFUN ("input-pending-p", Finput_pending_p, Sinput_pending_p, 0, 0, 0,
 Actually, the value is nil only if we can be sure that no input is available.")
   ()
 {
-  return (detect_input_pending() ? Qt : Qnil);
+  return ((detect_input_pending (0)) ? Qt : Qnil);
 }
 
 /* Add an event to the back of the queue: it will be the next event read after
@@ -300,8 +349,7 @@ Actually, the value is nil only if we can be sure that no input is available.")
    eval events.
  */
 void
-enqueue_command_event (event)
-     Lisp_Object event;
+enqueue_command_event (Lisp_Object event)
 {
   struct Lisp_Event *e = XEVENT (event);
   if (event_next (e))
@@ -318,7 +366,25 @@ enqueue_command_event (event)
   
   if (e == event_next (e))
     abort ();
+
+  if (e->event_type == menu_event)
+    menu_event_sit_for_kludge++;
+
 }
+
+/* put the event on the typeahead queue, unless
+   the event is the interrupt char, in which case the `QUIT'
+   which will occur on the next trip through this loop is
+   all the processing we should do - leaving it on the queue
+   would cause the interrupt to be processed twice.
+   */
+static void
+enqueue_command_event_1 (Lisp_Object event_to_copy)
+{
+  if (NILP (Vquit_flag))
+    enqueue_command_event (Fcopy_event (event_to_copy, Qnil));
+}
+
 
 
 DEFUN ("enqueue-eval-event", Fenqueue_command_event, Senqueue_command_event,
@@ -326,7 +392,7 @@ DEFUN ("enqueue-eval-event", Fenqueue_command_event, Senqueue_command_event,
        "Add an eval event to the back of the queue.\n\
 The eval-event will be the next event read after all pending events.")
   (function, object)
-Lisp_Object function, object;
+     Lisp_Object function, object;
 {
   Lisp_Object event;
 
@@ -358,15 +424,20 @@ check that your $DISPLAY environment variable is properly set.\n"),
 static void
 next_event_internal (Lisp_Object target_event, int allow_queued)
 {
-  Lisp_Object event;
+  /* QUIT;   This is incorrect - the caller must do this because not all
+	     callers (ie, Fnext_event()) do not want to QUIT. */
 
+  if (!EVENTP (target_event))
+    abort ();
   if (event_next (XEVENT (target_event)))
     abort ();
 
   if (allow_queued && !NILP (command_event_queue))
     {
+      Lisp_Object event;
       struct Lisp_Event *e = XEVENT (command_event_queue);
       XSETR (event, Lisp_Event, e);
+
       if (!event_next (e))
       {
         command_event_queue_tail = 0;
@@ -377,10 +448,12 @@ next_event_internal (Lisp_Object target_event, int allow_queued)
         XSETR (command_event_queue, Lisp_Event, event_next (e));
       }
       set_event_next (e, 0);
+      Fcopy_event (event, target_event);
+      Fdeallocate_event (event);
     }
   else
     {
-      struct Lisp_Event *e;
+      struct Lisp_Event *e = XEVENT (target_event);
 
       /* #### Temporary hack to make emacs exit "gracefully" when it tries
 	 to run in tty-mode for some reason.  This is the latest time we
@@ -389,36 +462,35 @@ next_event_internal (Lisp_Object target_event, int allow_queued)
       if (! event_stream) lose_without_x ();
 
       /* The command_event_queue was empty.  Wait for an event. */
-      event = Fallocate_event ();
-      e = XEVENT (event);
       event_stream->next_event_cb (e);
-      if (e->event_type == key_press_event &&
-	  event_to_character (e, 0, 0, 0) == interrupt_char)
-	interrupt_signal (0);
-    }
 
-  Fcopy_event (event, target_event);
-  Fdeallocate_event (event);
-  return;
+      if (e->event_type == key_press_event
+          && event_to_character (e, 0, 0, 0) == interrupt_char)
+      {
+	interrupt_signal (0);
+      }
+    }
 }
 
 static void push_this_command_keys (Lisp_Object event);
 static void push_recent_keys (Lisp_Object event);
+static void execute_internal_event (Lisp_Object event);
+static void execute_command_event (struct command_builder *,
+                                   Lisp_Object event);
 
 
-DEFUN ("next-event", Fnext_event_1, Snext_event, 0, 2, 0,
+DEFUN ("next-event", Fnext_event, Snext_event, 0, 2, 0,
  "Returns the next available event from the window system or terminal driver.\n\
-Pass this object to dispatch-event to handle it.  See also the function\n\
-next-command-event, which is often more appropriate.\n\
+Pass this object to `dispatch-event' to handle it.\n\
+See also the function `next-command-event', which is often more appropriate.\n\
 If an event object is supplied, it is filled in and returned, otherwise a\n\
 new event object will be created.")
      (event, prompt)
      Lisp_Object event, prompt;
 {
-  struct gcpro gcpro1;
+  struct command_builder *command_builder = the_command_builder;
   int store_this_key = 0;
-
-  /* I think this is necessary because we store new objects into this var. */
+  struct gcpro gcpro1;
   GCPRO1 (event);
 
   if (NILP (event))
@@ -435,16 +507,16 @@ new event object will be created.")
       CHECK_STRING (prompt, 1);
 
       len = XSTRING (prompt)->size;
-      if (the_command_builder->echo_buf_length < len)
-	len = the_command_builder->echo_buf_length - 1;
-      memcpy (the_command_builder->echo_buf, XSTRING (prompt)->data, len);
-      the_command_builder->echo_buf[len] = 0;
-      the_command_builder->echo_buf_index = len;
+      if (command_builder->echo_buf_length < len)
+	len = command_builder->echo_buf_length - 1;
+      memcpy (command_builder->echo_buf, XSTRING (prompt)->data, len);
+      command_builder->echo_buf[len] = 0;
+      command_builder->echo_buf_index = len;
+      command_builder->echo_esc_index = -1;
       echo_area_glyphs = the_command_builder->echo_buf;
-      /* redundant: maybe_echo_keys (the_command_builder); */
     }
 
-  if (!noninteractive && !detect_input_pending () && NILP (Vexecuting_macro))
+  if (!noninteractive && !detect_input_pending (0) && NILP (Vexecuting_macro))
     redisplay ();
 
   /* If there is an unread-command-event, simply return it.
@@ -459,22 +531,17 @@ new event object will be created.")
 
       if (!EVENTP (e))
 	{
-	bogus_unread_event:
+	BOGUS_UNREAD_EVENT:
 	  signal_error (Qwrong_type_argument,
 			list3 (Qeventp, e, intern ("unread-command-event")));
 	}
-      switch (XEVENT (e)->event_type)
-	{
-	case key_press_event:
-	case button_press_event:
-	case button_release_event:
-	case menu_event:
-	  if (!EQ (e, event))
-	    Fcopy_event (e, event);
-	  break;
-	default:
-	  goto bogus_unread_event;
-	}
+      if (command_event_p (XEVENT (e)))
+      {
+        if (!EQ (e, event))
+          Fcopy_event (e, event);
+      }
+      else
+        goto BOGUS_UNREAD_EVENT;
     }
   /* If we're executing a keyboard macro, take the next event from that,
      and update this-command-keys and recent-keys.
@@ -497,99 +564,106 @@ new event object will be created.")
   status_notify ();             /* Notice process change */
 
 #ifdef C_ALLOCA
-      alloca (0);		/* Cause a garbage collection now */
-				/* Since we can free the most stuff here.  */
+  alloca (0);                   /* Cause a garbage collection now */
+				/* Since we can free the most stuff here,
+                                 *  (since this is typically called from
+                                 *  the command-loop top-level.) */
 #endif /* C_ALLOCA */
 
   switch (XEVENT (event)->event_type)
-    {
-    case key_press_event:	/* any key input can trigger autosave */
-      maybe_do_auto_save ();
-      num_input_chars++;
-      /* fall through */
-    case button_press_event:	/* key or mouse input can trigger prompting */
-      if (store_this_key)
-	echo_char_event (the_command_builder, event);
-      /* fall through */
-    case button_release_event:
-    case menu_event:
+  {
+  default:
+    goto RETURN;
+  case button_release_event:
+  case menu_event:
+    goto EXECUTE_KEY;
+  case button_press_event:	/* key or mouse input can trigger prompting */
+    goto STORE_AND_EXECUTE_KEY;
+  case key_press_event:         /* any key input can trigger autosave */
+    break;
+  }
 
-      /* Store the last-input-event.  The semantics of this is that it is
-	 the thing most recently returned by next-command-event.  It need
-	 not have come from the keyboard or a keyboard macro, it may have
-	 come from unread-command-event.  It's always a command-event, (a
-	 key, click, or menu selection) never a motion or process event.
-       */
-      if (!EVENTP (Vlast_input_event))
-	Vlast_input_event = Fallocate_event ();
-      if (XEVENT (Vlast_input_event)->event_type == dead_event)
-	{
-	  Vlast_input_event = Fallocate_event ();
-	  error (GETTEXT ("Someone deallocated last-input-event!"));
-	}
-      if (! EQ (event, Vlast_input_event))
-	Fcopy_event (event, Vlast_input_event);
+  maybe_do_auto_save ();
+  num_input_chars++;
+ STORE_AND_EXECUTE_KEY:
+  if (store_this_key)
+    echo_key_event (command_builder, event);
+
+ EXECUTE_KEY:
+  /* Store the last-input-event.  The semantics of this is that it is
+     the thing most recently returned by next-command-event.  It need
+     not have come from the keyboard or a keyboard macro, it may have
+     come from unread-command-event.  It's always a command-event, (a
+     key, click, or menu selection) never a motion or process event.
+     */
+  if (!EVENTP (Vlast_input_event))
+    Vlast_input_event = Fallocate_event ();
+  if (XEVENT (Vlast_input_event)->event_type == dead_event)
+  {
+    Vlast_input_event = Fallocate_event ();
+    error (GETTEXT ("Someone deallocated last-input-event!"));
+  }
+  if (! EQ (event, Vlast_input_event))
+    Fcopy_event (event, Vlast_input_event);
       
-      /* last-input-char and last-input-time are derived from last-input-event.
-	 Note that last-input-char will never have its high-bit set, in an
-	 effort to sidestep the ambiguity between M-x and oslash.
-       */
-      Vlast_input_char = Fevent_to_character (Vlast_input_event,
-					      Qnil, Qnil, Qnil);
-      {
-	EMACS_TIME t;
-	EMACS_GET_TIME (t);
-	if (!CONSP (Vlast_input_time))
-	  Vlast_input_time = Fcons (Qnil, Qnil);
-	XCONS (Vlast_input_time)->car
-	  = make_number ((EMACS_SECS (t) >> 16) & 0xffff);
-	XCONS (Vlast_input_time)->cdr
-	  = make_number ((EMACS_SECS (t) >> 0)  & 0xffff);
-      }
+  /* last-input-char and last-input-time are derived from
+     last-input-event.
+     Note that last-input-char will never have its high-bit set, in an
+     effort to sidestep the ambiguity between M-x and oslash.
+     */
+  Vlast_input_char = Fevent_to_character (Vlast_input_event,
+                                          Qnil, Qnil, Qnil);
+  {
+    EMACS_TIME t;
+    EMACS_GET_TIME (t);
+    if (!CONSP (Vlast_input_time))
+      Vlast_input_time = Fcons (Qnil, Qnil);
+    XCONS (Vlast_input_time)->car
+      = make_number ((EMACS_SECS (t) >> 16) & 0xffff);
+    XCONS (Vlast_input_time)->cdr
+      = make_number ((EMACS_SECS (t) >> 0)  & 0xffff);
+  }
 
-      /* If this key came from the keyboard or from a keyboard macro, then
-	 it goes into the recent-keys and this-command-keys vectors.
-	 If this key came from the keyboard, and we're defining a keyboard
-	 macro, then it goes into the macro.
-       */
-      if (store_this_key)
-	{
-          push_this_command_keys (event);
-          push_recent_keys (event);
-	  if (defining_kbd_macro && NILP (Vexecuting_macro))
-	    {
-	      if (!EVENTP (the_command_builder->current_events))
-		finalize_kbd_macro_chars ();
-	      store_kbd_macro_event (event);
-	    }
-	}
-    default:
-      break;
+  /* If this key came from the keyboard or from a keyboard macro, then
+     it goes into the recent-keys and this-command-keys vectors.
+     If this key came from the keyboard, and we're defining a keyboard
+     macro, then it goes into the macro.
+     */
+  if (store_this_key)
+  {
+    push_this_command_keys (event);
+    push_recent_keys (event);
+    if (defining_kbd_macro && NILP (Vexecuting_macro))
+    {
+      if (!EVENTP (command_builder->current_events))
+        finalize_kbd_macro_chars ();
+      store_kbd_macro_event (event);
     }
-
+  }
   /* If this is the help char and there is a help form, then execute the
      help form and swallow this character.  This is the only place where
      calling Fnext_event() can cause arbitrary lisp code to run.  Note
      that execute_help_form() calls Fnext_command_event(), which calls
      this function, as well as Fdispatch_event.
-   */
+     */
   if (!NILP (Vhelp_form)
       && XEVENT (event)->event_type == key_press_event
-      /* >>> Fix this */
+      /* >>> Fix this -- want event_character_p predicate */
       && EQ (help_char,
-	     make_number (event_to_character (XEVENT (event), 0, 0, 0))))
-    execute_help_form (the_command_builder, event);
+             make_number (event_to_character (XEVENT (event), 0, 0, 0))))
+    execute_help_form (command_builder, event);
 
+ RETURN:
   UNGCPRO;
-  return event;
+  return (event);
 }
 
 
 DEFUN ("next-command-event", Fnext_command_event, Snext_command_event, 0, 1, 0,
 "Returns the next available \"user\" event from the window system or terminal\n\
-driver.  Pass this object to dispatch-event to handle it.  If an event object\n\
-is supplied, it is filled in and returned, otherwise a new event object will\n\
-be created.\n\
+driver.  Pass this object to dispatch-event to handle it.\n\
+If an event object is supplied, it is filled in and returned,\n\
+otherwise a new event object will be created.\n\
 \n\
 The event returned will be a keyboard, mouse press, or mouse release event.\n\
 If there are non-command events available (mouse motion, sub-process output,\n\
@@ -607,31 +681,23 @@ function is provided as a convenience; it is equivalent to the lisp code\n\
     Lisp_Object event;
 {
   struct gcpro gcpro1;
-  /* I think this is necessary because we store new objects into this var. */
   GCPRO1 (event);
-  maybe_echo_keys (the_command_builder);  /* ## This sucks bigtime */
-  while (1)
+  maybe_echo_keys (the_command_builder, 0); /* ## This sucks bigtime */
+  for (;;)
     {
-      event = Fnext_event_1 (event, Qnil);
-      switch (XEVENT (event)->event_type)
-	{
-	case key_press_event:
-	case button_press_event:
-	case button_release_event:
-	case menu_event:
-	  goto done;
-	default:
-	  Fdispatch_event (event);
-	}
+      event = Fnext_event (event, Qnil);
+      if (command_event_p (XEVENT (event)))
+        break;
+      else
+        execute_internal_event (event);
     }
- done:
   UNGCPRO;
-  return event;
+  return (event);
 }
 
 
 static void
-nuke_current_events (struct command_builder *command_builder)
+reset_current_events (struct command_builder *command_builder)
 {
   Lisp_Object event = command_builder->current_events;
   command_builder->current_events = Qnil;
@@ -656,7 +722,7 @@ Also cancel any kbd macro being defined.")
   ()
 {
   /* This throws away user-input on the queue, but doesn't process any
-     events.  Calling Fdispatch_event() here leads to a race condition.
+     events.  Calling dispatch_event() here leads to a race condition.
    */
   Lisp_Object event, event2;
   struct Lisp_Event *e, *e2, *head, *tail;
@@ -664,40 +730,37 @@ Also cancel any kbd macro being defined.")
 
   Vinhibit_quit = Qt;
   defining_kbd_macro = 0;
-  nuke_current_events (the_command_builder);
+  reset_current_events (the_command_builder);
   event = Fallocate_event ();
   e = XEVENT (event);
   tail = 0;
 
   while (!NILP (command_event_queue)
-         || (event_stream && event_stream->event_pending_p (1)))
+         || (event_stream && event_stream->event_pending_p (1, 0)))
     {
       /* This will take stuff off the command_event_queue, or read it
 	 from the event_stream, but it will not block.
        */
       next_event_internal (event, 1);
 
-      /* If the event is a user event, ignore it.
-       */
-      if (e->event_type == key_press_event ||
-	  e->event_type == button_press_event ||
-	  e->event_type == button_release_event ||
-	  e->event_type == menu_event)
-	continue;
-
-      /* Otherwise, chain the event onto our list of events not to ignore,
-	 and keep reading until the queue is empty.  This does not mean
-	 that if a subprocess is generating an infinite amount of output,
-	 we will never terminate, because this loop ends as soon as there
-	 are no more user events on the command_event_queue or event_stream.
-       */
-      event2 = Fcopy_event (event, Qnil);
-      e2 = XEVENT (event2);
-      if (tail)
-	set_event_next (tail, e2);
-      else
-	head = e2;
-      tail = e2;
+      /* If the event is a user event, ignore it. */
+      if (! command_event_p (e))
+      {
+        /* Otherwise, chain the event onto our list of events not to ignore,
+           and keep reading until the queue is empty.  This does not mean
+           that if a subprocess is generating an infinite amount of output,
+           we will never terminate, because this loop ends as soon as there
+           are no more user events on the command_event_queue or
+           event_stream.
+           */
+        event2 = Fcopy_event (event, Qnil);
+        e2 = XEVENT (event2);
+        if (tail)
+          set_event_next (tail, e2);
+        else
+          head = e2;
+        tail = e2;
+      }
     }
 
   if (!NILP (command_event_queue) || command_event_queue_tail)
@@ -744,20 +807,20 @@ If the second arg is non-nil, it is the maximum number of seconds to wait:\n\
 If the third arg is non-nil, it is a number of microseconds that is added\n\
  to the first arg.  (This exists only for compatibility.)\n\
 Return non-nil ifn we received any output before the timeout expired.")
-     (proc, timeout_secs, timeout_msecs)
-     register Lisp_Object proc, timeout_secs, timeout_msecs;
+     (process, timeout_secs, timeout_msecs)
+     Lisp_Object process, timeout_secs, timeout_msecs;
 {
-  struct gcpro gcpro1;
+  struct gcpro gcpro1, gcpro2;
   Lisp_Object event = Qnil;
   int timeout_id = 0;
   Lisp_Object result = Qnil;
 
-  if (!NILP (proc))
-    CHECK_PROCESS (proc, 0);
+  if (!NILP (process))
+    CHECK_PROCESS (process, 0);
 
-  GCPRO1 (event);
+  GCPRO2 (event, process);
 
-  if (!NILP (proc) && (!NILP (timeout_secs) || !NILP (timeout_msecs)))
+  if (!NILP (process) && (!NILP (timeout_secs) || !NILP (timeout_msecs)))
     {
       unsigned long msecs = 0;
       if (!NILP (timeout_secs))
@@ -773,7 +836,7 @@ Return non-nil ifn we received any output before the timeout expired.")
 
   event = Fallocate_event ();
 
-  while (!NILP (proc) ||
+  while (!NILP (process)
 	 /* Calling detect_input_pending() is the wrong thing here, because
 	    that considers the Vunread_command_event and command_event_queue.
 	    We don't need to look at the command_event_queue because we are
@@ -789,23 +852,26 @@ Return non-nil ifn we received any output before the timeout expired.")
 	    time when one calls accept-process-output with a nil argument
 	    and really need the processes to be handled.
 	  */
-	 event_stream->event_pending_p (0))
+	 || event_stream->event_pending_p (0, 0))
     {
-      QUIT;
+      QUIT;	/* next_event_internal() does not QUIT, so check for ^G
+		   before reading output from the process - this makes it
+		   less likely that the filger will actually be aborted.
+		 */
       next_event_internal (event, 0);
       switch (XEVENT (event)->event_type)
 	{
 	case process_event:
 	  {
-	    if (EQ (XEVENT (event)->event.process.process, proc))
+	    if (EQ (XEVENT (event)->event.process.process, process))
 	      {
-		proc = Qnil;
+		process = Qnil;
 		/* RMS's version always returns nil when proc is nil,
 		   and only returns t if input ever arrived on proc. */
 		result = Qt;
 	      }
 
-	    Fdispatch_event (event);
+	    execute_internal_event (event);
 
 	    /* We must call status_notify here to allow the
 	       event_stream->unselect_process_cb to be run if appropriate.
@@ -826,18 +892,24 @@ Return non-nil ifn we received any output before the timeout expired.")
 	    if (XEVENT (event)->event.timeout.id_number == timeout_id)
 	      {
 		timeout_id = 0;
-		proc = Qnil;  /* we're done */
+		process = Qnil; /* we're done */
 	      }
 	    else	      /* a timeout that wasn't one we're waiting for */
-	      Fdispatch_event (event);
+              goto EXECTUTE_INTERNAL;
 	    break;
 	  }
 	case pointer_motion_event:
 	case magic_event:
-	  Fdispatch_event (event);
-	  break;
+          {
+          EXECTUTE_INTERNAL:
+            execute_internal_event (event);
+            break;
+          }
 	default:
-	  enqueue_command_event (Fcopy_event (event, Qnil));
+          {
+            enqueue_command_event_1 (event);
+            break;
+	  }
 	}
     }
 
@@ -903,25 +975,37 @@ ARG may be a float, meaning pause for some fractional part of a second.")
   event = Fallocate_event ();
   while (1)
     {
-      QUIT;
+      QUIT;	/* next_event_internal() does not QUIT, so check for ^G
+		   before reading output from the process - this makes it
+		   less likely that the filter will actually be aborted.
+		 */
       /* We're a generator of the command_event_queue, so we can't be a
 	 consumer as well.  We don't care about command and eval-events
 	 anyway.
        */
-      next_event_internal (event, 0);	/* blocks */
+      next_event_internal (event, 0); /* blocks */
       switch (XEVENT (event)->event_type)
 	{
 	case timeout_event:
-	  if (XEVENT (event)->event.timeout.id_number == id)
-	    goto DONE;
-	  /* else fall through */
+	  {
+	    if (XEVENT (event)->event.timeout.id_number == id)
+	      goto DONE;
+            else
+              goto EXECUTE_INTERNAL;
+	  }
 	case pointer_motion_event:
 	case process_event:
 	case magic_event:
-	  Fdispatch_event (event);
-	  break;
+          {
+          EXECUTE_INTERNAL:
+            execute_internal_event (event);
+            break;
+          }
 	default:
-	  enqueue_command_event (Fcopy_event (event, Qnil));
+	  {
+	    enqueue_command_event_1 (event);
+            break;
+          }
 	}
     }
  DONE:
@@ -938,14 +1022,16 @@ Optional second arg non-nil means don't redisplay, just wait for input.\n\
 Redisplay is preempted as always if user input arrives, and does not\n\
 happen if input is available before it starts.\n\
 Value is t if waited the full time with no input arriving.")
-  (seconds, nodisp)
-     Lisp_Object seconds, nodisp;
+  (seconds, nodisplay)
+     Lisp_Object seconds, nodisplay;
 {
   unsigned long msecs = lisp_number_to_milliseconds (seconds, 1);
   Lisp_Object event, result;
   struct Lisp_Event *e;
   struct gcpro gcpro1;
   int id;
+
+  menu_event_sit_for_kludge = 0;
 
   /* The unread-command-event counts as pending input */
   if (!NILP (Vunread_command_event))
@@ -957,19 +1043,16 @@ Value is t if waited the full time with no input arriving.")
   if (!NILP (command_event_queue))
     {
       for (e = XEVENT (command_event_queue); e; e = event_next (e))
-	{
-	  if (e->event_type == key_press_event ||
-	      e->event_type == button_press_event ||
-	      e->event_type == button_release_event ||
-	      e->event_type == menu_event)
-	    return Qnil;
-	}
+      {
+        if (command_event_p (e))
+          return (Qnil);
+      }
     }
 
   /* If we're in a macro, or noninteractive, or early in temacs, then
      don't wait. */
   if (noninteractive || !NILP (Vexecuting_macro) || !event_stream)
-    return Qt;
+    return (Qt);
 
   /* Otherwise, start reading events from the event_stream.
      Do this loop at least once even if (sit-for 0) so that we
@@ -987,7 +1070,7 @@ Value is t if waited the full time with no input arriving.")
     {
       /* If there is no user input pending, then redisplay.
        */
-      if (!event_stream->event_pending_p (1) && NILP (nodisp))
+      if (!event_stream->event_pending_p (1, 0) && NILP (nodisplay))
 	redisplay_preserving_echo_area ();
 
       /* If we're no longer waiting for a timeout, bug out. */
@@ -997,46 +1080,54 @@ Value is t if waited the full time with no input arriving.")
 	  goto DONE;
 	}
 
-      QUIT;
+      QUIT;	/* next_event_internal() does not QUIT, so check for ^G
+		   before reading output from the process - this makes it
+		   less likely that the filter will actually be aborted.
+		 */
       /* We're a generator of the command_event_queue, so we can't be a
 	 consumer as well.  In fact, we know there's nothing on the
 	 command_event_queue that we didn't just put there.
        */
-      next_event_internal (event, 0);	/* blocks */
+      next_event_internal (event, 0); /* blocks */
 
-      switch (XEVENT (event)->event_type)
+      if (command_event_p (XEVENT (event)))
 	{
-	case key_press_event:
-	case button_press_event:
-	case button_release_event:
-	case menu_event:
 	  result = Qnil;
 	  goto DONE;
-
+	}
+      switch (XEVENT (event)->event_type)
+	{
 	case eval_event:
-	  /* eval-events get delayed until later. */
-	  enqueue_command_event (Fcopy_event (event, Qnil));
-	  break;
-
+	  {
+	    /* eval-events get delayed until later. */
+	    enqueue_command_event (Fcopy_event (event, Qnil));
+	    break;
+	  }
 	case timeout_event:
-	  if (XEVENT (event)->event.timeout.id_number == id)
-	    {
-	      id = 0;	/* assert that we are no longer waiting for it. */
-	      result = Qt;
-	      goto DONE;
-	    }
-	  else		/* a timeout that wasn't the one we're waiting for */
-	    Fdispatch_event (event);
-	  break;
-	  
-	case process_event:
-	case pointer_motion_event:
-	case magic_event:
-	  Fdispatch_event (event);
-	  break;
-
-	default:
-	  abort ();
+	  {
+	    if (XEVENT (event)->event.timeout.id_number != id)
+	      /* a timeout that wasn't the one we're waiting for */
+	      goto EXECUTE_INTERNAL;
+	    id = 0;	/* assert that we are no longer waiting for it. */
+	    result = Qt;
+	    goto DONE;
+	  }
+      default:
+	  {
+	  EXECUTE_INTERNAL:
+	    execute_internal_event (event);
+	    if (menu_event_sit_for_kludge)
+	      {
+		/* Well look at that, some magic event must have stuffed a
+		   menu event on the typeahead queue!  Well then count that as
+		   user input for the purposes of sit-for termination.  (This
+		   is tricky because of that generator/producer dichotomy....)
+		 */
+		result = Qnil;
+		goto DONE;
+	      }
+	    break;
+	  }
 	}
     }
 
@@ -1052,12 +1143,13 @@ Value is t if waited the full time with no input arriving.")
      no user-events on the queue, or else we would not have reached this
      point at all.
    */
-  if (NILP (result))
+  if (NILP (result) && !menu_event_sit_for_kludge)
     enqueue_command_event (event);
   else
     Fdeallocate_event (event);
   UNGCPRO;
-  return result;
+  menu_event_sit_for_kludge = 0;
+  return (result);
 }
 
 
@@ -1108,7 +1200,8 @@ will cause that timeout to not be signalled if it hasn't been already.")
      Lisp_Object id;
 {
   CHECK_FIXNUM (id, 0);
-  if (noninteractive) error (GETTEXT ("can't use timeouts in batch mode"));
+  if (noninteractive)
+    error (GETTEXT ("can't use timeouts in batch mode"));
   if (! event_stream) abort ();
   event_stream->disable_wakeup_cb (XINT (id));
   return Qnil;
@@ -1129,96 +1222,86 @@ wait_delaying_user_input (int (*predicate) (void *arg), void *predicate_arg)
   while (!(*predicate) (predicate_arg))
     {
       QUIT;
+
       /* We're a generator of the command_event_queue, so we can't be a
 	 consumer as well.  Also, we have no reason to consult the
 	 command_event_queue; there are only user and eval-events there,
 	 and we'd just have to put them back anyway.
        */
       next_event_internal (event, 0);
-      switch (XEVENT (event)->event_type)
-	{
-	case key_press_event:
-	case button_press_event:
-	case button_release_event:
-	case menu_event:
-	case eval_event:
-	  enqueue_command_event (Fcopy_event (event, Qnil));
-	  break;
-	default:
-	  Fdispatch_event (event);
-	}
+      if (command_event_p (XEVENT (event))
+          || (XEVENT (event)->event_type == eval_event))
+        enqueue_command_event_1 (event);
+      else
+        execute_internal_event (event);
     }
   UNGCPRO;
 }
 
 
-
-static Lisp_Object compose_command (struct command_builder *command_builder,
-                                    Lisp_Object event, 
-                                    int execute_p);
-
-static void dispatch_command_event_internal (struct command_builder *,
-                                             Lisp_Object event,
-                                             Lisp_Object leaf);
-
-
-/* If execute_p is true, this does what you expect: execute the event.
-   But if events are keyboard or mouse events, they are executed by passing 
-   them to the command builder, which doesn't actually run a command until
-   a complete key sequence has been read.  So, if the execute_p arg is
-   false, this returns the complete command sequence without executing it,
-   once it has read one, and returns nil before then.
-   This function is the guts of Fread_key_sequence and Fdispatch_event.
- */
-static Lisp_Object 
-dispatch_event_internal (struct command_builder *command_builder,
-                         Lisp_Object event, 
-                         int execute_p)
+static void
+execute_internal_event (Lisp_Object event)
 {
   switch (XEVENT (event)->event_type) 
   {
-  case key_press_event:
-  case button_press_event:
-  case button_release_event:
-    return (compose_command (command_builder, event, execute_p));
-
-#ifdef I18N4
-  case wchar_event:
-    insert_wide_char (XEVENT(event)->event.wchar.data);
-    return Qnil;
-#endif
-
-  case menu_event:
-    {
-      if (execute_p)
-	{
-	  dispatch_command_event_internal (command_builder, event, Qnil);
-	  return (Qnil);
-	}
-      else
-	{
-	  /* If a menu item is selected while in the midst of
-	     read-key-sequence, return that event, so that describe-key
-	     works for menu items as well.
-	     */
-	  nuke_current_events (command_builder);
-	  return (compose_command (command_builder, event, 0));
-	}
-    }
-    
   case eval_event:
     {
-      dispatch_command_event_internal (command_builder, event, Qnil);
-      return (Qnil);
+      call1 (XEVENT (event)->event.eval.function, 
+             XEVENT (event)->event.eval.object);
+#ifdef EPOCH
+      if (!NILP (XEVENT (event)->epoch_event))
+	dispatch_epoch_event (XEVENT (event), XEVENT (event)->epoch_event);
+#endif
+      return;
     }
-
   case pointer_motion_event:
     {
       if (!NILP (Vmouse_motion_handler))
         call1 (Vmouse_motion_handler, event);
-      return (Qnil);
+      return;
     }
+#ifdef FIX_SOLARIS_W3_BUG
+  /* Fix from Georg Nikodym (georg.nikodym@sun.com) to make W3 be able
+     to access network sites under Solaris.  *Shouldn't* cause anything
+     else to break, but hasn't been well tested. */
+  case process_event:
+    {
+      Lisp_Object p = XEVENT (event)->event.process.process;
+      int infd, outfd, readstatus;
 
+      if (!PROCESSP (p)) abort ();
+      get_process_file_descriptors (XPROCESS (p), &infd, &outfd);
+      if (infd >= 0) {
+	while ((readstatus = read_process_output(p, infd)) > 0)
+	  ;
+	if (readstatus == 0) {
+	  if (network_connection_p (p) &&
+	      !connected_via_file_desc(XPROCESS (p))) {
+	    /* Deactivate network connection */
+	    Lisp_Object status = Fprocess_status (p);
+	    if (EQ (status, Qopen)
+		/* In case somebody changes the theory of whether to
+  			 return open as opposed to run for network connection
+  			 "processes"... */
+  		      || EQ (status, Qrun))
+	      update_process_status (p, Qexit, 256, 0);
+	    deactivate_process (p);
+	  }
+	}
+#ifdef EWOULDBLOCK
+	else if (readstatus == -1 && errno == EWOULDBLOCK)
+	  ;
+#else
+#if defined(O_NONBLOCK) || defined(O_NDELAY)
+        else if (readstatus == -1 && errno == EAGAIN)
+	  ;
+#endif	/* defined(O_NONBLOCK) || defined(O_NDELAY) */
+#endif	/* EWOULDBLOCK */
+      }
+      return;
+    }
+#else /* !FIX_SOLARIS_W3_BUG */
+  /* The old code, that still applies for the moment */
   case process_event:
     {
       Lisp_Object p = XEVENT (event)->event.process.process;
@@ -1265,26 +1348,30 @@ dispatch_event_internal (struct command_builder *command_builder,
 		;
 	    }
 	}
-      return (Qnil);
+      return;
     }
+#endif /* !FIX_SOLARIS_W3_BUG */
   case timeout_event:
     {
       struct Lisp_Event *e = XEVENT (event);
       if (!NILP (e->event.timeout.function))
         call1 (e->event.timeout.function, e->event.timeout.object);
-      return (Qnil);
+      return;
     }
-
   case magic_event:
     {
       event_stream->handle_magic_event_cb (XEVENT (event));
-      return (Qnil);
+#ifdef EPOCH
+      if (!NILP (XEVENT (event)->epoch_event))
+	dispatch_epoch_event (XEVENT (event), XEVENT (event)->epoch_event);
+#endif
+      return;
     }
-
   default:
-    abort();
+    abort ();
   }
 }
+
 
 
 /* Compare the current state of the command builder against the local and
@@ -1297,7 +1384,7 @@ command_builder_find_leaf (struct command_builder *command_builder,
                            int allow_menu_events_p)
 {
   Lisp_Object event0 = command_builder->current_events;
-  Lisp_Object tem;
+  Lisp_Object result;
   struct Lisp_Event *terminal;
 
   if (NILP (event0))
@@ -1315,9 +1402,22 @@ command_builder_find_leaf (struct command_builder *command_builder,
       return (list2 (fn, arg));
     }
 
-  tem = event_binding (event0);
-  if (!NILP (tem))
-    return (tem);
+  result = event_binding (event0, 1);
+  if (!NILP (result))
+  {
+    Lisp_Object map;
+    /* The suppress-keymap function binds keys to 'undefined - special-case
+       that here, so that being bound to that has the same error-behavior as
+       not being defined at all.
+       */
+    if (EQ (result, Qundefined))
+      return (Qnil);
+    /* Snap out possible keymap indirections */
+    map = get_keymap (result, 0, 1);
+    if (!NILP (map))
+      return (map);
+    return (result);
+  }
 
   /* If we didn't find a binding, and the last event in the sequence is
      a shifted character, then try again with the lowercase version.
@@ -1332,23 +1432,23 @@ command_builder_find_leaf (struct command_builder *command_builder,
 
   /* This behaviour should be under control of some variable.
      (Richard Mly hates it.) */
-  if ((terminal->event.key.modifiers & MOD_SHIFT) ||
-      (FIXNUMP (terminal->event.key.key)
-       && XINT (terminal->event.key.key) >= 'A'
-       && XINT (terminal->event.key.key) <= 'Z'))
+  if ((terminal->event.key.modifiers & MOD_SHIFT)
+      || (FIXNUMP (terminal->event.key.keysym)
+          && XINT (terminal->event.key.keysym) >= 'A'
+          && XINT (terminal->event.key.keysym) <= 'Z'))
       {
 	struct Lisp_Event terminal_copy = *terminal;
 
 	if (terminal->event.key.modifiers & MOD_SHIFT)
 	  terminal->event.key.modifiers &= (~ MOD_SHIFT);
 	else
-	  terminal->event.key.key = make_number (XINT (terminal->event.key.key)
-						 + 'a'-'A');
+	  terminal->event.key.keysym
+            = make_number (XINT (terminal->event.key.keysym) + 'a'-'A');
 
-	tem = command_builder_find_leaf (command_builder, 
-					  allow_menu_events_p);
-	if (!NILP (tem))
-	  return (tem);
+	result = command_builder_find_leaf (command_builder,
+                                            allow_menu_events_p);
+	if (!NILP (result))
+	  return (result);
 	/* If there was no match with the lower-case version either, then
 	   put back the upper-case event for the error message. */
 	*terminal = terminal_copy;
@@ -1383,6 +1483,47 @@ command_builder_find_leaf (struct command_builder *command_builder,
 Lisp_Object recent_keys_ring;
 int recent_keys_ring_index;
 
+DEFUN ("recent-keys", Frecent_keys, Srecent_keys, 0, 0, 0,
+  "Return vector of last 100 or so keyboard or mouse button events read.\n\
+This copies the event objects into a new vector; it is safe to keep and\n\
+modify them.")
+  ()
+{
+  struct gcpro gcpro1;
+  Lisp_Object val;
+  int size = XVECTOR (recent_keys_ring)->size;
+  int start, nkeys, i, j;
+  GCPRO1 (val);
+
+  if (NILP (XVECTOR (recent_keys_ring)->contents[recent_keys_ring_index]))
+    /* This means the vector has not yet wrapped */
+    {
+      nkeys = recent_keys_ring_index;
+      start = 0;
+    }
+  else
+    {
+      nkeys = size;
+      start = ((recent_keys_ring_index == size) ? 0 : recent_keys_ring_index);
+    }
+
+  val = make_vector (nkeys, Qnil);
+
+  for (i = 0, j = start; i < nkeys; i++)
+  {
+    Lisp_Object e = XVECTOR (recent_keys_ring)->contents[j];
+
+    if (NILP (e))
+      abort ();
+    XVECTOR (val)->contents[i] = Fcopy_event (e, Qnil);
+    if (++j >= size)
+      j = 0;
+  }
+  UNGCPRO;
+  return (val);
+}
+
+
 /* An event (actually an event chain linked through event_next) of Qnil.
    This is stored reversed, with the most recent (copied) event as the
    head of the chain. */
@@ -1394,9 +1535,12 @@ static Lisp_Object Vthis_command_keys;
    (instead of merely being augumented) are pretty conterintuitive.
  */
 Lisp_Object
-reset_this_command_keys (Lisp_Object dummy)
+reset_this_command_keys (Lisp_Object reset_echo)
 {
   Lisp_Object e = Vthis_command_keys;
+
+  if (!NILP (reset_echo))
+    reset_key_echo (the_command_builder, 1);
 
   if (NILP (e))
     return (Qnil);
@@ -1445,62 +1589,6 @@ push_recent_keys (Lisp_Object event)
 }
 
 
-/* Add the given event to the command builder, enlarging the vector 
-   first if necessary.
-
-   Extra hack: this also updates the recent_keys_ring and Vthis_command_keys
-   vectors to translate "ESC x" to "M-x" (for any "x" of course.)
- */
-static void
-command_builder_push (struct command_builder *command_builder,
-                      Lisp_Object event)
-{
-  Lisp_Object recent = command_builder->most_current_event;
-
-  if (EVENTP (recent)
-      && meta_prefix_char != -1 
-      && event_to_character (XEVENT (recent), 0, 0, 0) == meta_prefix_char)
-    {
-      struct Lisp_Event *e;
-      /* When we see a sequence like "ESC x", pretend we really saw "M-x".
-         DoubleThink the recent-keys and this-command-keys as well. */
-
-      /* Modify the previous most-recently-pushed event on the command
-         builder to be a copy of this one with the meta-bit set instead of
-         pushing a new event.
-       */
-      Fcopy_event (event, recent);
-      e = XEVENT (recent);
-      if (e->event_type == key_press_event)
-	e->event.key.modifiers |= MOD_META;
-      else if (e->event_type == button_press_event 
-	       || e->event_type == button_release_event)
-	e->event.button.modifiers |= MOD_META;
-      else
-	abort ();
-
-      /* regenerate the final echo-glyph */
-      command_builder->echo_buf_index = command_builder->echo_previous_index;
-      echo_char_event (command_builder, recent);
-      return;
-    }
-
-  event = Fcopy_event (event, Fallocate_event ());
-
-  if (EVENTP (recent))
-    set_event_next (XEVENT (recent), XEVENT (event));
-  else
-    command_builder->current_events = event;
-
-  command_builder->most_current_event = event;
-}
-
-/* Self-insert-command is magic in that it doesn't always push an undo-
-   boundary: up to 20 consecutive self-inserts can happen before an undo-
-   boundary is pushed.  This variable is that counter.
- */
-static int self_insert_countdown;
-
 static Lisp_Object
 current_events_into_vector (struct command_builder *command_builder)
 {
@@ -1528,222 +1616,169 @@ current_events_into_vector (struct command_builder *command_builder)
 }
 
 
-/* Add the given event to the command builder, and if that results in 
-   a complete key sequence, either execute the corresponding command, or
-   return the key sequence.
- */
+/* Do command-loop book-keeping for keypresses, mouse-buttons
+ * and menu-events */
 static Lisp_Object
-compose_command (struct command_builder *command_builder,
-                 Lisp_Object event,
-                 int execute_p)
+lookup_command_event (struct command_builder *command_builder,
+                      Lisp_Object event, int allow_menu_events_p)
 {
-  Lisp_Object leaf;
+  /* Clear output from previous command execution */
+  if (echo_area_glyphs != command_builder->echo_buf
+      /* but don't let mouse-up clear what mouse-down just printed */
+      && (XEVENT (event)->event_type != button_release_event))
+    clear_message (0);
 
-  /* #### This is done by dispatch_command_event_internal.  We can't
-     do it twice, or both eag and peg get zeroed, and the echo area
-     doesn't actually get erased. */
-  clear_message (0);
-  command_builder_push (command_builder, event);
-  leaf = command_builder_find_leaf (command_builder, !execute_p);
 
-  /* The suppress-keymap function binds keys to 'undefined - special-case
-     that here, so that being bound to that has the same error-behavior as
-     not being defined at all.
+  /* Add the given event to the command builder, enlarging the vector 
+     first if necessary.
+     Extra hack: this also updates the recent_keys_ring and Vthis_command_keys
+     vectors to translate "ESC x" to "M-x" (for any "x" of course.)
    */
-  if (EQ (leaf, Qundefined))
-    leaf = Qnil;
+  {
+    Lisp_Object recent = command_builder->most_current_event;
 
-  /* If the leaf is a keymap, we're not done yet.  Return nil.
-     Note that Fkeymapp() may autoload the keymap.
-     (Need to gcpro leaf?  get_keymap() seems to do it.)
-   */
-  else if (!NILP (Fkeymapp (leaf)))
+    if (EVENTP (recent)
+        && meta_prefix_char >= 0 
+        && event_to_character (XEVENT (recent), 0, 0, 0) == meta_prefix_char)
+    {
+      struct Lisp_Event *e;
+      /* When we see a sequence like "ESC x", pretend we really saw "M-x".
+         DoubleThink the recent-keys and this-command-keys as well. */
+
+      /* Modify the previous most-recently-pushed event on the command
+         builder to be a copy of this one with the meta-bit set instead of
+         pushing a new event.
+         */
+      Fcopy_event (event, recent);
+      e = XEVENT (recent);
+      if (e->event_type == key_press_event)
+        e->event.key.modifiers |= MOD_META;
+      else if (e->event_type == button_press_event 
+               || e->event_type == button_release_event)
+        e->event.button.modifiers |= MOD_META;
+      else
+        abort ();
+
+      if (command_builder->echo_esc_index >= 0)
+      {
+        /* regenerate the final echo-glyph */
+        command_builder->echo_buf_index = command_builder->echo_esc_index;
+        echo_key_event (command_builder, recent);
+        command_builder->echo_esc_index = -1;
+      }
+    }
+    else
+    {
+      event = Fcopy_event (event, Fallocate_event ());
+
+      if (EVENTP (recent))
+        set_event_next (XEVENT (recent), XEVENT (event));
+      else
+        command_builder->current_events = event;
+
+      command_builder->most_current_event = event;
+    }
+  }
+
+  {
+    Lisp_Object leaf = command_builder_find_leaf (command_builder,
+                                                  allow_menu_events_p);
+
+    if (KEYMAPP (leaf))
     {
       Lisp_Object prompt = Fkeymap_prompt (leaf, Qt);
       if (STRINGP (prompt))
-	{
-	  int index = command_builder->echo_buf_index;
-	  int len = XSTRING (prompt)->size;
-	  char *echo;
+      {
+        /* Append keymap prompt to key echo buffer */
+        int buf_index = command_builder->echo_buf_index;
+        int len = XSTRING (prompt)->size;
 
-	  if (len + index + 1 <= command_builder->echo_buf_length)
-	    {
-	      echo = command_builder->echo_buf + index;
-	      memcpy (echo, XSTRING (prompt)->data, len);
-	      echo[len] = 0;
-	    }
-	}
-      maybe_echo_keys (command_builder);
-      return Qnil;
+        if (len + buf_index + 1 <= command_builder->echo_buf_length)
+        {
+          char *echo = command_builder->echo_buf + buf_index;
+          memcpy (echo, XSTRING (prompt)->data, len);
+          echo[len] = 0;
+        }
+        maybe_echo_keys (command_builder, 1);
+      }
+      else
+        maybe_echo_keys (command_builder, 0);        
     }
-
-  /* Now we've got a complete key sequence.  Execute it or return a vector
-     of the events, depending on the value of execute_p.
-   */
-  if (!execute_p) 
+    else if (!NILP (leaf))
     {
-      return (current_events_into_vector (command_builder));
+      if (echo_area_glyphs == command_builder->echo_buf
+          && command_builder->echo_buf_index > 0)
+      {
+        /* If we had been echoing keys, echo the last one (without the trailing
+           dash) and redisplay before executing the command. */
+        command_builder->echo_buf[command_builder->echo_buf_index] = 0;
+        maybe_echo_keys (command_builder, 1);
+        Fsit_for (Qzero, Qt);
+      }
     }
-  if (NILP (leaf))
-    {
-      /* At this point, we know that the sequence is not bound to a command.
-	 Normally, we beep and print a message informing the user of this.
-	 But we do not beep or print a message when:
-	 
-	 o  the last event in this sequence is a mouse-up event; or
-	 o  the last event in this sequence is a mouse-down event and
-	    there is a binding for the mouse-up version.
-	 
-	 That is, if the sequence ``C-x button1'' is typed, and is not bound
-	 to a command, but the sequence ``C-x button1up'' is bound to a
-	 command, we do not complain about the ``C-x button1'' sequence.  If
-	 neither ``C-x button1'' nor ``C-x button1up'' is bound to a command,
-	 then we complain about the ``C-x button1'' sequence, but later will
-	 *not* complain about the ``C-x button1up'' sequence, which would be
-	 redundant.
-	 
-	 This is pretty hairy, but I think it's the most intuitive behavior.
-       */
-      struct Lisp_Event *terminal
-	= XEVENT (command_builder->most_current_event);
-
-      if (terminal->event_type == button_press_event)
-	{
-	  int suppress_bitching;
-	  Lisp_Object leaf2;
-	  /* Temporarily pretend the last event was an "up" instead of a
-	     "down", and look up its binding. */
-	  terminal->event_type = button_release_event;
-	  leaf2 = command_builder_find_leaf (command_builder, 0);
-	  /* If the "up" version is bound, don't complain. */
-	  suppress_bitching = !NILP (leaf2);
-	  /* Undo the temporary changes we just made. */
-	  terminal->event_type = button_press_event;
-	  if (suppress_bitching)
-	    {
-	      /* Pretend this press was not seen (treat it as a prefix) */
-	      struct Lisp_Event *e;
-	      for (e = XEVENT (command_builder->current_events);
-		   event_next (e) != terminal;
-		   e = event_next (e))
-		;
-	      Fdeallocate_event (command_builder->most_current_event);
-	      set_event_next (e, 0);
-	      XSETR (command_builder->most_current_event, Lisp_Event, e);
-	      maybe_echo_keys (command_builder);
-	      return Qnil;
-	    }
-	}
-
-      /* Complain that the typed sequence is not defined, if this is the
-	 kind of sequence that warrants a complaint.
-       */
-      command_builder->echo_buf_index = 0;
-      command_builder->echo_previous_index = 0;
-      defining_kbd_macro = 0;
-      Vprefix_arg = Qnil;
-      /* Don't complain about undefined button-release events */
-      if (terminal->event_type != button_release_event) 
-	{
-	  Lisp_Object keys = current_events_into_vector (command_builder);
-
-	  /* Reset the command builder for reading the next sequence. */
-	  nuke_current_events (command_builder);
-
-	  /* Run the pre-command-hook before barfing about an undefined key. */
-	  Vthis_command = Qnil;
-	  pre_command_hook ();
-	  /* Beep (but don't signal).  The post-command-hook doesn't run,
-	     just as it wouldn't run if we had executed a real command which
-	     signalled an error.  But maybe it should in this case.
-	   */
-#if 1
-	  Fsignal (Qundefined_keystroke_sequence, list1 (keys));
-#else
-	  message (GETTEXT ("%s not defined."), /* doo dah, doo dah */
-		   command_builder->echo_buf);
-	  bitch_at_user (intern ("undefined-key"));
-#endif
-	}
-      /* Reset the command builder for reading the next sequence. */
-      nuke_current_events (command_builder);
-      return Qnil;
-    }
-  dispatch_command_event_internal (command_builder, event, leaf);
-  return Qnil;
+    return (leaf);
+  }
 }
 
-static void store_last_command_event (struct command_builder *command_builder,
-                                      Lisp_Object event);
-
-
 static Lisp_Object
-dispatch_command_event_unwind (Lisp_Object datum)
+execute_command_event_unwind (Lisp_Object datum)
 {
   if (!CONSP (datum))
     abort ();
   if (!NILP (XCONS (datum)->car))
-    reset_this_command_keys (Qnil);
+  {
+    /* We're doing an abort unwind */
+    reset_this_command_keys (Qt);
+  }
   free_cons (XCONS (datum));
   return (Qzero);
 }
 
-
 static void
-dispatch_command_event_internal (struct command_builder *command_builder,
-                                 Lisp_Object event,
-                                 Lisp_Object leaf)
+execute_command_event (struct command_builder *command_builder,
+                       Lisp_Object event)
 {
-  enum emacs_event_type event_type = XEVENT (event)->event_type;
+  /* store last_command_event */
+  {
+    reset_current_events (command_builder);
 
-  Vthis_command = leaf;
+    if (XEVENT (event)->event_type == key_press_event)
+      Vcurrent_mouse_event = Qnil;
+    else
+      Vcurrent_mouse_event = event;
 
-  /* Don't push an undo boundary if the command set the prefix arg, or if we
-     are executing a keyboard macro, or if in the minibuffer.  If the command
-     we are about to execute is self-insert, it's tricky: up to 20 consecutive
-     self-inserts may be done without an undo boundary.  This counter is reset
-     as soon as a command other than self-insert-command is executed.
-   */
-  if (! EQ (leaf, Qself_insert_command))
-    self_insert_countdown = 0;
-  if (NILP (Vprefix_arg) &&
-      NILP (Vexecuting_macro) &&
-      !EQ (minibuf_window, selected_window) &&
-      self_insert_countdown == 0)
-    Fundo_boundary ();
-
-  if (EQ (leaf, Qself_insert_command))
-    if (--self_insert_countdown < 0)
-      self_insert_countdown = 20;
-
-  /* If we had been echoing keys, echo the last one (without the trailing
-     dash) and redisplay before executing the command.
-   */
-  if (command_builder->echo_buf == echo_area_glyphs
-      && event_type != eval_event)
+    /* Store the last-command-event.  The semantics of this is that it is
+       the last event most recently involved in command-lookup.
+       */
+    if (!EVENTP (Vlast_command_event))
+      Vlast_command_event = Fallocate_event ();
+    if (XEVENT (Vlast_command_event)->event_type == dead_event)
     {
-      command_builder->echo_buf[command_builder->echo_buf_index] = 0;
-      maybe_echo_keys (command_builder);
-      Fsit_for (Qzero, Qt);
+      Vlast_command_event = Fallocate_event ();
+      error (GETTEXT ("Someone deallocated the last-command-event!"));
     }
 
-  if (event_type == key_press_event)
-    Vcurrent_mouse_event = Qnil;
-  else
-    Vcurrent_mouse_event = event;
+    if (! EQ (event, Vlast_command_event))
+      Fcopy_event (event, Vlast_command_event);
 
-  if (event_type != eval_event)
-    store_last_command_event (command_builder, event);
+    /* Note that last-command-char will never have its high-bit set, in
+       an effort to sidestep the ambiguity between M-x and oslash.
+       */
+    Vlast_command_char = Fevent_to_character (Vlast_command_event,
+                                              Qnil, Qnil, Qnil);
+  }
 
+  /* Actually call the command, with all sorts of hair to preserve or clear
+     the echo-area and region as appropriate and call the pre- and post-
+     command-hooks.
+     */
   {
     int old_region_p = zmacs_region_active_p;
     int old_kbd_macro = kbd_macro_end;
     int speccount = specpdl_depth ();
-    int old_echo_buf_index = command_builder->echo_buf_index;
-    int old_previous_index = command_builder->echo_previous_index;
     Lisp_Object locative = Fcons (Qt, Qnil);
 
-    /* We're executing a new command, so the old value of this is irrelevant. */
+    /* We're executing a new command, so the old value of is irrelevant. */
     zmacs_region_stays = 0;
 
     /* Now we actually execute the command.
@@ -1751,117 +1786,68 @@ dispatch_command_event_internal (struct command_builder *command_builder,
        a throw past us) then we want Vthis_command_keys to get set to Qnil.
        Otherwise, we want it unchanged.
      */
-    record_unwind_protect (dispatch_command_event_unwind, locative);
-    command_builder->echo_buf_index = 0;
-    command_builder->echo_previous_index = 0;
+    record_unwind_protect (execute_command_event_unwind, locative);
 
-    if (event_type != eval_event)
-      {
-	/* Don't immediately display.
-	 * Echo-area will be cleared for real if necessary when next
-	 * redisplay happens 
-	 */
-	clear_message (0);      /* clear minibuffer echo-area */
-	pre_command_hook ();
-      }
+    pre_command_hook ();
 
-    if (event_type == menu_event || event_type == eval_event)
+    if (XEVENT (event)->event_type == menu_event)
+    {
       call1 (XEVENT (event)->event.eval.function, 
              XEVENT (event)->event.eval.object);
+    }
     else
+    {
 #if 0
       call2 (Qcommand_execute, Vthis_command, Qnil);
 #else
       Fcommand_execute (Vthis_command, Qnil);
 #endif
+    }
 
     /* We completed normally -- don't do reset in unwind-protect */
     XCONS (locative)->car = Qnil;
     unbind_to (speccount, Qnil);
 
-    if (event_type == eval_event)
-      return;
-
     post_command_hook (old_region_p);
 
     if (!NILP (Vprefix_arg))
-      {
-	/* Commands that set the prefix arg don't update last-command, don't
-	   reset the echoing state, and don't go into keyboard macros unless
-	   followed by another command.
-	 */
-	command_builder->echo_buf_index = old_echo_buf_index;
-	command_builder->echo_previous_index = old_previous_index;
+    {
+      /* Commands that set the prefix arg don't update last-command, don't
+	 reset the echoing state, and don't go into keyboard macros unless
+	 followed by another command.
+       */
+      maybe_echo_keys (command_builder, 0);
 
-	maybe_echo_keys (command_builder);
-
-	/* If we're recording a keyboard macro, and the last command
-	   executed set a prefix argument, then decrement the pointer to
-	   the "last character really in the macro" to be just before this
-	   command.  This is so that the ^U in "^U ^X )" doesn't go onto
-	   the end of macro.
+      /* If we're recording a keyboard macro, and the last command
+	 executed set a prefix argument, then decrement the pointer to
+	 the "last character really in the macro" to be just before this
+	 command.  This is so that the ^U in "^U ^X )" doesn't go onto
+	 the end of macro.
 	 */
-	if (defining_kbd_macro)
-	  kbd_macro_end = old_kbd_macro;
-      }
+      if (defining_kbd_macro)
+	kbd_macro_end = old_kbd_macro;
+    }
     else
       {
-	/* Clear command-key echo, */
-	/*   but if the command printed a message, don't lose it. */
-	if (echo_area_glyphs == command_builder->echo_buf)
-	  /* Don't immediately display.  Leads to too much flashing
-	     (eg in isearch, where message is cleared and redisplayed
-	     after every keystroke.)
-	     Echo-area will be cleared for real if necessary when next
-	     redisplay happens 
-	   */
-	  clear_message (0);      /* clear minibuffer echo-area */
-
 	/* Start a new command next time */
-	reset_this_command_keys (Qnil);
 	Vlast_command = Vthis_command;
+	reset_this_command_keys (Qnil);
+	/* Emacs 18 doesn't unconditionally clear the echoed keystrokes,
+         so we don't either */
+	reset_key_echo (command_builder, 0);
       }
   }
 }
 
-
-static void
-store_last_command_event (struct command_builder *command_builder,
-                          Lisp_Object event)
-{
-  nuke_current_events (command_builder);
-
-  /* Store the last-command-event.  The semantics of this is that it is
-     the last event most recently involved in command-lookup.
-     */
-  if (!EVENTP (Vlast_command_event))
-    Vlast_command_event = Fallocate_event ();
-  if (XEVENT (Vlast_command_event)->event_type == dead_event)
-    {
-      Vlast_command_event = Fallocate_event ();
-      error (GETTEXT ("Someone deallocated the last-command-event!"));
-    }
-
-  if (! EQ (event, Vlast_command_event))
-    Fcopy_event (event, Vlast_command_event);
-
-  /* Note that last-command-char will never have its high-bit set, in
-     an effort to sidestep the ambiguity between M-x and oslash.
-   */
-  Vlast_command_char = Fevent_to_character (Vlast_command_event,
-					    Qnil, Qnil, Qnil);
-}
-
-static void
+void
 pre_command_hook ()
 {
-  if (!NILP (Vrun_hooks))
+  if (!NILP (Vrun_hooks) && !NILP (Vpre_command_hook))
     call1 (Vrun_hooks, Qpre_command_hook);
 }
 
-static void
-post_command_hook (old_region_p)
-     int old_region_p;
+void
+post_command_hook (int old_region_p)
 {
   /* Turn off region highlighting unless this command requested that
      it be left on, or we're in the minibuffer.  We don't turn it off
@@ -1871,15 +1857,19 @@ post_command_hook (old_region_p)
      This could be done via a function on the post-command-hook, but
      we don't want the user to accidentally remove it.
    */
-  if (! zmacs_region_stays &&
-      !EQ (minibuf_window, selected_window) &&
-      (! zmacs_region_active_p ||
-       ! (zmacs_region_active_p > old_region_p)))
+  if (! zmacs_region_stays
+      /* >>> This has the bug that any region set in the minibuffer is
+       * >>>  always sticky!  I think the intention was to make selections
+       * >>>  in the old buffer stay around whilst the minibuffer was used
+       * >>>  but the effect is losing. */
+      && !EQ (minibuf_window, selected_window)
+      && (! zmacs_region_active_p
+          || ! (zmacs_region_active_p > old_region_p)))
     Fzmacs_deactivate_region ();
   else
     zmacs_update_region ();
 
-  if (!NILP (Vrun_hooks))
+  if (!NILP (Vrun_hooks) && !NILP (Vpost_command_hook))
     call1 (Vrun_hooks, Qpost_command_hook);
 
 #if 0 /* RMSmacs */
@@ -1898,17 +1888,166 @@ post_command_hook (old_region_p)
 
 
 
-
 DEFUN ("dispatch-event", Fdispatch_event, Sdispatch_event, 1, 1, 0,
   "Given an event object returned by next-event, execute it.")
      (event)
      Lisp_Object event;
 {
+  struct command_builder *command_builder = the_command_builder;
   CHECK_EVENT (event, 0);
-  if (XEVENT (event)->event_type == dead_event)
-    error (GETTEXT ("dispatch-event called on a deallocated event!"));
-  dispatch_event_internal (the_command_builder, event, 1);
-  return Qnil;
+
+  switch (XEVENT (event)->event_type) 
+    {
+    case dead_event:
+      {
+	error (GETTEXT ("dispatch-event called on a deallocated event!"));
+	break;
+      }
+    case key_press_event:
+    case button_press_event:
+    case button_release_event:
+      {
+	Lisp_Object leaf;
+
+	leaf = lookup_command_event (command_builder, event, 1);
+	if (KEYMAPP (leaf))
+	  /* Incomplete key sequence */
+	  break;
+	if (NILP (leaf))
+	  {
+	    /* At this point, we know that the sequence is not bound to a
+	       command.  Normally, we beep and print a message informing the
+	       user of this.  But we do not beep or print a message when:
+
+	       o  the last event in this sequence is a mouse-up event; or
+	       o  the last event in this sequence is a mouse-down event and
+	          there is a binding for the mouse-up version.
+
+	       That is, if the sequence ``C-x button1'' is typed, and is not
+	       bound to a command, but the sequence ``C-x button1up'' is bound
+	       to a command, we do not complain about the ``C-x button1''
+	       sequence.  If neither ``C-x button1'' nor ``C-x button1up'' is
+	       bound to a command, then we complain about the ``C-x button1''
+	       sequence, but later will *not* complain about the
+	       ``C-x button1up'' sequence, which would be redundant.
+
+	       This is pretty hairy, but I think it's the most intuitive
+	       behavior.
+	     */
+	    struct Lisp_Event *terminal
+	      = XEVENT (command_builder->most_current_event);
+
+	    if (terminal->event_type == button_press_event)
+	      {
+		int no_bitching;
+		/* Temporarily pretend the last event was an "up" instead of a
+		   "down", and look up its binding. */
+		terminal->event_type = button_release_event;
+		/* If the "up" version is bound, don't complain. */
+		no_bitching
+		  = !NILP (command_builder_find_leaf (command_builder, 0));
+		/* Undo the temporary changes we just made. */
+		terminal->event_type = button_press_event;
+		if (no_bitching)
+		  {
+		    /* Pretend this press was not seen (treat as a prefix) */
+		    struct Lisp_Event *e;
+		    for (e = XEVENT (command_builder->current_events);
+			 event_next (e) != terminal;
+			 e = event_next (e))
+		      ;
+		    Fdeallocate_event (command_builder->most_current_event);
+		    set_event_next (e, 0);
+		    XSETR (command_builder->most_current_event, Lisp_Event, e);
+		    maybe_echo_keys (command_builder, 1);
+		    break;
+		  }
+	      }
+
+	    /* Complain that the typed sequence is not defined, if this is the
+	       kind of sequence that warrants a complaint.
+	       */
+	    reset_key_echo (command_builder, 0);
+	    defining_kbd_macro = 0;
+	    Vprefix_arg = Qnil;
+	    /* Don't complain about undefined button-release events */
+	    if (terminal->event_type != button_release_event) 
+	      {
+		Lisp_Object keys = current_events_into_vector(command_builder);
+
+		/* Reset the command builder for reading the next sequence. */
+		reset_current_events (command_builder);
+
+		/* Run the pre-command-hook before barfing about an undefined
+		   key. */
+		Vthis_command = Qnil;
+		pre_command_hook ();
+		/* The post-command-hook doesn't run. */
+		Fsignal (Qundefined_keystroke_sequence, list1 (keys));
+	      }
+	    /* Reset the command builder for reading the next sequence. */
+	    reset_current_events (command_builder);
+	    reset_this_command_keys (Qt);
+	  }
+	else
+	  {
+	    Vthis_command = leaf;
+	    /* Don't push an undo boundary if the command set the prefix arg,
+	       or if we are executing a keyboard macro, or if in the
+	       minibuffer.  If the command we are about to execute is
+	       self-insert, it's tricky: up to 20 consecutive self-inserts may
+	       be done without an undo boundary.  This counter is reset as
+	       soon as a command other than self-insert-command is executed.
+	     */
+	    if (! EQ (leaf, Qself_insert_command))
+	      command_builder->self_insert_countdown = 0;
+	    if (NILP (Vprefix_arg)
+		&& NILP (Vexecuting_macro)
+		&& !EQ (minibuf_window, selected_window)
+		&& command_builder->self_insert_countdown == 0)
+	      Fundo_boundary ();
+
+	    if (EQ (leaf, Qself_insert_command))
+	      {
+		if (--command_builder->self_insert_countdown < 0)
+		  command_builder->self_insert_countdown = 20;
+	      }
+	    execute_command_event (command_builder, event);
+	  }
+	break;
+      }
+    case menu_event:
+      {
+	/* We could just always use the menu item entry, whatever it is, but
+	   this might break some Lisp code that expects `this-command' to
+	   always contain a symbol.  So only store it if this is a simple
+	   `call-interactively' sort of menu item.
+	 */
+	if (EQ (XEVENT (event)->event.eval.function, Qcall_interactively)
+	    && SYMBOLP (XEVENT (event)->event.eval.object))
+	  Vthis_command = XEVENT (event)->event.eval.object;
+	else
+	  Vthis_command = Qnil;
+
+	command_builder->self_insert_countdown = 0;
+	execute_command_event (command_builder, event);
+	break;
+      }
+#ifdef I18N4
+    case wchar_event:
+      {
+	/* >>> This seems really bogus */
+	insert_wide_char (XEVENT (event)->event.wchar.data);
+	break;
+      }
+#endif
+    default:
+      {
+	execute_internal_event (event);
+	break;
+      }
+    }
+  return (Qnil);
 }
 
 DEFUN ("read-key-sequence", Fread_key_sequence, Sread_key_sequence, 1, 1, 0,
@@ -1930,6 +2069,7 @@ related function.")
   (prompt)
      Lisp_Object prompt;
 {
+  struct command_builder *command_builder = the_command_builder;
   Lisp_Object result;
   Lisp_Object event = Fallocate_event ();
   int speccount = specpdl_depth ();
@@ -1944,11 +2084,26 @@ related function.")
   reset_this_command_keys (Qnil);
 
   specbind (Qinhibit_quit, Qt);
-  result = dispatch_event_internal (the_command_builder,
-                                    Fnext_event_1 (event, prompt), 0);
-  while (NILP (result))
-    result = dispatch_event_internal (the_command_builder,
-                                      Fnext_event_1 (event, Qnil), 0);
+
+  for (;;)
+  {
+    Fnext_event (event, prompt);
+    if (! command_event_p (XEVENT (event)))
+      execute_internal_event (event);
+    else
+    {
+      if (XEVENT (event)->event_type == menu_event)
+        reset_current_events (command_builder);
+      result = lookup_command_event (command_builder, event, 1);
+      if (!KEYMAPP (result))
+      {
+        result = current_events_into_vector (command_builder);
+        reset_key_echo (command_builder, 0);
+        break;
+      }
+      prompt = Qnil;
+    }
+  }
 
   Vquit_flag = Qnil;  /* In case we read a ^G */
   Fdeallocate_event (event);
@@ -1997,10 +2152,11 @@ syms_of_event_stream ()
   the_command_builder->most_current_event = Qnil;
   the_command_builder->prefix_events = Qnil;
   the_command_builder->echo_buf_length = 300; /* >>> Kludge */
-  the_command_builder->echo_buf = (char *) xmalloc (300);
-  the_command_builder->echo_buf_index = 0;
-  the_command_builder->echo_previous_index = 0;
+  the_command_builder->echo_buf = (char *) xmalloc (the_command_builder->echo_buf_length);
   the_command_builder->echo_buf[0] = 0;
+  the_command_builder->echo_buf_index = -1;
+  the_command_builder->echo_esc_index = -1;
+  the_command_builder->self_insert_countdown = 0;
 
   staticpro (&the_command_builder->current_events);
   staticpro (&the_command_builder->prefix_events);
@@ -2019,7 +2175,7 @@ syms_of_event_stream ()
   staticpro (&Vthis_command_keys);
 
   num_input_chars = 0;
-  self_insert_countdown = 0;
+  menu_event_sit_for_kludge = 0;
  
   defsymbol (&Qundefined, "undefined");
   defsymbol (&Qcommand_execute, "command-execute");
@@ -2027,6 +2183,7 @@ syms_of_event_stream ()
   command_event_queue = Qnil;
   staticpro (&command_event_queue);
 
+  defsubr (&Srecent_keys);
   defsubr (&Sinput_pending_p);
   defsubr (&Senqueue_command_event);
   defsubr (&Snext_event);
@@ -2050,8 +2207,41 @@ syms_of_event_stream ()
 Zero means disable autosaving due to number of characters typed.\n\
 See also the variable `auto-save-timeout'.");
   auto_save_interval = 300;
+
+  defsymbol (&Qpre_command_hook, "pre-command-hook");
+  DEFVAR_LISP ("pre-command-hook", &Vpre_command_hook,
+     "Function or functions to run before every command.\n\
+This may examine the `this-command' variable to find out what command\n\
+is about to be run, or may change it to cause a different command to run.\n\
+Function on this hook must be careful to avoid signalling errors!");
+  Vpre_command_hook = Qnil;
+
+  defsymbol (&Qpost_command_hook, "post-command-hook");
+  DEFVAR_LISP ("post-command-hook", &Vpost_command_hook,
+     "Function or functions to run after every command.\n\
+This may examine the `this-command' variable to find out what command\n\
+was just executed.");
+  Vpost_command_hook = Qnil;
+
+#ifdef EPOCH
+  defsymbol (&Qx_property_change, "x-property-change");
+  defsymbol (&Qx_client_message, "x-client-message");
+  defsymbol (&Qx_map, "x-map");
+  defsymbol (&Qx_unmap, "x-unmap");
+
+  DEFVAR_LISP ("epoch-event-handler", &Vepoch_event_handler,
+	       "If this variable is not nil, then it is assumed to have\n\
+a function in it.  When an epoch event is received for a screen, this\n\
+function is called.");
+  Vepoch_event_handler = Qnil;
+
+  DEFVAR_LISP ("epoch-event", &Vepoch_event,
+	       "Bound to the value of the current event when epoch-event-handler is called.");
+  Vepoch_event = Qnil;
+#endif
 }
 
+
 /*
 useful testcases for v18/v19 compatibility:
 
@@ -2063,11 +2253,22 @@ useful testcases for v18/v19 compatibility:
 	  last-command-char last-input-char
 	  (recent-keys) (this-command-keys))))
 (global-set-key "\^Q" 'foo)
-;use ^Q and ^U^U^Q and ^U^U^U^G^Q
+
+without the read-key-sequence:
+  ^Q		==>  (65 17 65 [... ^Q] [^Q])
+  ^U^U^Q	==>  (65 17 65 [... ^U ^U ^Q] [^U ^U ^Q])
+  ^U^U^U^G^Q	==>  (65 17 65 [... ^U ^U ^U ^G ^Q] [^Q])
+
+with the read-key-sequence:
+  ^Qb		==>  (65 [b] 17 98 [... ^Q b] [b])
+  ^U^U^Qb	==>  (65 [b] 17 98 [... ^U ^U ^Q b] [b])
+  ^U^U^U^G^Qb	==>  (65 [b] 17 98 [... ^U ^U ^U ^G ^Q b] [b])
+
 ;the evi-mode command "4dlj.j.j.j.j.j." is also a good testcase (gag)
 
 ;(setq x (list (read-char) quit-flag))^J^G
-;x should get set to (7 t), but no result should be printed.
+;(let ((inhibit-quit t)) (setq x (list (read-char) quit-flag)))^J^G
+;for BOTH, x should get set to (7 t), but no result should be printed.
 
 ;also do this: make two screens, one viewing "*scratch*", the other "foo".
 ;in *scratch*, type (sit-for 20)^J
@@ -2079,6 +2280,27 @@ useful testcases for v18/v19 compatibility:
 ;before typing.
 
 ;make sure ^G aborts both sit-for and sleep-for.
+
+ (defun tst ()
+  (list (condition-case c
+	    (sleep-for 20)
+	  (quit c))
+	(read-char)))
+
+ (tst)^Ja^G    ==>  ((quit) 97) with no signal
+ (tst)^J^Ga    ==>  ((quit) 97) with no signal
+ (tst)^Jabc^G  ==>  ((quit) 97) with no signal, and "bc" inserted in buffer
+
+Do this:
+  (setq enable-recursive-minibuffers t
+      minibuffer-max-depth nil)
+ ESC ESC ESC ESC	- there are now two minibuffers active
+ C-g C-g C-g		- there should be active 0, not 1
+Similarly:
+ C-x C-f ~ / ?		- wait for "Making completion list..." to display
+ C-g			- wait for "Quit" to display
+ C-g			- minibuffer should not be active
+however C-g before "Quit" is displayed should leave minibuffer active.
 
 ;do it all in both v18 and v19 and make sure all results are the same.
 ;all of these cases matter a lot, but some in quite subtle ways.

@@ -1,5 +1,5 @@
 ;;; USENET news poster/mailer for GNU Emacs
-;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -194,7 +194,8 @@ news-reply-mode."
 	      (mail-archive-file-name nil))
 	  (mail-setup to subject in-reply-to nil replybuffer nil)
 	  (beginning-of-line)
-	  (kill-line 1)
+	  ;;(kill-line 1) ; lemacs fix to longstanding damned annoying bug
+	  (delete-region (point) (progn (forward-line 1) (point)))
 	  (goto-char (point-max)))
       (mail-setup to subject in-reply-to nil replybuffer nil))
     ;;;(mail-position-on-field "Posting-Front-End")
@@ -212,15 +213,17 @@ news-reply-mode."
 (defun news-inews ()
   "Send a news message using inews."
   (interactive)
-  (let* (newsgroups subject
-		    (case-fold-search nil))
+  (let* ((case-fold-search nil)
+	 ;;newsgroups subject
+	 )
     (save-excursion
       (save-restriction
 	(goto-char (point-min))
 	(search-forward (concat "\n" mail-header-separator "\n"))
 	(narrow-to-region (point-min) (point))
-	(setq newsgroups (mail-fetch-field "newsgroups")
-	      subject (mail-fetch-field "subject")))
+	;;(setq newsgroups (mail-fetch-field "newsgroups")
+	;;      subject (mail-fetch-field "subject"))
+	)
       (widen)
       (goto-char (point-min))
       (run-hooks 'news-inews-hook)
@@ -254,7 +257,7 @@ news-reply-mode."
 While composing the reply, use \\[news-reply-yank-original] to yank the
 original message into it."
   (interactive)
-  (let (from cc subject date to reply-to references message-id ;;b
+  (let (from subject date to reply-to references message-id ;;b
 	(buffer (current-buffer)))
     (save-restriction
       (widen)
@@ -298,9 +301,9 @@ While composing the followup, use \\[news-reply-yank-original] to yank the
 original message into it."
   (interactive)
   (if (y-or-n-p "Are you sure you want to followup to all of USENET? ")
-      (let (from cc subject date to followup-to newsgroups message-of
-		 references distribution message-id
-		 (buffer (current-buffer)))
+      (let (from subject date followup-to newsgroups message-of
+	    references distribution message-id
+	    (buffer (current-buffer)))
 	(save-restriction
 	  (and (not (= 0 (buffer-size))) ;@@real problem is non-existence of
 					;@@	of article file

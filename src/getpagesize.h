@@ -1,6 +1,9 @@
+/* lemacs change */
+#if 0
 #ifdef BSD
 #ifndef BSD4_1
 #define HAVE_GETPAGESIZE
+#endif
 #endif
 #endif
 

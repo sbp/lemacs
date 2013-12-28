@@ -1,5 +1,5 @@
 ;;; Code to show VM's warranty and copying restrictions
-;;; Copyright (C) 1989 Kyle E. Jones
+;;; Copyright (C) 1989, 1994 Kyle E. Jones
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify
 ;;; it under the terms of the GNU General Public License as published by
@@ -18,19 +18,24 @@
 (defun vm-show-copying-restrictions (&optional warranty)
   (interactive)
   (require 'info)
-  (or 
-   (condition-case ()
-       (progn (Info-goto-node "(vm)License") t)
-     (error nil))
-   (condition-case ()
-       (progn (Info-goto-node "(vm.info)License") t)
-     (error nil))
-   (error "VM Info documentation appears not to be installed"))
-  (if warranty
-      (let ((case-fold-search nil))
-	(search-forward "NO WARRANTY\n" nil t)
-	(forward-line -1)
-	(set-window-start (selected-window) (point)))))
+  (let ((pop-up-windows (eq vm-mutable-windows t))
+	(pop-up-frames vm-mutable-frames))
+    (or 
+     (condition-case ()
+	 (progn (Info-goto-node "(vm)License") t)
+       (error nil))
+     (condition-case ()
+	 (progn (Info-goto-node "(vm.info)License") t)
+       (error nil))
+     (error "VM Info documentation appears not to be installed"))
+    (vm-display (current-buffer) t nil nil)
+    (vm-display nil nil '(vm-show-copying-restrictions vm-show-no-warranty)
+		(list this-command))
+    (if warranty
+	(let ((case-fold-search nil))
+	  (search-forward "NO WARRANTY\n" nil t)
+	  (forward-line -1)
+	  (set-window-start (selected-window) (point))))))
 
 (defun vm-show-no-warranty ()
   "Display \"NO WARRANTY\" section of the GNU General Public License."

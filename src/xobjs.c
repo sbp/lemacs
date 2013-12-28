@@ -31,9 +31,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <X11/Xlib.h>
 #include "xintrinsic.h"		/* for XtScreen... */
-#include <X11/Xmu/Converters.h>
-#include <X11/Xmu/CurUtil.h>
-#include <X11/Xmu/Drawing.h>
+#ifdef HAVE_XMU
+# include <X11/Xmu/Converters.h>
+# include <X11/Xmu/CurUtil.h>
+# include <X11/Xmu/Drawing.h>
+#else
+# include "xmu.h"
+#endif
 
 #ifdef HAVE_XPM
 #include <X11/xpm.h>
@@ -46,6 +50,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "screen.h"
 #include "xterm.h"
 #include "xobjs.h"
+#include "xselect.h"
+#include "emacsfns.h"
 
 
 #define LISP_SCREEN_TO_X_SCREEN(l) \
@@ -67,11 +73,10 @@ Lisp_Object Qpixelp;
 static Lisp_Object mark_pixel (Lisp_Object, void (*) (Lisp_Object));
 static void print_pixel (Lisp_Object, Lisp_Object, int);
 static void finalize_pixel (void *, int);
-static int sizeof_pixel (void *header) { return sizeof(struct Lisp_Pixel); }
 static int pixel_equal (Lisp_Object, Lisp_Object, int depth);
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_pixel,
+DEFINE_LRECORD_IMPLEMENTATION ("pixel", lrecord_pixel,
 			       mark_pixel, print_pixel, finalize_pixel,
-			       sizeof_pixel, pixel_equal);
+			       pixel_equal, sizeof(struct Lisp_Pixel));
 
 static Lisp_Object
 mark_pixel (Lisp_Object obj, void (*markobj) (Lisp_Object))
@@ -86,14 +91,13 @@ print_pixel (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
   char buf[100];
   struct Lisp_Pixel *p = XPIXEL (obj);
   if (print_readably)
-    error (GETTEXT ("printing unreadable object #<pixel 0x%x>"),
-           p->header.uid);
+    error (GETTEXT ("printing unreadable object #<pixel 0x%x>"), (long) p);
   write_string_1 ("#<pixel ", -1, printcharfun);
   print_internal (p->color_name, printcharfun, 0);
-  sprintf (buf, " %d=(%X,%X,%X) 0x%x>",
+  sprintf (buf, " %ld=(%X,%X,%X) 0x%x>",
 	   p->color.pixel,
 	   p->color.red, p->color.green, p->color.blue,
-	   p->header.uid);
+	   (long) p);
   write_string_1 (buf, -1, printcharfun);
 }
 
@@ -196,11 +200,10 @@ Lisp_Object Qcursorp;
 static Lisp_Object mark_cursor (Lisp_Object, void (*) (Lisp_Object));
 static void print_cursor (Lisp_Object, Lisp_Object, int);
 static void finalize_cursor (void *, int);
-static int sizeof_cursor (void *header) { return sizeof(struct Lisp_Cursor);}
 static int cursor_equal (Lisp_Object, Lisp_Object, int depth);
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_cursor,
+DEFINE_LRECORD_IMPLEMENTATION ("cursor", lrecord_cursor,
 			       mark_cursor, print_cursor, finalize_cursor,
-			       sizeof_cursor, cursor_equal);
+			       cursor_equal, sizeof(struct Lisp_Cursor));
 
 static Lisp_Object
 mark_cursor (Lisp_Object obj, void (*markobj) (Lisp_Object))
@@ -214,11 +217,10 @@ mark_cursor (Lisp_Object obj, void (*markobj) (Lisp_Object))
 static void
 print_cursor (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 {
-  char buf[20];
+  char buf[200];
   struct Lisp_Cursor *c = XCURSOR (obj);
   if (print_readably)
-    error (GETTEXT ("printing unreadable object #<cursor 0x%x>"),
-	   c->header.uid);
+    error (GETTEXT ("printing unreadable object #<cursor 0x%x>"), (long) c);
 
   write_string_1 ("#<cursor ", -1, printcharfun);
   print_internal (c->name, printcharfun, 1);
@@ -230,7 +232,7 @@ print_cursor (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
       print_internal (XPIXEL (c->bg)->color_name, printcharfun, 0);
       write_string_1 (")", -1, printcharfun);
     }
-  sprintf (buf, " 0x%x>", c->header.uid);
+  sprintf (buf, " 0x%x>", (long) c);
   write_string_1 (buf, -1, printcharfun);
 }
 
@@ -402,15 +404,14 @@ make_cursor_1 (Lisp_Object screen, Lisp_Object name)
 	count = 4, mask_name[0] = 0;
 
       if (count != 2 && count != 4)
-	signal_error (Qerror,
-		      list2 (build_string (GETTEXT ("invalid cursor specification")),
-			     name));
+	signal_simple_error ("invalid cursor specification", name);
       BLOCK_INPUT;
       source = safe_XLoadFont (dpy, source_name);
       UNBLOCK_INPUT;
       if (! source)
-	signal_error (Qerror, list3 (build_string (GETTEXT ("couldn't load font")),
-				     build_string (source_name), name));
+	signal_simple_error_2 ("couldn't load font",
+			       build_string (source_name),
+			       name);
       if (count == 2)
 	mask = 0;
       else if (! mask_name[0])
@@ -421,7 +422,7 @@ make_cursor_1 (Lisp_Object screen, Lisp_Object name)
 	  mask = safe_XLoadFont (dpy, mask_name);
 	  UNBLOCK_INPUT;
 	  if (! mask) /* continuable */
-	    Fsignal (Qerror, list3 (build_string (GETTEXT ("couldn't load font")),
+	    Fsignal (Qerror, list3 (build_string ("couldn't load font"),
 				    build_string (mask_name), name));
 	}
       if (! mask) mask_char = 0;
@@ -446,8 +447,13 @@ make_cursor_1 (Lisp_Object screen, Lisp_Object name)
 
   else
     {
+      struct gcpro gcpro1, gcpro2, gcpro3;
       Lisp_Object lsource;
+      Lisp_Object lmask = Qnil;
+      Lisp_Object mask_file = Qnil;
       Pixmap source, mask;
+
+      GCPRO3 (lsource, lmask, mask_file);
 
       if (PIXMAPP (name))
 	lsource = name;
@@ -459,54 +465,24 @@ make_cursor_1 (Lisp_Object screen, Lisp_Object name)
 
       if (XPIXMAP (lsource)->depth > 1)
 	signal_error (Qerror,
-		      list3 (build_string (GETTEXT ("cursor pixmaps must be 1 plane")),
+		      list3 (build_string ("cursor pixmaps must be 1 plane"),
 			     name, lsource));
       if (!mask && STRINGP (name))
 	{
-	  Lisp_Object lmask = Qnil;
-	  Lisp_Object mask_file =
+	  mask_file =
 	    locate_pixmap_file (concat2 (name, build_string ("Mask")));
 	  if (NILP (mask_file))
 	    mask_file =
 	      locate_pixmap_file (concat2 (name, build_string ("msk")));
 	  if (!NILP (mask_file))
 	    {
-	      struct gcpro gcpro1, gcpro2;
-	      GCPRO2 (lsource, mask_file);
 	      lmask = make_pixmap (mask_file, screen, 1); /* may GC */
-	      UNGCPRO;
 	      if (XPIXMAP (lmask)->depth != 0)
-		signal_error (Qerror,
-			      list3 (build_string (GETTEXT ("mask must be 1 bit deep")),
-				     mask_file, lmask));
+		signal_simple_error_2 ("mask must be 1 bit deep",
+				       mask_file, lmask);
 	      mask = XPIXMAP (lmask)->pixmap;
+	      mask_file = Qnil;
 	    }
-	}
-
-      /* If the loaded pixmap has colors allocated (meaning it came from an
-	 XPM file), then use those as the default colors for the cursor we
-	 create.  Otherwise, default to black and white. */
-      if (XPIXMAP (lsource)->npixels >= 2) 
-	{
-	  int i;
-	  /* We set bg to the first color we find in the file, and set fg to
-	     the first color we find that's different than that.  These values
-	     are always going to be WhitePixel or BlackPixel, but who knows
-	     what the order is.  One would expect that npixels would always
-	     be 2 when reading an XPM in mono mode, but that's not the case.
-	     It's also not clear that the order of the pixels in the colors
-	     list is non-random, but what are the alternatives?
-	   */
-	  bg.pixel = XPIXMAP (lsource)->pixels [0];
-	  for (i = 0; i < XPIXMAP (lsource)->npixels; i++)
-	    {
-	      fg.pixel = XPIXMAP (lsource)->pixels [i];
-	      if (fg.pixel != bg.pixel) break;
-	    }
-	  BLOCK_INPUT;
-	  XQueryColor (DisplayOfScreen(xs), DefaultColormapOfScreen(xs), &fg);
-	  XQueryColor (DisplayOfScreen(xs), DefaultColormapOfScreen(xs), &bg);
-	  UNBLOCK_INPUT;
 	}
 
       check_pointer_sizes (xs,
@@ -514,11 +490,111 @@ make_cursor_1 (Lisp_Object screen, Lisp_Object name)
 			   XPIXMAP (lsource)->height,
 			   name, lsource);
 
+      /* If the loaded pixmap has colors allocated (meaning it came from an
+	 XPM file), then use those as the default colors for the cursor we
+	 create.  Otherwise, default to black and white.
+       */
+      if (XPIXMAP (lsource)->npixels >= 2)
+	{
+	  int i;
+	  int npixels = XPIXMAP (lsource)->npixels;
+	  unsigned long *pixels = XPIXMAP (lsource)->pixels;
+
+	  /* With an XBM file, it's obvious which bit is foreground and which
+	     is background, or rather, it's implicit: in an XBM file, a 1 bit
+	     is foreground, and a 0 bit is background.
+
+	     XCreatePixmapCursor() assumes this property of the pixmap it is
+	     called with as well; the `foreground' color argument is used for
+	     the 1 bits.
+
+	     With an XPM file, it's tricker, since the elements of the pixmap
+	     don't represent FG and BG, but are actual pixel values.  So we
+	     need to figure out which of those pixels is the foreground color
+	     and which is the background.  We do it by comparing RGB and
+	     assuming that the darker color is the foreground.  This works
+	     with the result of xbmtopbm|ppmtoxpm, at least.
+
+	     It might be nice if there was some way to tag the colors in the
+	     XPM file with whether they are the foreground - perhaps with
+	     logical color names somehow?
+
+	     Once we have decided which color is the foreground, we need to
+	     ensure that that color corresponds to a `1' bit in the Pixmap.
+	     The XPM library wrote into the (1-bit) pixmap with XPutPixel,
+	     which will ignore all but the least significant bit.
+
+	     This means that a 1 bit in the image corresponds to `fg' only if
+	     `fg.pixel' is odd.
+
+	     (This also means that the image will be all the same color if
+	     both `fg' and `bg' are odd or even, but we can safely assume
+	     that that won't happen if the XPM file is sensible I think.)
+
+	     The desired result is that the image use `1' to represent the
+	     foreground color, and `0' to represent the background color.
+	     So, we may need to invert the image to accomplish this; we invert
+	     if fg is odd (remember that WhitePixel and BlackPixel are not
+	     necessarily 1 and 0 respectively, though I think it might be safe
+	     to assume that one of them is always 1 and the other is always 0.
+	     We also pretty much need to assume that one is even and the other
+	     is odd.)
+	   */
+
+	  fg.pixel = pixels [0];	/* pick a pixel at random. */
+	  bg.pixel = fg.pixel;
+	  for (i = 1; i < npixels; i++)	/* Look for an "other" pixel value. */
+	    {
+	      bg.pixel = pixels [i];
+	      if (fg.pixel != bg.pixel) break;
+	    }
+
+	  /* If (fg.pixel == bg.pixel) then probably something has gone wrong,
+	     but I don't think signalling an error would be appropriate. */
+
+	  BLOCK_INPUT;
+	  XQueryColor (DisplayOfScreen(xs), DefaultColormapOfScreen(xs), &fg);
+	  XQueryColor (DisplayOfScreen(xs), DefaultColormapOfScreen(xs), &bg);
+	  UNBLOCK_INPUT;
+
+	  /* If the foreground is lighter than the background, swap them.
+	     (This occurs semi-randomly, depending on the ordering of the
+	     color list in the XPM file.)
+	   */
+	  if (((fg.red / 3) + (fg.green / 3) + (fg.blue / 3)) >
+	      ((bg.red / 3) + (bg.green / 3) + (bg.blue / 3)))
+	    {
+	      XColor swap;
+	      swap = fg;
+	      fg = bg;
+	      bg = swap;
+	    }
+
+	  /* If the fg pixel corresponds to a `0' in the bitmap, invert it.
+	     (This occurs (only?) on servers with Black=0, White=1.)
+	   */
+	  if ((fg.pixel & 1) == 0)
+	    {
+	      XGCValues gcv;
+	      GC gc;
+	      gcv.function = GXxor;
+	      gcv.foreground = 1;
+	      BLOCK_INPUT;
+	      gc = XCreateGC (dpy, source, (GCFunction | GCForeground), &gcv);
+	      XFillRectangle (dpy, source, gc, 0, 0,
+			      XPIXMAP (lsource)->width,
+			      XPIXMAP (lsource)->height);
+	      XFreeGC (dpy, gc);
+	      UNBLOCK_INPUT;
+	    }
+	}
+
       BLOCK_INPUT;
       cursor = XCreatePixmapCursor (dpy, source, mask, &fg, &bg,
 				    XPIXMAP (lsource)->x,
 				    XPIXMAP (lsource)->y);
       UNBLOCK_INPUT;
+      UNGCPRO; /* can now collect and free `lsource', `lmask', and Pixmaps. */
     }
   return cursor;
 }
@@ -643,11 +719,12 @@ Lisp_Object Qfontp;
 static Lisp_Object mark_font (Lisp_Object, void (*) (Lisp_Object));
 static void print_font (Lisp_Object, Lisp_Object, int);
 static void finalize_font (void *, int);
-static int sizeof_font (void *header) { return sizeof (struct Lisp_Font); }
 static int font_equal (Lisp_Object o1, Lisp_Object o2, int depth);
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_font,
+DEFINE_LRECORD_IMPLEMENTATION ("font", lrecord_font,
 			       mark_font, print_font, finalize_font,
-			       sizeof_font, font_equal);
+			       font_equal, sizeof (struct Lisp_Font));
+
+static Lisp_Object font_truename (Lisp_Object font, int no_error);
 
 static Lisp_Object
 mark_font (Lisp_Object obj, void (*markobj) (Lisp_Object))
@@ -659,7 +736,7 @@ mark_font (Lisp_Object obj, void (*markobj) (Lisp_Object))
 static void
 print_font (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 {
-  char buf[20];
+  char buf[200];
   struct Lisp_Font *f = XFONT (obj);
   if (print_readably)
 #ifdef I18N4
@@ -672,7 +749,7 @@ print_font (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
 #ifdef I18N4
   sprintf (buf, " set>");
 #else
-  sprintf (buf, " 0x%x>", f->font->fid);
+  sprintf (buf, " 0x%lx>", (unsigned long) f->font->fid);
 #endif
   write_string_1 (buf, -1, printcharfun);
 }
@@ -700,7 +777,7 @@ finalize_font (void *header, int for_disksave)
 static int
 font_equal (Lisp_Object o1, Lisp_Object o2, int depth)
 {
-  return (internal_equal (Ffont_truename (o1), Ffont_truename (o2),
+  return (internal_equal (font_truename (o1, 1), font_truename (o2, 1),
 			  depth + 1));
 }
 
@@ -764,7 +841,24 @@ these objects are GCed, the underlying X data is deallocated as well.")
     signal_error (Qerror, list2 (build_string (GETTEXT ("couldn't load font")),
 				 name));
 #endif
-  
+
+#ifdef I18N4
+  if (!XExtentsOfFontSet(xf)->max_logical_extent.width)
+#else
+  if (!xf->max_bounds.width)
+#endif
+    {
+      /* yes, this has been known to happen. */
+#ifdef I18N4
+      XFreeFontSet (DisplayOfScreen (xs), xf);
+#else
+      XFreeFont (DisplayOfScreen (xs), xf);
+#endif
+      signal_error (Qerror,
+		    list2 (build_string (GETTEXT ("font is too small")),
+			   name));
+    }
+
   {
     struct Lisp_Font *lf;
     Lisp_Object val;
@@ -816,7 +910,14 @@ these objects are GCed, the underlying X data is deallocated as well.")
 #ifdef I18N4
     lf->proportional_p = 1;
 #else
-    lf->proportional_p = !(xf->min_bounds.width == xf->max_bounds.width);
+    /* If all characters don't exist then there could potentially be
+       0-width characters lurking out there.  Not setting this flag
+       trips an optimization that would make them appear to have width
+       to redisplay.  This is bad.  So we set it if not all characters
+       have the same width or if not all characters are defined.
+     */
+    lf->proportional_p = (xf->min_bounds.width != xf->max_bounds.width ||
+			  !xf->all_chars_exist);
 #endif
     XSETR (val, Lisp_Font, lf);
     return val;
@@ -878,32 +979,70 @@ DEFUN ("font-name", Ffont_name, Sfont_name, 1, 1, 0,
    the potential that this could be true but we could still be being lied to,
    but that seems pretty remote.
 
-   If the FONT property doesn't exist, then we use XListFonts and either take
-   the first font (which I think is the most sensible thing) or we find the
-   lexicographically least, depending on whether the preprocessor constant
-   `XOPENFONT_SORTS' is defined.  This sucks because the two behaviors are
-   a property of the server being used, not the architecture on which emacs has
-   been compiled.  Also, as I described above, sorting isn't ALWAYS what the
-   server does.  Really it does something seemingly random.  There is no
-   reliable way to win if the FONT property isn't present.
+     Late breaking news: I've gotten reports that SunOS 4.1.3U1
+     with OpenWound 3.0 has a font whose truename is really
+     "-Adobe-Courier-Medium-R-Normal--12-120-75-75-M-70-ISO8859-1"
+     but whose FONT property contains "Courier".
 
-   Other possibilities which I haven't bothered to implement:
+     So we disbelieve the FONT property unless it begins with a dash and
+     is more than 30 characters long.  X Windows: The defacto substandard.
+     X Windows: Complex nonsolutions to simple nonproblems.  X Windows:
+     Live the nightmare.
 
-   - We could map over all of the matching fonts and find the first one that
-     has the same character metrics as the font we already have loaded.  Even
-     if this didn't return exactly the same font, it would at least return one
-     whose characters were the same sizes, which would probably be good enough.
+   If the FONT property doesn't exist, then we try and construct an XLFD name
+   out of the other font properties (FOUNDRY, FAMILY_NAME, WEIGHT_NAME, etc).
+   This is necessary at least for some versions of OpenWound.  But who knows
+   what the future will bring.
 
-   - If there is no FONT property, we could try to construct an XLFD name from
-     the other properties (FOUNDRY, FAMILY_NAME, SLANT, etc).  As I haven't
-     seen any fonts that don't have the FONT property, I don't know how likely
-     it is that the FONT property would be absent but the FOUNDRY (etc) props
-     would be present.
+   If that doesn't work, then we use XListFonts and either take the first font
+   (which I think is the most sensible thing) or we find the lexicographically
+   least, depending on whether the preprocessor constant `XOPENFONT_SORTS' is
+   defined.  This sucks because the two behaviors are a property of the server
+   being used, not the architecture on which emacs has been compiled.  Also,
+   as I described above, sorting isn't ALWAYS what the server does.  Really it
+   does something seemingly random.  There is no reliable way to win if the
+   FONT property isn't present.
 
-   If anyone has any better ideas how to do this, or any insights on what it
-   is that the server is actually doing, please let me know!  -- jwz.
- */
+   Another possibility which I haven't bothered to implement would be to map
+   over all of the matching fonts and find the first one that has the same
+   character metrics as the font we already have loaded.  Even if this didn't
+   return exactly the same font, it would at least return one whose characters
+   were the same sizes, which would probably be good enough.
 
+   More late-breaking news: on RS/6000 AIX 3.2.4, the expression
+        XLoadQueryFont (dpy, "-*-Fixed-Medium-R-*-*-*-130-75-75-*-*-ISO8859-1")
+   actually returns the font
+        -Misc-Fixed-Medium-R-Normal--13-120-75-75-C-80-ISO8859-1
+   which is crazy, because that font doesn't even match that pattern!  It is
+   also not included in the output produced by `xlsfonts' with that pattern.
+
+   So this is yet another example of XListFonts() and XOpenFont() using
+   completely different algorithms.  This, however, is a goofier example of
+   this bug, because in this case, it's not just the search order that is 
+   different -- the sets don't even intersect.
+
+   If anyone has any better ideas how to do this, or any insights on what it is
+   that the various servers are actually doing, please let me know!  -- jwz. */
+
+
+static int
+valid_font_name_p (Display *dpy, char *name)
+{
+  /* Maybe this should be implemented by callign XLoadFont and trapping
+     the error.  That would be a lot of work, and wasteful as hell, but
+     might be more correct.
+   */
+  int nnames = 0;
+  char **names;
+  if (! name)
+    return 0;
+  BLOCK_INPUT;
+  names = XListFonts (dpy, name, 1, &nnames);
+  if (names)
+    XFreeFontNames (names);
+  UNBLOCK_INPUT;
+  return (nnames != 0);
+}
 
 static char *
 truename_via_FONT_prop (Screen *xs, XFontStruct *font)
@@ -917,19 +1056,79 @@ truename_via_FONT_prop (Screen *xs, XFontStruct *font)
   /* result is now 0, or the string value of the FONT property. */
   if (result)
     {
-      /* Verify that `result' is a valid font name with XListFonts() */
-      int nnames = 0;
-      char **names = XListFonts (dpy, result, 1, &nnames);
-      if (nnames == 0)
+      /* Verify that result is an XLFD name (roughly...) */
+      if (result [0] != '-' || strlen (result) < 30)
 	{
 	  XFree (result);
 	  result = 0;
 	}
-      if (names)
-	XFreeFontNames (names);
     }
   UNBLOCK_INPUT;
   return result;	/* this must be freed by caller if non-0 */
+}
+
+Atom Xatom_FOUNDRY, Xatom_FAMILY_NAME, Xatom_WEIGHT_NAME, Xatom_SLANT,
+  Xatom_SETWIDTH_NAME, Xatom_ADD_STYLE_NAME, Xatom_PIXEL_SIZE, 
+  Xatom_POINT_SIZE, Xatom_RESOLUTION_X, Xatom_RESOLUTION_Y, 
+  Xatom_SPACING, Xatom_AVERAGE_WIDTH, Xatom_CHARSET_REGISTRY,
+  Xatom_CHARSET_ENCODING;
+
+static char *
+truename_via_random_props (Screen *xs, XFontStruct *font)
+{
+  Display *dpy = DisplayOfScreen (xs);
+  unsigned long value = 0;
+  char *foundry, *family, *weight, *slant, *setwidth, *add_style;
+  unsigned long pixel, point, res_x, res_y;
+  char *spacing;
+  unsigned long avg_width;
+  char *registry, *encoding;
+  char composed_name [2048];
+  int ok = 0;
+  BLOCK_INPUT;
+#define get_string(atom,var)				\
+  if (XGetFontProperty (font, (atom), &value))		\
+    var = XGetAtomName (dpy, value);			\
+  else							\
+    goto FAIL;
+#define get_number(atom,var)				\
+  if (!XGetFontProperty (font, (atom), &var) ||		\
+      var > 999)					\
+    goto FAIL;
+  get_string (Xatom_FOUNDRY, foundry);
+  get_string (Xatom_FAMILY_NAME, family);
+  get_string (Xatom_WEIGHT_NAME, weight);
+  get_string (Xatom_SLANT, slant);
+  get_string (Xatom_SETWIDTH_NAME, setwidth);
+  get_string (Xatom_ADD_STYLE_NAME, add_style);
+  get_number (Xatom_PIXEL_SIZE, pixel);
+  get_number (Xatom_POINT_SIZE, point);
+  get_number (Xatom_RESOLUTION_X, res_x);
+  get_number (Xatom_RESOLUTION_Y, res_y);
+  get_string (Xatom_SPACING, spacing);
+  get_number (Xatom_AVERAGE_WIDTH, avg_width);
+  get_string (Xatom_CHARSET_REGISTRY, registry);
+  get_string (Xatom_CHARSET_ENCODING, encoding);
+#undef get_number
+#undef get_string
+
+  sprintf (composed_name,
+	   "-%s-%s-%s-%s-%s-%s-%ld-%ld-%ld-%ld-%s-%ld-%s-%s",
+	   foundry, family, weight, slant, setwidth, add_style, pixel,
+	   point, res_x, res_y, spacing, avg_width, registry, encoding);
+  ok = 1;
+
+ FAIL:
+  UNBLOCK_INPUT;
+  if (ok)
+    {
+      int L = strlen (composed_name) + 1;
+      char *result = malloc (L);
+      strncpy (result, composed_name, L);
+      return result;
+    }
+  else
+    return 0;
 }
 
 
@@ -973,10 +1172,54 @@ truename_via_XListFonts (Screen *xs, char *font_name)
 static Lisp_Object
 x_font_truename (Screen *screen, char *name, XFontStruct *font)
 {
-  char *truename = truename_via_FONT_prop (screen, font);
-  /* check other properties next? */
+  Display *dpy = DisplayOfScreen (screen);
+  char *truename_FONT = 0;
+  char *truename_random = 0;
+  char *truename = 0;
+  
+  /* The search order is:
+     - if FONT property exists, and is a valid name, return it.
+     - if the other props exist, and add up to a valid name, return it.
+     - if we find a matching name with XListFonts, return it.
+     - if FONT property exists, return it regardless.
+     - if other props exist, return the resultant name regardless.
+     - else return 0.
+   */
+
+  truename = truename_FONT = truename_via_FONT_prop (screen, font);
+  if (truename && !valid_font_name_p (dpy, truename))
+    truename = 0;
+  if (!truename)
+    truename = truename_random = truename_via_random_props (screen, font);
+  if (truename && !valid_font_name_p (dpy, truename))
+    truename = 0;
   if (!truename && name)
     truename = truename_via_XListFonts (screen, name);
+
+  if (!truename)
+    {
+      /* Gag - we weren't able to find a seemingly-valid truename.
+	 Well, maybe we're on one of those braindead systems where
+	 XListFonts() and XLoadFont() are in violent disagreement.
+	 If we were able to compute a truename, try using that even
+	 if evidence suggests that it's not a valid name - because
+	 maybe it is, really, and that's better than nothing.
+	 X Windows: You'll envy the dead.
+       */
+      if (truename_FONT)
+	truename = truename_FONT;
+      else if (truename_random)
+	truename = truename_random;
+    }
+
+  BLOCK_INPUT;
+  /* One or both of these are not being used - free them. */
+  if (truename_FONT && truename_FONT != truename)
+    XFree (truename_FONT);
+  if (truename_random && truename_random != truename)
+    XFree (truename_random);
+  UNBLOCK_INPUT;
+
   if (truename)
     {
       Lisp_Object result = build_string (truename);
@@ -987,13 +1230,8 @@ x_font_truename (Screen *screen, char *name, XFontStruct *font)
     return Qnil;
 }
 
-DEFUN ("font-truename", Ffont_truename, Sfont_truename, 1, 1, 0,
-       "Returns the canonical name of the given font.\n\
-Font names are patterns which may match any number of fonts, of which\n\
-the first found is used.  This returns an unambiguous name for that font\n(\
-but not necessarily its only unambiguous name.)")
-  (font)
-  Lisp_Object font;
+static Lisp_Object
+font_truename (Lisp_Object font, int no_error)
 {
   CHECK_FONT (font, 0);
   if (NILP (XFONT (font)->truename))
@@ -1023,12 +1261,27 @@ but not necessarily its only unambiguous name.)")
 						XFONT (font)->font);
 #endif
       if (NILP (XFONT (font)->truename))
-	signal_error (Qerror,
-		      list2 (build_string
-			     (GETTEXT ("couldn't determine font truename")),
-			     font));
+	{
+	  if (no_error)
+	    /* Ok, just this once, return the font name as the truename.
+	       (This is only used by Fequal() right now.) */
+	    return XFONT (font)->name;
+	  else
+	    signal_simple_error ("couldn't determine font truename", font);
+	}
     }
   return (XFONT (font)->truename);
+}
+
+DEFUN ("font-truename", Ffont_truename, Sfont_truename, 1, 1, 0,
+       "Returns the canonical name of the given font.\n\
+Font names are patterns which may match any number of fonts, of which\n\
+the first found is used.  This returns an unambiguous name for that font\n(\
+but not necessarily its only unambiguous name.)")
+  (font)
+  Lisp_Object font;
+{
+  return font_truename (font, 0);
 }
 
 DEFUN ("x-list-fonts", Fx_list_fonts, Sx_list_fonts, 1, 2, 0,
@@ -1073,32 +1326,33 @@ DEFUN ("x-font-properties", Fx_font_properties, Sx_font_properties, 1, 1, 0,
       char *name_str = 0;
       char *val_str = 0;
       Lisp_Object name, value;
+      Atom atom = props [i].name;
       BLOCK_INPUT;
-      name_str = XGetAtomName (dpy, props [i].name);
+      name_str = XGetAtomName (dpy, atom);
       UNBLOCK_INPUT;
       name = (name_str ? intern (name_str) : Qnil);
       if (name_str &&
-	  (!strcmp (name_str, "ADD_STYLE_NAME") ||
+	  (atom == XA_FONT ||
+	   atom == Xatom_FOUNDRY ||
+	   atom == Xatom_FAMILY_NAME ||
+	   atom == Xatom_WEIGHT_NAME ||
+	   atom == Xatom_SLANT ||
+	   atom == Xatom_SETWIDTH_NAME ||
+	   atom == Xatom_ADD_STYLE_NAME ||
+	   atom == Xatom_SPACING ||
+	   atom == Xatom_CHARSET_REGISTRY ||
+	   atom == Xatom_CHARSET_ENCODING ||
 	   !strcmp (name_str, "CHARSET_COLLECTIONS") ||
-	   !strcmp (name_str, "CHARSET_ENCODING") ||
-	   !strcmp (name_str, "CHARSET_REGISTRY") ||
+	   !strcmp (name_str, "FONTNAME_REGISTRY") ||
 	   !strcmp (name_str, "CLASSIFICATION") ||
 	   !strcmp (name_str, "COPYRIGHT") ||
 	   !strcmp (name_str, "DEVICE_FONT_NAME") ||
-	   !strcmp (name_str, "FAMILY_NAME") ||
-	   !strcmp (name_str, "FONT") ||
-	   !strcmp (name_str, "FONTNAME_REGISTRY") ||
-	   !strcmp (name_str, "FOUNDRY") ||
 	   !strcmp (name_str, "FULL_NAME") ||
 	   !strcmp (name_str, "MONOSPACED") ||
 	   !strcmp (name_str, "QUALITY") ||
 	   !strcmp (name_str, "RELATIVE_SET") ||
 	   !strcmp (name_str, "RELATIVE_WEIGHT") ||
-	   !strcmp (name_str, "SETWIDTH_NAME") ||
-	   !strcmp (name_str, "SLANT") ||
-	   !strcmp (name_str, "SPACING") ||
-	   !strcmp (name_str, "STYLE") ||
-	   !strcmp (name_str, "WEIGHT_NAME")))
+	   !strcmp (name_str, "STYLE")))
 	{
 	  val_str = XGetAtomName (dpy, props [i].card32);
 	  value = (val_str ? build_string (val_str) : Qnil);
@@ -1118,11 +1372,10 @@ Lisp_Object Qpixmapp;
 static Lisp_Object mark_pixmap (Lisp_Object, void (*) (Lisp_Object));
 static void print_pixmap (Lisp_Object, Lisp_Object, int);
 static void finalize_pixmap (void *, int);
-static int sizeof_pixmap (void *header) { return sizeof(struct Lisp_Pixmap);}
 static int pixmap_equal (Lisp_Object o1, Lisp_Object o2, int depth);
-DEFINE_LRECORD_IMPLEMENTATION (lrecord_pixmap,
+DEFINE_LRECORD_IMPLEMENTATION ("pixmap", lrecord_pixmap,
 			       mark_pixmap, print_pixmap, finalize_pixmap,
-			       sizeof_pixmap, pixmap_equal);
+			       pixmap_equal, sizeof(struct Lisp_Pixmap));
 
 static Lisp_Object
 mark_pixmap (Lisp_Object obj, void (*markobj) (Lisp_Object))
@@ -1139,7 +1392,7 @@ print_pixmap (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
   struct Lisp_Pixmap *p = XPIXMAP (obj);
   char *s;
   if (print_readably)
-    error (GETTEXT ("printing unreadable object #<pixmap 0x%x>"), p->header.uid);
+    error (GETTEXT ("printing unreadable object #<pixmap 0x%x>"), (long) p);
 
   write_string_1 ((p->depth ? "#<pixmap " : "#<bitmap "), -1, printcharfun);
   if (STRINGP (p->file_name) &&
@@ -1158,14 +1411,14 @@ print_pixmap (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
       sprintf (buf, " @%d,%d", p->x, p->y);
       write_string_1 (buf, -1, printcharfun);
     }
-  sprintf (buf, " (0x%x", p->pixmap);
+  sprintf (buf, " (0x%lx", (unsigned long) p->pixmap);
   write_string_1 (buf, -1, printcharfun);
   if (p->mask)
     {
-      sprintf (buf, "/0x%x", p->mask);
+      sprintf (buf, "/0x%lx", (unsigned long) p->mask);
       write_string_1 (buf, -1, printcharfun);
     }
-  sprintf (buf, ") 0x%x>", p->header.uid);
+  sprintf (buf, ") 0x%x>", (long) p);
   write_string_1 (buf, -1, printcharfun);
 }
 
@@ -1228,6 +1481,7 @@ make_pixmap_1 (Lisp_Object name, Screen *xs,
   lp->depth = d;
   lp->pixels = pixels;
   lp->npixels = npixels;
+  lp->contrib_p = 1;
   XSETR (val, Lisp_Pixmap, lp);
   return val;
 }
@@ -1298,10 +1552,9 @@ locate_pixmap_file (Lisp_Object name)
 
 #ifdef HAVE_XPM
  /* xpm 3.2g and better has XpmCreatePixmapFromBuffer()...
-    There's no version number in xpm.h, but this should do.
-    Arnaud says he'll put a version number in the next release.
+    There was no version number in xpm.h before 3.3, but this should do.
   */
-# ifdef XpmExactColors
+# if (XpmVersion >= 3) || defined(XpmExactColors)
 #  define XPM_DOES_BUFFERS
 # endif
 
@@ -1418,13 +1671,15 @@ try_reading_xpm_bitmap (Lisp_Object screen, Lisp_Object name,
     xpmattrs.valuemask = XpmReturnPixels;
     if (retry_in_mono)
       {
-#ifdef XpmColorKey	/* 3.2g+ */
+#ifdef XpmColorKey	/* 3.2g or better */
+	/* Without this, we get a 1-bit version of the color image, which
+	   isn't quite right.  With this, we get the mono image, which might
+	   be very different looking. */
 	xpmattrs.valuemask |= XpmColorKey;
 	xpmattrs.color_key = XPM_MONO;
-#else /* This isn't quite right, but it comes close */
+#endif
 	xpmattrs.depth = 1;
 	xpmattrs.valuemask |= XpmDepth;
-#endif
       }
 
     color_symbols = extract_xpm_color_names (&xpmattrs, screen);
@@ -1472,6 +1727,9 @@ try_reading_xpm_bitmap (Lisp_Object screen, Lisp_Object name,
 				    build_string (GETTEXT ("color allocation failed")),
 				    name),
 		     &xpmattrs);
+	else
+	  retry_in_mono = 1;
+
 	xpm_free (&xpmattrs);
 	goto retry;
       }
@@ -1762,6 +2020,45 @@ DEFUN ("pixmapp", Fpixmapp, Spixmapp, 1, 1, 0,
   return (PIXMAPP (obj) ? Qt : Qnil);
 }
 
+/* I wonder if this is really the right thing.
+   Perhaps pixmaps should just always contribute;
+   or perhaps it should be a buffer-local property;
+   or perhaps pixmaps should come with a "clip region".
+ */
+DEFUN ("pixmap-contributes-to-line-height-p",
+       Fpixmap_contributes_to_line_height_p,
+       Spixmap_contributes_to_line_height_p, 1, 1, 0,
+  "Whether the given PIXMAP contributes to the height of its line,\n\
+when used as an extent glyph.  If a pixmap contributes to the line height,\n\
+then if the pixmap is taller than the tallest font displayed on the line,\n\
+the line will be the height of the pixmap, and the full pixmap will be\n\
+visible.  If the pixmap does not contribute, and the line ends up being\n\
+smaller than the pixmap, then the pixmap will be truncated.")
+  (pixmap)
+  Lisp_Object pixmap;
+{
+  CHECK_PIXMAP (pixmap, 0);
+  return (XPIXMAP (pixmap)->contrib_p ? Qt : Qnil);
+}
+
+DEFUN ("set-pixmap-contributes-to-line-height",
+       Fset_pixmap_contributes_to_line_height,
+       Sset_pixmap_contributes_to_line_height, 2, 2, 0,
+  "Change whether PIXMAP contributes to the height of its line\n\
+when used as an extent glyph.  If a pixmap contributes to the line height,\n\
+then if the pixmap is taller than the tallest font displayed on the line,\n\
+the line will be the height of the pixmap, and the full pixmap will be\n\
+visible.  If the pixmap does not contribute, and the line ends up being\n\
+smaller than the pixmap, then the pixmap will be truncated.\n\
+Otherwise the pixmap will be clipped to the height of the line.")
+  (pixmap, val)
+  Lisp_Object pixmap, val;
+{
+  CHECK_PIXMAP (pixmap, 0);
+  XPIXMAP (pixmap)->contrib_p = !NILP (val);
+  return (NILP (val) ? Qnil : Qt);
+}
+	 
 DEFUN ("set-pixmap-hotspot", Fset_pixmap_hotspot, Sset_pixmap_hotspot,
        3, 3, 0,
        "Set the pixmap's hotspot.\n\
@@ -1914,7 +2211,368 @@ Otherwise t is returned.")
   UNBLOCK_INPUT;
   return Qt;
 }
+
+DEFUN ("force-x-window-glyph-map", Fforce_x_window_glyph_map,
+       Sforce_x_window_glyph_map, 1, 1, 0,
+  "Generate a Map event for X-WINDOW-GLYPH.")
+     (subwindow)
+     Lisp_Object subwindow;
+{
+  CHECK_SUBWINDOW (subwindow, 0);
+
+  XMapWindow (DisplayOfScreen (XSUBWINDOW (subwindow)->xscreen),
+	      XSUBWINDOW (subwindow)->subwindow);
+
+  return subwindow;
+}
+
 
+Lisp_Object Qx_window_glyph_p;
+static Lisp_Object mark_subwindow (Lisp_Object, void (*) (Lisp_Object));
+static void print_subwindow (Lisp_Object, Lisp_Object, int);
+static void finalize_subwindow (void *, int);
+static int subwindow_equal (Lisp_Object o1, Lisp_Object o2, int depth);
+DEFINE_LRECORD_IMPLEMENTATION ("subwindow", lrecord_subwindow,
+			       mark_subwindow, print_subwindow,
+			       finalize_subwindow, subwindow_equal,
+			       sizeof (struct Lisp_Subwindow));
+
+static Lisp_Object
+mark_subwindow (Lisp_Object obj, void (*markobj) (Lisp_Object))
+{
+  struct Lisp_Subwindow *sw = XSUBWINDOW (obj);
+  return sw->screen;
+}
+
+static void
+print_subwindow (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
+{
+  char buf[100];
+  struct Lisp_Subwindow *sw = XSUBWINDOW (obj);
+  struct screen *scr = XSCREEN (sw->screen);
+
+  if (print_readably)
+    error (GETTEXT ("printing unreadable object #<x-window-glyph 0x%x>"),
+	   (long) sw);
+
+  write_string_1 ("#<x-window-glyph", -1, printcharfun);
+  sprintf (buf, " %dx%d", sw->width, sw->height);
+  write_string_1 (buf, -1, printcharfun);
+
+  /* This is stolen from screen.c.  Subwindows are strange in that they
+     are specific to a particular screen so we want to print in their
+     description what that screen is. */
+  
+  write_string_1 (" on #<", -1, printcharfun);
+  if (!SCREEN_LIVE_P (scr))
+    write_string_1 ("dead", -1, printcharfun);
+  else if (SCREEN_IS_TERMCAP (scr))
+    write_string_1 ("termcap", -1, printcharfun);
+  else if (SCREEN_IS_X (scr))
+    write_string_1 ("x", -1, printcharfun);
+  else
+    write_string_1 ("UNKNOWN", -1, printcharfun);
+  write_string_1 ("-screen ", -1, printcharfun);
+  print_internal (scr->name, printcharfun, 1);
+  sprintf (buf, " 0x%x>", (long) scr);
+  write_string_1 (buf, -1, printcharfun);
+
+  sprintf (buf, ") 0x%x>", (long) sw);
+  write_string_1 (buf, -1, printcharfun);
+}
+
+static void
+finalize_subwindow (void *header, int for_disksave)
+{
+  struct Lisp_Subwindow *sw = (struct Lisp_Subwindow *) header;
+  if (for_disksave) finalose (sw);
+  BLOCK_INPUT;
+  XDestroyWindow (DisplayOfScreen (sw->xscreen), sw->subwindow);
+  UNBLOCK_INPUT;
+}
+
+/* subwindows are equal iff they have the same window XID */
+static int
+subwindow_equal (Lisp_Object o1, Lisp_Object o2, int depth)
+{
+  return (XSUBWINDOW (o1)->subwindow == XSUBWINDOW (o2)->subwindow);
+}
+
+/* #### PROBLEM: The display routines assume that the glyph is only
+ being displayed in one buffer.  If it is in two different buffers
+ which are both being displayed simultaneously you will lose big time.
+ Fixing this problem requires the addition of even more cruft which I
+ may or may not do in the current redisplay. */
+
+DEFUN ("make-x-window-glyph", Fmake_x_window_glyph, Smake_x_window_glyph,
+       0, 3, 0,
+       "Creates a new `x-window' object of size WIDTH x HEIGHT.\n\
+The default is a window of size 1x1, which is also the minimum allowed\n\
+window size.  Subwindows are per-screen.  A buffer being shown in two\n\
+different screens will only display a subwindow glyph in the screen in\n\
+which it was actually created.  If two windows on the same screen are\n\
+displaying the buffer then the most recently used window will actually\n\
+display the window.  If the screen is not specified, the selected screen\n\
+is used.")
+  (width, height, screen)
+  Lisp_Object width, height, screen;
+{
+  Display *dpy;
+  Screen *xs;
+  Window pw;
+  struct screen *s;
+  unsigned int iw, ih;
+  XSetWindowAttributes xswa;
+  Mask valueMask = 0;
+
+  if (NILP (screen)) screen = Fselected_screen();
+
+  xs = LISP_SCREEN_TO_X_SCREEN (screen);
+  s = XSCREEN (screen);
+  dpy = DisplayOfScreen (xs);
+  pw = XtWindow (s->display.x->edit_widget);
+
+  if (NILP (width))
+    iw = 1;
+  else
+    {
+      CHECK_FIXNUM (width, 0);
+      iw = XINT (width);
+      if (iw < 1) iw = 1;
+    }
+  if (NILP (height))
+    ih = 1;
+  else
+    {
+      CHECK_FIXNUM (height, 0);
+      ih = XINT (height);
+      if (ih < 1) ih = 1;
+    }
+
+  {
+    struct Lisp_Subwindow *sw = alloc_lcrecord (sizeof (struct Lisp_Subwindow),
+						lrecord_subwindow);
+    Lisp_Object val;
+    sw->screen = screen;
+    sw->xscreen = xs;
+    sw->parent_window = pw;
+    sw->height = ih;
+    sw->width = iw;
+
+    xswa.backing_store = Always;
+    valueMask |= CWBackingStore;
+
+    xswa.colormap = DefaultColormapOfScreen (xs);
+    valueMask |= CWColormap;
+
+    sw->subwindow = XCreateWindow (dpy, pw, 0, 0, iw, ih, 0, CopyFromParent,
+				   InputOutput, CopyFromParent, valueMask,
+				   &xswa);
+
+    XSETR (val, Lisp_Subwindow, sw);
+    return val;
+  }
+}
+
+/* This function is temporary at the moment and is likely to change or
+   go away before the next release. */
+DEFUN ("change-x-window-glyph-property", Fchange_x_window_glyph_property,
+       Schange_x_window_glyph_property, 3, 3, 0,
+       "For the given X-WINDOW-GLYPH, set PROPERTY to DATA, which is a string.")
+  (subwindow, property, data)
+  Lisp_Object subwindow, property, data;
+{
+  Atom property_atom;
+  struct Lisp_Subwindow *sw;
+  Display *dpy;
+
+  CHECK_SUBWINDOW (subwindow, 0);
+  CHECK_STRING (property, 0);
+  CHECK_STRING (data, 0);
+
+  sw = XSUBWINDOW (subwindow);
+  dpy = DisplayOfScreen (LISP_SCREEN_TO_X_SCREEN (sw->screen));
+
+  property_atom = XInternAtom (dpy, (char *) XSTRING (property)->data, False);
+  XChangeProperty (dpy, sw->subwindow, property_atom, XA_STRING, 8,
+		   PropModeReplace, XSTRING (data)->data,
+		   XSTRING (data)->size);
+
+  return (property);
+}
+
+DEFUN ("x-window-glyph-p", Fx_window_glyph_p, Sx_window_glyph_p, 1, 1, 0,
+       "Whether the given object is an x-window-glyph.")
+  (obj)
+  Lisp_Object obj;
+{
+  return (SUBWINDOWP (obj) ? Qt : Qnil);
+}
+
+DEFUN ("x-window-glyph-width", Fx_window_glyph_width, Sx_window_glyph_width,
+       1, 1, 0,
+       "Width of X-WINDOW-GLYPH.")
+  (subwindow)
+  Lisp_Object subwindow;
+{
+  CHECK_SUBWINDOW (subwindow, 0);
+  return (make_number (XSUBWINDOW (subwindow)->width));
+}
+
+DEFUN ("x-window-glyph-height", Fx_window_glyph_height, Sx_window_glyph_height,
+       1, 1, 0,
+       "Height of X-WINDOW-GLYPH.")
+  (subwindow)
+  Lisp_Object subwindow;
+{
+  CHECK_SUBWINDOW (subwindow, 0);
+  return (make_number (XSUBWINDOW (subwindow)->height));
+}
+
+DEFUN ("x-window-glyph-xid", Fx_window_glyph_xid, Sx_window_glyph_xid, 1, 1, 0,
+       "Return the xid of X-WINDOW-GLYPH as a number.")
+  (subwindow)
+  Lisp_Object subwindow;
+{
+  CHECK_SUBWINDOW (subwindow, 0);
+  return (make_number (XSUBWINDOW (subwindow)->subwindow));
+}
+
+DEFUN ("resize-x-window-glyph", Fresize_x_window_glyph, Sresize_x_window_glyph,
+       1, 3, 0,
+  "Resize X-WINDOW-GLYPH to WIDTH x HEIGHT.\n\
+If a value is nil that parameter is not changed.")
+  (subwindow, width, height)
+  Lisp_Object subwindow, width, height;
+{
+  int neww, newh;
+  struct Lisp_Subwindow *sw;
+
+  CHECK_SUBWINDOW (subwindow, 0);
+  sw = XSUBWINDOW (subwindow);
+
+  if (NILP (width))
+    neww = sw->width;
+  else
+    neww = XINT (width);
+
+  if (NILP (height))
+    newh = sw->height;
+  else
+    newh = XINT (height);
+
+  XResizeWindow (DisplayOfScreen (sw->xscreen), sw->subwindow, neww, newh);
+
+  sw->height = newh;
+  sw->width = neww;
+
+  return subwindow;
+}
+
+#ifdef EPOCH
+
+Lisp_Object Qx_resource_p;
+static Lisp_Object mark_x_resource (Lisp_Object, void (*) (Lisp_Object));
+static void print_x_resource (Lisp_Object, Lisp_Object, int);
+static void finalize_x_resource (void *, int);
+static int x_resource_equal (Lisp_Object o1, Lisp_Object o2, int depth);
+DEFINE_LRECORD_IMPLEMENTATION ("x-resource", lrecord_x_resource,
+			       mark_x_resource, print_x_resource,
+			       finalize_x_resource, x_resource_equal,
+			       sizeof (struct Lisp_X_Resource));
+
+static Lisp_Object
+mark_x_resource (Lisp_Object obj, void (*markobj) (Lisp_Object))
+{
+  return Qnil;
+}
+
+static void
+print_x_resource (Lisp_Object obj, Lisp_Object printcharfun, int escapeflag)
+{
+  char buf[100];
+  char *default_string = "Resource";
+  Lisp_Object atom_symbol;
+
+  atom_symbol = x_atom_to_symbol (x_current_display, XXRESOURCE (obj)->type);
+  sprintf (buf, "#<x-resource %s %lx>",
+	   (NILP (atom_symbol)
+	    ? default_string
+	    : (char *) XSTRING (Fsymbol_name (atom_symbol))->data),
+	   XXRESOURCE (obj)->xid);
+  write_string_1 (buf, -1, printcharfun);
+}
+
+static void
+finalize_x_resource (void *header, int for_disksave)
+{
+}
+
+static int
+x_resource_equal (Lisp_Object o1, Lisp_Object o2, int depth)
+{
+  return (XXRESOURCE (o1)->xid == XXRESOURCE (o2)->xid);
+}
+
+/*
+ * Epoch equivalent:  epoch::resourcep
+ */
+DEFUN ("x-resource-p", Fx_resource_p, Sx_resource_p, 1, 1, 0,
+       "Whether the given object is an X resource object.")
+     (obj)
+     Lisp_Object obj;
+{
+  return (XRESOURCEP (obj) ? Qt : Qnil);
+}
+
+/*
+ * Epoch equivalent:  epoch::set-resource-type
+*/
+DEFUN ("x-set-x-resource-type", Fx_set_x_resource_type, Sx_set_x_resource_type,
+       2, 2, 0,
+  "Set the type of RESOURE to TYPE.  The new type must be an atom.")
+     (resource, type)
+     Lisp_Object resource, type;
+{
+  CHECK_XRESOURCE (resource, 0);
+  CHECK_XRESOURCE (type, 0);
+
+  if (XXRESOURCE (type)->type != XA_ATOM)
+    error ("New type must be an atom");
+
+  XXRESOURCE (resource)->type = XXRESOURCE (type)->xid;
+  return resource;
+}
+
+#endif /* EPOCH */
+
+void
+Xatoms_of_xobjs ()
+     /* Once we have multiple displays, this will need to be done differently,
+	since atoms are per-display.  This info should live on some per-
+	connection object.
+      */
+{
+#define ATOM(x) XInternAtom(x_current_display, (x), False)
+
+  BLOCK_INPUT;
+  Xatom_FOUNDRY = ATOM ("FOUNDRY");
+  Xatom_FAMILY_NAME = ATOM ("FAMILY_NAME");
+  Xatom_WEIGHT_NAME = ATOM ("WEIGHT_NAME");
+  Xatom_SLANT = ATOM ("SLANT");
+  Xatom_SETWIDTH_NAME = ATOM ("SETWIDTH_NAME");
+  Xatom_ADD_STYLE_NAME = ATOM ("ADD_STYLE_NAME");
+  Xatom_PIXEL_SIZE = ATOM ("PIXEL_SIZE");
+  Xatom_POINT_SIZE = ATOM ("POINT_SIZE");
+  Xatom_RESOLUTION_X = ATOM ("RESOLUTION_X");
+  Xatom_RESOLUTION_Y = ATOM ("RESOLUTION_Y");
+  Xatom_SPACING = ATOM ("SPACING");
+  Xatom_AVERAGE_WIDTH = ATOM ("AVERAGE_WIDTH");
+  Xatom_CHARSET_REGISTRY = ATOM ("CHARSET_REGISTRY");
+  Xatom_CHARSET_ENCODING = ATOM ("CHARSET_ENCODING");
+  UNBLOCK_INPUT;
+}
+
 void
 syms_of_xobjs ()
 {
@@ -1943,6 +2601,8 @@ syms_of_xobjs ()
   defsymbol (&Qpixmapp, "pixmapp");
   defsubr (&Smake_pixmap);
   defsubr (&Spixmapp);
+  defsubr (&Spixmap_contributes_to_line_height_p);
+  defsubr (&Sset_pixmap_contributes_to_line_height);
   defsubr (&Sset_pixmap_hotspot);
   defsubr (&Spixmap_hotspot_x);
   defsubr (&Spixmap_hotspot_y);
@@ -1953,6 +2613,21 @@ syms_of_xobjs ()
   defsubr (&Sset_pixmap_mask);
   defsubr (&Spixmap_file_name);
   defsubr (&Scolorize_pixmap);
+
+  defsymbol (&Qx_window_glyph_p, "x-window-glyph-p");
+  defsubr (&Smake_x_window_glyph);
+  defsubr (&Schange_x_window_glyph_property);
+  defsubr (&Sx_window_glyph_p);
+  defsubr (&Sx_window_glyph_width);
+  defsubr (&Sx_window_glyph_height);
+  defsubr (&Sx_window_glyph_xid);
+  defsubr (&Sresize_x_window_glyph);
+  defsubr (&Sforce_x_window_glyph_map);
+
+#ifdef EPOCH
+  defsubr (&Sx_resource_p);
+  defsubr (&Sx_set_x_resource_type);
+#endif /* EPOCH */
 
   DEFVAR_LISP ("x-bitmap-file-path", &Vx_bitmap_file_path,
        "A list of the directories in which X bitmap files may be found.\n\

@@ -44,4 +44,8 @@
   "Invoke w3-quit from mouse"
   (w3-quit))
 
+(defun w3-mode-version-specifics ()
+  "NeXTEmacs specific w3-mode stuff"
+  (use-local-mousemap w3-NeXT-mousemap))
+
 (provide 'w3-next)

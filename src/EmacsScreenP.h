@@ -3,6 +3,9 @@
 
 #include "xintrinsicp.h"
 #include <X11/CoreP.h>
+#ifdef LWLIB_USES_MOTIF
+#include "xmprimitivep.h"
+#endif
 #include "EmacsScreen.h"
 
 typedef struct {
@@ -21,6 +24,7 @@ typedef struct {
   Boolean	unsplittable;	/* screen can only have one window */
 
   int		internal_border_width;	/* internal borders */
+  int		scrollbar_width;	/* width of screen scrollbars */
   int		interline;		/* skips between lines */
 
 #ifdef I18N4
@@ -37,13 +41,20 @@ typedef struct {
   int		bell_volume;		/* how loud is beep */
 
   Boolean	menubar_p;		/* initially show a menubar? */
+  Boolean	initially_unmapped;	/* inhibit initial window mapping */
+  Boolean	use_backing_store;	/* backing store for menubar & ew? */
 
+  Dimension     preferred_width;        /* if non-zero, preferred size for */
+  Dimension     preferred_height;	/* QueryGeometry() */
   /* private state */
 
 } EmacsScreenPart;
 
 typedef struct _EmacsScreenRec {	/* full instance record */
     CorePart		core;
+#ifdef LWLIB_USES_MOTIF
+    XmPrimitivePart	primitive;
+#endif
     EmacsScreenPart	emacs_screen;
 } EmacsScreenRec;
 
@@ -53,6 +64,9 @@ typedef struct {			/* new fields for EmacsScreen class */
 
 typedef struct _EmacsScreenClassRec {	/* full class record declaration */
     CoreClassPart		core_class;
+#ifdef LWLIB_USES_MOTIF
+    XmPrimitiveClassPart	primitive_class;
+#endif
     EmacsScreenClassPart	emacs_screen_class;
 } EmacsScreenClassRec;
 

@@ -1,5 +1,5 @@
 /* System-dependent prototypes
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -22,21 +22,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #if !defined(VMS) || !defined(LINK_CRTL_SHARE) || !defined(SHAREABLE_LIB_BUG)
 extern char **environ;
-#if !defined(NeXT) && !defined(__alpha) && !defined(MACH) && !defined(LINUX) && !defined(IRIX) && !defined(__NetBSD__)
-/* Linux added here by Raymond L. Toy <toy@alydar.crd.ge.com> for Lemacs. */
-/* Irix added here by gparker@sni-usa.com for Lemacs. */
-/* NetBSD added here by James R Grinter <jrg@doc.ic.ac.uk> for Lemacs */
-extern CONST char *sys_errlist[];
-#endif
-#ifdef __NetBSD__
-extern char *sys_errlist[];
-#endif
 #else
 extern noshare char **environ;
 #endif /* VMS sharable environ buh */
-extern int sys_nerr;
-
-extern int errno;
 
 struct emacs_tty;
 extern int emacs_get_tty (int fd, struct emacs_tty *settings);
@@ -90,6 +78,8 @@ extern int tabs_safe_p (void);
 /* Get terminal size from system.
    If zero or a negative number is stored, the value is not valid.  */
 extern void get_screen_size (int *widthp, int *heightp);
+/* Set the logical window size associated with descriptor FD */
+extern int set_window_size (int fd, int height, int width);
 
 /* Prepare the terminal for exiting Emacs; move the cursor to the
    bottom of the frame, turn off interrupt-driven I/O, etc.  */
@@ -133,10 +123,6 @@ extern int sys_read (int fildes, void *buf, unsigned int nbyte);
 
 extern int sys_write (int fildes, CONST void *buf, unsigned int nbyte);
 
-#ifndef	LINUX	/* Raymond L. Toy <toy@alydar.crd.ge.com> for Lemacs. */
-extern CONST char *sys_siglist[];
-#endif
-
 extern int sys_access (CONST char *path, int mode);
 
 unsigned int sys_getuid (void);
@@ -176,9 +162,10 @@ extern int gettimeofday (struct timeval *, struct timezone *);
 #endif
 
 #if defined(SYSV_SYSTEM_DIR)
-#if !defined(AIX) && !defined(sun) && !defined(__alpha) && !defined(LINUX) && !defined(__OSF1__) && !defined(IRIX5)
+#if !defined(AIX) && !defined(sun) && !defined(__alpha) && !defined(LINUX) && !defined(__OSF1__) && !defined(IRIX5) && !defined(__NetBSD__)
 /* Linux added here by Raymond L. Toy <toy@alydar.crd.ge.com> for Lemacs. */
 /* IRIX5 added here by Daniel Rich <drich@lerc.nasa.gov> for lemacs */
+/* NetBSD added here by James R Grinter <jrg@doc.ic.ac.uk> for lemacs */
 extern int closedir (DIR *dirp);
 #else
 extern int closedir ();
@@ -214,10 +201,14 @@ extern void hft_init (void);
 extern void hft_reset (void);
 #endif
 
-#ifdef BSD
+#ifdef BSD_PGRPS
 extern int inherited_pgroup;
 extern void narrow_foreground_group (void);
 extern void widen_foreground_group (void);
 #endif /* BSD */
+
+#ifndef HAVE_STRERROR
+extern CONST char *strerror (int);
+#endif
 
 #endif /* _EMACS_SYSDEP_H_ */

@@ -90,7 +90,8 @@ See definition of `print-region-1' for calling conventions.")
 	  (if (eq system-type 'usg-unix-v)
 	      (progn
 		(print-region-new-buffer) ; see below (start end)
-		(call-process-region start end "pr" t t nil))
+		(call-process-region start end "pr" t t nil)
+		(setq start (point-min) end (point-max)))
 	    ;; On BSD, use an option to get page headers.
 	    (setq switches (and (equal lpr-command "lpr")
 				(cons "-p" switches)))))

@@ -1,5 +1,5 @@
 /* Record indices of function doc strings stored in a file.
-   Copyright (C) 1985, 1986, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -50,14 +50,14 @@ get_doc_string (long filepos)
   register char *p, *p1;
   register int count;
 
-  if (!STRINGP (Vdata_directory)
+  if (!STRINGP (Vexec_directory)
       || !STRINGP (Vdoc_file_name))
     return Qnil;
 
-  name = (char *) alloca (string_length (XSTRING (Vdata_directory))
+  name = (char *) alloca (string_length (XSTRING (Vexec_directory))
 			  + string_length (XSTRING (Vdoc_file_name))
                           + 8);
-  strcpy (name, (char *) XSTRING (Vdata_directory)->data);
+  strcpy (name, (char *) XSTRING (Vexec_directory)->data);
   strcat (name, (char *) XSTRING (Vdoc_file_name)->data);
 #ifdef VMS
 #ifndef VMS4_4
@@ -196,7 +196,7 @@ DEFUN ("documentation-property", Fdocumentation_property,
        Sdocumentation_property, 2, 3, 0,
   "Return the documentation string that is SYMBOL's PROP property.\n\
 This is like `get', but it can refer to strings stored in the\n\
-`data-directory/DOC' file; and if the value is a string, it is passed\n\
+`exec-directory/DOC' file; and if the value is a string, it is passed\n\
 through `substitute-command-keys'.  A non-nil third argument avoids this\n\
 translation.")
   (sym, prop, raw)
@@ -241,10 +241,10 @@ weird_doc (Lisp_Object sym, CONST char *weirdness, CONST char *type, int pos)
 DEFUN ("Snarf-documentation", Fsnarf_documentation, Ssnarf_documentation,
   1, 1, 0,
   "Used during Emacs initialization, before dumping runnable Emacs,\n\
-to find pointers to doc strings stored in `.../etc/DOC' and\n\
+to find pointers to doc strings stored in `.../lib-src/DOC' and\n\
 record them in function definitions.\n\
 One arg, FILENAME, a string which does not include a directory.\n\
-The file is written to `../etc', and later found in `data-directory'\n\
+The file is written to `../lib-src', and later found in `exec-directory'\n\
 when doc strings are referred to in the dumped Emacs.")
   (filename)
      Lisp_Object filename;
@@ -266,13 +266,13 @@ when doc strings are referred to in the dumped Emacs.")
 
 #ifndef CANNOT_DUMP
   name = (char *) alloca (string_length (XSTRING (filename)) + 14);
-  strcpy (name, "../etc/");
+  strcpy (name, "../lib-src/");
 #else /* CANNOT_DUMP */
-  CHECK_STRING (Vdata_directory, 0);
+  CHECK_STRING (Vexec_directory, 0);
   name = (char *) alloca (string_length (XSTRING (filename)) 
-                          + string_length (XSTRING (Vdata_directory))
+                          + string_length (XSTRING (Vexec_directory))
                           + 1);
-  strcpy (name, XSTRING (Vdata_directory)->data);
+  strcpy (name, XSTRING (Vexec_directory)->data);
 #endif /* CANNOT_DUMP */
   strcat (name, (char *) XSTRING (filename)->data);
 #ifdef VMS
@@ -452,7 +452,7 @@ when doc strings are referred to in the dumped Emacs.")
 	}
       pos += end - buf;
       filled -= end - buf;
-      memcpy (buf, end, filled);
+      memmove (buf, end, filled);
     }
   emacs_close (fd);
   return Qnil;
@@ -549,7 +549,7 @@ Writes to stderr if not.")
   if (!NILP (Fcdr (closure)))
     fprintf (stderr, GETTEXT ("\n\
 This is usually because some files were preloaded by loaddefs.el or\n\
-site-load.el, but were not passed to make-docfile by ymakefile.\n\n"));
+site-load.el, but were not passed to make-docfile by Makefile.\n\n"));
   UNGCPRO;
   return (NILP (Fcdr (closure)) ? Qt : Qnil);
 }
@@ -719,7 +719,7 @@ thus, \\=\\=\\=\\= puts \\=\\= into the output, and \\=\\=\\=\\[ puts \\=\\[ int
 	    else if (start[-1] == '<')
 	      keymap = tem;
 	    else
-	      describe_map_tree (tem, 1, Qnil, 0);
+	      describe_map_tree (tem, 1, Qnil, Qnil, 0);
 	    tem = Fbuffer_string ();
 	    Ferase_buffer ();
 	    set_buffer_internal (oldbuf);

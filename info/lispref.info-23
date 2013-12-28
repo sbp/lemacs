@@ -1,23 +1,21 @@
-Info file elisp, produced by Makeinfo, -*- Text -*- from input file
-elisp.texi.
+This is Info file ../../info/lispref.info, produced by Makeinfo-1.56
+from the input file lispref.texinfo.
 
-   This file documents GNU Emacs Lisp.
+   This version is newer than the second printed edition of the GNU
+Emacs Lisp Reference Manual.  It corresponds to Emacs Version 19.19.
 
-   This is edition 1.03 of the GNU Emacs Lisp Reference Manual,   for
-Emacs Version 18.
+   Published by the Free Software Foundation 675 Massachusetts Avenue
+Cambridge, MA 02139 USA
 
-   Published by the Free Software Foundation, 675 Massachusetts
-Avenue,  Cambridge, MA 02139 USA
+   Copyright (C) 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
 
-   Copyright (C) 1990 Free Software Foundation, Inc.
-
-   Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
 
    Permission is granted to copy and distribute modified versions of
-this manual under the conditions for verbatim copying, provided that
-the entire resulting derived work is distributed under the terms of a
+this manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
 permission notice identical to this one.
 
    Permission is granted to copy and distribute translations of this
@@ -25,1036 +23,1123 @@ manual into another language, under the above conditions for modified
 versions, except that this permission notice may be stated in a
 translation approved by the Foundation.
 
- 
-
-File: elisp,  Node: Building Emacs,  Next: Pure Storage,  Prev: GNU Emacs Internals,  Up: GNU Emacs Internals
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided also
+that the section entitled "GNU General Public License" is included
+exactly as in the original, and provided that the entire resulting
+derived work is distributed under the terms of a permission notice
+identical to this one.
 
-Building Emacs
-==============
-
-   The first step in building Emacs is to compile the C sources. 
-This produces a program called `temacs', also called a "bare impure
-Emacs".  It contains the Emacs Lisp interpreter and I/O routines, but
-not the editing commands.
-
-   Then, to create a working Emacs editor, issue the command `temacs
--l loadup'.  This directs `temacs' to evaluate the Lisp files
-specified in the file `loadup.el'.  These files set up the normal
-Emacs editing environment, resulting in an Emacs which is still
-impure but no longer bare.
-
-   It takes long time to load the standard Lisp files.  Luckily, you
-don't have to do this each time you run Emacs; `temacs' can dump out
-an executable program called `xemacs' which has these files
-preloaded.  `xemacs' starts more quickly because it does not need to
-load the files.  It is `xemacs' that is normally installed under the
-name `emacs' for users to run.
-
-   To create `xemacs', use the command `temacs -batch -l loadup
-dump'.  The purpose of `-batch' here is to prevent `temacs' from
-trying to initialize any of its data on the terminal; this ensures
-that the tables of terminal information are empty in the dumped Emacs.
-
-   When the `xemacs' executable is started, it will automatically
-load the user's `.emacs' file, or the default initialization file
-`default.el' if the user has none.  With the `.emacs' file, you can
-produce a version of Emacs that suits you and is not the same as the
-version other people use.  With `default.el', you can customize Emacs
-for all the users at your site who don't choose to customize it for
-themselves.  (For further reflection: why is this different from the
-case of the barber who shaves every man who doesn't shave himself?)
-
-   On some systems, dumping does not work.  Then, you must start
-Emacs with the `temacs -l loadup' command each time you use it.  This
-takes a long time, but since you need to start Emacs once a day at
-most--and once a week or less frequently if you never log out--the
-extra time is not too severe a problem.
-
-   Before `xemacs' is dumped, the documentation strings for primitive
-and preloaded functions (and variables) need to be found in the file
-where they are stored.  This is done by calling `Snarf-documentation'
-(*note Accessing Documentation::.).  These strings are omitted from
-`temacs' to save space.  *Note Documentation Basics::.
-
- * Function: dump-emacs TO-FILE FROM-FILE
-     This function dumps the current state of Emacs into an
-     executable file TO-FILE.  It takes symbols from FROM-FILE (this
-     is normally the executable file `temacs').
-
-     If you use this function in an Emacs that was already dumped,
-     you must set `command-line-processed' to `nil' first for good
-     results.  *Note Command Line Arguments::.
-
- * Command: emacs-version
-     This function returns a string describing the version of Emacs
-     that is running.  It is useful to include this string in bug
-     reports.
-
-          (emacs-version)
-            => "GNU Emacs 18.36.1 of Fri Feb 27 1987 on slug (berkeley-unix)"
-
-     Called interactively, the function prints the same information
-     in the echo area.
-
- * Variable: emacs-build-time
-     The value of this variable is the time at which Emacs was built
-     at the local site.
-
-          emacs-build-time
-               => "Fri Feb 27 14:55:57 1987"
-
- * Variable: emacs-version
-     The value of this variable is the version of Emacs being run. 
-     It is a string, e.g. `"18.36.1"'.
-
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that the section entitled "GNU General Public License"
+may be included in a translation approved by the Free Software
+Foundation instead of in the original English.
 
 
-File: elisp,  Node: Pure Storage,  Next: Garbage Collection,  Prev: Building Emacs,  Up: GNU Emacs Internals
+File: lispref.info,  Node: Insertion,  Next: Commands for Insertion,  Prev: Comparing Text,  Up: Text
 
-Pure Storage
-============
+Insertion
+=========
 
-   There are two types of storage in GNU Emacs Lisp for user-created
-Lisp objects: "normal storage" and "pure storage".  Normal storage is
-where all the new data which is created during an Emacs session is
-kept; see the following section for information on normal storage. 
-Pure storage is used for certain data in the preloaded standard Lisp
-files: data that should never change during actual use of Emacs.
+   Insertion takes place at point.  Markers pointing at positions after
+the insertion point are relocated with the surrounding text (*note
+Markers::.).  When a marker points at the place of insertion, it is
+normally not relocated, so that it points to the beginning of the
+inserted text; however, when `insert-before-markers' is used, all such
+markers are relocated to point after the inserted text.
 
-   Pure storage is allocated only while `temacs' is loading the
-standard preloaded Lisp libraries.  In the file `xemacs', it is
-marked as read-only (on operating systems which permit this), so that
-the memory space can be shared by all the Emacs jobs running on the
-machine at once.  Pure storage is not expandable; a fixed amount is
-allocated when Emacs is compiled, and if that is not sufficient for
-the preloaded libraries, `temacs' crashes.  If that happens, you will
-have to increase the compilation parameter `PURESIZE' in the file
-`config.h'.  This normally won't happen unless you try to preload
-additional libraries or add features to the standard ones.
+   Point may end up either before or after inserted text, depending on
+the function used.  If point is left after the inserted text, we speak
+of insertion "before point".
 
- * Function: purecopy OBJECT
-     This function makes a copy of OBJECT in pure storage and returns
-     it.  It copies strings by simply making a new string with the
-     same characters in pure storage.  It recursively copies the
-     contents of vectors and cons cells.  It does not make copies of
-     symbols, or any other objects, but just returns them unchanged. 
-     It signals an error if asked to copy markers.
+   If a string with non-`nil' extent data is inserted, the remembered
+extents will also be inserted.  *Note Duplicable Extents::.
 
-     This function is used only while Emacs is being built and
-     dumped, and is called only in the file `emacs/lisp/loaddefs.el'.
+   Each of these functions signals an error if the current buffer is
+read-only.
 
- * Variable: pure-bytes-used
-     The value of this variable is the number of bytes of pure
-     storage allocated so far.  Typically, in a dumped Emacs, this
-     number is very close to the total amount of pure storage
-     available--if it were not, we would preallocate less.
+ - Function: insert &rest ARGS
+     This function inserts the strings and/or characters ARGS into the
+     current buffer, at point, moving point forward.  An error is
+     signaled unless all ARGS are either strings or characters.  The
+     value is `nil'.
 
- * Variable: purify-flag
-     This variable determines whether `defun' should make a copy of
-     the function definition in pure storage.  If it is non-`nil',
-     then the function definition is copied into pure storage.
+ - Function: insert-before-markers &rest ARGS
+     This function inserts the strings and/or characters ARGS into the
+     current buffer, at point, moving point forward.  An error is
+     signaled unless all ARGS are either strings or characters.  The
+     value is `nil'.
 
-     This flag is `t' while loading all of the basic functions for
-     building Emacs initially (allowing those functions to be
-     sharable and non-collectible).  It is set to `nil' when Emacs is
-     saved out as `xemacs'.  The flag is set and reset in the C
-     sources.
+     This function is unlike the other insertion functions in that a
+     marker whose position initially equals point is relocated to come
+     after the newly inserted text.
 
-     You should not change this flag in a running Emacs.
+ - Function: insert-char CHARACTER COUNT
+     This function inserts COUNT instances of CHARACTER into the
+     current buffer before point.  COUNT must be a number, and
+     CHARACTER must be a character.  The value is `nil'.
 
+ - Function: insert-buffer-substring FROM-BUFFER-OR-NAME &optional
+          START END
+     This function inserts a substring of the contents of buffer
+     FROM-BUFFER-OR-NAME (which must already exist) into the current
+     buffer before point.  The text inserted consists of the characters
+     in the region defined by START and END (These arguments default to
+     the beginning and end of the accessible portion of that buffer).
+     The function returns `nil'.
 
-
-File: elisp,  Node: Garbage Collection,  Next: Writing Emacs Primitives,  Prev: Pure Storage,  Up: GNU Emacs Internals
+     In this example, the form is executed with buffer `bar' as the
+     current buffer.  We assume that buffer `bar' is initially empty.
 
-Garbage Collection
-==================
-
-   When a program creates a list or the user defines a new function
-(such as by loading a library), then that data is placed in normal
-storage.  If normal storage runs low, then Emacs asks the operating
-system to allocate more memory in blocks of 1k bytes.  Each block is
-used for one type of Lisp object, so symbols, cons cells, markers,
-etc. are segregated in distinct blocks in memory.  (Vectors, buffers
-and certain other editing types, which are fairly large, are
-allocated in individual blocks, one per object, while strings are
-packed into blocks of 8k bytes.)
-
-   It is quite common to use some storage for a while, then release
-it by, for example, killing a buffer or deleting the last pointer to
-an object.  Emacs provides a "garbage collector" to reclaim this
-abandoned storage.  (This name is traditional, but "garbage recycler"
-might be a more intuitive metaphor for this facility.)
-
-   The garbage collector operates by scanning all the objects that
-have been allocated and marking those that are still accessible to
-Lisp programs.  To begin with, all the symbols, their values and
-associated function definitions, and any data presently on the stack,
-are accessible.  Any objects which can be reached indirectly through
-other accessible objects are also accessible.
-
-   When this is finished, all inaccessible objects are garbage.  No
-matter what the Lisp program or the user does, it is impossible to
-refer to them, since there is no longer a way to reach them.  Their
-space might as well be reused, since no one will notice.  That is
-what the garbage collector arranges to do.
-
-   Unused cons cells are chained together onto a "free list" for
-future allocation; likewise for symbols and markers.  The accessible
-strings are compacted so they are contiguous in memory; then the rest
-of the space formerly occupied by strings is made available to the
-string creation functions.  Vectors, buffers, windows and other large
-objects are individually allocated and freed using `malloc'.
-
-     Common Lisp note: unlike other Lisps, GNU Emacs Lisp does not
-     call the garbage collector when the free list is empty. 
-     Instead, it simply requests the operating system to allocate
-     more storage, and processing continues until `gc-cons-threshold'
-     bytes have been used.
-
-     This means that you can make sure that the garbage collector
-     will not run during a certain portion of a Lisp program by
-     calling the garbage collector explicitly just before it
-     (provided that portion of the program does not use so much space
-     as to force a second garbage collection).
-
- * Command: garbage-collect
-     This command runs a garbage collection, and returns information
-     on the amount of space in use.  (Garbage collection can also
-     occur spontaneously if you use more than `gc-cons-threshold'
-     bytes of Lisp data since the previous garbage collection.)
-
-     `garbage-collect' returns a list containing the following
-     information:
-
-          ((USED-CONSES . FREE-CONSES)
-           (USED-SYMS . FREE-SYMS)
-           (USED-MARKERS . FREE-MARKERS)
-           USED-STRING-CHARS 
-           USED-VECTOR-SLOTS)
+          ---------- Buffer: foo ----------
+          We hold these truths to be self-evident, that all
+          ---------- Buffer: foo ----------
           
-          (garbage-collect)
-               => ((3435 . 2332) (1688 . 0) (57 . 417) 24510 3839)
-
-     Here is a table explaining each element:
-
-    USED-CONSES
-          The number of cons cells in use.
-
-    FREE-CONSES
-          The number of cons cells for which space has been obtained
-          from the operating system, but that are not currently being
-          used.
-
-    USED-SYMS
-          The number of symbols in use.
-
-    FREE-SYMS
-          The number of symbols for which space has been obtained
-          from the operating system, but that are not currently being
-          used.
-
-    USED-MARKERS
-          The number of markers in use.
-
-    FREE-MARKERS
-          The number of markers for which space has been obtained
-          from the operating system, but that are not currently being
-          used.
-
-    USED-STRING-CHARS
-          The total size of all strings, in characters.
-
-    USED-VECTOR-SLOTS
-          The total number of elements of existing vectors.
-
- * User Option: gc-cons-threshold
-     The value of this variable is the number of bytes of storage
-     that must be allocated for Lisp objects after one garbage
-     collection in order to request another garbage collection.  A
-     cons cell counts as eight bytes, a string as one byte per
-     character plus a few bytes of overhead, and so on.  (Space
-     allocated to the contents of buffers does not count.)  Note that
-     the new garbage collection does not happen immediately when the
-     threshold is exhausted, but only the next time the Lisp
-     evaluator is called.
-
-     The initial threshold value is 100,000.  If you specify a larger
-     value, garbage collection will happen less often.  This reduces
-     the amount of time spent garbage collecting, but increases total
-     memory use.  You may want to do this when running a program
-     which creates lots of Lisp data.
-
-     You can make collections more frequent by specifying a smaller
-     value, down to 10,000.  A value less than 10,000 will remain in
-     effect only until the subsequent garbage collection, at which
-     time `garbage-collect' will set the threshold back to 100,000.
-
+          (insert-buffer-substring "foo" 1 20)
+               => nil
+          
+          ---------- Buffer: bar ----------
+          We hold these truth
+          ---------- Buffer: bar ----------
 
 
-File: elisp,  Node: Writing Emacs Primitives,  Next: Object Internals,  Prev: Garbage Collection,  Up: GNU Emacs Internals
+File: lispref.info,  Node: Commands for Insertion,  Next: Deletion,  Prev: Insertion,  Up: Text
 
-Writing Emacs Primitives
-========================
+User-Level Insertion Commands
+=============================
 
-   Lisp primitives are Lisp functions implemented in C.  The details
-of interfacing the C function so that Lisp can call it are handled by
-a few C macros.  The only way to really understand how to write new C
-code is to read the source, but we can explain some things here.
+   This section describes higher-level commands for inserting text,
+commands intended primarily for the user but useful also in Lisp
+programs.
 
-   An example of a special form is the definition of `or', from
-`eval.c'.  (An ordinary function would have the same general
-appearance.)
+ - Command: insert-buffer FROM-BUFFER-OR-NAME
+     This function inserts the entire contents of FROM-BUFFER-OR-NAME
+     (which must exist) into the current buffer after point.  It leaves
+     the mark after the inserted text.  The value is `nil'.
 
-     DEFUN ("or", For, Sor, 0, UNEVALLED, 0,
-       "Eval args until one of them yields non-NIL, then return that value.\n\
-     The remaining args are not evalled at all.\n\
-     If all args return NIL, return NIL.")
-       (args)
-          Lisp_Object args;
-     {
-       register Lisp_Object val;
-       Lisp_Object args_left;
-       struct gcpro gcpro1;
-     
-       if (NULL(args))
-         return Qnil;
-     
-       args_left = args;
-       GCPRO1 (args_left);
-     
-       do
-         {
-           val = Feval (Fcar (args_left));
-           if (!NULL (val))
-             break;
-           args_left = Fcdr (args_left);
-         }
-       while (!NULL(args_left));
-     
-       UNGCPRO;
-       return val;
-     }
+ - Command: self-insert-command COUNT
+     This function inserts the last character typed COUNT times and
+     returns `nil'.  Most printing characters are bound to this
+     command.  In routine use, `self-insert-command' is the most
+     frequently called function in Emacs, but programs rarely use it
+     except to install it on a keymap.
 
-   Let's start with a precise explanation of the arguments to the
-`DEFUN' macro:
+     In an interactive call, COUNT is the numeric prefix argument.
 
-  1. The first argument is the name of the Lisp symbol to define with
-     this function; it is `or'.
+     This function calls `auto-fill-function' if the current column
+     number is greater than the value of `fill-column' and the character
+     inserted is a space (*note Auto Filling::.).
 
-  2. The second argument is the C function name for this function. 
-     This is the name that is used in C code for calling the
-     function.  The name is, by convention, `F' prepended to the Lisp
-     name, with all dashes (`-') in the Lisp name changed to
-     underscores.  Thus, to call this function from C code, call
-     `For'.  Remember that the arguments must be of type
-     `Lisp_Object'; various macros and functions for creating values
-     of type `Lisp_Object' are declared in the file `lisp.h'.
+     This function performs abbrev expansion if Abbrev mode is enabled
+     and the inserted character does not have word-constituent syntax.
+     (*Note Abbrevs::, and *Note Syntax Class Table::.)
 
-  3. The third argument is a C variable name to use for a structure
-     that holds the data for the subr object that represents the
-     function in Lisp.  This structure conveys the Lisp symbol name
-     to the initialization routine that will create the symbol and
-     store the subr object as its definition.  By convention, this
-     name is the C function name with `F' replaced with `S'.
+     This function is also responsible for calling
+     `blink-paren-function' when the inserted character has close
+     parenthesis syntax (*note Blinking::.).
 
-  4. The fourth argument is the minimum number of arguments that the
-     function requires.  In this case, no arguments are required.
+ - Command: newline &optional NUMBER-OF-NEWLINES
+     This function inserts newlines into the current buffer before
+     point.  If NUMBER-OF-NEWLINES is supplied, that many newline
+     characters are inserted.
 
-  5. The fifth argument is the maximum number of arguments that the
-     function accepts.  Alternatively, it can be `UNEVALLED',
-     indicating a special form that receives unevaluated arguments. 
-     A function with the equivalent of an `&rest' argument would have
-     `MANY' in this position.  Both `UNEVALLED' and `MANY' are
-     macros.  This argument must be one of these macros or a number
-     at least as large as the fourth argument.
+     In Auto Fill mode, `newline' can break the preceding line if
+     NUMBER-OF-NEWLINES is not supplied.  When this happens, it
+     actually inserts two newlines at different places: one at point,
+     and another earlier in the line.  `newline' does not auto-fill if
+     NUMBER-OF-NEWLINES is non-`nil'.
 
-  6. The sixth argument is an interactive specification, a string
-     such as might be used as the argument of `interactive' in a Lisp
-     function.  In this case it is 0 (a null pointer), indicating
-     that this function cannot be called interactively.  A value of
-     `""' indicates an interactive function not taking arguments.
+     The value returned is `nil'.  In an interactive call, COUNT is the
+     numeric prefix argument.
 
-  7. The last argument is the documentation string.  It is written
-     just like a documentation string for a function defined in Lisp,
-     except you must write `\n\' at the end of each line.  In
-     particular, the first line should be a single sentence.
+ - Command: split-line
+     This function splits the current line, moving the portion of the
+     line after point down vertically, so that it is on the next line
+     directly below where it was before.  Whitespace is inserted as
+     needed at the beginning of the lower line, using the `indent-to'
+     function.  `split-line' returns the position of point.
 
-   After the call to the `DEFUN' macro, you must write the list of
-argument names that every C function must have, followed by ordinary
-C declarations for them.  Normally, all the arguments must be
-declared as `Lisp_Object'.  If the function has no upper limit on the
-number of arguments in Lisp, then in C it receives two arguments: the
-number of Lisp arguments, and the address of a block containing their
-values.  These have types `int' and `Lisp_Object *'.
+     Programs hardly ever use this function.
 
-   Within the function `For' itself, note the use of the macros
-`GCPRO1' and `UNGCPRO'.  `GCPRO1' is used to "protect" a variable
-from garbage collection--to inform the garbage collector that it must
-look in that variable and regard its contents as an accessible
-object.  This is necessary whenever you call `Feval' or anything that
-can directly or indirectly call `Feval'.  At such a time, any Lisp
-object that you intend to refer to again must be protected somehow. 
-`UNGCPRO' cancels the protection of the variables that are protected
-in the current function.  It is necessary to do this explicitly.
-
-   For most data types, it suffices to know that one pointer to the
-object is protected; as long as the object is not recycled, all
-pointers to it remain valid.  This is not so for strings, because the
-garbage collector can move them.  When a string is moved, any
-pointers to it that the garbage collector does not know about will
-not be properly relocated.  Therefore, all pointers to strings must
-be protected across any point where garbage collection may be possible.
-
-   The macro `GCPRO1' protects just one local variable.  If you want
-to protect two, use `GCPRO2' instead; repeating `GCPRO1' will not
-work.  There are also `GCPRO3' and `GCPRO4'.
-
-   In addition to using these macros, you must declare the local
-variables such as `gcpro1' which they implicitly use.  If you protect
-two variables, with `GCPRO2', you must declare `gcpro1' and `gcpro2',
-as it uses them both.  Alas, we can't explain all the tricky details
-here.
-
-   Defining the C function is not enough; you must also create the
-Lisp symbol for the primitive and store a suitable subr object in its
-function cell.  This is done by adding code to an initialization
-routine.  The code looks like this:
-
-     defsubr (&SUBR-STRUCTURE-NAME);
-
-SUBR-STRUCTURE-NAME is the name you used as the third argument to
-`DEFUN'.
-
-   If you are adding a primitive to a file that already has Lisp
-primitives defined in it, find the function (near the end of the
-file) named `syms_of_SOMETHING', and add that function call to it. 
-If the file doesn't have this function, or if you create a new file,
-add to it a `syms_of_FILENAME' (e.g., `syms_of_myfile').  Then find
-the spot in `emacs.c' where all of these functions are called, and
-add a call to `syms_of_FILENAME' there.
-
-   This function `syms_of_FILENAME' is also the place to define any C
-variables which are to be visible as Lisp variables.  `DEFVAR_LISP'
-is used to make a C variable of type `Lisp_Object' visible in Lisp. 
-`DEFVAR_INT' is used to make a C variable of type `int' visible in
-Lisp with a value that is an integer.
-
-   Here is another function, with more complicated arguments.  This
-comes from the code for the X Window System, and it demonstrates the
-use of macros and functions to manipulate Lisp objects.
-
-     DEFUN ("coordinates-in-window-p", Fcoordinates_in_window_p,
-       Scoordinates_in_window_p, 2, 2,
-       "xSpecify coordinate pair: \nXExpression which evals to window: ",
-       "Return non-nil if POSITIONS (a list, (SCREEN-X SCREEN-Y)) is in WINDOW.\n\  
-       Returned value is list of positions expressed\n\
-       relative to window upper left corner.")
-       (coordinate, window)
-          register Lisp_Object coordinate, window;
-     {
-       register Lisp_Object xcoord, ycoord;
-     
-       if (!CONSP (coordinate)) wrong_type_argument (Qlistp, coordinate);
-       CHECK_WINDOW (window, 2);
-       xcoord = Fcar (coordinate);
-       ycoord = Fcar (Fcdr (coordinate));
-       CHECK_NUMBER (xcoord, 0);
-       CHECK_NUMBER (ycoord, 1);
-       if ((XINT (xcoord) < XINT (XWINDOW (window)->left))
-           || (XINT (xcoord) >= (XINT (XWINDOW (window)->left)
-                                 + XINT (XWINDOW (window)->width))))
-         {
-           return Qnil;
-         }
-       XFASTINT (xcoord) -= XFASTINT (XWINDOW (window)->left);
-       if (XINT (ycoord) == (screen_height - 1))
-         return Qnil;
-       if ((XINT (ycoord) < XINT (XWINDOW (window)->top))
-           || (XINT (ycoord) >= (XINT (XWINDOW (window)->top)
-                                 + XINT (XWINDOW (window)->height)) - 1))
-         {
-           return Qnil;
-         }
-       XFASTINT (ycoord) -= XFASTINT (XWINDOW (window)->top);
-       return (Fcons (xcoord, Fcons (ycoord, Qnil)));
-     }
-
-   Note that you cannot directly call functions defined in Lisp as,
-for example, the primitive function `Fcons' is called above.  You
-must create the appropriate Lisp form, protect everything from
-garbage collection, and `Feval' the form, as was done in `For' above.
-
-   `eval.c' is a very good file to look through for examples;
-`lisp.h' contains the definitions for some important macros and
-functions.
-
+ - Variable: overwrite-mode
+     This variable controls whether overwrite mode is in effect: a
+     non-`nil' value enables the mode.  It is automatically made
+     buffer-local when set in any fashion.
 
 
-File: elisp,  Node: Object Internals,  Prev: Writing Emacs Primitives,  Up: GNU Emacs Internals
+File: lispref.info,  Node: Deletion,  Next: User-Level Deletion,  Prev: Commands for Insertion,  Up: Text
 
-Object Internals
+Deletion of Text
 ================
 
-   GNU Emacs Lisp manipulates many different types of data.  The
-actual data are stored in a heap and the only access that programs
-have to it is through pointers.  Pointers are thirty-two bits wide in
-most implementations.  Depending on the operating system and type of
-machine for which you compile Emacs, twenty-four to twenty-six bits
-are used to address the object, and the remaining six to eight bits
-are used for a tag that identifies the object's type.
+   All of the deletion functions operate on the current buffer, and all
+return a value of `nil'.  In addition to these functions, you can also
+delete text using the "kill" functions that save it in the kill ring;
+some of these functions save text in the kill ring in some cases but
+not in the usual case.  *Note The Kill Ring::.
 
-   Because all access to data is through tagged pointers, it is
-always possible to determine the type of any object.  This allows
-variables to be untyped, and the values assigned to them to be
-changed without regard to type.  Function arguments also can be of
-any type; if you want a function to accept only a certain type of
-argument, you must check the type explicitly using a suitable
-predicate (*note Type Predicates::.).
+ - Function: erase-buffer
+     This function deletes the entire text of the current buffer,
+     leaving it empty.  If the buffer is read-only, it signals a
+     `buffer-read-only' error.  Otherwise, it deletes the text without
+     asking for any confirmation.  The value is always `nil'.
+
+     Normally, deleting a large amount of text from a buffer inhibits
+     further auto-saving of that buffer "because it has shrunk".
+     However, `erase-buffer' does not do this, the idea being that the
+     future text is not really related to the former text, and its size
+     should not be compared with that of the former text.
+
+ - Command: delete-region START END
+     This function deletes the text in the current buffer in the region
+     defined by START and END.  The value is `nil'.
+
+ - Command: delete-char COUNT &optional KILLP
+     This function deletes COUNT characters directly after point, or
+     before point if COUNT is negative.  If KILLP is non-`nil', then it
+     saves the deleted characters in the kill ring.
+
+     In an interactive call, COUNT is the numeric prefix argument, and
+     KILLP is the unprocessed prefix argument.  Therefore, if a prefix
+     argument is supplied, the text is saved in the kill ring.  If no
+     prefix argument is supplied, then one character is deleted, but
+     not saved in the kill ring.
+
+     The value returned is always `nil'.
+
+ - Command: delete-backward-char COUNT &optional KILLP
+     This function deletes COUNT characters directly before point, or
+     after point if COUNT is negative.  If KILLP is non-`nil', then it
+     saves the deleted characters in the kill ring.
+
+     In an interactive call, COUNT is the numeric prefix argument, and
+     KILLP is the unprocessed prefix argument.  Therefore, if a prefix
+     argument is supplied, the text is saved in the kill ring.  If no
+     prefix argument is supplied, then one character is deleted, but
+     not saved in the kill ring.
+
+     The value returned is always `nil'.
+
+ - Command: backward-delete-char-untabify COUNT &optional KILLP
+     This function deletes COUNT characters backward, changing tabs
+     into spaces.  When the next character to be deleted is a tab, it is
+     first replaced with the proper number of spaces to preserve
+     alignment and then one of those spaces is deleted instead of the
+     tab.  If KILLP is non-`nil', then the command saves the deleted
+     characters in the kill ring.
+
+     If COUNT is negative, then tabs are not changed to spaces, and the
+     characters are deleted by calling `delete-backward-char' with
+     COUNT.
+
+     In an interactive call, COUNT is the numeric prefix argument, and
+     KILLP is the unprocessed prefix argument.  Therefore, if a prefix
+     argument is supplied, the text is saved in the kill ring.  If no
+     prefix argument is supplied, then one character is deleted, but
+     not saved in the kill ring.
+
+     The value returned is always `nil'.
+
+
+File: lispref.info,  Node: User-Level Deletion,  Next: The Kill Ring,  Prev: Deletion,  Up: Text
+
+User-Level Deletion Commands
+============================
+
+   This section describes higher-level commands for deleting text,
+commands intended primarily for the user but useful also in Lisp
+programs.
+
+ - Command: delete-horizontal-space
+     This function deletes all spaces and tabs around point.  It returns
+     `nil'.
+
+     In the following examples, assume that `delete-horizontal-space' is
+     called four times, once on each line, with point between the
+     second and third characters on the line.
+
+          ---------- Buffer: foo ----------
+          I -!-thought
+          I -!-     thought
+          We-!- thought
+          Yo-!-u thought
+          ---------- Buffer: foo ----------
+          
+          (delete-horizontal-space)   ; Four times.
+               => nil
+          
+          ---------- Buffer: foo ----------
+          Ithought
+          Ithought
+          Wethought
+          You thought
+          ---------- Buffer: foo ----------
+
+ - Command: delete-indentation &optional JOIN-FOLLOWING-P
+     This function joins the line point is on to the previous line,
+     deleting any whitespace at the join and in some cases replacing it
+     with one space.  If JOIN-FOLLOWING-P is non-`nil',
+     `delete-indentation' joins this line to the following line
+     instead.  The value is `nil'.
+
+     If there is a fill prefix, and the second of the lines being joined
+     starts with the prefix, then `delete-indentation' deletes the fill
+     prefix before joining the lines.
+
+     In the example below, point is located on the line starting
+     `events', and it makes no difference if there are trailing spaces
+     in the preceding line.
+
+          ---------- Buffer: foo ----------
+          When in the course of human
+          -!-    events, it becomes necessary
+          ---------- Buffer: foo ----------
+          
+          (delete-indentation)
+               => nil
+          
+          ---------- Buffer: foo ----------
+          When in the course of human-!- events, it becomes necessary
+          ---------- Buffer: foo ----------
+
+     After the lines are joined, the function `fixup-whitespace' is
+     responsible for deciding whether to leave a space at the junction.
+
+ - Function: fixup-whitespace
+     This function replaces white space between the objects on either
+     side of point with either one space or no space as appropriate.
+     It returns `nil'.
+
+     The appropriate amount of space is none at the beginning or end of
+     the line.  Otherwise, it is one space except when point is before a
+     character with close parenthesis syntax or after a character with
+     open parenthesis or expression-prefix syntax.  *Note Syntax Class
+     Table::.
+
+     In the example below, when `fixup-whitespace' is called the first
+     time, point is before the word `spaces' in the first line.  It is
+     located directly after the `(' for the second invocation.
+
+          ---------- Buffer: foo ----------
+          This has too many     -!-spaces
+          This has too many spaces at the start of (-!-   this list)
+          ---------- Buffer: foo ----------
+
+          (fixup-whitespace)
+               => nil
+          (fixup-whitespace)
+               => nil
+
+          ---------- Buffer: foo ----------
+          This has too many spaces
+          This has too many spaces at the start of (this list)
+          ---------- Buffer: foo ----------
+
+ - Command: just-one-space
+     This command replaces any spaces and tabs around point with a
+     single space.  It returns `nil'.
+
+ - Command: delete-blank-lines
+     This function deletes blank lines surrounding point.  If point is
+     on a blank line with one or more blank lines before or after it,
+     then all but one of them are deleted.  If point is on an isolated
+     blank line, then it is deleted.  If point is on a nonblank line,
+     the command deletes all blank lines following it.
+
+     A blank line is defined as a line containing only tabs and spaces.
+
+     `delete-blank-lines' returns `nil'.
+
+
+File: lispref.info,  Node: The Kill Ring,  Next: Undo,  Prev: User-Level Deletion,  Up: Text
+
+The Kill Ring
+=============
+
+   "Kill" functions delete text like the deletion functions, but save
+it so that the user can reinsert it by "yanking".  Most of these
+functions have `kill-' in their name.  By contrast, the functions whose
+names start with `delete-' normally do not save text for yanking
+(though they can still be undone); these are "deletion" functions.
+
+   Most of the kill commands are primarily for interactive use, and are
+not described here.  What we do describe are the functions provided for
+use in writing such commands.  When deleting text for internal purposes
+within a Lisp function, you should normally use deletion functions, so
+as not to disturb the kill ring contents.  *Note Deletion::.
+
+   Emacs saves the last several batches of killed text in a list.  We
+call it the "kill ring" because, in yanking, the elements are
+considered to be in a cyclic order.  The list is kept in the variable
+`kill-ring', and can be operated on with the usual functions for lists;
+there are also specialized functions, described in this section, which
+treat it as a ring.
+
+   Some people think use of the word "kill" in Emacs is unfortunate,
+since it refers to processes which specifically *do not* destroy the
+entities "killed".  This is in sharp contrast to ordinary life, in
+which death is permanent and "killed" entities do not come back to
+life.  Therefore, other metaphors have been proposed.  For example, the
+term "cut ring" makes sense to people who, in pre-computer days, used
+scissors and paste to cut up and rearrange manuscripts.  However, it
+would be difficult to change now.
 
 * Menu:
 
-* Buffer Internals::    Components of a buffer structure.
-* Window Internals::    Components of a window structure.
-* Process Internals::   Components of a process structure.
-
- 
-
-File: elisp,  Node: Buffer Internals,  Next: Window Internals,  Prev: Object Internals,  Up: Object Internals
-
-Buffer Internals
-----------------
-
-   Buffers contain fields not directly accessible by the Lisp
-programmer.  We describe them here, naming them by the names used in
-the C code.  Many are accessible indirectly in Lisp programs via Lisp
-primitives.
-
-`name'
-     The buffer name is a string which names the buffer.  It is
-     guaranteed to be unique.  *Note Buffer Names::.
-
-`save_modified'
-     This field contains the time when the buffer was last saved, as
-     an integer.  *Note Buffer Modification::.
-
-`modtime'
-     This field contains the modification time of the visited file. 
-     It is set when the file is written or read.  Every time the
-     buffer is written to the file, this field is compared to the
-     modification time of the file.  *Note Buffer Modification::.
-
-`auto_save_modified'
-     This field contains the time when the buffer was last auto-saved.
-
-`last_window_start'
-     This field contains the `window-start' position in the buffer as
-     of the last time the buffer was displayed in a window.
-
-`undodata'
-     This field points to the buffer's undo stack.  *Note Undo::.
-
-`syntax_table_v'
-     This field contains the syntax table for the buffer.  *Note
-     Syntax Tables::.
-
-`markers'
-     This field contains the chain of all markers that point into the
-     buffer.  At each deletion or motion of the buffer gap, all of
-     these markers must be checked and perhaps updated.  *Note
-     Markers::.
-
-`backed_up'
-     This field is a flag which tells whether a backup file has been
-     made for the visited file of this buffer.
-
-`mark'
-     This field contains the mark for the buffer.  The mark is a
-     marker, hence it is also included on the list `markers'.  *Note
-     The Mark::.
-
-`local_var_alist'
-     This field contains the association list containing all of the
-     variables local in this buffer, and their values.  A copy of
-     this list is returned by the function `buffer-local-variables'. 
-     *Note Buffer-Local Variables::.
-
-`mode_line_format'
-     This field contains a Lisp object which controls how to display
-     the mode line for this buffer.  *Note Mode Line Format::.
-
+* Kill Ring Concepts::     What text looks like in the kill ring.
+* Kill Functions::         Functions that kill text.
+* Yank Commands::          Commands that access the kill ring.
+* Low Level Kill Ring::	   Functions and variables for kill ring access.
+* Internals of Kill Ring:: Variables that hold kill-ring data.
 
 
-File: elisp,  Node: Window Internals,  Next: Process Internals,  Prev: Buffer Internals,  Up: Object Internals
+File: lispref.info,  Node: Kill Ring Concepts,  Next: Kill Functions,  Up: The Kill Ring
 
-Window Internals
-----------------
+Kill Ring Concepts
+------------------
 
-   Windows have the following accessible fields:
+   The kill ring records killed text as strings in a list.  A short kill
+ring, for example, might look like this:
 
-`height'
-     The height of the window, measured in lines.
+     ("some text" "a different piece of text" "yet more text")
 
-`width'
-     The width of the window, measured in columns.
+   New entries in the kill ring go at the front of the list.  When the
+list reaches `kill-ring-max' entries in length, adding a new entry
+automatically deletes the last entry.
 
-`buffer'
-     The buffer which the window is displaying.  This may change
-     often during the life of the window.
+   When kill commands are interwoven with other commands, the killed
+portions of text are put into separate entries in the kill ring.  But
+when two or more kill commands are executed in succession, the text they
+kill forms a single entry, because the second and subsequent consecutive
+kill commands append to the entry made by the first one.
 
-`start'
-     The position in the buffer which is the first character to be
-     displayed in the window.
-
-`pointm'
-     This is the value of point in the current buffer when this
-     window is selected; when it is not selected, it retains its
-     previous value.
-
-`left'
-     This is the left-hand edge of the window, measured in columns. 
-     (The leftmost column on the screen is column 0.)
-
-`top'
-     This is the top edge of the window, measured in lines.  (The top
-     line on the screen is line 0.)
-
-`next'
-     This is the window that is the next in the chain of siblings.
-
-`prev'
-     This is the window that is the previous in the chain of siblings.
-
-`force_start'
-     This is a flag which, if non-`nil', says that the window has
-     been scrolled explicitly by the Lisp program.  At the next
-     redisplay, if point is off the screen, instead of scrolling the
-     window to show the text around point, point will be moved to a
-     location that is on the screen.
-
-`hscroll'
-     This is the number of columns that the display in the window is
-     scrolled horizontally to the left.  Normally, this is 0.
-
-`use_time'
-     This is the last time that the window was selected.  This field
-     is used by `get-lru-window'.
-
+   The user can reinsert or "yank" text from any element in the kill
+ring.  One of the entries in the ring is considered the "front", and
+the simplest yank command yanks that entry.  Other yank commands
+"rotate" the ring by designating other entries as the "front".
 
 
-File: elisp,  Node: Process Internals,  Prev: Window Internals,  Up: Object Internals
+File: lispref.info,  Node: Kill Functions,  Next: Yank Commands,  Prev: Kill Ring Concepts,  Up: The Kill Ring
 
-Process Internals
------------------
+Functions for Killing
+---------------------
 
-   The fields of a process are:
+   `kill-region' is the usual subroutine for killing text.  Any command
+that calls this function is a "kill command" (and should probably have
+`kill' in its name).  `kill-region' puts the newly killed text in a new
+element at the beginning of the kill ring or adds it to the most recent
+element.  It uses the `last-command' variable to keep track of whether
+the previous was a kill command, and in such cases appends the killed
+text to the most recent entry.
 
-`name'
-     A string, the name of the process.
+ - Command: kill-region START END
+     This function kills the text in the region defined by START and
+     END.  The text is deleted but saved in the kill ring.  The value
+     is always `nil'.
 
-`command'
-     A list containing the command arguments that were used to start
-     this process.
+     In an interactive call, START and END are point and the mark.
 
-`filter'
-     A function used to accept output from the process instead of a
-     buffer, or `nil'.
+     If the buffer is read-only, `kill-region' modifies the kill ring
+     just the same, then signals an error without modifying the buffer.
+     This is convenient because it lets the user use all the kill
+     commands to copy text into the kill ring from a read-only buffer.
 
-`sentinel'
-     A function called whenever the process receives a signal, or
-     `nil'.
+ - Command: copy-region-as-kill START END
+     This function saves the region defined by START and END on the
+     kill ring, but does not delete the text from the buffer.  It
+     returns `nil'.  It also indicates the extent of the text copied by
+     moving the cursor momentarily, or by displaying a message in the
+     echo area.
 
-`buffer'
-     The associated buffer of the process.
+     Don't use this command in Lisp programs; use `kill-new' or
+     `kill-append' instead.  *Note Low Level Kill Ring::.
 
-`pid'
-     An integer, the Unix process ID.
+     In an interactive call, START and END are point and the mark.
 
-`childp'
-     A flag, non-`nil' if this is really a child process.  It is
-     `nil' for a network connection.
+
+File: lispref.info,  Node: Yank Commands,  Next: Low Level Kill Ring,  Prev: Kill Functions,  Up: The Kill Ring
 
-`flags'
-     A symbol indicating the state of the process.  Possible values
-     include `run', `stop', `closed', etc.
+Functions for Yanking
+---------------------
 
-`reason'
-     An integer, the Unix signal number that the process received
-     that caused the process to terminate or stop.  If the process
-     has exited, then this is the exit code it specified.
+ - Command: yank &optional ARG
+     This function inserts the text in the first entry in the kill ring
+     directly before point.  After the yank, the mark is positioned at
+     the beginning and point is positioned after the end of the
+     inserted text.
 
-`mark'
-     A marker indicating the position of end of last output from this
-     process inserted into the buffer.  This is usually the end of
+     If ARG is a list (which occurs interactively when the user types
+     `C-u' with no digits), then `yank' inserts the text as described
+     above, but puts point before the yanked text and puts the mark
+     after it.  If ARG is a number, then `yank' inserts the ARGth most
+     recently killed text.
+
+     `yank' does not alter the contents of the kill ring or rotate it.
+     It returns `nil'.
+
+ - Command: yank-pop ARG
+     This function replaces the just-yanked text with another batch of
+     killed text--another element of the kill ring.
+
+     This command is allowed only immediately after a `yank' or a
+     `yank-pop'.  At such a time, the region contains text that was just
+     inserted by the previous `yank'.  `yank-pop' deletes that text and
+     inserts in its place a different stretch of killed text.  The text
+     that is deleted is not inserted into the kill ring, since it is
+     already in the kill ring somewhere.
+
+     If ARG is `nil', then the existing region contents are replaced
+     with the previous element of the kill ring.  If ARG is numeric,
+     then the ARGth previous kill is the replacement.  If ARG is
+     negative, a more recent kill is the replacement.
+
+     The sequence of kills in the kill ring wraps around, so that after
+     the oldest one comes the newest one, and before the newest one
+     goes the oldest.
+
+     The value is always `nil'.
+
+
+File: lispref.info,  Node: Low Level Kill Ring,  Next: Internals of Kill Ring,  Prev: Yank Commands,  Up: The Kill Ring
+
+Low Level Kill Ring
+-------------------
+
+   These functions and variables provide access to the kill ring at a
+lower level, but still convenient for use in Lisp programs.  They take
+care of interaction with X Window selections.  They do not exist in
+Emacs version 18.
+
+ - Function: current-kill N &optional DO-NOT-MOVE
+     The function `current-kill' rotates the yanking pointer in the
+     kill ring by N places, and returns the text at that place in the
+     ring.
+
+     If the optional second argument DO-NOT-MOVE is non-`nil', then
+     `current-kill' doesn't alter the yanking pointer; it just returns
+     the Nth kill forward from the current yanking pointer.
+
+     If N is zero, indicating a request for the latest kill,
+     `current-kill' calls the value of `interprogram-paste-function'
+     (documented below) before consulting the kill ring.
+
+ - Function: kill-new STRING
+     This function puts the text STRING into the kill ring as a new
+     entry at the front of the ring.  It also discards the oldest entry
+     if appropriate.  It also invokes the value of
+     `interprogram-cut-function' (see below).
+
+ - Function: kill-append STRING BEFORE-P
+     This function appends the text STRING to the first entry in the
+     kill ring.  Normally STRING goes at the end of the entry, but if
+     BEFORE-P is non-`nil', it goes at the beginning.  This function
+     also invokes the value of `interprogram-cut-function' (see below).
+
+ - Variable: interprogram-paste-function
+     This variable provides a way of transferring killed text from other
+     programs, when you are using a window system.  Its value should be
+     `nil' or a function of no arguments.
+
+     If the value is a function, it is called when the "most recent
+     kill" value is called for.  If the function returns a non-`nil'
+     values, then that value is used as the "most recent kill".  If it
+     returns `nil', then the first element of the kill ring is used.
+
+ - Variable: interprogram-cut-function
+     This variable provides a way of communicating killed text to and
+     from other programs, when you are using a window system.  Its
+     value should be `nil' or a function of one argument.
+
+     If the value is a function, it is called whenever the "most recent
+     kill" is changed, with the new string of killed text as an
+     argument.
+
+
+File: lispref.info,  Node: Internals of Kill Ring,  Prev: Low Level Kill Ring,  Up: The Kill Ring
+
+Internals of the Kill Ring
+--------------------------
+
+   The variable `kill-ring' holds the kill ring contents, in the form
+of a list of strings.  The most recent kill is always at the front of
+the list.
+
+   The `kill-ring-yank-pointer' variable points to a link in the kill
+ring list, whose CAR is the text that "yank" functions should copy.
+Moving `kill-ring-yank-pointer' to a different link is called "rotating
+the kill ring".  We call the kill ring a "ring" because the functions
+that move the yank pointer wrap around from the end of the list to the
+beginning, or vice-versa.  Rotating the ring does not change the value
+of `kill-ring'.
+
+   Both `kill-ring' and `kill-ring-yank-pointer' are Lisp variables
+whose values are normally lists.  The word "pointer" in the name of the
+`kill-ring-yank-pointer' indicates that the variable's purpose is to
+identify one element of the list for use by the next yank command.
+
+   The value of `kill-ring-yank-pointer' is always `eq' to one of the
+links in the kill ring list.  The element it identifies is the CAR of
+that link.  Commands which change the text in the kill ring also set
+this variable from `kill-ring'.  The effect is to rotate the ring so
+that the newly killed text is at front.
+
+   Here is a diagram that shows the variable `kill-ring-yank-pointer'
+pointing to the second entry in the kill ring `("some text" "a
+different piece of text" "yet more text")'.
+
+     kill-ring       kill-ring-yank-pointer
+       |               |
+       |     ___ ___    --->  ___ ___      ___ ___
+        --> |___|___|------> |___|___|--> |___|___|--> nil
+              |                |            |
+              |                |            |
+              |                |             -->"yet more text"
+              |                |
+              |                 --> "a different piece of text"
+              |
+               --> "some text"
+
+This circumstance might occur after `C-y' (`yank') immediately followed
+by `M-y' (`yank-pop').
+
+ - Variable: kill-ring
+     List of killed text sequences, most recently killed first.
+
+ - Variable: kill-ring-yank-pointer
+     This variable's value indicates which element of the kill ring is
+     at the "front" of the ring for yanking.  More precisely, the value
+     is a sublist of the value of `kill-ring', and its CAR is the kill
+     string that `C-y' should yank.
+
+ - User Option: kill-ring-max
+     The value of this variable is the maximum length to which the kill
+     ring can grow, before elements are thrown away at the end.  The
+     default value for `kill-ring-max' is 30.
+
+
+File: lispref.info,  Node: Undo,  Next: Maintaining Undo,  Prev: The Kill Ring,  Up: Text
+
+Undo
+====
+
+   Most buffers have an "undo list" which records all changes made to
+the buffer's text so that they can be undone.  (The buffers which don't
+have one are usually special-purpose buffers for which Emacs assumes
+that undoing is not useful.)  All the primitives which modify the text
+in the buffer automatically add elements to the front of the undo list,
+which you can find in the variable `buffer-undo-list'.
+
+ - Variable: buffer-undo-list
+     This variable's value is the undo list of the current buffer.  A
+     value of `t' disables the recording of undo information.
+
+   Here are the kinds of elements an undo list can have:
+
+`INTEGER'
+     This kind of element records a previous value of point.  Ordinary
+     cursor motion does not get any sort of undo record, but these
+     entries are used to record where point was before a deletion.
+
+`(BEG . END)'
+     This kind of element indicates how to delete text that was
+     inserted.  Upon insertion, the text occupied the range BEG-END in
      the buffer.
 
-`kill_without_query'
-     A flag, non-`nil' meaning this process should not cause
-     confirmation to be needed if Emacs is killed.
+`(POS . DELETED)'
+     This kind of element indicates how to reinsert text that was
+     deleted.  The deleted text itself is the string DELETED.  The
+     place to reinsert it is POS.
 
+`(t HIGH . LOW)'
+     This kind of element indicates that an unmodified buffer became
+     modified.  The elements HIGH and LOW are two integers, each
+     recording 16 bits of the visited file's modification time as of
+     when it was previously visited or saved.  `primitive-undo' uses
+     those values to determine whether to mark the buffer as unmodified
+     once again; it does so only if the file's modification time
+     matches those numbers.
 
-
-File: elisp,  Node: Standard Errors,  Next: Standard Buffer-Local Variables,  Prev: GNU Emacs Internals,  Up: Top
+`(nil PROPERTY VALUE BEG . END)'
+     This kind of element records a change in a text property.  Here's
+     how you might undo the change:
 
-Standard Errors
-***************
+          (put-text-property BEG END
+                             PROPERTY VALUE)
 
-   Here is the complete list of the error symbols in standard Emacs,
-grouped by concept.  The list includes each symbol's message (on the
-`error-message' property of the symbol), and a cross reference to a
-description of how the error can occur.
+`nil'
+     This element is a boundary.  The function `undo-boundary' adds
+     these elements.  The elements between two boundaries are called a
+     "change group"; normally, each change group corresponds to one
+     keyboard command, and undo commands normally undo an entire group
+     as a unit.
 
-   Each error symbol has an `error-conditions' property which is a
-list of symbols.  Normally, this list includes the error symbol
-itself, and the symbol `error'.  Occasionally it includes additional
-symbols, which are intermediate classifications, narrower than
-`error' but broader than a single error symbol.  For example, all the
-errors in accessing files have the condition `file-error'.
+ - Function: undo-boundary
+     This function places a boundary element in the undo list.  The undo
+     command stops at such a boundary, and successive undo commands undo
+     to earlier and earlier boundaries.  This function returns `nil'.
 
-   As a special exception, the error symbol `quit' does not have the
-condition `error', because quitting is not considered an error.
+     The editor command loop automatically creates an undo boundary
+     between keystroke commands.  Thus, each undo normally undoes the
+     effects of one command.  Calling this function explicitly is
+     useful for splitting the effects of a command into more than one
+     unit.  For example, `query-replace' calls this function after each
+     replacement so that the user can undo individual replacements one
+     by one.
 
-   *Note Errors::, for an explanation of how errors are generated and
-handled.
+ - Function: primitive-undo COUNT LIST
+     This is the basic function for undoing elements of an undo list.
+     It undoes the first COUNT elements of LIST, returning the rest of
+     LIST.  You could write this function in Lisp, but it is convenient
+     to have it in C.
 
-`SYMBOL'
-     STRING; REFERENCE.
-
-`error'
-     `"error"'; see `error' in *Note Errors::.
-
-`quit'
-     `"Quit"'; see *Note Quitting::.
-
-`args-out-of-range'
-     `"Args out of range"'; see *Note Sequences Arrays Vectors::.
-
-`arith-error'
-     `"Arithmetic error"'; see `/' and `%' in *Note Numbers::.
-
-`beginning-of-buffer'
-     `"Beginning of buffer"'; see *Note Motion::.
-
-`buffer-read-only'
-     `"Buffer is read-only"'; see *Note Read Only Buffers::.
-
-`end-of-buffer'
-     `"End of buffer"'; see *Note Motion::.
-
-`end-of-file'
-     `"End of file during parsing"'; see *Note Input Functions::. 
-     This is not a `file-error'.
-
-`file-error'
-     *Note Files::.  This error, and its subcategories, do not have
-     error-strings, because the error message is constructed from the
-     data items alone when the error condition `file-error' is present.
-
-`file-locked'
-     *Note File Locks::.  This is a `file-error'.
-
-`file-already-exists'
-     *Note Writing to Files::.  This is a `file-error'.
-
-`file-supersession'
-     *Note Buffer Modification::.  This is a `file-error'.
-
-`invalid-function'
-     `"Invalid function"'; see *Note Classifying Lists::.
-
-`invalid-read-syntax'
-     `"Invalid read syntax"'; see *Note Input Functions::.
-
-`invalid-regexp'
-     `"Invalid regexp"'; see *Note Regular Expressions::.
-
-`no-catch'
-     `"No catch for tag"'; see *Note Catch and Throw::.
-
-`search-failed'
-     `"Search failed"'; see *Note Searching and Matching::.
-
-`setting-constant'
-     `"Attempt to set a constant symbol"'; the values of the symbols
-     `nil' and `t' may not be changed.
-
-`void-function'
-     `"Symbol's function definition is void"';
-      see *Note Function Cells::.
-
-`void-variable'
-     `"Symbol's value as variable is void"';
-      see *Note Accessing Variables::.
-
-`wrong-number-of-arguments'
-     `"Wrong number of arguments"'; see *Note Classifying Lists::.
-
-`wrong-type-argument'
-     `"Wrong type argument"'; see *Note Type Predicates::.
-
+     `primitive-undo' adds elements to the buffer's undo list.  Undo
+     commands avoid confusion by saving the undo list value at the
+     beginning of a sequence of undo operations.  Then the undo
+     operations use and update the saved value.  The new elements added
+     by undoing never get into the saved value, so they don't cause any
+     trouble.
 
 
-File: elisp,  Node: Standard Buffer-Local Variables,  Next: Standard Keymaps,  Prev: Standard Errors,  Up: Top
+File: lispref.info,  Node: Maintaining Undo,  Next: Auto Filling,  Prev: Undo,  Up: Text
 
-Standard Buffer-Local Variables
-*******************************
+Maintaining Undo Lists
+======================
 
-   The table below shows all of the variables that are automatically
-local (when set) in each buffer in Emacs Version 18 with the common
-packages loaded.
+   This section describes how to enable and disable undo information for
+a given buffer.  It also explains how data from the undo list is
+discarded automatically so it doesn't get too big.
 
-`abbrev-mode'
-     *Note Abbrevs::.
+   Recording of undo information in a newly created buffer is normally
+enabled to start with; but if the buffer name starts with a space, the
+undo recording is initially disabled.  You can explicitly enable or
+disable undo recording with the following two functions, or by setting
+`buffer-undo-list' yourself.
 
-`auto-fill-hook'
-     *Note Auto Filling::.
+ - Command: buffer-enable-undo &optional BUFFER-OR-NAME
+     This function enables recording undo information for buffer
+     BUFFER-OR-NAME, so that subsequent changes can be undone.  If no
+     argument is supplied, then the current buffer is used.  This
+     function does nothing if undo recording is already enabled in the
+     buffer.  It returns `nil'.
 
-`buffer-auto-save-file-name'
-     *Note Auto-Saving::.
+     In an interactive call, BUFFER-OR-NAME is the current buffer.  You
+     cannot specify any other buffer.
 
-`buffer-backed-up'
-     *Note Backup Files::.
+ - Function: buffer-disable-undo BUFFER
+ - Function: buffer-flush-undo BUFFER
+     This function discards the undo list of BUFFER, and disables
+     further recording of undo information.  As a result, it is no
+     longer possible to undo either previous changes or any subsequent
+     changes.  If the undo list of BUFFER is already disabled, this
+     function has no effect.
 
-`buffer-file-name'
-     *Note Buffer File Name::.
+     This function returns `nil'.  It cannot be called interactively.
 
-`buffer-read-only'
-     *Note Read Only Buffers::.
+     The name `buffer-flush-undo' is not considered obsolete, but the
+     preferred name `buffer-disable-undo' was not provided in Emacs
+     versions 18 and earlier.
 
-`buffer-saved-size'
-     *Note Point::.
+   As editing continues, undo lists get longer and longer.  To prevent
+them from using up all available memory space, garbage collection trims
+them back to size limits you can set.  (For this purpose, the "size" of
+an undo list measures the cons cells that make up the list, plus the
+strings of deleted text.)  Two variables control the range of acceptable
+sizes: `undo-limit' and `undo-strong-limit'.
 
-`case-fold-search'
-     *Note Searching and Case::.
+ - Variable: undo-limit
+     This is the soft limit for the acceptable size of an undo list.
+     The change group at which this size is exceeded is the last one
+     kept.
 
-`ctl-arrow'
-     *Note Control Char Display::.
-
-`default-directory'
-     *Note System Environment::.
-
-`fill-column'
-     *Note Auto Filling::.
-
-`left-margin'
-     *Note Indentation::.
-
-`local-abbrev-table'
-     *Note Abbrevs::.
-
-`major-mode'
-     *Note Mode Help::.
-
-`mark-ring'
-     *Note The Mark::.
-
-`minor-modes'
-     *Note Minor Modes::.
-
-`mode-name'
-     *Note Mode Line Variables::.
-
-`overwrite-mode'
-     *Note Insertion::.
-
-`paragraph-separate'
-     *Note Standard Regexps::.
-
-`paragraph-start'
-     *Note Standard Regexps::.
-
-`require-final-newline'
-     *Note Insertion::.
-
-`selective-display'
-     *Note Selective Display::.
-
-`selective-display-ellipses'
-     *Note Selective Display::.
-
-`tab-width'
-     *Note Control Char Display::.
-
-`truncate-lines'
-     *Note Truncation::.
-
+ - Variable: undo-strong-limit
+     The upper limit for the acceptable size of an undo list.  The
+     change group at which this size is exceeded is discarded itself
+     (along with all subsequent changes).  There is one exception:
+     garbage collection always keeps the very last change group no
+     matter how big it is.
 
 
-File: elisp,  Node: Standard Keymaps,  Next: Standard Hooks,  Prev: Standard Buffer-Local Variables,  Up: Top
+File: lispref.info,  Node: Filling,  Next: Sorting,  Prev: Auto Filling,  Up: Text
 
-Standard Keymaps
-****************
+Filling
+=======
 
-   The following symbols are used as the names for various keymaps. 
-Some of these exist when Emacs is first started, others are only
-loaded when their respective mode is used.  This is not an exhaustive
-list.
+   "Filling" means adjusting the lengths of lines (by moving words
+between them) so that they are nearly (but no greater than) a specified
+maximum width.  Additionally, lines can be "justified", which means
+that spaces are inserted between words to make the line exactly the
+specified width.  The width is controlled by the variable
+`fill-column'.  For ease of reading, lines should be no longer than 70
+or so columns.
 
-   Almost all of these maps are used as local maps.  Indeed, of the
-modes that presently exist, only Vip mode and Terminal mode ever
-change the global keymap.
+   You can use Auto Fill mode (*note Auto Filling::.) to fill text
+automatically as you insert it, but changes to existing text may leave
+it improperly filled.  Then you must fill the text explicitly.
 
-`Buffer-menu-mode-map'
-     A full keymap used by Buffer Menu mode.
+   Most of the functions in this section return values that are not
+meaningful.
 
-`c-mode-map'
-     A sparse keymap used in C mode as a local map.
+ - Command: fill-paragraph JUSTIFY-FLAG
+     This function fills the paragraph at or after point.  If
+     JUSTIFY-FLAG is non-`nil', each line is justified as well.  It
+     uses the ordinary paragraph motion commands to find paragraph
+     boundaries.
 
-`command-history-map'
-     A full keymap used by Command History mode.
+ - Command: fill-region START END &optional JUSTIFY-FLAG
+     This function fills each of the paragraphs in the region from
+     START to END.  It justifies as well if JUSTIFY-FLAG is non-`nil'.
+     (In an interactive call, this is true if there is a prefix
+     argument.)
 
-`ctl-x-4-map'
-     A sparse keymap for subcommands of the prefix `C-x 4'.
+     The variable `paragraph-separate' controls how to distinguish
+     paragraphs.
 
-`ctl-x-map'
-     A full keymap for `C-x' commands.
+ - Command: fill-individual-paragraphs START END &optional JUSTIFY-FLAG
+          MAIL-FLAG
+     This function fills each paragraph in the region according to its
+     individual fill prefix.  Thus, if the lines of a paragraph are
+     indented with spaces, the filled paragraph will continue to be
+     indented in the same fashion.
 
-`debugger-mode-map'
-     A full keymap used by Debugger mode.
+     The first two arguments, START and END, are the beginning and end
+     of the region that will be filled.  The third and fourth
+     arguments, JUSTIFY-FLAG and MAIL-FLAG, are optional.  If
+     JUSTIFY-FLAG is non-`nil', the paragraphs are justified as well as
+     filled.  If MAIL-FLAG is non-`nil', the function is told that it
+     is operating on a mail message and therefore should not fill the
+     header lines.
 
-`dired-mode-map'
-     A full keymap for `dired-mode' buffers.
+     Ordinarily, `fill-individual-paragraphs' regards each change in
+     indentation as starting a new paragraph.  If
+     `fill-individual-varying-indent' is non-`nil', then only separator
+     lines separate paragraphs.  That mode can handle paragraphs with
+     extra indentation on the first line.
 
-`doctor-mode-map'
-     A sparse keymap used by Doctor mode.
+ - User Option: fill-individual-varying-indent
+     This variable alters the action of `fill-individual-paragraphs' as
+     described above.
 
-`edit-abbrevs-map'
-     A sparse keymap used in `edit-abbrevs'.
+ - Command: fill-region-as-paragraph START END &optional JUSTIFY-FLAG
+     This function considers a region of text as a paragraph and fills
+     it.  If the region was made up of many paragraphs, the blank lines
+     between paragraphs are removed.  This function justifies as well
+     as filling when JUSTIFY-FLAG is non-`nil'.  In an interactive
+     call, any prefix argument requests justification.
 
-`edit-tab-stops-map'
-     A sparse keymap used in `edit-tab-stops'.
+     In Adaptive Fill mode, which is enabled by default,
+     `fill-region-as-paragraph' on an indented paragraph when there is
+     no fill prefix uses the indentation of the second line of the
+     paragraph as the fill prefix.
 
-`electric-buffer-menu-mode-map'
-     A full keymap used by Electric Buffer Menu mode.
+ - Command: justify-current-line
+     This function inserts spaces between the words of the current line
+     so that the line ends exactly at `fill-column'.  It returns `nil'.
 
-`electric-history-map'
-     A full keymap used by Electric Command History mode.
+ - User Option: fill-column
+     This buffer-local variable specifies the maximum width of filled
+     lines.  Its value should be an integer, which is a number of
+     columns.  All the filling, justification and centering commands
+     are affected by this variable, including Auto Fill mode (*note
+     Auto Filling::.).
 
-`emacs-lisp-mode-map'
-     A sparse keymap used in Emacs Lisp mode.
+     As a practical matter, if you are writing text for other people to
+     read, you should set `fill-column' to no more than 70.  Otherwise
+     the line will be too long for people to read comfortably, and this
+     can make the text seem clumsy.
 
-`function-keymap'
-     The keymap for the definitions of keypad and function keys.
-       If there are none, then it contains an empty sparse keymap.
+ - Variable: default-fill-column
+     The value of this variable is the default value for `fill-column'
+     in buffers that do not override it.  This is the same as
+     `(default-value 'fill-column)'.
 
-`fundamental-mode-map'
-     The local keymap for Fundamental mode.
-       It is empty and should not be changed.
-
-`Helper-help-map'
-     A full keymap used by the help utility package.
-       It has the same keymap in its value cell and in its function
-     cell.
-
-`Info-edit-map'
-     A sparse keymap used by the `e' command of Info.
-
-`Info-mode-map'
-     A sparse keymap containing Info commands.
-
-`lisp-interaction-mode-map'
-     A sparse keymap used in Lisp mode.
-
-`lisp-mode-map'
-     A sparse keymap used in Lisp mode.
-
-`mode-specific-map'
-     The keymap for characters following `C-c'.  Note, this is in the
-     global map.  This map is not actually mode specific: its name
-     was chosen to be informative for the user in `C-h b'
-     (`display-bindings'), where it describes the main use of the
-     `C-c' prefix key.
-
-`mouse-map'
-     A sparse keymap for mouse commands from the X Window System.
-
-`occur-mode-map'
-     A local keymap used in Occur mode.
-
-`text-mode-map'
-     A sparse keymap used by Text mode.
-
-`view-mode-map'
-     A full keymap used by View mode.
-
+     The default value for `default-fill-column' is 70.
 
 
-File: elisp,  Node: Standard Hooks,  Next: Index,  Prev: Standard Keymaps,  Up: Top
+File: lispref.info,  Node: Auto Filling,  Next: Filling,  Prev: Maintaining Undo,  Up: Text
 
-Standard Hooks
-**************
+Auto Filling
+============
 
-   The following is a list of hooks available with the distributed
-18.52 version of GNU Emacs.  Some of these hooks are called with
-`run-hooks' and can be a list of functions.  Others are not called
-with `run-hooks' and may or may not allow a list of functions.  For
-example, the `suspend-hook' can only reference a single function. 
-*Note Hooks::, for more information about using hooks.
+   "Filling" breaks text into lines that are no more than a specified
+number of columns wide.  Filled lines end between words, and therefore
+may have to be shorter than the maximum width.
 
-     *Note:* in version 19, `blink-paren-hook' and `auto-fill-hook'
-     are renamed to `blink-paren-function' and `auto-fill-function'
-     respectively, since they are not called by the `run-hooks'
-     function.
+   Auto Fill mode is a minor mode in which Emacs fills lines
+automatically as text as inserted.  This section describes the hook and
+the two variables used by Auto Fill mode.  For a description of
+functions that you can call manually to fill and justify text, see
+*Note Filling::.
 
-`auto-fill-hook'
-`blink-paren-hook'
-`c-mode-hook'
-`command-history-hook'
-`comment-indent-hook'
-`define-hooked-global-abbrev'
-`define-hooked-local-abbrev'
-`dired-mode-hook'
-`disabled-command-hook'
-`edit-picture-hook'
-`electric-buffer-menu-mode-hook'
-`electric-command-history-hook'
-`electric-help-mode-hook'
-`emacs-lisp-mode-hook'
-`find-file-hooks'
-`find-file-not-found-hooks'
-`fortran-comment-hook'
-`fortran-mode-hook'
-`ftp-setup-write-file-hooks'
-`ftp-write-file-hook'
-`indent-mim-hook'
-`LaTeX-mode-hook'
-`ledit-mode-hook'
-`lisp-indent-hook'
-`lisp-interaction-mode-hook'
-`lisp-mode-hook'
-`m2-mode-hook'
-`mail-mode-hook'
-`mail-setup-hook'
-`medit-mode-hook'
-`mh-compose-letter-hook'
-`mh-folder-mode-hook'
-`mh-letter-mode-hook'
-`mim-mode-hook'
-`news-mode-hook'
-`news-reply-mode-hook'
-`news-setup-hook'
-`nroff-mode-hook'
-`outline-mode-hook'
-`plain-TeX-mode-hook'
-`prolog-mode-hook'
-`protect-innocence-hook'
-`rmail-edit-mode-hook'
-`rmail-mode-hook'
-`rmail-summary-mode-hook'
-`scheme-indent-hook'
-`scheme-mode-hook'
-`scribe-mode-hook'
-`shell-mode-hook'
-`shell-set-directory-error-hook'
-`suspend-hook'
-`suspend-resume-hook'
-`temp-buffer-show-hook'
-`term-setup-hook'
-`terminal-mode-hook'
-`terminal-mode-break-hook'
-`TeX-mode-hook'
-`text-mode-hook'
-`vi-mode-hook'
-`view-hook'
-`write-file-hooks'
-`x-process-mouse-hook'
+ - Variable: auto-fill-function
+     The value of this variable should be a function (of no arguments)
+     to be called after self-inserting a space at a column beyond
+     `fill-column'.  It may be `nil', in which case nothing special is
+     done.
+
+     The default value for `auto-fill-function' is `do-auto-fill', a
+     function whose sole purpose is to implement the usual strategy for
+     breaking a line.
+
+          In older Emacs versions, this variable was named
+          `auto-fill-hook', but since it is not called with the
+          standard convention for hooks, it was renamed to
+          `auto-fill-function' in version 19.
+
+
+File: lispref.info,  Node: Sorting,  Next: Indentation,  Prev: Filling,  Up: Text
+
+Sorting Text
+============
+
+   The sorting commands described in this section all rearrange text in
+a buffer.  This is in contrast to the function `sort', which rearranges
+the order of the elements of a list (*note Rearrangement::.).  The
+values returned by these commands are not meaningful.
+
+ - Command: sort-regexp-fields REVERSE RECORD-REGEXP KEY-REGEXP START
+          END
+     This command sorts the region between START and END alphabetically
+     as specified by RECORD-REGEXP and KEY-REGEXP.  If REVERSE is a
+     negative integer, then sorting is in reverse order.
+
+     Alphabetical sorting means that two sort keys are compared by
+     comparing the first characters of each, the second characters of
+     each, and so on.  If a mismatch is found, it means that the sort
+     keys are unequal; the sort key whose character is less at the
+     point of first mismatch is the lesser sort key.  The individual
+     characters are compared according to their numerical values.
+     Since Emacs uses the ASCII character set, the ordering in that set
+     determines alphabetical order.
+
+     The value of the RECORD-REGEXP argument specifies the textual
+     units or "records" that should be sorted.  At the end of each
+     record, a search is done for this regular expression, and the text
+     that matches it is the next record.  For example, the regular
+     expression `^.+$', which matches lines with at least one character
+     besides a newline, would make each such line into a sort record.
+     *Note Regular Expressions::, for a description of the syntax and
+     meaning of regular expressions.
+
+     The value of the KEY-REGEXP argument specifies what part of each
+     record is to be compared against the other records.  The
+     KEY-REGEXP could match the whole record, or only a part.  In the
+     latter case, the rest of the record has no effect on the sorted
+     order of records, but it is carried along when the record moves to
+     its new position.
+
+     The KEY-REGEXP argument can refer to the text matched by a
+     subexpression of RECORD-REGEXP, or it can be a regular expression
+     on its own.
+
+     If KEY-REGEXP is:
+
+    `\DIGIT'
+          then the text matched by the DIGITth `\(...\)' parenthesis
+          grouping in RECORD-REGEXP is used for sorting.
+
+    `\&'
+          then the whole record is used for sorting.
+
+    a regular expression
+          then the function searches for a match for the regular
+          expression within the record.  If such a match is found, it
+          is used for sorting.  If a match for KEY-REGEXP is not found
+          within a record then that record is ignored, which means its
+          position in the buffer is not changed.  (The other records
+          may move around it.)
+
+     For example, if you plan to sort all the lines in the region by the
+     first word on each line starting with the letter `f', you should
+     set RECORD-REGEXP to `^.*$' and set KEY-REGEXP to `\<f\w*\>'.  The
+     resulting expression looks like this:
+
+          (sort-regexp-fields nil "^.*$" "\\<f\\w*\\>"
+                              (region-beginning)
+                              (region-end))
+
+     If you call `sort-regexp-fields' interactively, you are prompted
+     for RECORD-REGEXP and KEY-REGEXP in the minibuffer.
+
+ - Command: sort-subr REVERSE NEXTRECFUN ENDRECFUN &optional
+          STARTKEYFUN ENDKEYFUN
+     This command is the general text sorting routine that divides a
+     buffer into records and sorts them.  The functions `sort-lines',
+     `sort-paragraphs', `sort-pages', `sort-fields',
+     `sort-regexp-fields' and `sort-numeric-fields' all use `sort-subr'.
+
+     To understand how `sort-subr' works, consider the whole accessible
+     portion of the buffer as being divided into disjoint pieces called
+     "sort records".  A portion of each sort record (perhaps all of it)
+     is designated as the sort key.  The records are rearranged in the
+     buffer in order by their sort keys.  The records may or may not be
+     contiguous.
+
+     Usually, the records are rearranged in order of ascending sort key.
+     If the first argument to the `sort-subr' function, REVERSE, is
+     non-`nil', the sort records are rearranged in order of descending
+     sort key.
+
+     The next four arguments to `sort-subr' are functions that are
+     called to move point across a sort record.  They are called many
+     times from within `sort-subr'.
+
+       1. NEXTRECFUN is called with point at the end of a record.  This
+          function moves point to the start of the next record.  The
+          first record is assumed to start at the position of point
+          when `sort-subr' is called.  (Therefore, you should usually
+          move point to the beginning of the buffer before calling
+          `sort-subr'.)
+
+          This function can indicate there are no more sort records by
+          leaving point at the end of the buffer.
+
+       2. ENDRECFUN is called with point within a record.  It moves
+          point to the end of the record.
+
+       3. STARTKEYFUN is called to move point from the start of a
+          record to the start of the sort key.  This argument is
+          optional.  If supplied, the function should either return a
+          non-`nil' value to be used as the sort key, or return `nil'
+          to indicate that the sort key is in the buffer starting at
+          point.  In the latter case, ENDKEYFUN is called to find the
+          end of the sort key.
+
+       4. ENDKEYFUN is called to move point from the start of the sort
+          key to the end of the sort key.  This argument is optional.
+          If STARTKEYFUN returns `nil' and this argument is omitted (or
+          `nil'), then the sort key extends to the end of the record.
+          There is no need for ENDKEYFUN if STARTKEYFUN returns a
+          non-`nil' value.
+
+     As an example of `sort-subr', here is the complete function
+     definition for `sort-lines':
+
+          ;; Note that the first two lines of doc string
+          ;; are effectively one line when viewed by a user.
+          (defun sort-lines (reverse beg end)
+            "Sort lines in region alphabetically;\
+           argument means descending order.
+          Called from a program, there are three arguments:
+          REVERSE (non-nil means reverse order),
+          and BEG and END (the region to sort)."
+            (interactive "P\nr")
+            (save-restriction
+              (narrow-to-region beg end)
+              (goto-char (point-min))
+              (sort-subr reverse
+                         'forward-line
+                         'end-of-line)))
+
+     Here `forward-line' moves point to the start of the next record,
+     and `end-of-line' moves point to the end of record.  We do not pass
+     the arguments STARTKEYFUN and ENDKEYFUN, because the entire record
+     is used as the sort key.
+
+     The `sort-paragraphs' function is very much the same, except that
+     its `sort-subr' call looks like this:
+
+          (sort-subr reverse
+                     (function
+                      (lambda ()
+                        (skip-chars-forward "\n \t\f")))
+                     'forward-paragraph)
+
+ - Command: sort-lines REVERSE START END
+     This command sorts lines in the region between START and END
+     alphabetically.  If REVERSE is non-`nil', the sort is in reverse
+     order.
+
+ - Command: sort-paragraphs REVERSE START END
+     This command sorts paragraphs in the region between START and END
+     alphabetically.  If REVERSE is non-`nil', the sort is in reverse
+     order.
+
+ - Command: sort-pages REVERSE START END
+     This command sorts pages in the region between START and END
+     alphabetically.  If REVERSE is non-`nil', the sort is in reverse
+     order.
+
+ - Command: sort-fields FIELD START END
+     This command sorts lines in the region between START and END,
+     comparing them alphabetically by the FIELDth field of each line.
+     Fields are separated by whitespace and numbered starting from 1.
+     If FIELD is negative, sorting is by the -FIELDth field from the
+     end of the line.  This command is useful for sorting tables.
+
+ - Command: sort-numeric-fields FIELD START END
+     This command sorts lines in the region between START and END,
+     comparing them numerically by the FIELDth field of each line.
+     Fields are separated by whitespace and numbered starting from 1.
+     The specified field must contain a number in each line of the
+     region.  If FIELD is negative, sorting is by the -FIELDth field
+     from the end of the line.  This command is useful for sorting
+     tables.
+
+ - Command: sort-columns REVERSE &optional BEG END
+     This command sorts the lines in the region between BEG and END,
+     comparing them alphabetically by a certain range of columns.  The
+     column positions of BEG and END bound the range of columns to sort
+     on.
+
+     If REVERSE is non-`nil', the sort is in reverse order.
+
+     One unusual thing about this command is that the entire line
+     containing position BEG, and the entire line containing position
+     END, are included in the region sorted.
+
+     Note that `sort-columns' uses the `sort' utility program, and so
+     cannot work properly on text containing tab characters.  Use `M-x
+     `untabify'' to convert tabs to spaces before sorting.
+
+     The `sort-columns' function did not work on VMS prior to Emacs 19.
+
+
+File: lispref.info,  Node: Indentation,  Next: Columns,  Prev: Sorting,  Up: Text
+
+Indentation
+===========
+
+   The indentation functions are used to examine, move to, and change
+whitespace that is at the beginning of a line.  Some of the functions
+can also change whitespace elsewhere on a line.  Indentation always
+counts from zero at the left margin.
+
+* Menu:
+
+* Primitive Indent::      Functions used to count and insert indentation.
+* Mode-Specific Indent::  Customize indentation for different modes.
+* Region Indent::         Indent all the lines in a region.
+* Relative Indent::       Indent the current line based on previous lines.
+* Indent Tabs::           Adjustable, typewriter-like tab stops.
+* Motion by Indent::      Move to first non-blank character.
+
+
+File: lispref.info,  Node: Primitive Indent,  Next: Mode-Specific Indent,  Up: Indentation
+
+Indentation Primitives
+----------------------
+
+   This section describes the primitive functions used to count and
+insert indentation.  The functions in the following sections use these
+primitives.
+
+ - Function: current-indentation
+     This function returns the indentation of the current line, which is
+     the horizontal position of the first nonblank character.  If the
+     contents are entirely blank, then this is the horizontal position
+     of the end of the line.
+
+ - Command: indent-to COLUMN &optional MINIMUM
+     This function indents from point with tabs and spaces until COLUMN
+     is reached.  If MINIMUM is specified and non-`nil', then at least
+     that many spaces are inserted even if this requires going beyond
+     COLUMN.  The value is the column at which the inserted indentation
+     ends.
+
+ - User Option: indent-tabs-mode
+     If this variable is non-`nil', indentation functions can insert
+     tabs as well as spaces.  Otherwise, they insert only spaces.
+     Setting this variable automatically makes it local to the current
+     buffer.
 

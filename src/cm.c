@@ -25,6 +25,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "lisp.h"
 #include "systty.h"
 #include "cm.h"
+#include "window.h"
 #include "termhooks.h"
 #include "dispmisc.h"
 
@@ -32,6 +33,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 				   use about 2000.... */
 
 extern char *tgoto (CONST char *cm, int hpos, int vpos);
+#ifdef TERMINFO
+extern void tputs (CONST char *, int, void (*)(int));
+#endif
 
 extern CONST char *BC, *UP;
 

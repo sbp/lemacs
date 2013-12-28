@@ -1,5 +1,5 @@
 ;; Keymap functions.
-;; Copyright (C) 1993 Free Software Foundation, Inc.
+;; Copyright (C) 1993, 1994 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -16,6 +16,34 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+
+;; Used by C code (lookup-key and friends) but defined here.
+(defvar minor-mode-map-alist nil
+  "Alist of keymaps to use for minor modes.
+Each element looks like (VARIABLE . KEYMAP); KEYMAP is used to read
+key sequences and look up bindings iff VARIABLE's value is non-nil.
+If two active keymaps bind the same key, the keymap appearing earlier
+in the list takes precedence.")
+
+
+(defun keymap-parent (keymap)
+  "Returns the first parent of the given keymap.
+This is obsolete; use `keymap-parents' instead."
+  (car (keymap-parents keymap)))
+
+(defun set-keymap-parent (keymap parent)
+  "Makes the given keymap have (only) the given parent.
+This is obsolete; use `set-keymap-parents' instead."
+  (set-keymap-parents keymap (if parent (list parent) '()))
+  parent)
+
+(defvar mode-line-map (let ((m (make-sparse-keymap)))
+			(set-keymap-name m 'mode-line-map)
+			m)
+  "Keymap consulted for mouse-clicks on the modeline of a window.
+This variable may be buffer-local; its value will be looked up in
+the buffer of the window whose modeline was clicked upon.")
+
 
 ;Prevent the \{...} documentation construct
 ;from mentioning keys that run this command.
@@ -110,6 +138,55 @@ as described in the documentation for the `define-key' function."
   (if (current-local-map)
       (define-key (current-local-map) keys nil)))
 
+
+;; Yet more RMS brain-death.
+(defun minor-mode-key-binding (key &optional accept-default)
+  "Find the visible minor mode bindings of KEY.
+Return an alist of pairs (MODENAME . BINDING), where MODENAME is the
+the symbol which names the minor mode binding KEY, and BINDING is
+KEY's definition in that mode.  In particular, if KEY has no
+minor-mode bindings, return nil.  If the first binding is a
+non-prefix, all subsequent bindings will be omitted, since they would
+be ignored.  Similarly, the list doesn't include non-prefix bindings
+that come after prefix bindings.
+
+If optional argument ACCEPT-DEFAULT is non-nil, recognize default
+bindings; see the description of `lookup-key' for more details about this."
+  (let ((tail minor-mode-map-alist)
+        a s v)
+    (while tail
+      (setq a (car tail)
+            tail (cdr tail))
+      (and (consp a)
+           (symbolp (setq s (car a)))
+           (boundp s)
+           (symbol-value s)
+           ;; indirect-function deals with autoloadable keymaps
+           (setq v (indirect-function (cdr a)))
+           (setq v (lookup-key v key accept-default))
+           ;; Terminate loop, with v set to non-nil value
+           (setq tail nil)))
+    v))
+    
+
+(defun current-minor-mode-maps ()
+  "Return a list of keymaps for the minor modes of the current buffer."
+  (let ((l '())
+        (tail minor-mode-map-alist)
+        a s v)
+    (while tail
+      (setq a (car tail)
+            tail (cdr tail))
+      (and (consp a)
+           (symbolp (setq s (car a)))
+           (boundp s)
+           (symbol-value s)
+           ;; indirect-function deals with autoloadable keymaps
+           (setq v (indirect-function (cdr a)))
+           (setq l (cons v l))))
+    (nreverse l)))
+
+
 ;;>>> What a crock
 (defun define-prefix-command (name &optional mapvar)
   "Define COMMAND as a prefix command.
@@ -147,20 +224,24 @@ Optional arg NO-MICE means that button events are not allowed."
    (signal 'wrong-type-argument (list 'vectorp events)))
   ((let* ((length (length events))
 	  (string (make-string length 0))
-	  c
+	  c ce
 	  (i 0))
      (while (< i length)
-       (setq c (aref events i))
+       (setq ce (aref events i))
+       (or (eventp ce) (setq ce (character-to-event ce)))
+       ;; Normalize `c' to `?c' and `(control k)' to `?\C-k'
+       ;; By passing t for the `allow-meta' arg we could get kbd macros
+       ;; with meta in them to translate to the string form instead of
+       ;; the list/symbol form; but I expect that would cause confusion,
+       ;; so let's use the list/symbol form whenever there's any ambiguity.
+       (setq c (event-to-character ce))
        (if (and character-set-property
-		(key-press-event-p c)
-		(symbolp (event-key c))
-		(get (event-key c) character-set-property))
+		(key-press-event-p ce)
+		(symbolp (event-key ce))
+		(get (event-key ce) character-set-property))
 	   ;; Don't use a string for `backspace' and `tab' to avoid that
 	   ;; pleasant little ambiguity.
-	   (setq c nil)
-	 ;; #### arrrgh, need a way to do (event-to-character 'oslash)
-	 ;; #### and (event-to-character '(control k))...
-	 (setq c (and (eventp c) (event-to-character c))))
+	   (setq c nil))
        (if c
 	   (aset string i c)
 	 (setq i length string nil))
@@ -207,15 +288,9 @@ Optional arg NO-MICE means that button events are not allowed."
 
 ;;; Deciding which map's binding to use.
 
-(defvar mode-line-map (let ((m (make-sparse-keymap)))
-			(set-keymap-name m 'mode-line-map)
-			m)
-  "Keymap consulted for mouse-clicks on the modeline of a window.
-This variable may be buffer-local; its value will be looked up in
-the buffer of the window whose modeline was clicked upon.")
-
-
 ;; Moved back to C.  Sigh.
+;;  This definition has also bit-rotted WRT the C code:
+;;   no extent-local keymaps, no overriding-local-map, no minor-mode maps
 ;(defun key-binding (keys)
 ;  "Return the binding for command KEYS in current keymaps.
 ;KEYS is a string, a vector of events, or a vector of key-description lists
