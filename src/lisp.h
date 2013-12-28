@@ -17,6 +17,10 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifndef _EMACS_LISP_H_
+#define _EMACS_LISP_H_
+
+#ifdef emacs	/* some things other than emacs want the structs */
 #if __STDC__
 
 /* I don't know how correct this attempt to get more prototypes is... */
@@ -36,15 +40,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #  include <sysent.h>
 # endif
 
-#ifndef index
-extern char *index (const char *, char);
-#endif
-
 #ifdef NeXT
 typedef int pid_t;
 #endif
 
 #endif /* __STDC__ */
+#endif /* emacs */
 
 /* Define the fundamental Lisp data structures */
 
@@ -518,9 +519,13 @@ struct Lisp_Event;
 struct Lisp_Process;
 
 
+#ifdef emacs /* gdb doesn't like this */
+
 /* A character, declared with the following typedef, is a member
    of some character set associated with the current buffer. */
 typedef unsigned char UCHAR;
+
+#endif /* emacs */
 
 /* A UCHAR is displayed on a given terminal by means of a
    sequence of one or more GLYPHs.
@@ -567,6 +572,8 @@ typedef unsigned short GLYPH;
 #endif
 
 #define EQ(x, y) (XFASTINT (x) == XFASTINT (y))
+
+#ifdef emacs
 
 #define CHECK_LIST(x, i) \
   { if ((!CONSP ((x))) && !NILP (x)) x = wrong_type_argument (Qlistp, (x)); }
@@ -682,6 +689,7 @@ typedef unsigned short GLYPH;
 #ifndef PNTR_COMPARISON_TYPE
 #define PNTR_COMPARISON_TYPE unsigned int
 #endif
+
 
 /* Define a built-in function for calling from Lisp.
  `lname' should be the name to give the function in Lisp,
@@ -922,67 +930,10 @@ extern void staticpro (Lisp_Object *);
    Used during startup to detect startup of dumped Emacs.  */
 extern int initialized;
 
-extern int immediate_quit;	    /* Nonzero means ^G can quit instantly */
-
-
-/* Defined in eval.c */
-extern Lisp_Object Qautoload, Qexit, Qinteractive, Qcommandp, Qdefun, Qmacro;
-extern Lisp_Object Vinhibit_quit, Vquit_flag, Qinhibit_quit;
-extern Lisp_Object Vmocklisp_arguments, Qmocklisp, Qmocklisp_arguments;
-extern Lisp_Object Vautoload_queue;
-extern Lisp_Object Vrun_hooks;
-extern Lisp_Object Fuser_variable_p (Lisp_Object);
-extern Lisp_Object Finteractive_p (void);
-extern void signal_error (Lisp_Object sig, Lisp_Object data);
-extern Lisp_Object Fprogn (Lisp_Object args);
-extern Lisp_Object Fcommandp (Lisp_Object obj);
-extern Lisp_Object Feval (Lisp_Object form);
-extern Lisp_Object Fapply (int nargs, Lisp_Object *args);
-extern Lisp_Object Ffuncall (int nargs, Lisp_Object *args);
-extern Lisp_Object Fbacktrace (Lisp_Object stream);
-extern Lisp_Object apply1 (Lisp_Object fn, Lisp_Object args);
-extern Lisp_Object call0 (Lisp_Object fn);
-extern Lisp_Object call1 (Lisp_Object fn, Lisp_Object arg0);
-extern Lisp_Object call2 (Lisp_Object fn, Lisp_Object a0, Lisp_Object a1);
-extern Lisp_Object call3 (Lisp_Object fn,
-                          Lisp_Object a0, Lisp_Object a1, Lisp_Object a2);
-extern Lisp_Object call4 (Lisp_Object fn,
-                          Lisp_Object a0, Lisp_Object a1, Lisp_Object a2,
-                          Lisp_Object a3);
-extern Lisp_Object call5 (Lisp_Object fn,
-                          Lisp_Object a0, Lisp_Object arg1, Lisp_Object a2,
-                          Lisp_Object a3, Lisp_Object a4);
-extern Lisp_Object Fsignal (Lisp_Object signame, Lisp_Object data);
-/* C Code should be using internal_catch, record_unwind_p, condition_case_1 */
-/* extern Lisp_Object Fcatch (Lisp_Object args); */
-/* extern Lisp_Object Funwind_protect (Lisp_Object args); */
-/* extern Lisp_Object Fcondition_case (Lisp_Object args); */
-extern Lisp_Object Fthrow (Lisp_Object tag, Lisp_Object val);
-extern Lisp_Object internal_catch (Lisp_Object tag, 
-                                   Lisp_Object (*func) (Lisp_Object arg),
-                                   Lisp_Object arg);
-extern Lisp_Object condition_case_1 (Lisp_Object handlers,
-                                     Lisp_Object (*bfun) (Lisp_Object barg),
-                                     Lisp_Object barg,
-                                     Lisp_Object (*hfun) (Lisp_Object val,
-                                                          Lisp_Object harg),
-                                     Lisp_Object harg);
-extern Lisp_Object Fcondition_case_3 (Lisp_Object bodyform, 
-                                      Lisp_Object var, 
-                                      Lisp_Object handlers);
-extern Lisp_Object unbind_to (int n, Lisp_Object val);
-extern void specbind (Lisp_Object symbol, Lisp_Object value);
-extern void record_unwind_protect (Lisp_Object (*function) (Lisp_Object),
-                                   Lisp_Object arg);
-extern void do_autoload (Lisp_Object fundef, Lisp_Object funname);
-extern void error ();
+extern int immediate_quit;	   /* Nonzero means ^G can quit instantly */
 
 #include "emacsfns.h"
 
-
-#ifdef MAINTAIN_ENVIRONMENT
-extern char *egetenv (const char *);
-extern char *getenv (const char *);
-#else
-#define egetenv getenv
-#endif
+#endif /* emacs */
+
+#endif /* _EMACS_LISP_H_ */

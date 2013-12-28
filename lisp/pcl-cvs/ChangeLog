@@ -1,0 +1,321 @@
+Wed Sep 23 21:18:09 1992  Per Cederqvist  (ceder@robert)
+
+	* Release 1.03.1.
+
+	* pcl-cvs.texinfo: Don't say that this is included in CVS 1.3.
+
+	* pcl-cvs.el (cvs-do-update): It should be "cvs -n update -l", not
+	"cvs -l update -n". Put the -n and/or -l in the message that is
+	displayed in the *cvs* buffer during the update.
+
+	* pcl-cvs.el (cvs-parse-stderr): Try to handle the output from RCS
+	when it is compiled without DIFF3_BIN and a conflict occurs.
+
+	* pcl-cvs.el (cvs-do-update): Check that CVSROOT is set.
+	* pcl-cvs.el (cvs-diff-cvs): Check that cvs-cvs-diff-flags is a
+	list.
+	* pcl-cvs.el (cvs-diff-backup): Check that cvs-diff-flags is a
+	list.
+
+	* pcl-cvs.el (cvs-parse-error): Make the *cvs* buffer writeable
+	before trying to write the email message. Require sendmail before
+	trying to switch to mail-mode.
+
+	* pcl-cvs.el (cvs-do-update): Check that cvs-program exists.
+
+	* pcl-cvs.el (cvs-skip-line): Fixed bracketing error.
+
+Fri Aug 21 15:17:08 1992  Per Cederqvist  (ceder@maskros)
+
+	* pcl-cvs.el (cvs-parse-stderr): Fixed two "(set head" that should
+	be "(setq head".
+
+Mon Jul 20 10:31:51 1992  Per Cederqvist  (ceder@robin)
+
+	* Release 1.03.
+
+	* pcl-cvs.el, cookie.el: Indentation fixes.
+
+	* Makefile (pcl-cvs-$(VER)): Include NEWS in the distribution.
+
+	* pcl-cvs.el (cvs-rm-program): Deleted.
+	* pcl-cvs.el (cvs-rmdir-program, cvs-lock-file): New variables.
+
+	* Handle lock files in a nicer way:
+	* pcl-cvs.el (cvs-update-filter, cvs-delete-lock,
+	cvs-lock-file-p): New functions.
+	* pcl-cvs.el (cvs-do-update, cvs-sentinel): Redirect stdout to the
+	temporary file, not stderr. Use cvs-update-filter.
+	* pcl-cvs.el (cvs-parse-update): New arguments.
+	* pcl-cvs.el (cvs-parse-buffer): Renamed to cvs-parse-update.
+	* pcl-cvs.el (cvs-stderr-file): Renamed to cvs-stdout-file.
+	* pcl-cvs.texinfo (Miscellaneous commands, Updating the
+	directory): Document cvs-delete-lock.
+
+	* pcl-cvs.el (cvs-mode): Don't reset buffer-read-only.
+
+	* pcl-cvs.el (cvs-find-file-other-window): Don't save-some-buffers.
+
+Thu Jul 16 00:19:58 1992  Per Cederqvist  (ceder@robin)
+
+	* pcl-cvs.el, test-cookie-el: Use the new names from cookie.el.
+
+	* cookie.el: Big Renaming Time!
+	  External functions:
+	      cookie-next     	      ->  tin-next
+	      cookie-previous	      ->  tin-previous
+	      cookie-nth	      ->  tin-nth
+	      cookie-delete	      ->  tin-delete
+	      cookie-filter-tins      ->  tin-filter
+	      cookie-get-selection    ->  tin-get-selection
+	      cookie-start-marker     ->  tin-start-marker
+	      cookie-end-marker       ->  tin-end-marker
+	      cookie-invalidate-tins  ->  tin-invalidate-tins
+	      cookie-collect-tins     ->  tin-collect
+	      cookie-collect-cookies  ->  cookie-collect
+	  Internal functions:
+	      cookie-create-tin            ->  cookie-create-wrapper
+	      cookie-tin-start-marker      ->  cookie-wrapper-start-marker
+	      cookie-tin-cookie-safe       ->  cookie-wrapper-cookie-safe
+	      cookie-tin-cookie            ->  cookie-wrapper-cookie
+	      set-cookie-tin-start-marker  ->  cookie-wrapper-set-start-marker
+	      set-cookie-tin-cookie	   ->  cookie-wrapper-set-cookie
+	      cookie-tin-p		   ->  cookie-wrapper-p
+	      cookie-create-tin-and-insert ->  cookie-create-wrapper-and-insert
+
+	* pcl-cvs.el (cvs-find-file, cvs-find-file-other-window): Signal
+	an appropriate error message if the *cvs* buffer is empty.
+
+	* cookie.el (cookie-create): Make the buffer read-only.
+	* cookie.el (cookie-create-tin-and-insert, cookie-refresh,
+	cookie-delete-tin-internal, cookie-refresh-tin): Bind
+	buffer-read-only to nil while changing the contents of 
+	the buffer.
+
+	* pcl-cvs.el (cvs-byte-compile-files): New function.
+	* pcl-cvs.texinfo (Miscellaneous commands): Document it.
+
+	* pcl-cvs.el (cvs-diff-ignore-marks): New variable.
+	* pcl-cvs.el (cvs-diff-cvs, cvs-diff-backup): Don't consider
+	marked files to be selected if a prefix argument is given XOR the
+	variable cvs-diff-ignore-marks is non-nil.
+	* pcl-cvs.el (cvs-get-marked): New optional argument `ignore-marks'.
+	* pcl-cvs.texinfo (Customization, Viewing differences): Document
+	this behaviour.
+
+	* pcl-cvs.el (cvs-undo-local-changes): New function.
+	* pcl-cvs.texinfo (Undoing changes): Document
+	cvs-undo-local-changes.
+	* pcl-cvs.el (cvs-mode-map): cvs-unmark-all-files moved from "U"
+	to "ESC DEL".  cvs-undo-local-changes bound to "U".
+	* pcl-cvs.texinfo (Marking files): Document ESC DEL.
+
+	* pcl-cvs.el (cvs-skip-line): New arguments. All callers updated.
+	Now calls cvs-parse-error if a parse error occurs.
+	* pcl-cvs.el (cvs-parse-error): New function that creates a bug
+	report.
+	* pcl-cvs.el (cvs-parse-stderr, cvs-parse-stdout): New arguments.
+	The only caller (cvs-parse-buffer) updated. Call cvs-parse-error
+	in case of parse error.
+
+	* pcl-cvs.el (pcl-cvs-version): New variable.
+
+	* cookie.el (cookie-create): Kill all local variables in the buffer.
+
+Fri Jul 10 11:17:40 1992  Per Cederqvist  (ceder@robin)
+
+	* Release 1.03beta1.
+
+Thu Jul  9 03:12:00 1992  Per Cederqvist  (ceder@robin)
+
+	* pcl-cvs.el (cvs-update-running): New variable.
+	* pcl-cvs.el (cvs-do-update): Use it instead of the previous local
+	variable cvs-process (that no longer exists).  Make sure that only
+	one `cvs update' runs at any given moment.
+	* pcl-cvs.el (cvs-sentinel): Reset cvs-update-running when the
+	update process exits.
+
+	* pcl-cvs.el (cvs-update): Switch to the *cvs* buffer.
+	* pcl-cvs.el (cvs-update-other-window): New function.
+	* pcl-cvs-startup.el (cvs-update-other-window): Added a autoload
+	for it.
+	* pcl-cvs.el (cvs-do-update): Don't pop up any buffer in a window
+	- let cvs-update or cvs-update-other-window handle that.  Also
+	don't kill the *cvs* buffer, but rather insert a "Running cvs..."
+	message into it.
+	* pcl-cvs.el (cvs-parse-buffer): Don't change the window
+	configuration.
+
+	* pcl-cvs.el (cvs-create-fileinfo, cvs-pp, cvs-fileninfo->type):
+	New type for a fileinfo: MESSAGE.
+
+	* pcl-cvs.el (cvs-cvs-buffer): Deleted the variable. Use
+	cvs-buffer-name instead. (I no longer have any plans to allow more
+	than one cvs update to run at the same time - things only get
+	confusing). Changed all places where cvs-cvs-buffer was used.
+
+	* pcl-cvs.el: Take care of update programs (the -u option in the
+	modules file):
+	* pcl-cvs.el (cvs-update-prog-output-skip-regexp): New variable.
+	* pcl-cvs.el (cvs-parse-stdout): Skip output from the update
+	program (using cvs-update-prog-output-skip-regexp).
+	* pcl-cvs.texinfo (Future enhancements): Document that the
+	solution is not as good as it should be.
+	* pcl-cvs.texinfo (Customization): Document the variable.
+
+Wed Jul  8 20:29:44 1992  Per Cederqvist  (ceder@robin)
+
+	* pcl-cvs.el (cvs-do-update): Check that this-dir really exists
+	and is a directory, and that this-dir/CVS exists and is a
+	directory.
+
+Tue Jul  7 01:02:24 1992  Per Cederqvist  (ceder@robin)
+
+	* pcl-cvs.texinfo (Customization): Document TMPDIR.
+
+	* This chunk of modifications should make it possible to run
+	pcl-cvs on hosts that do not line-buffer stdout (such as
+	DECstation).  They work by diverting stdout and stderr from 
+	`cvs update' and later sorting them together.
+	* pcl-cvs.el (cvs-parse-stderr): Don't fail to parse conflict
+	data.
+        * pcl-cvs.el (cvs-remove-stdout-shadows, cvs-shadow-entry-p): New
+	functions.
+	* pcl-cvs.el (cvs-parse-buffer): Use it.
+	* pcl-cvs.el (cvs-remove-empty-directories): New function.
+	* pcl-cvs.el (cvs-remove-handled, cvs-parse-buffer): Use it.
+	* pcl-cvs.el (cvs-get-current-dir): New argument ROOT-DIR. All
+	calls to cvs-get-current-dir updated.
+	* pcl-cvs.el (cvs-do-update): Allocate a tmp file. Use cvs-shell
+	(typically /bin/sh) to redirect stderr from CVS to the tmp file.
+	* pcl-cvs.el (cvs-sentinel): Handle the tmp file. Remove it when
+	it is parsed.
+	* pcl-cvs.el (cvs-parse-buffer): New argument STDERR-BUFFER. All
+	calls to cvs-parse-buffer updated. Rewritten to handle the
+	separation of stderr and stdout.
+	* pcl-cvs.el (cvs-shell, cvs-stderr-file): New variables.
+	* pcl-cvs.el (cvs-compare-fileinfos, cvs-parse-stderr,
+	cvs-parse-stdout): New functions.
+
+	* pcl-cvs.el (cvs-parse-buffer): Some modifications for output
+	from RCS 5.6.
+
+Tue Apr  7 09:11:27 1992  Per Cederqvist  (ceder@leopold)
+
+	* Release 1.02.
+
+	* pcl-cvs.el (cvs-diff-backup, cvs-edit-done, cvs-status): Call
+	save-some-buffers.
+
+	* pcl-cvs.el (cvs-diff-backup-extractor): Fixed syntax error.
+
+	* Makefile, README, compile-all.el, dist-makefile, pcl-cvs.el,
+	pcl-cvs.texinfo (XXRELEASEXX): A magic string that is substituted
+	for the current release number when a distribution is made.
+	(Release 1.01 says that it is release 1.00).
+
+	* pcl-cvs.el (cvs-find-file): Added missing pair of parenthesis.
+
+Mon Mar 30 14:25:26 1992  Per Cederqvist  (ceder@leopold)
+
+	* Release 1.01.
+
+	* pcl-cvs.el (cvs-parse-buffer): The message when waiting for a
+	lock has been changed.
+
+Sun Mar 29 05:29:57 1992  Per Cederqvist  (ceder@leopold)
+
+	* Release 1.00.
+
+	* pcl-cvs.el (cvs-do-update, cvs-sentinel, cvs-parse-buffer):
+	Major rewrite of buffer and window selection and handling.  
+	The *cvs* buffer is now killed whenever a new "cvs update" is
+	initiated.  The -update buffer is replaced with the *cvs* 
+	buffer when the update is completed.
+
+Sat Mar 28 21:03:05 1992  Per Cederqvist  (ceder@robin)
+
+	* pcl-cvs.el (cvs-delete-unused-temporary-buffers): Fixed it.
+
+	* pcl-cvs.el (cvs-auto-remove-handled): New variable.
+	* pcl-cvs.el (cvs-edit-done): Use it.
+	* pcl-cvs.texinfo (Customization, Removing handled entries):
+	Document it.
+
+	* pcl-cvs.el (cvs-mode): Turn of the undo feature.  It really
+	isn't useful in a cookie buffer...
+
+	* pcl-cvs.el (cvs-edit-done): Committing a file now looks more
+	like diffing a file.  The window handling is better.
+	* pcl-cvs.el (cvs-use-temp-buffer): The &optional switch is no
+	longer needed.
+
+Mon Mar 23 00:20:33 1992  Per Cederqvist  (ceder@robin)
+
+	* Release 0.97.
+
+	* pcl-cvs.el (default-directory): Make sure it always ends in a
+	slash. fileinfo->dir does NOT end in a slash, and I had forgotten
+	to call	file-name-as-directory in various places.
+
+	* pcl-cvs.el (cvs-diff-backup-extractor): Signal an error if a
+	fileinfo without backup file is given.
+
+	* pcl-cvs.el (cvs-mode): Added documentation.
+
+	* pcl-cvs.el (cvs-execute-list): Fix the order of files in the
+	same directory.
+
+	* pcl-cvs.el (cvs-log-flags, cvs-status-flags): New variables.
+	* pcl-cvs.el (cvs-log, cvs-status): Use them.
+	* pcl-cvs.texinfo (Customization): Document them.
+
+	* pcl-cvs.el (cvs-diff-backup): Filter non-backup-diffable files
+	at an earlier stage, like cvs-commit does.
+
+	* pcl-cvs.el (cvs-diff-flags): New variable.
+	* pcl-cvs.el (cvs-diff-backup): Use it.
+	* pcl-cvs.texinfo (Customization): Document it.
+
+	* pcl-cvs.el (cvs-execute-single-file-list): Remove &rest before
+	last argument.  No callers needed updating.
+
+	* pcl-cvs.el (cvs-execute-list): Remove the &rest before the last
+	argument (constant-args).  Update all callers of cvs-execute-list
+	to use the new calling convention.
+	* pcl-cvs.el (cvs-cvs-diff-flags): Now a list of strings instead
+	of a string.
+	* pcl-cvs.texinfo (Customization): Document the change to
+	cvs-cvs-diff-flags.
+
+	* Release 0.96.
+
+	* pcl-cvs.el (cvs-cvs-diff-flags): New variable.
+	* pcl-cvs.el (cvs-diff-cvs): Use it.
+	* pcl-cvs.texinfo (Customization, Viewing differences): Document it.
+
+	* pcl-cvs.el (cvs-use-temp-buffe): Don't switch to the temporary
+	buffer.  Use display-buffer and set-buffer instead.  This way
+	cvs-log, cvs-status, cvs-diff-cvs and friends don't select the
+	temporary buffer. The cursor will remain in the *cvs* buffer.
+
+Sun Mar 22 21:50:18 1992  Per Cederqvist  (ceder@robin)
+
+	* pcl-cvs.el (cvs-find-file, cvs-find-file-other-window): Don't
+	prompt when reading in a directory in dired.
+
+	* Makefile (pcl-cvs-$(VER)): Include pcl-cvs-startup.el in the
+	distribution.
+
+	* dist-makefile (pcl-cvs.dvi): Don't fail even if texindex does
+	not exist.
+
+	* pcl-cvs.texinfo (@setchapternewpage): Changed from 'off' to 'on'.
+	* pcl-cvs.texinfo (Variable index): Joined into function index.
+	* pcl-cvs.texinfo (Key index): add a description about the key.
+	* pcl-cvs.texinfo: Many other small changes.
+
+Wed Mar 18 01:58:38 1992  Per Cederqvist  (ceder@leopold)
+
+	* Use GNU General Public License version 2.
+

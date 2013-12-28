@@ -321,7 +321,7 @@ read using the minibuffer.")
         argcount += 2;
       else
         argcount += 1;
-      tem = (char *) index (tem + 1, '\n');
+      tem = (char *) strchr (tem + 1, '\n');
       if (!tem)
         break;
       tem++;
@@ -373,7 +373,7 @@ read using the minibuffer.")
     for (argnum = 1; ; argnum++)
     {
       char *prompt_start = prompt_data + prompt_index + 1;
-      char *prompt_limit = index (prompt_start, '\n');
+      char *prompt_limit = strchr (prompt_start, '\n');
       int prompt_length;
       if (prompt_limit && prompt_limit[1] == 0)
         prompt_limit = 0;       /* "sfoo:\n" -- strip tailing return */
@@ -421,6 +421,11 @@ read using the minibuffer.")
 #if 0
           unbind_to (speccount, Qnil);
 #endif
+	  /* #### `C-x / a' should not leave the prompt in the minibuffer.
+	     This isn't the right fix, because (message ...) (read-char)
+	     shouldn't leave the message there either... */
+	  message (0);
+
           arg_from_tty = 1;
           break;
         }
@@ -530,20 +535,21 @@ read using the minibuffer.")
         }
       case 'S':                 /* Any symbol.  */
         {
-          Lisp_Object tem = Qnil;
 #if 0  /* Historical crock */
-          tem = intern ("minibuffer-local-ns-map");
+          Lisp_Object tem = intern ("minibuffer-local-ns-map");
           tem = find_symbol_value (tem);
           if (EQ (tem, Qunbound)) tem = Qnil;
           tem = call3 (Qread_from_minibuffer, PROMPT (), Qnil, tem);
           visargs[argnum] = tem;
           args[argnum] = Fintern (tem, Qnil);
 #else
+          visargs[argnum] = Qnil;
           for (;;)
           {
-            tem = call5 (Qcompleting_read, PROMPT (), Vobarray, Qnil, Qnil,
-                         /* nil, or prev attempt */
-                         visargs[argnum]);
+            Lisp_Object tem = call5 (Qcompleting_read, PROMPT (), Vobarray,
+				     Qnil, Qnil,
+				     /* nil, or prev attempt */
+				     visargs[argnum]);
             visargs[argnum] = tem;
             /* I could use condition-case with this loser, but why bother?
              * tem = Fread (tem); check-symbol-p;

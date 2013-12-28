@@ -4,7 +4,7 @@
 #include "lwlib-internal.h"
 
 extern widget_creation_entry xol_creation_table [];
-extern widget_creation_function xol_create_dialog (widget_instance *);
+extern Widget xol_create_dialog (widget_instance *);
 
 Boolean
 lw_olit_widget_p (Widget widget);

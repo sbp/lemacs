@@ -1,5 +1,5 @@
 ;; Blink the matching paren, just like Zmacs.  By devin@lucid.com.
-;; Copyright (C) 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -28,8 +28,8 @@ This should be a fractional part of a second (a float.)")
 ;;; text, and -off to be invisible.  You can change this so that, for
 ;;; example, the blinking paren fluctuates between bold and italic...
 
-(or (find-face 'blink-paren-on) (make-face 'blink-paren-on))
-(or (find-face 'blink-paren-off) (make-face 'blink-paren-off))
+(make-face 'blink-paren-on)
+(make-face 'blink-paren-off)
 
 (or (face-differs-from-default-p 'blink-paren-off)
     (progn

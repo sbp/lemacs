@@ -1,11 +1,11 @@
 ;; Quick hack to parse LISPM-style font-shift codes.
-;; Copyright (C) 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -26,13 +26,13 @@
 ;; buffer.  We could do it by mapping over the extents and hacking
 ;; the overlaps by hand, but that would be hard.
 
-(or (find-face 'variable)
-    (progn
-      (make-face 'variable)
-      (set-face-font 'variable
-		     "-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*")))
+(make-face 'variable)
+(or (face-differs-from-default-p 'variable)
+    (set-face-font 'variable
+		   "-*-helvetica-medium-r-*-*-*-120-*-*-*-*-*-*"))
 
-(or (find-face 'variable-bold)
+(make-face 'variable-bold)
+(or (face-differs-from-default-p 'variable-bold)
     (progn
       ;; This is no good because helvetica-12-bold is a LOT larger than
       ;; helvetica-12-medium.  Someone really blew it there.
@@ -41,13 +41,15 @@
       (set-face-font 'variable-bold
 		     "-*-helvetica-bold-r-*-*-*-100-*-*-*-*-*-*")))
 
-(or (find-face 'variable-italic)
+(make-face 'variable-italic)
+(or (face-differs-from-default-p 'variable-italic)
     (progn
       (copy-face 'variable-bold 'variable-italic) ; see above
       (make-face-unbold 'variable-italic)
       (make-face-italic 'variable-italic)))
 
-(or (find-face 'variable-bold-italic)
+(make-face 'variable-bold-italic)
+(or (face-differs-from-default-p 'variable-bold-italic)
     (progn
       (copy-face 'variable-bold 'variable-bold-italic)
       (make-face-italic 'variable-bold-italic)))

@@ -1,8 +1,4 @@
-Modified on 23-Jan-91 by Leonard N. Zubkoff:
-    Updated entry for Apollo.
-
 This is a list of the status of GNU Emacs on various machines and systems.
-Last updated 15 January 1991.
 
 Systems:
   For each type of system, the name of the appropriate s- header file
@@ -430,33 +426,15 @@ Intel 80386 (m-intel386.h; s-bsd4-2.h, s-usg5-2-2.h,
     #undef TIOCGETC
   in sysdep.c, near the place where this is done for XENIX.
 
-Iris 2500 (m-irist.h; s-iris3-5.h or s-iris3-6.h)
+Silicon Graphics Iris 4D and Iris Indigo (m-iris4d.h; s-irix4-0.h)
 
-  Version 18 said to work; use s-irist3-5.h for system version 2.5
-  and s-iris3-6.h for system version 3.6.
+  Lucid Emacs 19.4 is known to work on SGI machines running Irix 4.0.5.
+  It works on earlier versions of 4.0 although there is a bug in
+  earlier versions of the OS which can sometimes leave ptys owned by
+  root with a permission of 622.
 
-Iris 2500 Turbo (m-irist.h; s-iris3-5.h or s-iris3-6.h)
-
-  18.49 works.  Use s-iris3-6.h for system versions 3.6 and up.
-  Note that the 3030 is the same machine as this.
-
-Iris 4D (m-iris4d.h; s-irix3-3.h)
-
-  18.56 is known to work on 4D series machines with Irix 3.3 or later.
-
-  If you use the X menu facility, you must edit oldXmenu/Makefile
-  to add the line 
-
-    RANLIB=true
-
-  Someone said that with the yellow pages you must change two definitions
-  in m-iris4d.h as follows:
-
-    #define LIBS_MACHINE -lsun -lbsd -lPW -lmld
-    #define C_SWITCH_MACHINE -I/usr/include/sun -I/usr/include/bsd
-
-  jg@bambi.esd.sgi.com says this isn't true anymore, 
-  but the info might as well be here just in case.
+  Comment out the #define USE_SOUND in s-irix4-0.h if you are not
+  using an Indigo or 4D35 with audio board (look for libaudio.a).
 
 Macintosh
 

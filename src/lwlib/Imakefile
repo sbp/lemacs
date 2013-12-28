@@ -1,4 +1,4 @@
-/**/# Imakefile file for lwlib.a, Copyright (c) 1992 Lucid, Inc.
+/**/# Imakefile file for liblw.a, Copyright (c) 1992-1993 Lucid, Inc.
 
 /*
  *  If you have Motif and want to provide support for Motif widgets in lwlib,
@@ -45,15 +45,21 @@
  *  version of Xt, it may be necessary to build a shared version of lwlib as
  *  well, as the X libraries sometimes put *different code* in the dynamic
  *  and shared versions of their libraries, for some reason I don't understand.
+ *
+ *  Remember, if you build and install a shared version of lwlib, you may need
+ *  to run ldconfig(8) before anything will realize that it exists.
+ *
+ *  To compile with support for Lucid's Energize Programming System, you must
+ *  define all of ENERGIZE, USE_LUCID, USE_MOTIF, and INCLUDE_EXTENSIONS.
  */
 
 #define USE_LUCID
 /* #define USE_MOTIF */
 /* #define USE_OLIT */
-/* #define ENERGIZE */
 /* #define BUILD_SHARED_LIB */
+/* #define ENERGIZE */
 
-#define INCLUDE_EXTENSIONS
+/* #define INCLUDE_EXTENSIONS */
 
 
 #ifdef INCLUDE_EXTENSIONS	/* this is where it is at our site */
@@ -65,6 +71,12 @@
  *  You shouldn't need to edit anything below this point.
  *
  */
+
+#ifdef ENERGIZE
+# if !defined(USE_LUCID) || !defined(USE_MOTIF) || !defined(INCLUDE_EXTENSIONS)
+ERROR!  Energize requires Lucid widgets, Motif, and X Extensions.
+# endif
+#endif /* ENERGIZE */
 
 
 #ifdef BUILD_SHARED_LIB
@@ -95,8 +107,8 @@ SOLWREV=1.0
      LUCID_OBJS = lwlib-Xlw.o xlwmenu.o
      MOTIF_SRCS = lwlib-Xm.c
      MOTIF_OBJS = lwlib-Xm.o
-      OLIT_SRCS = lwlib-Xol.c
-      OLIT_OBJS = lwlib-Xol.o
+      OLIT_SRCS = lwlib-Xol.c lwlib-Xol-mb.c
+      OLIT_OBJS = lwlib-Xol.o lwlib-Xol-mb.o
 
 #ifdef INCLUDE_EXTENSIONS
        EXT_SRCS = dispatch.c xrdb-cpp.c xrdb.c
@@ -143,11 +155,11 @@ TOOLKIT_DEFINES = "ERROR!  At least one of USE_MOTIF, USE_LUCID or USE_OLIT must
 # ifndef USE_MOTIF
      EZ_OBJS = "ERROR! ENERGIZE requires USE_MOTIF to be defined in Imakefile."
 # else
-        EZ_OBJS = energize/blpsheet.o energize/ctreebr_ps.o \
-                  energize/leb_psheet.o energize/classbr_ps.o \
-                  energize/debuggerps.o energize/projectps.o \
-		  energize/build.o
-
+        EZ_OBJS = energize/blpsheet.o energize/build.o energize/classbr_ps.o \
+                  energize/ctreebr_ps.o energize/debuggerps.o \
+                  energize/editmode.o energize/leb_psheet.o \
+                  energize/projectdisp.o energize/projectps.o \
+                  energize/search.o energize/target.o
       ENERGIZEP = -DENERGIZE
 # endif
 #endif
@@ -220,6 +232,7 @@ LWObjectRule (lwlib-Xm.o, lwlib-Xm.c, $(ENERGIZEP))
 
 lwlib-utils.o: lwlib-utils.h
 lwlib.o:       lwlib.h lwlib-internal.h
+lwlib-Xlw.o:   lwlib.h lwlib-internal.h
 lwlib-Xm.o:    lwlib.h lwlib-internal.h lwlib-utils.h
 lwlib-Xol.o:   lwlib.h lwlib-internal.h
-lwlib-Xlw.o:   lwlib.h lwlib-internal.h
+lwlib-Xol-mb.o: lwlib-Xol-mb.h lwlib-Xol-mbP.h

@@ -1,5 +1,5 @@
 ;; c-style.el --- sets c-style control variables.
-;; Copyright (C) 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -144,8 +144,11 @@
 This is to be set by set-c-style, and used by the mode line.")
 
 (or (assq 'c-style-name minor-mode-alist)
-    (nconc minor-mode-alist
-	   '((c-style-name c-style-name))))  ; use undocumented feature
+    (setq minor-mode-alist
+	  (purecopy
+	   (append minor-mode-alist
+		   ;; use undocumented feature
+		   '((c-style-name c-style-name))))))
 
 (defun set-c-style (&optional style)
   "Set up the c-mode style variables from STYLE if it is given, or

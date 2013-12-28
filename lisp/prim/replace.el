@@ -67,8 +67,8 @@ Applies to lines after point."
 (defun how-many (regexp)
   "Print number of matches for REGEXP following point."
 ;;  (interactive "sHow many matches for (regexp): ")
-  (interactive (read-string "How many matches for (regexp): "
-			    nil 'minibuffer-regexp-history))
+  (interactive (list (read-string "How many matches for (regexp): "
+			    nil 'minibuffer-regexp-history)))
   (let ((count 0) opoint)
     (save-excursion
      (while (and (not (eobp))

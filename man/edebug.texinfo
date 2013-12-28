@@ -1,6 +1,6 @@
 \input texinfo  @comment -*-texinfo-*-
 @comment %**start of header
-@setfilename edebug
+@setfilename ../info/edebug
 @settitle Edebug User Manual
 @comment %**end of header
 

@@ -76,7 +76,7 @@ Some packages are fairly large; those have been given their own	directories:
 	electric	The "electric" commands; these implement temporary
 			windows for help, list-buffers, etc.
 
-	gnus		An NNTP-based newsreader; version 3.13.
+	gnus		An NNTP-based newsreader; version 3.14.
 
 	ilisp		A comint-based package for interacting with inferior
 			lisp processes.

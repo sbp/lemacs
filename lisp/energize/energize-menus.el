@@ -118,14 +118,16 @@ functions that invoke them.")
  (append file
 	 (list (energize-def-menu-item "quit" 'energize-kill-server t)))
      
- edit	; unchanged
+ (append edit
+	 '("-----"
+	   ["Search..."		energize-search			t]))
      
  (energize-def-menu "Navigate"
    ["Next Error"	next-error			t]
    ["Previous Error"	previous-error			t]
    "-----"
-   ["Visit Uses of Language Element"	energize-next-use-start 	t]
-   ["Next Use"				energize-next-use-command	t]
+   ["visituse"		energize-next-use-start 	t]
+   ["nextuse"		energize-next-use-command	t]
    "-----"   
    ("findproject"	energize-find-project)
    ("project"		energize-pop-to-project-buffer)
@@ -134,7 +136,7 @@ functions that invoke them.")
    )
  
  (energize-def-menu "Browse"
-   ("editdef"		energize-edit-definition-dbox)
+   ["editdef"		energize-edit-definition t]
    ("editdec"		energize-edit-declaration-dbox)
    ("lebrowser"		energize-browse-language-elt)
    ("calltreebrowser"	energize-browse-tree)
@@ -147,6 +149,8 @@ functions that invoke them.")
    "-----"
    ("toolstatus"	energize-browse-toolstat)
    ("showsystemlog"	energize-browse-system-log)
+   "-----"
+   ["Set Edit Modes..."	energize-set-edit-modes		t]
    )
 
  (energize-def-menu "Debug"
@@ -154,7 +158,7 @@ functions that invoke them.")
    ("debuggerpanel"	energize-show-debugger-panel)
    "-----"
    ("breaklist"		energize-list-breakpoints)
-   ("setbreakpoint"	energize-set-breakpoint)
+   ["setbreakpoint"	gdb-break t]
    "-----"
    ("runprogram"	energize-run-target)
    ("openprogram"	energize-debugger-start-main)
@@ -180,7 +184,7 @@ functions that invoke them.")
  (energize-def-menu "Compile"
    ("buildatarget"	energize-build-a-target)
    ("custombuildatarget"	energize-custom-build-a-target)
-   ("link"		energize-link-target)
+   ("purifyatarget"		energize-purify)
    "-----"
    ("defaultcompile"	energize-default-compile-file)
    ("custombuildfile"	energize-custom-build-file)
@@ -200,17 +204,16 @@ functions that invoke them.")
    "-----"
    '("addprojectentry"
      ["addrule"			energize-insert-rule nil]
-     ["addfiletarget"		energize-insert-file-target nil]
+     ["addobjectfiletarget"	energize-insert-object-file-target nil]
      ["addexecutabletarget"	energize-insert-executable-target nil]
      ["addlibrarytarget"	energize-insert-library-target nil]
      ["addcollectiontarget"	energize-insert-collection-target nil]
+     ["addfiletarget"		energize-insert-file-target nil]
      ["addtargettarget"		energize-insert-target-target nil])
    (energize-def-menu-item "abbreviatetargets"	'energize-abbreviate-targets)
    (energize-def-menu-item "fulltargets"	'energize-full-targets)
    "-----"
-   (energize-def-menu-item "showallfiles"	'energize-show-all-files)
-   (energize-def-menu-item "onlyshowsources"	'energize-show-only-sources)
-   (energize-def-menu-item "shownofiles"	'energize-show-no-files)
+   (energize-def-menu-item "setprojectdisplay"	'energize-set-project-display)
    "-----"
    (energize-def-menu-item "revertproject"
 			   		'energize-fully-revert-project-buffer)
@@ -238,6 +241,16 @@ functions that invoke them.")
   "The emacs menubar used when Energize is installed.")
 
 (set-menubar energize-menubar)
+
+;; make Energize control the selectability of the setbreakpoint item, even
+;; though it really just runs gdb-break (which is advised to hack Energize.)
+(energize-def-menu-item "setbreakpoint" 'gdb-break t)
+
+;; likewise for the visit-uses ones, which only work when connected, though
+;; they are mostly defined in lisp.
+;(energize-def-menu-item "visituse" 'energize-next-use-start t)
+;(energize-def-menu-item "nextuse" 'energize-next-use-command t)
+
 
 (defun energize-kill-server ()
   "Kill the Energize server and all buffers associated with it."
@@ -274,7 +287,10 @@ Otherwise, just runs the normal emacs `manual-entry' command."
 		(aset item 2 (not (not active-p)))
 		(setq change-p t)))
 	  (if (and active-p
-		   (not (equal (cdr active-p) (aref item 3))))
+		   (not (equal (cdr active-p)
+			       (if (> (length item) 3)
+				   (aref item 3)
+				 nil))))
 	      (progn
 		(aset item 3 (cdr active-p))
 		(setq change-p t)))
@@ -357,27 +373,33 @@ This function activates the \"add target\" menu items in project buffers"
 	 (target-menu
 	  (cdr (car (find-menu-item project-menu '("addprojectentry")))))
 	 (add-rule (car (find-menu-item target-menu '("addrule"))))
-	 (add-file (car (find-menu-item target-menu '("addfiletarget"))))
+	 (add-object
+	  (car (find-menu-item target-menu '("addobjectfiletarget"))))
 	 (add-executable
 	  (car (find-menu-item target-menu '("addexecutabletarget"))))
 	 (add-library (car (find-menu-item target-menu '("addlibrarytarget"))))
 	 (add-collection
 	  (car (find-menu-item target-menu '("addcollectiontarget"))))
+	 (add-file-target
+	  (car (find-menu-item target-menu '("addfiletarget"))))
 	 (add-target
 	  (car (find-menu-item target-menu '("addtargettarget"))))
 	 (change-p
 	  (or (and add-rule (not (eq project-p (aref add-rule 2))))
-	      (and add-file (not (eq project-p (aref add-file 2))))
+	      (and add-object (not (eq project-p (aref add-object 2))))
 	      (and add-executable (not (eq project-p (aref add-executable 2))))
 	      (and add-library (not (eq project-p (aref add-library 2))))
 	      (and add-collection (not (eq project-p (aref add-collection 2))))
+	      (and add-file-target
+		   (not (eq project-p (aref add-file-target 2))))
 	      (and add-target (not (eq project-p (aref add-target 2)))))))
     (if add-rule (aset add-rule 2 project-p))
-    (if add-file (aset add-file 2 project-p))
+    (if add-object (aset add-object 2 project-p))
     (if add-executable (aset add-executable 2 project-p))
     (if add-library (aset add-library 2 project-p))
     (if add-collection (aset add-collection 2 project-p))
     (if add-target (aset add-target 2 project-p))
+    (if add-file-target (aset add-file-target 2 project-p))
     ;; return t to mean "no change" and nil to mean "recompute menubar"
     (not change-p)))
 
@@ -529,6 +551,12 @@ This function activates the \"add target\" menu items in project buffers"
 
 ;;; Sparc function keys.  This isn't the most appropriate place for this...
 
+;; this is so that where-is says beginning-of-buffer is M-< instead of f27.
+(fset 'deprecated-bob 'beginning-of-buffer)
+(fset 'deprecated-eob 'end-of-buffer)
+(fset 'deprecated-scroll-down 'scroll-down)
+(fset 'deprecated-scroll-up 'scroll-up)
+
 (defun setup-sparc-function-keys ()
   (if (not (eq window-system 'x))
       nil
@@ -536,10 +564,10 @@ This function activates the \"add target\" menu items in project buffers"
     (define-key global-map 'f16 'x-copy-primary-selection)   ; L6,  Copy
     (define-key global-map 'f18 'x-yank-clipboard-selection) ; L8,  Paste
     (define-key global-map 'f20 'x-kill-primary-selection)   ; L10, Cut
-    (define-key global-map 'f27 'beginning-of-buffer)	     ; R7,  Home, KP_7
-    (define-key global-map 'r13 'end-of-buffer)		     ; R13, End,  KP_1
-    (define-key global-map 'f29 'scroll-down)		     ; R9,  PgUp, KP_9
-    (define-key global-map 'f35 'scroll-up)		     ; R15, PgDn, KP_3
+    (define-key global-map 'f27 'deprecated-bob)	     ; R7,  Home, KP_7
+    (define-key global-map 'r13 'deprecated-eob)	     ; R13, End,  KP_1
+    (define-key global-map 'f29 'deprecated-scroll-down)     ; R9,  PgUp, KP_9
+    (define-key global-map 'f35 'deprecated-scroll-up)	     ; R15, PgDn, KP_3
     ))
 
 (add-hook 'window-setup-hook 'setup-sparc-function-keys)

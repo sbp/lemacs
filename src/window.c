@@ -1,6 +1,6 @@
 /* Window creation, deletion and examination for GNU Emacs.
    Does not include redisplay.
-   Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -562,6 +562,8 @@ and so is its new parent, we should make replacement's
 children be children of that parent instead.  ***/
 }
 
+extern int allow_deletion_of_last_visible_screen;
+
 DEFUN ("delete-window", Fdelete_window, Sdelete_window, 0, 1, "",
   "Remove WINDOW from the display.  Default is selected window.\n\
 If window is the only one on the screen, the screen is destroyed.")
@@ -587,9 +589,12 @@ If window is the only one on the screen, the screen is destroyed.")
 	/* this screen isn't fully initialized yet; don't blow up. */
 	return Qnil;
       if (EQ (p->screen, next_screen (p->screen, 0, 1)))
-	error ((EQ (p->screen, next_screen (p->screen, 0, 0))) ?
-	       "Attempt to delete the only window on the only screen" :
-	       "Attempt to delete the only window on the only visible screen");
+	{
+	  if (EQ (p->screen, next_screen (p->screen, 0, 0)))
+            error ("Attempt to delete the only window on the only screen");
+          else if (!allow_deletion_of_last_visible_screen)
+            error ("Attempt to delete the only window on the only visible screen");
+	}
       Fdelete_screen (p->screen);
       return Qnil;
     }
@@ -614,7 +619,10 @@ If window is the only one on the screen, the screen is destroyed.")
       unchain_marker (p->pointm);
       unchain_marker (p->start);
       /* This breaks set-window-configuration if windows in the saved
-	 configuration get deleted and multiple screens are in use. */
+	 configuration get deleted and multiple screens are in use.
+	 Consequently Fselect_window needs to check the validity of
+	 the markers instead.
+       */
       /*      p->buffer = Qnil; */
     }
 
@@ -1319,7 +1327,10 @@ before each command.")
 
   w = XWINDOW (window);
 
-  if (NILP (w->buffer))
+  if (NILP (w->buffer) ||  /* no longer enough - see Fdelete_window() */
+      NILP (w->start) || NILP (w->pointm) ||
+      XMARKER (w->start)->buffer == 0 ||
+      XMARKER (w->pointm)->buffer == 0)
     error ("Trying to select deleted window or non-leaf window");
 
   XFASTINT (w->use_time) = ++window_select_count;
@@ -1467,13 +1478,20 @@ Returns the window displaying BUFFER.")
       && XBUFFER (XWINDOW (selected_window)->buffer) == XBUFFER (buffer))
     return selected_window;
 
-  /* Otherwise, find some window that it's already in, and return that. */
+  /* Otherwise, find some window that it's already in, and return that,
+     unless that window is the selected window and that isn't ok.
+     What a contorted mess! */
   window = Fget_buffer_window (buffer, target_screen, Qnil);
-  if (!NILP (window))
+  if (!NILP (window)
+      && (NILP (not_this_window_p) || !EQ (window, selected_window)))
     return window;
 
-  /* Otherwise, make it be in some window, splitting if appropriate/possible */
-  if (pop_up_windows)
+  /* Otherwise, make it be in some window, splitting if appropriate/possible.
+     Do not split a window if we are displaying the buffer in a different
+     screen than that which was current when we were called.  (It is already
+     in a different window by virtue of being in another screen.)
+   */
+  if (pop_up_windows && EQ (target_screen, old_screen))
     {
       /* Don't try to create a window if would get an error */
       if (split_height_threshold < window_min_height << 1)

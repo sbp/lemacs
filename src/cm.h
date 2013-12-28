@@ -1,5 +1,5 @@
 /* Cursor motion calculation definitions for GNU Emacs
-   Copyright (C) 1985, 1989, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -16,6 +16,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#ifndef _EMACS_CM_H_
+#define _EMACS_CM_H_
 
 /* Holds the minimum and maximum costs for the parametrized capabilities.  */
 struct parmcap
@@ -166,3 +169,5 @@ extern void cmcostinit (void);
 extern void cmgoto (int, int);
 extern void Wcm_clear (void);
 extern int Wcm_init (void);
+
+#endif /* _EMACS_CM_H_ */

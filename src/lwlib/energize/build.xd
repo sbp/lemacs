@@ -84,6 +84,9 @@ object '' : XmFrame {
 object '' : XmRadioBox {
 	arguments {
 	name = 'errorBox';
+	XmNspacing=1;
+	XmNmarginWidth=1;
+	XmNmarginHeight=1;
 	XmNorientation=1;
 	};
 object '' : XmToggleButton GADGET {
@@ -109,6 +112,9 @@ object '' : XmFrame {
 object '' : XmRadioBox {
 	arguments {
 	name = 'compileBox';
+	XmNspacing=1;
+	XmNmarginWidth=1;
+	XmNmarginHeight=1;
 	XmNorientation=1;
 	};
 object '' : XmToggleButton GADGET {
@@ -135,6 +141,9 @@ object '' : XmRadioBox {
 	arguments {
 	name = 'linkBox';
 	XmNnumColumns=2;
+	XmNspacing=1;
+	XmNmarginWidth=1;
+	XmNmarginHeight=1;
 	XmNorientation=1;
 	};
 object '' : XmToggleButton GADGET {
@@ -166,6 +175,9 @@ object '' : XmRadioBox {
 	arguments {
 	name = 'debugBox';
 	XmNnumColumns=2;
+	XmNspacing=1;
+	XmNmarginWidth=1;
+	XmNmarginHeight=1;
 	XmNorientation=1;
 	};
 object '' : XmToggleButton GADGET {
@@ -196,6 +208,10 @@ object '' : XmFrame {
 object '' : XmRadioBox {
 	arguments {
 	name = 'subTargetBox';
+	XmNspacing=1;
+	XmNmarginWidth=1;
+	XmNmarginHeight=1;
+	XmNpacking=1;
 	};
 object '' : XmToggleButton GADGET {
 	arguments {
@@ -217,94 +233,94 @@ object '' : XmLabel {
 };
     attachments {
     attachment {
-	XmNrightAttachment = 1 0 13;
-	XmNleftAttachment = 1 0 13;
-	XmNbottomAttachment = 1 0 13;
+	XmNrightAttachment = 1 0 4;
+	XmNleftAttachment = 1 0 4;
+	XmNbottomAttachment = 1 0 4;
 	XmNtopAttachment = 0 0 0;
     };
     attachment {
 	XmNrightAttachment = 1 0 0;
 	XmNleftAttachment = 1 0 0;
-	XmNbottomAttachment = 3 1 13;
+	XmNbottomAttachment = 3 1 4;
 	XmNtopAttachment = 0 0 0;
     };
     attachment {
 	XmNrightAttachment = 0 0 0;
-	XmNleftAttachment = 1 0 13;
+	XmNleftAttachment = 1 0 4;
 	XmNbottomAttachment = 0 0 0;
-	XmNtopAttachment = 1 0 13;
+	XmNtopAttachment = 1 0 4;
     };
     attachment {
 	XmNrightAttachment = 0 0 0;
-	XmNleftAttachment = 1 0 16;
-	XmNbottomAttachment = 3 2 6;
+	XmNleftAttachment = 1 0 4;
+	XmNbottomAttachment = 3 2 4;
 	XmNtopAttachment = 3 3 6;
     };
     attachment {
 	XmNrightAttachment = 0 0 0;
-	XmNleftAttachment = 4 6 13;
+	XmNleftAttachment = 4 6 6;
 	XmNbottomAttachment = 3 6 -4;
 	XmNtopAttachment = 0 0 0;
     };
     attachment {
 	XmNrightAttachment = 0 0 0;
-	XmNleftAttachment = 3 14 13;
+	XmNleftAttachment = 3 14 4;
 	XmNbottomAttachment = 0 0 0;
 	XmNtopAttachment = 4 14 0;
     };
     attachment {
 	XmNrightAttachment = 0 0 0;
-	XmNleftAttachment = 4 8 13;
+	XmNleftAttachment = 4 8 6;
 	XmNbottomAttachment = 3 8 -4;
 	XmNtopAttachment = 0 0 0;
     };
     attachment {
 	XmNrightAttachment = 0 0 0;
-	XmNleftAttachment = 3 3 13;
-	XmNbottomAttachment = 3 13 13;
+	XmNleftAttachment = 3 3 4;
+	XmNbottomAttachment = 3 13 4;
 	XmNtopAttachment = 0 0 0;
     };
     attachment {
 	XmNrightAttachment = 0 0 0;
-	XmNleftAttachment = 4 10 13;
+	XmNleftAttachment = 4 10 6;
 	XmNbottomAttachment = 3 10 -4;
 	XmNtopAttachment = 0 0 0;
     };
     attachment {
 	XmNrightAttachment = 0 0 0;
-	XmNleftAttachment = 3 8 13;
+	XmNleftAttachment = 3 8 4;
 	XmNbottomAttachment = 0 0 0;
 	XmNtopAttachment = 4 8 0;
     };
     attachment {
 	XmNrightAttachment = 0 0 0;
-	XmNleftAttachment = 4 12 13;
+	XmNleftAttachment = 4 12 6;
 	XmNbottomAttachment = 3 12 -4;
 	XmNtopAttachment = 0 0 0;
     };
     attachment {
-	XmNrightAttachment = 1 0 13;
-	XmNleftAttachment = 3 6 13;
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 6 4;
 	XmNbottomAttachment = 0 0 0;
 	XmNtopAttachment = 4 6 0;
     };
     attachment {
 	XmNrightAttachment = 0 0 0;
-	XmNleftAttachment = 4 14 13;
+	XmNleftAttachment = 4 14 6;
 	XmNbottomAttachment = 3 14 -4;
 	XmNtopAttachment = 0 0 0;
     };
     attachment {
 	XmNrightAttachment = 0 0 0;
-	XmNleftAttachment = 3 3 13;
-	XmNbottomAttachment = 3 2 13;
+	XmNleftAttachment = 3 3 4;
+	XmNbottomAttachment = 3 2 4;
 	XmNtopAttachment = 0 0 0;
     };
     attachment {
-	XmNrightAttachment = 1 0 13;
-	XmNleftAttachment = 3 3 13;
-	XmNbottomAttachment = 3 7 13;
-	XmNtopAttachment = 1 0 13;
+	XmNrightAttachment = 1 0 4;
+	XmNleftAttachment = 3 3 4;
+	XmNbottomAttachment = 3 7 4;
+	XmNtopAttachment = 1 0 4;
     };
     };
 };

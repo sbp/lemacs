@@ -1,5 +1,5 @@
 /* m- file for hp9000 series 200 or 300 on either HPUX or BSD.
-   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -134,6 +134,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #if !defined(__GNUC__) || defined(__HPUX_ASM__)
 #define LIBS_DEBUG /usr/lib/end.o
+#else
+#define LIBS_DEBUG
 #endif
 
 /* The symbol FIONREAD is defined, but the feature does not work
@@ -207,3 +209,23 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 #define WRETCODE(w) (((w) >> 8) & 0377)
 #endif
+
+/* these don't matter, but we have to define something to keep
+   sysdep.c from introducing bogus symbols */
+#define DATA_START (0)
+#define TEXT_START (0)
+
+#ifdef THIS_IS_YMAKEFILE
+
+/*
+ * use the version of unexec which can handle shared libraries
+ * if dynamically linked.
+ */
+#define UNEXEC unexhp9k3.o
+
+/* HPUX HP9000s300 crt0.o puts environ in the BSS, so we don't need
+ * the special one
+ */
+#define START_FILES
+
+#endif /* THIS IS YMAKEFILE */

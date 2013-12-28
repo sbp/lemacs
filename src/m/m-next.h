@@ -88,7 +88,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Use our own unexec routines */
 
-#define UNEXEC unexnext.o
+#define UNEXEC unexNeXT.o
 
 /* We don't use _start, etext, or edata */
 /* These defs already exist in s/s-mach2.h, so we don't need them twice */

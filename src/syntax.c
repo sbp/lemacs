@@ -835,19 +835,21 @@ find_start_of_comment (from, stop, comstyle)
 	   back up and give the pair the appropriate syntax.  */
 	else if (from > stop && SYNTAX_START (CHAR_AT (from-1), c))
 	  {
-	    stylesmatch = SYNTAX_START_SEQUENCE 
-	      (CHAR_AT (from-1), c, 
-	       (comstyle ? SYNTAX_COMMENT_STYLE_B : SYNTAX_COMMENT_STYLE_A));
+	    if (stylesmatch = SYNTAX_START_SEQUENCE 
+		(CHAR_AT (from-1), c, 
+		 (comstyle ? SYNTAX_COMMENT_STYLE_B 
+		  : SYNTAX_COMMENT_STYLE_A)))
+	      from--;
 	    code = Scomment;
-	    from--;
 	  }
 	else if (from > stop && SYNTAX_END (CHAR_AT (from-1), c))
 	  {
-	    stylesmatch = SYNTAX_END_SEQUENCE 
-	      (CHAR_AT (from-1), c,
-	       (comstyle ? SYNTAX_COMMENT_STYLE_B : SYNTAX_COMMENT_STYLE_A));
+	    if (stylesmatch = SYNTAX_END_SEQUENCE 
+		(CHAR_AT (from-1), c,
+		 (comstyle ? SYNTAX_COMMENT_STYLE_B 
+		  : SYNTAX_COMMENT_STYLE_A)))
+	      from--;
 	    code = Sendcomment;
-	    from--;
 	  }
 
 	/* Ignore escaped characters.  */

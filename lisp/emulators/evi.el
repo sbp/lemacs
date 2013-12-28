@@ -1,384 +1,186 @@
-;; Copyright (c) 1991 Jeffrey R. Lewis
+;; Copyright (c) 1992, 1993 Jeffrey R. Lewis
 ;; All rights reserved.
-;; Redistribution and use is permitted provided that this entire copyright
-;; notice and comment is retained.
-;; THIS SOFTWARE IS SUPPLIED `AS IS', AND WITHOUT ANY EXPRESS OR IMPLIED
-;; WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
-;; MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-
-;; Evi 0.93 - Emulate Vi
-;; Local modifications for version 19 - eb Wed Sep 11 10:37:44 1991
-
-;; Here follows Evi 0.9, an even better vi emulator for serious vi users.
-;; Evi's first goal is vi compatibility.  Its second goal is to be an
-;; extension of vi, taking advantage of features supplied by emacs, without
-;; simply becoming emacs with vi'ish key bindings.  In other words, Evi is
-;; for the vi user who never really intends to eventually `go emacs'
-;; (or, as it turns out, for those of us who must regularly use vi anyway
-;; because our frumpy little unix boxen aren't always in the mood to
-;; run emacs).  You shouldn't need any special manual to start using Evi,
-;; other than your vi manual, and the documentation on extensions and
-;; differences in this file.
-
-;; Starting up Evi
-
-;; To just test Evi out, do (don't actually type the spaces):
-;;	M-x evi <RET>
-;; You will now be in the emulator.  To make emacs always load and fire up
-;; Evi, put the following at the end of your .emacs file:  (Note: this assumes
-;; evi is installed in the Emacs library directory and autoloadable).
-;;	(setq term-setup-hook 'evi)
-
-;; Release Note:
-
-;; At this point Evi is still `beta' software - it is also not yet
-;; a `full' vi emulator, but it is much closer than vip 4.2.  I am mainly
-;; releasing this version to get some feedback on how well it's doing and
-;; whether the approaches I've taken will work well.  I'm also getting tired
-;; of staring at it... ;-)
-;; You'll probably want to byte-compile it before use to expand the numerous
-;; macros used in Evi.  Using the newer byte compiler just posted may give
-;; even better results because there are quite a few top level macros, which
-;; are not expanded by the old byte compiler.
-;; Unfortunately, sometime between version 18.54 and 18.57, some improvements
-;; were made to emacs that Evi relies on.  I haven't consulted the ChangeLog
-;; to determine exactly what these are, but it has been noticed that Evi
-;; won't byte-compile under 18.54 (an apparent bug in the old byte-compiler),
-;; and that the variable `buffer-undo-list' that Evi relies on to make undo
-;; behave in a vi-bufflike manner is not present in 18.54.  My best recommendation
-;; if you have an older emacs is to upgrade.  My apologies if that's not
-;; convenient.
-
-;; File and window management
-
-;; Vi's file management commands have long tried to mimic having multiple
-;; buffers, and as such, work well enough to use in an emacs setting.  They
-;; of course have to take on slightly different meanings, since it makes
-;; little sense to emulate the limitations of the vi/ex model that presumably
-;; you are trying to avoid by using evi!
 ;;
-;;	:e	Edit a file in the current window.  With no argument, brings
-;;		in a new copy of the file, if it has been subsequently
-;;		modified on disk.  `:e!' will override any complaints about
-;;		the current buffer being modified, and discard all
-;;		modifications.  With a filename argument, edits that file
-;;		in the current window (using the copy already in the editor
-;;		if it was previously read in).  I'm not sure if `:e! filename'
-;;		should have a separate meaning from `:e filename' as in evi we
-;;		don't need to worry about the disposition of the current
-;;		file before editing the next one.  Opinions are welcome -
-;;		currently there's no difference.  `:e#' is shorthand for
-;;		edit the most recently accessed buffer not in a window.
-;;	:E	Same as `:e', but edits the file in the other window, creating
-;;		that window if necessary.  With no filename, splits the
-;;		current buffer into two windows.
-;;	:n	Switch to the next file in buffer list that's not currently
-;;		displayed.  Rotates the current file to the end of the buffer
-;;		list, so this will effectively cycle thru all buffers.
-;;	:N	Same as `:n', but switches the other window, or creates an
-;;		other window and puts the next file in it.
+;; Redistribution and use in source and compiled forms, with or without
+;; modification, are permitted provided that the following conditions
+;; are met:
+;; 1. Redistributions of source code must retain the above copyright notice,
+;;    this list of conditions and the following disclaimer.
+;; 2. Redistributions in compiled form must either be accompanied by the
+;;    source, or reproduce the above copyright notice, this list of conditions
+;;    and the following disclaimer in the documentation and/or other materials
+;;    provided with the distribution.
 ;;
-;; Vi also has a key `z' for doing (minimal) window management.  The following
-;; are extensions to this command.
-;;
-;;	zH
-;;	zM
-;;	zL	These are aliases for z<CR>, z., and z- and correspond to
-;;		the arguments to the mark command (this is from vip).
-;;	z<num>+
-;;	z<num>-	These let you adjust the size of the current window by <num>.
-;;		Use z<num>. to adjust the window size absolutely.
-;;	z1=	Make the current window fill the screen.
-;;	z2=	Split the current window in two.
+;; THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+;; INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+;; AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
 
-;; Good news for file completion fans: the ex commands which accept filenames
-;; as arguments can be file completed using space or tab.  Filename
-;; completion is turned on after the space that separates the command
-;; from the filename.  Try it.
+;; Evi 0.99.6m - Emulate Vi
+;; LCD Archive Entry:
+;; evi|Jeffrey R. Lewis|jlewis@cse.ogi.edu
+;; |Emulate Vi - an even better vi emulator
+;; |2-16-93|0.99.6m|~/modes/evi.el.Z
+(defvar evi-version "Evi 0.99.6m, 2-16-93")
 
-;; If you do have some familiarity with emacs C-x prefix commands, you may
-;; prefer to use them, as they are somewhat more flexible.  To do so, simply
-;; map C-x to ctl-x-map as follows:
-;;	(evi-define-key evi-all-keymaps "\C-x" ctl-x-map)
-;; and use your C-x prefix commands as you normally would.
-;; Also, you may want to access emacs' Meta prefix commands, normally accessed
-;; via <ESC>.  I recommend using C-a for this purpose.
-;;	(setq evi-meta-prefix-char ?\C-a)
-;;	(evi-define-key evi-all-keymaps "\C-a" esc-map)
-;; (meta-prefix-char is locally set to evi-meta-prefix-char in all evi buffers;
-;; changing meta-prefix-char directly would mess up non-evi buffers.)
-;;
-;; You could of course map <ESC> to its original binding, although this has
-;; the drawback of being incompatible with its use in exiting insert and
-;; replace modes.  One incompatibility that's not easily fixed is how
-;; vi recognizes arrow keys that send <ESC> prefixed sequences:  vi uses
-;; a very short timeout to determine the difference between an <ESC> typed
-;; by a person, and an <ESC> sequence sent by the terminal.  A compromise,
-;; if you happen to have such a terminal and like your arrow keys a lot,
-;; is to `:set notimeout', which makes <ESC><ESC> behave like a single <ESC>
-;; and maps your arrow keys to `h', `j', `k', and `l'.  As a side effect
-;; in Evi, the normal emacs <ESC> prefix commands are in effect (except for
-;; <ESC><ESC> of course).  I'd be interested to know if the side effect
-;; is desirable (it may cause some unexpected behaviour).
+;; Here follows Evi 0.9, an even better vi emulator aimed at those who either
+;; are well accustomed to vi, or who just simply happen to like its style of
+;; editing better than emacs' default.  Evi's first goal is vi compatibility.
+;; Its second goal is to be an extension of vi, taking advantage of features
+;; supplied by the emacs environment, without simply becoming emacs with vi'ish
+;; key bindings.
 
-;; Emacs lisp startup code for evi can be placed in either ~/.evirc or .evirc.
+(defvar evi-mode-hook nil
+  "*Function or functions called upon entry to evi-mode.")
 
-;; New operators
-
-;; I'm experimenting with some new complex operators.  I'm particularly
-;; interested in your thoughts on these:
-;;
-;; `[{' operates over lines in a region.  It takes a motion, and a sequence
-;; of operations to perform on each line in the region defined by the motion.
-;; The sequence of operations is prompted for on the bottom line.  Double the
-;; `{' to operate on whole lines.  The point starts in the first column for
-;; each line operated on.
-;; E.g.
-;;	[{}i> C-v<ESC><RET>
-;;	  ^ motion - forward paragraph
-;;	   ^ sequence of operations - terminated with a <RET> or <ESC>
-;; would prefix every line in the rest of the current paragraph with `> '.
-;; The `C-v', `<ESC>' and `<RET>' are of course the single characters
-;; generated by control-v, the escape key and the return key respectively.
-;; The `C-v<ESC>' sequence inserts an <ESC> into the string you are entering
-;; so that it will terminate input when the loop body is executed, not as you
-;; are entering the command.
-;; E.g.
-;;	10[{{i/* C-v<ESC>A */C-v<ESC><RET>
-;; would place C-style comments around the next 10 lines.
-;; ZZ Oops, that particular example is temporarily out of order!
-;;
-;; `[(' defines a parameterized macro body.  A parameterized macro is diff-
-;; erent from standard macro text in that it is parameterized by prefix count
-;; and register specification.  `C-_' is a prefix for several keys useful in
-;; defining parameterized macros.  `C-_#' is the prefix count applied to this
-;; macro, and `C-_"' is the register specification applied to this macro.  All
-;; non-macro modification commands can be specified by prefixing them with
-;; `C-_'. This is important because the standard command keymap can be
-;; changed, and you may want to specify a command macro such that its meaning
-;; will be the same regardless of any customizations.  `All non-macro' is
-;; specified because several standard modification commands are actually
-;; macros themselves.  For example, `i' is the only non-macro insert command:
-;; `I', `A', `o', `O', etc are all macros.
-;; E.g.
-;;	"a8[(jC-_#wC-_"dw<RET>
-;; would go down one line, move over 8 words, then delete the next word into
-;; register `a'.  This is rather contrived, but it gives you the idea.  Param-
-;; eterized macro bodies are obviously not very useful typed out each time,
-;; and are intended to be the body of a map macro.
-;; E.g.
-;;	:map M [(jC-_#wC-_"dwC-v<ESC><RET>
-;;	"a8M
-;; would be a much more likely scenario for the use of such a macro.
-
-;; Various enhancements
-;; If you think of any of these as more incompatibilities than enhancements,
-;; please let me know.
-;;
-;; `_' is a new version of the repeat command `.' that prompts you with
-;; the keystrokes to repeat, allowing you to edit them before executing.
-;; This is particularly useful for the abovementioned complex operators.
-;; Right now, commands like `a', `I', etc which are input commands implemented
-;; with a macro will be expanded in the repeat history, so they'll look
-;; a bit strange but will do the right thing.
-;;
-;; `C-^', which is supposed to be an alias for `:e#', instead circulates
-;; thru the windows on the screen, switching to the most recently accessed
-;; other buffer is there's only one window.
-;;
-;; `C-d' and `C-u' preserve the goal column (like `j', `k', `C-e' and `C-y' do)
-;;
-;; `/' takes a prefix count to find the nth occurence of a string
-;;
-;; `C-g' gives the column position (it's 0 based, whereas the line number is
-;; 1 based - opinions on this are welcome)
-;;
-;; Arbitrary regions can be operated on via `m.' (mark current position) and
-;; then using the motion `r' or `R' as a motion operand.  The region operated
-;; on is bound by the mark and the cursor position at the time the operator
-;; was invoked.  `R' extends the region to whole lines.  Thus, for example,
-;; the sequence:
-;;	m.3j5wdr
-;; would delete the text from where the cursor started to 3 lines down and
-;; 5 words over.  `R' is often handy for operating on large arbitrary sections
-;; of text, for example say you needed to shift some text that ran on for
-;; several pages and you weren't sure just how long it was at the start:
-;;	m.C-fC-fC-fjjj>R
-;; (this idea, of course, comes straight from vip, and emacs users have
-;; been using arbitrary regions for years)
-;;
-;; `U' continues a previous undo, undoing more changes.  Thus a long enough
-;; sequence of U's will take you back to the unmodified state.  If you went
-;; back too far, a `u' will reverse this process and you can progress forward
-;; in changes using `U'.  In vi U normally means `undo all changes on this
-;; line'.  It seems reasonable to override this meaning since `continue undo'
-;; can do that and more, and doesn't do more than the original command.
-;; #### change by jwz: by popular demand, I have bound U to evi-undo-all, 
-;;      which undoes all changes on the line; bind U to evi-undo-more if you
-;;      want the above-described behavior.
-;;
-;; The marks used by the mark command `m' are emacs markers, thus they
-;; mark a position in a buffer, not necessarily the current one.  This
-;; affects the goto mark commands ``' and `''.  For example, if mark
-;; `a' is placed in one buffer, then later in another buffer, the command
-;; ``a' is typed, evi will first switch to that buffer, then go to the
-;; location in that buffer.
-;; `'' and ``' also accept `.' and `,' for pop context, and unpop context
-;; respectively.  Thus, `'.' will take you to the previous context
-;; (defined as in vi by a region of relative motion, with an `absolute'
-;; motion pushing a new context.  quotes surround `absolute' because a
-;; search is considered an absolute motion for this purpose), and `'.'
-;; will take you to the context before that.  There is a ring of 10 contexts
-;; so after 10 `'.' commands you'll end up at the original previous
-;; context.  `Unpop context' means move forward thru the ring.  `''' and
-;; ```' are defined as exchange current location with the location of the
-;; previous context.  The context ring is buffer local, so use of it will
-;; always keep you in the same buffer.
-;;
-;; `%' exhibits language sensitivity in that it ignores parentheses embedded
-;; in quotes.  What defines quotes is based on what minor mode emacs is in
-;; (such as c-mode or lisp-mode), or you can roll your own (see emacs
-;; command modify-syntax-entry).
-;;
-;; `=' is no longer specific to :set lisp.  It indents according to the
-;; mode.  See emacs command indent-according-to-mode.
-
-;; Differences
-;;
-;; These I haven't gotten around to, would be too much bother to implement,
-;; would require emacs C source modifications to do sensibly, or are simply
-;; unnecessary ;; in an emacs environment.  I'll let you guess which is
-;; which ;-)
-;;
-;; `C-@' in insert mode
-;; `C-q'
-;; `C-[' doesn't always do the right thing, and it doesn't do the
-;;       timeout trick necessary to allow it to recognize keypad sequences
-;; `#'
-;; `&'
-;; `/' search offsets
-;; `Q'
-;; `i' repeat counts
-;;
-;; digit registers don't work entirely correctly - there are circumstances
-;; in which separate lines of a change/deletion are supposed to go into
-;; separate registers
-;;
-;; `:set lisp' has no effect, however, emacs does largely take care of
-;; any lisp'ish behaviour you'd want automatically if the file you're
-;; editing is suffixed with `.l' or `.el'.  One particular loss, however,
-;; is that `)' and `(' don't work on s-expressions like they would in vi
-;; with lisp set.
-;;
-;; :set number
-;;
-;; actually a good number of the ex commands and options aren't implemented
-;; now.  A more meaningful list would be those that are implemented:
-;;	cd, chdir, copy, delete, edit, file, global, map, move, next, print,
-;;	put, quit, read, set, source, substitute, tag, write, wq, yank, !, <, >
-;; These are the options that are implemented:
-;;	autoindent, ignorecase, magic, notimeout, shiftwidth, showmatch,
-;;	tabstop, wrapscan
-
-;; Note to vip users:
-;;
-;; Undo does not continue via `.'.  This is incompatible with vi - the sequence
-;; `u.' in vi means `undo, then do again', whereas in vip it means `undo,
-;; then undo some more.'  For the vip functionality use `U' (see above).
-;;
-;; There are actually a large number of functional differences between vip
-;; and evi.  Most of this has to do with evi's goal of being as much like
-;; vi as possible (for better or for worse, I tried not to make too many
-;; judgement calls, so that the user could decide).
-
-
-;; Version 18 vs. Lucid Emacs compatibility:
-(defvar evi-new-event-model-p (fboundp 'event-to-character))
-
-(cond ((not evi-new-event-model-p)
-       (fset 'character-to-event (function (lambda (char event) char)))
-       (fset 'allocate-event (function (lambda () nil)))))
-
-(defun evi-unread-char (char)
-  (if evi-new-event-model-p
-      (setq unread-command-event
-	    (if (null char)
-		last-command-event
-	      (character-to-event char (allocate-event))))
-    (setq unread-command-char
-	  (if (null char)
-	      last-command-char
-	    char))))
-
-(defun evi-read-char ()
-  (let ((event (allocate-event)))
-    (next-command-event event)
-    (let ((char (event-to-character event nil)))
-      ;; This is a bit of a kludge.  Any non-
-      ;; character event gets unread and an escape is returned instead.
-      ;; So effectively any non-character event is just like escape
-      ;; followed by the event, causing insert mode to be exited and
-      ;; the event to be handled in regular vi mode.
-      (cond ((null char)
-	     (setq unread-command-event event)
-	     ?\e)
-	    (t (deallocate-event event)
-	       char)))))
-
-;(defun evi-read-char ()
-;  (let ((event (allocate-event))
-;	char)
-;    (next-command-event event)
-;    (while (null (setq char (event-to-character event nil)))
-;      (dispatch-event event)
-;      (next-command-event event))
-;    char))
-
-(defun evi-event-to-character (event)
-  (if evi-new-event-model-p
-      ;; This is just for compatibility with evi-read-char
-      (or (event-to-character event) ?\e)
-    event))
-
-
-(defmacro defbuffervar (name default-value documentation)
+(defmacro evi-defbuffervar (name default-value documentation)
   (list 'progn (list 'defvar name nil documentation)
 	       (list 'make-variable-buffer-local (list 'quote name))
 	       (list 'set-default (list 'quote name) default-value)))
 
-(defbuffervar evi-mode 'vi
+(defmacro evi-version-case (&rest cases)
+  (let ((return nil))
+    (while cases
+      (if (string-match (car (car cases)) (emacs-version))
+	  (setq return
+		(if (cdr (cdr (car cases)))
+		    (cons 'progn (cdr (car cases)))
+		  (car (cdr (car cases))))
+		cases nil)
+	(setq cases (cdr cases))))
+    return))
+
+(evi-version-case
+  ("Emacs 18\\|Epoch 4"
+    (defun evi-fill-keymap (keymap def)
+      (fillarray keymap def))
+
+    (defun evi-keymap-bindings (map)
+      (evi-keymap-bindings2 map ""))
+
+    (defun evi-keymap-bindings2 (map prefix)
+      (let ((bindings (cdr map))
+	    (mappings nil))
+	(while bindings
+	  (let* ((binding (car bindings))
+		 (keys (concat prefix (char-to-string (car binding)))))
+	    (if (keymapp (cdr binding))
+		(setq mappings
+		  (nconc (evi-keymap-bindings2 (cdr binding) keys) mappings))
+	      (setq mappings (cons (cons keys (cdr binding)) mappings))))
+	  (setq bindings (cdr bindings)))
+	mappings))
+    )
+  ("Emacs 19.*Lucid"
+    (defun evi-fill-keymap (keymap def)
+      (let ((i 128))
+	(while (<= 0 (setq i (1- i)))
+	  (define-key keymap (make-string 1 i) def))
+	keymap))
+
+    (defun evi-keymap-bindings (map)
+      (let ((mappings nil))
+	(evi-keymap-bindings2 map "")
+	mappings))
+
+    (defun evi-keymap-bindings2 (map prefix)
+      (map-keymap
+        (function
+	  (lambda (key def)
+	    (let* ((keys (concat prefix (single-key-description key))))
+	      (if (keymapp def)
+		  (setq mappings
+			(nconc (evi-keymap-bindings2 def keys) mappings))
+	      (setq mappings
+		(cons (cons keys def) mappings)))))) map))
+    ))
+
+(defvar evi-initialized nil)
+
+(defvar evi-interactive t)
+
+(evi-defbuffervar evi-enabled nil
+  "If t, currently emulating vi in this buffer.")
+
+(defvar evi-debug nil
+  "If t, errors generated by emacs are not handled.")
+
+(defvar evi-supress-ex-startup nil
+  "If t, don't source .exrc or EXINIT at startup.")
+
+(defvar evi-report-unsupported-options nil
+  "If t, give an error if a :set option is used that isn't supported.
+Otherwise, these are silently ignored.")
+
+(evi-defbuffervar evi-mode 'vi
   "Current vi mode, one of vi, insert or replace.")
 
+(evi-defbuffervar evi-mode-string nil
+  "String describing current evi mode.  This is displayed in the mode line.")
+
+(defvar evi-meta-prefix-char nil
+  "Meta-prefix-char to use while in Evi buffers.")
+
+(defvar ex-input-escapes nil
+  "If t, backslash escapes in ex commands will be processed.")
+
+(defvar evi-last-point nil
+  "Used to calculate line number updates.")
+
+(defvar evi-mark nil
+  "Used to define regions for operator commands.")
+
+(defvar evi-global-directory t
+  "If t, a global current directory is used (this is the default).")
+
+(defvar evi-directory-stack nil)
+
+(defvar evi-process-buffer nil)
+
+(defvar evi-abbrev-list nil)
+
+(evi-defbuffervar evi-emacs-local-map nil
+  "Emacs' local map.  \(buffer specific\)")
+
+(defvar evi-emacs-local-suppress-key-list '(?\b ?\t ?\e ?\C-?)
+  "Keys from emacs local map that are to be suppressed.")
+
 (defvar evi-command-keys nil
-  "The keystrokes for the current modifying command.")
+  "The keystrokes for the current command.")
 
-(defvar evi-meta-prefix-char ?\C-a	; -1 to disable
-  "meta-prefix-char is locally set to this in all EVI buffers")
+(defvar evi-prompted nil
+  "If t, the current command was prompted for.")
 
-(defbuffervar evi-replace-max nil
+(evi-defbuffervar evi-replace-max nil
   "Maximum excursion of a replace, after which it switches to insert.")
 
-(defbuffervar evi-overstruck-char nil
+(evi-defbuffervar evi-overstruck-char nil
   "Value of the character overstruck by the `$' marking a partial line change.")
 
-(defbuffervar evi-context nil
+(evi-defbuffervar evi-context nil
   "Current motion context.  One of to-end, to-next, whole-line, or nil.
 The value of this variable is passed to evi-motion-command, and is set by
 prefix operators like 'd' or '>' to control the type of region defined by
 the following motion command.")
 
-(defbuffervar evi-prefix-count nil
-  "Current prefix count.  \(buffer specific\)")
+(defvar evi-prefix-count nil
+  "Current prefix count.")
 
-(defbuffervar evi-prefix-count-multiplier 1
-  "Current prefix count multiplier.  \(buffer specific\)")
+(defvar evi-prefix-count-multiplier 1
+  "Current prefix count multiplier.")
 
-(defbuffervar evi-register nil
-  "Current register to use for deletes, yanks, puts, etc.  \(buffer specific\)")
+(defvar evi-register-spec nil
+  "Current register to use for deletes, yanks, puts, etc.")
 
-(defvar evi-digit-register 0
+(defvar evi-digit-register 8
   "Current delete-ring register cursor.  Points to the register that
 will be register 1.")
+
+(defvar evi-repeat-count 0
+  "The number of times the current command has been repeated via `.'.")
+
+(defvar evi-hidden-repeat-count 0
+  "The hidden copy of evi-repeat-count, which isn't visible unless actually
+repeating a command.")
 
 (defvar evi-last-macro-register nil
   "Last register used to invoke a macro via \\[evi-register-macro].")
@@ -392,31 +194,24 @@ and the cdr being a flag indicating whether or not the text is whole lines.")
 (defvar evi-register-unnamed 9
   "Symbolic name for the unnamed register.  Shouldn't change.")
 
-(defbuffervar evi-region-whole-lines nil
-  "If t, the current region specified by a motion as an operand encompasses
-whole lines.  This is set by evi-motion-command if either the motion is
-a vertical one, it is a horizontal motion that covers more than one line
-or the operator command requires it ('>' for example only operates on
-whole lines).  The value of this variable is stored in the cdr of any
-register that gets stored as a result of the current command.  \(buffer
-specific\)")
+(defvar evi-region-shape 'chars
+  "Specifies the shape of the region for the current operation - one of
+chars, lines, or rectangle.  The value of this variable is stored in the cdr
+of any register that gets stored as a result of the current command.")
 
-(defbuffervar evi-current-indentation 0
+(evi-defbuffervar evi-current-indentation 0
   "The indentation of the most recently auto-indented line.  Used by
-evi-newline-and-indent to determine when to kill auto-indented whitespace.
+evi-newline to determine when to kill auto-indented whitespace.
 \(buffer specific\)")
 
 (defvar evi-internal-command nil
   "If t, next command will be executed in internal mode (certain interface
 features turned off)")
 
-(defvar evi-scroll-count nil
-  "The last specified number of lines to scroll.")
-
-(defbuffervar evi-goal-column 0
+(evi-defbuffervar evi-goal-column 0
   "The column that vertical cursor motion will try to preserve, if possible.")
 
-(defbuffervar evi-reset-goal-column t
+(evi-defbuffervar evi-reset-goal-column t
   "If t, a horizontal motion has been performed, thus goal column must be reset.")
 
 (defvar evi-search-pattern nil
@@ -434,139 +229,90 @@ features turned off)")
 (defvar evi-find-up-to nil
   "If t, the last find command was a find up to command.")
 
-(defbuffervar evi-context-ring (make-vector 10 nil)
+(evi-defbuffervar evi-context-ring (make-vector 10 nil)
   "The last 10 contexts for this buffer.  A context is a location in the buffer
 where only relative motions were performed.  A new context is thus saved each
 time a non-relative motion is performed.")
 
-(defbuffervar evi-context-ring-cursor 0
+(evi-defbuffervar evi-context-ring-cursor 0
   "The cursor pointing to the last context in the context ring.")
 
-(defvar ex-work-space
-  (let ((b (get-buffer-create " *ex-work-space*")))
-    (if (boundp 'zmacs-regions)
-	(save-excursion
-	  (set-buffer b)
-	  (set (make-local-variable 'zmacs-regions) nil)))
-    b)
-  "Evi work space for parsing ex commands.")
+(defvar evi-last-shell-command nil
+  "The last shell command run.")
 
-(defvar ex-find-file-shell "/bin/csh")
+(defvar ex-work-space (get-buffer-create " *ex-work-space*")
+  "Evi work space for parsing ex commands.")
 
 (defvar ex-tag nil
   "Last tag specified.")
 
-; If you think the use of keymaps here has gotten a little out of hand,
-; you're probably right...
-
-(defun evi-make-empty-keymap (name)
-  "Makes a keymap and shadows everything that is in global map."
+(defun evi-make-keymap (name &optional fill)
   (let ((map (make-keymap)))
-    (if (vectorp map)
-	(fillarray map 'undefined)
-      ; Lucid Emacs
-      (let ((meta-prefix-char -1)
-	    (gm (current-global-map)))
-	;; We need to copy the global map instead of making a new one because
-	;; there's no other way to duplicate the exact structure of the global
-	;; map from lisp (it shares a meta keymap with the `esc-map' variable
-	;; which is stupid and shouldn't have been allowed in the first place
-	;; but is necesssary for compatibility.)  Another way of doing this
-	;; would be to bind all of the global-map's "meta" keys in the "empty"
-	;; keymap that we are creating, but this way is less wasteful.
-	(setq map (copy-keymap gm))
-	(if name (set-keymap-name map name))
-	(map-keymap gm
-		    (function (lambda (key value)
-				(or (and (consp key) (member 'meta key))
-				    (define-key map key 'undefined)))))))
+    (if (fboundp 'set-keymap-name)
+	(set-keymap-name map name))
+    (if fill
+	(evi-fill-keymap map fill))
     map))
 
-; ZZ - maybe should be buffer local after it's initialized?
-(defconst evi-vi-map (evi-make-empty-keymap 'evi-vi-map)
+(defconst evi-top-level-map
+  (evi-make-keymap 'evi-top-level-map 'evi-top-level-command))
+
+(defconst evi-vi-map (evi-make-keymap 'evi-vi-map)
   "The keymap used in vi mode.")
 
-(defconst evi-vi-local-map nil
-  "The local keymap used in evi-get-commmand.")
+(defconst evi-internal-map (evi-make-keymap 'evi-internal-map)
+  "The keymap used for special command macro features.")
 
-(defconst evi-internal-map (evi-make-empty-keymap 'evi-internal-map)
-  "A subkeymap of vi-map, used to hard-code standard modification operations
-for use in defining command macros.")
-
-(defconst evi-motion-map (evi-make-empty-keymap 'evi-motion-map)
+(defconst evi-motion-map (evi-make-keymap 'evi-motion-map)
   "The keymap used for operand motions.")
 
-(defconst evi-insert-map (let ((map (evi-make-empty-keymap 'evi-insert-map))
-			       (meta-prefix-char -1)
-			       (i 128))
-			   (while (<= 0 (setq i (1- i)))
-			     (define-key map (make-string 1 i)
-			       'self-insert-command))
-			   map)
-  "The keymap used in insert mode.")
+(defconst evi-map-map (evi-make-keymap 'evi-map-map)
+  "The keymap used for map macros.")
 
-(defconst evi-replace-map (let ((map (evi-make-empty-keymap 'evi-replace-map))
-				(meta-prefix-char -1)
-				(i 128))
-			    (while (<= 0 (setq i (1- i)))
-			      (define-key map (make-string 1 i)
-				'evi-self-replace))
-			    map)
+(defconst evi-input-map (evi-make-keymap 'evi-input-map 'evi-self-insert)
+  "The keymap used in input modes.")
+
+(defconst evi-replace-map (evi-make-keymap 'evi-replace-map 'evi-self-replace)
   "The keymap used in replace mode.")
 
-(defconst evi-minibuffer-map (copy-keymap evi-insert-map)
-  "The keymap used when reading from the minibuffer.")
+(defconst evi-insert-map (evi-make-keymap 'evi-insert-map)
+  "The insert mode specific input map.")
 
-(defconst evi-minibuffer-completion-map (copy-keymap evi-insert-map)
-  "The keymap used when reading with completion from the minibuffer.")
+(defconst evi-read-string-map (evi-make-keymap 'evi-read-string-map)
+  "The evi-read-string specific input map.")
 
-(defconst evi-minibuffer-must-match-map (copy-keymap evi-insert-map)
-  "The keymap used when reading with must match completion from the minibuffer.")
-
-(defconst evi-minibuffer-no-space-map (copy-keymap evi-insert-map)
-  "The keymap used when reading from the minibuffer with no spaces.")
-
-(defconst evi-ex-map (copy-keymap evi-insert-map)
+(defconst evi-ex-map (evi-make-keymap 'evi-ex-map)
   "The keymap used when reading ex commands from the minibuffer")
 
-(defconst evi-all-input-maps
-  '(insert replace minibuffer minibuffer-completion
-	   minibuffer-must-match minibuffer-no-space ex)
-  "All Evi keymaps associated with input.")
+(defconst evi-input-map-map (evi-make-keymap 'evi-input-map-map)
+  "The keymap used for input map macros.")
 
-(defconst evi-all-keymaps
-  '(vi insert replace minibuffer minibuffer-completion
-       minibuffer-must-match minibuffer-no-space ex)
+(defconst evi-shell-map (evi-make-keymap 'evi-shell-map)
+  "The local keymap used in command mode in a shell buffer.")
+
+(evi-defbuffervar evi-buffer-local-vi-map 
+		  (evi-make-keymap 'evi-buffer-local-vi-map)
+  "The keymap for buffer specific additions to the vi command map")
+
+(defconst evi-empty-keymap (evi-make-keymap 'evi-empty-keymap))
+
+; it appears to be correct that this not include buffer-local-vi-map
+(defconst evi-default-keymap-list (list evi-map-map evi-vi-map))
+
+(defconst evi-all-keymaps '(vi insert replace ex)
   "All Evi keymaps.")
 
-(defconst evi-all-keymaps-but-insert
-  (delq 'insert (copy-sequence evi-all-keymaps)))
-
-(defvar evi-get-command-depth 0
-  "Current nesting depth of evi-get-command's.")
-
-;; ZZ should rewrite with catch/throw, or whatever...
-(defvar evi-signal-abort nil
-  "If t, abort the current command.")
-
-(defbuffervar evi-register-parameter nil
+(evi-defbuffervar evi-register-parameter nil
   "Register specification to the current parameterized macro.")
 
-(defbuffervar evi-prefix-count-parameter nil
+(evi-defbuffervar evi-prefix-count-parameter nil
   "Prefix count to the current parameterized macro.")
-
-(defbuffervar evi-get-commands nil
-  "If t, currently accepting commands from within evi-get-commands.")
 
 (defvar evi-last-command-keys nil
   "Command keys for the last complete vi command.")
 
-(defbuffervar evi-insert-point nil
+(evi-defbuffervar evi-insert-point nil
   "The point at which the current insert command began.")
-
-(defvar evi-error-string nil
-  "If non-nil, the current command has encountered a non serious error.
-This string will be presented to the user upon completion.")
 
 ;; Vi option variables
 ;; ZZ - could/should make some of these buffer local after reading EXINIT
@@ -578,46 +324,56 @@ This string will be presented to the user upon completion.")
     (("beautify") . (bool . nil))
     (("directory" "dir") . (string . nil))
     (("edcompatible" "ed") . (bool . nil))
-    (("errorbells" "eb") . (bool . nil))
+    (("errorbells" "eb") . (bool . evi-error-bell))
     (("flash") . (bool . nil))
     (("hardtabs" "ht") . (number . nil))
     (("ignorecase" "ic") . (bool . evi-ignore-case))
+    (("ishell" "ish") . (string . explicit-shell-file-name))
     (("lisp") . (bool . nil))
     (("list") . (bool . nil))
     (("magic") . (bool . evi-search-magic))
     (("mesg") . (bool . nil))
     (("modeline") . (bool . nil))
     (("novice") . (bool . nil))
-    (("number" "nu") . (bool . nil))
+    (("number" "nu") . (bool . evi-number))
     (("optimize" "opt") . (bool . nil))
     (("paragraphs" "para") . (string . nil))
     (("prompt") . (bool . nil))
-    (("readonly" "ro") . (bool . nil))
+    (("readonly" "ro") . (bool . evi-buffer-read-only))
     (("redraw") . (bool . nil))
     (("remap") . (bool . nil))
     (("report") . (number . nil))
-    (("redraw" "re") . (bool . nil))
-    (("scroll") . (number . nil))
+    (("scroll") . (number . evi-scroll-count))
     (("sections" "sect") . (string . nil))
-    (("shell") . (string . nil))
+    (("shell" "sh") . (string . shell-file-name))
     (("shiftwidth" "sw") . (number . evi-shift-width))
-    (("showmatch" "sm") . (bool . blink-matching-paren))
+    (("showmatch" "sm") . (bool . evi-show-match))
+    (("showmode") . (bool . evi-show-mode))
     (("slowopen" "slow") . (bool . nil))
     (("sourceany") . (bool . nil))
-    (("tabstop" "ts") . (number . tab-width))
+    (("tabstop" "ts") . (number . evi-tab-width))
     (("tags") . (string . nil))
     (("taglength" "tl") . (number . nil))
     (("term") . (string . nil))
     (("terse") . (bool . nil))
     (("timeout") . (bool . evi-timeout))
+    (("timeoutlen") . (number . evi-timeout-length))
     (("ttytype" "tty") . (string . nil))
     (("warn") . (bool . nil))
-    (("wrapmargin" "wm") . (bool . nil))
+    (("word") . (string . evi-word))
+    (("Word") . (string . evi-Word))
+    (("wrapmargin" "wm") . (number . evi-wrap-margin))
     (("wrapscan" "ws") . (bool . evi-search-wraparound))
     (("writeany" "wa") . (bool . nil))))
 
+(defvar evi-set-options nil
+  "List of options that have been set.")
+
 (defconst evi-auto-indent nil
   "*If t, automatically indents text inserted on a new line.")
+
+(defconst evi-error-bell nil
+  "*If t, ring bell on error.")
 
 (defconst evi-ignore-case nil
   "*If t, ignore case in searches.")
@@ -627,83 +383,193 @@ This string will be presented to the user upon completion.")
 Otherwise, the `magic' characters `.' `[' and `*' are treated as literals and
 must be escaped to get their regular expression interpretation.")
 
+(defconst evi-number nil
+  "*If t, tracks line and column number in status line.")
+
+(defvar evi-number-string nil)
+(defvar evi-number-format " %d/%d")
+(defvar evi-line-number)
+(defvar evi-column-number)
+
+(defun evi-calc-number ()
+  (setq evi-line-number (count-lines 1 (min (1+ (point)) (point-max)))
+	evi-column-number (1+ (current-column))
+	evi-number-string (format evi-number-format evi-line-number
+						    evi-column-number)
+	evi-last-point (point))
+  (evi-refresh-mode-line))
+
+(defun evi-update-number (point)
+  (let* ((negative (< point evi-last-point))
+	 (delta (1- (if negative
+			(count-lines point (min (1+ evi-last-point)
+						(point-max)))
+		      (count-lines evi-last-point
+				   (min (1+ point) (point-max)))))))
+    (setq evi-line-number (if negative
+			      (- evi-line-number delta)
+			    (+ evi-line-number delta))
+	  evi-column-number (1+ (current-column))
+	  evi-number-string (format evi-number-format evi-line-number
+						      evi-column-number)
+	  evi-last-point (point))
+    (evi-refresh-mode-line)))
+
+(defun evi-number (value)
+  (if value
+      (progn
+	(evi-install-in-mode-line 'evi-number-string)
+	(evi-calc-number))
+    (evi-deinstall-from-mode-line 'evi-number-string)
+    (evi-refresh-mode-line)))
+
+(evi-defbuffervar evi-buffer-read-only nil
+  "*If t, the current buffer is read-only")
+
+(defconst evi-scroll-count nil
+  "*The number of lines to scroll.")
+
 (defconst evi-shift-width 8
   "*The number of colums shifted by > and < command, and ^T and ^D
 in insert mode.")
+
+(defconst evi-show-match nil
+  "*If t, show matching parentheses.")
+
+(defconst evi-show-mode t
+  "*If t, show current vi mode.")
+
+(defconst evi-tab-width 8
+  "*Distance between tab stops")
+
+(defun evi-tab-width (width)
+  (setq-default tab-width width))
 
 (defconst evi-timeout t
   "*If t, timeout is actually *not* implemented.  If nil, <ESC><ESC> becomes
 <ESC>, and arrows keys are mapped to h, j, k and l.")
 
-(defun evi-timeout (value)
-  (if value
-    (evi-define-key '(vi) "\e" 'nil)
-    (progn (evi-define-key '(vi) "\e" esc-map)
-;	   (define-key function-keymap "l" 'evi-backward-char)
-;	   (define-key function-keymap "r" 'evi-forward-char)
-;	   (define-key function-keymap "u" 'evi-previous-line)
-;	   (define-key function-keymap "d" 'evi-next-line)
-	   ;; ZZ should save \e\e binding and use that in :set timeout
-	   (evi-define-key '(vi) "\e\e" 'nil))))
+(evi-version-case
+  ("Emacs 19.*Lucid"
+    (defun evi-timeout (value)
+      ; I presume in v19 we can handle this properly (but hasn't been done yet)
+      ))
+  ("."
+    (defun evi-timeout (value)
+      (if value
+	(evi-define-key '(vi) "\e" nil)
+	(progn (evi-define-key '(vi) "\e" esc-map)
+	       (define-key function-keymap "l" 'evi-backward-char)
+	       (define-key function-keymap "r" 'evi-forward-char)
+	       (define-key function-keymap "u" 'evi-previous-line)
+	       (define-key function-keymap "d" 'evi-next-line)
+	       ;; ZZ should save \e\e binding and use that in :set timeout
+	       (evi-define-key '(vi) "\e\e" nil))))))
+
+(defconst evi-timeout-length 500
+  "*Not implemented.")
+
+(defconst evi-word "[a-zA-Z0-9_]+\\|[^a-zA-Z0-9_ \t\n]+\\|^[ \t]*\n"
+  "*Regular expression to describe words for w, b and e commands.")
+
+(defconst evi-Word "[^ \t\n]+\\|^[ \t]*\n"
+  "*Regular expression to describe words for W, B and E commands.")
+
+(defconst evi-wrap-margin 0
+  "*If non-zero, the amount of right margin past which wraparound occurs.")
+
+(defun evi-wrap-margin (margin)
+  (if (= margin 0)
+    (setq-default auto-fill-hook nil)
+    (progn (setq-default fill-column (- (window-width) margin))
+	   (setq-default auto-fill-hook 'do-auto-fill))))
 
 (defconst evi-search-wraparound t
   "*If t, search wraps around the end of the file.")
 
+(defconst evi-insert-mode-local-bindings nil
+  "*If t, emacs buffer-local key bindings will be enabled in insert mode.")
+
 ;; Ex commands
+;; these are intended to be ordered roughly in order of frequency of use
 
 (defvar ex-commands
-  '((("append" . 1) . ((1 . nil) . ex-not-implemented))
-    (("args" . 2) . ((0 . nil) . ex-not-implemented))
-    (("cd" . 2) . ((0 . ((t . rest-of-line))) . ex-change-directory))
-    (("change" . 1) . ((2 . nil) . ex-not-implemented))
-    (("chdir" . 3) . ((0 . ((t . rest-of-line))) . ex-change-directory))
-    (("copy" . 2) . ((2 . ((t . address))) . ex-copy))
-    (("delete" . 1) . ((2 . ((t . register))) . ex-delete))
-    (("edit" . 1) . ((0 . ((nil . "!") (t . word))) . ex-edit))
-    (("Edit" . 1) . ((0 . ((nil . "!") (t . word))) . ex-edit-other-window))
-    (("file" . 1) . ((0 . ((t . word))) . ex-file))
+  '((("edit" . 1) . ((0 . ((nil . "!") (t . offset) (t . file))) . ex-edit))
+    (("buffer" . 1) . ((0 . ((nil . "!") (t . buffer))) . ex-change-buffer))
+    (("read" . 1) . ((1 . ((t . "!") (t . file))) . ex-read))
+    (("write" . 1) . ((2 . ((nil . "!") (t . ">>") (t . file))) . ex-write))
+    (("kill" . 1) . ((0 . ((nil . "!") (t . buffer))) . ex-kill-buffer))
+    (("next" . 1) . ((0 . ((nil . "!") (t . files))) . ex-next))
+    (("Edit" . 1) .
+     ((0 . ((nil . "!") (nil . offset) (t . file))) . ex-edit-other-window))
+    (("Buffer" . 1) .
+     ((0 . ((nil . "!") (t . buffer))) . ex-change-buffer-other-window))
+    (("Write" . 1) . ((0 . ((nil . "!"))) . ex-write-all-buffers))
+    (("Next" . 1) . ((0 . ((nil . "!") (t . files))) . ex-next-other-window))
+    (("set" . 2) . ((0 . ((nil . settings))) . ex-set))
+    (("substitute" . 1) .
+     ((2 . ((t . regular-expression) (backup . regular-expression2)
+	    (nil . "g") (nil . "c"))) . ex-substitute))
     (("global" . 1) .
      ((2 . ((t . regular-expression) (t . command))) . ex-global))
+    (("map" . 3) .
+     ((0 . ((nil . "!") (t . map) (t . words))) . ex-map))
+    (("gdb" . 2) . ((0 . ((t . file))) . ex-gdb))
+    (("wk" . 2) . ((0 . nil) . ex-write-kill))
+    (("wq" . 2) . ((0 . ((nil . "!"))) . ex-write-quit))
+    (("Wq" . 2) . ((0 . ((nil . "!"))) . ex-write-all-and-quit))
+    (("abbreviate" . 2) .
+     ((0 . ((t . abbrev) (t . words))) . ex-abbrev))
+    (("append" . 1) . ((1 . nil) . ex-not-implemented))
+    (("args" . 2) . ((0 . nil) . ex-not-implemented))
+    (("bug" . 3) . ((0 . ((t . words))) . ex-report-bug))
+    (("cd" . 2) . ((0 . ((t . file))) . ex-change-directory))
+    (("change" . 1) . ((2 . nil) . ex-not-implemented))
+    (("chdir" . 3) . ((0 . ((t . file))) . ex-change-directory))
+    (("copy" . 2) . ((2 . ((t . address))) . ex-copy))
+    (("delete" . 1) . ((2 . ((t . register))) . ex-delete))
+    (("dirs" . 2) . ((0 . nil) . ex-directory-stack))
+    (("elisp" . 2) . ((0 . ((t . rest-of-line))) . ex-elisp-execute))
+    (("evilist" . 4) . ((0 . ((t . words))) . ex-mail-list))
+    (("file" . 1) . ((0 . ((t . file))) . ex-file))
     (("insert" . 1) . ((1 . nil) . ex-not-implemented))
     (("join" . 1) . ((2 . nil) . ex-not-implemented))
     (("list" . 1) . ((2 . nil) . ex-not-implemented))
-    (("map" . 3) .
-     ((0 . ((nil . "!") (t . word) (t . rest-of-line))) . ex-map))
-    (("mark" . 2) . ((1 . nil) . ex-not-implemented))
+    (("mail" . 3) . ((0 . ((t . words))) . ex-mail))
+    (("mark" . 2) . ((1 . ((t . mark))) . ex-mark))
     (("move" . 1) . ((2 . ((t . address))) . ex-move))
-    (("next" . 1) . ((0 . ((nil . "!"))) . ex-next))
-    (("Next" . 1) . ((0 . ((nil . "!"))) . ex-next-other-window))
     (("number" . 2) . ((2 . nil) . ex-not-implemented))
-    (("previous" . 3) . ((0 . nil) . ex-not-implemented))
+    (("popd" . 2) . ((0 . nil) . ex-pop-directory))
+    (("preserve" . 3) . ((0 . nil) . ex-preserve))
+    (("previous" . 4) . ((0 . nil) . ex-not-implemented))
     (("print" . 1) . ((2 . nil) . ex-print))
+    (("pushd" . 4) . ((0 . ((t . file))) . ex-push-directory))
     (("put" . 2) . ((1 . ((t . register))) . ex-put))
     (("quit" . 1) . ((0 . ((nil . "!"))) . ex-quit))
-    (("read" . 1) . ((1 . ((t . "!") (t . rest-of-line))) . ex-read))
+    (("recover" . 3) . ((0 . ((nil . "!") (t . file))) . ex-recover))
+    (("initialize" . 3) . ((0 . nil) . ex-initialize))
     (("rewind" . 3) . ((0 . nil) . ex-not-implemented))
-    (("set" . 2) . ((0 . ((nil . settings))) . ex-set))
-    (("source" . 2) . ((0 . ((t . rest-of-line))) . ex-source-file))
-    (("substitute" . 1) .
-     ((2 . ((t . regular-expression) (backup . regular-expression)
-	    (nil . "g") (nil . "c"))) . ex-substitute))
+    (("send" . 3) . ((0 . ((nil . "!"))) . ex-send-mail))
+    (("shell" . 2) . ((0 . nil) . ex-shell))
+    (("source" . 2) . ((0 . ((t . file))) . ex-source-file))
     (("tag" . 1) . ((0 . ((t . word))) . ex-tag))
+    (("unabbreviate" . 3) . ((0 . ((t . abbrev))) . ex-unabbrev))
     (("undo" . 1) . ((0 . nil) . ex-not-implemented))
-    (("unmap" . 3) . ((0 . nil) . ex-not-implemented))
-    (("version" . 2) . ((0 . nil) . ex-not-implemented))
-    (("write" . 1) . ((2 . ((nil . "!") (t . ">>") (t . word))) . ex-write))
-    (("wq" . 2) . ((0 . nil) . ex-write-quit))
-    (("xit" . 1) . ((0 . nil) . ex-save-quit))
+    (("unmap" . 3) . ((0 . ((nil . "!") (t . word))) . ex-unmap))
+    (("version" . 2) . ((0 . nil) . ex-evi-version))
+    (("xit" . 1) . ((0 . nil) . ex-not-implemented))
     (("yank" . 1) . ((2 . ((t . register))) . ex-yank))
-    (("!" . 1) . ((2 . ((t . rest-of-line))) . ex-shell-command))
+    (("!" . 1) . ((2 . ((nil . "&") (t . shell-command))) . ex-shell-command))
     (("<" . 1) . ((2 . nil) . ex-shift-left))
     (("=" . 1) . ((2 . nil) . ex-not-implemented))
     ((">" . 1) . ((2 . nil) . ex-shift-right))
-    (("&" . 1) . ((2 . nil) . ex-not-implemented))
+    (("&" . 1) . ((2 . nil) . ex-substitute-again))
     (("@" . 1) . ((2 . nil) . ex-not-implemented))
     (("" . 0) . ((2 . nil) . ex-null))))
 
 ;; Macros
 
-(defmacro defmotion (&rest args)
+(defmacro evi-defmotion (&rest args)
   (let* ((direction (car args))
 	 (function (car (cdr args)))
 	 (params (nth 2 args))
@@ -712,24 +578,13 @@ in insert mode.")
 	 (do-function (intern (concat "do-" (symbol-name function)))))
     ; ZZ some rather narly hard-coding here, but does the trick for now
     (cond ((eq (car params) '&char)
-	    (` (progn (defun (, function) (char) (, documentation)
-			(interactive "c")
-			(if evi-command-keys
-			  (setq evi-command-keys
-			    (concat evi-command-keys (char-to-string char))))
+	    (` (progn (defun (, function) () (, documentation)
+			(interactive)
 			(evi-motion-command (quote (, do-function))
 					    (quote (, direction))
-					    evi-prefix-count evi-context char))
+					    evi-prefix-count evi-context
+					    (evi-read-command-char)))
 		      (defun (, do-function) (, (cdr params)) (,@ body)))))
-;(	    (list 'progn
-;	      (list 'defun function '(char) documentation '(interactive "c")
-;		    (function (if evi-command-keys
-;		       (setq evi-command-keys
-;			     (concat evi-command-keys (char-to-string char)))))
-;		    (list 'evi-motion-command (list 'quote do-function)
-;			  (list 'quote direction)
-;			  'evi-prefix-count 'evi-context 'char))
-;	      (append (list 'defun do-function (cdr params)) body)))
 	  ((eq (car params) '&string)
 	    (` (progn (defun (, function) () (, documentation)
 			(interactive)
@@ -739,13 +594,6 @@ in insert mode.")
 			  (evi-read-string (, (car (cdr params))))))
 		      (defun (, do-function) (, (cdr (cdr params)))
 			(,@ body)))))
-;(	    (list 'progn
-;	      (list 'defun function () documentation '(interactive)
-;		      (list 'evi-motion-command (list 'quote do-function)
-;			    (list 'quote direction)
-;			    'evi-prefix-count 'evi-context
-;			    (list 'evi-read-string (car (cdr params)))))
-;	      (append (list 'defun do-function (cdr (cdr params))) body)))
 	  (t
 	    (` (progn (defun (, function) () (, documentation)
 			(interactive)
@@ -753,12 +601,6 @@ in insert mode.")
 			  (quote (, do-function)) (quote (, direction))
 			  evi-prefix-count evi-context))
 		      (defun (, do-function) (, params) (,@ body))))))))
-;	    (list 'progn
-;	      (list 'defun function () documentation '(interactive)
-;		    (list 'evi-motion-command (list 'quote do-function)
-;			  (list 'quote direction)
-;			  'evi-prefix-count 'evi-context))
-;	      (append (list 'defun do-function params) body))))))
 
 (defmacro evi-iterate (count &rest body)
   (list 'let (list (list 'count count))
@@ -780,319 +622,374 @@ in insert mode.")
 	'((setq list (cdr list)))))
     'list))
 
+(defmacro evi-iterate-list (item list &rest body)
+  (list 'let (list (list 'list list) (list item) '(found))
+    (append
+      (list 'while 'list)
+      (append (list (list 'setq item '(car list)))
+	      body '((setq list (cdr list)))))))
+
+(defmacro evi-find (item list pred)
+  (list 'let (list (list 'list list) (list item) '(found))
+    (list 'while
+      (list 'and 'list
+	    (list 'progn (list 'setq item '(car list) 'found pred)
+			 '(not found)))
+      '(setq list (cdr list)))
+    'found))
+
+(defmacro evi-set-goal-column ()
+  (` (if evi-reset-goal-column
+       (setq evi-goal-column (current-column)
+	     evi-reset-goal-column nil))))
+
+(defmacro evi-reset-goal-column ()
+  (` (setq evi-reset-goal-column t)))
+
 (defmacro evi-register-text (register)
   (list 'car register))
 
-(defmacro evi-register-whole-lines-p (register)
+(defmacro evi-register-shape (register)
   (list 'cdr register))
-
-(defmacro evi-single-change (&rest prog)
-  (append '(let ((previous-undo-list buffer-undo-list)))
-	     prog
-	     '((setq buffer-undo-list
-		     (evi-remove-undo-boundaries
-		      buffer-undo-list previous-undo-list)))))
 
 ;; Keymaps
 
 (defun evi-define-key (maps key def)
   (let ((meta-prefix-char -1))
     (evi-enumerate-condition map maps t
-			     (eval (list 'define-key
-					 (intern (concat "evi-" (symbol-name map) "-map")) 'key 'def)))))
-
-;(defmacro evi-define-key (maps key def)
-;  (append '(progn)
-;    (mapcar (function
-;	      (lambda (map)
-;		(list 'define-key
-;		      (intern (concat "evi-" (symbol-name map) "-map"))
-;		      key def)))
-;	    (if (listp maps) maps (symbol-value maps)))))
+      (funcall 'define-key
+	       (symbol-value
+		(intern (concat "evi-" (symbol-name map) "-map")))
+	       key def))))
 
 (defun evi-define-macro (maps key macro)
   (evi-enumerate-condition map maps t
     (eval (list 'define-key
 		(intern (concat "evi-" (symbol-name map) "-map")) 'key
 		(list 'quote (list 'lambda ()
-		   '(interactive) (list 'evi-execute-command-macro macro)))))))
-
-;(defmacro evi-define-macro (maps key macro)
-;  (append '(progn)
-;    (mapcar (function
-;	      (lambda (map)
-;		(list 'define-key
-;		      (intern (concat "evi-" (symbol-name map) "-map"))
-;		      key 
-;		      (list 'function
-;			    (list 'lambda () '(interactive)
-;				  (list 'evi-execute-command-macro macro))))))
-;	    (if (listp maps) maps (symbol-value maps)))))
+		  '(interactive) (list 'evi-internal-macro macro)))))))
 
 (defun evi-make-local-keymap (keydefs)
   (let ((keymap (make-sparse-keymap)))
+    (if (fboundp 'set-keymap-name)
+	(set-keymap-name keymap 'evi-local))
     (mapcar '(lambda (keydef)
-	       (define-key keymap (eval (car keydef)) (car (cdr keydef))))
+	       (define-key keymap (eval (car keydef)) (nth 1 keydef)))
 	    keydefs)
     keymap))
 
-(evi-define-key '(vi motion internal) "]" nil)
-(evi-define-key '(vi motion internal) "[" nil)
-(evi-define-key '(vi) "Z" nil)
+;					"\C-a"
+(evi-define-key '(vi)			"\C-b" 'evi-scroll-page-backward)
+(evi-define-key '(vi)			"\C-c" 'keyboard-quit)
+(evi-define-key '(vi)			"\C-d" 'evi-scroll-text-forward)
+(evi-define-key '(vi)			"\C-e" 'evi-scroll-cursor-forward)
+(evi-define-key '(vi)			"\C-f" 'evi-scroll-page-forward)
+(evi-define-key '(vi)			"\C-g" 'evi-file-info)
+(evi-define-key '(vi motion)		"\C-h" 'evi-backward-char)
+;					"\C-i"
+(evi-define-key '(vi motion)		"\C-j" 'evi-next-line)
+;					"\C-k"
+(evi-define-key '(vi)			"\C-l" 'redraw-display)
+(evi-define-key '(vi motion)		"\C-m" 'evi-beginning-of-next-line)
+(evi-define-key '(vi motion)		"\C-n" 'evi-next-line)
+;					"\C-o"
+(evi-define-key '(vi motion)		"\C-p" 'evi-previous-line)
+;					"\C-q" (not implemented)
+(evi-define-key '(vi)			"\C-r" 'redraw-display)
+;					"\C-s"
+;					"\C-t" (not implemented)
+(evi-define-key '(vi)			"\C-u" 'evi-scroll-text-backward)
+;					"\C-v"
+;					"\C-w"
+;					"\C-x"
+(evi-define-key '(vi)			"\C-y" 'evi-scroll-cursor-backward)
+(evi-define-key '(vi)			"\C-z" 'suspend-emacs)
+;					"\C-[" (ESC)
+;					"\C-\"
+(evi-define-key '(vi)			"\C-]" 'evi-tag)
+(evi-define-macro '(vi)			"\C-^" ":e#\n")
 
-(evi-define-key '(vi internal motion minibuffer minibuffer-completion
-		     minibuffer-must-match minibuffer-no-space)
-		"\C-_" 'evi-internal-command)
-(evi-define-key '(vi internal motion) "[(" 'evi-parameterized-macro)
-(evi-define-key '(vi internal) "@" 'evi-register-macro)
-(evi-define-key '(internal) "\"" 'evi-register-parameter)
-(evi-define-key '(internal) "#" 'evi-prefix-count-parameter)
-(evi-define-key '(internal) "\t" 'evi-maybe-indent)
+(evi-define-key '(vi motion)		" " 'evi-forward-char)
+(evi-define-key '(vi)			"!" 'evi-shell-filter)
+(evi-define-key '(vi)			"\"" 'evi-prefix-register)
+;					"#"
+(evi-define-key '(vi motion)		"$" 'evi-end-of-line)
+(evi-define-key '(vi motion)		"%" 'evi-paren-match)
+(evi-define-key '(vi)			"&" 'evi-substitute-again)
+(evi-define-key '(vi motion)		"'" 'evi-goto-mark-vertical)
+(evi-define-key '(vi motion)		"(" 'evi-backward-sentence)
+(evi-define-key '(vi motion)		")" 'evi-forward-sentence)
+(evi-define-key '(vi)			"*" 'evi-send-to-process)
+(evi-define-key '(vi motion)		"+" 'evi-beginning-of-next-line)
+(evi-define-key '(vi motion)		"," 'evi-find-next-character-reverse)
+(evi-define-key '(vi motion)		"-" 'evi-beginning-of-previous-line)
+(evi-define-key '(vi)			"." 'evi-repeat)
+(evi-define-key '(vi motion)		"/" 'evi-search-forward)
+(evi-define-key '(vi motion)		"0" 'evi-beginning-of-line)
+(evi-define-key '(vi motion)		"1" 'evi-prefix-digit)
+(evi-define-key '(vi motion)		"2" 'evi-prefix-digit)
+(evi-define-key '(vi motion)		"3" 'evi-prefix-digit)
+(evi-define-key '(vi motion)		"4" 'evi-prefix-digit)
+(evi-define-key '(vi motion)		"5" 'evi-prefix-digit)
+(evi-define-key '(vi motion)		"6" 'evi-prefix-digit)
+(evi-define-key '(vi motion)		"7" 'evi-prefix-digit)
+(evi-define-key '(vi motion)		"8" 'evi-prefix-digit)
+(evi-define-key '(vi motion)		"9" 'evi-prefix-digit)
+(evi-define-key '(vi)			":" 'evi-ex-command)
+(evi-define-key '(vi motion)		";" 'evi-find-next-character)
+(evi-define-key '(vi)			"<" 'evi-shift-left)
+(evi-define-key '(vi)			"=" 'evi-indent)
+(evi-define-key '(vi)			">" 'evi-shift-right)
+(evi-define-key '(vi motion)		"?" 'evi-search-backward)
+(evi-define-key '(vi)			"@" 'evi-register-macro)
 
-;; Since these aren't in vi, they have been commented out.
-;; :e already provides this functionality.
-;; (evi-define-key '(vi) "v" 'evi-find-file)
-;; (evi-define-key '(vi) "V" 'evi-find-file-other-window)
+(evi-define-macro '(vi)			"A" "$#i")
+(evi-define-key '(vi motion)		"B" 'evi-backward-Word)
+(evi-define-macro '(vi)			"C" "&c#$")
+(evi-define-macro '(vi)			"D" "&d#$")
+(evi-define-key '(vi motion)		"E" 'evi-end-of-Word)
+(evi-define-key '(vi motion)		"F" 'evi-find-char-backwards)
+(evi-define-key '(vi motion)		"G" 'evi-goto-line)
+(evi-define-key '(vi motion)		"H" 'evi-goto-top-of-window)
+(evi-define-macro '(vi)			"I" "^#i")
+(evi-define-key '(vi)			"J" 'evi-join-lines)
+;					"K"
+(evi-define-key '(vi motion)		"L" 'evi-goto-bottom-of-window)
+(evi-define-key '(vi motion)		"M" 'evi-goto-middle-of-window)
+(evi-define-key '(vi motion)		"N" 'evi-search-next-reverse)
+(evi-define-key '(vi)			"O" 'evi-open-before)
+(evi-define-key '(vi)			"P" 'evi-put)
+(evi-define-key '(vi)			"Q" 'evi-quit-evi)
+(evi-define-key '(vi)			"R" 'evi-replace)
+(evi-define-macro '(vi)			"S" "&c#c")
+(evi-define-key '(vi motion)		"T" 'evi-find-char-backwards-after)
+(evi-version-case
+  ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+    (evi-define-key '(vi)		"U" 'evi-undo-line)))
+;					"V"
+(evi-define-key '(vi motion)		"W" 'evi-forward-Word)
+(evi-define-macro '(vi)			"X" "&d#h")
+(evi-define-macro '(vi)			"Y" "&y#y")
+(evi-define-macro '(vi)			"ZZ" ":Wq!\n")
 
-(evi-define-key evi-all-keymaps-but-insert "\C-^" 'evi-other-file)
+(evi-define-key '(vi motion)		"[[" 'evi-backward-section)
+(evi-define-key '(vi motion)		"[(" 'evi-parameterized-macro)
+(evi-define-key '(vi)			"[u" 'evi-undo-more)
+(evi-define-key '(vi)			"[{" 'evi-loop-over-lines-in-region)
+(evi-define-key '(vi motion)		"]]" 'evi-forward-section)
+(evi-define-key '(vi motion)		"^" 'evi-goto-indentation)
+(evi-define-key '(vi)			"_" 'evi-prompt-repeat)
+(evi-define-key '(vi motion)		"`" 'evi-goto-mark-horizontal)
 
-(evi-define-key '(vi) "\C-f" 'evi-scroll-page-forward)
-(evi-define-key '(vi) "\C-b" 'evi-scroll-page-backward)
-(evi-define-key '(vi) "\C-d" 'evi-scroll-text-forward)
-(evi-define-key '(vi) "\C-u" 'evi-scroll-text-backward)
-(evi-define-key '(vi) "\C-e" 'evi-scroll-cursor-forward)
-(evi-define-key '(vi) "\C-y" 'evi-scroll-cursor-backward)
-(evi-define-key '(vi) "z" 'evi-window-control)
+(evi-define-macro '(vi)			"a" "l#i")
+(evi-define-key '(vi motion)		"b" 'evi-backward-word)
+(evi-define-key '(vi)			"c" 'evi-change)
+(evi-define-key '(vi)			"d" 'evi-delete)
+(evi-define-key '(vi motion)		"e" 'evi-end-of-word)
+(evi-define-key '(vi motion)		"f" 'evi-find-character)
+;					"g"
+(evi-define-key '(vi motion)		"h" 'evi-backward-char)
+(evi-define-key '(vi)			"i" 'evi-insert)
+(evi-define-key '(vi motion)		"j" 'evi-next-line)
+(evi-define-key '(vi motion)		"k" 'evi-previous-line)
+(evi-define-key '(vi motion)		"l" 'evi-forward-char)
+(evi-define-key '(vi)			"m" 'evi-set-mark)
+(evi-define-key '(vi motion)		"n" 'evi-search-next)
+(evi-define-key '(vi)			"o" 'evi-open-after)
+(evi-define-key '(vi)			"p" 'evi-put-after)
+;					"q"
+(evi-define-key '(vi)			"r" 'evi-replace-char)
+(evi-define-macro '(vi)			"s" "&c#l")
+(evi-define-key '(vi motion)		"t" 'evi-find-character-before)
+(evi-define-key '(vi)			"u" 'evi-undo)
+;					"v"
+(evi-define-key '(vi motion)		"w" 'evi-forward-word)
+(evi-define-macro '(vi)			"x" "&d#l")
+(evi-define-key '(vi)			"y" 'evi-yank)
+(evi-define-key '(vi)			"z" 'evi-window-control)
 
-(evi-define-key '(vi internal) "i" 'evi-insert)
-(evi-define-macro '(vi) "a" "\C-_l\C-_#\C-_i")
-(evi-define-macro '(vi) "I" "\C-_0\C-_^\C-_i")
-(evi-define-macro '(vi) "A" "\C-_$\C-_i")
-(evi-define-macro '(vi) "o" "\C-_$\C-_i\r")
-(evi-define-macro '(vi) "O" "\C-_0\C-_i\r\e\C-_k\C-_i") ; #### is this right?
-(evi-define-key '(vi) "r" 'evi-replace-char)
-(evi-define-key '(vi) "R" 'evi-replace)
-(evi-define-key '(vi) "~" 'evi-toggle-case)
-(evi-define-key '(vi internal) "c" 'evi-change)
-(evi-define-macro '(vi) "C" "\C-_\"\C-_c\C-_#$")
-(evi-define-macro '(vi) "s" "\C-_\"\C-_c\C-_#l")
-(evi-define-macro '(vi) "S" "\C-_\"\C-_c\C-_#c")
-(evi-define-key '(vi internal) "d" 'evi-delete)
-(evi-define-macro '(vi) "x" "\C-_\"\C-_d\C-_#l")
-(evi-define-macro '(vi) "X" "\C-_\"\C-_d\C-_#h")
-; true to vi, `D' doesn't take a count...  this should change as I can't think
-; of any good reason why it doesn't, esp since `C' does!
-(evi-define-macro '(vi) "D" "\C-_\"\C-_d$")
-(evi-define-key '(vi internal) "y" 'evi-yank)
-; I wish I knew why D is d$ and C is c$, but Y is yy.  The manual says:
-; 'a very useful synonym for yy'.  Well, that makes it clear! (never mind
-; that shift-y is no easier to type than yy.)
-(evi-define-macro '(vi) "Y" "\C-_\"\C-_y\C-_#y")
-(evi-define-key '(vi) "p" 'evi-put-after)
-(evi-define-key '(vi) "P" 'evi-put)
-(evi-define-key '(vi internal) ">" 'evi-shift-right)
-(evi-define-key '(vi internal) "<" 'evi-shift-left)
-(evi-define-key '(vi internal) "=" 'evi-indent)
-(evi-define-key '(vi internal) "!" 'evi-shell-filter)
-(evi-define-key '(vi internal) "[{" 'evi-loop-over-lines-in-region)
-(evi-define-key '(vi internal) "J" 'evi-join-lines)
+(evi-define-key '(vi motion)		"{" 'evi-backward-paragraph)
+(evi-define-key '(vi motion)		"|" 'evi-goto-column)
+(evi-define-key '(vi motion)		"}" 'evi-forward-paragraph)
+(evi-define-key '(vi)			"~" 'evi-toggle-case)
 
-(evi-define-key '(vi internal motion) "l" 'evi-forward-char)
-(evi-define-key '(vi internal motion) " " 'evi-forward-char)
-(evi-define-key '(vi internal motion) "h" 'evi-backward-char)
-(evi-define-key '(vi internal motion) "\C-h" 'evi-backward-char)
-(if (fboundp 'map-keymap)
-    (evi-define-key '(vi internal motion) 'backspace 'evi-backward-char))
-(evi-define-key '(vi internal motion) "j" 'evi-next-line)
-(evi-define-key '(vi internal motion) "\C-j" 'evi-next-line)
-(evi-define-key '(vi internal motion) "\C-n" 'evi-next-line)
-;;(evi-define-key '(vi internal motion) "\C-m" 'evi-beginning-of-next-line)
-(evi-define-key '(vi internal motion) "\C-m"
-		'evi-beginning-of-next-line-or-send-input)
-(evi-define-key '(vi internal motion) "+" 'evi-beginning-of-next-line)
-(evi-define-key '(vi internal motion) "k" 'evi-previous-line)
-(evi-define-key '(vi internal motion) "\C-p" 'evi-previous-line)
-(evi-define-key '(vi internal motion) "-" 'evi-beginning-of-previous-line)
-(evi-define-key '(vi internal motion) "G" 'evi-goto-line)
-(evi-define-key '(vi internal motion) "H" 'evi-goto-top-of-window)
-(evi-define-key '(vi internal motion) "M" 'evi-goto-middle-of-window)
-(evi-define-key '(vi internal motion) "L" 'evi-goto-bottom-of-window)
-(evi-define-key '(vi internal motion) "|" 'evi-goto-column)
-(evi-define-key '(vi internal motion) "0" 'evi-beginning-of-line)
-(evi-define-key '(vi internal motion) "^" 'evi-goto-indentation)
-(evi-define-key '(vi internal motion) "$" 'evi-end-of-line)
-(evi-define-key '(vi internal motion) "w" 'evi-forward-word)
-(evi-define-key '(vi internal motion) "W" 'evi-forward-white-word)
-(evi-define-key '(vi internal motion) "e" 'evi-end-of-word)
-(evi-define-key '(vi internal motion) "E" 'evi-end-of-white-word)
-(evi-define-key '(vi internal motion) "b" 'evi-backward-word)
-(evi-define-key '(vi internal motion) "B" 'evi-backward-white-word)
-(evi-define-key '(vi internal motion) ")" 'evi-forward-sentence)
-(evi-define-key '(vi internal motion) "(" 'evi-backward-sentence)
-(evi-define-key '(vi internal motion) "}" 'evi-forward-paragraph)
-(evi-define-key '(vi internal motion) "{" 'evi-backward-paragraph)
-(evi-define-key '(vi internal motion) "]]" 'evi-forward-section)
-(evi-define-key '(vi internal motion) "[[" 'evi-backward-section)
-(evi-define-key '(internal motion) "r" 'evi-region)
-(evi-define-key '(internal motion) "R" 'evi-region-whole-lines)
-(evi-define-key '(vi internal motion) "/" 'evi-search-forward)
-(evi-define-key '(vi internal motion) "?" 'evi-search-backward)
-(evi-define-key '(vi internal motion) "n" 'evi-search-next)
-(evi-define-key '(vi internal motion) "N" 'evi-search-next-reverse)
-(evi-define-key '(vi internal motion) "f" 'evi-find-character)
-(evi-define-key '(vi internal motion) "F" 'evi-find-character-backwards)
-(evi-define-key '(vi internal motion) "t" 'evi-find-character-before)
-(evi-define-key '(vi internal motion) "T" 'evi-find-character-backwards-after)
-(evi-define-key '(vi internal motion) ";" 'evi-find-next-character)
-(evi-define-key '(vi internal motion) "," 'evi-find-next-character-reverse)
-(evi-define-key '(vi internal motion) "%" 'evi-paren-match)
+(evi-define-key '(internal)		"&" 'evi-register-parameter)
+(evi-define-key '(internal motion)	"#" 'evi-prefix-count-parameter)
+(evi-define-key '(internal)		"\n" 'evi-self-insert)
+(evi-define-key '(internal)		"\t" 'evi-maybe-indent)
 
-(evi-define-key '(vi) "m" 'evi-mark)
-(evi-define-key '(vi internal motion) "`" 'evi-goto-mark-horizontal)
-(evi-define-key '(vi internal motion) "'" 'evi-goto-mark-vertical)
+(evi-define-key '(motion)		"a" 'evi-region-arbitrary)
+(evi-define-key '(motion)		"r" 'evi-region-rectangle)
+(evi-define-key '(motion)		"R" 'evi-region-rows)
+(evi-define-key '(motion)		"C" 'evi-region-columns)
 
-(evi-define-key '(vi) "." 'evi-repeat)
-(evi-define-key '(vi) "_" 'evi-prompt-repeat)
+; ZZ should define for replace mode also?
+(evi-define-key '(input) "\C-v" 'evi-quoted-insert)
 
-(evi-define-key '(vi) "u" 'evi-undo)
-;(evi-define-key '(vi) "U" 'evi-undo-more)
-(evi-define-key '(vi) "U" 'evi-undo-all)
+(evi-define-key '(input replace) "\C-c" 'evi-input-mode-quit)
+(evi-define-key '(input replace) "\e" 'evi-exit-command-loop)
 
-(evi-define-key '(vi motion) "1" 'evi-prefix-digit)
-(evi-define-key '(vi motion) "2" 'evi-prefix-digit)
-(evi-define-key '(vi motion) "3" 'evi-prefix-digit)
-(evi-define-key '(vi motion) "4" 'evi-prefix-digit)
-(evi-define-key '(vi motion) "5" 'evi-prefix-digit)
-(evi-define-key '(vi motion) "6" 'evi-prefix-digit)
-(evi-define-key '(vi motion) "7" 'evi-prefix-digit)
-(evi-define-key '(vi motion) "8" 'evi-prefix-digit)
-(evi-define-key '(vi motion) "9" 'evi-prefix-digit)
-
-(evi-define-key '(vi) "\"" 'evi-prefix-register)
-
-(evi-define-key '(vi) "\C-g" 'evi-file-info)
-(evi-define-key '(vi) "\C-]" 'evi-tag)
-
-(evi-define-key '(vi) ":" 'evi-ex-command)
-
-(evi-define-key '(vi) "\C-c" 'keyboard-quit)
-(evi-define-key '(vi) "\C-l" 'evi-redraw-selected-screen)
-(evi-define-key evi-all-keymaps-but-insert "\C-r" 'evi-redraw-selected-screen)
-;; Redefined to return to normal emacs mode.
-;;(evi-define-key evi-all-keymaps-but-insert "\C-z" 'suspend-emacs)
-(evi-define-key '(vi) "ZZ" 'evi-save-and-exit)
-
-(evi-define-key evi-all-input-maps "\C-v" 'quoted-insert)
-
-(evi-define-key '(insert) "\C-c" 'evi-input-mode-quit)
 (evi-define-key '(insert) "\C-d" 'evi-backward-indent)
 (evi-define-key '(insert) "\C-h" 'evi-insert-mode-delete-backward-char)
-(if (fboundp 'map-keymap)
-    (evi-define-key '(insert) 'backspace 'evi-insert-mode-delete-backward-char))
-(evi-define-key '(insert) "\C-m" 'evi-insert-newline-or-send-input)
+(evi-define-key '(insert) "\C-j" 'evi-newline)
+(evi-define-key '(insert) "\C-m" 'evi-newline)
 (evi-define-key '(insert) "\C-t" 'evi-forward-indent)
-(evi-define-key '(insert) "\C-w" "\C-_d\C-_b")
-;(evi-define-key (insert replace) "\e" 'evi-exit-input-mode)
-(evi-define-key '(insert replace) "\e" 'evi-exit-get-commands)
+(evi-define-macro '(insert) "\C-w" "db")
+(evi-define-macro '(insert) "\C-x" "d0")
 (evi-define-key '(insert) "\177" 'evi-insert-mode-delete-backward-char)
 
-(evi-define-key '(replace) "\C-c" 'evi-input-mode-quit)
 ;(evi-define-key (replace) "\C-d" 'evi-backward-indent)
 (evi-define-key '(replace) "\C-h" 'evi-replace-mode-delete-backward-char)
-(if (fboundp 'map-keymap)
-    (evi-define-key '(replace) 'backspace 'evi-replace-mode-delete-backward-char))
 ;(evi-define-key (replace) "\C-t" 'evi-forward-indent)
 ;(evi-define-key (replace) "\C-w" 'evi-delete-backward-word)
 (evi-define-key '(replace) "\177" 'evi-replace-mode-delete-backward-char)
 
-(evi-define-key '(minibuffer minibuffer-completion
-			     minibuffer-must-match minibuffer-no-space ex)
-		"\C-c" 'abort-recursive-edit)
-(evi-define-key '(minibuffer) "\C-h" 'evi-minibuffer-delete-backward-char)
-(evi-define-key '(minibuffer-completion
-		  minibuffer-must-match minibuffer-no-space)
-		"\C-h" 'delete-backward-char)
-(evi-define-key '(minibuffer) "\177" 'evi-minibuffer-delete-backward-char)
-(evi-define-key '(minibuffer-completion
-		  minibuffer-must-match minibuffer-no-space)
-		"\177" 'delete-backward-char)
-(evi-define-key '(minibuffer minibuffer-completion
-			     minibuffer-no-space ex)
-		"\C-j" 'exit-minibuffer)
-(evi-define-key '(minibuffer minibuffer-completion minibuffer-no-space ex)
-		"\C-m" 'exit-minibuffer)
-(evi-define-key '(minibuffer minibuffer-completion
-			     minibuffer-must-match minibuffer-no-space)
-		"\C-w" "\C-_d\C-_b")
-(evi-define-key '(minibuffer minibuffer-completion minibuffer-no-space ex)
-		"\e" 'exit-minibuffer)
+(evi-define-key '(read-string ex) "\C-j" 'evi-exit-command-loop)
+(evi-define-key '(read-string ex) "\C-m" 'evi-exit-command-loop)
 
-(evi-define-key '(minibuffer-completion minibuffer-must-match)
-		"\C-i" 'minibuffer-complete)
-(evi-define-key '(minibuffer-completion minibuffer-must-match)
-		" " 'minibuffer-complete-word)
-(evi-define-key '(minibuffer-completion minibuffer-must-match)
-		"?" 'minibuffer-completion-help)
+(evi-define-key '(read-string ex) "\C-h" 'evi-delete-backward-char-maybe-abort)
+(evi-define-key '(read-string ex) "\177" 'evi-delete-backward-char-maybe-abort)
 
-(evi-define-key '(minibuffer-must-match) "\C-j" 'minibuffer-complete-and-exit)
-(evi-define-key '(minibuffer-must-match) "\C-m" 'minibuffer-complete-and-exit)
-(evi-define-key '(minibuffer-must-match) "\e" 'minibuffer-complete-and-exit)
-
-(evi-define-key '(minibuffer-no-space) "\C-i" 'exit-minibuffer)
-(evi-define-key '(minibuffer-no-space) " " 'exit-minibuffer)
-(evi-define-key '(minibuffer-no-space) "?" 'self-insert-and-exit)
-
-(evi-define-key '(ex) "\C-h" 'ex-delete-backward-char)
-(evi-define-key '(ex) "\177" 'ex-delete-backward-char)
 (evi-define-key '(ex) "\C-i" 'ex-complete)
-;(evi-define-key (ex) "\C-w" 'ex-delete-backward-word)
-(evi-define-key '(ex) " " 'ex-space)
 
-(evi-define-key evi-all-keymaps "\C-x" ctl-x-map)
-(evi-define-key evi-all-keymaps "\C-a" esc-map)
+(evi-define-key '(shell) "\C-m" 'shell-send-input)
 
+(evi-version-case
+ ("Emacs 19.*Lucid"
+  ; must find out how/if this interacts with the definition of ESC
+  ; ZZ - both vi and top-level in a map list is redundant - something's afoot
+  (let ((maps '(vi motion top-level)))
+    (evi-define-key maps 'down	  'evi-next-line)
+    (evi-define-key maps 'up	  'evi-previous-line)
+    (evi-define-key maps 'left	  'evi-backward-char)
+    (evi-define-key maps 'right	  'evi-forward-char)
+
+    (evi-define-key maps 'button1 'evi-mouse-track)
+    (evi-define-key maps 'button2 'evi-x-set-point-and-insert-selection)
+    (evi-define-key maps '(control button1) 'evi-mouse-track-insert)
+    (evi-define-key maps '(control button2) 'evi-x-mouse-kill))
+
+  (defun evi-mouse-track (event)
+    (interactive "e")
+    (mouse-track event)
+    (evi-fixup-cursor 'vertical))
+
+  (defun evi-mouse-track-insert (event)
+    (interactive "e")
+    (mouse-track-insert event)
+    (evi-fixup-cursor 'vertical))
+
+  (defun evi-x-mouse-kill (event)
+    (interactive "e")
+    (x-mouse-kill event)
+    (evi-fixup-cursor 'vertical))
+
+  (defun evi-x-set-point-and-insert-selection (event)
+    (interactive "e")
+    (x-set-point-and-insert-selection event)
+    (evi-fixup-cursor 'vertical))
+  ))
 
 ;; Command macros
 
-(defun evi-execute-command-macro (macro)
-  (evi-save-command-keys)
-  (let* ((evi-last-command-keys nil)
-	 (evi-register-parameter evi-register)
-	 (evi-register nil)
-	 (evi-prefix-count-parameter evi-prefix-count)
-	 (evi-prefix-count nil)
-	 (previous-undo-list buffer-undo-list))
-    (evi-single-change
-      (execute-kbd-macro macro))
-	     (evi-fixup-cursor 'vertical)))
-
 (defun evi-parameterized-macro ()
   (interactive)
-  (evi-start-command-keys)
-  (let ((macro (evi-read-string "(")))
-    (evi-execute-command-macro macro)))
+  (let* ((macro (evi-read-string "(")) ;)
+	 (evi-register-parameter evi-register-spec)
+	 (evi-register-spec nil)
+	 (evi-prefix-count-parameter evi-prefix-count)
+	 (evi-prefix-count nil))
+    (evi-execute-macro macro)
+    (evi-fixup-cursor 'vertical)))
 
-(defun evi-register-macro (char)
-  (interactive "c")
-  (evi-save-command-keys)
+(defun evi-internal-macro (macro)
+  (let ((evi-register-parameter evi-register-spec)
+	(evi-register-spec nil)
+	(evi-prefix-count-parameter evi-prefix-count)
+	(evi-prefix-count nil)
+	(evi-default-keymap-list (list evi-internal-map evi-vi-map))
+	(evi-internal-command t))
+    (evi-execute-macro macro))
+  (evi-fixup-cursor 'vertical))
+
+(defun evi-register-macro (char &optional count)
+  (interactive (evi-character-arg))
   (let* ((evi-last-command-keys nil)
-	 (register-number (if (= char ?@)
-			    (or evi-last-macro-register
-				(error "No previous macro register specified"))
-			    (evi-register-number char)))
+	 (register-number (evi-register-number char))
 	 (macro (evi-register-text (aref evi-registers register-number))))
     (setq evi-last-macro-register register-number)
-    (execute-kbd-macro macro)))
+    (evi-execute-macro macro)))
+
+;; And now we have to do our own keyboard macros...  emacs `keyboard' macros
+;; don't cut it as they don't believe in hierarchical commands - the macro
+;; has to terminate at the same lisp execution depth as it started.  This
+;; is OK for emacs 'cause emacs commands don't build on each other like vi
+;; commands do.  If anyone has any idea of how to make emacs `keyboard' macros
+;; behave in a manner independent of their execution context, please let me
+;; know.
+(defvar evi-unread-command-char nil)
+(defvar evi-macro-stack nil)
+(defvar evi-current-macro nil)
+(defvar evi-current-macro-index nil)
+
+(defun evi-execute-macro (macro)
+  (evi-push-macro)
+  (setq evi-current-macro macro
+	evi-current-macro-index 0)
+  (while evi-current-macro
+    (evi-get-command)))
+
+(defun evi-read-string (prompt &optional initial keymap-list)
+  (let ((result
+    (save-window-excursion
+      ; this seems unduly complicated...
+      (set-buffer (window-buffer (minibuffer-window)))
+      (select-window (minibuffer-window))
+      (erase-buffer)
+      (insert prompt)
+      (setq evi-insert-point (point))
+      (if initial
+	(insert initial))
+      (prog1
+	(catch 'quit
+	  (if (evi-command-loop
+		(or keymap-list
+		  (list evi-input-map-map evi-read-string-map evi-input-map)))
+	    (buffer-substring (1+ (length prompt)) (point-max))))
+	(erase-buffer)))))
+    (cond ((eq result t)
+	    (keyboard-quit))
+	  (result result)
+	  (t (throw 'abort t)))))
+
+(defun evi-read-char ()
+  (if evi-unread-command-char
+    (prog1 evi-unread-command-char
+	   (setq evi-unread-command-char nil))
+    (if evi-current-macro
+      (prog1 (aref evi-current-macro evi-current-macro-index)
+	     (setq evi-current-macro-index (1+ evi-current-macro-index))
+	     (if (= evi-current-macro-index (length evi-current-macro))
+	       (evi-pop-macro)))
+      (read-char))))
+
+(defun evi-push-macro ()
+  (setq evi-macro-stack (cons (cons evi-current-macro evi-current-macro-index)
+			      evi-macro-stack)))
+
+(defun evi-pop-macro ()
+  (setq evi-current-macro (car (car evi-macro-stack))
+	evi-current-macro-index (cdr (car evi-macro-stack))
+	evi-macro-stack (cdr evi-macro-stack)))
 
 (defun evi-internal-command ()
   (interactive)
-  (let ((evi-internal-command t)
-	(evi-vi-map evi-internal-map))
-    (evi-get-command)))
+  (let ((evi-internal-command t))
+    (evi-get-command (list evi-internal-map evi-vi-map))))
 
 (defun evi-register-parameter ()
   (interactive)
-  (let ((evi-register evi-register-parameter))
+  (let ((evi-register-spec evi-register-parameter))
     (evi-get-command)))
 
 (defun evi-prefix-count-parameter ()
@@ -1100,288 +997,350 @@ in insert mode.")
   (let ((evi-prefix-count evi-prefix-count-parameter))
     (evi-get-command)))
 
+;; Errors
+
+(defun evi-error (&rest args)
+  (throw 'abort (apply 'format args)))
+
 ;; Get command
 
-(defun evi-get-commands (&optional local-map)
-  (setq evi-get-commands t)
-  (let ((echo-keystrokes 0))
-    (while evi-get-commands
-      (evi-get-command nil local-map))))
-
-(defun evi-exit-get-commands ()
-  (interactive)
-  (setq evi-get-commands nil))
-
-(defun evi-this-command-keys-string ()
-  ;; this-command-keys now returns a vector of events.
-  ;; convert that to a string of ascii characters.
-  (concat (mapcar 'evi-event-to-character (append (this-command-keys) nil))))
-
-(defun evi-get-command (&optional save-command-keys local-map)
-  (if (and save-command-keys (eq evi-command-keys nil))
-    (setq evi-command-keys (evi-this-command-keys-string)))
-  (let ((current-keymap evi-vi-map)
-	(current-local-keymap (or local-map evi-vi-local-map))
-	(evi-get-command-depth (1+ evi-get-command-depth)))
-    (while current-keymap
-      ;; In the Lucid Emacs, keyboard macros terminate by throwing to
-      ;; execute-kbd-macro instead of by returning -1 from read-char.
-      ;; The following code works in v18 or Lucid Emacs.
-      (let ((char (catch 'execute-kbd-macro (evi-read-char))))
-	(if (or (eq char t) (= char -1))
-	    (progn (if executing-macro
-		       (setq executing-macro nil)
-		     (error "Unknown source of EOS"))
-		   (setq char (evi-read-char))))
-	(let ((keydef
-	       (or (if current-local-keymap
-		       (lookup-key current-local-keymap
-				   (char-to-string char)))
-		   (lookup-key current-keymap (char-to-string char)))))
-	  (setq last-command-char char
-		last-command-event (character-to-event char (allocate-event)))
-	  ; probably lousy on garbage collection... 
-	  (if evi-command-keys
-	    (setq evi-command-keys
-		  (concat evi-command-keys (char-to-string char))))
-	  (cond ((keymapp keydef)
-		  (setq current-keymap keydef)
-		  (setq current-local-keymap nil))
-		((stringp keydef)
-		  (execute-kbd-macro keydef)
-		  (setq current-keymap nil))
-		((commandp keydef)
-		  (call-interactively keydef)
-		  (setq current-keymap nil))
-		(t (error "Unknown command"))))))
+(defun evi-command-loop (keymap-list)
+  (let ((evi-default-keymap-list keymap-list)
+	(loop-command-keys evi-command-keys))
     (prog1
-      (not evi-signal-abort)
-      (if (= evi-get-command-depth 1)
-	(setq evi-signal-abort nil)))))
+      (catch 'exit
+	(while t
+	  (setq evi-command-keys "")
+	  (let ((message
+		  (catch 'abort
+		    (evi-get-command keymap-list))))
+	    (if message
+	      (if (not (eq message t))
+		(message message))
+	      (setq loop-command-keys
+		    (concat loop-command-keys evi-command-keys))))))
+      (setq evi-command-keys (concat loop-command-keys evi-command-keys)))))
 
-(defun evi-read-string (prompt)
-  (let ((string (read-string prompt)))
-    (if evi-signal-abort
-      (setq evi-command-keys nil)
-      (if evi-command-keys
-	(setq evi-command-keys (concat evi-command-keys string "\e"))))
-    string))
+(defun evi-top-level-command ()
+  (interactive)
+  (setq evi-unread-command-char last-command-char)
+  (let* ((echo-keystrokes 0)
+	 (blink-matching-paren evi-show-match)
+	 (evi-command-keys "")
+	 (evi-prompted nil)
+	 (message (if evi-debug
+		      (catch 'abort
+			(evi-get-command
+			  (list evi-map-map evi-buffer-local-vi-map
+				evi-vi-map)))
+		    (condition-case code
+			(catch 'abort
+			  (evi-get-command
+			    (list evi-map-map evi-buffer-local-vi-map
+				  evi-vi-map)))
+		      (error
+			(if (not (eq evi-mode 'vi))
+			  (progn
+			    (if (or (eq evi-mode 'replace)
+				    (eq evi-mode 'change))
+			      (evi-exit-replace-mode))
+			    (evi-exit-input-mode)))
+			(while evi-current-macro
+			  (evi-pop-macro))
+			(evi-fixup-cursor 'horizontal)
+			(signal (car code) (cdr code)))))))
+    (if message
+      (progn (if (not (eq message t))
+	       (progn (if evi-error-bell (beep))
+		      (message message)))
+	     (evi-fixup-cursor 'horizontal)))
+    (if evi-number
+	(evi-update-number (point)))))
 
-(defun evi-start-command-keys ()
-  (setq evi-command-keys (evi-this-command-keys-string)))
+(defun evi-emacs-command ()
+  (interactive)
+  (evi-unread-command-char last-command-char)
+  (condition-case code
+      (if evi-global-directory
+	  (let ((default-directory (evi-current-directory)))
+	    (evi-get-command (if evi-emacs-local-map
+				 (list evi-emacs-local-map
+				       (current-global-map))
+			       (list (current-global-map)))))
+	(evi-get-command (if evi-emacs-local-map
+			     (list evi-emacs-local-map (current-global-map))
+			       (list (current-global-map)))))
+    (error
+     (signal (car code) (cdr code)))))
 
-(defun evi-save-command-keys ()
-  (setq evi-last-command-keys
-	(or evi-command-keys
-	    (evi-this-command-keys-string)))
-  (setq evi-command-keys nil))
+(defun evi-exit-command-loop ()
+  (interactive)
+  (throw 'exit t))
 
-; ZZ belongs here?
-(defun evi-interactive-args ()
+(defun evi-get-command (&optional keymap-list)
+  (let* ((current-keymap-list (or keymap-list evi-default-keymap-list))
+	 (inhibit-quit t)
+	 (char (evi-read-command-char))
+	 (keys (char-to-string char))
+	 (keydef))
+    (evi-enumerate-condition keymap current-keymap-list
+      (progn
+	(if (keymapp keymap)
+	    (setq keydef (lookup-key keymap keys))
+	  ; otherwise... we have a pair where the cdr is the keymap and
+	  ; the car is a list of chars that we want to pass-thru this keymap
+	  (if (memq (aref keys 0) (car keymap))
+	      (setq keydef nil)
+	    ; a bit of a hack to get the local binding for meta commands
+	    ; if the first char of this key sequence is our meta prefix,
+	    ; pretend it was an ESC
+	    (if (eq (aref keys 0) evi-meta-prefix-char)
+		; is the \e too hardcoded?
+		(setq keydef (lookup-key (cdr keymap)
+					 (concat "\e" (substring keys 1))))
+	      (setq keydef (lookup-key (cdr keymap) keys)))))
+	(while
+	  (cond ((keymapp keydef)
+		  (setq char (evi-read-command-char)
+			keys (concat keys (char-to-string char))
+			keydef (lookup-key keydef (char-to-string char)))
+		  t)
+		((stringp keydef)
+		  (if evi-prompted (message ""))
+		  (setq last-command-char char
+			evi-prompted nil)
+		  (let ((evi-last-command-keys nil))
+		    (setq quit-flag nil
+			  inhibit-quit nil)
+		    (evi-execute-macro keydef))
+		  nil)
+		((commandp keydef)
+		  (if evi-prompted (message ""))
+		  (setq last-command-char char
+			evi-prompted nil
+			quit-flag nil
+			inhibit-quit nil)
+		  (call-interactively keydef)
+		  nil)
+		(t
+		  (setq keydef nil))))
+	(not keydef)))
+    (or keydef (progn (beep)
+		      (evi-error "Unknown command `%s'" keys))))
+  nil)
+
+(defun evi-read-command-char ()
+  (if evi-current-macro
+    ; don't add the contents of a macro to evi-command-keys (test this now
+    ; because the current command char may be the last char in the macro)
+    (evi-read-char)
+    (progn
+      (and evi-command-keys (> (length evi-command-keys) 0) (evi-sit-for 1)
+	   (progn (message "%s -"
+		    (mapconcat 'single-key-description evi-command-keys ""))
+		  (setq evi-prompted t)))
+      (let ((char (evi-read-char)))
+	; probably lousy on garbage collection... 
+	(if evi-command-keys
+	  (setq evi-command-keys
+		(concat evi-command-keys (char-to-string char))))
+	char))))
+
+(defun evi-unread-command-char (char)
+  (setq evi-unread-command-char char)
+  (let ((length (length evi-command-keys)))
+    (if (> length 0)
+	(setq evi-command-keys (substring evi-command-keys 0 (1- length))))))
+
+(defun evi-sit-for (count)
+  (if evi-unread-command-char nil (sit-for count)))
+
+;; Interactive args
+
+(defun evi-count-arg ()
   (list evi-prefix-count))
 
+(defun evi-register-args ()
+  (list (car evi-register-spec) (cdr evi-register-spec) evi-prefix-count))
+
 (defun evi-character-arg ()
-  (list (let ((char (evi-read-char)))
-	  ;; C-m always means C-j in vi.
-	  (if (eq char ?\C-m)
-	      ?\C-j
-	    char))
-	evi-prefix-count))
+  (list (evi-read-command-char) evi-prefix-count))
+
+(defun evi-context-arg ()
+  (list evi-context))
 
 ;; Mode line
 
+(defvar evi-mode-line-format " Evi:%-6s")
+
+(defun evi-in-mode-line-p (var)
+  (if (listp mode-line-buffer-identification)
+      (memq var mode-line-buffer-identification)
+    nil))
+
+(defun evi-install-in-mode-line (var)
+  (or (evi-in-mode-line-p var)
+      (setq mode-line-buffer-identification
+	    (if (listp mode-line-buffer-identification)
+		(append mode-line-buffer-identification (list var))
+	      (cons mode-line-buffer-identification (list var))))))
+
+(defun evi-deinstall-from-mode-line (var)
+  (if (evi-in-mode-line-p var)
+      (setq mode-line-buffer-identification
+	    (evi-filter (function (lambda (mode-var) (not (eq var mode-var))))
+			mode-line-buffer-identification))))
+
 (defun evi-change-mode-id (string)
-  "Change the mode identification string to STRING."
-  (setq mode-line-buffer-identification '("EVI 0.9b: %16b"))
-  (setq mode-name string))
+  "Change Evi's mode identification string to STRING."
+  (setq evi-mode-string (format evi-mode-line-format string)))
 
 (defun evi-refresh-mode-line ()
   "Redraw mode line."
   (set-buffer-modified-p (buffer-modified-p)))
 
-;; Startup
+;; Initializing
 
-(defvar evi-install-undo-list nil)
+(defun evi-my-file (filename)
+  (let ((attr (file-attributes filename)))
+    (and attr
+	 (eq (car (cdr (cdr attr))) (user-uid)))))
 
-(defun evi-install-var (var value)
-  (or (assq var evi-install-undo-list)
-      (setq evi-install-undo-list
-	    (cons (cons var (symbol-value var)) evi-install-undo-list)))
-  (set var value))
+(defun evi-initialize ()
+  (setq evi-initialized t)
+  (setq evi-directory-stack (list default-directory))
+  (evi-customize))
 
+(defun evi-customize ()
+  ; mimic emacs startup behaviour:
+  ;   if su'd, use effective login name to find startup files (??)
+  (let* ((user-name (user-login-name))
+	 (home (if (string= user-name (user-real-login-name))
+		 "~"
+		 (concat "~" user-name))))
+    (if (file-readable-p "~/.evirc") (load-file (concat home "/.evirc")))
+    (and (file-readable-p ".evirc") (evi-my-file ".evirc")
+	 (load-file ".evirc"))
+    (let* ((evi-interactive nil)
+	   (source)
+	   (message (catch 'abort
+		      (or evi-supress-ex-startup
+			  (progn
+			    (setq source "~/.exrc")
+			    (evi-do-ex-command-file (concat home "/.exrc"))
+			    (setq source "EXINIT")
+			    (let ((exinit (getenv "EXINIT")))
+			      (if exinit
+				(evi-do-ex-command-string exinit)))
+			    (setq source ".exrc")
+			    (if (evi-my-file ".exrc")
+				(evi-do-ex-command-file ".exrc"))))
+		      (setq source "~/.exrc.evi")
+		      (evi-do-ex-command-file (concat home "/.exrc.evi"))
+		      (setq source "EVIINIT")
+		      (let ((exinit (getenv "EVIINIT")))
+			(if exinit
+			  (evi-do-ex-command-string exinit)))
+		      (setq source ".exrc.evi")
+		      (if (evi-my-file ".exrc.evi")
+			  (evi-do-ex-command-file ".exrc.evi"))
+		      nil)))
+      (if message
+	(progn
+	  (beep)
+	  (if (not (y-or-n-p (concat "Error in " source
+			       (if (eq message t) "" (concat ": " message))
+			       ". Continue? ")))
+	    (kill-emacs)))))))
 
-(defvar evi-startup-hook nil
-  "function or functions to run when evi is started.")
-(defvar evi-exit-hook nil
-  "function or functions to run when evi mode is turned off.")
-(defvar evi-mode-hook nil
-  "function or functions to run for each buffer that is placed in evi-mode.")
-
-(defvar evi-orig-interrupt-char)
+;; Startup & Shutdown
 
 (defun evi ()
-  "Start global vi emulation."
+  "Start vi emulation in this buffer."
   (interactive)
-  (let ((evi-was-on-already (not (null evi-install-undo-list))))
-    (evi-install-var 'minibuffer-local-map evi-minibuffer-map)
-    (evi-install-var 'minibuffer-local-completion-map
-		     evi-minibuffer-completion-map)
-    (evi-install-var 'minibuffer-local-must-match-map
-		     evi-minibuffer-must-match-map)
-    (if (boundp 'minibuffer-local-ns-map) ; obsolete -- gone in 19.4
-	(evi-install-var 'minibuffer-local-ns-map evi-minibuffer-no-space-map))
-    (setq evi-orig-interrupt-char interrupt-char)
-    (set-interrupt-character ?\^C)
-    (evi-load-init-files)
-    (or evi-was-on-already (run-hooks 'evi-startup-hook))
-    (evi-mode)
+  (if (not evi-enabled)
+    (progn
+      (or evi-initialized
+	  (evi-initialize))
+      (setq evi-emacs-local-map (current-local-map))
+      (evi-install-in-mode-line 'evi-mode-string)
+      (evi-version-case
+       ("Lucid"
+	(set (make-local-variable 'interrupt-char) ?\C-c)))
+      (if evi-meta-prefix-char
+	(set (make-local-variable 'meta-prefix-char) evi-meta-prefix-char))))
+  (let ((was-enabled evi-enabled))
+    (setq evi-enabled t)
+    (use-local-map evi-top-level-map)
+    (if buffer-read-only
+	(progn (toggle-read-only)
+	       (setq evi-buffer-read-only t)))
+    (evi-change-mode-id "Vi")
+    (evi-number evi-number)
+    (or was-enabled (run-hooks 'evi-mode-hook))
     (evi-refresh-mode-line)))
 
-(defvar vi-buffer-p)
-
-(defun evi-mode ()
-  "Start vi emulation in this buffer."
-  (or evi-install-undo-list (evi))
-  (evi-change-mode-id "Vi")
-  (use-local-map evi-vi-map)
-  (set (make-local-variable 'vi-buffer-p) t)
-  (set (make-local-variable 'scroll-step) 1)
-  (set (make-local-variable 'evi-last-changed-line) nil)
-  (if (boundp 'zmacs-regions)
-      (set (make-local-variable 'zmacs-regions) nil))
-  ;; we have to disable the meta key in vi mode to make vi mode and
-  ;; emacs modes coexist (if we don't disable the meta key, then we
-  ;; have to install a new global-map, which is Bad.)
-  (set (make-local-variable 'meta-prefix-char) evi-meta-prefix-char)
-  (evi-refresh-mode-line)
-  (setq buffer-read-only nil)  ; vi lets you edit read-only files
-  (run-hooks 'evi-mode-hook)
-  (if (evi-comint-p)
-      (evi-insert))
-  )
-
-(defun evi-exit-to-emacs-1 ()
-  "Stop vi emulation.  You must call `top-level' at some point after this."
-  (let ((inhibit-quit t))
-    (set-interrupt-character evi-orig-interrupt-char)
-    (mapcar '(lambda (cons)
-	       (set (car cons) (cdr cons)))
-	    evi-install-undo-list)
-    (setq evi-install-undo-list nil))
-  (save-excursion
-    (let ((rest (buffer-list)))
-      (while rest
-	(set-buffer (car rest))
-	(if (and (boundp 'vi-buffer-p) vi-buffer-p)
-	    (progn
-	      (setq vi-buffer-p nil)
-	      (if (and (buffer-file-name)
-		       (not (buffer-modified-p))
-		       (not (file-writable-p (buffer-file-name))))
-		  (setq buffer-read-only t))
-	      (use-local-map nil)
-	      (kill-all-local-variables)
-	      (if (buffer-file-name)
-		  (after-find-file nil nil)
-		(fundamental-mode))))
-	(setq rest (cdr rest)))))
-  (evi-refresh-mode-line)
-  (run-hooks 'evi-exit-hook))
-
-(defun evi-exit-to-emacs ()
-  "Stop vi emulation."
+(defun evi-quit-evi ()
+  "Quit vi emulation in this buffer."
   (interactive)
-  (evi-exit-to-emacs-1)
-  (top-level))
+  (setq evi-enabled nil)
+  (evi-deinstall-from-mode-line 'evi-mode-string)
+  (evi-deinstall-from-mode-line 'evi-number-string)
+  (use-local-map evi-emacs-local-map)
+  (kill-local-variable 'meta-prefix-char)
+  (evi-version-case
+   ("Lucid"
+    (kill-local-variable 'interrupt-char)))
+  (evi-refresh-mode-line))
 
 ;; Minibuffer
 
-(defun evi-minibuffer-delete-backward-char ()
+(defun evi-delete-backward-char-maybe-abort ()
   "Backup and delete previous character, aborting command if at
 beginning of input."
   (interactive)
-  (if (bolp)
-    (progn (setq evi-signal-abort t)
-	   (exit-minibuffer))
-    (delete-backward-char 1)))
-
-;; Finding files
-
-;; These have been removed due to non-vi-ness
-
-;;(defun evi-find-file ()
-;;  "Find file for editing in this window."
-;;  (interactive)
-;;    (find-file (read-file-name "find file: "))
-;;  (evi-mode))
-
-;;(defun evi-find-file-other-window ()
-;;  "Find file for editing in this window."
-;;  (interactive)
-;;  (find-file-other-window (read-file-name "find file: "))
-;;  (evi-mode))
-
-(defun evi-other-file ()
-  "Switch to other file."
-  (interactive)
-  (if (one-window-p)
-    (let ((buffer (evi-next-file-buffer)))
-      (if buffer
-	(switch-to-buffer buffer)
-	(message "No other file to display")))
-    (other-window 1)))
+  (if (<= (point) evi-insert-point)
+    (throw 'exit nil))
+  (delete-backward-char 1))
 
 ;; Scrolling
 
 (defun evi-scroll-page-forward (&optional count)
   "Scroll COUNT pages forward."
-  (interactive (evi-interactive-args))
+  (interactive (evi-count-arg))
   (scroll-up (if (eq (or count 1) 1)
 	       (- (window-height) 3)
 	       (* (1- (window-height)) (or count 1))))
-  (setq evi-reset-goal-column t))
+  (evi-reset-goal-column))
 
 (defun evi-scroll-page-backward (&optional count)
   "Scroll COUNT pages backward."
-  (interactive (evi-interactive-args))
+  (interactive (evi-count-arg))
   (scroll-down (if (eq (or count 1) 1)
 		 (- (window-height) 3)
 		 (* (1- (window-height)) (or count 1))))
-  (setq evi-reset-goal-column t))
+  (evi-reset-goal-column))
 
 (defun evi-scroll-text-forward (&optional count)
   "Scroll COUNT lines forward.  Default is one half of a page or the last COUNT
-specified to either \\[evi-scroll-up] or \\[evi-scroll-down] if one was previously
+specified to either \\[evi-scroll-text-forward] or \\[evi-scroll-text-backward] if one was previously
 given.  The position of the cursor on the screen is maintained."
-  (interactive (evi-interactive-args))
-  (if evi-reset-goal-column
-    (progn (setq evi-goal-column (current-column))
-	   (setq evi-reset-goal-column nil)))
+  (interactive (evi-count-arg))
+  (evi-set-goal-column)
   (let ((line-count (if count
 		      (setq evi-scroll-count count)
 		      (or evi-scroll-count (/ (1- (window-height)) 2))))
-	(window-line (count-lines (window-start) (1+ (point))))
-	(window-text-height (count-lines (window-start) (window-end))))
-    (if (<= line-count window-text-height)
-	(progn
-	  (scroll-up line-count)
-	  (forward-line (min (1- window-line) line-count)))
-      (if (<= line-count (/ window-text-height 2))
-	  (forward-line (/ window-text-height 2))
-	(if (save-excursion (forward-line 1) (eobp))
-	    (error "End of buffer")
-	  (goto-char (point-max)))))
-    (evi-move-to-column evi-goal-column)
-    (evi-fixup-cursor 'vertical)))
+	(window-line (count-lines (window-start) (1+ (point)))))
+    (scroll-up line-count)
+    (forward-line (min (1- window-line) line-count))
+    (evi-move-to-column evi-goal-column)))
 
 (defun evi-scroll-text-backward (&optional count)
   "Scroll COUNT lines backward.  Default is one half of a page or the last COUNT
 specified to either \\[evi-scroll-up] or \\[evi-scroll-down] if one was previously
 given.  The position of the cursor on the screen is maintained."
-  (interactive (evi-interactive-args))
-  (if evi-reset-goal-column
-    (progn (setq evi-goal-column (current-column))
-	   (setq evi-reset-goal-column nil)))
+  (interactive (evi-count-arg))
+  (evi-set-goal-column)
   (let ((line-count (if count
 		      (setq evi-scroll-count count)
 		      (or evi-scroll-count (/ (1- (window-height)) 2))))
@@ -1393,20 +1352,16 @@ given.  The position of the cursor on the screen is maintained."
 (defun evi-scroll-cursor-forward (&optional count)
   "Scroll COUNT lines forward.  Maintain cursor position in the file
 if possible."
-  (interactive (evi-interactive-args))
-  (if evi-reset-goal-column
-    (progn (setq evi-goal-column (current-column))
-	   (setq evi-reset-goal-column nil)))
+  (interactive (evi-count-arg))
+  (evi-set-goal-column)
   (scroll-up (or count 1))
   (evi-move-to-column evi-goal-column))
 
 (defun evi-scroll-cursor-backward (&optional count)
   "Scroll COUNT lines backward.  Maintain cursor position in the file
 if possible."
-  (interactive (evi-interactive-args))
-  (if evi-reset-goal-column
-    (progn (setq evi-goal-column (current-column))
-	   (setq evi-reset-goal-column nil)))
+  (interactive (evi-count-arg))
+  (evi-set-goal-column)
   (scroll-down (or count 1))
   (evi-move-to-column evi-goal-column))
 
@@ -1416,20 +1371,30 @@ With a prefix count, position that line."
   (interactive (evi-character-arg))
   (if linenumber
     (do-evi-goto-line linenumber))
-  (if (and (>= char ?0) (<= char ?9))
-    (let* ((count (evi-read-number (- char ?0)))
-	   (char (evi-read-char)))
-      (cond ((= char ?.) (enlarge-window (- count (1- (window-height)))))
-	    ((= char ?+) (enlarge-window count))
-	    ((= char ?-) (shrink-window count))
-	    ((= char ?=) (if (= count 1)
-			   (delete-other-windows)
-			   (split-window-vertically)))))
-    (let ((position
-	    (cond ((or (eq char ?\r) (eq char ?H)) 0)
-		  ((or (eq char ?.) (eq char ?M)) (/ (window-height) 2))
-		  ((or (eq char ?-) (eq char ?L)) (- (window-height) 2)))))
-      (recenter position))))
+  (cond ((and (>= char ?0) (<= char ?9))
+	  (let* ((count (evi-read-number (- char ?0)))
+		 (char (evi-read-command-char)))
+	    (cond ((= char ?.) (enlarge-window (- count (1- (window-height)))))
+		  ((= char ?+) (enlarge-window count))
+		  ((= char ?-) (shrink-window count))
+		  ((= char ?=) (cond ((= count 0) (delete-window))
+				     ((= count 1) (delete-other-windows))
+				     ((= count 2) (split-window-vertically))
+				     (t (evi-error "Invalid window op"))))
+		  ((= char ?|) (cond ((= count 0) (delete-window))
+				     ((= count 1) (delete-other-windows))
+				     ((= count 2)
+					(split-window-horizontally)))))))
+	((or (= char ?f) (= char ?n)) (select-window (next-window)))
+	((or (= char ?b) (= char ?p)) (select-window (previous-window)))
+	(t
+	  (let ((position
+		  (cond ((or (eq char ?\r) (eq char ?H)) 0)
+			((or (eq char ?.) (eq char ?M)) (/ (window-height) 2))
+			((or (eq char ?-) (eq char ?L)) (- (window-height) 2))
+			(t (evi-error "Invalid window op")))))
+	    (recenter position))))
+  (if evi-prompted (message "")))
 
 ;; unlike the motion commands, the scroll commands have no wrapper function
 ;; to fixup the cursor, soo...
@@ -1441,57 +1406,73 @@ With a prefix count, position that line."
 ;; Insert mode
 
 (defun evi-insert (&optional count)
-  "Enter insert mode, adding new text before the cursor."
-  (interactive (evi-interactive-args))
-  ;; ZZ this could be a problem if an internal command is used...
-  (evi-start-command-keys)
+  "Enter insert mode."
+  (interactive (evi-count-arg))
   (setq evi-insert-point (point))
-  (evi-insert-mode count)
-  (if (not (bolp)) (backward-char)))
+  (evi-enter-insert count))
 
-(defvar evi-buffer-on-insert-exit nil) ; kludge for mouse-clicks
+(defun evi-open-after (&optional count)
+  "Open a new line below the current one and enter insert mode."
+  (interactive (evi-count-arg))
+  (end-of-line)
+  (insert ?\n)
+  (setq evi-insert-point (point))
+  (evi-maybe-indent)
+  (evi-enter-insert count))
+
+(defun evi-open-before (&optional count)
+  "Open a new line above the current one and enter insert mode."
+  (interactive (evi-count-arg))
+  (beginning-of-line)
+  (insert ?\n)
+  (backward-char)
+  (setq evi-insert-point (point))
+  (evi-maybe-indent t)
+  (evi-enter-insert count))
+
+(defun evi-enter-insert (&optional count)
+  (evi-insert-mode count)
+  (if (not (bolp)) (backward-char))
+  (evi-reset-goal-column)
+  (evi-save-command-keys))
+
+(defun evi-local-insert-map ()
+  (if (and evi-insert-mode-local-bindings evi-emacs-local-map)
+      (cons evi-emacs-local-suppress-key-list evi-emacs-local-map)
+    evi-empty-keymap))
 
 (defun evi-insert-mode (&optional count)
   (setq evi-mode 'insert)
-  (if (eobp) (progn (newline 1) (backward-char 1)))
-  (or (evi-comint-p)
-      (if evi-auto-indent
-	  (define-key evi-insert-map "\C-m" 'evi-newline-and-indent)
-	(define-key evi-insert-map "\C-m" 'newline)))
+  (and (eobp) (not buffer-read-only)
+       (progn (newline 1) (backward-char 1)))
   (evi-change-mode-id "Insert")
-  (evi-remember-last-changed-line)
   (evi-refresh-mode-line)
-  (setq evi-buffer-on-insert-exit nil)
-  ; don't want to record *every* keystroke here... just want the final result
-  (let ((evi-command-keys nil))
-    (evi-get-commands evi-insert-map))
-  (evi-maybe-kill-indentation)
-  (evi-exit-input-mode count)
-;  (if evi-buffer-on-insert-exit
-;      (progn
-;	(switch-to-buffer evi-buffer-on-insert-exit)
-;	(setq evi-buffer-on-insert-exit nil)))
-  )
+  (if (catch 'quit
+	(evi-command-loop (list evi-input-map-map (evi-local-insert-map)
+				evi-insert-map evi-input-map))
+	nil)
+    (progn (evi-exit-input-mode)
+	   (beep)
+	   (evi-error "Quit"))
+    (progn (evi-maybe-kill-indentation)
+	   (evi-exit-input-mode count))))
 
 (defun evi-exit-input-mode (&optional count)
   "Exit from an input mode."
   (interactive)
-  (let ((input-string (buffer-substring evi-insert-point (point))))
-    (if evi-command-keys
-      (progn (setq evi-command-keys
-		   (concat evi-command-keys input-string "\e"))
-	     (evi-save-command-keys)))
-    (if count
-      (evi-iterate (1- count) (insert input-string))))
+  (ex-expand-abbrev)
+  (if count
+    (let ((input-string (buffer-substring evi-insert-point (point))))
+      (evi-iterate (1- count)
+	(insert input-string))))
   (setq evi-mode 'vi)
   (evi-change-mode-id "Vi")
   (evi-refresh-mode-line))
 
 (defun evi-input-mode-quit ()
-  "Abort and exit from and input mode."
+  "Abort and exit from an input mode."
   (interactive)
-  (evi-exit-input-mode)
-  (keyboard-quit))
+  (throw 'quit t))
 
 (defun evi-insert-mode-delete-backward-char ()
   "Backup and delete previous character, but no further than insert point."
@@ -1500,36 +1481,23 @@ With a prefix count, position that line."
     (delete-backward-char 1)
     (message "Beginning of inserted text")))
 
-(defvar evi-hack-comint-p nil)
-
-(defun evi-comint-p ()
-  (and evi-hack-comint-p
-       (boundp 'comint-last-input-start)
-       comint-last-input-start))
-
-(defun evi-insert-newline-or-send-input ()
-  "Insert newline or send input to subprocess, depending on mode."
+(defun evi-maybe-indent (&optional forward)
   (interactive)
   (if evi-auto-indent
-      (progn
-	(evi-maybe-kill-indentation)
-	(if (evi-comint-p)
-	    (comint-send-input)
-	  (insert ?\n))
-	(indent-according-to-mode)
-	(setq evi-current-indentation (current-column)))
-    (if (evi-comint-p)
-	(comint-send-input)
-      (newline))))
-
-(defun evi-maybe-indent ()
-  (interactive)
-  (if evi-auto-indent
-    (progn (indent-according-to-mode)
-	   (setq evi-current-indentation (current-column)))))
+    (progn
+      (let ((start (point)))
+	(skip-chars-forward " \t")
+	(delete-region start (point)))
+      (if (or (not evi-insert-mode-local-bindings)
+	      (eq indent-line-function 'indent-to-left-margin))
+	(indent-to (save-excursion
+		     (if forward (forward-char) (backward-char))
+		     (current-indentation)))
+	(indent-according-to-mode))
+      (setq evi-current-indentation (current-column)))))
 
 (defun evi-maybe-kill-indentation ()
-  (if (and evi-auto-indent (= evi-current-indentation (current-column)))
+  (and evi-auto-indent (= evi-current-indentation (current-column))
     (let ((region
 	   (save-excursion
 	     (let ((start (if (progn (skip-chars-backward " \t") (bolp))
@@ -1539,20 +1507,23 @@ With a prefix count, position that line."
       (if region
 	(delete-region (car region) (cdr region))))))
 
-(defun evi-newline-and-indent ()
+(defun evi-newline ()
   "Insert a newline, and indent to the current indentation level.
 Kills indentation on current line if the line is otherwise empty."
   (interactive)
-  (evi-maybe-kill-indentation)
-  (insert ?\n)
-  (indent-according-to-mode)
-  (setq evi-current-indentation (current-column)))
+  (ex-expand-abbrev)
+  (let ((start (point)))
+    (insert ?\n)
+    (evi-maybe-indent)
+    (save-excursion
+      (goto-char start)
+      (evi-maybe-kill-indentation))))
 
 (defun evi-forward-indent ()
   "Move forward to the next indentation level, defined by shiftwidth."
   (interactive)
-; eat all preceeding blanks, then fill with tabs, and pad with spaces
-; to reach the target column
+  ; eat all preceeding blanks, then fill with tabs, and pad with spaces
+  ; to reach the target column
   (let* ((start-column (current-column))
 	 (target-column (+ start-column (- evi-shift-width
 					   (% start-column evi-shift-width))))
@@ -1560,8 +1531,9 @@ Kills indentation on current line if the line is otherwise empty."
 			 (skip-chars-backward " ")
 			 (point))))
     (delete-backward-char (- (point) backup-point))
-    (while (< (setq start-column (current-column)) target-column)
-      (insert ?\t))
+    (if indent-tabs-mode
+	(while (< (setq start-column (current-column)) target-column)
+	  (insert ?\t)))
     (if (> start-column target-column) (delete-backward-char 1))
     (insert-char ?\ (- target-column (current-column)))))
 
@@ -1576,16 +1548,22 @@ Kills indentation on current line if the line is otherwise empty."
 		     (- start-column (current-column)))))
     (backward-delete-char-untabify (min offset furthest) nil)))
 
+(defun evi-quoted-insert ()
+  (interactive)
+  (insert (evi-read-char)))
+
 ;; Replace mode
 
 (defun evi-replace ()
   "Enter replace mode."
   (interactive)
-  (evi-start-command-keys)
-  (evi-replace-mode (save-excursion (end-of-line) (point))) ; jwz
+  (setq evi-mode 'replace)
+  (evi-replace-mode (1- (point-max)))
   (if (not (bolp)) (backward-char))
   (if evi-replace-max
-      (set-marker evi-replace-max nil)))
+    (set-marker evi-replace-max nil))
+  (evi-reset-goal-column)
+  (evi-save-command-keys))
 
 ;(define-key evi-replace-map "\C-d" 'evi-backward-indent)
 ;(define-key evi-replace-map "\C-t" 'evi-forward-indent)
@@ -1598,52 +1576,75 @@ Kills indentation on current line if the line is otherwise empty."
   (or evi-replace-max
       (setq evi-replace-max (make-marker)))
   (set-marker evi-replace-max max-replace-position)
-  (setq evi-mode 'replace)
-  (setq evi-insert-point (point))
-  (setq evi-replaced-string "")
-  (setq evi-replaced-string-index 0)
+  (setq evi-insert-point (point)
+	evi-replaced-string ""
+	evi-replaced-string-index 0)
   (evi-change-mode-id "Replce")
-  (evi-remember-last-changed-line)
   (evi-refresh-mode-line)
-  (if (catch 'switch-to-insert
-	(let ((evi-command-keys nil))
-	  (evi-get-commands evi-replace-map))
-	t)
-    (if (< evi-replaced-string-index (length evi-replaced-string))
-      (save-excursion
-	(delete-region (point)
-		       (+ (point)
-			  (- (length evi-replaced-string)
-			     evi-replaced-string-index)))
-	(insert (substring evi-replaced-string evi-replaced-string-index))))
-    (progn
-      (set-marker evi-replace-max nil)
-      (evi-insert-mode)))
-  (evi-exit-input-mode))
+  (if (catch 'quit
+	(if (catch 'switch-to-insert
+	      (evi-command-loop (list evi-input-map-map evi-replace-map))
+	      nil)
+	  (progn
+	    (set-marker evi-replace-max nil)
+	    (evi-insert-mode))
+	  (progn
+	    (evi-exit-replace-mode)
+	    (evi-exit-input-mode)))
+	nil)
+      (progn (evi-exit-replace-mode)
+	     (evi-exit-input-mode)
+	     (beep)
+	     (evi-error "Quit"))))
+
+(defun evi-exit-replace-mode ()
+  (if (< evi-replaced-string-index (length evi-replaced-string))
+    (save-excursion
+      (delete-region (point)
+		     (+ (point)
+			(- (length evi-replaced-string)
+			   evi-replaced-string-index)))
+      (insert (substring evi-replaced-string evi-replaced-string-index))))
+  (if (eq evi-mode 'change)
+    (evi-exit-change-mode))
+  (setq evi-overstruck-char nil))
 
 (defun evi-self-replace ()
   "Replace character under cursor with the command character."
   (interactive)
   (if (or (>= (point) evi-replace-max)
-	  (and (= last-command-char ?\n)
-	       (= (following-char) ?\n)))
-      (progn (evi-unread-char nil)
-	     (throw 'switch-to-insert nil))
+	  (= (following-char) ?\n))
+    (progn (setq evi-unread-command-char last-command-char)
+	   ; ZZ this is gross... should be rewritten properly, if possible
+	   (setq evi-command-keys loop-command-keys)
+	   (throw 'switch-to-insert t))
     (progn (if (= evi-replaced-string-index (length evi-replaced-string))
 	     (setq evi-replaced-string
-	       (concat evi-replaced-string (char-to-string (following-char)))))
+	       (concat evi-replaced-string
+		       (char-to-string (following-char)))))
 	   (setq evi-replaced-string-index (1+ evi-replaced-string-index))
-	   (delete-region (point) (1+ (point)))
-	   (if (and evi-overstruck-char (= (point) evi-replace-max))
-	     (progn (aset (car (car buffer-undo-list))
-			  0 evi-overstruck-char)
-		    (setq evi-overstruck-char nil)))
-	   (insert last-command-char)
-	   (if (= last-command-char ?\n)
-	     (evi-maybe-indent)))))
-	     ; ZZ may not be entirely correct?  what about killing
-	     ; indentation on current line?
-	     ; also plays havok with evi-replaced-string...
+	   (let ((start (point)))
+	     (evi-replace-one-char last-command-char)
+	     ; if auto-indenting happened...
+	     (if (> (- (point) start) 1)
+	       (setq evi-insert-point (1+ start)
+		     evi-replaced-string
+		       (buffer-substring (1+ start) (point))
+		     evi-replaced-string-index
+		       (length evi-replaced-string)))))))
+
+(defun evi-replace-one-char (char)
+  (delete-region (point) (1+ (point)))
+  (evi-version-case
+    ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+      (if (and evi-overstruck-char (= (point) evi-replace-max))
+	(progn (aset (car (car buffer-undo-list))
+		     0 evi-overstruck-char)
+	       (setq evi-overstruck-char nil)))))
+  ; ZZ unpleasantly hardcoded?
+  (if (or (= char ?\n) (= char ?\r))
+    (evi-newline)
+    (insert char)))
 
 (defun evi-replace-mode-delete-backward-char ()
   "Backup to previous character, undoing last replacement, but no further
@@ -1654,24 +1655,29 @@ than insert point."
 	   (setq evi-replaced-string-index (1- evi-replaced-string-index)))
     (message "Beginning of replaced text")))
 
-; ZZ - doesn't do things like auto-indent correctly
 (defun evi-replace-char (char &optional count)
   "Replace the following COUNT characters with CHAR."
   (interactive (evi-character-arg))
-  (evi-motion-command 'do-evi-forward-char 'horizontal count 'to-end)
-  (if evi-error-string
-    (message "Can't replace that many characters")
-    (progn (delete-region (mark) (point))
-	   (insert-char char (or count 1))
+  (if (catch 'abort
+	(evi-motion-command 'do-evi-forward-char 'horizontal count 'to-end))
+    (evi-error "Can't replace that many characters")
+    (progn (evi-exchange-point-and-mark)
+	   (evi-iterate (or count 1)
+	     (evi-replace-one-char char))
+	   ; ZZ unpleasantly hard-coded?
+	   ; should be handled by a general purpose post-auto-indent func
+	   (if (or (= char ?\n) (= char ?\r))
+	     (evi-maybe-kill-indentation))
 	   (if (not (bolp)) (backward-char))))
+  (evi-reset-goal-column)
   (evi-save-command-keys))
 
 (defun evi-toggle-case (&optional count)
   "Toggle the case of the following COUNT characters."
-  (interactive (evi-interactive-args))
+  (interactive (evi-count-arg))
   (evi-motion-command 'do-evi-forward-char 'horizontal count 'to-end)
   (save-excursion
-    (evi-iterate (- (point) (mark))
+    (evi-iterate (- (point) evi-mark)
       (backward-char)
       (let ((char (following-char)))
 	(cond ((and (>= char ?a) (<= char ?z))
@@ -1679,13 +1685,14 @@ than insert point."
 	      ((and (>= char ?A) (<= char ?Z))
 		(downcase-region (point) (1+ (point))))))))
   (evi-fixup-cursor 'horizontal)
+  (evi-reset-goal-column)
   (evi-save-command-keys))
 
 ;; Modification operators
 
 (defun evi-change (&optional count)
   "Change operator."
-  (interactive (evi-interactive-args))
+  (interactive (evi-count-arg))
   (evi-operator-command (or count 1) 'to-end '(evi-change-internal) 1))
 
 (defun evi-change-internal ()
@@ -1695,227 +1702,272 @@ than insert point."
   ; region so that it will switch to insert mode if necessary.  Otherwise,
   ; delete the region first, and enter insert mode.
   (evi-copy-region-to-registers t)
-  (evi-start-command-keys)
   ; this makes the undo leave the point at the start of the undone text
-  (exchange-point-and-mark)
-  (evi-single-change
-    (if (save-excursion (end-of-line) (> (mark) (point)))
-      (progn (delete-region (point) (mark))
+  (evi-exchange-point-and-mark)
+  (if (or (save-excursion (end-of-line) (> evi-mark (point)))
+	  (= (point) evi-mark))
+      (progn (delete-region (point) evi-mark)
 	     (setq evi-insert-point (point))
 	     (evi-insert-mode))
-      (progn (setq evi-overstruck-char (char-after (1- (mark))))
-	     (save-excursion
-	       (exchange-point-and-mark)
-	       (delete-region (1- (point)) (point))
-	       (insert ?$)
-	       ;; this is a bit of song and dance to get the cursor to
-	       ;; end up in the right place after an undo.  the problem
-	       ;; is these two previous statements, which are the first
-	       ;; things changed, and thus where the cursor will be left
-	       ;; after an undo.  first step: erase the fact that we put
-	       ;; the dollar sign there in the first place.
-	       (setq buffer-undo-list (cdr (cdr buffer-undo-list))))
-	       ;; second step: wherever we finally delete the `$', rewrite
-	       ;; the undo record with the original overstruck character.
-	     (evi-replace-mode (1+ (mark)))
-	     (if (and (marker-position evi-replace-max)
-		      (< (point) evi-replace-max))
-	       (let ((overstrike-offset (1- (- evi-replace-max (point)))))
-		 (delete-region (point) (marker-position evi-replace-max))
-		 (set-marker evi-replace-max nil)
-		 ;; alter the undo list 
-		 (aset (car (car buffer-undo-list))
-		       overstrike-offset evi-overstruck-char)))))
-    (if (not (bolp)) (backward-char))))
+    (progn (setq evi-overstruck-char (char-after (1- evi-mark)))
+	   (let ((here (point)))
+	     (goto-char evi-mark)
+	     (delete-region (1- evi-mark) evi-mark)
+	     (insert ?$)
+	     (evi-version-case
+	       ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+		 ;; this is a bit of song and dance to get the cursor to
+		 ;; end up in the right place after an undo.  the problem
+		 ;; is these two previous statements, which are the first
+		 ;; things changed, and thus where the cursor will be left
+		 ;; after an undo.  first step: erase the fact that we put
+		 ;; the dollar sign there in the first place.
+		 (setq buffer-undo-list (cdr (cdr buffer-undo-list)))))
+	     (goto-char here))
+	   (setq evi-mode 'change)
+	   (evi-replace-mode evi-mark)))
+  (if (not (bolp)) (backward-char)))
+
+(defun evi-exit-change-mode ()
+  (if (and (marker-position evi-replace-max)
+	   (< (point) evi-replace-max))
+    (let ((overstrike-offset (1- (- evi-replace-max (point)))))
+      (delete-region (point) (marker-position evi-replace-max))
+      (set-marker evi-replace-max nil)
+      (evi-version-case
+	("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+	  ;; second step: rewrite the undo record with the
+	  ;; original overstruck character
+	  (aset (car (car buffer-undo-list))
+		overstrike-offset evi-overstruck-char))))))
 
 (defun evi-delete (&optional count)
   "Delete operator."
-  (interactive (evi-interactive-args))
+  (interactive (evi-count-arg))
   (evi-operator-command (or count 1) 'to-next '(evi-delete-internal)))
 
 (defun evi-delete-internal ()
   (evi-copy-region-to-registers t)
+  (if evi-number
+      (evi-update-number evi-mark))
   ; this makes the undo leave the point at the start of the undone text
-  (exchange-point-and-mark)
-  (if (= (point) (mark))
-    (message
-      (concat "Nothing deleted" (if evi-error-string ": ") evi-error-string))
-    (delete-region (point) (mark)))
-  (evi-fixup-cursor (if evi-region-whole-lines 'vertical 'horizontal)))
+  (evi-exchange-point-and-mark)
+  (if (= (point) evi-mark)
+    (message "Nothing deleted")
+    (if (eq evi-region-shape 'rectangle)
+	(delete-rectangle (point) (1+ evi-mark))
+      (delete-region (point) evi-mark)))
+  (evi-fixup-cursor (if (eq evi-region-shape 'chars) 'horizontal 'vertical)))
 
 (defun evi-yank (&optional count)
   "Yank operator."
-  (interactive (evi-interactive-args))
+  (interactive (evi-count-arg))
   (save-excursion
     (evi-operator-command (or count 1) 'to-next '(evi-yank-internal))))
 
 (defun evi-yank-internal ()
   (evi-copy-region-to-registers nil)
-  (if (= (mark) (point))
-    (message
-      (concat "Nothing to yank" (if evi-error-string ": ") evi-error-string))))
+  (if (= evi-mark (point))
+    (message "Nothing to yank")))
 
-(defun evi-put-after ()
+(defun evi-put-after (&optional register-number register-append count)
   "Put back yanked or deleted text after cursor."
-  (interactive)
+  (interactive (evi-register-args))
   (let ((register
-	  (aref evi-registers (or (car evi-register) evi-register-unnamed))))
+	  (aref evi-registers (or register-number evi-register-unnamed))))
     (if register
-      (if (evi-register-whole-lines-p register)
-	(progn (end-of-line)
-	       (if (not (eobp)) (forward-char))
-	       (save-excursion (insert (evi-register-text register))))
-	(progn (if (not (and (bolp) (eolp)))
-		 (forward-char))
-	       (insert (evi-register-text register))
-	       (backward-char)))
-      (if evi-register
-	(message "Nothing in register %c" (evi-register-name evi-register))
+	(if (eq (evi-register-shape register) 'lines)
+	    (progn (end-of-line)
+		   (if (not (eobp)) (forward-char))
+		   (save-excursion
+		     (evi-iterate (or count 1)
+		       (insert (evi-register-text register)))))
+	  (if (not (and (bolp) (eolp)))
+	      (forward-char))
+	  (evi-iterate (or count 1)
+	    (if (eq (evi-register-shape register) 'chars)
+		(insert (evi-register-text register))
+	      (insert-rectangle (evi-register-text register))))
+	  (backward-char))
+      (if register-number
+	  (message "Nothing in register %c"
+		   (evi-register-name register-number))
 	(message "No text to put"))))
+  (evi-reset-goal-column)
   (evi-save-command-keys))
 
-(defun evi-put ()
+(defun evi-put (&optional register-number register-append count)
   "Put back yanked or deleted text."
-  (interactive)
+  (interactive (evi-register-args))
   (let ((register
-	  (aref evi-registers (or (car evi-register) evi-register-unnamed))))
+	  (aref evi-registers (or register-number evi-register-unnamed))))
     (if register
-      (if (evi-register-whole-lines-p register)
-	(progn (beginning-of-line)
-	       (save-excursion (insert (evi-register-text register))))
-	(progn (insert (evi-register-text register))
-	       (backward-char)))
-      (if evi-register
-	(message "Nothing in register %c" (evi-register-name evi-register))
+	(if (eq (evi-register-shape register) 'lines)
+	    (progn (beginning-of-line)
+		   (save-excursion
+		     (evi-iterate (or count 1)
+		       (insert (evi-register-text register)))))
+	  (evi-iterate (or count 1)
+	    (if (eq (evi-register-shape register) 'chars)
+		(insert (evi-register-text register))
+	      (insert-rectangle (evi-register-text register))))
+	  (backward-char))
+      (if register-number
+	  (message "Nothing in register %c"
+		   (evi-register-name register-number))
 	(message "No text to put"))))
+  (evi-reset-goal-column)
   (evi-save-command-keys))
 
 (defun evi-shift-right (&optional count)
   "Shift right operator."
-  (interactive (evi-interactive-args))
+  (interactive (evi-count-arg))
   (evi-operator-command (or count 1) 'whole-lines '(evi-shift-internal 1)))
 
 (defun evi-shift-left (&optional count)
   "Shift left operator."
-  (interactive (evi-interactive-args))
+  (interactive (evi-count-arg))
   (evi-operator-command (or count 1) 'whole-lines '(evi-shift-internal -1)))
 
 (defun evi-shift-internal (direction)
-  (if (= (mark) (point))
-    (message
-      (concat "Nothing shifted" (if evi-error-string ": ") evi-error-string))
-    (indent-rigidly (mark) (point) (* evi-shift-width direction)))
-  (goto-char (mark))
+  (if (= evi-mark (point))
+    (message "Nothing shifted")
+    (indent-rigidly evi-mark (point) (* evi-shift-width direction)))
+  (goto-char evi-mark)
   (skip-chars-forward " \t"))
 
 (defun evi-indent (&optional count)
   "Indent region."
-  (interactive (evi-interactive-args))
+  (interactive (evi-count-arg))
   (evi-operator-command (or count 1) 'whole-lines '(evi-indent-internal)))
 
 (defun evi-indent-internal ()
-  (if (= (mark) (point))
-    (message
-      (concat "Nothing indented" (if evi-error-string ": ") evi-error-string))
-    (indent-region (mark) (point) nil))
-  (goto-char (mark))
+  (if (= evi-mark (point))
+    (message "Nothing indented")
+    (indent-region evi-mark (point) nil))
+  (goto-char evi-mark)
   (skip-chars-forward " \t"))
 
 (defun evi-shell-filter (&optional count)
   "Filter region thru shell command."
-  (interactive (evi-interactive-args))
+  (interactive (evi-count-arg))
   (save-excursion
     (evi-operator-command (or count 1) 'whole-lines
 			  '(evi-filter-internal input-string) t)))
 
 (defun evi-filter-internal (shell-command)
-  (shell-command-on-region (mark) (point) shell-command t))
+  (if (string= shell-command "!")
+      (setq shell-command
+	(or evi-last-shell-command
+	    (evi-error "No previous shell command to substitute for !")))
+    (setq evi-last-shell-command shell-command))
+  (shell-command-on-region evi-mark (point) shell-command t))
+
+(defun evi-send-to-process (&optional count)
+  "Send region to emacs process buffer."
+  (interactive (evi-count-arg))
+  (save-excursion
+    (evi-operator-command (or count 1) 'to-next
+			  '(evi-to-process-internal)))
+  (switch-to-buffer-other-window evi-process-buffer)
+  (goto-char (process-mark (get-buffer-process evi-process-buffer)))
+  (evi-insert))
+
+(defun evi-to-process-internal ()
+  (send-region
+    (setq evi-process-buffer (read-buffer "* : " evi-process-buffer t))
+    evi-mark (point)))
 
 (defun evi-loop-over-lines-in-region (&optional count)
   "Execute a sequence of operations on every line in a region."
-  (interactive (evi-interactive-args))
+  (interactive (evi-count-arg))
   (evi-operator-command (or count 1) 'whole-lines
 			'(evi-loop-lines-internal input-string) t))
 
 (defun evi-loop-lines-internal (macro)
   (let ((evi-last-command-keys nil)
 	(ending-mark (set-marker (make-marker) (point-marker)))
-	(undo-start buffer-undo-list)
 	(evi-prefix-count nil))
-    (goto-char (mark))
+    (goto-char evi-mark)
     (beginning-of-line)
     (while (< (point) (marker-position ending-mark))
-      (execute-kbd-macro macro)
+      (evi-execute-macro macro)
       (end-of-line)
       (forward-char))
-    (setq buffer-undo-list
-	  (evi-remove-undo-boundaries buffer-undo-list undo-start))
-    (set-marker ending-mark nil)))
+    (set-marker ending-mark nil))
+  (evi-fixup-cursor 'vertical))
 
 (defun evi-operator-command (count context operation &optional more-input)
-  (if (let ((evi-context context)
-	    (evi-prefix-count-multiplier count)
-	    (evi-vi-map evi-motion-map)
-	    (evi-vi-local-map
-	      (evi-make-local-keymap
-		'(((char-to-string last-input-char) evi-whole-lines)))))
-	(evi-get-command t))
-    (let ((input-string (if (eq more-input t)
-			  (evi-read-string (concat evi-command-keys " ")))))
-      ;; ZZ note - we're saving the keys even tho' there may be an abort
-      (if (or (not more-input) (eq more-input t))
-	(evi-save-command-keys))
-      ;; ZZ should just use real error trap here...
-      (if evi-signal-abort
-	(setq evi-signal-abort nil)
-	(eval operation)))))
-
-(defmacro evi-right-paren () ?\))
+  (let ((evi-context context)
+	(evi-prefix-count-multiplier count)
+	(evi-default-keymap-list
+	  (list (evi-make-local-keymap
+		  '(((char-to-string last-command-char) evi-whole-lines)))
+		evi-map-map evi-motion-map)))
+    (evi-get-command))
+  (let ((input-string (if (eq more-input t)
+			(evi-read-string (concat evi-command-keys " : ")))))
+    (eval operation))
+  (evi-reset-goal-column)
+  (evi-save-command-keys))
 
 (defun evi-join-lines (&optional count)
   "Join together COUNT + 1 lines, supplying appropriate whitespace."
-  (interactive (evi-interactive-args))
-  (evi-iterate (or count 1)
-    (let ((starting-point (point)))
+  (interactive (evi-count-arg))
+  (let ((starting-point (point))
+	(ending-point nil))
+    (evi-iterate (max (1- (or count 2)) 1)
       (end-of-line)
-      (if (or (eobp) (progn (forward-char) (eobp)))
-	(progn (goto-char starting-point)
-	       (evi-break))
-	(progn (delete-region (1- (point))
-			      (progn (skip-chars-forward " \t") (point)))
-	       (if (and (/= (preceding-char) ? )
-			(/= (following-char) (evi-right-paren)))
-		 (insert-char ?  (if (= (preceding-char) ?.) 2 1)))))))
+      (if (evi-eobp)
+	  (progn (or ending-point
+		     (setq ending-point starting-point))
+		 (evi-break))
+	(forward-char)
+	(delete-region (1- (point))
+		       (progn (skip-chars-forward " \t") (point)))
+	(or ending-point
+	    (setq ending-point (point)))
+	(if (and (/= (preceding-char) ? )
+		 (/= (preceding-char) ?\t)
+		 (/= (following-char) ?\)))
+	    (insert-char ?  (if (= (preceding-char) ?.) 2 1)))))
+    (goto-char ending-point))
+  (evi-reset-goal-column)
   (evi-save-command-keys))
 
 ;; Motion command
 
+(defun evi-exchange-point-and-mark ()
+  (let ((temp evi-mark))
+    (setq evi-mark (point))
+    (goto-char temp)))
+
 (defun evi-expand-region-to-lines (context)
-  (exchange-point-and-mark)
+  (evi-exchange-point-and-mark)
   (beginning-of-line)
-  (exchange-point-and-mark)
+  (evi-exchange-point-and-mark)
   (end-of-line)
   (if (not (or (eobp) (eq context 'to-end))) (forward-char))
-  (setq evi-region-whole-lines t))
+  (setq evi-region-shape 'lines))
 
 ; 'normalizing' a horizontal region means expanding the region to whole lines
 ; when 1) the beginning of the region is on the first non-white character
 ; of a line, and 2) the ending of the region is on the end of the line
 
 (defun evi-normalize-region ()
-  (if (and (eolp)
-	   (save-excursion
-	     (beginning-of-line)
-	     (and (> (point) (mark))
-		  (progn (goto-char (mark))
-			 (skip-chars-backward " \t")
-			 (bolp)))))
-    (progn (save-excursion
-	     (goto-char (mark))
-	     (beginning-of-line))
-	   (if (not (eobp))
-	     (forward-char))
-	   (setq evi-region-whole-lines t))))
+  (and (eolp)
+       (save-excursion
+	 (beginning-of-line)
+	 (and (> (point) evi-mark)
+	      (progn (goto-char evi-mark)
+		     (skip-chars-backward " \t")
+		     (bolp))))
+       (progn (evi-exchange-point-and-mark)
+	      (beginning-of-line)
+	      (evi-exchange-point-and-mark)
+	      (if (not (eobp))
+		(forward-char))
+	      (setq evi-region-shape 'lines))))
 
 (defun evi-fixup-cursor (direction)
   (or evi-internal-command
@@ -1929,490 +1981,414 @@ than insert point."
 	(if (and (eolp) (not (bolp))) (backward-char))))))
 
 (defun evi-motion-command (move-function direction count context &optional arg)
-  (if evi-signal-abort
-    (if (not context)
-      (setq evi-signal-abort nil))
-    (progn
-      (if context
-	(set-mark (point))
-	; else, maintain the goal column.  kinda gross this being here, but...
-	(if (or (eq move-function 'do-evi-next-line)
-		(eq move-function 'do-evi-previous-line))
-	  (if evi-reset-goal-column
-	    (progn (setq evi-goal-column (current-column))
-		   (setq evi-reset-goal-column nil)))
-	  (setq evi-reset-goal-column t)))
-      (setq evi-error-string nil)
-      (if arg
-	(funcall move-function arg count context)
-	(funcall move-function count context))
-      (if context
-	(progn
-	  (if (< (point) (mark)) (exchange-point-and-mark))
-	  (if (or (eq direction 'vertical) (eq context 'whole-lines))
+  (if context
+      (setq evi-mark (point))
+    ; else, maintain the goal column.  kinda gross this being here, but...
+    (if (or (eq move-function 'do-evi-next-line)
+	    (eq move-function 'do-evi-previous-line))
+	(evi-set-goal-column)
+      (evi-reset-goal-column)))
+  (if arg
+      (funcall move-function arg count context)
+    (funcall move-function count context))
+  (if context
+      (progn
+	(if (< (point) evi-mark) (evi-exchange-point-and-mark))
+	(if (or (eq direction 'vertical) (eq context 'whole-lines))
 	    (evi-expand-region-to-lines context)
-	    (progn (setq evi-region-whole-lines nil)
-		   (if (eq context 'to-next)
+	  (progn (setq evi-region-shape 'chars)
+		 (if (eq context 'to-next)
 		     (evi-normalize-region)))))
-	(progn
-	  ; present any error messages
-	  (if evi-error-string
-	    (message evi-error-string))
-	  ; fixup the location of the cursor, if necessary
-	  (evi-fixup-cursor direction))))))
+    ; fixup the location of the cursor, if necessary
+    (evi-fixup-cursor direction)))
 
 ;; Simple motion commands
 
-(defmotion horizontal evi-forward-char (&optional count context)
+(evi-defmotion horizontal evi-forward-char (&optional count context)
   "Move right COUNT characters on the current line."
-  (forward-char (save-excursion
-		  (set-mark (point))
+  (forward-char (let ((here (point)))
 		  (end-of-line)
-		  (min (or count 1) (- (point) (mark)))))
-  (if (and (eolp) (not context)) (setq evi-error-string "End of line")))
+		  (prog1 (min (or count 1) (- (point) here))
+			  (goto-char here))))
+  (and (eolp) (not context) (not evi-internal-command)
+       (evi-error "End of line")))
 
-(defmotion horizontal evi-backward-char (&optional count context)
+(evi-defmotion horizontal evi-backward-char (&optional count context)
   "Move left COUNT characters on the current line."
-  (backward-char (save-excursion
-		   (set-mark (point))
+  (backward-char (let ((here (point)))
 		   (beginning-of-line)
-		   (min (1- (or count 1)) (- (mark) (point)))))
-  (if (bolp) (setq evi-error-string "Beginning of line") (backward-char)))
+		   (prog1 (min (1- (or count 1)) (- here (point)))
+			   (goto-char here))))
+  (if (bolp) (evi-error "Beginning of line") (backward-char)))
 
-(defun evi-next-line-internal (count)
-  (if (> count 0)
-      (progn (end-of-line)
-	     (if (or (eobp) (progn (forward-char) (eobp)))
-	       (progn
-		 (if (eq (preceding-char) ?\n) (backward-char))
-		 (setq evi-error-string "Last line in buffer"))
-	       (evi-next-line-internal (1- count))))))
-
-;; ZZ'd[jk]' aren't strict yet - on the first and last line,
-;; it should just be an error
-(defmotion vertical evi-next-line (&optional count context)
+(evi-defmotion vertical evi-next-line (&optional count context)
   "Go to ARGth next line."
   (evi-next-line-internal (or count 1))
-  (if (not context)
-    (move-to-column evi-goal-column)))
+  (if (null context)
+    (progn (evi-adjust-scroll-up)
+	   (move-to-column evi-goal-column))))
 
-(defmotion vertical evi-beginning-of-next-line (&optional count context)
+(evi-defmotion vertical evi-beginning-of-next-line (&optional count context)
   "Go to beginning of ARGth next line."
   (evi-next-line-internal (or count 1))
+  (if (null context) (evi-adjust-scroll-up))
   (skip-chars-forward " \t"))
 
-(defmotion vertical evi-beginning-of-next-line-or-send-input (&optional
-							      count context)
-  "Go to beginning of ARGth next line, or send input to the subprocess."
-  (if (and (null count) (evi-comint-p))
-      (progn
-	(comint-send-input)
-	(evi-insert))
-    (progn
-      (evi-next-line-internal (or count 1))
-      (skip-chars-forward " \t"))))
+;; ZZ maybe can use goal column in fixup-cursor to remove some of this here??
+(defun evi-next-line-internal (count)
+  (let* ((starting-point (point))
+	 (offset (forward-line count)))
+    (if (or (/= offset 0) (eobp))
+      (progn (goto-char starting-point)
+	     (evi-error
+		    (if (= count 1) "Last line in buffer"
+				    "Not that many lines left in buffer"))))))
 
-(defun evi-previous-line-internal (count)
-  (if (> count 0)
-      (progn (beginning-of-line)
-	     (if (bobp)
-	       (setq evi-error-string "First line in buffer")
-	       (progn (backward-char)
-		      (evi-previous-line-internal (1- count)))))))
+(defun evi-adjust-scroll-up ()
+  (let ((window-line (count-lines (window-start) (1+ (point))))
+	(window-height (1- (window-height))))
+    (and (> window-line window-height)
+	 (< window-line (+ window-height (/ window-height 3)))
+	 (recenter (1- window-height)))))
 
-(defmotion vertical evi-previous-line (&optional count context)
+(evi-defmotion vertical evi-previous-line (&optional count context)
   "Go to ARGth previous line."
   (evi-previous-line-internal (or count 1))
-  (if (eq context nil)
-    (move-to-column evi-goal-column)))
+  (if (null context)
+    (progn (evi-adjust-scroll-down)
+	   (move-to-column evi-goal-column))))
 
-(defmotion vertical evi-beginning-of-previous-line (&optional count context)
+(evi-defmotion vertical evi-beginning-of-previous-line (&optional count context)
   "Go to beginning of ARGth previous line."
   (evi-previous-line-internal (or count 1))
+  (if (null context) (evi-adjust-scroll-down))
   (back-to-indentation))
 
-(defmotion vertical evi-goto-line (&optional count context)
+(defun evi-previous-line-internal (count)
+  (let* ((starting-point (point))
+	 (offset (forward-line (- count))))
+    (if (/= offset 0)
+      (progn (goto-char starting-point)
+	     (evi-error
+		    (if (= count 1) "First line in buffer"
+				    "Not that many lines left in buffer"))))))
+
+(defun evi-adjust-scroll-down ()
+  (if (< (point) (window-start))
+    (let ((window-line (count-lines (1+ (point)) (window-start)))
+	  (window-height (1- (window-height))))
+      (and (< window-line (/ window-height 3))
+	   (recenter 0)))))
+
+(evi-defmotion vertical evi-goto-line (&optional count context)
   "Go to line number LINE, or to end of file if no count specified."
   ; ZZ once again... if we know the move won't be far (like on same screen)
   ; perhaps shouldn't push context...
   (evi-push-context)
-  (if count
-      (let ((p (point)))
-	(goto-char (point-min))
-	(if (or (> (forward-line (1- count)) 0) (eobp))
-	    (progn
-	      (setq evi-error-string "Last line in buffer")
-	      (goto-char p))))
-    (goto-char (point-max))
-    (forward-line -1)))
+  (ex-goto-line count))
 
-(defmotion vertical evi-goto-top-of-window (&optional offset context)
+(evi-defmotion vertical evi-goto-top-of-window (&optional offset context)
   "Go to the top line of the window.  With an arg, OFFSET, goes to the
 OFFSET'th line of the window."
   (move-to-window-line (1- (or offset 1)))
   (or context
       (skip-chars-forward " \t")))
 
-(defmotion vertical evi-goto-middle-of-window (&optional offset context)
+(evi-defmotion vertical evi-goto-middle-of-window (&optional offset context)
   "Go to the middle line of the window."
   (move-to-window-line (/ (window-height) 2))
   (or context
       (skip-chars-forward " \t")))
 
-(defmotion vertical evi-goto-bottom-of-window (&optional offset context)
+(evi-defmotion vertical evi-goto-bottom-of-window (&optional offset context)
   "Go to the bottom line of the window.  With an arg, OFFSET, goes to the
 OFFSET'th line from the bottom of the window."
   (move-to-window-line (- (1- (window-height)) (or offset 1)))
   (or context
       (skip-chars-forward " \t")))
 
-(defmotion horizontal evi-goto-column (&optional column context)
+(evi-defmotion horizontal evi-goto-column (&optional column context)
   "Go to column COLUMN, or as close to that column as possible."
-  (move-to-column (1- column)))
+  (move-to-column (1- (or column 1))))
 
-(defmotion vertical evi-whole-lines (&optional count context)
+(evi-defmotion vertical evi-whole-lines (&optional count context)
   "Go ARG - 1 lines forward."
   (evi-next-line-internal (1- (or count 1))))
 
-(defmotion horizontal evi-beginning-of-line (&optional count context)
+(evi-defmotion horizontal evi-beginning-of-line (&optional count context)
   "Go to beginning of line."
   (beginning-of-line))
 
 ; it's not at all clear why this doesn't take a count...
 ; maybe it should...
-(defmotion horizontal evi-goto-indentation (&optional count context)
+(evi-defmotion horizontal evi-goto-indentation (&optional count context)
   "Go to beginning of indented text on current line."
   (beginning-of-line)
   (back-to-indentation))
  
-(defmotion horizontal evi-end-of-line (&optional count context)
+(evi-defmotion horizontal evi-end-of-line (&optional count context)
   "Go to end of line."
   (evi-next-line-internal (1- (or count 1)))
   (end-of-line))
 
 ;; Word, sentence, paragraph and section motion commands
 
-;; Note - vi's word motion commands are often buggy in implementation
-;; (most hang up on a line with whitespace on the end).  The only one I
-;; have tried which didn't hang up, did the wrong thing on non-empty lines
-;; that only contain whitespace (it skipped over the entire line, which is
-;; inconsistent with its penchant for stopping on empty lines).  Hence,
-;; evi uses my own notion of what was intended: every line contains at
-;; least one word.  If the line is empty other than whitespace, that word
-;; starts at the beginning of the line or ends at the end of the line.
-;; Otherwise, there are three character classes: whitespace (W), alphanumeric
-;; including underscore (A), and punctuation (P).  A word beginning boundary
-;; is then WA, WP, AP, or PA, and a word ending boundary is AW, PW, AP, or PA.
-;; ZZ - might give some alternative word definitions
-;; ZZ - there is a small bugger if in the middle of a whitespace line and
-;; do a 'e'
+(defun evi-eobp ()
+  (< (- (point-max) (point)) 3))
 
-;; Hmm... turns out similar things can be said about sentence, paragraph, and
-;; section motion.  Actually my interpretations differ somewhat from vi's
-;; here, but I couldn't bring myself to implement what I was seeing.  Complain
-;; if you think I missed the boat.
-
-(defconst evi-word-beginning "[ \t\n][^ \t\n]\\|\n[ \t]*\n\\|[a-zA-Z0-9_][^a-zA-Z0-9_ \t\n]\\|[^a-zA-Z0-9_ \t\n][a-zA-Z0-9_]")
-
-(defconst evi-word-backwards-beginning "[a-zA-Z0-9_][^a-zA-Z0-9_ \t\n]\\|[^a-zA-Z0-9_ \t\n][a-zA-Z0-9_]\\|\\([ \t\n]\\|\\`\\)[^ \t\n]\\|\n[ \t]*$")
-
-(defconst evi-word-change-beginning "[ \t\n][^ \t]\\|[^ \t\n][ \t\n]\\|[a-zA-Z0-9_][^a-zA-Z0-9_ \t\n]\\|[^a-zA-Z0-9_ \t\n][a-zA-Z0-9_]")
-
-(defconst evi-word-delete-beginning "[^ \t\n]?\\([ \t]+[^ \t]\\|\n\\)\\|[a-zA-Z0-9_][^a-zA-Z0-9_ \t\n]\\|[^a-zA-Z0-9_ \t\n][a-zA-Z0-9_]")
-
-(defconst evi-word-ending "[^ \t\n][ \t\n]\\|^[ \t]*\n\\|[a-zA-Z0-9_][^a-zA-Z0-9_ \t\n]\\|[^a-zA-Z0-9_ \t\n][a-zA-Z0-9_]")
-
-(defconst evi-white-word-beginning "[ \t\n][^ \t\n]\\|\n[ \t]*\n")
-
-(defconst evi-white-word-backwards-beginning "\\([ \t\n]\\|\\`\\)[^ \t\n]\\|\n[ \t]*$")
-
-(defconst evi-white-word-change-beginning "[ \t\n][^ \t]\\|[^ \t\n][ \t\n]")
-
-(defconst evi-white-word-delete-beginning "[^ \t\n]?\\([ \t]+[^ \t]\\|\n\\)")
-
-(defconst evi-white-word-ending "[^ \t\n][ \t\n]\\|^[ \t]*\n")
-
-(defmotion horizontal evi-forward-word (&optional count context)
+(evi-defmotion horizontal evi-forward-word (&optional count context)
   "Move to the beginning of the COUNTth next word."
-  (evi-forward-word-internal (or count 1) context
-    evi-word-beginning (if (eq context 'to-next)
-			 evi-word-delete-beginning
-			 evi-word-change-beginning)))
+  (evi-forward-word-internal evi-word (or count 1) context))
 
-(defmotion horizontal evi-forward-white-word (&optional count context)
+(evi-defmotion horizontal evi-forward-Word (&optional count context)
   "Move to the beginning of the COUNTth next white-space delimited word."
-  (evi-forward-word-internal (or count 1) context
-    evi-white-word-beginning (if (eq context 'to-next)
-			       evi-white-word-delete-beginning
-			       evi-white-word-change-beginning)))
+  (evi-forward-word-internal evi-Word (or count 1) context))
 
-(defun evi-forward-word-internal (count match-end pattern end-pattern)
-  ; might be nice if searches could overlap... be real easy too!
-  ; turns out that wouldn't help as the whole search fails
-  ; when the nth occurence isn't found (we want it to go as far as it can)
-  (let ((good-so-far 
-	 (evi-iterate (1- count)
-	   (if (re-search-forward pattern nil t)
-	     ; a backward-char would do, but would mess up the error case
-	     (goto-char (1+ (match-beginning 0)))
-	     (evi-break)))))
-    (or
-      (and
-	; must search to the end regardless
-        (if match-end
-	  (if (re-search-forward end-pattern nil t)
-	    (progn (backward-char)
-		   t))
-	  t)
-	good-so-far
-	(or match-end
-	    (if (re-search-forward pattern nil t)
-	      (progn (goto-char (1+ (match-beginning 0)))
-		     t))))
-      (setq evi-error-string "End of buffer"))))
-
-(defmotion horizontal evi-end-of-word (&optional count context)
-  "Move to the end of the COUNTth next word."
-  (evi-end-of-word-internal (or count 1) context evi-word-ending))
-
-(defmotion horizontal evi-end-of-white-word (&optional count context)
-  "Move to the end of the COUNTth next whitespace delimited word."
-  (evi-end-of-word-internal (or count 1) context evi-white-word-ending))
-
-(defun evi-end-of-word-internal (count context pattern)
-  (if (evi-iterate count
-	(forward-char)
-	(if (re-search-forward pattern nil t)
-	  (progn (backward-char)
-		 (if (not (and (bolp) (eolp)))
-		   (backward-char)))
-	  (evi-break)))
-    (if context
+(defun evi-forward-word-internal (pattern count context)
+  (and (not context) (evi-eobp)
+       (evi-error "End of buffer"))
+  (if context
+    (setq count (1- count)))
+  (if (looking-at pattern)
+    (setq count (1+ count)))
+  (if (and (re-search-forward pattern nil 'limit count)
+	   (or (not (eq context 'to-next))
+	       (re-search-forward pattern
+		 (save-excursion (end-of-line) (point)) 'limit)))
+    (if (eq context 'to-end)
+      (if (or (> count 0) (looking-at pattern))
+	(goto-char (match-end 0))
 	(forward-char))
-    (setq evi-error-string "End of buffer")))
+      (goto-char (match-beginning 0)))
+    (if (eobp)
+      (backward-char))))
 
-(defmotion horizontal evi-backward-word (&optional count context)
+(evi-defmotion horizontal evi-end-of-word (&optional count context)
+  "Move to the end of the COUNTth next word."
+  (evi-end-of-word-internal evi-word (or count 1) context))
+
+(evi-defmotion horizontal evi-end-of-Word (&optional count context)
+  "Move to the end of the COUNTth next whitespace delimited word."
+  (evi-end-of-word-internal evi-Word (or count 1) context))
+
+(defun evi-end-of-word-internal (pattern count context)
+  (and (not context) (evi-eobp)
+       (evi-error "End of buffer"))
+  (or context
+      (forward-char))
+  (if (re-search-forward pattern nil 'limit count)
+    (goto-char (- (match-end 0) (if context 0 1)))
+    (if (eobp)
+      (backward-char))))
+
+(evi-defmotion horizontal evi-backward-word (&optional count context)
   "Move to the beginning of the COUNTth previous word."
-  (evi-backward-word-internal
-    (or count 1) context evi-word-backwards-beginning))
+  (evi-backward-word-internal evi-word (or count 1) context))
 
-(defmotion horizontal evi-backward-white-word (&optional count context)
+(evi-defmotion horizontal evi-backward-Word (&optional count context)
   "Move to the beginning of the COUNTth previous whitespace delimited word."
-  (evi-backward-word-internal
-    (or count 1) context evi-white-word-backwards-beginning))
+  (evi-backward-word-internal evi-Word (or count 1) context))
 
-(defun evi-backward-word-internal (count context pattern)
-  (or (evi-iterate (or count 1)
-	(and (bolp) (not (bobp))
-	  (backward-char))
-	(if (re-search-backward pattern nil t)
-	  (goto-char (+ (match-beginning 0)
-			(if (and (bobp) (match-beginning 1)) 0 1)))
-	  (evi-break)))
-    (setq evi-error-string "Beginning of buffer")))
+(defun evi-backward-word-internal (pattern count context)
+  (if (bobp)
+    (evi-error "Beginning of buffer"))
+  (evi-iterate count
+    (if (re-search-backward pattern nil 'limit)
+      (progn
+	(looking-at pattern)
+	(let ((end (match-end 0))
+	      (at-beginning nil))
+	  (while (and (looking-at pattern) (= (match-end 0) end)
+		      (not (setq at-beginning (bobp))))
+	    (backward-char))
+	  (if (not at-beginning)
+	    (forward-char))))
+      (evi-break))))
 
-(defconst evi-sentence-beginning "\\([.?!][]\"')]*\\($\\|\t\\| [ \t\n]\\)\\|^[ \t]*\n\\)[ \t\n]*")
+(defconst evi-sentence-beginning "\\([.?!][]\"')]*\\([\t\n]\\| [ \t\n]\\)\\|^[ \t]*\n\\|\\`\\)[ \t\n]*[^ \t\n]")
 
-(defconst evi-sentence-backwards-beginning "\\([.?!][]\"')]*\\($\\|\t\\| [ \t\n]\\)\\|^[ \t]*\n\\|\\`\\)[ \t\n]*[^ \t\n]")
+(defconst evi-sentence-ending "\\([.?!][]\"')]*\\([\t\n]\\| [ \t\n]\\)\\|^[ \t]*$\\)")
 
-(defconst evi-sentence-change-ending "\\([.?!][]\"')]*\\($\\|\t\\| [ \t\n]\\)\\|^[ \t]*$\\)")
+(defconst evi-paragraph-beginning "\\(^[ \t]*\n\\|\\`\\)[ \t\n]*[^ \t\n]")
 
-(defconst evi-sentence-delete-ending "\\([.?!][]\"')]*\\( ?$\\|\t[ \t]*\\| [ \t]+\\)\\|^[ \t]*$\\)")
+(defconst evi-paragraph-ending "^[ \t]*$")
 
-(defmotion horizontal evi-forward-sentence (&optional count context)
+(defconst evi-section-beginning "^\\({\\|\\.\\(NH\\|SH\\|H\\|HU\\|nh\\|sh\\)[ \t\n]\\)")
+
+(defconst evi-section-ending "[ \t\n]*\n\\(}\\|\\.\\(NH\\|SH\\|H\\|HU\\|nh\\|sh\\)[ \t\n]\\)")
+
+(defun evi-not-at (pattern &optional limit)
+  (let ((start (point)))
+    (if (re-search-backward pattern limit 'limit)
+      (prog1
+	(/= (match-end 0) start)
+	(goto-char start))
+      t)))
+
+(evi-defmotion horizontal evi-forward-sentence (&optional count context)
   "Move to the beginning of the COUNT'th next sentence."
-  (let ((starting-point (point)))
-    ; this gives us more context to go on...
-    (skip-chars-backward " \t")
-    (let ((good-so-far 
-	   (evi-iterate (1- (or count 1))
-	     (or (re-search-forward evi-sentence-beginning nil t)
-		 (evi-break)))))
-      (or
-	(and
-	  ; must search to the end regardless
-	  (if context
-	    (if (re-search-forward
-		  (if (eq context 'to-next)
-		    evi-sentence-delete-ending
-		    evi-sentence-change-ending) nil 1)
-	      (progn (skip-chars-backward " \t")
-		     (if (and (eq context 'to-next)
-			      (or (<= (point) starting-point) (not (bolp))))
-		       (goto-char (match-end 0))
-		       (backward-char))
-		     t))
-	    t)
-	  good-so-far
-	  (or context
-	      (and (re-search-forward evi-sentence-beginning nil t)
-		   (or (not (eobp))
-		       (progn (goto-char starting-point)
-			      nil)))))
-	(setq evi-error-string "End of buffer")))))
+  (and (not context) (evi-eobp)
+       (evi-error "End of buffer"))
+  (forward-char)
+  (and (eq context 'to-next) (evi-not-at evi-sentence-beginning)
+       (setq context 'to-end))
+  (if (re-search-forward evi-sentence-beginning nil 'limit
+			 (- (or count 1) (if context 1 0)))
+    (if context
+      (if (eq context 'to-end)
+	(if (re-search-forward evi-sentence-ending nil 'limit)
+	  (skip-chars-backward " \t\n"))
+	(if (re-search-forward evi-sentence-beginning
+	      (save-excursion
+		(re-search-forward evi-paragraph-ending nil 'limit)
+		(1- (match-beginning 0)))
+	      'limit)
+	  (backward-char)))
+      (backward-char))))
 
-(defmotion horizontal evi-backward-sentence (&optional count context)
+(evi-defmotion horizontal evi-backward-sentence (&optional count context)
   "Move to the beginning of the COUNT'th previous sentence."
-  (or (evi-iterate (or count 1)
-	(if (re-search-backward evi-sentence-backwards-beginning nil t)
-	  (goto-char (1- (match-end 0)))
-	  (evi-break)))
-      (setq evi-error-string "Beginning of buffer")))
+  (if (bobp)
+    (evi-error "Beginning of buffer"))
+  (skip-chars-backward " \t\n")
+  (if (re-search-backward evi-sentence-beginning nil 'limit (or count 1))
+    (goto-char (1- (match-end 0)))))
 
-(defconst evi-paragraph-beginning "^[ \t]*\n[ \t\n]*[^ \t\n]")
-
-(defconst evi-paragraph-backwards-beginning "\\(^[ \t]*\n\\|\\`\\)[ \t\n]*[^ \t\n]")
-
-(defconst evi-paragraph-change-ending "^[ \t]*$")
-
-(defconst evi-paragraph-delete-ending "\n\\([ \t]*\n\\)+")
-
-(defmotion horizontal evi-forward-paragraph (&optional count context)
+(evi-defmotion horizontal evi-forward-paragraph (&optional count context)
   "Move to the beginning of the COUNT'th next paragraph."
-  (let ((starting-point (point)))
-    ; this gives us more context to go on...
-    (skip-chars-backward " \t")
-    (let ((good-so-far 
-	   (evi-iterate (1- (or count 1))
-	     (or (re-search-forward evi-paragraph-beginning nil t)
-		 (evi-break)))))
-      (or
-	(and
-	  ; must search to the end regardless
-	  (if context
-	    (if (re-search-forward
-		  (if (eq context 'to-next)
-		    evi-paragraph-delete-ending
-		    evi-paragraph-change-ending) nil 1)
-	      (progn (backward-char)
-		     t))
-	    t)
-	  good-so-far
-	  (or context
-	      (and (re-search-forward evi-paragraph-beginning nil t)
-		   (progn (backward-char)
-			  t))))
-	(setq evi-error-string "End of buffer")))
-    (if (< (point) starting-point)
-      (goto-char starting-point))))
+  (and (not context) (evi-eobp)
+       (evi-error "End of buffer"))
+  (forward-char)
+  (and (eq context 'to-next) (evi-not-at evi-paragraph-beginning)
+       (setq context 'to-end))
+  (if (re-search-forward evi-paragraph-beginning nil 'limit
+			 (- (or count 1) (if (eq context 'to-end) 1 0)))
+    (if (eq context 'to-end)
+	(if (re-search-forward evi-paragraph-ending nil 'limit)
+	  (goto-char (1- (match-beginning 0))))
+      (if context
+	(beginning-of-line))
+      (backward-char))))
 
-(defmotion horizontal evi-backward-paragraph (&optional count context)
+(evi-defmotion horizontal evi-backward-paragraph (&optional count context)
   "Move to the beginning of the COUNT'th previous paragraph."
-  (or (evi-iterate (or count 1)
-	(if (re-search-backward evi-paragraph-backwards-beginning nil t)
-	  (goto-char (1- (match-end 0)))
-	  (evi-break)))
-      (setq evi-error-string "Beginning of buffer")))
+  (if (bobp)
+    (evi-error "Beginning of buffer"))
+  (if (re-search-backward evi-paragraph-beginning nil 'limit (or count 1))
+    (goto-char (1- (match-end 0)))))
 
-(defconst evi-section-beginning "\\`\\(.\\|\n\\)\\|^\\([{]\\|\\.\\(NH\\|SH\\|H\\|HU\\|nh\\|sh\\)[ \t\n]\\)")
-
-(defconst evi-section-change-ending "[ \t\n]*\n\\([}]\\|\\.\\(NH\\|SH\\|H\\|HU\\|nh\\|sh\\)[ \t\n]\\)")
-
-(defconst evi-section-delete-ending "^\\(}.*[ \t\n]*\\|\\.\\(NH\\|SH\\|H\\|HU\\|nh\\|sh\\)[ \t\n]\\)")
-
-(defmotion horizontal evi-forward-section (&optional count context)
+(evi-defmotion horizontal evi-forward-section (&optional count context)
   "Move to the beginning of the COUNT'th next section."
-  (let ((starting-point (point)))
-    (forward-char)
-    (let ((good-so-far 
-	   (evi-iterate (1- (or count 1))
-	     (or (re-search-forward evi-section-beginning nil t)
-		 (evi-break)))))
-      (or
-	(and
-	  ; must search to the end regardless
-	  (if context
-	    (if (re-search-forward (if (eq context 'to-next)
-				     evi-section-delete-ending
-				     evi-section-change-ending) nil 1)
-	      (progn (if (eq context 'to-next)
-		       (progn (beginning-of-line)
-			      (backward-char))
-		       (or (eq (preceding-char) ?})
-			   (goto-char (match-beginning 0))))
-		     t))
-	    t)
-	  good-so-far
-	  (or context
-	      (and (re-search-forward evi-section-beginning nil t)
-		   (if (eobp)
-		     (progn (goto-char starting-point)
-			    nil)
-		     (progn (goto-char (match-beginning 0))
-			    t)))))
-	(progn
-	  (setq evi-error-string "End of buffer")
-	  (goto-char (point-max))
-	  (evi-fixup-cursor 'vertical)
-	  )))
-    (if (/= (point) (1+ starting-point))
-      (evi-push-context starting-point))))
+  (and (not context) (evi-eobp)
+       (evi-error "End of buffer"))
+  (or context
+      (evi-push-context (point)))
+  (let ((start (point)))
+    (skip-chars-forward "^ \t\n")
+    (or (eobp)
+	(forward-char))
+    (and (eq context 'to-next) (evi-not-at evi-section-beginning start)
+	 (setq context 'to-end)))
+  (if (re-search-forward evi-section-beginning nil 'limit
+			 (- (or count 1) (if (eq context 'to-end) 1 0)))
+    (if (eq context 'to-end)
+	(if (re-search-forward evi-section-ending nil 'limit)
+	  (or (eq (preceding-char) ?})
+	      (goto-char (match-beginning 0))))
+      (goto-char (match-beginning 0))
+      (if context
+	(backward-char)))))
 
-(defmotion horizontal evi-backward-section (&optional count context)
+(evi-defmotion horizontal evi-backward-section (&optional count context)
   "Move to the beginning of the COUNT'th previous section."
-  (let ((starting-point (point)))
-    (or (evi-iterate (or count 1)
-	  (if (re-search-backward evi-section-beginning nil t)
-	    (goto-char (match-beginning 0))
-	    (evi-break)))
-	(setq evi-error-string "Beginning of buffer"))
-    (if (/= (point) starting-point)
-      (evi-push-context starting-point))))
+  (if (bobp)
+    (evi-error "Beginning of buffer"))
+  (or context
+      (evi-push-context (point)))
+  (re-search-backward evi-section-beginning nil 'limit (or count 1)))
 
-(defun evi-region ()
-  "Define region bounded by mark and point."
+(defun evi-region-arbitrary ()
+  "Define region bounded by mark and point (containing point)."
   (interactive)
-  (if (< (point) (mark)) (exchange-point-and-mark))
-  (setq evi-region-whole-lines nil))
+  (if (< (point) evi-mark) (evi-exchange-point-and-mark))
+  (forward-char)
+  (setq evi-region-shape 'chars))
 
-; ZZ
-(defun evi-context-arg () (list evi-context))
+(defun evi-region-rectangle ()
+  "Define region as rectangle bounded by mark and point (containing point)."
+  (interactive)
+  (if (< (point) evi-mark) (evi-exchange-point-and-mark))
+  (setq evi-region-shape 'rectangle))
 
-(defun evi-region-whole-lines (context)
-  "Define whole lines region bounded by mark and point."
+(defun evi-region-rows (context)
+  "Define region as rows bounded by mark and point (containing point)."
   (interactive (evi-context-arg))
-  (if (< (point) (mark)) (exchange-point-and-mark))
-  (setq evi-region-whole-lines t)
+  (if (< (point) evi-mark) (evi-exchange-point-and-mark))
   (evi-expand-region-to-lines evi-context))
+
+;ZZ - very naive
+(defun evi-region-columns ()
+  "Define region as columns bounded by mark and point (containing point)."
+  (interactive)
+  (if (< (point) evi-mark) (evi-exchange-point-and-mark))
+  (let ((start-col (save-excursion (goto-char evi-mark) (current-column)))
+	(end-col (current-column)))
+    (setq evi-mark start-col)
+    (goto-char (point-max))
+    (if (eolp)
+	(backward-char))
+    (beginning-of-line)
+    (goto-char (+ (point) end-col)))
+  (setq evi-region-shape 'rectangle))
 
 ;; Searching
 
-(defmotion horizontal evi-search-forward
+(evi-defmotion horizontal evi-search-forward
   (&string "/" string &optional count context)
   "Search forward for the ARGth occurence of a pattern.  A null string will
 repeat the previous search."
-  (if (not (string= string ""))
-    (setq evi-search-pattern string))
-  (if evi-search-pattern
-    (evi-do-search (setq evi-search-forward t) evi-search-pattern (or count 1))
-    (setq evi-error-string "No previous search pattern")))
+  (evi-do-vi-search t string (or count 1)))
 
-(defmotion horizontal evi-search-backward
+(evi-defmotion horizontal evi-search-backward
   (&string "?" string &optional count context)
   "Search backward for the ARGth occurence of a pattern.  A null string will
 repeat the previous search."
-  (if (not (string= string ""))
-    (setq evi-search-pattern string))
-  (if evi-search-pattern
-    (evi-do-search
-      (setq evi-search-forward nil) evi-search-pattern (or count 1))
-    (setq evi-error-string "No previous search pattern")))
+  (evi-do-vi-search nil string (or count 1)))
 
-(defmotion horizontal evi-search-next (&optional count context)
+(defun evi-do-vi-search (search-forward search-spec count)
+  (let ((ex-user-buffer (current-buffer)))
+    (set-buffer ex-work-space)
+    (erase-buffer)
+    (insert (if search-forward ?/ ??) search-spec "\n")
+    (goto-char (point-min))
+    (let ((string (ex-scan-regular-expression))
+	  (offset (ex-scan-line-offset)))
+      (set-buffer ex-user-buffer)
+      (or (string= string "")
+	  (setq evi-search-pattern string))
+      (if evi-search-pattern
+	  (evi-do-search (setq evi-search-forward search-forward)
+			 evi-search-pattern count)
+	(evi-error "No previous search pattern"))
+      (if (> offset 0)
+	  (evi-next-line-internal offset)
+	(if (< offset 0)
+	    (evi-previous-line-internal (- offset)))))))
+
+(evi-defmotion horizontal evi-search-next (&optional count context)
   "Search for the next ARGth occurence of the previous search pattern."
   (if evi-search-pattern
     (evi-do-search evi-search-forward evi-search-pattern (or count 1))
-    (setq evi-error-string "No previous search pattern")))
+    (evi-error "No previous search pattern")))
 
-(defmotion horizontal evi-search-next-reverse (&optional count context)
+(evi-defmotion horizontal evi-search-next-reverse (&optional count context)
   "Search for the next ARGth occurence of the previous search pattern
 but look in the opposite direction."
   (let ((evi-search-forward (not evi-search-forward)))
     (do-evi-search-next count context)))
 
-(defun evi-do-search (search-forward string count)
+(defun evi-do-search (search-forward search-string count)
   (let ((case-fold-search evi-ignore-case)
-	(search-string (if evi-search-magic string (evi-rework-magic string)))
 	(starting-point (point)))
     (if (if search-forward
 	  (evi-search-forward-count search-string count)
@@ -2424,33 +2400,13 @@ but look in the opposite direction."
         (goto-char (match-beginning 0)))
       (progn
 	(goto-char starting-point)
-	(setq evi-error-string
-	      (concat
-		(if (> count 1) "Nth occurrence not found" "Pattern not found")
-		(if evi-search-wraparound ""
-		  (if search-forward
-		    " before end of file"
-		    " before beginning of file"))))))))
-
-;; rework the pattern so that . [ and * become literal, and \. \[ and \*
-;; are 'magic' (i.e. behave as . [ and * in a regular expression)
-(defun evi-rework-magic (string)
-  (let ((offset (string-match "[\\.[*]" string)))
-    (if offset
-      (if (= (aref string offset) ?\\)
-	(let ((next (1+ offset)))
-	  (if (> (length string) next)
-	    (let ((char (aref string next)))
-	      (if (or (= char ?.) (= char ?[) (= char ?*))
-		(concat (substring string 0 offset) (char-to-string char)
-			(evi-rework-magic (substring string (1+ next))))
-		(concat (substring string 0 (1+ next))
-			(evi-rework-magic (substring string (1+ next))))))
-	    string))
-	(concat (substring string 0 offset) "\\"
-		(char-to-string (aref string offset))
-		(evi-rework-magic (substring string (1+ offset)))))
-      string)))
+	(evi-error
+	  (concat
+	    (if (> count 1) "Nth occurrence not found" "Pattern not found")
+	    (if evi-search-wraparound ""
+	      (if search-forward
+		  " before end of file"
+		  " before beginning of file"))))))))
 
 ; ZZ use evi-iterate
 (defun evi-search-forward-count (string count)
@@ -2474,49 +2430,49 @@ but look in the opposite direction."
 		 (evi-search-backward-count string (1- count))))))
     t))
 
-(defmotion horizontal evi-find-character (&char char &optional count context)
+(evi-defmotion horizontal evi-find-character (&char char &optional count context)
   "Search for CHAR on the current line.  With COUNT find the COUNT'th occurance."
-  (setq evi-find-character char)
-  (setq evi-find-forward t)
-  (setq evi-find-up-to nil)
+  (setq evi-find-character char
+	evi-find-forward t
+	evi-find-up-to nil)
   (evi-find-character-internal (or count 1) context))
 
-(defmotion horizontal evi-find-character-backwards
+(evi-defmotion horizontal evi-find-char-backwards
   (&char char &optional count context)
   "Search backwards for CHAR on the current line.  With COUNT find the
 COUNT'th occurance."
-  (setq evi-find-character char)
-  (setq evi-find-forward nil)
-  (setq evi-find-up-to nil)
+  (setq evi-find-character char
+	evi-find-forward nil
+	evi-find-up-to nil)
   (evi-find-character-backwards-internal (or count 1) context))
 
-(defmotion horizontal evi-find-character-before
+(evi-defmotion horizontal evi-find-character-before
   (&char char &optional count context)
   "Search for CHAR on the current line and leave the cursor on the character
 before it.  With COUNT find the COUNT'th occurance."
-  (setq evi-find-character char)
-  (setq evi-find-forward t)
-  (setq evi-find-up-to t)
+  (setq evi-find-character char
+	evi-find-forward t
+	evi-find-up-to t)
   (evi-find-character-internal (or count 1) context))
 
-(defmotion horizontal evi-find-character-backwards-after
+(evi-defmotion horizontal evi-find-char-backwards-after
   (&char char &optional count context)
   "Search backwards for CHAR on the current line and leave the cursor on
 the character after it.  With COUNT find the COUNT'th occurance."
-  (setq evi-find-character char)
-  (setq evi-find-forward nil)
-  (setq evi-find-up-to t)
+  (setq evi-find-character char
+	evi-find-forward nil
+	evi-find-up-to t)
   (evi-find-character-backwards-internal (or count 1) context))
 
-(defmotion horizontal evi-find-next-character (&optional count context)
+(evi-defmotion horizontal evi-find-next-character (&optional count context)
   "Search for the next COUNT'th occurence of the previous search character."
   (if evi-find-character
     (if evi-find-forward
       (evi-find-character-internal (or count 1) context)
       (evi-find-character-backwards-internal (or count 1) context))
-    (setq evi-error-string "No previous search character")))
+    (evi-error "No previous search character")))
 
-(defmotion horizontal evi-find-next-character-reverse (&optional count context)
+(evi-defmotion horizontal evi-find-next-character-reverse (&optional count context)
   "Search for the next COUNT'th occurence of the previous search character
 in the opposite direction."
   (let ((evi-find-forward (not evi-find-forward)))
@@ -2529,7 +2485,8 @@ in the opposite direction."
 			(save-excursion (end-of-line) (point)) t count)
       (if evi-find-up-to
 	(backward-char))
-      (setq evi-error-string "No more occurences on this line")))
+      (progn (backward-char)
+	     (evi-error "No more occurences on this line"))))
   (or context
       (backward-char)))
 
@@ -2537,18 +2494,11 @@ in the opposite direction."
   (let ((case-fold-search nil))
     (or (search-backward (char-to-string evi-find-character)
 			 (save-excursion (beginning-of-line) (point)) t count)
-	(setq evi-error-string "No more occurences on this line")))
+	(evi-error "No more occurences on this line")))
   (if evi-find-up-to
     (forward-char)))
 
-;(defmacro evi-left-paren () ?()
-;(defmacro evi-left-brace () ?{)
-;(defmacro evi-left-bracket () ?[)
-;(defmacro evi-right-paren () ?))
-;(defmacro evi-right-brace () ?})
-;(defmacro evi-right-bracket () ?])
-
-(defmotion horizontal evi-paren-match (&optional count context)
+(evi-defmotion horizontal evi-paren-match (&optional count context)
   "Move cursor to matching parenthesis, brace or bracket."
   (let ((end-point (save-excursion (end-of-line) (point))))
     (if (re-search-forward "[][(){}]" end-point t)
@@ -2557,38 +2507,46 @@ in the opposite direction."
 	       (progn (forward-sexp 1)
 		      (or context (backward-char)))
 	       (progn (forward-char)
-		      (if context (set-mark (1+ (mark))))
+		      (if context (setq evi-mark (1+ evi-mark)))
 		      (backward-sexp 1))))
-      (setq evi-error-string "Nothing on rest of line to balance"))))
+      (evi-error "Nothing on rest of line to balance"))))
 
 ;; Repeating
+
+(defun evi-save-command-keys ()
+  (setq evi-last-command-keys evi-command-keys
+	evi-hidden-repeat-count 0))
 
 (defun evi-repeat ()
   "Repeat last modifying command."
   (interactive)
-  (execute-kbd-macro evi-last-command-keys))
+  (let ((command-to-repeat evi-last-command-keys)
+	(evi-repeat-count (1+ evi-hidden-repeat-count)))
+    (evi-execute-macro evi-last-command-keys)
+    (setq evi-last-command-keys command-to-repeat
+	  evi-hidden-repeat-count evi-repeat-count)))
 
 (defun evi-prompt-repeat ()
   "Print last modifying command."
   (interactive)
-  (let ((command (read-string "Repeat: " evi-last-command-keys)))
-    (execute-kbd-macro command)
+  (let ((command (evi-read-string "Repeat: " evi-last-command-keys)))
+    (evi-execute-macro command)
     (setq evi-last-command-keys command)))
 
 ;; Prefix counts
 
 (defun evi-read-number (prefix-value)
-  (let ((char (evi-read-char)))
+  (let ((char (evi-read-command-char)))
     (if (and (>= char ?0) (<= char ?9))
-	(evi-read-number (+ (* prefix-value 10) (- char ?0)))
-      (progn (evi-unread-char char)
+      (evi-read-number (+ (* prefix-value 10) (- char ?0)))
+      (progn (evi-unread-command-char char)
 	     prefix-value))))
 
 (defun evi-prefix-digit ()
   "Prefix count."
   (interactive)
   (let ((evi-prefix-count (* evi-prefix-count-multiplier
-			     (evi-read-number (- last-input-char ?0)))))
+			     (evi-read-number (- last-command-char ?0)))))
     (evi-get-command)))
 
 ;; Registers
@@ -2596,171 +2554,213 @@ in the opposite direction."
 (defun evi-prefix-register ()
   "Prefix register."
   (interactive)
-  (let* ((char (evi-read-char))
-	 (evi-register (cons (evi-register-number char)
-			     (not (and (>= char ?a) (<= char ?z))))))
-    (evi-get-command)))
+  (let ((char (evi-read-command-char)))
+    (if (or (eq char ?') (eq char ?")) ;"))
+	(progn
+	  (setq evi-region-shape 'chars)
+	  (evi-copy-region-to-register
+	    (if (eq char ?') (char-to-string (evi-read-command-char))
+	      (evi-read-string "\" "))
+	    (or evi-register-spec (cons evi-register-unnamed nil))))
+      (let ((evi-register-spec (cons (evi-register-number char)
+				     (not (and (>= char ?a) (<= char ?z))))))
+	(evi-get-command)))))
 
-(defun evi-register-number (char)
-  (if (or (and (>= char ?a) (<= char ?z))
-	  (and (>= char ?A) (<= char ?Z))
-	  (and (>= char ?0) (<= char ?9)))
-    (cond ((and (>= char ?a) (<= char ?z)) (+ (- char ?a) 10))
-	  ((and (>= char ?A) (<= char ?Z)) (+ (- char ?A) 10))
-	  (t (% (+ evi-digit-register (- char ?1)) 9)))
-    (error "Invalid register name")))
+(defun evi-register-number (register-name)
+  (cond ((and (>= register-name ?a) (<= register-name ?z))
+	  (+ (- register-name ?a) 10))
+	((and (>= register-name ?A) (<= register-name ?Z))
+	  (+ (- register-name ?A) 10))
+	((and (>= register-name ?1) (<= register-name ?9))
+	 (% (+ evi-digit-register (- register-name ?0) evi-repeat-count) 9))
+	((eq register-name ?^)
+	  evi-register-unnamed)
+	((eq register-name ?@)
+	  (or evi-last-macro-register
+	      (evi-error "No previous macro register specified")))
+	(t (evi-error "Invalid register name"))))
 
-(defun evi-register-name (register-struct)
-  (let ((register-number (car register-struct)))
-    (if (> register-number 9)
-      (+ register-number (- ?a 10))
-      (+ register-number ?1))))
+(defun evi-register-name (register-number)
+  (if (> register-number 9)
+    (+ register-number (- ?a 10))
+    (+ register-number ?1)))
 
 (defun evi-copy-region-to-registers (number-register-also)
-  (let ((string (buffer-substring (mark) (point))))
-    (aset evi-registers
-	  evi-register-unnamed (cons string evi-region-whole-lines))
-    (if evi-register
-      (aset evi-registers (car evi-register)
-	    (if (cdr evi-register)
-	      (let ((register (aref evi-registers (car evi-register))))
-		(cons (concat (car register) string) (cdr register)))
-	      (cons string evi-region-whole-lines))))
+  (let ((region (if (eq evi-region-shape 'rectangle)
+		    (extract-rectangle evi-mark (1+ (point)))
+		  (buffer-substring evi-mark (point)))))
+    (evi-copy-region-to-register region evi-register-spec)
     (if number-register-also
       (progn (aset evi-registers
-		   evi-digit-register (cons string evi-region-whole-lines))
-	     (setq evi-digit-register (% (1+ evi-digit-register) 9))))))
+		   evi-digit-register (cons region evi-region-shape))
+	     (setq evi-digit-register (if (= evi-digit-register 0)
+					  8
+					(1- evi-digit-register)))))))
+
+(defun evi-copy-region-to-register (region register-spec)
+  (let ((register-number (car register-spec)))
+    (if (not (eq register-number evi-register-unnamed))
+	(aset evi-registers
+	      evi-register-unnamed (cons region evi-region-shape)))
+    (if register-spec
+	(aset evi-registers register-number
+	      (if (and (cdr register-spec)
+		       (not (eq evi-region-shape 'rectangle)))
+		  (let ((register (aref evi-registers register-number)))
+		    (cons (concat (car register) region) (cdr register)))
+		(cons region evi-region-shape))))))
 
 ;; Undoing
 
 (defun evi-undo ()
   "Undo previous change."
   (interactive)
-  (message "undo!")
-  (undo-start)
-  ; if the first record is a boundary, skip it
-  ; ZZ maybe make this a while?
-  (if (null (car pending-undo-list))
-    (setq pending-undo-list (cdr pending-undo-list)))
+  ; ZZ - is this the only place we're concerned with unnecessary output
+  ; during a macro?
+  (or evi-current-macro
+      (message "undo!"))
+  (evi-undo-start)
   (evi-undo-one-change)
   (evi-fixup-cursor 'vertical))
 
-; ZZ should make this robust wrt U before u.
-;(defun evi-undo-more ()
-;  "Continue undoing previous changes."
-;  (interactive)
-;  (if (boundp 'pending-undo-list)
-;    (progn (message "undo more!")
-;	   (evi-undo-one-change)
-;	   (evi-fixup-cursor 'vertical))
-;    (error "No previous undo to continue")))
+(evi-version-case
+  ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+    (defun evi-undo-line ()
+      "Undo all changes to this line."
+      (interactive)
+      (evi-undo-start)
+      (evi-undo-one-line)
+      (evi-fixup-cursor 'vertical))))
 
+(defun evi-undo-start ()
+  (undo-start)
+  (evi-version-case
+    ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+      ; if the first record is a boundary, skip it
+      (while (and pending-undo-list (null (car pending-undo-list)))
+	(setq pending-undo-list (cdr pending-undo-list))))
+    ("Emacs"
+      (undo-more 1))))
 
-(defconst evi-last-changed-line nil)
-
-(defun evi-remember-last-changed-line ()
-  (save-excursion
-    (beginning-of-line)
-    (let ((p (point-marker)))
-      (end-of-line)
-      (or (equal p (car evi-last-changed-line))
-	  (setq evi-last-changed-line (cons p buffer-undo-list))))))
-
-(defun evi-tailp (cdr list)
-  ;; whether cdr is eq to a cdr of list.
-  (let ((more t))
-    (while (if (eq cdr list)
-	       (setq more nil)
-	     (consp list))
-      (setq list (cdr list)))
-    (not more)))
-
-(defun evi-undo-all ()
-  "Undo all changes to current line"
+(defun evi-undo-more ()
+  "Continue undoing previous changes."
   (interactive)
-  (beginning-of-line)
-  (let ((p (car evi-last-changed-line))
-	(undo-ptr (cdr evi-last-changed-line)))
-    (if (not (and p
-		  (eq (current-buffer) (marker-buffer p))
-		  (= (point) p)))
-	(error "no undo information for this line")
-      (undo-start)
-      (if (eq pending-undo-list undo-ptr) ; doesn't happen?
-	  (error "no more undo information for this line"))
-      (if (not (evi-tailp undo-ptr pending-undo-list))
-	  (error "undo lost"))
-      (while (and pending-undo-list (evi-tailp undo-ptr pending-undo-list))
-	(undo-more 1))
-      (undo-start)
-      (setq evi-last-changed-line nil)
-      ;;(evi-remember-last-changed-line)
-      (beginning-of-line))))
+  (evi-version-case
+    ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+      (if (boundp 'pending-undo-list)
+	(progn (message "undo more!")
+	       (evi-undo-one-change)
+	       (evi-fixup-cursor 'vertical))
+	(evi-error "No previous undo to continue")))
+    ("Emacs"
+	(message "undo more!")
+	(evi-undo-one-change)
+	(evi-fixup-cursor 'vertical))))
 
 (defun evi-undo-one-change ()
   (let ((modified (buffer-modified-p)))
     (undo-more 1)
     (and modified (not (buffer-modified-p))
-	 (delete-auto-save-file-if-necessary))))
+	 (delete-auto-save-file-if-necessary)))
+  (evi-reset-goal-column))
 
-;; well ain't this gross...  I hope I'm overlooking some better way
-;; of doing this instead of patching things up after the fact...
-; this was nice, but elisp isn't too big on recursion (dig that - a lisp
-; that doesn't handle recursion well - kinda makes you wonder)
-;(defun evi-remove-undo-boundaries (undo-list sentinal)
-;  (if (eq undo-list sentinal)
-;    undo-list
-;    (if (null (car undo-list))
-;      (evi-remove-undo-boundaries (cdr undo-list) sentinal)
-;      (cons (car undo-list)
-;	    (evi-remove-undo-boundaries (cdr undo-list) sentinal)))))
+(defvar evi-last-undo-line-mark nil)
 
-; and here's the new improved, makes-me-wanna-gag, C-style version
-; (got nothing against C, just if I was going to code C, I might as well
-; use C...)
-; (suggestions for improvement are welcome!)
-(defun evi-remove-undo-boundaries (undo-list sentinal)
-  (let ((prev nil)
-	(new-undo-list nil))
-    (evi-enumerate-condition head undo-list (not (eq list sentinal))
-      (if (null head)
-	(if (null prev)
-	  (setq new-undo-list (cdr list))
-	  (setcdr prev (cdr list)))
-	(progn (if (null new-undo-list)
-		 (setq new-undo-list list))
-	       (setq prev list))))
-    new-undo-list))
+(evi-version-case
+  ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+    ; undo records are:
+    ;   (t . ...) which marks a file save
+    ;   ("string" . pos) which undoes a delete
+    ;   (pos . pos) which undoes an insert
+    (defun evi-undo-one-line ()
+      (if (eq evi-last-undo-line-mark (cdr buffer-undo-list))
+	(evi-error "No undo for this line"))
+      (let* ((begin (save-excursion (beginning-of-line) (point)))
+	     (end (save-excursion (end-of-line) (point)))
+	     (undo-new nil)
+	     (something-to-do nil))
+	(evi-enumerate-condition undo-record pending-undo-list
+	  (cond ((eq (car undo-record) t)
+		  (setq undo-new (nconc undo-new list))
+		  nil)
+		((stringp (car undo-record))
+		  (if (and (>= (cdr undo-record) begin)
+			   (<= (cdr undo-record) end))
+		    (progn (setq end (+ end (length (car undo-record))))
+			   (setq undo-new
+				 (nconc undo-new (list undo-record)))
+			   (setq something-to-do t)
+			   t)
+		    (progn (setq undo-new (nconc undo-new (list nil) list))
+			   nil)))
+		((integerp (car undo-record))
+		  (let* ((first (car undo-record))
+			 (second (cdr undo-record))
+			 (begin2 (if (< first begin) begin first))
+			 (end2 (if (> second end) end second))
+			 (diff (- end2 begin2)))
+		    (if (and (<= first end) (>= second begin) (/= begin2 end2))
+		      (progn
+			(setq undo-new
+			      (nconc undo-new (list (cons begin2 end2))))
+			(setq something-to-do t)
+			(if (or (< first begin) (> second end))
+			  (progn
+			    (nconc undo-new (list nil))
+			    (if (< first begin)
+			      (nconc undo-new (list (cons first begin))))
+			    (if (> second end)
+			      (nconc undo-new
+				(list (cons (- end diff) (- second diff)))))
+			    (nconc undo-new (cdr list))
+			    nil)
+			  (progn (setq end (- end diff))
+				 t)))
+		      (progn
+			     (setq undo-new (nconc undo-new (list nil) list))
+			     nil))))
+		((eq undo-record nil)
+		  t)))
+	(if something-to-do
+	  (let ((modified (buffer-modified-p)))
+	    (setq pending-undo-list undo-new)
+	    (undo-more 1)
+	    (message "Undo!")
+	    (setq evi-last-undo-line-mark buffer-undo-list)
+	    (beginning-of-line)
+	    (and modified (not (buffer-modified-p))
+		 (delete-auto-save-file-if-necessary)))
+	  (evi-error "No undo for this line")))
+      (evi-reset-goal-column))))
 
 ;; Marks
 
-(defun evi-mark (char)
+(defun evi-set-mark (char &optional count)
   "Mark location."
-  (interactive "c")
+  (interactive (evi-character-arg))
   (cond ((and (>= char ?a) (<= char ?z))
 	  (aset evi-registers (+ (- char ?a) 36) (point-marker)))
 	((eq char ?.)
-	  (set-mark (point)))))
+	  (setq evi-mark (point)))))
 
-(defmotion horizontal evi-goto-mark-horizontal (&optional count context)
+(evi-defmotion horizontal evi-goto-mark-horizontal (&optional count context)
   "Goto a mark."
-  (evi-goto-mark-internal (evi-read-char) context))
+  (evi-goto-mark-internal (evi-read-command-char) context))
 
-(defmotion vertical evi-goto-mark-vertical (&optional count context)
+(evi-defmotion vertical evi-goto-mark-vertical (&optional count context)
   "Goto a mark.  If an operand, define a whole lines region."
-  (evi-goto-mark-internal (evi-read-char) context)
-  (if (eq context nil)
+  (evi-goto-mark-internal (evi-read-command-char) context)
+  (or context
     (back-to-indentation)))
 
-; ZZ - it might be useful to have a form where you could move among the
-; last n contexts in all buffers...
 (defun evi-goto-mark-internal (char &optional context)
   (cond ((and (>= char ?a) (<= char ?z))
 	  (let ((marker (aref evi-registers (+ (- char ?a) 36))))
 	    (if (not (eq (current-buffer) (marker-buffer marker)))
 	      (progn (switch-to-buffer (marker-buffer marker))
 		     ; unpleasant, but best we can do... (?)
-		     (if context (set-mark (point)))))
+		     (if context (setq evi-mark (point)))))
+	    (evi-push-context)
 	    (goto-char marker)))
 	((or (eq char ?`) (eq char ?'))
 	  (goto-char (evi-exchange-context)))
@@ -2793,40 +2793,169 @@ in the opposite direction."
 
 ;; Misc
 
-; ZZ - should columns be zero or one based?
 (defun evi-file-info ()
   "Give information on the file associated with the current buffer."
   (interactive)
-  (let* ((line-number (count-lines 1 (1+ (point))))
+  (let* ((line-number (count-lines 1 (min (1+ (point)) (point-max))))
 	 (total-lines (1- (+ line-number (count-lines (point) (point-max)))))
-	 (name (buffer-file-name)))
+	 (file-name (buffer-file-name)))
     (message "\"%s\"%s%s line %d of %d, column %d --%d%%--"
-	     (or name "")
+	     (if file-name
+	       (if evi-global-directory
+		 (evi-abbreviate-file-name file-name (evi-current-directory))
+		 file-name)
+	       "")
+	     (if evi-buffer-read-only
+	       " [Read only]" "")
 	     (if (buffer-modified-p) " [Modified]" "")
-	     (if (and name (not (file-writable-p name))) " [Read only]" "")
 	     line-number
 	     total-lines
-	     (current-column)
+	     (1+ (current-column))
 	     (/ (* line-number 100) total-lines))))
+
+(defun evi-abbreviate-file-name (file-name directory &optional abbrev)
+  (let* ((length (length directory))
+	 (ends-in-slash (= (aref directory (1- length)) ?/)))
+    (if (and (> length 0)
+	     (>= (length file-name) length)
+	     (string= (substring file-name 0 length) directory))
+      (concat (or abbrev "")
+	      (substring file-name
+			 (+ length (if (or abbrev ends-in-slash) 0 1))))
+      file-name)))
 
 (defun evi-tag ()
   "Go to the tag which is the next word in the buffer."
   (interactive)
   (evi-motion-command 'do-evi-forward-word 'horizontal 1 'to-end)
-  (ex-tag (buffer-substring (mark) (point))))
+  (ex-tag (buffer-substring evi-mark (point))))
 
-(defun evi-redraw-selected-screen ()
-  "Clear the screen and redisplay it."
-  (interactive)
-  (if (fboundp 'redraw-screen)
-      (redraw-screen (window-screen (selected-window)))
-    (redraw-display)))
+(defun evi-make-char-table ()
+  (let ((table (make-vector 256 0))
+	(i ?:))
+    (while (<= ?0 (setq i (1- i)))
+      (aset table i 1))
+    (setq i ?\[)
+    (while (<= ?A (setq i (1- i)))
+      (aset table i 2))
+    (setq i ?\{)
+    (while (<= ?a (setq i (1- i)))
+      (aset table i 2))
+    (setq i ? )
+    (while (<= 0 (setq i (1- i)))
+      (aset table i 4))
+    table))
 
-(defun evi-save-and-exit ()
-  (interactive)
-  (save-some-buffers t t)
-  (ex-exit))
-  
+(defvar evi-char-table (evi-make-char-table))
+
+(defun evi-is-num (c)
+  (= (logand (aref evi-char-table c) 1) 1))
+
+(defun evi-is-alpha (c)
+  (= (logand (aref evi-char-table c) 2) 2))
+
+(defun evi-is-alphanum (c)
+  (/= (logand (aref evi-char-table c) 3) 0))
+
+(defun evi-is-nonalphanum (c)
+  (= (logand (aref evi-char-table c) 3) 0))
+
+(defun evi-is-control-char (c)
+  (= (logand (aref evi-char-table c) 4) 4))
+
+(defun evi-is-printable (c)
+  (and (not (evi-is-control-char c))
+       (< c ?\C-?)))
+
+;; Display of lists
+
+(defun evi-display-and-prompt (command args)
+  (let ((window (selected-window))
+	(wconf (current-window-configuration)))
+    (apply command args)
+    (select-window (minibuffer-window))
+    (message "Hit SPACE or RET to continue, anything else to keep window")
+    (let ((c (evi-read-char)))
+      (if (or (= c ?\n) (= c ?\r) (= c ? ))
+	  (set-window-configuration wconf)
+	(select-window window)))))
+
+(defun evi-display-list-and-prompt (buffer list &optional initial max-len)
+  (evi-display-and-prompt
+   'evi-display-list (list buffer list initial max-len)))
+
+(defun evi-display-list (buffer list &optional initial max-len)
+  (save-excursion
+    (set-buffer (get-buffer-create buffer))
+    (erase-buffer)
+    (evi)
+    (if initial
+	(insert initial))
+    (if (eq max-len 'half)
+	(setq max-len (- (/ (window-width) 2) 2)))
+    (if list
+	(evi-insert-list-pretty list (or max-len (- (window-width) 2))))
+    (display-buffer buffer t)))
+
+(defun evi-insert-list-pretty (list max-len)
+  (let* ((len (length list))
+	 (max-width (min (evi-max-len list) max-len))
+	 (col-width (+ max-width 2))
+	 (width (window-width))
+	 (cols (/ width col-width))
+	 (rows (/ (+ len (1- cols)) cols))
+	 (counters nil)
+	 (indent))
+    (if (< len cols)
+	(setq col-width (/ width len)
+	      max-width (- col-width 2)
+	      cols len
+	      rows 1))
+    (evi-iterate cols
+      (setq counters (cons (nthcdr (* (1- count) rows) list) counters)))
+    (evi-iterate rows
+      (setq indent 0)
+      (evi-iterate-list item counters
+	(let ((s (car (nthcdr (- rows count) item))))
+	  (if s
+	      (progn
+		(indent-to indent)
+		(insert (if (> (length s) max-width)
+			    (concat (substring s 0 (- max-width 2)) "...")
+			  s))
+		(setq indent (+ indent col-width))))))
+      (insert ?\n))))
+
+(defun evi-max-len (list)
+  (let ((lengths (mapcar 'length list)))
+    (apply 'max lengths)))
+
+(defun evi-pretty-char (c)
+  (cond ((evi-is-printable c)
+	  (char-to-string c))
+	((evi-is-control-char c)
+	  (if ex-input-escapes
+	      (cond ((= c ?\n) "\\n")
+		    ((= c ?\r) "\\r")
+		    ((= c ?\t) "\\t")
+		    ((= c ?\e) "\\e")
+		    (t (concat "\\C-"
+			       (char-to-string (+ c (if (< c ?\e) ?` ?@))))))
+	    (concat "^" (char-to-string (+ c ?@)))))
+	((= c ?\C-?)
+	  (if ex-input-escapes "\\C-?" "^?"))
+	(t
+	  (format "\\%03o" c))))
+
+(defun evi-pretty-string (s)
+  (mapconcat 'evi-pretty-char s ""))
+
+; works for maps as well as abbrev lists
+(defun evi-pretty-binding (b)
+  (concat (evi-pretty-string (car b)) " = "
+	  (evi-pretty-string (if (consp (cdr b))
+				 (cdr (cdr b))
+			       (cdr b)))))
 
 ;; Ex
 
@@ -2836,123 +2965,117 @@ in the opposite direction."
   (evi-do-ex-command-string (ex-read-command))
   (evi-fixup-cursor 'vertical))
 
-(defvar ex-reading-filename nil)
-(defvar ex-restart-mark nil)
+; ZZ this should be cleaned up
+(defvar ex-user-buffer nil)
 
-; there's some rather nasty hoop-jumping going on just to get file
-; completion on :e commands.  hopefully I'm just ignorant and there's
-; really a better way of doing this...
 (defun ex-read-command ()
-  (setq ex-reading-filename nil)
-  (setq ex-restart-mark nil)
-  (let* ((minibuffer-local-map evi-ex-map)
-	 (command (read-string ":")))
-    (ex-filename-substitute
-     (if ex-restart-mark
-	 (let ((initial (substring command 0 ex-restart-mark))
-	      (file-start (substring command ex-restart-mark)))
-	   (concat initial
-		   (completing-read (concat ":" initial)
-				    'read-file-name-internal
-				    "." nil file-start)))
-       command))))
-      
-(defun ex-filename-substitute (string)
-  (if ex-reading-filename
-      (let ((percent-place 0)
-	    (space-pos (string-match " " string))
-	    bufname)
-	(if space-pos
-	    (let ((cmd-string (substring string 0 (+ space-pos 1))))
-	      (setq string (substring string (+ space-pos 1) nil))
-	      (while (setq percent-place (string-match "\\(^%\\|[^\\]%\\)"
-						       string))
-		;; If it matched a non-backslash followed by percent, skip
-		;; the non-backslash.
-		(if (> percent-place 0)
-		    (setq percent-place (1+ percent-place)))
-		(cond ((null bufname)
-		       (setq bufname (buffer-file-name))
-		       (cond ((null bufname)
-			      (message "Buffer has no file associated with it")
-			      (setq bufname (buffer-name))
-			      (cond ((null bufname)
-				     (message
-				      "Buffer has no name associated with it")
-				     (setq bufname "noname")))))))
-		(setq string (ex-substitute-for-percent
-			      string percent-place bufname)))
-	      ;; OK, percents are taken care of.  Now we pass the line 
-	      ;; to a shell to expand things like $name, *, ?, etc.
-	      (if (string-match "[^a-zA-Z0-9_.-/#+]" string)
-		  (save-excursion 
-		    (set-buffer ex-work-space)
-		    (delete-region (point-min) (point-max))
-		    (call-process ex-find-file-shell  nil t nil "-cf"
-				  (format "echo -n %s" string))
-		    (goto-char (point-min))
-		    (if (search-forward " " nil t)
-			(error "Too many file names")
-		      (setq string (buffer-substring (point-min) (point-max))))))
-	      (concat cmd-string string))
-	  string))
-    string))
+  (let ((command nil)
+	(ex-user-buffer (current-buffer)))
+    (while (null command)
+      (setq command (evi-read-string ":" nil
+		      (list evi-input-map-map evi-ex-map evi-input-map))))
+    command))
 
-(defun ex-substitute-for-percent (name pos sub)
-  (concat (substring name 0 pos)
-	  sub
-	  (substring name (+ pos 1))))
+(defun ex-do-completion (name start c-name c-list-fun)
+  (if c-name
+      (if (stringp c-name)
+	  (if (string= name c-name)
+	      (evi-display-completions (funcall c-list-fun c-name))
+	    (progn (delete-region start (point))
+		   (insert c-name))))
+    (progn (beep) (save-excursion (insert " [no match]"))
+	   (sit-for 2)
+	   (delete-region (point) (+ (point) 11)))))
 
-(defun ex-space ()
-  (interactive)
-  (if ex-reading-filename
-    (progn (skip-chars-backward "^ \t")
-	   (setq ex-restart-mark (1- (point)))
-	   ; ZZ - note the semi-bogus hardcoded space character....
-	   (evi-unread-char ? )
-	   (exit-minibuffer)))
-  (insert ? )
-  (save-excursion
-    (goto-char (point-min))
-    (let ((command (ex-scan-command-name)))
-      (if (and command
-	       ;; ZZ kinda sloppy...
-	       (let ((function (cdr (cdr command))))
-		 (or (eq function 'ex-change-directory)
-		     (eq function 'ex-edit)
-		     (eq function 'ex-edit-other-window)
-		     (eq function 'ex-read)
-		     (eq function 'ex-source-file)
-		     (eq function 'ex-write))))
-	(setq ex-reading-filename t)))))
+(defun evi-display-completions (list)
+  (evi-display-list " *Completions*" list "Possible completions are:\n"))
 
-(defun ex-delete-backward-char ()
-  (interactive)
-  (if (bolp)
-    (exit-minibuffer)
-    (progn
-      (if (and ex-reading-filename (= (preceding-char) ? ))
-	(setq ex-reading-filename nil))
-      (delete-backward-char 1))))
+(defun ex-scan-command-point ()
+  (ex-scan-addresses)
+  (let* ((start-of-com (point))
+	 (command (ex-scan-command-name))
+	 (type (if command
+		   (ex-scan-parameter-list (cdr (car (cdr command))) t))))
+    (cons type (cons start-of-com (point)))))
 
 (defun ex-complete ()
   (interactive)
-  (if ex-reading-filename
-    (progn (skip-chars-backward "^ \t")
-	   (setq ex-restart-mark (1- (point)))
-	   ; ZZ - note the bogus hardcoded TAB character here and farther down
-	   (evi-unread-char ?\t)
-	   (exit-minibuffer))
-    (insert ?\t)))
+  (let* ((cmd-point (save-excursion (goto-char evi-insert-point)
+				    (ex-scan-command-point)))
+	 (type (if (and (= (point) (cdr (cdr cmd-point)))
+			(/= (preceding-char) ? ))
+		   'command
+		 (car cmd-point)))
+	 (start-of-word
+	   (if (eq type 'command)
+	       (nth 1 cmd-point)
+	     (max (cdr (cdr cmd-point))
+		  (save-excursion (skip-chars-backward "^ \t") (point)))))
+	 (word (buffer-substring start-of-word (point))))
+    (cond ((or (eq type 'file) (eq type 'files))
+	    ; ZZ perform substitution?
+	    (let* ((name (file-name-nondirectory word))
+		   (odir (file-name-directory word))
+		   (dir (let ((cur-buffer (current-buffer)))
+			  (set-buffer ex-user-buffer)
+			  (prog1
+			    (if odir
+				(expand-file-name odir (evi-current-directory))
+			      (evi-current-directory))
+			    (set-buffer cur-buffer)))))
+	      (ex-do-completion name (+ start-of-word (length odir))
+		(file-name-completion name dir)
+		(function (lambda (c-name)
+			    (file-name-all-completions c-name dir))))))
+	  ((eq type 'buffer)
+	    (let ((buf-list
+		   (mapcar 'list
+		     (evi-filter (function
+				   (lambda (name) (/= (aref name 0) ? )))
+				 (mapcar 'buffer-name (buffer-list))))))
+	      (ex-do-completion word start-of-word
+	        (try-completion word buf-list)
+		(function (lambda (c-name)
+			    (all-completions c-name buf-list))))))
+	  ((eq type 'settings)
+	    (if (> (save-excursion (goto-char start-of-word)
+				   (skip-chars-forward "^=")
+				   (point))
+		   (point))
+		(beep)
+	      (let ((settings-list (mapcar 'car evi-option-list)))
+		(ex-do-completion word start-of-word
+		  (try-completion word settings-list)
+		  (function (lambda (c-name)
+			      (all-completions c-name settings-list)))))))
+	  ((or (eq type 'command) (eq type 'map) (eq type 'abbrev))
+	    (let ((cmd-list
+		   (if (eq type 'command)
+		       (mapcar 'car ex-commands)
+		     (if (eq type 'map)
+			 (evi-keymap-bindings evi-map-map)
+		       evi-abbrev-list))))
+	      (ex-do-completion word start-of-word
+		(try-completion word cmd-list)
+		(function (lambda (c-name)
+			    (all-completions c-name cmd-list))))))
+	  (t (beep)))))
 
-(defvar ex-user-buffer)
+(defun evi-filter (pred list)
+  (if list
+    (if (funcall pred (car list))
+      (cons (car list) (evi-filter pred (cdr list)))
+      (evi-filter pred (cdr list)))))
 
 (defun evi-do-ex-command-file (filename)
-  (if (file-exists-p filename)
-    (let ((ex-user-buffer (current-buffer)))
+  (if (file-readable-p filename)
+    (let ((ex-user-buffer (current-buffer))
+	  (def-dir default-directory)
+	  (evi-interactive nil))
       (set-buffer ex-work-space)
-      (delete-region (point-min) (point-max))
-      (insert-file filename)
+      (erase-buffer)
+      (let ((default-directory def-dir))
+	  (insert-file-contents filename))
       (goto-char (point-min))
       (evi-do-ex-command)
       (set-buffer ex-user-buffer))))
@@ -2960,11 +3083,12 @@ in the opposite direction."
 (defun evi-do-ex-command-string (command-string)
   (let ((ex-user-buffer (current-buffer)))
     (set-buffer ex-work-space)
-    (delete-region (point-min) (point-max))
+    (erase-buffer)
     (insert command-string "\n")
     (goto-char (point-min))
     (evi-do-ex-command)
-    (set-buffer ex-user-buffer)))
+    (if (and ex-user-buffer (buffer-name ex-user-buffer))
+	(set-buffer ex-user-buffer))))
 
 ;; Note - it is expected that the function that calls this one has set
 ;; ex-user-buffer, and switched to buffer ex-work-space
@@ -2972,12 +3096,18 @@ in the opposite direction."
   (while (not (eobp))
     (let ((command (ex-scan-command)))
       (set-buffer ex-user-buffer)
-      (eval command)
+      (if evi-global-directory
+	  (let ((default-directory (evi-current-directory)))
+	    (eval command))
+	(eval command))
       (set-buffer ex-work-space)
-      (skip-chars-forward "^|\n")
       (forward-char))))
 
 (defun ex-scan-command ()
+  (if (= (following-char) ?:)
+      (forward-char))
+  (if (= (following-char) ?") ;")
+      (end-of-line))
   (let* ((addresses (ex-scan-addresses))
 	 (command-struct (ex-scan-command-name))
 	 (number-of-addresses (car (car (cdr command-struct))))
@@ -2985,11 +3115,18 @@ in the opposite direction."
 	 (command-prototype (cdr (car (cdr command-struct))))
 	 (command-function (cdr (cdr command-struct))))
     (if (null command-struct)
-      (error "Unknown ex command"))
+      (evi-error "Unknown ex command"))
     (if (> (ex-count-addresses addresses) number-of-addresses)
-      (error "The %s command only needs %d addresses"
-	     command-name number-of-addresses))
-    (let ((parameter-list (ex-scan-parameter-list command-prototype)))
+      (evi-error "The %s command only needs %d addresses"
+			    command-name number-of-addresses))
+    (let ((parameter-list (ex-scan-parameter-list command-prototype nil)))
+      (skip-chars-forward " \t")
+      (or (looking-at "[|\n]")
+	  (evi-error "garbage after end of command: `%s'"
+		     (buffer-substring (point)
+				       (progn (skip-chars-forward "^|\n")
+					      (skip-chars-backward " \t")
+					      (point)))))
       (cons command-function
 	    (cond ((eq number-of-addresses 1)
 		    (cons (list 'quote (car addresses)) parameter-list))
@@ -2998,38 +3135,65 @@ in the opposite direction."
 		  (t
 		    parameter-list))))))
 
-(defun ex-scan-parameter-list (prototype-list)
+(defun ex-scan-parameter-list (prototype-list completing)
   (if prototype-list
     (let ((prototype (cdr (car prototype-list)))
 	  (skip-white (eq (car (car prototype-list)) t)))
-      (if skip-white
-	(skip-chars-forward " \t")
-	(if (eq (car (car prototype-list)) 'backup)
-	  (backward-char)))
-      (cons (cond ((null prototype)
-		    nil)
-		  ((stringp prototype)
-		    (ex-scan-string prototype))
-		  ((eq prototype 'address)
-		    (list 'quote (ex-scan-address)))
-		  ((eq prototype 'register)
-		    (list 'quote (ex-scan-register)))
-		  ((eq prototype 'rest-of-line)
-		    (ex-scan-rest-of-line))
-		  ((eq prototype 'word)
-		    (ex-scan-word))
-		  ((eq prototype 'regular-expression)
-		    (ex-scan-regular-expression))
-		  ((eq prototype 'command)
-		    (list 'quote (ex-scan-command)))
-		  ((eq prototype 'settings)
-		    (list 'quote (ex-scan-settings))))
-	    (ex-scan-parameter-list (cdr prototype-list))))))
+      (if (and completing
+	       (symbolp prototype)
+	       (not (eq prototype 'offset)))
+	  prototype
+	(if skip-white
+	    (skip-chars-forward " \t")
+	  (if (eq (car (car prototype-list)) 'backup)
+	      (backward-char)))
+	(let* ((param (cond ((null prototype)
+			      nil)
+			    ((stringp prototype)
+			      (ex-scan-string prototype))
+			    ((eq prototype 'address)
+			      (list 'quote (ex-scan-address)))
+			    ((eq prototype 'register)
+			      (list 'quote (ex-scan-register)))
+			    ((eq prototype 'file)
+			      (ex-scan-quoted "%#*?$" " \t|\n"))
+			    ((eq prototype 'buffer)
+			      (ex-scan-quoted nil "|\n"))
+			    ((eq prototype 'words)
+			      (ex-scan-quoted nil "|\n"))
+			    ((eq prototype 'rest-of-line)
+			      (ex-scan-quoted nil "\n"))
+			    ((or (eq prototype 'word)
+				 (eq prototype 'map)
+				 (eq prototype 'abbrev))
+			      (ex-scan-quoted nil " \t|\n"))
+			    ((eq prototype 'regular-expression)
+			      (ex-scan-regular-expression))
+			    ((eq prototype 'regular-expression2)
+			      (ex-scan-regular-expression t))
+			    ((eq prototype 'command)
+			      (list 'quote (ex-scan-command)))
+			    ((eq prototype 'settings)
+			      (list 'quote (ex-scan-settings)))
+			    ((eq prototype 'files)
+			      (ex-scan-files))
+			    ((eq prototype 'shell-command)
+			      (ex-scan-quoted "%#" "\n"))
+			    ((eq prototype 'offset)
+			      (ex-scan-edit-offset))
+			    ((eq prototype 'mark)
+			      (ex-scan-mark))))
+	       (recurs
+		 (ex-scan-parameter-list (cdr prototype-list) completing)))
+	  (if completing
+	      recurs
+	    (cons param recurs)))))))
 
 (defun ex-scan-addresses ()
   (skip-chars-forward " \t")
   (if (= (following-char) ?%)
-    (cons (cons (cons 'number 1) 0) (cons (cons 'dollar nil) 0))
+      (progn (forward-char)
+	     (cons (cons (cons 'number 1) 0) (cons (cons 'dollar nil) 0)))
     (if (looking-at "[-+0-9.$'/?]")
       (cons
 	(ex-scan-address)
@@ -3048,9 +3212,9 @@ in the opposite direction."
   (let ((char (following-char)))
     (cond
       ((and (>= char ?0) (<= char ?9))
-	(set-mark (point))
-	(skip-chars-forward "0-9")
-	(cons 'number (string-to-int (buffer-substring (mark) (point)))))
+	(let ((start (point)))
+	  (skip-chars-forward "0-9")
+	  (cons 'number (string-to-int (buffer-substring start (point))))))
       ((eq char ?.)
 	(forward-char)
 	(cons 'dot nil))
@@ -3065,73 +3229,109 @@ in the opposite direction."
       ((eq char ??)
 	(cons 're-backward (ex-scan-regular-expression))))))
 
-(defun ex-scan-regular-expression ()
-  (let ((skip-pattern (concat "^\n\\\\" (char-to-string (following-char)))))
-    (forward-char)
-    (let ((start (point)))
-      (skip-chars-forward skip-pattern)
-      (while (= (following-char) ?\\ )
-	(forward-char 2)
-	(skip-chars-forward skip-pattern))
-      (prog1 (buffer-substring start (point))
-	(if (not (= (following-char) ?\n))
-	    (forward-char))))))
+;; if evi-search-magic is nil, also rework the pattern so that . [ and *
+;; become literal, and \. \[ and \* are `magic' (i.e. behave as . [ and *
+;; in a regular expression)
+
+(defun ex-scan-regular-expression (&optional esc-ampersand)
+  (forward-char)
+  (let* ((start (point))
+	 (stop-chars (concat (if esc-ampersand "&")
+			     (if (not evi-search-magic) ".[*")))
+	 (skip-chars (concat "^\n\\\\\C-v" stop-chars
+			     (char-to-string (preceding-char))))
+	 (stop-pat (concat "[\\\\\C-v" stop-chars "]")))
+    (skip-chars-forward skip-chars)
+    (while (looking-at stop-pat)
+      (if (or (= (following-char) ?\\) (= (following-char) ?\C-v))
+	  (progn (forward-char)
+		 (and (/= (length stop-chars) 0)
+		      (looking-at (concat "[" stop-chars "]"))
+		      (delete-region (1- (point)) (point)))
+		 (forward-char))
+	(insert "\\")
+	(forward-char))
+      (skip-chars-forward skip-chars))
+    (prog1
+      (buffer-substring start (point))
+      (if (not (eolp))
+	(forward-char)))))
 
 (defun ex-scan-line-offset ()
-  (let ((char (following-char)))
-    (if (or (eq char ?+) (eq char ?-))
-      (progn (forward-char)
-	     (set-mark (point))
-	     (skip-chars-forward "0-9")
-	     (let ((offset
-		    (string-to-int (buffer-substring (mark) (point)))))
-	       (if (eq char ?+)
-		 offset
-		 (- offset))))
-      0)))
+  (if (looking-at "[0-9+-]")
+      (let ((start (point)))
+	(forward-char)
+	(skip-chars-forward "0-9")
+	; if they only put a +/- without an offset, default to +/-1
+	(if (and (= (- (point) start) 1) (< (preceding-char) ?0))
+	    (if (= (preceding-char) ?+) 1 -1)
+	  (string-to-int (buffer-substring start (point)))))
+    0))
+
+(defun ex-scan-edit-offset ()
+  (if (/= (following-char) ?+)
+      nil
+    (forward-char)
+    (if (evi-is-num (following-char))
+	(ex-scan-line-offset)
+      -1)))
 
 ;; ZZ maybe recognize here that 0 is invalid?
 (defun ex-define-region (addresses whole-lines default-whole-file)
   (let ((start (car addresses))
 	(end (cdr addresses)))
     (if (and (null (car (car start))) default-whole-file)
-      (progn (set-mark (point-min))
+      (progn (setq evi-mark (point-min))
 	     (goto-char (point-max)))
       (progn (let ((starting-point (point)))
 	       (ex-goto-address start)
-	       (set-mark (point))
-	       ;; #### is this right?  without it, ":1,.w file" doesn't work
-	       (goto-char starting-point)
+	       (setq evi-mark (point))
 	       (ex-goto-address end starting-point))
 	     (if whole-lines
 	       (evi-expand-region-to-lines 'ex))))))
+
+(defvar ex-previous-re nil)
+
+(defun ex-goto-line (line)
+  (if line
+      (let ((starting-point (point)))
+	(goto-char (point-min))
+	(if (or (> (forward-line (1- line)) 0) (eobp))
+	    (progn (goto-char starting-point)
+		   (evi-error "Past end of buffer"))))
+    (progn (goto-char (point-max))
+	   (if (= (preceding-char) ?\n)
+	       (forward-line -1)
+	     (beginning-of-line)))))
 
 (defun ex-goto-address (address &optional starting-point)
   (let ((token (car (car address)))
 	(value (cdr (car address))))
     (cond ((eq token 'number)
-	    (goto-line value))
-	  ; no action needed for dot
+	    (ex-goto-line value))
+	  ((eq token 'dot)
+	    (if starting-point (goto-char starting-point)))
 	  ((eq token 'dollar)
-	    (goto-char (point-max))
-	    (forward-line -1))
+	    (ex-goto-line nil))
 	  ((eq token 'mark)
 	    (evi-goto-mark-internal value))
 	  ((eq token 're-forward)
+	    (if (= (length value) 0)
+	      (if ex-previous-re
+		(setq value ex-previous-re)
+		(evi-error "No previous regular expression"))
+	      (setq ex-previous-re value))
 	    (if starting-point (goto-char starting-point))
-	    (forward-line)
-	    ;; ZZ this is crying out for better error handling...
-	    (setq evi-error-string nil)
-	    (do-evi-search-forward value)
-	    (if evi-error-string
-	      (progn (forward-line -1)
-		     (error evi-error-string))))
+	    (end-of-line)
+	    (let ((message (catch 'abort
+			     (evi-do-search t value 1)
+			     nil)))
+	      (if message
+		(progn (forward-line -1)
+		       (evi-error message)))))
 	  ((eq token 're-backward)
 	    (if starting-point (goto-char starting-point))
-	    (setq evi-error-string nil)
-	    (do-evi-search-backward value)
-	    (if evi-error-string
-	      (error evi-error-string)))))
+	    (evi-do-search nil value 1))))
   (forward-line (cdr address)))
 
 (defun ex-goto-line-after-address (address)
@@ -3152,20 +3352,19 @@ in the opposite direction."
 
 (defun ex-scan-command-name ()
   (skip-chars-forward " \t")
-  (let ((beg (point)))
+  (let ((start (point)))
     (if (looking-at "[a-zA-Z!<=>&@]")
-	(progn (forward-char)
-	       (let ((char (preceding-char)))
-		 (if (or (and (>= char ?a) (<= char ?z))
-			 (and (>= char ?A) (<= char ?Z)))
-		     (skip-chars-forward "a-zA-Z")))))
-    (ex-lookup-command ex-commands (buffer-substring beg (point)))))
+      (progn (forward-char)
+	     (let ((char (preceding-char)))
+	       (if (or (and (>= char ?a) (<= char ?z))
+		       (and (>= char ?A) (<= char ?Z)))
+		 (skip-chars-forward "a-zA-Z")))))
+    (ex-lookup-command ex-commands (buffer-substring start (point)))))
 
 (defun ex-lookup-command (command-list command)
-  (if command-list
-    (if (ex-command-eq command (car (car command-list)))
-      (car command-list)
-      (ex-lookup-command (cdr command-list) command))))
+  (evi-find cmd-struct command-list
+    (if (ex-command-eq command (car cmd-struct))
+      cmd-struct)))
 
 (defun ex-command-eq (command command-cell)
   (let ((full-command (car command-cell)))
@@ -3177,24 +3376,88 @@ in the opposite direction."
 			(substring (car command-cell) 0 (length command))))))))
 
 (defun ex-scan-register ()
-  (if (= (following-char) ?") ; ")
-    (progn
-      (forward-char 2)
-      (let ((char (preceding-char)))
+  (if (evi-is-alpha (following-char))
+      (let ((char (following-char)))
+	(forward-char)
 	(cons (evi-register-number char)
-	      (not (and (>= char ?a) (<= char ?z))))))
-    ; error checking?
+	      (not (and (>= char ?a) (<= char ?z)))))
     (cons evi-register-unnamed nil)))
 
-(defun ex-scan-rest-of-line ()
-  (set-mark (point))
-  (skip-chars-forward "^|\n")
-  (buffer-substring (mark) (point)))
+(defun ex-scan-mark ()
+  (if (evi-is-alpha (following-char))
+      (let ((char (following-char)))
+	(forward-char)
+	(+ (- char (if (and (>= char ?a) (<= char ?z)) ?a ?A)) 36))
+    (evi-error "marker name required for mark command")))
 
-(defun ex-scan-word ()
-  (set-mark (point))
-  (skip-chars-forward "^ \t|\n")
-  (buffer-substring (mark) (point)))
+(defun ex-scan-files ()
+  (let ((file)
+	(flist nil))
+    (while (> (length (setq file (ex-scan-quoted "%#*?$" " \t|\n"))) 0)
+      (setq flist (cons file flist))
+      (skip-chars-forward " \t"))
+    (cons 'quote (cons (nreverse flist) nil))))
+
+(defun ex-scan-quoted (stop-chars delim-chars)
+  (let ((start (point))
+	(skip-chars (concat "^\\\\\C-v" stop-chars delim-chars))
+	(stop-pat (concat "[\\\\\C-v" stop-chars "]"))
+	(expand-glob nil))
+    (skip-chars-forward skip-chars)
+    (while (looking-at stop-pat)
+      (let ((char (following-char)))
+	(cond ((or (= char ?\\) (= char ?\C-v))
+	        (if ex-input-escapes
+		    (progn
+		      (delete-region (point) (1+ (point)))
+		      (let ((char (following-char)))
+			(cond ((= char ?e)
+				(delete-region (point) (1+ (point)))
+				(insert ?\e))
+			      ((= char ?n)
+				(delete-region (point) (1+ (point)))
+				(insert ?\n))
+			      ((= char ?r)
+				(delete-region (point) (1+ (point)))
+				(insert ?\r))
+			      ((= char ?t)
+				(delete-region (point) (1+ (point)))
+				(insert ?\t))
+			      ((and (= char ?C)
+				    (= (char-after (1+ (point))) ?-))
+				(let ((char (char-after (+ (point) 2))))
+				  (insert (- char (if (< char ?a) ?@ ?`)))
+				  (delete-region (point) (+ (point) 3))))
+			      (t (forward-char 1)))))
+		  (forward-char)))
+	      ((= char ?%)
+		(let ((file-name (buffer-file-name ex-user-buffer)))
+		  (if file-name
+		    (progn
+		      (delete-region (point) (1+ (point)))
+		      (insert file-name))
+		    (evi-error
+		      "Buffer has no filename to substitute for %%%%"))))
+	      ((= char ?#)
+		(let* ((buffer (evi-next-file-buffer nil))
+		       (file-name (and buffer (buffer-file-name buffer))))
+		  (if file-name
+		    (progn
+		      (delete-region (point) (1+ (point)))
+		      (insert file-name))
+		    (evi-error
+		      "No alternate filename to substitute for #"))))
+	      (t
+		(setq expand-glob t)
+		(forward-char))))
+      (skip-chars-forward skip-chars))
+    (if expand-glob
+      (progn (shell-command-on-region start (point)
+	       (concat "echo " (buffer-substring start (point))) t)
+	     (goto-char start)
+	     (skip-chars-forward (concat "^" delim-chars))))
+    (if (/= start (point))
+	(buffer-substring start (point)))))
 
 (defun ex-scan-string (string)
   (let ((string-length (length string)))
@@ -3210,102 +3473,254 @@ in the opposite direction."
 (defun ex-not-implemented (&optional arg)
   (message "Command not implemented"))
 
+(defun ex-abbrev (abbrev definition)
+  (if abbrev
+      (let ((elem (assoc abbrev evi-abbrev-list)))
+	(if elem
+	    (if definition
+		(setcdr elem (cons (length abbrev) definition))
+	      (message "%s" (evi-pretty-string (cdr (cdr elem)))))
+	  (if definition
+	      (setq evi-abbrev-list
+		    (cons
+		     (cons abbrev
+			   (cons (length abbrev) definition)) evi-abbrev-list))
+	    (evi-error "No abbrev for `%s'" abbrev))))
+    (evi-display-list-and-prompt
+      " *Abbrevs*" (mapcar 'evi-pretty-binding evi-abbrev-list))))
+
+(defun ex-expand-abbrev ()
+  (let ((abbrev evi-abbrev-list)
+	(case-fold-search nil))
+    (while abbrev
+      (if (search-backward (car (car abbrev))
+			   (- (point) (nth 1 (car abbrev))) t)
+	  (if (evi-is-nonalphanum (preceding-char))
+	      (progn
+		(delete-region (point) (+ (point) (nth 1 (car abbrev))))
+		(insert (cdr (cdr (car abbrev)))))
+	    (goto-char (+ (point) (nth 1 (car abbrev))))))
+      (setq abbrev (cdr abbrev)))))
+
+(defun evi-self-insert ()
+  (interactive)
+  (if (evi-is-nonalphanum last-command-char)
+      (ex-expand-abbrev))
+  (self-insert-command 1))
+
+(defun ex-change-buffer (exclam buffer-name)
+  (ex-change-buffer-internal exclam buffer-name nil))
+
+(defun ex-change-buffer-other-window (exclam buffer-name)
+  (ex-change-buffer-internal exclam buffer-name t))
+
+(defun ex-change-buffer-internal (exclam buffer-name other-window)
+  (or buffer-name
+      (setq buffer-name (buffer-name (other-buffer (current-buffer)))))
+  (let ((found (ex-verify-buffer buffer-name)))
+    (if (or exclam found)
+      (if other-window
+	(switch-to-buffer-other-window buffer-name)
+	(switch-to-buffer buffer-name))
+      (message "Buffer \"%s\" does not exist" buffer-name))
+    (evi)))
+    ; (and exclam (not found)
+
+(defun ex-verify-buffer (buffer-name)
+  (evi-find buf (buffer-list) (string= (buffer-name buf) buffer-name)))
+
+(defun evi-expand-file-name (file-name)
+  (let* ((expanded-name (expand-file-name file-name))
+	 (len (length expanded-name)))
+    (if (= (aref expanded-name (1- len)) ?/)
+	expanded-name
+      (concat expanded-name "/"))))
+
+(defun evi-current-directory ()
+  (if evi-global-directory
+      (car evi-directory-stack)
+    default-directory))
+
 (defun ex-change-directory (directory-name)
-  (setq default-directory (expand-file-name directory-name)))
+  (let ((expnd-dir-name (evi-expand-file-name (or directory-name "~"))))
+    (if evi-global-directory
+	(setcar evi-directory-stack expnd-dir-name)
+      (setq default-directory expnd-dir-name))))
+
+(defun ex-push-directory (directory-name)
+  (if directory-name
+      (setq evi-directory-stack
+	    (cons (evi-expand-file-name directory-name) evi-directory-stack))
+    (if (null (cdr evi-directory-stack))
+	(evi-error "Only one directory")
+      (setq evi-directory-stack
+	    (cons (nth 1 evi-directory-stack)
+		  (cons (car evi-directory-stack)
+			(cdr (cdr evi-directory-stack))))))))
+
+(defun ex-pop-directory ()
+  (if (null (cdr evi-directory-stack))
+    (evi-error "Only one directory left")
+    (setq evi-directory-stack (cdr evi-directory-stack))))
+
+(defun ex-directory-stack ()
+  (let ((home (getenv "HOME")))
+    (message
+      (mapconcat (function
+		   (lambda (f)
+		     (let* ((dir (evi-abbreviate-file-name f home "~"))
+			    (end (1- (length dir))))
+		       (if (= (aref dir end) ?/)
+			 (substring dir 0 end)
+			 dir))))
+		 evi-directory-stack " "))))
 
 (defun ex-copy (from-addresses to-address)
   (ex-define-region from-addresses t nil)
-  (let ((text (buffer-substring (mark) (point))))
+  (let ((text (buffer-substring evi-mark (point))))
     (ex-goto-line-after-address to-address)
     (insert text)))
 
 (defun ex-delete (addresses register-struct)
-  (let ((evi-register register-struct))
+  (let ((evi-register-spec register-struct))
     (ex-define-region addresses t nil)
     (evi-copy-region-to-registers t)
     ; to make undo's come out right
-    (if (< (mark) (point))
-      (exchange-point-and-mark))
-    (delete-region (point) (mark))))
+    (if (< evi-mark (point))
+      (evi-exchange-point-and-mark))
+    (delete-region (point) evi-mark)))
 
-(defun ex-edit (exclam file-name)
-  (ex-edit-internal exclam file-name nil))
+(defun ex-edit (exclam offset file-name)
+  (ex-edit-internal exclam offset file-name nil))
 
-(defun ex-edit-other-window (exclam file-name)
-  (ex-edit-internal exclam file-name t))
+(defun ex-edit-other-window (exclam offset file-name)
+  (ex-edit-internal exclam offset file-name t))
 
-(defun ex-edit-internal (exclam file-name other-window)
-  (if (= (length file-name) 0)
-    (if (and (not exclam) (not other-window) (buffer-modified-p))
-      (message "Buffer modified since last save (use :edit! to override)")
-      (if other-window
-	(split-window-vertically)
-	(if (null (buffer-file-name))
-	  (message "Buffer has no file associated with it")
-	  (revert-buffer nil t)
-	  (evi-mode))))
-    (cond ((string= file-name "#")
-	   (let ((buffer (evi-next-file-buffer)))
-	     (if buffer
-		 (if other-window
-		     (switch-to-buffer-other-window (evi-next-file-buffer))
-		   (switch-to-buffer (evi-next-file-buffer)))
-	       (message "No other file to display"))))
-	  (t (if other-window
-		 (find-file-other-window file-name)
-	       (find-file file-name))))
-    (evi-mode)))
+(defun ex-edit-internal (exclam offset file-name other-window)
+  (if (null file-name)
+      (if (and (not exclam) (not other-window) (buffer-modified-p))
+	  (message "Buffer modified since last save (use :edit! to override)")
+	(if other-window
+	    (split-window-vertically)
+	  (if (null (buffer-file-name))
+	      (message "Buffer has no file associated with it")
+	    (revert-buffer nil t)
+	    (evi))))
+    (if other-window
+	(find-file-other-window file-name)
+      (find-file file-name))
+    (evi))
+  (if offset
+      (ex-goto-line (if (= offset -1) nil offset))))
+
+(defun ex-elisp-execute (lisp-expression)
+  (eval (car (read-from-string lisp-expression))))
 
 (defun ex-file (file-name)
-  (if (= (length file-name) 0)
-    (evi-file-info)
-    (set-visited-file-name file-name)))
+  (if file-name
+      (set-visited-file-name file-name)
+    (evi-file-info)))
 
 (defun ex-global (addresses pattern command)
-  (ex-define-region addresses t t)
-  (exchange-point-and-mark)
   (let ((case-fold-search evi-ignore-case)
 	(next-line-mark (make-marker))
 	(end-line-mark (make-marker))
-	(large-region (> (- (mark) (point)) 5000)))
+	(none-found t)
+	(end-pos (point))
+	(large-region))
+    (if (= (length pattern) 0)
+	(if ex-previous-re
+	    (setq pattern ex-previous-re)
+	  (evi-error "No previous regular expression"))
+      (setq ex-previous-re pattern))
+    (ex-define-region addresses t t)
+    (evi-exchange-point-and-mark)
+    (setq large-region (> (- evi-mark (point)) 5000))
     (if large-region
       (message "running global command... "))
-    (set-marker end-line-mark (mark))
-    (while (< (point) end-line-mark)
-      (if (re-search-forward pattern end-line-mark 1)
-	(progn
-	  ;; check to make sure ex also does this in case of line wrap
-	  (goto-char (match-beginning 0))
-	  (save-excursion
-	    (forward-line)
-	    (set-marker next-line-mark (point)))
-	  ; (beginning-of-line)
-	  (eval command)
-	  (goto-char next-line-mark))))
+    (set-marker end-line-mark evi-mark)
+    (while (and (< (point) end-line-mark)
+		(re-search-forward pattern end-line-mark t))
+      ;; check to make sure ex also does this in case of line wrap
+      (goto-char (match-beginning 0))
+      (setq none-found nil
+	    end-pos (point))
+      (save-excursion
+	(forward-line)
+	(set-marker next-line-mark (point)))
+	; (beginning-of-line)
+      (eval command)
+      (goto-char next-line-mark))
     (if large-region
       (message "running global command... complete."))
     (set-marker next-line-mark nil)
-    (set-marker end-line-mark nil)))
+    (set-marker end-line-mark nil)
+    (goto-char end-pos)
+    (if none-found
+	(evi-error "No occurance of pattern found"))))
 
-;; ZZ needs to save previous mapping...
-(defun ex-map (exclam char definition)
-  (if exclam
-    (evi-define-key evi-all-input-maps char definition)
-    (evi-define-key '(vi) char definition)))
+(defun ex-recurse (fun)
+  (let ((ex-user-buffer (current-buffer)))
+    (set-buffer ex-work-space)
+    (let ((work-string (buffer-string))
+	  (work-point (point)))
+      (set-buffer ex-user-buffer)
+      (eval fun)
+      (setq ex-user-buffer (current-buffer))
+      (set-buffer ex-work-space)
+      (erase-buffer)
+      (insert work-string)
+      (goto-char work-point)
+      (set-buffer ex-user-buffer))))
+
+(defun ex-initialize ()
+  (ex-recurse '(evi-customize)))
+
+(defun ex-kill-buffer (exclam buffer-name)
+  (and (not exclam) (buffer-file-name) (buffer-modified-p)
+       (evi-error
+	 "No write since last change (use :kill! to override)"))
+  (set-buffer-modified-p nil)
+  (delete-auto-save-file-if-necessary)
+  (kill-buffer (or buffer-name (current-buffer)))
+  (setq ex-user-buffer (current-buffer)))
+
+(defun ex-map (exclam key definition)
+  (let ((map (if exclam evi-input-map-map evi-map-map)))
+    (if key
+	(if definition
+	    (if exclam
+		(evi-define-key '(input-map) key definition)
+	      (evi-define-key '(map) key definition))
+	  (let ((mapping (lookup-key map key)))
+	    (if (stringp mapping)
+		(message "%s" (evi-pretty-string mapping))
+	      (evi-error "No map for `%s'" key))))
+      (evi-display-list-and-prompt
+	" *Mappings*" (mapcar 'evi-pretty-binding
+			      (evi-keymap-bindings map))))))
+
+(defun ex-mark (address marker)
+  (save-excursion
+    (ex-goto-address address (point))
+    (aset evi-registers marker (point-marker))))
 
 (defun ex-move (from-addresses to-address)
   (ex-define-region from-addresses t nil)
-  (let ((text (buffer-substring (mark) (point)))
+  (let ((text (buffer-substring evi-mark (point)))
 	(to-mark (copy-marker (save-excursion
 				(ex-goto-line-after-address to-address)
 				(point)))))
     ; to make undo's come out right
-    (if (< (mark) (point))
-      (exchange-point-and-mark))
-    (delete-region (point) (mark))
+    (if (< evi-mark (point))
+      (evi-exchange-point-and-mark))
+    (delete-region (point) evi-mark)
     (goto-char to-mark)
     (insert text)
     (set-marker to-mark nil)))
+
+(defun ex-preserve ()
+  (do-auto-save))
 
 (defun ex-print (addresses)
   (let ((position (save-excursion
@@ -3314,25 +3729,35 @@ in the opposite direction."
     (goto-char position)
     (select-window (previous-window))))
 
-(defun ex-next (exclam)
-  (ex-next-internal exclam nil))
+(defun ex-next (exclam files)
+  (ex-next-internal exclam files nil))
 
-(defun ex-next-other-window (exclam)
-  (ex-next-internal exclam t))
+(defun ex-next-other-window (exclam files)
+  (ex-next-internal exclam files t))
 
-(defun ex-next-internal (exclam other-window)
-  (let* ((next-buffer (evi-next-file-buffer)))
-    (if next-buffer
-      (progn (bury-buffer (current-buffer))
-	     (if other-window
-	       (switch-to-buffer-other-window next-buffer)
-	       (switch-to-buffer next-buffer)))
-      (message "All files are displayed"))))
+(defun ex-next-internal (exclam files other-window)
+  (if files
+      (let ((next-buffers
+	      (mapcar 'find-file-noselect files)))
+	(if next-buffers
+	    (progn
+	      (if other-window
+		  (switch-to-buffer-other-window (car next-buffers))
+		(switch-to-buffer (car next-buffers)))
+	      (evi))))
+    (let ((next-buffer (evi-next-file-buffer t)))
+      (if next-buffer
+	  (progn (bury-buffer (current-buffer))
+		 (if other-window
+		     (switch-to-buffer-other-window next-buffer)
+		   (switch-to-buffer next-buffer))
+		 (evi))
+	(message "All files are displayed")))))
 
-(defun evi-next-file-buffer ()
+(defun evi-next-file-buffer (not-in-window)
   (let ((rest-of-list
-	  (evi-enumerate-condition buffer (buffer-list)
-	    (or (get-buffer-window buffer)
+	  (evi-enumerate-condition buffer (cdr (buffer-list))
+	    (or (and not-in-window (get-buffer-window buffer))
 		(null (buffer-file-name buffer))))))
     (if rest-of-list
       (car rest-of-list))))
@@ -3342,39 +3767,38 @@ in the opposite direction."
   (let ((register (aref evi-registers (car register-struct))))
     (if register
       (save-excursion
-	(insert (evi-register-text register))
-	(if (not (evi-register-whole-lines-p register))
-	  (insert ?\n)))
-      (if evi-register
-	(message "Nothing in register %c" (evi-register-name evi-register))
+	(if (eq (evi-register-shape register) 'rectangle)
+	    (progn (newline (length (evi-register-text register)))
+		   (backward-char (length (evi-register-text register)))))
+	(if (eq (evi-register-shape register) 'rectangle)
+	    (insert-rectangle (evi-register-text register))
+	  (insert (evi-register-text register)))
+	(if (eq (evi-register-shape register) 'chars)
+	    (insert ?\n)))
+      (if evi-register-spec
+	(message "Nothing in register %c"
+		 (evi-register-name (car evi-register-spec)))
 	(message "No text to put")))))
 
+;; ZZ should move to a misc section - actually this shouldn't be here: surely
+;; this is defined somewhere else?
 
-(defvar ex-quit-should-exit-evi nil
-  "*If this is t, then the `:q' command in EVI mode will exit VI emulation.
-If this is nil (the default), then `:q' will kill the current buffer, leaving
-you in EVI mode in the previously selected buffer.  This is closer to the way
-that VI users tend to use :q in the real VI.")
+(defun evi-list-apply (func l)
+  (if l
+    (progn (apply func (car l) nil)
+	   (evi-list-apply func (cdr l)))))
 
 (defun ex-quit (discard)
   (if discard
-    (set-buffer-modified-p nil))
-  (ex-exit))
-
-(defun ex-exit ()
-  (interactive)
-  (if ex-quit-should-exit-evi
-      (save-buffers-kill-emacs)
-    (if (eq (current-buffer) ex-user-buffer)
-	(setq ex-user-buffer (other-buffer (current-buffer))))
-    (if (eq (current-buffer) ex-user-buffer)
-	(setq ex-user-buffer (get-buffer-create "*scratch*")))
-    (if (eq (current-buffer) ex-user-buffer)
-	(erase-buffer)
-      (kill-buffer (current-buffer))
-      (set-buffer ex-user-buffer))
-    (if (eq major-mode 'fundamental-mode) (evi-mode))))
-
+    (progn
+      (evi-list-apply
+	(function (lambda (buf)
+	  (if (buffer-file-name buf)
+	    (progn (set-buffer buf)
+		   (delete-auto-save-file-if-necessary)))))
+	(buffer-list))
+      (kill-emacs))
+    (save-buffers-kill-emacs)))
 
 (defun ex-read (address shell-command arg)
   (ex-goto-line-after-address address)
@@ -3383,108 +3807,141 @@ that VI users tend to use :q in the real VI.")
     (evi-insert-file arg)))
 
 ; there's a bug in insert-file-contents that doesn't record an undo save
-; boundary when it's appropriate
+; boundary when it's appropriate (ZZ)
 (defun evi-insert-file (filename)
-  ; the insert will record a save record if appropriate
-  (insert ?@)
-  (delete-region (1- (point)) (point))
-  ; now just erase the existence of the insert and delete
-  (setq buffer-undo-list (cdr (cdr buffer-undo-list)))
+  (evi-version-case
+    ("Emacs 18\.5[789]\\|Epoch 4\\|Emacs 19.*Lucid"
+      ; the insert will record a save record if appropriate
+      (insert ?@)
+      (delete-region (1- (point)) (point))
+      ; now just erase the existence of the insert and delete
+      (setq buffer-undo-list (cdr (cdr buffer-undo-list)))))
   (insert-file-contents filename))
+
+(defun ex-recover (exclam file-name)
+  (or file-name
+      (if (setq file-name (buffer-file-name))
+	  (and (not exclam) (buffer-modified-p)
+	       (evi-error
+		"No write since last change (use :recover! to override)"))
+	(evi-error "Buffer has no file associated with it")))
+  (recover-file file-name)
+  (auto-save-mode 1)
+  (message "Auto save mode on")
+  (evi))
 
 (defun ex-set (settings)
   (if settings
-    (ex-set-internal settings)
-    (message "Well set!")))
+      (ex-set-internal settings)
+    (message (mapconcat 'evi-get-option evi-set-options " "))))
 
 (defun ex-set-internal (settings)
   (if settings
     (let* ((setting (car settings))
 	   (name (car setting))
 	   (value (cdr setting)))
-      (if (integerp value)
-	;; ZZ try princ or (window-buffer (minibuffer-window))
-	(progn (princ (evi-get-option name))
-	       (princ " "))
-	(evi-set-option name value))
+      (if (string= name "all")
+	  (evi-display-list-and-prompt
+	    " *Settings*"
+	    (mapcar (function (lambda (x) (evi-get-option (car (car x)))))
+		    (evi-filter (function (lambda (x) (cdr (cdr x))))
+				evi-option-list))
+	    nil 'half)
+	(if (integerp value)
+	    (progn (princ (evi-get-option name))
+		   (princ " "))
+	  (evi-set-option name value)))
       (ex-set-internal (cdr settings)))))
 
 (defun ex-scan-settings ()
   (skip-chars-forward " \t")
-  (if (looking-at "[^|\n]")
-    (let* ((default-value
-	     (if (looking-at "no") (progn (forward-char 2) nil) t))
-	   (option
-	     (progn (set-mark (point))
-		    (skip-chars-forward "a-z")
-		    (buffer-substring (mark) (point)))))
-      (cond ((looking-at "=")
-	      (progn (forward-char 1)
-		     (set-mark (point))
-		     (skip-chars-forward "^ \t|\n")
-		     (cons (cons option (buffer-substring (mark) (point)))
-			   (ex-scan-settings))))
-	    ((looking-at "?")
-	      (progn (forward-char 1)
-		     (cons (cons option ??)
-			   (ex-scan-settings))))
-	    (t
-	      (cons (cons option default-value)
-		    (ex-scan-settings)))))))
+  (let ((settings nil))
+    (while (looking-at "[A-Za-z]")
+      (let* ((default-value
+	       (if (looking-at "no") (progn (forward-char 2) nil) t))
+	     (option (let ((start (point)))
+		       (skip-chars-forward "A-Za-z")
+		       (buffer-substring start (point)))))
+	(cond ((looking-at "=")
+		(progn (forward-char 1)
+		       (setq settings
+			 (cons (cons option (ex-scan-quoted nil " \t|\n"))
+			       settings))))
+	      ((looking-at "?")
+		(progn (forward-char 1)
+		       (setq settings
+			 (cons (cons option ??) settings))))
+	      (t
+		(setq settings (cons (cons option default-value) settings)))))
+      (skip-chars-forward " \t"))
+    (if (looking-at "[^|\n]")
+      (evi-error "Invalid setting%s"
+		 (if settings (format " after `%s'" (car (car settings))) "")))
+    settings))
 
 (defun evi-get-option (option)
   (let* ((option-struct (evi-search-option-list evi-option-list option))
-	 (type (car (cdr option-struct))))
+	 (type (nth 1 option-struct)))
     (if (eq type nil)
-      (error (concat "invalid option: " option))
+      (evi-error "invalid option `%s'" option)
       (let* ((long-name (car option-struct))
-	     (value (eval (cdr (cdr option-struct)))))
+	     (value (condition-case code
+			(eval (cdr (cdr option-struct)))
+		      (error nil))))
 	(cond
 	  ((eq (cdr (cdr option-struct)) nil)
-	    (error "option `%s' not implemented" long-name))
+	    (if (or evi-interactive evi-report-unsupported-options)
+		(evi-error "option `%s' not implemented" long-name)
+	      (concat long-name "=<ignored>")))
 	  ((eq type 'bool)
 	    (if (eq value t) long-name (concat "no" long-name)))
 	  ((eq type 'number)
-	    (concat long-name "=" (int-to-string value)))
+	    (concat long-name "=" (if value (int-to-string value) "<undef>")))
 	  ((eq type 'string)
-	    (concat long-name "=" value))
+	    (concat long-name "=" (if value
+				      (evi-pretty-string value)
+				    "<undef>")))
 	  (t
-	    (error (concat "invalid type: " (prin1-to-string type)))))))))
+	    (evi-error "invalid type `%s'" (prin1-to-string type))))))))
 
 (defun evi-set-option (option value)
   (let* ((option-struct (evi-search-option-list evi-option-list option))
-	 (type (car (cdr option-struct))))
+	 (type (nth 1 option-struct)))
     (cond
       ((eq type nil)
-	(error "invalid option `%s'" option))
+	(if (or evi-interactive evi-report-unsupported-options)
+	    (evi-error "Invalid option `%s'" option)))
       ((eq (cdr (cdr option-struct)) nil)
-	;; be gentle for now, just use message
-	(message "option `%s' not implemented" (car option-struct)))
+	(if (or evi-interactive evi-report-unsupported-options)
+	    (evi-error "Option `%s' not implemented" (car option-struct))))
       ((eq type 'bool)
         (if (not (or (eq value t) (eq value nil)))
-	    (error (concat "only " option " or no" option " allowed"))))
+	    (evi-error "Only %s or no%s allowed" option option)))
       ((eq type 'number)
         (if (or (eq value t) (eq value nil))
-	    (error (concat "use " option "=<number> to set, or " option "? to query"))
-	    (setq value (string-to-int value))))
+	    (evi-error "Use %s=<number> to set, or %s? to query" option option)
+	  (setq value (string-to-int value))))
       ((eq type 'string)
         (if (or (eq value t) (eq value nil))
-	    (error (concat "use " option "=<string> to set, or " option "? to query"))))
+	    (evi-error
+	      "Use %s=<string> to set, or %s? to query" option option)))
       (t
-	(error (concat "invalid type: " (prin1-to-string type)))))
+	(evi-error "Invalid type `%s'" (prin1-to-string type))))
     (if (cdr (cdr option-struct))
-      (set (cdr (cdr option-struct)) value))
+	(progn (set (cdr (cdr option-struct)) value)
+	       (or (evi-find opt evi-set-options (equal opt option))
+		   (if evi-set-options
+		       (nconc evi-set-options (list option))
+		     (setq evi-set-options (list option))))))
     (if (fboundp (cdr (cdr option-struct)))
-      (funcall (cdr (cdr option-struct)) value))))
+	(funcall (cdr (cdr option-struct)) value))))
 
 (defun evi-search-option-list (option-list option)
-  (if option-list
-    (let* ((option-struct (car option-list))
-	  (option-strings (car option-struct)))
-      (if (evi-string-list-match option-strings option)
-	  (cons (car option-strings) (cdr option-struct))
-	  (evi-search-option-list (cdr option-list) option)))
-    '("".nil)))
+  (let ((option (evi-find option-struct option-list
+		  (let ((option-strings (car option-struct)))
+		    (if (evi-string-list-match option-strings option)
+		      (cons (car option-strings) (cdr option-struct)))))))
+    (or option '("" . nil))))
 
 (defun evi-string-list-match (string-list string)
   (if string-list
@@ -3492,244 +3949,263 @@ that VI users tend to use :q in the real VI.")
 	t
 	(evi-string-list-match (cdr string-list) string))))
 
+(defvar evi-shell-mode-hook nil)
+
+(defun evi-shell-mode-setup ()
+  (run-hooks 'evi-shell-mode-hook)
+  (or evi-insert-mode-local-bindings
+      (set (make-local-variable 'evi-insert-mode-local-bindings) t))
+  (evi)
+  (setq evi-buffer-local-vi-map evi-shell-map))
+
+(defun ex-shell ()
+  (let ((evi-shell-mode-hook
+	 (if (boundp 'shell-mode-hook) shell-mode-hook nil))
+	(shell-mode-hook 'evi-shell-mode-setup))
+    (shell)
+    (evi-insert)))
+
+(defun ex-gdb (program-name)
+  (let ((evi-shell-mode-hook
+	 (if (boundp 'gdb-mode-hook) gdb-mode-hook nil))
+	(gdb-mode-hook 'evi-shell-mode-setup))
+    (gdb program-name)
+    (evi-insert)))
+
 (defun ex-source-file (file-name)
-  (evi-do-ex-command-file file-name))
+  (ex-recurse (list 'evi-do-ex-command-file file-name)))
+
+(defvar ex-previous-substitute nil)
 
 (defun ex-substitute (addresses pattern replacement global query)
-  (ex-define-region addresses t nil)
-  (exchange-point-and-mark)
   (let ((case-fold-search evi-ignore-case)
-	(next-line-mark (make-marker))
 	(end-line-mark (make-marker))
-	(large-region (> (- (mark) (point)) 5000)))
+	(none-found t)
+	(end-pos (point))
+	(large-region))
+    (ex-define-region addresses t nil)
+    (if (= (length pattern) 0)
+	(if ex-previous-re
+	    (setq pattern ex-previous-re)
+	  (evi-error "No previous regular expression"))
+      (setq ex-previous-re pattern))
+    ; there are problems with global subst'ing just the beginning or end of a
+    ; line, but in those cases you can only match one per line anyway, so
+    ; demote to a non-global search
+    (if (or (= (aref pattern 0) ?^)
+	    (= (aref pattern 0) ?$))
+	(setq global nil))
+    (evi-exchange-point-and-mark)
+    (setq large-region (> (- evi-mark (point)) 5000))
     (if large-region
       (message "running substitute command... "))
-    (set-marker end-line-mark (mark))
-    (while (< (point) end-line-mark)
-      (if (re-search-forward pattern end-line-mark 1)
-	(progn
-	  (goto-char (match-beginning 0))
-	  (save-excursion
-	    (if global
-	      (goto-char (match-end 0))
-	      (forward-line))
-	    (set-marker next-line-mark (point)))
-	  (ex-replace-match query replacement)
-	  (goto-char next-line-mark))))
+    (set-marker end-line-mark evi-mark)
+    (while (and (< (point) end-line-mark)
+		(re-search-forward pattern end-line-mark t))
+      (goto-char (match-beginning 0))
+      (setq none-found nil
+	    end-pos (point))
+      (ex-replace-match query replacement)
+      (or global
+	  (forward-line)))
     (if large-region
       (message "running substitute command... complete."))
-    (set-marker next-line-mark nil)
-    (set-marker end-line-mark nil)))
+    (setq ex-previous-substitute
+	  (list addresses pattern replacement global query))
+    (set-marker end-line-mark nil)
+    (goto-char end-pos)
+    (if none-found
+	(evi-error "No occurance of pattern found"))))
+
+(defun ex-substitute-again (addresses)
+  (if ex-previous-substitute
+    (apply 'ex-substitute addresses (cdr ex-previous-substitute))
+    (evi-error "No previous substitution"))
+  (setq ex-previous-substitute
+	(append (list addresses) (cdr ex-previous-substitute))))
+
+(defun evi-substitute-again ()
+  (interactive)
+  (if ex-previous-substitute
+    (apply 'ex-substitute ex-previous-substitute)
+    (evi-error "No previous substitution")))
+
+(defun evi-hilight-region (start end)
+  (let ((here (point))
+	(flag nil)
+	(going t))
+    (goto-char start)
+    (while going
+      (if (not (sit-for 1))
+	  (setq going nil)
+	(goto-char (if flag start end))
+	(setq flag (not flag))))
+    (goto-char here)))
 
 (defun ex-replace-match (query replacement)
   (if (or (not query)
 	  (let ((beginning (match-beginning 0))
-		(end (match-end 0)))
-	    (save-excursion
-	      (goto-char beginning) (insert ?$)
-	      (goto-char (1+ end)) (insert ?$))
-	    (prog1
-	      (y-or-n-p "replace? ")
-	      (save-excursion
-		(delete-region beginning (1+ beginning))
-		(delete-region end (1+ end))
-		(setq buffer-undo-list (nthcdr 4 buffer-undo-list))))))
-    (progn (delete-region (match-beginning 0) (match-end 0))
-	   (insert replacement))))
+		(end (match-end 0))
+		(answer nil))
+	    (while (not answer)
+	      (message "replace? (y or n)")
+	      (evi-hilight-region beginning (1- end))
+	      (setq answer (evi-read-char))
+	      (if (and (/= answer ?y) (/= answer ?n)
+		       (/= answer ?Y) (/= answer ?N))
+		  (progn (beep)
+			 (setq answer nil))))
+	    (or (= answer ?y) (= answer ?Y))))
+      ; need to worry about `magic' here?
+      (replace-match replacement t nil)
+    (goto-char (match-end 0))))
+
 
 (defun ex-tag (tag)
-  (if (= (length tag) 0)
-    (if (null ex-tag)
-      (error "No previous tag specified"))
-    (setq ex-tag tag))
+  (if tag
+      (setq ex-tag tag)
+    (or ex-tag
+	(evi-error "No previous tag specified")))
   (find-tag ex-tag)
-  (evi-mode))
+  (evi))
 
-; ZZ exclam overrides readonly...
+(defun ex-unabbrev (abbrev)
+  (let ((alist evi-abbrev-list)
+	(alist2 nil))
+    (while alist
+      (if (string= abbrev (car (car alist)))
+	  (progn
+	    (if alist2
+		(setcdr alist2 (cdr alist))
+	      (setq evi-abbrev-list (cdr alist)))
+	    (setq alist nil))
+	(setq alist2 alist alist (cdr alist))))))
+
+(defun ex-unmap (exclam key)
+  (if exclam
+    (evi-define-key '(input-map) key nil)
+    (evi-define-key '(map) key nil)))
+
+(defun ex-evi-version ()
+  (message evi-version))
+
 (defun ex-write (addresses exclam append file-arg)
-  (let ((file-name (if (= (length file-arg) 0) (buffer-file-name) file-arg)))
-    (save-excursion
-      (ex-define-region addresses t t)
-      (if (and (= (length file-arg) 0)
-	       (= (mark) (point-min)) (= (point) (point-max)))
-	(basic-save-buffer)
-	(write-region (mark) (point) file-name append)))))
+  (let ((file-name (or file-arg (buffer-file-name))))
+    (cond
+     ((and (not exclam)
+	   file-arg
+	   (not (equal (expand-file-name file-arg) buffer-file-name))
+	   (file-exists-p (expand-file-name file-arg)))
+      (evi-error (format "File exists - use \":write! %s\" to overwrite"
+			 file-arg)))
+     ((or exclam file-arg (not evi-buffer-read-only))
+      (save-excursion
+	(ex-define-region addresses t t)
+	(if (and (null file-arg)
+		 (= evi-mark (point-min)) (= (point) (point-max)))
+	    (progn
+					; force a write, even if not modified
+	      (set-buffer-modified-p t)
+	      (basic-save-buffer))
+	  (write-region evi-mark (point) file-name append))))
+     (t
+      (evi-error "File read-only (use :write! to attempt override)")))))
 
-;; Technically, :wq should write the file whether it needs saving or not.
-(defun ex-write-quit ()
-  (basic-save-buffer)
-  (ex-quit nil))
+(defun ex-write-all-buffers (quietly)
+  (save-some-buffers quietly))
 
-(defun ex-save-quit ()
+(defun ex-write-kill ()
+  (set-buffer-modified-p t)
   (basic-save-buffer)
-  (ex-quit nil))
+  (ex-kill-buffer nil nil))
+
+(defun ex-write-quit (discard)
+  (set-buffer-modified-p t)
+  (basic-save-buffer)
+  (ex-quit discard))
+
+(defun ex-write-all-and-quit (quietly)
+  (save-some-buffers quietly t)
+  (kill-emacs))
 
 (defun ex-yank (addresses register-struct)
-  (let ((evi-register register-struct))
+  (let ((evi-register-spec register-struct))
     (save-excursion
       (ex-define-region addresses t nil)
       (evi-copy-region-to-registers nil))))
 
-(defun ex-shell-command (addresses shell-command)
-  (if (null (car (car (car addresses))))
-    (shell-command shell-command)
-    (progn (ex-define-region addresses t nil)
-	   (shell-command-on-region (mark) (point) shell-command t))))
+(defun ex-shell-command (addresses background shell-command)
+  (if (string= shell-command "!")
+      (setq shell-command
+	(or evi-last-shell-command
+	    (evi-error "No previous shell command to substitute for !")))
+    (setq evi-last-shell-command shell-command))
+  (if background
+      (progn
+	(switch-to-buffer-other-window
+	  (get-buffer-create "*Shell Command Output*"))
+	(evi)
+	(erase-buffer)
+	(start-process (concat "\"" shell-command "\"")
+		       "*Shell Command Output*" "sh" "-c" shell-command)
+	(select-window (previous-window)))
+    (if (null (car (car (car addresses))))
+	(progn
+	  (save-excursion
+	    (set-buffer (get-buffer-create "*Shell Command Output*"))
+	    (evi))
+	  (evi-display-and-prompt 'shell-command (list shell-command)))
+      (progn (ex-define-region addresses t nil)
+	     (shell-command-on-region evi-mark (point) shell-command t)))))
 
 (defun ex-shift-right (addresses)
   (ex-define-region addresses t nil)
-  (indent-rigidly (mark) (point) evi-shift-width)
+  (indent-rigidly evi-mark (point) evi-shift-width)
   (forward-line -1)
   (skip-chars-forward " \t"))
 
 (defun ex-shift-left (addresses)
   (ex-define-region addresses t nil)
-  (indent-rigidly (mark) (point) (- evi-shift-width))
+  (indent-rigidly evi-mark (point) (- evi-shift-width))
   (forward-line -1)
   (skip-chars-forward " \t"))
 
 (defun ex-null (addresses)
   (ex-define-region addresses t nil)
-  (let ((address (car addresses)))
-    (if (null (car (car address)))
-	(forward-line -1)
-      (ex-goto-address address))))
+  (forward-line -1))
 
-;;; For Lucid GNU Emacs
+(defvar evi-evi-list "evi-list@brandx.rain.com"
+  "Address of site maintaining mailing list for Evi.")
 
-(defun evi-mouse-track (event)
-  (interactive "e")
-  (mouse-track event)
-  (setq evi-buffer-on-insert-exit (current-buffer))
-  (evi-fixup-cursor 'horizontal)
-  (evi-fixup-cursor 'vertical))
+(defvar evi-bug-address "jlewis@cse.ogi.edu"
+  "Address of who maintains evi.")
 
-(defun evi-mouse-track-insert (event)
-  (interactive "e")
-  (mouse-track-insert event)
-  (setq evi-buffer-on-insert-exit (current-buffer))
-  (evi-fixup-cursor 'horizontal)
-  (evi-fixup-cursor 'vertical))
+(defun ex-mail (to)
+  (mail nil to)
+  (evi)
+  (message "Type `:send' to send message.  Type `:kill' to abort.")
+  (evi-insert))
 
-(defun evi-x-mouse-kill (event)
-  (interactive "e")
-  (x-mouse-kill event)
-  (setq evi-buffer-on-insert-exit (current-buffer))
-  (evi-fixup-cursor 'horizontal)
-  (evi-fixup-cursor 'vertical))
+(defun ex-mail-list (subject)
+  (mail nil evi-evi-list subject)
+  (evi)
+  (goto-char (point-max))
+  (insert "Using " evi-version " (" (emacs-version) ").\n\n")
+  (message "Type `:send' to send message.  Type `:kill' to abort.")
+  (evi-insert))
 
-(defun evi-x-set-point-and-insert-selection (event)
-  (interactive "e")
-  (x-set-point-and-insert-selection event)
-  (setq evi-buffer-on-insert-exit (current-buffer))
-  (evi-fixup-cursor 'horizontal)
-  (evi-fixup-cursor 'vertical))
+(defun ex-report-bug (subject)
+  (mail nil evi-bug-address subject)
+  (evi)
+  (goto-char (point-max))
+  (insert "In " evi-version " (" (emacs-version) ")\n\n")
+  (message "Type `:send' to send bug report.  Type `:kill' to abort.")
+  (evi-insert))
 
-(if evi-new-event-model-p
-    (progn
-;; Lucid Emacs bindings
-(evi-define-key evi-all-keymaps-but-insert 'button1
-		'evi-mouse-track)
-(evi-define-key evi-all-keymaps-but-insert 'button2
-		'evi-x-set-point-and-insert-selection)
-(evi-define-key evi-all-keymaps-but-insert 'button3 'energize-popup-menu)
-(evi-define-key evi-all-keymaps-but-insert '(control button1)
-		'evi-mouse-track-insert)
-(evi-define-key evi-all-keymaps-but-insert '(control button2) 'evi-x-mouse-kill)
+(defun ex-send-mail (exclam)
+  (mail-send)
+  (if exclam
+      (ex-kill-buffer t nil)))
 
-(evi-define-key evi-all-keymaps-but-insert 'left 'evi-backward-char)
-(evi-define-key evi-all-keymaps-but-insert 'right 'evi-forward-char)
-(evi-define-key evi-all-keymaps-but-insert 'up 'evi-previous-line)
-(evi-define-key evi-all-keymaps-but-insert 'down 'evi-next-line)
-))
-
-(evi-define-key evi-all-keymaps-but-insert "\C-z" 'evi-exit-to-emacs)
-
-;; Initializing
-
-(defvar evi-init-files-loaded nil)
-
-(defun evi-load-init-files ()
-  (if evi-init-files-loaded
-      nil
-    (evi-do-ex-command-file "~/.exrc")
-    (evi-do-ex-command-file ".exrc")
-    (let ((exinit (getenv "EXINIT")))
-      (if exinit
-	  (evi-do-ex-command-string exinit)))
-    (if (file-exists-p "~/.evirc") (load-file "~/.evirc"))
-    (if (file-exists-p ".evirc") (load-file ".evirc"))
-    (setq evi-init-files-loaded t)))
-
-; Notes...
-
-; maybe use * for multiplier, as in 5*[(...\e
-
-; 'C-c doesn't 'quit' like it should...
-
-; should `up' put the contents of the undo (if the undo deleted text)?
-
-; maybe make re-patterns for )}]] be selected by the major mode.  easy way
-; would be to have each be a function that chose based on the mode
-
-; try a general purpose iterator that takes a region, and an update motion...
-
-; undoing can change contexts on you... (my vi doesn't do this tho')
-
-; should shifting zap you back to the beginning of the region if you were
-; defining the region using m.>R?
-
-; should check out all opportunities to use &string &char, etc..
-
-; fix ex code to :r doesn't pause so long on the space
-
-; how does goto-mark affect the modification operators?  should they just
-; abort, or should they do something handy like allow you to
-; 1) yank remote text
-; 2) cat text together from different buffers
-
-; C-c can sometimes leave us on a newline
-
-; also relative path movement
-; doesn't work (../foo gets recognized as /foo)
-
-; balance-parens does the (] thing wrong
-
-; could try having (interactive (evi-motion-args)) (make evi-interactive-args
-; become evi-count-arg).  this would save-excursion, get the motion command
-; and make the args be the region start and end.  might be better... might
-; not be...
-; further could have two versions of passing in count:
-; first passes in the raw count, the second defaults count to 1
-; save on all those little (or count 1)'s everywhere...
-
-; would be cool if any window switching command took you out of insert
-; if you are switching to another window on the same buffer...
-
-; >> doesn't leave the cursor correctly after an undo...
-
-; >R doesn't repeat correctly...
-
-; C-c in insert or replace is mapped to the wrong thing
-
-; switch to insert mode needs to be advertised right away..
-
-; need to wrap delete boundary around insert 'cause it can insert the
-; newline
-
-; % will often match to the ` before a paren..
-
-; no longer a message with 'x' on empty line...
-
-; `:e' when the file has been altered on disk, edits the old buffer anyway
-
-; suggest map! for mapping things in insert mode to do emacs'ish stuff
-; like map! ^k ^_d$
-
-; the `wrap line with comments' example doesn't work anymore...
-; bummer... emacs keyboard macros don't nest!?
-; hmmm they nest just fine, but still don't do the right thing
-; require termination of command_loop to unwind nesting
-; (which hoses any command loops which may have been started by the
-; macro!)
-
+
+(provide 'evi)

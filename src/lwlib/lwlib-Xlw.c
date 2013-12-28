@@ -20,6 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "lwlib-Xlw.h"
 #include <X11/StringDefs.h>
 #include <X11/IntrinsicP.h>
+#include <X11/ObjectP.h>
 #include <X11/CompositeP.h>
 #include <X11/Shell.h>
 #include "xlwmenu.h"

@@ -20,6 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef DISPEXTERN_DOT_H
 #define DISPEXTERN_DOT_H
 
+#ifdef emacs
 /* Nonzero means don't assume anything about current
    contents of actual terminal screen */
 extern int screen_garbaged;
@@ -32,7 +33,9 @@ extern int display_completed;
    since last redisplay that finished */
 extern int windows_or_buffers_changed;
 
-#ifdef HAVE_X_WINDOWS
+#endif /* emacs */
+
+#if defined(HAVE_X_WINDOWS) && defined(emacs)
 #include <X11/Xlib.h>
 #endif
 
@@ -43,10 +46,11 @@ struct face
   unsigned char modif;
 #ifdef HAVE_X_WINDOWS
   GC 		facegc;
-  XFontStruct*	font;
-#if 0
-  char* 	font_name;	/* missing piece of info from XFontStruct... */
-#endif				/* we store this up in lisp now */
+#ifdef emacs
+  XFontStruct *	font;
+#else
+  void *	font;
+#endif
   unsigned long	foreground;
   unsigned long	background;
   Pixmap	back_pixmap;
@@ -107,6 +111,8 @@ struct screen_glyphs
     struct run **face_list;
     struct run *faces;
 
+    int short_cut_taken;	/* 1 if any short_cut was taken during redisplay */
+
 #ifdef HAVE_X_WINDOWS
     short *top_left_x;		/* Pixel position of top left corner */
     short *top_left_y;
@@ -117,6 +123,8 @@ struct screen_glyphs
   };
 
 #define GLYPH_CLASS_VECTOR_SIZE 100
+
+#ifdef emacs
 
 struct glyphs_from_chars
   {
@@ -151,6 +159,8 @@ struct glyphs_from_chars
     int run_pos_upper;
   };
 
+#endif /* emacs */
+
 #ifdef HAVE_X_WINDOWS
 struct glyph_dimensions
   {
@@ -181,6 +191,8 @@ struct glyph_dimensions
 			: max_width - 1)
 #endif
 
+#ifdef emacs
+
 extern void get_display_line ();
 extern struct face default_face;
 
@@ -193,5 +205,7 @@ extern void mark_attributes ();
 extern struct face *copy_attributes ();
 extern struct glyph_dimensions *get_glyph_dimensions ();
 extern struct glyphs_from_chars *glyphs_from_bufpos ();
+
+#endif /* emacs */
 
 #endif /* DISPEXTERN_DOT_H */

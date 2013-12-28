@@ -1,25 +1,39 @@
 						-*- text -*-
 
-     Lucid GNU Emacs availability information.  Last Modified: 17-jan-93.
+     Lucid GNU Emacs availability information.  Last Modified: 24-mar-93.
 
 Lucid GNU Emacs is available via anonymous FTP from the host
 labrea.Stanford.EDU (36.8.0.112) in the directory pub/gnu/lucid/.
 
-It is currently available only by FTP.  We don't have the manpower
-to make tapes right now. 
+Labrea is the primary distribution point, but you may find it at
+other sites as well.  Such as liasun3.epfl.ch in /pub/gnu/, and
+ftp.foretune.co.jp in /pub/GNU/lucid/.  If you would like to make
+Lucid GNU Emacs available for FTP from your site, please let us 
+know so that we can list your site here.
 
-You may find it at other sites as well, but labrea is the primary
-distribution point.  If you would like to make Lucid GNU Emacs
-available for FTP from your site, please let us know so that we
-can list your site here.
+The Labrea distribution (and copies of it) contain precompiled executables
+for SunOS 4.1.  The Liasun3 distribution contains precompiled executables
+for SGI machines.
 
 There are mailing lists and newsgroups specifically for discussing and 
 reporting bugs in Lucid GNU Emacs; see the file MAILINGLISTS in this
 directory.
 
+You can also purchase Lucid Emacs tapes and manuals directly from Lucid.
+As of 17 march 93, the price is $400 for a bound Lucid Emacs manual and
+a cartridge tape with sources and SunOS 4.x binaries, and $150 for the
+manual alone.
+
+To order, get current pricing information, or inquire about about other
+media or platforms, call (800) 223-9322, or send electronic mail to
+lucid-info@lucid.com.
+
+Your input on what formats and architectures are desired will have an
+impact on what we offer, so let us know what you want.
+
 The FTP and ordering information in the remainder of this file applies
 to the versions of GNU Emacs distributed by the Free Software Foundation,
-not to Lucid GNU Emacs.
+not to Lucid Emacs.
 
 -----------------------------------------------------------------------
 

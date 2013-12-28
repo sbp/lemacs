@@ -604,19 +604,36 @@ and don't delete any header fields."
 	    (substring s (match-beginning 2) (match-end 2)) " "
 	    (substring s (match-beginning 5) (match-end 5)) " "
 	    (substring s (match-beginning 4) (match-end 4)) " ")
+
     (if mail-do-fcc-cached-timezone
 	(insert mail-do-fcc-cached-timezone "\n")
-      (save-restriction
-	(narrow-to-region (point) (point))
-	(call-process "date" nil t nil)
-	(end-of-line)
-	(insert "\n")
-	(forward-word -1) ; skip back over year
-	(delete-region (1- (point)) (1- (point-max))) ; nuke year to end
-	(forward-word -1) ; skip back over zone
-	(delete-region (point-min) (point)) ; nuke beginning to zone
-	(setq mail-do-fcc-cached-timezone
-	      (buffer-substring (point-min) (1- (point-max))))))))
+      ;;
+      ;; First, try to use the current-time-zone function, which may not be
+      ;; defined, and even if it is defined, may error or return nil.
+      ;;
+      (or (condition-case ()
+	      (let ((zoneinfo (current-time-zone)))
+		(setq mail-do-fcc-cached-timezone
+		      (or (if (nth 1 zoneinfo) (nth 3 zoneinfo))
+			  (nth 2 zoneinfo)))
+		(if mail-do-fcc-cached-timezone
+		    (insert mail-do-fcc-cached-timezone "\n"))
+		mail-do-fcc-cached-timezone)
+	    (error nil))
+	  ;;
+	  ;; Otherwise, run date(1) and parse its output.  Yuck!
+	  ;;
+	  (save-restriction
+	    (narrow-to-region (point) (point))
+	    (call-process "date" nil t nil)
+	    (end-of-line)
+	    (insert "\n")
+	    (forward-word -1)		; skip back over year
+	    (delete-region (1- (point)) (1- (point-max))) ; nuke year to end
+	    (forward-word -1)		; skip back over zone
+	    (delete-region (point-min) (point)) ; nuke beginning to zone
+	    (setq mail-do-fcc-cached-timezone
+		  (buffer-substring (point-min) (1- (point-max)))))))))
 
 (defun mail-do-fcc-rmail-internal (buffer)
   (or (eq major-mode 'rmail-mode) (error "this only works in rmail-mode"))

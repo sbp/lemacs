@@ -1,5 +1,5 @@
 ;; Run compiler as inferior of Emacs, and parse its error messages.
-;; Copyright (C) 1985, 1986, 1988, 1989, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -270,6 +270,10 @@ move point to the error message line and type \\[compile-goto-error]."
 		       (setq compilation-error-buffer (current-buffer))))))
       (progn (compilation-forget-errors)
 	     (setq compilation-parsing-end 1)))
+  (if (null compilation-error-buffer)
+      (error "no *compilation* buffer"))
+  (if (null (buffer-name compilation-error-buffer))
+      (error "*compilation* buffer has been killed"))
   (if compilation-error-list
       nil
     (save-excursion

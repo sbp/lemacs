@@ -924,7 +924,7 @@ SIZE, if supplied, should be a prime number."
 ;;;; Internal variables.
 ;;;; ------------------------------------------------------------
 
-(defconst ange-ftp-version "$Revision: 1.4 $")
+(defconst ange-ftp-version "Revision: 4.20")
 
 (defvar ange-ftp-data-buffer-name " *ftp data*"
   "Buffer name to hold directory listing data received from ftp process.")
@@ -1344,12 +1344,8 @@ replace the path component with PATH."
   "Gross hack to set minibuf_message = 0, so that the contents of the
 minibuffer will show."
   (if (eq (selected-window) (minibuffer-window))
-      (if (fboundp 'allocate-event)
-	  ;; lemacs
-	  (let ((unread-command-event (character-to-event ?\C-m
-							  (allocate-event)))
-		(enable-recursive-minibuffers t))
-	    (read-from-minibuffer "" nil ange-ftp-tmp-keymap nil))
+      (if (string-match "Lucid" emacs-version)
+	  (message nil)
 	;; v18 GNU Emacs
 	(let ((unread-command-char ?\C-m)
 	      (enable-recursive-minibuffers t))

@@ -27,7 +27,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef PURESIZE
 # ifdef ENERGIZE
-#  define PURESIZE 500000
+#  define PURESIZE 530000
 # else
 #  define PURESIZE 250000
 # endif

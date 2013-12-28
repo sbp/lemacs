@@ -1,5 +1,5 @@
-module 'XApplication'
-applicationName = 'XApplication';
+module 'Energize'
+applicationName = 'Energize';
 generateNameC = 'target.xdc';
 generateNameUIL = '';
 generateNameResDB = '';
@@ -197,7 +197,7 @@ object '' : XmScrollBar {
 	arguments {
 	};
 };
-object '' : XmText {
+object '' : XmTextField {
 	arguments {
 	XmNeditMode=0;
 	XmNcolumns=57;
@@ -210,7 +210,7 @@ object '' : XmLabel {
 	name = 'dependLabel';
 	};
 };
-object '' : XmText {
+object '' : XmTextField {
 	arguments {
 	name = 'dependText';
 	XmNcolumns=60;

@@ -145,7 +145,7 @@ to generate such a string.  This variable is always buffer-local.")
 	  nil
 	;; if the mode-name is really long, clip it for the filename
 	(if (> 0 (setq s (- 39 (current-column))))
-	    (delete-char s))
+	    (delete-char (max s (- eob (point)))))
 	(indent-to 40 1)
 	(insert file)))))
 

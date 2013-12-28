@@ -51,11 +51,11 @@ static void
 set_screen_menubar (struct screen *s, int deep_p);
 
 /* we need a unique id for each popup menu and dialog box */
-static unsigned int popup_id_tick;
+unsigned int popup_id_tick;
 
 /* count of menus/dboxes currently up */
-static int popup_menu_up_p;
-static int dbox_up_p;
+int popup_menu_up_p;
+int dbox_up_p;
 
 int menubar_show_keybindings;
 
@@ -950,7 +950,15 @@ update_screen_menubars ()
 	  || (SCREEN_MENUBAR_DATA (s)->last_menubar_buffer !=
 	      XWINDOW (s->selected_window)->buffer))
 	if (!MINI_WINDOW_P (XWINDOW (s->selected_window)))
+#ifndef LWLIB_USES_OLIT
 	  set_screen_menubar (s, 0);
+#else /* LWLIB_USES_OLIT */
+      /* ####  BUG BUG BUG!
+	 ####  The lwlib OLIT code doesn't correctly implement "non-deep" mode.
+	 ####  This must be fixed before this is usable at all.
+       */
+	  set_screen_menubar (s, 1);
+#endif /* LWLIB_USES_OLIT */
     }
 }
 

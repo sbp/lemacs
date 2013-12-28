@@ -53,7 +53,9 @@ With arg, inserts that many newlines."
     (while (> arg 0)
       (save-excursion
         (insert ?\n)
-	(if fill-prefix (insert fill-prefix)))
+;; screw this
+;;	(if fill-prefix (insert fill-prefix))
+	)
       (setq arg (1- arg)))
     (if flag (forward-char 1))))
 
@@ -969,14 +971,20 @@ Does not set point.  Does nothing if mark ring is empty."
     (or dont-activate-region (zmacs-activate-region))
     nil))
 
+(defvar next-line-extends-end-of-buffer t
+  "*If non-nil, when \\[next-line] is invoked on the last line of a buffer,
+a newline character is inserted to create a new line.
+If nil, \\[next-line] signals an `end-of-buffer' in that situation.")
+
 (defun next-line (arg)
   "Move cursor vertically down ARG lines.
 If there is no character in the target line exactly under the current column,
 the cursor is positioned after the character in that line which spans this
 column, or at the end of the line if it is not long enough.
-If there is no line in the buffer after this one,
-a newline character is inserted to create a line
-and the cursor moves to that line.
+
+If the variable `next-line-extends-end-of-buffer' is true and there is no line
+in the buffer after this one, a newline character is inserted to create
+a line and the cursor moves to that line.
 
 The command \\[set-goal-column] can be used to create
 a semipermanent goal column to which this command always moves.
@@ -993,6 +1001,8 @@ and more reliable (no dependence on goal column, etc.)."
 	(if (or (= opoint (point))
 		(not (eq (preceding-char) ?\n)))
 	    (progn
+	      (if (not next-line-extends-end-of-buffer)
+		  (signal 'end-of-buffer nil))
 	      (insert ?\n)
 	      (setq zmacs-region-stays t))
 	  (goto-char opoint)
@@ -1444,7 +1454,10 @@ fill-column's value is separate for each buffer."
   "Set selective-display to ARG; clear it if no arg.
 When selective-display is a number > 0,
 lines whose indentation is >= selective-display are not displayed.
-selective-display's value is separate for each buffer."
+selective-display's value is separate for each buffer.
+
+WARNING: selective-display does not currently work with Lucid Emacs.
+This is a known bug that will be fixed eventually."
   (interactive "P")
   (if (eq selective-display t)
       (error "selective-display already in use for marked lines"))

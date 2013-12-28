@@ -137,7 +137,7 @@ This is a fine thing to set in your .emacs file.")
 (defvar explicit-shell-file-name nil
   "*If non-nil, is file name to use for explicitly requested inferior shell.")
 
-(defvar explicit-csh-args
+(defvar explicit-csh-arguments
   (if (eq system-type 'hpux)
       ;; -T persuades HP's csh not to think it is smarter
       ;; than us about what terminal modes to use.
@@ -175,6 +175,8 @@ Value is a list of strings, which may be nil.")
 ;;; Basic Procedures
 ;;; ===========================================================================
 ;;;
+
+(defvar shell-dirtrackp)
 
 (defun shell-mode ()
   "Major mode for interacting with an inferior shell.
@@ -395,7 +397,7 @@ See variables shell-cd-regexp, shell-pushd-regexp, and shell-popd-regexp."
 				      (cons old (cdr shell-dirstack)))
 				(shell-dirstack-message))
 			      (message "Directory stack empty."))
-	(message "Couldn't cd."))
+	(error (message "Couldn't cd.")))
 
       (let ((num (shell-extract-num arg)))
 	(if num				; pushd +n

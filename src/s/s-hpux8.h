@@ -7,7 +7,7 @@
 /* #include "s/s-hpux7.h" */
 /* Definitions file for GNU Emacs running on HPUX release 7.0.
    Based on AT&T System V.2.
-   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -236,6 +236,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define LIBS_SYSTEM
 #endif
 
+/*
+ * The pstat system call allows us to grab the load average
+ * without being installed setgid kmem.  BONUS
+ */
+#define HAVE_HPUX_PSTAT
+
 /* Some additional system facilities exist.  */
 
 #define HAVE_DUP2
@@ -273,16 +279,31 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define PTY_NAME_SPRINTF \
 	sprintf (pty_name, "/dev/ptym/pty%c%x", c, i);
 
-/* #define C_SWITCH_SYSTEM -I/usr/include/X11R4 */
-
-/* Don't use shared libraries.  unexec doesn't handle them.  */
-/* #define LD_SWITCH_SYSTEM -a archive  -L/usr/lib/X11R4 */
-
 /* Some hpux 8 machines seem to have TIOCGWINSZ,
    and none have sioctl.h, so might as well define this.  */
 #define NO_SIOCTL_H
 
 /* Specify compiler options for compiling oldXMenu.  */
-#define OLDXMENU_OPTIONS CFLAGS=-I/usr/include/X11R4
+#define OLDXMENU_OPTIONS CFLAGS=-I/usr/include/X11R5
 
 #define FLOAT_CATCH_SIGILL
+
+#ifdef THIS_IS_YMAKEFILE
+
+#ifdef __GNUC__
+# define C_SWITCH_SYSTEM -O -D_HPUX_SOURCE -D__TIMEVAL__ -I/usr/include/X11R5 -I/usr/include/Motif1.2
+#else
+# define C_SWITCH_SYSTEM -O -Aa -D_HPUX_SOURCE -D__TIMEVAL__ -I/usr/include/X11R5 -I/usr/include/Motif1.2
+#endif
+
+#ifndef LD_SWITCH_SYSTEM
+# ifdef __GNUC__
+#  define LD_SWITCH_SYSTEM -Xlinker -a -Xlinker archive -L/usr/lib/X11R5 -L/usr/lib/Motif1.2
+# else
+#  define LD_SWITCH_SYSTEM -Wl,-a,archive -L/usr/lib/X11R5 -L/usr/lib/Motif1.2
+# endif /* __GNUC__ */
+#endif /* LD_SWITCH_SYSTEM */
+
+#define LD_CMD $(CC)
+
+#endif /* THIS IS YMAKEFILE */

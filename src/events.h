@@ -1,6 +1,6 @@
 /* Definitions for the new event model;
    created 16-jul-91 by Jamie Zawinski
-   Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1991-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -17,6 +17,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#ifndef _EMACS_EVENTS_H_
+#define _EMACS_EVENTS_H_
 
 /* There is one object, called an event_stream.  This object contains 
    callback functions for doing the window-system dependent operations that
@@ -226,7 +229,7 @@ struct event_stream {
   void (*select_process_cb)	(struct Lisp_Process *);
   void (*unselect_process_cb)	(struct Lisp_Process *);
 #ifdef SIGIO
-  void (*sigio_cb)		();
+  void (*sigio_cb)		(void);
 #endif
 };
 
@@ -279,12 +282,12 @@ struct eval_data {
   Lisp_Object	    object;
 };
 
-#ifdef HAVE_X_WINDOWS
+#if defined(HAVE_X_WINDOWS) && defined(emacs)
 # include <X11/Xlib.h>
 #endif
 
 #ifndef MAX_UNDERLYING_EVENT_SIZE
-# ifdef HAVE_X_WINDOWS
+# if defined(HAVE_X_WINDOWS) && defined(emacs)
 #  define MAX_UNDERLYING_EVENT_SIZE (sizeof (XEvent))
 # else
 #  define MAX_UNDERLYING_EVENT_SIZE 1
@@ -342,7 +345,11 @@ extern struct command_event_queue *command_event_queue;
    MOD_META instead.
  */
 
+#ifdef emacs
 /* Maybe this should be trickier */
 #define KEYSYM(x) (intern (x))
 
 int event_to_character (struct Lisp_Event *, int);
+#endif /* emacs */
+
+#endif /* _EMACS_EVENTS_H_ */

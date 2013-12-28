@@ -94,7 +94,20 @@
 (defun describe-key-briefly (key)
   "Print the name of the function KEY invokes.  KEY is a string."
   (interactive "kDescribe key briefly: ")
-  (let ((defn (key-binding key)))
+  (let (defn)
+    ;; If the key typed was really a menu selection, grab the form out
+    ;; of the event object and intuit the function that would be called,
+    ;; and describe that instead.
+    (if (and (vectorp key) (= 1 (length key)) (menu-event-p (aref key 0)))
+	(let ((event (aref key 0)))
+	  (setq defn (list (event-function event) (event-object event)))
+	  (if (eq (car defn) 'eval)
+	      (setq defn (car (cdr defn))))
+	  (if (eq (car-safe defn) 'call-interactively)
+	      (setq defn (car (cdr defn))))
+	  (if (and (consp defn) (null (cdr defn)))
+	      (setq defn (car defn))))
+      (setq defn (key-binding key)))
     (if (or (null defn) (integerp defn))
         (message "%s is undefined" (key-description key))
       (message "%s runs the command %s"
@@ -136,6 +149,8 @@ also be a menu selection."
     (if (or (null defn) (integerp defn))
         (message "%s is undefined" (key-description key))
       (with-output-to-temp-buffer "*Help*"
+;	(princ (key-description key))
+;	(princ " runs the command ")
 	(prin1 defn)
 	(princ ":\n")
 	(if (or (stringp defn) (vectorp defn))
@@ -416,7 +431,8 @@ not an autoload.")
     (terpri)
     (let ((doc (documentation-property variable 'variable-documentation)))
       (if doc
-	  (princ (substitute-command-keys doc))
+	  ;; note: documentation-property calls substitute-command-keys.
+	  (princ doc)
 	(princ "not documented as a variable.")))
     (print-help-return-message)))
 

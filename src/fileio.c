@@ -1090,7 +1090,7 @@ static int retrying_write (int, char *, int);
 
 #if defined(HAVE_TIMEVAL) && !defined(USE_UTIME)
 #if !defined(IRIX) && !defined(NeXT)
-extern int utimes (char *, struct timeval *);
+extern int utimes (const char *, struct timeval *);
 #endif
 #endif
 

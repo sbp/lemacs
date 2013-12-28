@@ -35,6 +35,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "dispextern.h"
 #include "screen.h"
 #include "xterm.h"		/* only describe_event() needs this */
+#include "lwlib.h"
 
 static void describe_event ();
 void emacs_Xt_focus_event_handler ();
@@ -698,7 +699,8 @@ x_event_to_emacs_event (x_event, emacs_event)
     break;
     
   case ClientMessage:
-    /* Patch bogus TAKE_FOCUS messages from MWM */
+    /* Patch bogus TAKE_FOCUS messages from MWM; CurrentTime is passed as the
+       timestamp of the TAKE_FOCUS, which the ICCCM explicitly prohibits. */
     if (x_event->xclient.message_type == Xatom_WM_PROTOCOLS
 	&& x_event->xclient.data.l[0] == Xatom_WM_TAKE_FOCUS
 	&& x_event->xclient.data.l[1] == 0)
@@ -842,12 +844,34 @@ emacs_Xt_handle_magic_event (emacs_event)
     }
     break;
 
+#if 0
+    /*
+     * We were handling some focus events twice: once here, then again
+     * because we called XtDispatchEvent, and the EmacsShell widget called
+     * emacs_Xt_focus_event_handler() again.  We need to have the shell
+     * widget call emacs_Xt_focus_event_handler() because sometimes Motif
+     * calls XtDispatchEvent on synthetic focus events that we have no other
+     * way of getting our hands on.
+     *
+     * Possibly we could just avoid the "goto OTHER" here.  I don't know
+     * whether that would break something.
+     *
+     * Also, it's curious that we're using x_any_window_to_screen() instead
+     * of x_window_to_screen().  I don't know what the impact of this is.
+     *
+     * So for now, let's try handing focus events *only* via XtDispatchEvent
+     * and the EmacsShell callbacks.  This appears to make there be less
+     * focus problems with the Browse Language Element dbox: pasting from
+     * emacs into the text field no longer makes the dbox stop accepting
+     * keyboard input.
+     */
   case FocusIn:
   case FocusOut:
     if (s = x_any_window_to_screen (event->xfocus.window))
       emacs_Xt_focus_event_handler (event, s);
     goto OTHER;
     break;
+#endif /* 0 */
 
   case ClientMessage:
     if (! (s = x_any_window_to_screen (event->xclient.window)))
@@ -884,20 +908,29 @@ emacs_Xt_handle_magic_event (emacs_event)
 	  }
 	enqueue_command_event (event);
       }
+#if 0
     else if (event->xclient.message_type == Xatom_WM_PROTOCOLS &&
 	     event->xclient.data.l[0] == Xatom_WM_TAKE_FOCUS)
       {
-	XWindowAttributes xwa;
-	BLOCK_INPUT;
-	/* Check that the window is visible */
-	if (XGetWindowAttributes (x_current_display, event->xclient.window,
-				  &xwa)
-	    && xwa.map_state == IsViewable)
-	  XSetInputFocus (x_current_display, event->xclient.window,
-			  RevertToParent, event->xclient.data.l[1]);
-	UNBLOCK_INPUT;
-	goto OTHER; /* This may be necessary for Motif dialog boxes? */
+	/* If there is a dialog box up, focus on it.
+
+	   #### Actually, we're raising it too, which is wrong.  We should
+	   #### just focus on it, but lwlib doesn't currently give us an
+	   #### easy way to do that.  This should be fixed.
+	 */
+	unsigned long take_focus_timestamp = event->xclient.data.l[1];
+	Widget widget = lw_raise_all_pop_up_widgets ();
+	if (widget)
+	  {
+	    /* kludge: raise_all returns bottommost widget, but we really
+	       want the topmost.  So just raise it for now. */
+	    XMapRaised (XtDisplay (widget), XtWindow (widget));
+	    /* Grab the focus with the timestamp of the TAKE_FOCUS. */
+	    XSetInputFocus (XtDisplay (widget), XtWindow (widget),
+			    RevertToParent, take_focus_timestamp);
+	  }
       }
+#endif
     else
       goto OTHER;
     break;
@@ -1363,9 +1396,12 @@ mark_process_as_being_ready (process)
 }
 
 static void
-Xt_process_callback (process)	/* called by XtAppNextEvent() */
-     struct Lisp_Process *process;
+Xt_process_callback (closure, source, id)    /* called by XtAppNextEvent() */
+     void *closure;
+     int *source;
+     XtInputId *id;
 {
+  struct Lisp_Process *process = (struct Lisp_Process *) closure;
   mark_process_as_being_ready (process);
   Xt_wake_up (x_current_display);
 }
@@ -1378,7 +1414,7 @@ emacs_Xt_select_process (process)
   process_fds_to_input_ids[XFASTINT (process->infd)] = 
     XtAppAddInput (Xt_app_con, XFASTINT (process->infd),
 		   (XtPointer) (XtInputReadMask /* | XtInputExceptMask */),
-		   Xt_process_callback, process);
+		   Xt_process_callback, (void *) process);
   UNBLOCK_INPUT;
 }
 

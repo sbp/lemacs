@@ -1,5 +1,5 @@
 ;;; Mouse and font support for PCL-CVS 1.3 running in Lucid GNU Emacs
-;; Copyright (C) 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -74,23 +74,18 @@
 (define-key cvs-mode-map 'button3 'cvs-menu)
 (define-key cvs-mode-map 'button2 'cvs-mouse-find-file)
 
-(or (find-face 'cvs-header-face)
-    (progn
-      (make-face 'cvs-header-face)
-      (or (face-differs-from-default-p 'cvs-header-face)
-	  (copy-face 'italic 'cvs-header-face))))
+(make-face 'cvs-header-face)
+(make-face 'cvs-filename-face)
+(make-face 'cvs-status-face)
 
-(or (find-face 'cvs-filename-face)
-    (progn
-      (make-face 'cvs-filename-face)
-      (or (face-differs-from-default-p 'cvs-filename-face)
-	  (copy-face 'bold 'cvs-filename-face))))
+(or (face-differs-from-default-p 'cvs-header-face)
+    (copy-face 'italic 'cvs-header-face))
 
-(or (find-face 'cvs-status-face)
-    (progn
-      (make-face 'cvs-status-face)
-      (or (face-differs-from-default-p 'cvs-status-face)
-	  (copy-face 'bold-italic 'cvs-status-face))))
+(or (face-differs-from-default-p 'cvs-filename-face)
+    (copy-face 'bold 'cvs-filename-face))
+
+(or (face-differs-from-default-p 'cvs-status-face)
+    (copy-face 'bold-italic 'cvs-status-face))
 
 
 (defun pcl-mode-motion-highlight-line (event)

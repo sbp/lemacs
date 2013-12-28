@@ -1,12 +1,12 @@
 ;; Major mode for editing Prolog, and for running Prolog under Emacs
-;; Copyright (C) 1986, 1987 Free Software Foundation, Inc.
+;; Copyright (C) 1986, 1987, 1993 Free Software Foundation, Inc.
 ;; Author Masanobu UMEDA (umerin@flab.flab.fujitsu.junet)
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -40,17 +40,18 @@ nil means send actual operaing system end of file.")
 (if prolog-mode-syntax-table
     ()
   (let ((table (make-syntax-table)))
-    (modify-syntax-entry ?_ "w" table)
+    (modify-syntax-entry ?/  ". 14" table)
+    (modify-syntax-entry ?*  ". 23" table)
+    (modify-syntax-entry ?%  "< b"  table)
+    (modify-syntax-entry ?\n "> b"  table)
+    (modify-syntax-entry ?_  "w"  table)
     (modify-syntax-entry ?\\ "\\" table)
-    (modify-syntax-entry ?/ "." table)
-    (modify-syntax-entry ?* "." table)
-    (modify-syntax-entry ?+ "." table)
-    (modify-syntax-entry ?- "." table)
-    (modify-syntax-entry ?= "." table)
-    (modify-syntax-entry ?% "<" table)
-    (modify-syntax-entry ?< "." table)
-    (modify-syntax-entry ?> "." table)
     (modify-syntax-entry ?\' "\"" table)
+    (modify-syntax-entry ?+  "." table)
+    (modify-syntax-entry ?-  "." table)
+    (modify-syntax-entry ?=  "." table)
+    (modify-syntax-entry ?<  "." table)
+    (modify-syntax-entry ?>  "." table)
     (setq prolog-mode-syntax-table table)))
 
 (define-abbrev-table 'prolog-mode-abbrev-table ())

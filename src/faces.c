@@ -807,7 +807,16 @@ load_pixmap_1 (Display *dpy, Window window,
   *wP = w;
   *hP = h;
   *dP = d;
-  if (maskP) *maskP = mask;
+
+  if (maskP)
+    *maskP = mask;
+  else if (mask)	/* not interested; lose it. */
+    {
+      BLOCK_INPUT;
+      XFreePixmap (dpy, mask);
+      UNBLOCK_INPUT;
+    }
+
   return new;
 }
 
@@ -873,7 +882,7 @@ locate_pixmap_file (char *in, char *out)
       strcpy (out + length, in);
       if (stat (out, &st) >= 0			/* exists */
 	  && (st.st_mode & S_IFMT) != S_IFDIR	/* not a directory */
-	  && access (out, X_OK))		/* readable */
+	  && !access (out, R_OK))		/* readable */
 	return 1;
     }
   return 0;

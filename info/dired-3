@@ -1,4 +1,4 @@
-Info file dired.info, produced by Makeinfo, -*- Text -*- from input
+Info file ../info/dired, produced by Makeinfo, -*- Text -*- from input
 file dired.texi.
 
    This file documents Tree Dired, the GNU Emacs Directory Browser, and
@@ -24,7 +24,69 @@ License" may be included in a translation approved by the author
 instead of in the original English.
 
 
-File: dired.info,  Node: Dired Known Problems,  Next: Dired Variable Index,  Prev: Dired Internals,  Up: Top
+File: dired,  Node: Dired Mark Internals,  Prev: Tree Dired Internals,  Up: Dired Internals
+
+Dired Mark Internals
+====================
+
+   This is a short overview about how marking files and retrieving
+marked files in Dired works.
+
+   `ls' output is indented two spaces two make room for an optional
+marker character in front of each file line.  Marking simply replaces
+the first space with the marker character, usually `*' or, for
+deletions, `D'.  Indenting just by one would leave the markers
+adjacent to the permission bits.
+
+`dired-mark-if'
+     The macro `dired-mark-if' is used internally to mark files
+     matching certain criteria. It takes two arguments, the PREDICATE,
+     a lisp expression evaluating non-nil on file lines to be marked,
+     and MSG, a message to be displayed while scanning the buffer. 
+     MSG may be nil to suppress the message.
+
+`dired-mark-map'
+     To operate on the marked files, all internal Dired functions
+     ultimately call the macro `dired-mark-map'.  It takes two
+     arguments, BODY and ARG, plus an optional argument SHOW-PROGRESS:
+
+     Perform BODY with point somewhere on each marked line (inside a
+     `save-excursion') and return a list of BODY's results.  If no
+     marked file could be found, execute BODY on the current line.
+
+     If ARG is an integer, use the next ARG (or previous -ARG, if
+     ARG<0) files instead of the marked files.  In that case point is
+     dragged along.  This is so that commands on the next ARG (instead
+     of the marked) files can be chained easily.  Note that for
+     positive ARG point is left on the first file not operated upon,
+     for negative on the last file operated upon
+
+     If ARG is otherwise non-nil, use current file instead.
+
+     If optional third argument SHOW-PROGRESS evaluates to non-nil, we
+     redisplay the Dired buffer after each file is processed.  No
+     guarantee is made about the position on the marked line.  BODY
+     must ensure this itself if it depends on this.  Search starts at
+     the beginning of the buffer, thus the `car' of the list
+     corresponds to the line nearest to the buffer's bottom.  This is
+     also true for (positive and negative) integer values of ARG.  The
+     BODY should not be too long as it is expanded four times.
+
+A common case is to retrieve the names of all marked files:
+
+`dired-mark-get-files'
+     Return the marked files as list of strings.  The list is in the
+     same order as the buffer, that is, the car is the first marked
+     file.  Values returned are normally absolute pathnames.  Optional
+     argument LOCALP equal to `no-dir' means return the filename
+     proper only, with no directory information; any other non-nil
+     value means make them relative to default-directory.  Optional
+     second argument ARG forces use of other files.  If ARG is an
+     integer, use the next ARG files.  If ARG is otherwise non-nil,
+     use the current file.
+
+
+File: dired,  Node: Dired Known Problems,  Next: Dired Variable Index,  Prev: Dired Internals,  Up: Top
 
 Known Problems with Dired
 *************************
@@ -131,14 +193,20 @@ fault, hard to fix or not worth fixing.
      to fail on Dired buffers.  This is fixed in the version in
      `emacs-19.el', automatically loaded by Dired.
 
+   * It is not possible to resort the Dired buffer without reverting
+     it. That would be hard to implement (and slow to run) given that
+     ls date format would have to be parsed for `ls -t' sorting order.
+
 
-File: dired.info,  Node: Dired Variable Index,  Next: Dired Function Index,  Prev: Dired Known Problems,  Up: Top
+File: dired,  Node: Dired Variable Index,  Next: Dired Function Index,  Prev: Dired Known Problems,  Up: Top
 
 Dired Variable Index
 ********************
 
 * Menu:
 
+* auto-mode-alist:                      Virtual Dired.
+* bibtex-unclean-extensions:            Advanced Dired Mark Commands.
 * default-directory:                    Tree Dired Internals.
 * default-directory-alist:              Multiple Dired Directories.
 * dired-actual-switches:                Listing Files in Dired.
@@ -151,32 +219,33 @@ Dired Variable Index
 * dired-cd-on-each:                     dired-cd.el.
 * dired-cd-same-subdir:                 dired-cd.el.
 * dired-cd-same-subdir:                 dired-cd.el.
-* dired-chown-program:                  Dired Configuration.
 * dired-chown-program:                  Changing File Attributes.
+* dired-chown-program:                  Dired Configuration.
 * dired-copy-preserve-time:             Dired User Options.
 * dired-copy-preserve-time:             Copy and Move Into a Directory.
 * dired-dangerous-shell-command:        Dired Minibuffer History.
 * dired-del-marker:                     Dired User Options.
-* dired-dwim-target:                    Copy and Move Into a Directory.
 * dired-dwim-target:                    Dired User Options.
+* dired-dwim-target:                    Copy and Move Into a Directory.
 * dired-find-subdir:                    Tree Dired Extra Features.
 * dired-guess-have-gnutar:              Letting Dired Guess What Shell Command to Apply.
 * dired-keep-marker-copy:               Copy and Move Into a Directory.
 * dired-keep-marker-copy:               Dired User Options.
 * dired-keep-marker-hardlink:           Dired User Options.
 * dired-keep-marker-hardlink:           Copy and Move Into a Directory.
-* dired-keep-marker-move:               Dired User Options.
 * dired-keep-marker-move:               Copy and Move Into a Directory.
-* dired-keep-marker-symlink:            Copy and Move Into a Directory.
+* dired-keep-marker-move:               Dired User Options.
 * dired-keep-marker-symlink:            Dired User Options.
+* dired-keep-marker-symlink:            Copy and Move Into a Directory.
 * dired-kept-versions:                  Deleting Files With Dired.
-* dired-listing-switches:               Dired User Options.
 * dired-listing-switches:               Entering Dired.
+* dired-listing-switches:               Dired User Options.
 * dired-load-hook:                      Dired Hooks.
 * dired-local-variables-file:           Dired Local Variables.
 * dired-ls-F-marks-symlinks:            Dired Configuration.
 * dired-ls-program:                     Dired Configuration.
 * dired-ls-sorting-switches:            Listing Files in Dired.
+* dired-marked-files:                   Tree Dired Extra Features.
 * dired-marker-char:                    Dired User Options.
 * dired-mode-hook:                      Dired Hooks.
 * dired-no-confirm:                     Dired User Options.
@@ -184,6 +253,7 @@ Dired Variable Index
 * dired-omit-files:                     Omitting Files in Dired.
 * dired-omit-files-p:                   Omitting Files in Dired.
 * dired-omit-localp:                    Omitting Files in Dired.
+* dired-omit-marker-char:               Omitting Files in Dired.
 * dired-shrink-to-fit:                  Dired User Options.
 * dired-sort-by-date-regexp:            Listing Files in Dired.
 * dired-sort-by-name-regexp:            Listing Files in Dired.
@@ -195,6 +265,7 @@ Dired Variable Index
 * dired-trans-starters:                 dired-trns.el.
 * dired-trivial-filenames:              Dired User Options.
 * dired-vm-read-only-folders:           Multiple Dired Directories.
+* latex-unclean-extensions:             Advanced Dired Mark Commands.
 * lpr-command:                          Printing the Marked Files.
 * lpr-switches:                         Printing the Marked Files.
 * patch-unclean-extensions:             Advanced Dired Mark Commands.
@@ -203,7 +274,7 @@ Dired Variable Index
 * vm-folder-directory:                  Multiple Dired Directories.
 
 
-File: dired.info,  Node: Dired Function Index,  Next: Dired Key Index,  Prev: Dired Variable Index,  Up: Top
+File: dired,  Node: Dired Function Index,  Next: Dired Key Index,  Prev: Dired Variable Index,  Up: Top
 
 Dired Function Index
 ********************
@@ -232,8 +303,8 @@ Dired Function Index
 * dired-do-copy:                        Copy and Move Into a Directory.
 * dired-do-copy-regexp:                 Renaming and More With Regexps.
 * dired-do-delete:                      Deleting Files With Dired.
+* dired-do-deletions:                   Deleting Files With Dired.
 * dired-do-find-file:                   Advanced Dired Mark Commands.
-* dired-do-flagged-delete:              Deleting Files With Dired.
 * dired-do-hardlink:                    Copy and Move Into a Directory.
 * dired-do-hardlink-regexp:             Renaming and More With Regexps.
 * dired-do-insert-subdir:               Inserting All Marked Subdirectories.
@@ -301,9 +372,10 @@ Dired Function Index
 * dired-unmark-subdir-or-file:          Deleting Files With Dired.
 * dired-up-directory:                   Subdirectories in Dired.
 * dired-upcase:                         Other File Creating Commands.
-* dired-view-file:                      Subdirectories in Dired.
 * dired-view-file:                      Commands That Do Not Use Marks.
+* dired-view-file:                      Subdirectories in Dired.
 * dired-virtual:                        Virtual Dired.
+* dired-virtual-mode:                   Virtual Dired.
 * dired-virtual-revert:                 Virtual Dired.
 * dired-vm:                             Multiple Dired Directories.
 * dired-why:                            Commands That Do Not Use Marks.
@@ -318,7 +390,7 @@ Dired Function Index
 * shell-command:                        Multiple Dired Directories.
 
 
-File: dired.info,  Node: Dired Key Index,  Next: Dired Concept Index,  Prev: Dired Function Index,  Up: Top
+File: dired,  Node: Dired Key Index,  Next: Dired Concept Index,  Prev: Dired Function Index,  Up: Top
 
 Dired Key Index
 ***************
@@ -425,7 +497,7 @@ Dired Key Index
 * ~:                                    Deleting Files With Dired.
 
 
-File: dired.info,  Node: Dired Concept Index,  Prev: Dired Key Index,  Up: Top
+File: dired,  Node: Dired Concept Index,  Prev: Dired Key Index,  Up: Top
 
 Dired Concept Index
 *******************
@@ -477,8 +549,8 @@ Dired Concept Index
 * List of files, how to mark them:      Advanced Dired Mark Commands.
 * Local Variables for Dired Directories: Dired Local Variables.
 * Mark file by lisp expression:         Advanced Dired Mark Commands.
-* Mark-using commands:                  Mark-using Commands.
 * Mark-using commands:                  Editing in Dired.
+* Mark-using commands:                  Mark-using Commands.
 * Mark-using commands, use of prefix argument as repeat count: Mark-using Commands.
 * Marker character, how to replace it:  Advanced Dired Mark Commands.
 * Marker characters in Dired, changing them: Dynamic Dired Markers.
@@ -493,6 +565,7 @@ Dired Concept Index
 * Numeric argument to Dired's mark-using commands: Mark-using Commands.
 * Omitting Files in Dired:              Omitting Files in Dired.
 * Omitting RCS files in Dired:          Omitting Files in Dired.
+* Omitting additional files:            Omitting Files in Dired.
 * Omitting tib files in Dired:          Omitting Files in Dired.
 * Overwriting of files in Dired:        Copy and Move Into a Directory.
 * Perusing ls listings:                 Virtual Dired.

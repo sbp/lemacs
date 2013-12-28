@@ -1,11 +1,11 @@
 ;; Makes the shell buffer's prompt be bold (or whatever).
-;; Copyright (C) 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -23,7 +23,7 @@
 ;; If you want it to be italic instead, do (copy-face 'italic 'shell-prompt).
 
 
-(or (find-face 'shell-prompt) (make-face 'shell-prompt))
+(make-face 'shell-prompt)
 (or (face-differs-from-default-p 'shell-prompt)
     (copy-face 'bold 'shell-prompt))
 

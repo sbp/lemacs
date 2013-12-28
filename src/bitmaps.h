@@ -1,3 +1,8 @@
+
+#ifndef _EMACS_BITMAPS_H_
+#define _EMACS_BITMAPS_H_
+
+
 /* A gnu, like on the back of the emacs manual, for icons. */
 #define gnu_width 50
 #define gnu_height 50
@@ -141,3 +146,5 @@ static unsigned char default1_stipple_bits[] = {
    0x00, 0x00, 0x22, 0x22, 0x22, 0x22, 0x00, 0x00};
 
 #endif
+
+#endif /* _EMACS_BITMAPS_H_ */

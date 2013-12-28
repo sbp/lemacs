@@ -55,7 +55,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define environ _environ
 
 #define NO_REMAP
-#define UNEXEC unexnext.o
 
 /* start_of_text isn't actually used, so make it compile without error.  */
 #define TEXT_START 0

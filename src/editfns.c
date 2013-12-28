@@ -1,5 +1,5 @@
 /* Lisp functions pertaining to editing.
-   Copyright (C) 1985-1993 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1989, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -19,19 +19,24 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 
 #include "config.h"
+
+#include <stdarg.h>
+#include <ctype.h>
+
+#ifdef VMS
+#include "vms-pwd.h"
+#else
 #include <pwd.h>
+#endif
+
 #include "lisp.h"
 #include "buffer.h"
 #include "window.h"
 #include "insdel.h"
+#include "screen.h"             /* for SCREENP */
+#include "events.h"             /* for EVENTP */
 
-#ifdef NEED_TIME_H
-#include <time.h>
-#else /* not NEED_TIME_H */
-#ifdef HAVE_TIMEVAL
-#include <sys/time.h>
-#endif /* HAVE_TIMEVAL */
-#endif /* not NEED_TIME_H */
+#include "systime.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
@@ -43,25 +48,22 @@ Lisp_Object Vuser_real_name;	/* login name of current user ID */
 Lisp_Object Vuser_full_name;	/* full name of current user */
 Lisp_Object Vuser_name;		/* user name from USER or LOGNAME.  */
 
-Lisp_Object Qpoint, Qmark, Qregion_beginning, Qregion_end;
-
 extern char *get_system_name (void);
+
+Lisp_Object Qpoint, Qmark, Qregion_beginning, Qregion_end;
 
 void
 init_editfns ()
 {
   char *user_name;
-  register char *p, *q;
-#ifdef AMPERSAND_FULL_NAME
-  register char *r;
-#endif
+  register unsigned char *p, *q;
   struct passwd *pw;	/* password entry for the current user */
   Lisp_Object tem;
 
   /* Set up system_name even when dumping.  */
 
   Vsystem_name = build_string (get_system_name ());
-  p = (char *) XSTRING (Vsystem_name)->data;
+  p = XSTRING (Vsystem_name)->data;
   while (*p)
     {
       if (*p == ' ' || *p == '\t')
@@ -78,30 +80,37 @@ init_editfns ()
   pw = (struct passwd *) getpwuid (getuid ());
   Vuser_real_name = build_string (pw ? pw->pw_name : "unknown");
 
+  /* Get the effective user name, by consulting environment variables,
+     or the effective uid if those are unset.  */
   user_name = getenv ("USER");
   if (!user_name)
     user_name = getenv ("LOGNAME");
-  if (user_name)
-    Vuser_name = build_string (user_name);
-  else
-    Vuser_name = Vuser_real_name;
+  if (!user_name)
+    {
+      pw = (struct passwd *) getpwuid (geteuid ());
+      user_name = (char *) (pw ? pw->pw_name : "unknown");
+    }
+  Vuser_name = build_string (user_name);
 
+  /* If the user name claimed in the environment vars differs from
+     the real uid, use the claimed name to find the full name.  */
   tem = Fstring_equal (Vuser_name, Vuser_real_name);
-  if (!NILP (tem))
-    pw = (struct passwd *) getpwnam ((char *) user_name);
+  if (NILP (tem))
+    pw = (struct passwd *) getpwnam ((char *) XSTRING (Vuser_name)->data);
   
-  p = (pw ? USER_FULL_NAME : "unknown");
-  q = index (p, ',');
-  Vuser_full_name = make_string (p, q ? q - p : strlen ((char*)p));
+  p = (unsigned char *) ((pw) ? USER_FULL_NAME : "unknown");
+  q = (unsigned char *) strchr ((char *) p, ',');
+  Vuser_full_name = make_string ((char *) p,
+				 (q ? q - p : strlen ((char *) p)));
   
 #ifdef AMPERSAND_FULL_NAME
   p = (char *) XSTRING (Vuser_full_name)->data;
-  q = index (p, '&');
+  q = strchr (p, '&');
   /* Substitute the login name for the &, upcasing the first character.  */
   if (q)
     {
       char *r = (char *) alloca (strlen (p) + XSTRING (Vuser_name)->size + 1);
-      bcopy (p, r, q - p);
+      memcpy (r, p, q - p);
       r[q - p] = 0;
       strcat (r, (char *) XSTRING (Vuser_name)->data);
       r[q - p] = UPCASE (r[q - p]);
@@ -124,8 +133,8 @@ DEFUN ("char-to-string", Fchar_to_string, Schar_to_string, 1, 1, 0,
       if (NILP (ch))
 	return
 	  Fsignal (Qerror,
-		   Fcons (build_string ("character has no ASCII equivalent"),
-			  Fcons (Fcopy_event (n, Qnil), Qnil)));
+		   list2 (build_string ("character has no ASCII equivalent:"),
+			  Fcopy_event (n, Qnil)));
       n = ch;
     }
 
@@ -179,25 +188,22 @@ If the argument to this function is non-nil, then it returns the real\n\
 point-marker; modifying the position of this marker willl move point.\n\
 It is illegal to change the buffer of it, or make it point nowhere.")
   (dont_copy_p)
-	Lisp_Object dont_copy_p;
+  Lisp_Object dont_copy_p;
 {
   if (NILP (dont_copy_p))
     return Fcopy_marker (current_buffer->point_marker);
   return current_buffer->point_marker;
 }
 
-static int
-in_accessible_range (buf, loc)
-     struct buffer *buf;
-     int loc;
+int
+clip_to_bounds (int lower, int num, int upper)
 {
-  if (loc < BUF_BEGV (buf))
-    return BUF_BEGV (buf);
-
-  if (loc > BUF_ZV (buf))
-    return BUF_ZV (buf);
-
-  return loc;
+  if (num < lower)
+    return lower;
+  else if (num > upper)
+    return upper;
+  else
+    return num;
 }
 
 DEFUN ("goto-char", Fgoto_char, Sgoto_char, 1, 1, "NGoto char: ",
@@ -208,7 +214,7 @@ Beginning of buffer is position (point-min), end is (point-max).")
 {
   CHECK_FIXNUM_COERCE_MARKER (n, 0);
 
-  SET_PT (in_accessible_range (current_buffer, XINT (n)));
+  SET_PT (clip_to_bounds (BEGV, XINT (n), ZV));
   return n;
 }
 
@@ -249,16 +255,15 @@ int zmacs_regions;
  */
 int zmacs_region_active_p;
 
-extern Lisp_Object Vrun_hooks;
-
 int zmacs_region_stays;
+
 Lisp_Object Vzmacs_update_region_hook,     Qzmacs_update_region_hook;
 Lisp_Object Vzmacs_activate_region_hook,   Qzmacs_activate_region_hook;
 Lisp_Object Vzmacs_deactivate_region_hook, Qzmacs_deactivate_region_hook;
 
 DEFUN ("zmacs-activate-region", Fzmacs_activate_region,
        Szmacs_activate_region, 0, 0, 0,
- "Make the region between `point' and `mark' be in the active (hilighted)\n\
+ "Make the region between `point' and `mark' be in the active (highlighted)\n\
 state, if `zmacs-regions' is true.  Only a very small number of commands\n\
 should ever do this.")
     ()
@@ -274,14 +279,16 @@ should ever do this.")
 DEFUN ("zmacs-deactivate-region", Fzmacs_deactivate_region,
        Szmacs_deactivate_region, 0, 0, 0,
  "Make the region between `point' and `mark' no longer be in the active\n\
-(hilighted) state, if `zmacs-regions' is true.  You shouldn't need to call\n\
+(highlighted) state, if `zmacs-regions' is true.  You shouldn't need to call\n\
 this; the command loop calls it when appropriate.\n\
 Returns t if the region had been active, nil otherwise.")
     ()
 {
-  if (! zmacs_region_active_p) return Qnil;
+  if (! zmacs_region_active_p)
+    return Qnil;
   zmacs_region_active_p = 0;
-  if (!NILP (Vrun_hooks)) call1 (Vrun_hooks, Qzmacs_deactivate_region_hook);
+  if (!NILP (Vrun_hooks))
+    call1 (Vrun_hooks, Qzmacs_deactivate_region_hook);
   return Qt;
 }
 
@@ -310,17 +317,19 @@ If you set the marker not to point anywhere, the buffer will have no mark.")
     return current_buffer->mark;
   return Qnil;
 }
+
 
 Lisp_Object
 save_excursion_save ()
 {
-  register int visible = XBUFFER (XWINDOW (selected_window)->buffer) == current_buffer;
+  register int visible = (XBUFFER (XWINDOW (selected_window)->buffer)
+			  == current_buffer);
 
   if (XINT (Fpoint ()) != XINT (Fmarker_position (Fpoint_marker (Qt))))
     abort ();
   return Fcons (Fpoint_marker (Qnil),
-		Fcons (Fcopy_marker (current_buffer->mark), visible
-		       ? Qt : Qnil));
+		Fcons (Fcopy_marker (current_buffer->mark),
+		       ((visible) ? Qt : Qnil)));
 }
 
 Lisp_Object
@@ -350,19 +359,18 @@ save_excursion_restore (info)
 }
 
 DEFUN ("save-excursion", Fsave_excursion, Ssave_excursion, 0, UNEVALLED, 0,
-  "Save point (and mark), execute BODY, then restore point and mark.\n\
-Executes BODY just like `progn'.  Point and mark values are restored\n\
+  "Save point, mark, and current buffer; execute BODY; restore those things.\n\
+Executes BODY just like `progn'.\n\
+The values of point, mark and the current buffer are restored\n\
 even in case of abnormal exit (throw or error).")
   (args)
      Lisp_Object args;
 {
-  register Lisp_Object val;
-  int count = specpdl_ptr - specpdl;
+  int speccount = specpdl_depth;
 
   record_unwind_protect (save_excursion_restore, save_excursion_save ());
 			 
-  val = Fprogn (args);
-  return unbind_to (count, val);
+  return unbind_to (speccount, Fprogn (args));
 }
 
 DEFUN ("buffer-size", Fbufsize, Sbufsize, 0, 0, 0,
@@ -412,17 +420,22 @@ in which case it is less.")
   return buildmark (ZV);
 }
 
-DEFUN ("following-char", Ffollchar, Sfollchar, 0, 0, 0,
-  "Return the character following point, as a number.")
+DEFUN ("following-char", Ffollowing_char, Sfollowing_char, 0, 0, 0,
+  "Return the character following point, as a number.\n\
+At the end of the buffer or accessible region, return 0.")
   ()
 {
   Lisp_Object temp;
-  XFASTINT (temp) = CHAR_AT (point);
+  if (point >= ZV)
+    XFASTINT (temp) = 0;
+  else
+    XFASTINT (temp) = CHAR_AT (point);
   return temp;
 }
 
-DEFUN ("preceding-char", Fprevchar, Sprevchar, 0, 0, 0,
-  "Return the character preceding point, as a number.")
+DEFUN ("preceding-char", Fprevious_char, Sprevious_char, 0, 0, 0,
+  "Return the character preceding point, as a number.\n\
+At the beginning of the buffer or accessible region, return 0.")
   ()
 {
   Lisp_Object temp;
@@ -538,8 +551,31 @@ DEFUN ("system-name", Fsystem_name, Ssystem_name, 0, 0, 0,
   return Vsystem_name;
 }
 
-/* Lucid addition
+#if 0
+/* This is the FSF's version.  A merge is in order...
  */
+DEFUN ("current-time", Fcurrent_time, Scurrent_time, 0, 0, 0,
+  "Return the current time, as the number of seconds since 12:00 AM January 1970.\n\
+The time is returned as a list of three integers.  The first has the\n\
+most significant 16 bits of the seconds, while the second has the\n\
+least significant 16 bits.  The third integer gives the microsecond\n\
+count.\n\
+\n\
+The microsecond count is zero on systems that do not provide\n\
+resolution finer than a second.")
+  ()
+{
+  EMACS_TIME t;
+  Lisp_Object result[3];
+
+  EMACS_GET_TIME (t);
+  XSET (result[0], Lisp_Int, (EMACS_SECS (t) >> 16) & 0xffff);
+  XSET (result[1], Lisp_Int, (EMACS_SECS (t) >> 0)  & 0xffff);
+  XSET (result[2], Lisp_Int, EMACS_USECS (t));
+
+  return Flist (3, result);
+}
+#endif
 
 DEFUN ("current-time-seconds", Fcurrent_time_seconds, Scurrent_time_seconds,
        0, 1, 0,
@@ -564,9 +600,6 @@ argument to current-time-string to get that time as a string.")
   return cons;
 }
 
-/* Lucid change
-   made this take an optional arg, the time to grind.
- */
 DEFUN ("current-time-string", Fcurrent_time_string, Scurrent_time_string, 0, 1, 0,
   "Return the current time, as a human-readable string.\n\
 Programs can use it too, since the number of columns in each field is fixed.\n\
@@ -574,10 +607,9 @@ The format is `Sun Sep 16 01:03:52 1973'.\n\
 If the optional argument is non-nil, it must be a cons of two integers, which\n\
 are the upper and lower 16 bits of a time in seconds (such as the value \n\
 returned by the current-time-seconds function.\n\
-In a future Emacs version, the time zone may be added at the end,\n\
-if we can figure out a reasonably easy way to get that information.")
+In a future Emacs version, the time zone may be added at the end.")
   (arg)
-	Lisp_Object arg;
+  Lisp_Object arg;
 {
   long now;
   char buf[30];
@@ -585,21 +617,60 @@ if we can figure out a reasonably easy way to get that information.")
 
   if (NILP (arg))
     now = time ((long *) 0);
-  else {
-    int top, bottom;
-    CHECK_CONS (arg, 1);
-    top = Fcar(arg), bottom = Fcdr(arg);
-    if (CONSP (bottom)) bottom = Fcar (bottom);
-    CHECK_FIXNUM (top, 1);
-    CHECK_FIXNUM (bottom, 1);
-    now = (XINT (top) << 16) | XINT (bottom);
-  }
+  else
+    {
+      Lisp_Object top, bottom;
+      CHECK_CONS (arg, 1);
+      top = Fcar (arg);
+      bottom = Fcdr (arg);
+      if (CONSP (bottom))
+	bottom = Fcar (bottom);
+      CHECK_FIXNUM (top, 1);
+      CHECK_FIXNUM (bottom, 1);
+      now = (XINT (top) << 16) | XINT (bottom);
+    }
   tem = (char *) ctime (&now);
 
   strncpy (buf, tem, 24);
   buf[24] = 0;
 
   return build_string (buf);
+}
+
+DEFUN ("current-time-zone", Fcurrent_time_zone, Scurrent_time_zone, 0, 0, 0,
+  "Return the offset, savings state, and names for the current time zone.\n\
+This returns a list of the form (OFFSET SAVINGS-FLAG STANDARD SAVINGS).\n\
+OFFSET is an integer specifying how many minutes east of Greenwich the\n\
+    current time zone is located.  A negative value means west of\n\
+    Greenwich. Note that this describes the standard time;  if daylight\n\
+    savings time is in effect, it does not affect this value.\n\
+SAVINGS-FLAG is non-nil iff daylight savings time or some other sort\n\
+    of seasonal time adjustment is in effect.\n\
+STANDARD is a string giving the name of the time zone when no seasonal\n\
+    time adjustment is in effect.\n\
+SAVINGS is a string giving the name of the time zone when there is a\n\
+    seasonal time adjustment in effect.\n\
+If the local area does not use a seasonal time adjustment,\n\
+SAVINGS-FLAG will always be nil, and STANDARD and SAVINGS will be the\n\
+same.")
+  ()
+{
+#ifdef EMACS_CURRENT_TIME_ZONE
+  int offset, savings_flag;
+  char standard[11];
+  char savings[11];
+
+  EMACS_CURRENT_TIME_ZONE (&offset, &savings_flag, standard, savings);
+
+  return (list4 (make_number (offset),
+                 ((savings_flag) ? Qt : Qnil),
+                 build_string (standard),
+                 build_string (savings)));
+#else
+  error
+    ("current-time-zone has not been implemented on this operating system.");
+  return Qnil;
+#endif
 }
 
 #ifndef VMS
@@ -628,9 +699,17 @@ void
 insert1 (arg)
      Lisp_Object arg;
 {
+  struct gcpro gcpro1;
+  GCPRO1 (arg);
   Finsert (1, &arg);
+  UNGCPRO;
 }
 
+
+/* Callers passing one argument to Finsert need not gcpro the
+   argument "array", since the only element of the array will
+   not be used after calling insert or insert_from_string, so
+   we don't care if it gets trashed.  */
 
 DEFUN ("insert", Finsert, Sinsert, 0, MANY, 0,
   "Insert the arguments, either strings or characters, at point.\n\
@@ -642,7 +721,6 @@ Any other markers at the point of insertion remain before the text.")
 {
   register int argnum;
   register Lisp_Object tem;
-  char str[1];
 
   for (argnum = 0; argnum < nargs; argnum++)
     {
@@ -650,8 +728,7 @@ Any other markers at the point of insertion remain before the text.")
     retry:
       if (FIXNUMP (tem))
 	{
-	  str[0] = XINT (tem);
-	  insert_raw_string (str, 1);
+	  insert_char (XINT (tem));
 	}
       else if (STRINGP (tem))
 	{
@@ -677,7 +754,6 @@ Any other markers at the point of insertion also end up after the text.")
 {
   register int argnum;
   register Lisp_Object tem;
-  char str[1];
 
   for (argnum = 0; argnum < nargs; argnum++)
     {
@@ -685,6 +761,7 @@ Any other markers at the point of insertion also end up after the text.")
     retry:
       if (FIXNUMP (tem))
 	{
+	  char str[1];
 	  str[0] = XINT (tem);
 	  insert_before_markers (str, 1);
 	}
@@ -717,14 +794,12 @@ Both arguments are required.")
   CHECK_FIXNUM (count, 1);
 
   n = XINT (count);
-  if (n < 0)
+  if (n <= 0)
     return Qnil;
-
-  strlen = max (n, 256);
+  strlen = min (n, 256);
   string = (char *) alloca (strlen);
   for (i = 0; i < strlen; i++)
     string[i] = XFASTINT (chr);
-
   while (n >= strlen)
     {
       insert_raw_string (string, strlen);
@@ -774,7 +849,7 @@ They default to the beginning and the end of BUFFER.")
   (buf, b, e)
      Lisp_Object buf, b, e;
 {
-  register int beg, end, exch;
+  register int beg, end;
   register struct buffer *bp;
 
   buf = Fget_buffer (buf);
@@ -796,7 +871,11 @@ They default to the beginning and the end of BUFFER.")
     }
 
   if (beg > end)
-    exch = beg, beg = end, end = exch;
+    {
+      int exch = beg;
+      beg = end;
+      end = exch;
+    }
 
   /* Move the gap or create enough gap in the current buffer.  */
 
@@ -821,6 +900,129 @@ They default to the beginning and the end of BUFFER.")
     insert_buffer_string (bp, beg, end - beg);
 
   return Qnil;
+}
+
+DEFUN ("compare-buffer-substrings", Fcompare_buffer_substrings, Scompare_buffer_substrings,
+  6, 6, 0,
+  "Compare two substrings of two buffers; return result as number.\n\
+the value is -N if first string is less after N-1 chars,\n\
++N if first string is greater after N-1 chars, or 0 if strings match.\n\
+Each substring is represented as three arguments: BUFFER, START and END.\n\
+That makes six args in all, three for each substring.\n\n\
+The value of `case-fold-search' in the current buffer\n\
+determines whether case is significant or ignored.")
+  (buffer1, start1, end1, buffer2, start2, end2)
+     Lisp_Object buffer1, start1, end1, buffer2, start2, end2;
+{
+  register int begp1, endp1, begp2, endp2, len1, len2, length, i;
+  register struct buffer *bp1, *bp2;
+  register unsigned char *trt 
+    = ((!NILP (current_buffer->case_fold_search))
+       ? XSTRING (current_buffer->case_canon_table)->data 
+       : 0);
+
+  /* Find the first buffer and its substring.  */
+
+  if (NILP (buffer1))
+    bp1 = current_buffer;
+  else
+    {
+      Lisp_Object buf1;
+      buf1 = Fget_buffer (buffer1);
+      bp1 = XBUFFER (buf1);
+    }
+
+  if (NILP (start1))
+    begp1 = BUF_BEGV (bp1);
+  else
+    {
+      CHECK_NUMBER_COERCE_MARKER (start1, 1);
+      begp1 = XINT (start1);
+    }
+  if (NILP (end1))
+    endp1 = BUF_ZV (bp1);
+  else
+    {
+      CHECK_NUMBER_COERCE_MARKER (end1, 2);
+      endp1 = XINT (end1);
+    }
+
+  if (begp1 > endp1)
+  {
+    int temp = begp1; begp1 = endp1; endp1 = temp;
+  }
+
+  if (!(BUF_BEGV (bp1) <= begp1
+	&& begp1 <= endp1
+        && endp1 <= BUF_ZV (bp1)))
+    args_out_of_range (start1, end1);
+
+  /* Likewise for second substring.  */
+
+  if (NILP (buffer2))
+    bp2 = current_buffer;
+  else
+    {
+      Lisp_Object buf2;
+      buf2 = Fget_buffer (buffer2);
+      bp2 = XBUFFER (buffer2);
+    }
+
+  if (NILP (start2))
+    begp2 = BUF_BEGV (bp2);
+  else
+    {
+      CHECK_NUMBER_COERCE_MARKER (start2, 4);
+      begp2 = XINT (start2);
+    }
+  if (NILP (end2))
+    endp2 = BUF_ZV (bp2);
+  else
+    {
+      CHECK_NUMBER_COERCE_MARKER (end2, 5);
+      endp2 = XINT (end2);
+    }
+
+  if (begp2 > endp2)
+  {
+    int temp = begp2; begp2 = endp2; endp2 = temp;
+  }
+
+  if (!(BUF_BEGV (bp2) <= begp2
+	&& begp2 <= endp2
+        && endp2 <= BUF_ZV (bp2)))
+    args_out_of_range (start2, end2);
+
+  len1 = endp1 - begp1;
+  len2 = endp2 - begp2;
+  length = len1;
+  if (len2 < length)
+    length = len2;
+
+  for (i = 0; i < length; i++)
+    {
+      int c1 = *BUF_CHAR_ADDRESS (bp1, begp1 + i);
+      int c2 = *BUF_CHAR_ADDRESS (bp2, begp2 + i);
+      if (trt)
+	{
+	  c1 = trt[c1];
+	  c2 = trt[c2];
+	}
+      if (c1 < c2)
+	return make_number (- 1 - i);
+      if (c1 > c2)
+	return make_number (i + 1);
+    }
+
+  /* The strings match as far as they go.
+     If one is shorter, that one is less.  */
+  if (length < len1)
+    return make_number (length + 1);
+  else if (length < len2)
+    return make_number (- length - 1);
+
+  /* Same length too => they are equal.  */
+  return 0;
 }
 
 DEFUN ("subst-char-in-region", Fsubst_char_in_region,
@@ -875,8 +1077,8 @@ for the character with code N.  Returns the number of characters changed.")
      Lisp_Object end;
      register Lisp_Object table;
 {
-  register struct Lisp_String *t_str = XSTRING (table);
   register int pos, stop;	/* Limits of the region. */
+  register unsigned char *tt;	/* Trans table. */
   register int oc;		/* Old character. */
   register int nc;		/* New character. */
   int cnt;			/* Number of changes made. */
@@ -886,7 +1088,8 @@ for the character with code N.  Returns the number of characters changed.")
   validate_region (&start, &end);
   CHECK_STRING (table, 2);
 
-  size = t_str->size;
+  size = XSTRING (table)->size;
+  tt = XSTRING (table)->data;
 
   pos = XINT (start);
   stop = XINT (end);
@@ -898,7 +1101,7 @@ for the character with code N.  Returns the number of characters changed.")
       oc = CHAR_AT (pos);
       if (oc < size)
 	{
-	  nc = t_str->data[oc];
+	  nc = tt[oc];
 	  if (nc != oc)
 	    {
 	      record_change (pos, 1);
@@ -1015,7 +1218,10 @@ save_restriction_restore (data)
   clip_changed = 1;
 
   /* If point is outside the new visible range, move it inside. */
-  SET_BUF_PT (buf, in_accessible_range (buf, BUF_PT (buf)));
+  SET_BUF_PT (buf,
+              clip_to_bounds (BUF_BEGV (buf),
+                              BUF_PT (buf),
+                              BUF_ZV (buf)));
 
   return Qnil;
 }
@@ -1041,12 +1247,11 @@ use `save-excursion' outermost:\n\
   (body)
      Lisp_Object body;
 {
-  register Lisp_Object val;
-  int count = specpdl_ptr - specpdl;
+  int speccount = specpdl_depth;
 
   record_unwind_protect (save_restriction_restore, save_restriction_save ());
-  val = Fprogn (body);
-  return unbind_to (count, val);
+
+  return unbind_to (speccount, Fprogn (body));
 }
 
 DEFUN ("message", Fmessage, Smessage, 1, MANY, 0,
@@ -1056,11 +1261,14 @@ It may contain %s or %d or %c to print successive following arguments.\n\
 %s means print an argument as a string, %d means print as number in decimal,\n\
 %c means print a number as a single character.\n\
 The argument used by %s must be a string or a symbol;\n\
-the argument used by %d or %c must be a number.")
+the argument used by %d or %c must be a number.\n\
+\n\
+If the only argument is nil, just erase any previous message.")
   (nargs, args)
      int nargs;
      Lisp_Object *args;
 {
+  /* Caller is assumed to gcpro args */
   register Lisp_Object val;
 
 #ifdef MULTI_SCREEN
@@ -1077,7 +1285,7 @@ the argument used by %d or %c must be a number.")
   }
 
   val = Fformat (nargs, args);
-  message ("%s", XSTRING (val)->data);
+  message ("%s", XSTRING (val)->data); /* Arggh!  Loses \000's.  Unix sucks */
   return val;
 }
 
@@ -1086,15 +1294,17 @@ DEFUN ("format", Fformat, Sformat, 1, MANY, 0,
 The first argument is a control string.\n\
 The other arguments are substituted into it to make the result, a string.\n\
 It may contain %-sequences meaning to substitute the next argument.\n\
-%s means print strings using princ, and any other objects using prin1.\n\
-%S means print all objects using prin1 (strings too).\n\
+%s means print strings using `princ' and other objects using `prin1'.\n\
+%S means print all objects using `prin1' (including strings.)\n\
 %d means print as number in decimal (%o octal, %x hex).\n\
 %c means print a number as a single character.\n\
-The argument used for %d, %o, %x or %c must be a number.")
-  (nargs, args)
+The argument used for %d, %o, %x or %c must be a number.\n\
+Use %% to put a single % into the output.")
+  (nargs, args)                 /* Note!! args side-effected! */
      int nargs;
      register Lisp_Object *args;
 {
+  /* Caller is assumed to gcpro ARGS */
   register int n;
   register int total = 5;
   char *buf;
@@ -1239,8 +1449,8 @@ Case is ignored if `case-fold-search' is non-nil in the current buffer.")
 DEFUN ("getenv", Fgetenv, Sgetenv, 1, 1, 0,
   "Return the value of environment variable VAR, as a string.\n\
 VAR should be a string.  Value is nil if VAR is undefined in the environment.")
-  (str, ignored)
-     Lisp_Object str, ignored;
+  (str)
+     Lisp_Object str;
 {
   register char *val;
   CHECK_STRING (str, 0);
@@ -1321,12 +1531,9 @@ See the variable `zmacs-regions'.");
   Vzmacs_activate_region_hook = Qnil;
   Vzmacs_deactivate_region_hook = Qnil;
   zmacs_region_stays = 0;
-  Qzmacs_update_region_hook = intern ("zmacs-update-region-hook");
-  Qzmacs_activate_region_hook = intern ("zmacs-activate-region-hook");
-  Qzmacs_deactivate_region_hook = intern ("zmacs-deactivate-region-hook");
-  staticpro (&Qzmacs_update_region_hook);
-  staticpro (&Qzmacs_activate_region_hook);
-  staticpro (&Qzmacs_deactivate_region_hook);
+  defsymbol (&Qzmacs_update_region_hook, "zmacs-update-region-hook");
+  defsymbol (&Qzmacs_activate_region_hook, "zmacs-activate-region-hook");
+  defsymbol (&Qzmacs_deactivate_region_hook, "zmacs-deactivate-region-hook");
 
   defsymbol (&Qpoint, "point");
   defsymbol (&Qmark, "mark");
@@ -1357,8 +1564,8 @@ See the variable `zmacs-regions'.");
   defsubr (&Seobp);
   defsubr (&Sbolp);
   defsubr (&Seolp);
-  defsubr (&Sfollchar);
-  defsubr (&Sprevchar);
+  defsubr (&Sfollowing_char);
+  defsubr (&Sprevious_char);
   defsubr (&Schar_after);
   defsubr (&Sinsert);
   defsubr (&Sinsert_before_markers);
@@ -1372,6 +1579,7 @@ See the variable `zmacs-regions'.");
   defsubr (&Scurrent_time_string);
   defsubr (&Scurrent_time_seconds);
   defsubr (&Ssystem_name);
+  defsubr (&Scurrent_time_zone);
   defsubr (&Sset_default_file_mode);
   defsubr (&Sunix_sync);
   defsubr (&Smessage);
@@ -1381,6 +1589,7 @@ See the variable `zmacs-regions'.");
 #endif
 
   defsubr (&Sinsert_buffer_substring);
+  defsubr (&Scompare_buffer_substrings);
   defsubr (&Ssubst_char_in_region);
   defsubr (&Stranslate_region);
   defsubr (&Sdelete_region);

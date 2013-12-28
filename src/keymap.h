@@ -1,4 +1,7 @@
 
+#ifndef _EMACS_KEYMAP_H_
+#define _EMACS_KEYMAP_H_
+
 struct Lisp_Keymap {
   /* The first two fields are really the header of a vector */
   int size;			/* must be KEYMAP_SIZE */
@@ -20,3 +23,5 @@ struct Lisp_Keymap {
 };
 
 #define KEYMAP_SIZE ((sizeof (struct Lisp_Keymap) / sizeof (Lisp_Object)) - 2)
+
+#endif /* _EMACS_KEYMAP_H_ */

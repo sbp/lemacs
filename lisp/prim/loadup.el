@@ -189,9 +189,6 @@
 	(add-name-to-file "xemacs" name t))
       (kill-emacs)))
 
-;; Avoid error if user loads some more libraries now.
-(setq purify-flag nil)
-
 (if (or (equal (elt command-line-args 3) "run-temacs")
 	(equal (elt command-line-args 4) "run-temacs"))
     (progn

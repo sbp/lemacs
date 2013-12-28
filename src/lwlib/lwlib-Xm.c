@@ -40,6 +40,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <Xm/MessageB.h>
 #include <Xm/PushB.h>
 #include <Xm/PushBG.h>
+#include <Xm/ArrowB.h>
 #include <Xm/SelectioB.h>
 #include <Xm/Text.h>
 #include <Xm/TextF.h>
@@ -209,8 +210,8 @@ xm_update_list (widget_instance* instance, Widget widget, widget_value* val)
 {
   widget_value* cur;
   int i;
-  XtRemoveAllCallbacks (widget, XmNdefaultActionCallback);
-  XtAddCallback (widget, XmNdefaultActionCallback, xm_generic_callback,
+  XtRemoveAllCallbacks (widget, XmNsingleSelectionCallback);
+  XtAddCallback (widget, XmNsingleSelectionCallback, xm_generic_callback,
 		 instance);
   for (cur = val->contents, i = 0; cur; cur = cur->next)
     if (cur->value)
@@ -533,7 +534,8 @@ xm_update_one_widget (widget_instance* instance, Widget widget,
   
   class = XtClass (widget);
   /* Class specific things */
-  if (class == xmPushButtonWidgetClass)
+  if (class == xmPushButtonWidgetClass ||
+      class == xmArrowButtonWidgetClass)
     {
       xm_update_pushbutton (instance, widget, val);
     }
@@ -666,6 +668,19 @@ xm_update_one_value (widget_instance* instance, Widget widget,
 }
 
 
+/* This function is for activating a button from a program.  It's wrong because
+   we pass a NULL argument in the call_data which is not Motif compatible.
+   This is used from the XmNdefaultAction callback of the List widgets to
+   have a dble-click put down a dialog box like the button woudl do. 
+   I could not find a way to do that with accelerators.
+ */
+static void
+activate_button (Widget widget, XtPointer closure, XtPointer call_data)
+{
+  Widget button = (Widget)closure;
+  XtCallCallbacks (button, XmNactivateCallback, NULL);
+}
+
 /* creation functions */
 
 /* dialogs */
@@ -695,9 +710,11 @@ make_dialog (char* name, Widget parent, Boolean pop_up_p,
       ac = 0;
       XtSetArg(al[ac], XmNtitle, shell_title); ac++;
       XtSetArg(al[ac], XtNallowShellResize, True); ac++;
+      XtSetArg(al[ac], XmNdeleteResponse, XmUNMAP); ac++;
       result = XmCreateDialogShell (parent, "dialog", al, ac);
       ac = 0;
       XtSetArg(al[ac], XmNautoUnmanage, FALSE); ac++;
+/*      XtSetArg(al[ac], XmNautoUnmanage, TRUE); ac++; */ /* ####is this ok? */
       XtSetArg(al[ac], XmNnavigationType, XmTAB_GROUP); ac++;
       form = XmCreateForm (result, shell_title, al, ac);
     }
@@ -863,6 +880,10 @@ make_dialog (char* name, Widget parent, Boolean pop_up_p,
       XtSetArg(al[ac], XmNrightAttachment, XmATTACH_FORM); ac++;
       XtSetArg(al[ac], XmNrightOffset, 13); ac++;
       value = XmCreateScrolledList (form, "list", al, ac);
+
+      /* this is the easiest way I found to have the dble click in the
+	 list activate the default button */
+      XtAddCallback (value, XmNdefaultActionCallback, activate_button, button);
     }
   
   ac = 0;
@@ -1144,6 +1165,9 @@ extern Widget create_le_browser_p_sheet (Widget parent);
 extern Widget create_class_browser_p_sheet (Widget parent);
 extern Widget create_call_browser_p_sheet (Widget parent);
 extern Widget create_build_dialog (Widget parent);
+extern Widget create_editmode_dialog (Widget parent);
+extern Widget create_search_dialog (Widget parent);
+extern Widget create_project_display_dialog (Widget parent);
 
 static Widget
 make_one (widget_instance* instance, widget_maker fn)
@@ -1156,6 +1180,8 @@ make_one (widget_instance* instance, widget_maker fn)
     {
       XtSetArg (al [ac], XmNallowShellResize, TRUE); ac++;
       result = XmCreateDialogShell (instance->parent, "dialog", NULL, 0);
+      XtAddCallback (result, XmNpopdownCallback, &xm_nosel_callback,
+		     (XtPointer) instance);
       (*fn) (result);
     }
   else
@@ -1208,6 +1234,24 @@ make_build_dialog (widget_instance* instance)
   return make_one (instance, create_build_dialog);
 }
 
+static Widget
+make_editmode_dialog (widget_instance* instance)
+{
+  return make_one (instance, create_editmode_dialog);
+}
+
+static Widget
+make_search_dialog (widget_instance* instance)
+{
+  return make_one (instance, create_search_dialog);
+}
+
+static Widget
+make_project_display_dialog (widget_instance* instance)
+{
+  return make_one (instance, create_project_display_dialog);
+}
+
 #endif /* ENERGIZE */
 
 widget_creation_entry
@@ -1223,6 +1267,9 @@ xm_creation_table [] =
   {"class_browser_psheet",	make_class_browser_p_sheet},
   {"ctree_browser_psheet",	make_call_browser_p_sheet},
   {"build",			make_build_dialog},
+  {"editmode",			make_editmode_dialog},
+  {"search",			make_search_dialog},
+  {"project_display",		make_project_display_dialog},
 #endif /* ENERGIZE */
   {NULL, NULL}
 };
@@ -1252,7 +1299,13 @@ xm_destroy_instance (widget_instance* instance)
 		     mark_dead_instance_destroyed, (XtPointer)dead_instance);
     }
   else
-    XtDestroyWidget (instance->widget);
+    {
+      /* This might not be necessary now that the nosel is attached to
+	 popdown instead of destroy, but it can't hurt. */
+      XtRemoveCallback (instance->widget, XtNdestroyCallback,
+			xm_nosel_callback, (XtPointer)instance);
+      XtDestroyWidget (instance->widget);
+    }
 }
 
 /* popup utility */
@@ -1408,7 +1461,16 @@ xm_generic_callback (Widget widget, XtPointer closure, XtPointer call_data)
 static void
 xm_nosel_callback (Widget widget, XtPointer closure, XtPointer call_data)
 {
+  /* This callback is only called when a dialog box is dismissed with the wm's
+     destroy button (WM_DELETE_WINDOW.)  We want the dialog box to be destroyed
+     in that case, not just unmapped, so that it releases its keyboard grabs.
+     But there are problems with running our callbacks while the widget is in
+     the process of being destroyed, so we set XmNdeleteResponse to XmUNMAP
+     instead of XmDESTROY and then destroy it ourself after having run the
+     callback.
+   */
   do_call (widget, closure, no_selection);
+  XtDestroyWidget (widget);
 }
 
 static void

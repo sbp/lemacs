@@ -59,7 +59,7 @@ initialize_environment_alist ()
 
   for (e = (char **) environ; *e; e++)
     {
-      s = (char *) index (*e, '=');
+      s = (char *) strchr (*e, '=');
       if (s)
 	set_environment_alist (make_string (*e, s - *e),
 			       build_string (s + 1));

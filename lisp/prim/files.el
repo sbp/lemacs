@@ -138,6 +138,18 @@ not to the particular visited file; thus, `set-visited-file-name' does
 not clear this variable, but changing the major mode does clear it.
 See also `write-file-hooks'.")
 
+(put 'write-file-data-hooks 'permanent-local t)
+(defvar write-file-data-hooks nil
+  "List of functions to be called to put the bytes on disk.  
+These functions receive the name of the file to write to as argument.
+The default behavior is to call 
+  (write-region (point-min) (point-max) filename nil t)
+If one of them returns non-nil, the file is considered already written
+and the rest are not called.
+These hooks are considered to pertain to the visited file.
+So this list is cleared if you change the visited file name.
+See also `write-file-hooks'.")
+
 (put 'after-write-file-hooks 'permanent-local t)
 (defvar after-write-file-hooks nil
   "List of functions to be called after writing out a buffer to a file.
@@ -676,6 +688,7 @@ if you wish to pass an empty string as the argument."
   ;; that visit things that are not local files as if they were files.
   ;; Changing to visit an ordinary local file instead should flush the hook.
   (kill-local-variable 'write-file-hooks)
+  (kill-local-variable 'write-file-data-hooks)
   (kill-local-variable 'after-write-file-hooks)
   (kill-local-variable 'revert-buffer-function)
   ;; If auto-save was not already on, turn it on if appropriate.
@@ -920,6 +933,17 @@ since the last real save, but optional arg FORCE non-nil means delete anyway."
 	   (file-error nil))
 	 (set-buffer-auto-saved))))
 
+(defun basic-write-file-data (realname)
+  ;; call the hooks until the bytes are put
+  ;; call write-region as a last resort
+  (let ((region-written nil)
+	(hooks write-file-data-hooks))
+    (while (and hooks (not region-written))
+      (setq region-written (funcall (car hooks) realname)
+	    hooks (cdr hooks)))
+    (if (not region-written)
+	(write-region (point-min) (point-max) realname nil t))))
+
 (defun basic-save-buffer ()
   "Save the current buffer in its visited file, if it has been modified."
   (interactive)
@@ -1015,8 +1039,7 @@ since the last real save, but optional arg FORCE non-nil means delete anyway."
 			     (error "%s is a directory" realname))
 			 (unwind-protect
 			     (progn (clear-visited-file-modtime)
-				    (write-region (point-min) (point-max)
-						  realname nil t)
+				    (basic-write-file-data realname)
 				    (setq rename nil))
 			   ;; If rename is still t, writing failed.
 			   ;; So rename the old file back to original name,
@@ -1040,8 +1063,7 @@ since the last real save, but optional arg FORCE non-nil means delete anyway."
 			    ;; Change the mode back, after writing.
 			    (setq setmodes (file-modes buffer-file-name))
 			    (set-file-modes buffer-file-name 511)))
-		     (write-region (point-min) (point-max)
-				   buffer-file-name nil t)))))
+		     (basic-write-file-data buffer-file-name)))))
 	  (if setmodes
 	      (condition-case ()
 		   (set-file-modes buffer-file-name setmodes)

@@ -4,7 +4,7 @@
 ;;; Description:	simple editing of tar files from GNU emacs
 ;;; Author:		Jamie Zawinski <jwz@lucid.com>
 ;;; Created:		4 Apr 1990
-;;; Version:		1.26, 15 Jan 93
+;;; Version:		1.27, 6 Mar 93
 
 ;;; Copyright (C) 1990-1993 Free Software Foundation, Inc.
 ;;;
@@ -379,9 +379,10 @@ write-date, checksum, link-type, and link-name)."
 	  (let* ((year (substring (current-time-string) -4))
 		 ;; in v18, current-time-string doesn't take an argument
 		 (file (current-time-string time))
-		 (str (if (equal year (substring file -4))
+		 (file-year (substring file -4))
+		 (str (if (equal year file-year)
 			  (substring file 4 16)
-			(concat (substring file 4 11) " " year))))
+			(concat (substring file 4 11) " " file-year))))
 	    (tar-dotimes (i 12) (aset string (- namestart (- 13 i)) (aref str i)))))
 
       (tar-dotimes (i (length name)) (aset string (+ namestart i) (aref name i)))
@@ -408,7 +409,7 @@ is visible (and the real data of the buffer is hidden)."
 	 (bs100 (max 1 (/ bs 100)))
 	(tokens nil))
     (while (not (eq tokens 'empty-tar-block))
-      (if (>= (+ pos 512) (point-max))
+      (if (> (+ pos 512) (point-max))
 	  (error "truncated tar file"))
       (let* ((hblock (buffer-substring pos (+ pos 512))))
 	(setq tokens (tokenize-tar-header-block hblock))
@@ -533,6 +534,7 @@ See also: variables tar-update-datestamp and tar-anal-blocksize.
 (defvar superior-tar-buffer)		; parent buffer
 (defvar superior-tar-descriptor)	; header object of this file
 (defvar tar-subfile-buffer-id)		; pretty name-string
+(defvar subfile-orig-mlbid)		; orig mode-line-buffer-identification
 
 (defun tar-subfile-mode (p)
   "Minor mode for editing an element of a tar-file.

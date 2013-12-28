@@ -1,0 +1,66 @@
+The following messages contain, respectively, the eight files calendar.el,
+diary.el, diary-insert.el, holidays.el, cal-mayan.el, cal-french.el, solar.el,
+lunar.el, and calendar.texinfo.  You need to store them in a directory that is
+on your emacs load-path, byte-compile them (for speed), and add the following
+lines to your .emacs file:
+
+(autoload 'holidays "holidays"
+  "Prepare a list of holidays in the previous, present, and next months." t)
+(autoload 'calendar "calendar"
+  "Display a three-month calendar window." t)
+(autoload 'diary "diary"
+  "Display a window of diary entries." t)
+(autoload 'phases-of-moon "lunar"
+  "Display the quarters of the moon for last month, this month, and next month.
+This function is suitable for execution in a .emacs file." t)
+(autoload 'sunrise-sunset "solar"
+  "Local time of sunrise and sunset for today.  Accurate to +/- 2 minutes." t)
+(autoload 'list-yahrzeit-dates "calendar"
+  "List of Yahrzeit dates for *Gregorian* DEATH-DATE from START-YEAR to
+END-YEAR.  When called interactively from the calendar window,
+the date of death is taken from the cursor position.")
+(if (not (fboundp 'current-time-zone)) (defun current-time-zone nil nil))
+
+;; The following lines can be included, modified, or omitted, as you prefer
+
+(setq mark-holidays-in-calendar t)
+;;(setq all-hebrew-calendar-holidays t)
+;;(setq all-islamic-calendar-holidays t)
+;;(setq all-christian-calendar-holidays t)
+(setq diary-list-include-blanks t)
+(setq nongregorian-diary-marking-hook 'mark-hebrew-diary-entries)
+(setq mark-diary-entries-hook 'mark-included-diary-files)
+(setq nongregorian-diary-listing-hook 'list-hebrew-diary-entries)
+(setq list-diary-entries-hook
+      '(include-other-diary-files
+        (lambda nil
+          (setq diary-entries-list
+                (sort diary-entries-list 'diary-entry-compare)))))
+(setq diary-display-hook 'fancy-diary-display)
+
+;(setq calendar-location-name "Cambridge, MA")
+;(if (fboundp 'atan) (setq calendar-latitude 42.33))
+;(if (fboundp 'atan) (setq calendar-longitude -71.08))
+;(setq calendar-time-zone -300)
+;(setq calendar-standard-time-zone-name "EST")
+;(setq calendar-daylight-time-zone-name "EDT")
+(setq calendar-location-name "Urbana, IL")
+(if (fboundp 'atan) (setq calendar-latitude 40.1))
+(if (fboundp 'atan) (setq calendar-longitude -88.2))
+(setq calendar-time-zone -360)
+(setq calendar-standard-time-zone-name "CST")
+(setq calendar-daylight-time-zone-name "CDT")
+
+
+The ninth message is the file calendar.texinfo that is the documentation.
+
+To obtain the latest release by email, send a message to
+reingold@emr.cs.uiuc.edu with the subject field "send-emacs-cal" (no quotes).
+The files can also be obtained by anonymous ftp from
+          reingold@emr.cs.uiuc.edu:/pub/emacs/calendar/
+
+To obtain a HARD COPY of a papers describing the various calendrical
+calculations, including the details of the Hebrew, Islamic, ISO, and other
+calendars, send a message to reingold@emr.cs.uiuc.edu with the subject field
+"send-paper-cal" (no quotes) INCLUDING YOUR POSTAL ADDRESS (SNAIL) in the
+message body.

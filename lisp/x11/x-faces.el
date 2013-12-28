@@ -1,11 +1,11 @@
 ;; X -specific face frobnication.
-;; Copyright (C) 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -83,8 +83,7 @@
 		"\\([-*?]\\|\\'\\)"))
   (setq x-font-regexp-slant (concat - slant -))
   (setq x-font-regexp-weight (concat - weight -))
-  nil)
-	    
+  nil)	    
 
 (defun x-frob-font-weight (font which)
   (if (or (string-match x-font-regexp font)
@@ -142,7 +141,9 @@ of it.  If it fails, it returns nil."
   "Make the font of the given face be bold, if possible.  
 Returns nil on failure."
   (interactive (list (read-face-name "Make which face bold: ")))
-  (let ((ofont (face-font face screen)))
+  (let ((ofont (or (face-font face screen)
+		   (face-font face t)
+		   (face-font 'default screen))))
     (if (null screen)
 	(let ((screens (screen-list)))
 	  (while screens
@@ -157,13 +158,15 @@ Returns nil on failure."
 		 (try-face-font face f2))
 	    (and (setq f2 (x-make-font-demibold font))
 		 (try-face-font face f2)))))
-    (not (equal ofont (face-font face)))))
+    (not (equal ofont (or (face-font face) ofont)))))
 
 (defun make-face-italic (face &optional screen)
   "Make the font of the given face be italic, if possible.  
 Returns nil on failure."
   (interactive (list (read-face-name "Make which face italic: ")))
-  (let ((ofont (face-font face screen)))
+  (let ((ofont (or (face-font face screen)
+		   (face-font face t)
+		   (face-font 'default screen))))
     (if (null screen)
 	(let ((screens (screen-list)))
 	  (while screens
@@ -178,13 +181,15 @@ Returns nil on failure."
 		 (try-face-font face f2))
 	    (and (setq f2 (x-make-font-oblique font))
 		 (try-face-font face f2)))))
-    (not (equal ofont (face-font face)))))
+    (not (equal ofont (or (face-font face) ofont)))))
 
 (defun make-face-bold-italic (face &optional screen)
   "Make the font of the given face be bold and italic, if possible.  
 Returns nil on failure."
   (interactive (list (read-face-name "Make which face bold-italic: ")))
-  (let ((ofont (face-font face screen)))
+  (let ((ofont (or (face-font face screen)
+		   (face-font face t)
+		   (face-font 'default screen))))
     (if (null screen)
 	(let ((screens (screen-list)))
 	  (while screens
@@ -215,13 +220,15 @@ Returns nil on failure."
 		 (setq f3 (x-make-font-demibold f2))
 		 (not (equal f2 f3))
 		 (try-face-font face f3)))))
-    (not (equal ofont (face-font face screen)))))
+    (not (equal ofont (or (face-font face screen) ofont)))))
 
 (defun make-face-unbold (face &optional screen)
   "Make the font of the given face be non-bold, if possible.  
 Returns nil on failure."
   (interactive (list (read-face-name "Make which face non-bold: ")))
-  (let ((ofont (face-font face screen)))
+  (let ((ofont (or (face-font face screen)
+		   (face-font face t)
+		   (face-font 'default screen))))
     (if (null screen)
 	(let ((screens (screen-list)))
 	  (while screens
@@ -233,13 +240,15 @@ Returns nil on failure."
 		       (face-font face t)
 		       (face-font 'default screen)))))
 	(if font (try-face-font face font))))
-    (not (equal ofont (face-font face screen)))))
+    (not (equal ofont (or (face-font face screen) ofont)))))
 
 (defun make-face-unitalic (face &optional screen)
   "Make the font of the given face be non-italic, if possible.  
 Returns nil on failure."
   (interactive (list (read-face-name "Make which face non-italic: ")))
-  (let ((ofont (face-font face screen)))
+  (let ((ofont (or (face-font face screen)
+		   (face-font face t)
+		   (face-font 'default screen))))
     (if (null screen)
 	(let ((screens (screen-list)))
 	  (while screens
@@ -251,7 +260,7 @@ Returns nil on failure."
 		       (face-font face t)
 		       (face-font 'default screen)))))
 	(if font (try-face-font face font))))
-    (not (equal ofont (face-font face screen)))))
+    (not (equal ofont (or (face-font face screen) ofont)))))
 
 
 ;;; internal routines
@@ -392,10 +401,22 @@ Returns nil on failure."
     ;; this way we won't be in danger of the user screwing things up by not
     ;; adding hooks in a safe way.
     ;;
-    (x-initialize-other-random-faces screen)
-    (x-initialize-pointer-shape screen)  ; from x-mouse.el
-    ))
+    (let ((pre-display-buffer-function nil) ; we're on thin ice here...
+	  (stack-trace-on-error nil)
+	  (debug-on-error nil))
+      (x-initialize-other-random-faces screen)
+      (x-initialize-pointer-shape screen)  ; from x-mouse.el
+      )))
 
+
+(defun x-complain-about-font (face)
+  (if (symbolp face) (setq face (symbol-name face)))
+  (princ (format "%s: couldn't deduce %s %s version of %S\n"
+		 invocation-name
+		 (if (string-match "\\`[aeiouAEIOU]" face) "an" "a")
+		 face
+		 (face-font 'default))
+	 (function external-debugging-output)))
 
 (defun x-initialize-other-random-faces (screen)
   "Initializes the colors and fonts of the bold, italic, bold-italic, 
@@ -406,16 +427,32 @@ the create-screen-hook."
   (or (face-differs-from-default-p 'bold screen)
       (make-face-bold 'bold screen)
       ;; if default font is bold, then make the `bold' face be unbold.
-      (make-face-unbold 'bold screen))
+      (make-face-unbold 'bold screen)
+      ;; otherwise the luser specified one of the bogus font names
+      (x-complain-about-font 'bold)
+      )
 
   (or (face-differs-from-default-p 'italic screen)
-      (make-face-italic 'italic screen))
+      (make-face-italic 'italic screen)
+      (progn
+	(make-face-bold 'italic screen) ; bold if possible, then complain
+	(x-complain-about-font 'italic))
+      )
 
   (or (face-differs-from-default-p 'bold-italic screen)
       (make-face-bold-italic 'bold-italic screen)
-      ;; if default font is bold, then make the `bold-italic' face be unbold.
-      (and (make-face-italic 'bold-italic screen)
-	   (make-face-unbold 'bold-italic screen)))
+      ;; if we couldn't get a bold-italic version, try just bold.
+      (make-face-bold 'bold-italic screen)
+      ;; if we couldn't get bold or bold-italic, then that's probably because
+      ;; the default font is bold, so make the `bold-italic' face be unbold.
+      (and (make-face-unbold 'bold-italic screen)
+	   (make-face-italic 'bold-italic screen))
+      ;; if that didn't work, try italic (can this ever happen? what the hell.)
+      (progn
+	(make-face-italic 'bold-italic screen)
+	;; then bitch and moan.
+	(x-complain-about-font 'bold-italic))
+      )
 
   (or (find-face 'primary-selection)
       (make-face 'primary-selection))

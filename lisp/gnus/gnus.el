@@ -531,7 +531,11 @@ This hook is called before saving .newsrc file.")
 ;; Site dependent variables. You have to define these variables in
 ;;  site-init.el, default.el or your .emacs.
 
-(defvar gnus-local-timezone nil
+(defvar gnus-local-timezone (condition-case ()
+				(let ((zoneinfo (current-time-zone)))
+				  (or (if (nth 1 zoneinfo) (nth 3 zoneinfo))
+				      (nth 2 zoneinfo)))
+			      (error nil))
   "*Local time zone. Both styles, \"JST\" and +0900 are acceptable.
 If its value is non-nil, valid Date: field will be generated in terms
 of RFC822.  In this case, timezone package must be installed.")

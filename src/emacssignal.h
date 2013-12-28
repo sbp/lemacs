@@ -1,3 +1,7 @@
+
+#ifndef _EMACSSIGNAL_H_
+#define _EMACSSIGNAL_H_
+
 #ifdef POSIX_SIGNALS
 
 #define SIGMASKTYPE sigset_t
@@ -55,3 +59,5 @@ sigset_t sys_sigsetmask (sigset_t new_mask);
 #ifndef sys_sigdel
 #define sys_sigdel(MASK,SIG) MASK &= ~(1 << SIG)
 #endif
+
+#endif /* _EMACSSIGNAL_H_ */

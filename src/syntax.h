@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifndef _EMACS_SYNTAX_H_
+#define _EMACS_SYNTAX_H_
 
 extern Lisp_Object Qsyntax_table_p;
 extern Lisp_Object Fsyntax_table_p (), Fsyntax_table (), Fset_syntax_table ();
@@ -169,3 +171,5 @@ extern unsigned char syntax_spec_code[0400];
 /* Indexed by syntax code, give the letter that describes it. */
 
 extern unsigned char syntax_code_spec[13];
+
+#endif /* _EMACS_SYNTAX_H_ */

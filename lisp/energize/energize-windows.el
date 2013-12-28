@@ -45,52 +45,66 @@
     buffer-extent-list))
 
 
+(defvar energize-auto-scroll-p t	;#### this should be nil, t is LOSING
+  "*If t, energize will scroll your debugger and error log buffers
+to the bottom whenever output appears with reckless abandon.  If nil,
+it will behave just like normal shell and gdb-mode buffers.")
+
 ;;; called by energize-show-all-buffers
 ;;; If the extent is specified:
 ;;;   - scrolls the window so that point is at at the beginning of the extent.
 ;;;   - If the buffer is "Error Log", the extent is moved to top-of-window.
 ;;;   - if `only-one' and the buffer is a source buffer, then... what?
-;;; If the buffer is "*Debugger*" or "Error Log", point is moved to eof.
+;;; If the buffer is "*Debugger*" or "Error Log", point is moved to eof,
+;;;   IF and ONLY if it was at EOF already.
 ;;;
 (defun energize-scroll-window-at-extent (window extent only-one)
   (let* ((buffer (window-buffer window))
-	 (name (buffer-name buffer)))
+	 (type (energize-buffer-type buffer)))
     (if extent
 	(let ((pos (extent-start-position extent)))
-	  (set-window-point window pos)
-	  (cond ((equal name "Error Log")
-		 ;; scroll the Error Log buffer so that the first error
-		 ;; is at the top of the window.
-		 (set-window-start window
-				   (save-excursion
-				     (set-buffer buffer)
-				     (goto-char pos)
-				     (beginning-of-line)
-				     (point))))
-		((and only-one
-		      (eq 'energize-source-buffer
-			  (energize-buffer-type buffer)))
-		 ;; if only one buffer is requested to be visible and it
-		 ;; is a source buffer then scroll point close to the top
-		 (set-window-start window
-				   (save-excursion
-				     (set-buffer buffer)
-				     (goto-char pos)
-				     (beginning-of-line)
-				     (if (> (window-height window)
-					    next-screen-context-lines)
-					 (vertical-motion
-					  (- next-screen-context-lines)
-					  window)
-				       (vertical-motion -1 window))
-				     (point)))))))
+	  (if (not (eq pos 0))
+	      (progn
+		(set-window-point window pos)
+		(cond ((eq type 'energize-error-log-buffer)
+		       ;; scroll the Error Log buffer so that the first error
+		       ;; is at the top of the window.
+		       (set-window-start window
+					 (save-excursion
+					   (set-buffer buffer)
+					   (goto-char pos)
+					   (beginning-of-line)
+					   (point))))
+		      ((and only-one (eq type 'energize-source-buffer))
+		       ;; if only one buffer is requested to be visible and it
+		       ;; is a source buffer then scroll point close to the top
+		       (set-window-start window
+					 (save-excursion
+					   (set-buffer buffer)
+					   (goto-char pos)
+					   (beginning-of-line)
+					   (if (> (window-height window)
+						  next-screen-context-lines)
+					       (vertical-motion
+						(- next-screen-context-lines)
+						window)
+					     (vertical-motion -1 window))
+					   (point)))))))))
 
-    (if (or (equal name "*Debugger*") (equal name "Error Log"))
-	;; Debugger and Error Log buffers always get scrolled to
-	;; the bottom when displayed.
-	(set-window-point window
-			  (save-excursion (set-buffer buffer)
-					  (+ 1 (buffer-size)))))))
+    (cond ((and (memq type '(energize-error-log-buffer
+			     energize-debugger-buffer))
+		; don't move point if it's before the last line
+		(or energize-auto-scroll-p
+		    (>= (window-point window)
+			(save-excursion
+			  (set-buffer (window-buffer window))
+			  (comint-mark))))
+		)
+	   ;; Debugger and Error Log buffers generally get scrolled to
+	   ;; the bottom when displayed.
+	   (set-window-point window
+			     (save-excursion (set-buffer buffer)
+					     (+ 1 (buffer-size))))))))
 
 
 ;;; called by energize-make-buffers-visible
@@ -165,12 +179,12 @@
 (defun energize-main-buffer-of-list (list)
   ;; Given an alternating list of buffers and extents, pick out the
   ;; "interesting" buffer.  If one of the buffers is in debugger-mode,
-  ;; then that's the interesting one; otherwise, the last buffer in
-  ;; the list is the interesting one.
+  ;; or in breakpoint-mode, then that's the interesting one; otherwise,
+  ;; the last buffer in the list is the interesting one.
   (let (buffer mode result)
     (while list
       (setq buffer (car list))
-      (or (memq mode '(energize-debugger-mode))
+      (or (memq mode '(energize-debugger-mode energize-breakpoint-mode))
 	  (setq result buffer
 		mode (save-excursion (set-buffer buffer) major-mode)))
       (setq list (cdr (cdr list))))
@@ -194,11 +208,12 @@
       ;; calls it too.  But it can't hurt to select the appropriate
       ;; screen early...
       (let ((hacked-screen nil))
-	(cond ((get-screen-name-for-buffer main-buffer)
+	(cond ((null energize-split-screens-p)
+	       nil)
+	      ((get-screen-name-for-buffer main-buffer)
 	       (setq hacked-screen t)
 	       (if pre-display-buffer-function
 		   (funcall pre-display-buffer-function main-buffer nil nil))
-;;	       (get-screen-for-buffer main-buffer)
 	       )
 	      ((setq window (get-buffer-window main-buffer t))
 	       (cond (window
@@ -206,7 +221,12 @@
 		      (select-screen (window-screen window))))))
 	(let ((pre-display-buffer-function
 	       (if hacked-screen nil pre-display-buffer-function)))
-	  (energize-show-all-buffers buffer-extent-list))))))
+	  (energize-show-all-buffers buffer-extent-list))
+;;	;; kludge!!  Select the debugger screen, not the sources screen.
+;;	(if (and (null energize-split-screens-p)
+;;		 pre-display-buffer-function)
+;;	    (funcall pre-display-buffer-function main-buffer nil nil))
+	))))
 
 ;;; this is the guts of energize-make-many-buffers-visible
 ;;; `arg' is really two args: `buffer-extent-list' and `go-there'.

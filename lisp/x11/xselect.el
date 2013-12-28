@@ -22,11 +22,8 @@
 ;;; all upper-case; this may seem tasteless, but it makes there be a 1:1
 ;;; correspondence between these symbols and X Atoms (which are upcased.)
 
-(or (find-face 'primary-selection)
-    (make-face 'primary-selection))
-
-(or (find-face 'secondary-selection)
-    (make-face 'secondary-selection))
+(make-face 'primary-selection)
+(make-face 'secondary-selection)
 
 (defun x-get-selection ()
   "Return text selected from some X window."
@@ -57,7 +54,10 @@
 		    (extent-buffer previous-extent)
 		    (buffer-name (extent-buffer previous-extent))))
 	start end)
-    (cond ((stringp selection))
+    (cond ((stringp selection)
+	   ;; if we're selecting a string, lose the previous extent used
+	   ;; to highlight the selection.
+	   (setq valid nil))
 	  ((consp selection)
 	   (setq start (min (car selection) (cdr selection))
 		 end (max (car selection) (cdr selection))
@@ -94,9 +94,9 @@
 
 (defun x-own-selection (selection &optional type)
   "Make a primary X Selection of the given argument.  
-The argument may be a string, a cons of two markers or an extent.  In the 
-latter cases the selection is considered to be the text between 
-the markers or the between extents endpoints"
+The argument may be a string, a cons of two markers, or an extent.  
+In the latter cases the selection is considered to be the text 
+between the markers, or the between extents endpoints."
   (interactive (if (not current-prefix-arg)
 		   (list (read-string "Store text for pasting: "))
 		 (list (cons ;; these need not be ordered.
@@ -124,6 +124,9 @@ the markers or the between extents endpoints"
 	 (setq secondary-selection-extent
 	       (x-select-make-extent-for-selection
 		selection secondary-selection-extent 'secondary-selection))))
+  ;; kludgoriffic!
+  (if (and zmacs-regions (eq type 'PRIMARY) (not (consp selection)))
+      (setq zmacs-region-stays t))
   selection)
 
 
@@ -389,7 +392,7 @@ the kill ring or the Clipboard."
 		       (markerp (cdr value)))
 		  (setq a (marker-position (car value))
 			b (marker-position (cdr value))
-			buf (marker-buffer a))))
+			buf (marker-buffer (car value)))))
 	   (save-excursion
 	     (set-buffer buf)
 	     (setq a (count-lines 1 a)
@@ -422,19 +425,19 @@ the kill ring or the Clipboard."
 		 (vector (cons (ash a -16) (logand a 65535))
 			 (cons (ash b -16) (logand b 65535))))))))
 
-(defun xselect-convert-to-os (type size)
+(defun xselect-convert-to-os (selection type size)
   (symbol-name system-type))
 
-(defun xselect-convert-to-host (type size)
+(defun xselect-convert-to-host (selection type size)
   (system-name))
 
-(defun xselect-convert-to-user (type size)
+(defun xselect-convert-to-user (selection type size)
   (user-full-name))
 
-(defun xselect-convert-to-class (type size)
-  "XEmacs") ; This is correct because this isn't currently customizable...
+(defun xselect-convert-to-class (selection type size)
+  x-emacs-application-class)
 
-(defun xselect-convert-to-name (type size)
+(defun xselect-convert-to-name (selection type size)
   invocation-name)
 
 (defun xselect-convert-to-integer (selection type value)

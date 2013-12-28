@@ -57,7 +57,7 @@
   (define-key view-mode-map "|" 'shell-command-on-region)
   (define-key view-mode-map "=" 'what-line)
   (define-key view-mode-map "?" 'view-search-backward)
-  (define-key view-mode-map "h" 'describe-view-mode)
+  (define-key view-mode-map "h" 'view-mode-describe)
   (define-key view-mode-map "s" 'view-repeat-search)
   (define-key view-mode-map "n" 'view-repeat-search)
   (define-key view-mode-map "/" 'view-search-forward)
@@ -96,7 +96,7 @@
   (message
    (substitute-command-keys
     "\\[scroll-up] = page forward;\\[scroll-down] = page back;\
- \\[describe-view-mode] = help; \\[view-quit] = quit.")))
+ \\[view-mode-describe] = help; \\[view-quit] = quit.")))
 
 (defun view-mode (&optional p)
   "Mode for viewing text, with bindings like `less'.
@@ -111,7 +111,7 @@ Commands are:
 \\[view-scroll-some-lines-down]	scroll prefix-arg lines backward, default 10.
 \\[view-scroll-some-lines-up]	scroll prefix-arg lines forward, default 10.
 \\[what-line]	print line number
-\\[describe-view-mode]	print this help message
+\\[view-mode-describe]	print this help message
 \\[view-search-forward]	regexp search, uses previous string if you just hit RET
 \\[view-search-backward]	as above but searches backward
 \\[view-repeat-search]	repeat last search
@@ -230,7 +230,7 @@ as a modified buffer.  This works even if the buffer is read-only."
   (goto-char (+ (point-min) (/ (* p (- (point-max) (point-min))) 100)))
   (beginning-of-line))
 
-(defun describe-view-mode ()
+(defun view-mode-describe ()
   (interactive)
   (let ((mode-name "View")
 	(major-mode 'view-mode))

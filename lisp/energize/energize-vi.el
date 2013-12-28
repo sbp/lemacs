@@ -2,10 +2,40 @@
 ;;; Copyright © 1992-1993 by Lucid, Inc.  All Rights Reserved.
 ;;; Energize support for the Editor of the Beast, and others.
 
+(evi-define-key '(vi motion ex) "\C-x" 'evi-emacs-command)
+(evi-define-key '(vi motion)    "\177" 'evi-backward-char)
+(evi-define-key '(vi)	        "\C-z" 'evi-quit-evi)
+
+(setq evi-meta-prefix-char ?\C-a)
+
 (defvar energize-external-editor nil)		; nil, vi, or a string
 (defvar energize-internal-editor nil)		; nil or vi
 (defvar energize-internal-viewer nil)		; nil, vi, or less
 (defvar energize-vi-terminal-emulator nil)	; xterm, shelltool, or cmdtool
+
+(defun ex-quit (discard)
+  ;; originally defined in evi.el
+  ;; The old version would exit emacs; this version just kills the current
+  ;; buffer and deletes the current window (and screen if appropriate.)
+  (and (not discard) (buffer-file-name) (buffer-modified-p)
+       (evi-error
+	 "No write since last change (use :quit! to override)"))
+  (set-buffer-modified-p nil)
+  (delete-auto-save-file-if-necessary)
+  (kill-buffer (current-buffer))
+  (setq ex-user-buffer (current-buffer))
+  (condition-case nil
+      (delete-window (selected-window))
+    ;; ignore error about trying to delete only window on only screen
+    (error nil))
+  )
+
+(defun ex-write-all-and-quit (quietly)
+  ;; originally defined in evi.el
+  ;; The old version would exit emacs; this version just kills the current
+  ;; buffer and deletes the current window (and screen if appropriate.)
+  (save-some-buffers quietly)
+  (ex-quit t))
 
 (defconst energize-external-editor-menubar
   (let* ((menubar (copy-alist energize-menubar))
@@ -100,14 +130,20 @@
 	(setq rest (cdr rest))))
     result))
 
-(defvar energize-vi-wrapper "/u/jwz/emacs19/term/energize_vi")
+(defvar energize-vi-wrapper "energize_vi")
 
 (defun energize-begin-external-edit (file line)
-  (let* ((dir (file-name-directory file))
+  (let* ((ez-path (getenv "ENERGIZE_PATH"))
+	 (exec-path (if ez-path
+			(append exec-path (list ez-path))
+		      exec-path))
+	 (dir (file-name-directory file))
 	 (name (file-name-nondirectory file))
 	 (vi-p (eq energize-external-editor 'vi))
 	 (program (if vi-p energize-vi-wrapper energize-external-editor))
-	 (pretty (if vi-p "vi" (file-name-nondirectory program)))
+ 	 (pretty (cond (vi-p "vi")
+ 		       ((string-match "[ \t]" program) program)
+ 		       (t (file-name-nondirectory program))))
 	 (procname (format "*%s %s*" (if vi-p "energize_vi" pretty) name))
 	 (edited-p (and vi-p (energize-vi-buffer-being-edited-p file)))
 	 proc msg)
@@ -170,9 +206,18 @@
     (if got-it
 	(progn
 	  (energize-notice-external-editor-termination (cdr got-it))
+
+	  (if (and state (string-match "\n+\\'" state))
+	      (setq state (substring state 0 (match-beginning 0))))
+	  (if (and (not (eq 0 (process-exit-status (car got-it))))
+		   state
+		   (not (equal state "")))
+	      (error "%s: %s" (process-name process) state))
+
 ;	  (if (not (eq 0 (process-exit-status (car got-it))))
 ;	      (error "vi process exited with code %s" 
 ;		     (process-exit-status (car got-it))))
+
 	  )
       (beep)
       (message "unknown %s process died with %S" name state))))
@@ -235,19 +280,18 @@
 ;; evi mode
 
 (defun energize-evi-mode ()
-  (evi-mode)
+  (evi)
+  (evi-define-key '(vi motion top-level) 'button3 'energize-popup-menu)
+
   ;; vi users like to be able to edit read-only files, but we shouldn't
   ;; let them edit the Energize non-file buffers.
   (if (and (energize-buffer-p (current-buffer))
-	   (not (evi-comint-p))
 	   (or (null buffer-file-name)
 	       (memq (energize-buffer-type (current-buffer))
 		     '(energize-top-level-buffer energize-browser-buffer
 		       energize-error-log-buffer energize-includers-buffer))))
-      (setq buffer-read-only t)))
-
-(defun evi-mode-on-p ()
-  (not (null (and (boundp 'evi-install-undo-list) evi-install-undo-list))))
+      (setq buffer-read-only t))
+  )
 
 
 (defun energize-external-editor-set-mode (buffer)
@@ -260,23 +304,23 @@
 	   (always-editable-p (memq type '(energize-project-buffer
 					   energize-debugger-buffer
 					   energize-breakpoint-buffer
-					   ))))
-      (cond (always-editable-p
+					   )))
+	   (editable-p (or always-editable-p
+			   (and (null energize-external-editor)
+				(not buffer-read-only)))))
+
+      (or editable-p (setq buffer-read-only t))
+      (cond (editable-p
 	     (cond ((eq energize-internal-editor nil)
 		    nil)
 		   ((eq energize-internal-editor 'vi)
-		    ;; only put debuggers in evi-mode if evi-hack-comint-p
-		    (if (or (not debugger-p) evi-hack-comint-p)
+		    (if (not debugger-p)
 			(energize-evi-mode)))
 		   (t
 		    (signal 'error
 			    (list "unknown value for energize-internal-editor"
 				  energize-internal-editor)))))
-	    ((or (eq energize-internal-viewer 'vi)
-;;		 ;; if evi-mode is on anywhere, then that takes prescedence
-;;		 ;; because evi-mode is a very global thing.
-;;		 (evi-mode-on-p)
-		 )
+	    ((eq energize-internal-viewer 'vi)
 	     (energize-evi-mode))
 	    ((eq energize-internal-viewer 'less)
 	     ;; put it in view-mode, but don't change the major-mode symbol
@@ -311,13 +355,161 @@
   choices)
 
 
+
+(defvar energize-search-match-data nil)
+
+(defun energize-search-internal (args)
+  (let* ((case-fold-search (not (nth 0 args)))
+	 (regexp-p (nth 1 args))
+	 (back-p (not (nth 2 args)))
+	 (search (nth 3 args))
+	 (replace (nth 4 args))
+	 (fn (if back-p
+		 (if regexp-p 're-search-backward 'search-backward)
+	       (if regexp-p 're-search-forward 'search-forward))))
+    (setq this-command 'energize-search)
+    (cond ((equal search "")
+	   (setq energize-search-match-data nil)
+	   (error "No search string specified")))
+    (cond ((consp replace)
+	   ;; the "replace all" button was selected
+	   (setq replace (car replace))
+	   ;; replace the one just searched for, if any
+	   (cond ((and (eq last-command 'energize-search)
+		       energize-search-match-data)
+		  (store-match-data energize-search-match-data)
+		  (if back-p
+		      (save-excursion
+			(replace-match replace nil (not regexp-p)))
+		    (replace-match replace nil (not regexp-p)))))
+	   ;; now replace all the rest
+	   (let ((count 0))
+	     (while (funcall fn search nil t)
+	       (if back-p
+		   (save-excursion
+		     (replace-match replace nil (not regexp-p)))
+		 (replace-match replace nil (not regexp-p)))
+	       (setq count (1+ count)))
+	     (message "%d replacement%s done." count (if (= count 1) "" "s")))
+;;	   (setq this-command nil)
+	   (setq energize-search-match-data nil))
+	  (t
+	   ;; otherwise, one of the search buttons was selected
+	   (cond (replace
+		  (or (eq last-command 'energize-search) ; fuck!!
+		      (error "Last command was not a successful search."))
+		  (or energize-search-match-data (error "Last search failed"))
+		  (store-match-data energize-search-match-data)
+		  (if back-p
+		      (save-excursion
+			(replace-match replace nil (not regexp-p)))
+		    (replace-match replace nil (not regexp-p)))))
+	   (setq energize-search-match-data nil)
+	   (or (funcall fn search nil t)
+	       (signal 'error
+		       (list (cond ((and back-p regexp-p)
+				    "Reverse regexp search failed")
+				   (back-p "Reverse search failed")
+				   (regexp-p "Regexp search failed")
+				   (t "Search failed"))
+			     search)))
+	   (cond (zmacs-regions
+		  (push-mark (if (= (point) (match-beginning 0))
+				 (match-end 0)
+			       (match-beginning 0))
+			     t)
+		  (zmacs-activate-region)))
+	   (setq energize-search-match-data (match-data))
+	   ))))
+
+
 (defvar energize-edit-modes-specified nil)
+
+(defun energize-set-edit-modes-minibuf-prompt ()
+  (let* ((ee (completing-read "External editor (RET for none): "
+			      nil nil nil nil t))
+	 (te (if (equal ee "vi")
+		 (completing-read
+  "Terminal emulator in which to run vi (xterm, shelltool, or cmdtool): "
+		  '(("xterm") ("shelltool") ("cmdtool")) nil t nil t)
+	       ""))
+	 (iv (completing-read
+	      "View buffers using which keybindings (emacs, vi, or less): "
+	      '(("emacs") ("vi") ("less")) nil t nil t))
+	 (ie (completing-read
+	      "Edit other buffers using which keybindings (emacs or vi): "
+	      '(("emacs") ("vi")) nil t nil t))
+	 (ms (y-or-n-p "Use multiple windows? "))
+	 (sp (y-or-n-p "Split screens? "))
+	 )
+    (if (equal ee "") (setq ee nil))
+    (if (equal te "") (setq te "xterm"))
+    (if (equal iv "") (setq iv "emacs"))
+    (if (equal ie "") (setq ie "emacs"))
+    (list ee (intern te) (intern iv) (intern ie) ms sp)))
+
+(defun energize-set-edit-modes-dbox-prompt ()
+  (let* ((ee (cond ((member energize-external-editor '("" "emacs" nil)) 0)
+		   ((member energize-external-editor '("vi" vi))
+		    (cond ((eq energize-vi-terminal-emulator 'xterm) 1)
+			  ((eq energize-vi-terminal-emulator 'cmdtool) 2)
+			  (t (error "unrecognised terminal emulator"))))
+		   (t 3)))
+	 (o (if (and (stringp energize-external-editor)
+		     (not (equal energize-external-editor "vi")))
+		energize-external-editor
+	      ""))
+	 (iv (cond ((memq energize-internal-viewer '(nil emacs)) 0)
+		   ((eq energize-internal-viewer 'vi) 1)
+		   ((eq energize-internal-viewer 'less) 2)
+		   (t (error "unrecognised internal-viewer"))))
+	 (ie (cond ((memq energize-internal-editor '(nil emacs)) 0)
+		   ((eq energize-internal-editor 'vi) 1)
+		   (t (error "unrecognised internal-editor"))))
+	 (ms (cond ((memq energize-screen-mode '(nil single)) 0)
+		   ((eq energize-screen-mode 'several) 1)
+		   ((eq energize-screen-mode 'multi) 2)
+		   (t (error "unrecognised screen-mode"))))
+	 (sp (if energize-split-screens-p 1 0))
+
+	 (result (energize-edit-mode-prompt ee ie iv o ms sp))
+	 )
+    (setq ee (nth 0 result)
+	  iv (nth 1 result)
+	  ie (nth 2 result)
+	  o  (nth 3 result)
+	  ms (nth 4 result)
+	  sp (nth 5 result))
+    (list (cond ((= ee 0) nil)
+		((= ee 1) "vi")
+		((= ee 2) "vi")
+		((= ee 3) o)
+		(t (error "ee losing")))
+	  (cond ((= ee 1) 'xterm)
+		((= ee 2) 'cmdtool)
+		(t nil))
+	  (cond ((= iv 0) 'emacs)
+		((= iv 1) 'vi)
+		((= iv 2) 'less)
+		(t (error "iv losing")))
+	  (cond ((= ie 0) 'emacs)
+		((= ie 1) 'vi)
+		(t (error "ie losing")))
+	  (cond ((= ms 0) 'single)
+		((= ms 1) 'several)
+		((= ms 2) 'multi)
+		(t (error "ms losing")))
+	  (cond ((= sp 0) 'nil)
+		((= sp 1) 't)
+		(t (error "sp losing")))
+	  )))
 
 (defun energize-set-edit-modes (external-editor
 				terminal-emulator
 				internal-viewer
 				internal-editor
-				multi-screen-p)
+				multi-screen-p
+				split-screens-p)
   "Prompts for the various edit and view modes of Energize.
 
 The \"external editor\" is the editor which Energize should use when 
@@ -345,31 +537,19 @@ If you are not using an external editor, then specifying \"vi\" here
 means that evi, the emacs vi emulator, will be used to edit your source
 files as well.
 
-Finally, you will be asked whether Energize should automatically pop up 
-multiple windows (\"screens\" in emacs terminology) or should use and 
-reuse one only (which is the traditional emacs model.)  The default for
-this is taken from the environment variable $ENERGIZE_MULTI_SCREEN_MODE."
-  (interactive
-   (let* ((ee (completing-read "External editor (RET for none): "
-			       nil nil nil nil t))
-	  (te (if (equal ee "vi")
-		  (completing-read
-	"Terminal emulator in which to run vi (xterm, shelltool, or cmdtool): "
-		   '(("xterm") ("shelltool") ("cmdtool")) nil t nil t)
-		""))
-	  (iv (completing-read
-	       "View buffers using which keybindings (emacs, vi, or less): "
-		   '(("emacs") ("vi") ("less")) nil t nil t))
-	  (ie (completing-read
-	       "Edit other buffers using which keybindings (emacs or vi): "
-		   '(("emacs") ("vi")) nil t nil t))
-	  (ms (y-or-n-p "Use multiple windows? ")))
-     (if (equal ee "") (setq ee nil))
-     (if (equal te "") (setq te "xterm"))
-     (if (equal iv "") (setq iv "emacs"))
-     (if (equal ie "") (setq ie "emacs"))
-     (list ee (intern te) (intern iv) (intern ie) ms)))
+You will also be asked whether Energize should automatically pop up multiple
+windows (\"screens\" in emacs terminology) or should use and reuse one only
+\(which is the traditional emacs model.)  The default for this is taken from
+the environment variable $ENERGIZE_MULTI_SCREEN_MODE.
 
+Sometimes Energize wants to display two buffers at once, for example, the
+Debugger buffer and the source file corresponding to the current stack frame.
+You have two choices for how this should happen: one is to display the source
+in the debugger screen, `splitting' the screen vertically, and the other is to
+use two screens, one for the debugger and one for the source.  The default for
+this is taken from the envvironment variable $ENERGIZE_SPLIT_SCREENS_P."
+;;  (interactive (energize-set-edit-modes-minibuf-prompt))
+  (interactive (energize-set-edit-modes-dbox-prompt))
   (if (null terminal-emulator) (setq terminal-emulator 'xterm))
   (if (equal energize-external-editor "emacs")
       (setq energize-external-editor nil))
@@ -383,6 +563,8 @@ this is taken from the environment variable $ENERGIZE_MULTI_SCREEN_MODE."
       (signal 'wrong-type-argument (list 'symbolp internal-viewer)))
   (or (symbolp internal-editor)
       (signal 'wrong-type-argument (list 'symbolp internal-editor)))
+  (or (memq split-screens-p '(t nil))
+      (error "split-screens-p must be t or nil"))
 
   (cond ((equal external-editor "")   (setq energize-external-editor nil))
 	((equal external-editor "vi") (setq energize-external-editor 'vi))
@@ -397,22 +579,30 @@ this is taken from the environment variable $ENERGIZE_MULTI_SCREEN_MODE."
   (cond ((and (null energize-internal-viewer)
 	      (null energize-internal-editor))
 	 ;; Emacs all the way.  They must be clueful.
-	 (remove-hook 'energize-disconnect-hook 'save-buffers-kill-emacs)
-	 (setq pop-up-windows t))
+;;	 (remove-hook 'energize-disconnect-hook 'save-buffers-kill-emacs)
+	 (setq pop-up-windows energize-split-screens-p))
 	(t
-	 (add-hook 'energize-disconnect-hook 'save-buffers-kill-emacs)
+;;	 (add-hook 'energize-disconnect-hook 'save-buffers-kill-emacs)
 	 (setq pop-up-windows nil)))
 
-  (set-menubar (if energize-external-editor
-		   energize-external-editor-menubar
-		 energize-menubar))
+  (cond (energize-external-editor
+	 (add-hook 'energize-disconnect-hook 'save-buffers-kill-emacs)
+	 (set-menubar energize-external-editor-menubar))
+	(t
+	 (remove-hook 'energize-disconnect-hook 'save-buffers-kill-emacs)
+	 (set-menubar energize-menubar)))
 
-  (if multi-screen-p
-      (energize-multi-screen-mode)
-    (energize-single-screen-mode))
+  (cond ;((eq multi-screen-p energize-screen-mode)
+	; nil)
+	((memq multi-screen-p '(t multi))
+	 (energize-multi-screen-mode))
+	((memq multi-screen-p '(nil single))
+	 (energize-single-screen-mode))
+	((memq multi-screen-p '(several))
+	 (energize-several-screens-mode))
+	(t (error "multi-screen-p %S unrecognised" multi-screen-p)))
 
-  (if (evi-mode-on-p)
-      (evi-exit-to-emacs-1))
+  (setq energize-split-screens-p split-screens-p)
 
   (let ((buffers (buffer-list)))
     (save-excursion
@@ -435,12 +625,15 @@ this is taken from the environment variable $ENERGIZE_MULTI_SCREEN_MODE."
 	      (iv (getenv "ENERGIZE_VIEW_MODE"))
 	      (ie (getenv "ENERGIZE_EDIT_MODE"))
 	      (ms (getenv "ENERGIZE_MULTI_SCREEN_MODE"))
+	      (sp (getenv "ENERGIZE_SPLIT_SCREENS_P"))
 	      )
 	  (if (member ee '("" nil)) (setq ee nil))
 	  (if (member te '("" nil)) (setq te "xterm"))
 	  (if (member iv '("" nil)) (setq iv "emacs"))
 	  (if (member ie '("" nil)) (setq ie "emacs"))
+	  (if (member sp '("" nil)) (setq sp "yes"))
 	  (if ms (setq ms (downcase ms)))
+	  (setq sp (downcase sp))
 	  (let ((standard-output (function external-debugging-output)))
 	    (if (member te '("xterm" "shelltool" "cmdtool"))
 		nil
@@ -458,22 +651,36 @@ this is taken from the environment variable $ENERGIZE_MULTI_SCREEN_MODE."
 	      (princ (format
 		      "$ENERGIZE_EDIT_MODE is %S, not emacs or vi.\n" ie))
 	      (setq ie nil))
-	    (cond ((member ms '("yes" "y" "true" "on" "1" ""))
-		   (setq ms t))
-		  ((member ms '("no" "n" "false" "off" "0")))
+	    (cond ((member ms '("yes" "y" "true" "on" "1" "" "multi" "many"
+				"often"))
+		   (setq ms 'multi))
+		  ((member ms '("no" "n" "false" "off" "0" "single"
+				"never"))
+		   (setq ms 'single))
+		  ((member ms '("several" "some" "few" "sometimes"))
+		   (setq ms 'several))
 		  (t
 		   (if ms
 		       (princ
 			(format
-			 "$ENERGIZE_MULTI_SCREEN_MODE was %S, not a boolean.\n"
+	 "$ENERGIZE_MULTI_SCREEN_MODE was %S, not often, sometimes, or never\n"
 			 ms)))
-		   (if (and (null ee)
-			    (equal iv "emacs")
-			    (equal ie "emacs"))
-		       (setq ms nil)
-		     (setq ms t))))
+		   (setq ms (or energize-screen-mode
+				(if (and (null ee)
+					 (equal iv "emacs")
+					 (equal ie "emacs"))
+				    'single
+				  'multi)))))
+	    (cond ((member sp '("yes" "y" "true" "on" "1" ""))
+		   (setq sp t))
+		  ((member ms '("no" "n" "false" "off" "0"))
+		   (setq sp nil))
+		  (t
+		   (princ
+		    (format "$ENERGIZE_SPLIT_SCREENS_P was %S, not a boolean.\n"
+			    sp))))
 	    )
-	  (energize-set-edit-modes ee (intern te) (intern iv) (intern ie) ms)
+	  (energize-set-edit-modes ee (intern te) (intern iv) (intern ie) ms sp)
 	  )
       ;; condition-case
       (error
@@ -495,15 +702,3 @@ this is taken from the environment variable $ENERGIZE_MULTI_SCREEN_MODE."
 	 "View "
 	 buffer)
       buffer)))
-
-
-;;; originally defined in evi.el
-
-(or (fboundp 'orig-evi-change-mode-id)
-    (fset 'orig-evi-change-mode-id (symbol-function 'evi-change-mode-id)))
-
-(defun evi-change-mode-id (string)
-  "Change the mode identification string to STRING."
-  (prog1 (orig-evi-change-mode-id string)
-    (if (connected-to-energize-p)
-	(setq mode-line-buffer-identification '("Energize: %17b")))))

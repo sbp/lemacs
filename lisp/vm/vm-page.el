@@ -154,6 +154,8 @@ Prefix N scrolls backward N lines."
 	   (eq major-mode 'vm-virtual-mode)
 	   (not (one-window-p t)))
       (vm-display-current-message-buffer t))
+  (if (null vm-message-pointer) ; don't lose on empty folder -- jwz
+      nil
   (let ((vmp vm-message-pointer))
     (vm-within-current-message-buffer
      (let ((vm-message-pointer vmp))
@@ -187,7 +189,7 @@ Prefix N scrolls backward N lines."
       (vm-show-current-message)
     (vm-update-summary-and-mode-line)
     (run-hooks 'vm-preview-message-hook)	; jwz
-    ))
+    )))
 
 (defun vm-show-current-message ()
   (setq vm-system-state 'showing)

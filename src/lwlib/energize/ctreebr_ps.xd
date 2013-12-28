@@ -4,30 +4,32 @@ generateNameC = 'ctreebr_ps.xdc';
 generateNameUIL = '';
 generateNameResDB = '';
 generateUidFile = '';
-generateMask = 1507557;
+generateMask = 458980;
+useMask = 1;
+value
 object '' : XmDialogShell {
 	arguments {
 	name = 'widget0';
-	XmNtitle = 'Grapher';
-	XmNallowShellResize = true;
+	XmNtitle= 'Grapher';
+	XmNallowShellResize= true;
 	};
 object '' : XmFrame {
 	arguments {
 	name = 'calltreePanel';
-	XmNshadowType=8;
+	XmNshadowType= 8;
 	};
 object '' : XmForm {
 	arguments {
 	name = 'panel';
-	XmNautoUnmanage = false;
-	XmNdefaultButton = 'apply';
+	XmNautoUnmanage= false;
+	XmNdefaultButton= 'apply';
 	};
 object '' : XmLabel {
 	arguments {
 	name = 'nameLabel';
 	};
 };
-object '' : XmText {
+object '' : XmTextField {
 	arguments {
 	name = 'nameText';
 	};
@@ -37,7 +39,7 @@ object '' : XmLabel {
 	name = 'fileLabel';
 	};
 };
-object '' : XmText {
+object '' : XmTextField {
 	arguments {
 	name = 'fileText';
 	};
@@ -47,12 +49,9 @@ object '' : XmLabel {
 	name = 'projectLabel';
 	};
 };
-object '' : XmText {
+object '' : XmTextField {
 	arguments {
 	name = 'projectText';
-	XmNcolumns=23;
-	XmNvalue = 'fuck
-';
 	};
 };
 object 'apply' : XmPushButton {
@@ -68,7 +67,7 @@ object '' : XmToggleButton {
 object '' : XmRadioBox {
 	arguments {
 	name = 'nameStyle';
-	XmNorientation=2;
+	XmNorientation= 2;
 	};
 object '' : XmToggleButton GADGET {
 	arguments {

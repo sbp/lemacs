@@ -1,5 +1,9 @@
-;; Diary functions.
-;; Copyright (C) 1989, 1990 Free Software Foundation, Inc.
+;;; diary.el --- diary functions.
+
+;; Copyright (C) 1989, 1990, 1992 Free Software Foundation, Inc.
+
+;; Author: Edward M. Reingold <reingold@cs.uiuc.edu>
+;; Keywords: diary, calendar
 
 ;; This file is part of GNU Emacs.
 
@@ -18,6 +22,8 @@
 ;; file named COPYING.  Among other things, the copyright notice
 ;; and this notice must be preserved on all copies.
 
+;;; Commentary:
+
 ;; This collection of functions implements the diary features as described
 ;; in calendar.el.
 
@@ -27,9 +33,11 @@
 ;;  reingold@cs.uiuc.edu             1304 West Springfield Avenue
 ;;                                   Urbana, Illinois 61801
 
-(require 'calendar)
-(provide 'diary)
+;;; Code:
 
+(require 'calendar)
+
+;;;###autoload
 (defun diary (&optional arg)
   "Generate the diary window for ARG days starting with the current date.
 If no argument is provided, the number of days of diary entries is governed
@@ -68,11 +76,33 @@ calendar."
 (autoload 'check-calendar-holidays "holidays"
   "Check the list of holidays for any that occur on DATE.
 The value returned is a list of strings of relevant holiday descriptions.
-The holidays are those in the list calendar-holidays.")
+The holidays are those in the list calendar-holidays."
+  t)
+
 
 (autoload 'calendar-holiday-list "holidays"
   "Form the list of holidays that occur on dates in the calendar window.
-The holidays are those in the list calendar-holidays.")
+The holidays are those in the list calendar-holidays."
+  t)
+
+(autoload 'diary-french-date "cal-french"
+  "French calendar equivalent of date diary entry."
+  t)
+
+(autoload 'diary-mayan-date "cal-mayan"
+  "Mayan calendar equivalent of date diary entry."
+  t)
+
+(autoload 'diary-phases-of-moon "lunar" "Moon phases diary entry." t)
+
+(autoload 'diary-sunrise-sunset "solar"
+  "Local time of sunrise and sunset as a diary entry."
+  t)
+
+(autoload 'diary-sabbath-candles "solar"
+  "Local time of candle lighting diary entry--applies if date is a Friday.
+No diary entry if there is no sunset on that date."
+  t)
 
 (defvar diary-syntax-table
   (standard-syntax-table)
@@ -216,10 +246,10 @@ have the following distinct roles:
 
 (defun include-other-diary-files ()
   "Include the diary entries from other diary files with those of diary-file.
-This function is suitable for use just before prepare-fancy-diary-buffer as
-the list-diary-entries-hook; it enables you to use shared diary files together
-with your own.  The files included are specified in the diary-file by lines
-of the form
+This function is suitable for use just before fancy-diary-display as the
+list-diary-entries-hook; it enables you to use shared diary files together
+with your own.  The files included are specified in the diary-file by lines of
+the form
         #include \"filename\"
 This is recursive; that is, #include directives in diary files thus included
 are obeyed.  You can change the \"#include\" to some other string by
@@ -265,8 +295,7 @@ changing the variable `diary-include-string'."
             (message msg)
           (set-buffer (get-buffer-create holiday-buffer))
           (setq buffer-read-only nil)
-          (setq mode-line-format
-                (format "--------------------------%s%%-" date-string))
+          (calendar-set-mode-line date-string)
           (erase-buffer)
           (insert (mapconcat 'identity holiday-list "\n"))
           (goto-char (point-min))
@@ -274,13 +303,10 @@ changing the variable `diary-include-string'."
           (setq buffer-read-only t)
           (display-buffer holiday-buffer)
           (message  "No diary entries for %s" date-string))
-      (setq mode-line-format
-            (format "%%*--%sDiary %s %s%s%s%%-"
-                    (if holiday-list "" "---------------")
-                    (if holiday-list "for" "entries for")
-                    date-string
-                    (if holiday-list ": " "")
-                    (mapconcat 'identity holiday-list "; ")))
+      (calendar-set-mode-line
+       (concat "Diary for " date-string
+               (if holiday-list ": " "")
+               (mapconcat 'identity holiday-list "; ")))
       (display-buffer (get-file-buffer d-file))
       (message "Preparing diary...done"))))
 
@@ -299,8 +325,7 @@ This function is provided for optional use as the `list-diary-entries-hook'."
             (message msg)
           (set-buffer (get-buffer-create holiday-buffer))
           (setq buffer-read-only nil)
-          (setq mode-line-format
-                (format "--------------------------%s%%-" date-string))
+          (calendar-set-mode-line date-string)
           (erase-buffer)
           (insert (mapconcat 'identity holiday-list "\n"))
           (goto-char (point-min))
@@ -319,7 +344,7 @@ This function is provided for optional use as the `list-diary-entries-hook'."
       (set-buffer (get-buffer-create fancy-diary-buffer))
       (setq buffer-read-only nil)
       (make-local-variable 'mode-line-format)
-      (setq mode-line-format "---------------------------Diary Entries%-")
+      (calendar-set-mode-line "Diary Entries")
       (erase-buffer)
       (let ((entry-list diary-entries-list)
             (holiday-list)
@@ -378,38 +403,44 @@ This function is provided for optional use as the `list-diary-entries-hook'."
       (message "Preparing diary...done"))))
 
 (defun print-diary-entries ()
-  "Print a hard copy of the entries visible in the diary window.
-The hooks given by the variable `print-diary-entries-hook' are called after
-the temporary buffer of visible diary entries is prepared; it is the hooks
-that do the actual printing and kill the buffer."
-  (interactive)
-  (let ((diary-buffer (get-file-buffer (substitute-in-file-name diary-file))))
-    (if diary-buffer
-        (let ((temp-buffer (get-buffer-create "*Printable Diary Entries*")))
-          (save-excursion
-            (set-buffer diary-buffer)
-            (copy-to-buffer temp-buffer (point-min) (point-max))
-            (set-buffer temp-buffer)
-            (while (re-search-forward "\^M.*$" nil t)
-              (replace-match ""))
-            (run-hooks 'print-diary-entries-hook)))
-      (error "You don't have a diary buffer!"))))
+  "Print a hard copy of the diary display.
 
-(defun add-diary-heading ()
-  "Add a heading to the diary entries for printing.
-The heading is formed from the mode line of the diary buffer.  This function
-is used in the default value of the variable `print-diary-entry-hooks'."
-  (save-excursion
-    (let ((heading))
-      (set-buffer diary-buffer)
-      (setq heading mode-line-format)
-      (string-match "%\\*-*\\([^-].*\\)%-$" heading)
-      (setq heading
-            (substring heading (match-beginning 1) (match-end 1)))
-      (set-buffer temp-buffer)
-      (goto-char (point-min))
-      (insert heading "\n"
-              (make-string (length heading) ?=) "\n"))))
+If the simple diary display is being used, prepare a temp buffer with the
+visible lines of the diary buffer, add a heading line composed from the mode
+line, print the temp buffer, and destroy it.
+
+If the fancy diary display is being used, just print the buffer.
+
+The hooks given by the variable `print-diary-entries-hook' are called to do
+the actual printing."
+  (interactive)
+  (if (bufferp (get-buffer fancy-diary-buffer))
+      (save-excursion
+        (set-buffer (get-buffer fancy-diary-buffer))
+        (run-hooks 'print-diary-entries-hook))
+    (let ((diary-buffer
+           (get-file-buffer (substitute-in-file-name diary-file))))
+      (if diary-buffer
+          (let ((temp-buffer (get-buffer-create "*Printable Diary Entries*"))
+                (heading))
+            (save-excursion
+              (set-buffer diary-buffer)
+              (setq heading
+                    (if (not (stringp mode-line-format))
+                        "All Diary Entries"
+                      (string-match "^-*\\([^-].*[^-]\\)-*$" mode-line-format)
+                      (substring mode-line-format
+                                 (match-beginning 1) (match-end 1))))
+              (copy-to-buffer temp-buffer (point-min) (point-max))
+              (set-buffer temp-buffer)
+              (while (re-search-forward "\^M.*$" nil t)
+                (replace-match ""))
+              (goto-char (point-min))
+              (insert heading "\n"
+                      (make-string (length heading) ?=) "\n")
+              (run-hooks 'print-diary-entries-hook)
+              (kill-buffer temp-buffer)))
+        (error "You don't have a diary buffer!")))))
 
 (defun show-all-diary-entries ()
   "Show all of the diary entries in the diary-file.
@@ -430,8 +461,7 @@ is created."
                   (subst-char-in-region (point-min) (point-max) ?\^M ?\n t)
                   (setq selective-display nil)
                   (make-local-variable 'mode-line-format)
-                  (setq mode-line-format
-                        "%*---------------------------All Diary Entries%-")
+                  (setq mode-line-format default-mode-line-format)
                   (display-buffer (current-buffer))
                   (set-buffer-modified-p diary-modified))))
           (error "Your diary file is not readable!"))
@@ -709,6 +739,10 @@ A value of 0 in any position of the pattern is a wild-card."
               i from 1 to (calendar-last-day-of-month month year) do
             (mark-visible-calendar-date (list month i year)))
         (mark-visible-calendar-date (list month p-day year)))))
+
+(defun sort-diary-entries ()
+  "Sort the list of diary entries by time of day."
+  (setq diary-entries-list (sort diary-entries-list 'diary-entry-compare)))
 
 (defun diary-entry-compare (e1 e2)
   "Returns t if E1 is earlier than E2."
@@ -1042,7 +1076,8 @@ A number of built-in functions are available for this type of diary entry:
                   Entry will appear on the Nth DAYNAME of MONTH.
                   (DAYNAME=0 means Sunday, 1 means Monday, and so on;
                   if N is negative it counts backward from the end of
-                  the month.
+                  the month.  MONTH can be a list of months, a single
+                  month, or t to specify all months.
 
       %%(diary-block M1 D1 Y1 M2 D2 Y2) text
                   Entry will appear on dates between M1/D1/Y1 and M2/D2/Y2,
@@ -1095,6 +1130,28 @@ A number of built-in functions are available for this type of diary entry:
                   made every day.  Note that since there is no text, it
                   makes sense only if the fancy diary display is used.
 
+      %%(diary-astro-day-number) Diary entries giving the corresponding
+                  astronomical (Julian) day number will be made every day.
+                  Note that since there is no text, it makes sense only if the
+                  fancy diary display is used.
+
+      %%(diary-julian-date) Diary entries giving the corresponding
+                 Julian date will be made every day.  Note that since
+                 there is no text, it makes sense only if the fancy diary
+                 display is used.
+
+      %%(diary-sunrise-sunset)
+                  Diary entries giving the local times of sunrise and sunset
+                  will be made every day.  Note that since there is no text,
+                  it makes sense only if the fancy diary display is used.
+                  Floating point required.
+
+      %%(diary-phases-of-moon)
+                  Diary entries giving the times of the phases of the moon
+                  will be when appropriate.  Note that since there is no text,
+                  it makes sense only if the fancy diary display is used.
+                  Floating point required.
+
       %%(diary-yahrzeit MONTH DAY YEAR) text
                   Text is assumed to be the name of the person; the date is
                   the date of death on the *civil* calendar.  The diary entry
@@ -1102,6 +1159,12 @@ A number of built-in functions are available for this type of diary entry:
                   day before.  (If `european-calendar-style' is t, the order
                   of the parameters should be changed to DAY, MONTH, YEAR.)
                   
+      %%(diary-sunrise-sunset)
+                  Diary entries giving the local times of Sabbath candle
+                  lighting will be made every day.  Note that since there is
+                  no text, it makes sense only if the fancy diary display is
+                  used.  Floating point required.
+
       %%(diary-rosh-hodesh)
                   Diary entries will be made on the dates of Rosh Hodesh on
                   the Hebrew calendar.  Note that since there is no text, it
@@ -1198,11 +1261,18 @@ D1, M1, Y1, D2, M2, Y2 if `european-calendar-style' is t."
         entry)))
 
 (defun diary-float (month dayname n)
-  "Floating diary entry--entry applies if date is the nth dayname of month."
-  (if (calendar-date-equal
-        date (calendar-nth-named-day
-               n dayname month (extract-calendar-year date)))
-      entry))
+  "Floating diary entry--entry applies if date is the nth dayname of month.
+Parameters are MONTH, DAYNAME, N.  MONTH can be a list of months, the constant
+t, or an integer.  The constant t means all months.  If N is negative, count
+backward from the end of the month."
+  (let ((m (extract-calendar-month date))
+        (y (extract-calendar-year date)))
+    (if (and
+         (or (and (listp month) (memq m month))
+             (equal m month)
+             (eq month t))
+         (calendar-date-equal date (calendar-nth-named-day n dayname m y)))
+        entry)))
 
 (defun diary-anniversary (month day year)
   "Anniversary diary entry--entry applies if date is the anniversary of
@@ -1247,8 +1317,8 @@ ending of that number (that is, `st', `nd', `rd' or `th', as appropriate."
 
 (defun diary-ordinal-suffix (n)
   "Ordinal suffix for N. (That is, `st', `nd', `rd', or `th', as appropriate.)"
-  (if (or (and (< 9 n) (< n 20))
-          (memq (% n 10) '(4 5 6 7 8 9 0)))
+  (if (or (memq (% n 100) '(11 12 13))
+	  (< 3 (% n 10)))
       "th"
     (aref ["th" "st" "nd" "rd"] (% n 10))))
 
@@ -1272,48 +1342,35 @@ ending of that number (that is, `st', `nd', `rd' or `th', as appropriate."
 
 (defun diary-islamic-date ()
   "Islamic calendar equivalent of date diary entry."
-  (let* ((calendar-date-display-form
-          (if european-calendar-style
-              '(day " " monthname " " year)
-            '(monthname " " day ", " year)))
-         (i-date (calendar-islamic-from-absolute
+  (let* ((i-date (calendar-islamic-from-absolute
                   (calendar-absolute-from-gregorian date)))
          (calendar-month-name-array calendar-islamic-month-name-array))
     (if (>= (extract-calendar-year i-date) 1)
-        (format "Islamic date: %s" (calendar-date-string i-date)))))
+        (format "Islamic date: %s" (calendar-date-string i-date nil t)))))
 
 (defun diary-hebrew-date ()
   "Hebrew calendar equivalent of date diary entry."
-  (let* ((calendar-date-display-form
-          (if european-calendar-style
-              '(day " " monthname " " year)
-            '(monthname " " day ", " year)))
-         (h-date (calendar-hebrew-from-absolute
+  (let* ((h-date (calendar-hebrew-from-absolute
                   (calendar-absolute-from-gregorian date)))
          (calendar-month-name-array
           (if (hebrew-calendar-leap-year-p
                (extract-calendar-year h-date))
               calendar-hebrew-month-name-array-leap-year
             calendar-hebrew-month-name-array-common-year)))
-    (format "Hebrew date: %s" (calendar-date-string h-date))))
+    (format "Hebrew date: %s" (calendar-date-string h-date nil t))))
 
-(defun diary-french-date ()
-  "French calendar equivalent of date diary entry."
-  (let* ((french-date (calendar-french-from-absolute
-                       (calendar-absolute-from-gregorian date)))
-         (y (extract-calendar-year french-date))
-         (m (extract-calendar-month french-date))
-         (d (extract-calendar-day french-date)))
-    (if (> y 0)
-      (if (= m 13)
-          (format "Jour %s de l'Annee %d de la Revolution"
-                   (aref french-calendar-special-days-array (1- d))
-                   y)
-        (format "Decade %s, %s de %s de l'Annee %d de la Revolution"
-                 (make-string (1+ (/ (1- d) 10)) ?I)
-                 (aref french-calendar-day-name-array (% (1- d) 10))
-                 (aref french-calendar-month-name-array (1- m))
-                 y)))))
+(defun diary-julian-date ()
+  "Julian calendar equivalent of date diary entry."
+  (format "Julian date: %s"
+          (calendar-date-string
+           (calendar-julian-from-absolute
+            (calendar-absolute-from-gregorian date)))
+          nil t))
+
+(defun diary-astro-day-number ()
+  "Astronomical (Julian) day number diary entry."
+  (format "Astronomical (Julian) day number %d"
+          (+ 1721425 (calendar-absolute-from-gregorian date))))
 
 (defun diary-omer ()
   "Omer count diary entry--entry applies if date is within 50 days after
@@ -1325,7 +1382,7 @@ Passover."
          (week (/ omer 7))
          (day (% omer 7)))
     (if (and (> omer 0) (< omer 50))
-        (format "Day %d%s of the omer (until sunset)."
+        (format "Day %d%s of the omer (until sunset)"
                 omer
                 (if (zerop week)
                     ""
@@ -1367,8 +1424,8 @@ order of the parameters is changed to DEATH-DAY, DEATH-MONTH, DEATH-YEAR."
                       (t "th"))))))
 
 (defun diary-rosh-hodesh ()
-  "Rosh Hodesh diary entry--entry applies if date is Rosh Hodesh or the
-Saturday before."
+  "Rosh Hodesh diary entry--entry applies if date is Rosh Hodesh, the day
+before, or the Saturday before."
   (let* ((d (calendar-absolute-from-gregorian date))
          (h-date (calendar-hebrew-from-absolute d))
          (h-month (extract-calendar-month h-date))
@@ -1396,7 +1453,7 @@ Saturday before."
            (if (= h-yesterday 30)
                (format "%s (second day)" this-month)
              this-month)))
-      (if (= (mod d 7) 6);; Saturday--check for Shabbat Mevarhim
+      (if (= (% d 7) 6);; Saturday--check for Shabbat Mevarhim
           (cond ((and (> h-day 22) (/= h-month 6) (= 29 last-day))
                  (format "Mevarhim Rosh Hodesh %s (%s)"
                          (aref h-month-names
@@ -1408,9 +1465,18 @@ Saturday before."
                 ((and (< h-day 30) (> h-day 22) (= 30 last-day))
                  (format "Mevarhim Rosh Hodesh %s (%s-%s)"
                          (aref h-month-names h-month)
-                         (aref calendar-day-name-array (- 29 h-day))
+                         (if (= h-day 29)
+                             "tomorrow"
+                           (aref calendar-day-name-array (- 29 h-day)))
                          (aref calendar-day-name-array
-                               (mod (- 30 h-day) 7)))))))))
+                               (% (- 30 h-day) 7)))))
+        (if (and (= h-day 29) (/= h-month 6))
+            (format "Erev Rosh Hodesh %s"
+                    (aref h-month-names
+                          (if (= h-month
+                                 (hebrew-calendar-last-month-of-year
+                                  h-year))
+                              0 h-month))))))))
 
 (defun diary-parasha ()
   "Parasha diary entry--entry applies if date is a Saturday."
@@ -1446,7 +1512,7 @@ Saturday before."
                "Parashat %s"
                (if (listp parasha);; Israel differs from diaspora
                    (if (car parasha)
-                       (format "%s (diaspora) %s (Israel)"
+                       (format "%s (diaspora), %s (Israel)"
                                (hebrew-calendar-parasha-name (car parasha))
                                (hebrew-calendar-parasha-name (cdr parasha)))
                      (format "%s (Israel)"
@@ -1500,25 +1566,25 @@ start on Tuesday.")
 
 (defconst hebrew-calendar-year-Monday-complete-Thursday
   [51 52 nil 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 [21 22]
-   23 24 nil 25 [26 27] [28 29] 30 [31 32] 33 (nil . 34) (34.35) (35.36)
-   (36.37) (37.38) ([38 39].39) 40 [41 42] 43 44 45 46 47 48 49 [50 51]]
+   23 24 nil 25 [26 27] [28 29] 30 [31 32] 33 (nil . 34) (34 . 35) (35 . 36)
+   (36 . 37) (37 . 38) ([38 39] . 39) 40 [41 42] 43 44 45 46 47 48 49 [50 51]]
   "The structure of the parashiot in a Hebrew year that starts on Monday,
 is `complete' (Heshvan and Kislev each have 30 days), and has Passover
 start on Thursday.")
 
 (defconst hebrew-calendar-year-Tuesday-regular-Thursday
   [51 52 nil 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 [21 22]
-   23 24 nil 25 [26 27] [28 29] 30 [31 32] 33 (nil . 34) (34.35) (35.36)
-   (36.37) (37.38) ([38 39].39) 40 [41 42] 43 44 45 46 47 48 49 [50 51]]
+   23 24 nil 25 [26 27] [28 29] 30 [31 32] 33 (nil . 34) (34 . 35) (35 . 36)
+   (36 . 37) (37 . 38) ([38 39] . 39) 40 [41 42] 43 44 45 46 47 48 49 [50 51]]
   "The structure of the parashiot in a Hebrew year that starts on Tuesday,
 is `regular' (Heshvan has 29 days and Kislev has 30 days), and has Passover
 start on Thursday.")
 
 (defconst hebrew-calendar-year-Thursday-regular-Saturday
-  [52 nil nil 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 [21 22]
-   23 24 nil (nil . 25) (25.[26 27]) ([26 27].[28 29]) ([28 29].30) (30.31)
-   ([31 32].32) 33 34 35 36 37 38 39 40 [41 42]
-    43 44 45 46 47 48 49 50]
+  [52 nil nil 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 [21 22] 23
+   24 nil (nil . 25) (25 . [26 27]) ([26 27] . [28 29]) ([28 29] . 30)
+   (30 . 31) ([31 32] . 32) 33 34 35 36 37 38 39 40 [41 42] 43 44 45 46 47 48
+   49 50]
   "The structure of the parashiot in a Hebrew year that starts on Thursday,
 is `regular' (Heshvan has 29 days and Kislev has 30 days), and has Passover
 start on Saturday.")
@@ -1543,34 +1609,34 @@ start on Tuesday.")
 
 (defconst hebrew-calendar-year-Saturday-complete-Thursday
   [nil 52 nil nil 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
-   23 24 25 26 27 nil 28 29 30 31 32 33 (nil . 34) (34.35) (35.36) (36.37)
-   (37.38) ([38 39].39) 40 [41 42] 43 44 45 46 47 48 49 [50 51]]
+   23 24 25 26 27 nil 28 29 30 31 32 33 (nil . 34) (34 . 35) (35 . 36)
+   (36 . 37) (37 . 38) ([38 39] . 39) 40 [41 42] 43 44 45 46 47 48 49 [50 51]]
   "The structure of the parashiot in a Hebrew year that starts on Saturday,
 is `complete' (Heshvan and Kislev each have 30 days), and has Passover
 start on Thursday.")
 
 (defconst hebrew-calendar-year-Monday-incomplete-Thursday
   [51 52 nil 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
-   23 24 25 26 27 nil 28 29 30 31 32 33 (nil . 34) (34.35) (35.36) (36.37)
-  (37.38) ([38 39].39) 40 [41 42] 43 44 45 46 47 48 49 [50 51]]
+   23 24 25 26 27 nil 28 29 30 31 32 33 (nil . 34) (34 . 35) (35 . 36)
+   (36 . 37) (37 . 38) ([38 39] . 39) 40 [41 42] 43 44 45 46 47 48 49 [50 51]]
   "The structure of the parashiot in a Hebrew year that starts on Monday,
 is `incomplete' (Heshvan and Kislev each have 29 days), and has Passover
 start on Thursday.")
 
 (defconst hebrew-calendar-year-Monday-complete-Saturday
   [51 52 nil 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
-   23 24 25 26 27 nil (nil . 28) (28.29) (29.30) (30.31) (31.32) (32.33)
-   (33.34) (34.35) (35.36) (36.37) (37.38) (38.39) (39.40) (40.41) ([41 42].42)
-   43 44 45 46 47 48 49 50]
+   23 24 25 26 27 nil (nil . 28) (28 . 29) (29 . 30) (30 . 31) (31 . 32)
+   (32 . 33) (33 . 34) (34 . 35) (35 . 36) (36 . 37) (37 . 38) (38 . 39)
+   (39 . 40) (40 . 41) ([41 42] . 42) 43 44 45 46 47 48 49 50]
   "The structure of the parashiot in a Hebrew year that starts on Monday,
 is `complete' (Heshvan and Kislev each have 30 days), and has Passover
 start on Saturday.")
 
 (defconst hebrew-calendar-year-Tuesday-regular-Saturday
   [51 52 nil 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
-   23 24 25 26 27 nil (nil . 28) (28.29) (29.30) (30.31) (31.32) (32.33)
-   (33.34) (34.35) (35.36) (36.37) (37.38) (38.39) (39.40) (40.41) ([41 42].42)
-   43 44 45 46 47 48 49 50]
+   23 24 25 26 27 nil (nil . 28) (28 . 29) (29 . 30) (30 . 31) (31 . 32)
+   (32 . 33) (33 . 34) (34 . 35) (35 . 36) (36 . 37) (37 . 38) (38 . 39)
+   (39 . 40) (40 . 41) ([41 42] . 42) 43 44 45 46 47 48 49 50]
   "The structure of the parashiot in a Hebrew year that starts on Tuesday,
 is `regular' (Heshvan has 29 days and Kislev has 30 days), and has Passover
 start on Saturday.")
@@ -1598,39 +1664,6 @@ start on Tuesday.")
               (aref hebrew-calendar-parashiot-names (aref p 0))
               (aref hebrew-calendar-parashiot-names (aref p 1)))
     (aref hebrew-calendar-parashiot-names p)))
-
-(defun hebrew-calendar-yahrzeit (death-date year)
-  "Absolute date of the anniversary of Hebrew DEATH-DATE in Hebrew YEAR."
-  (let* ((death-day (extract-calendar-day death-date))
-         (death-month (extract-calendar-month death-date))
-         (death-year (extract-calendar-year death-date)))
-    (cond
-     ;; If it's Heshvan 30 it depends on the first anniversary; if
-     ;; that was not Heshvan 30, use the day before Kislev 1.
-     ((and (= death-month 8)
-           (= death-day 30)
-           (not (hebrew-calendar-long-heshvan-p (1+ death-year))))
-      (1- (calendar-absolute-from-hebrew (list 9 1 year))))
-     ;; If it's Kislev 30 it depends on the first anniversary; if
-     ;; that was not Kislev 30, use the day before Teveth 1.
-     ((and (= death-month 9)
-           (= death-day 30)
-           (hebrew-calendar-short-kislev-p (1+ death-year)))
-      (1- (calendar-absolute-from-hebrew (list 10 1 year))))
-     ;; If it's Adar II, use the same day in last month of
-     ;; year (Adar or Adar II).
-     ((= death-month 13)
-      (calendar-absolute-from-hebrew
-       (list (last-month-of-hebrew-year year) death-day year)))
-     ;; If it's the 30th in Adar I and $year$ is not a leap year
-     ;; (so Adar has only 29 days), use the last day in Shevat.
-     ((and (= death-day 30)
-           (= death-month 12)
-           (not (hebrew-calendar-leap-year-p death-year)))
-      (calendar-absolute-from-hebrew (list 11 30 year)))
-     ;; In all other cases, use the normal anniversary of the date of death.
-     (t (calendar-absolute-from-hebrew
-         (list death-month death-day year))))))
 
 (defun list-islamic-diary-entries ()
   "Add any Islamic date entries from the diary-file to diary-entries-list.
@@ -1878,242 +1911,6 @@ MONTH/DAY/YEAR.  A value of 0 in any position is a wild-card."
                  (mark-visible-calendar-date
                   (calendar-gregorian-from-absolute date)))))))))
 
-(defun make-diary-entry (string &optional nonmarking file)
-  "Insert a diary entry STRING which may be NONMARKING in FILE.
-If omitted, NONMARKING defaults to nil and FILE defaults to diary-file."
-  (find-file-other-window
-   (substitute-in-file-name (if file file diary-file)))
-  (goto-char (point-max))
-  (insert
-   (if (bolp) "" "\n")
-   (if nonmarking diary-nonmarking-symbol "")
-   string " "))
+(provide 'diary)
 
-(defun insert-diary-entry (arg)
-  "Insert a diary entry for the date indicated by point.
-Prefix arg will make the entry nonmarking."
-  (interactive "P")
-  (let* ((calendar-date-display-form
-          (if european-calendar-style
-              '(day " " monthname " " year)
-            '(monthname " " day ", " year))))
-    (make-diary-entry
-     (calendar-date-string
-      (or (calendar-cursor-to-date)
-          (error "Cursor is not on a date!"))
-      t)
-     arg)))
-
-(defun insert-weekly-diary-entry (arg)
-  "Insert a weekly diary entry for the day of the week indicated by point.
-Prefix arg will make the entry nonmarking."
-  (interactive "P")
-  (make-diary-entry
-   (calendar-day-name
-    (or (calendar-cursor-to-date)
-        (error "Cursor is not on a date!")))
-   arg))
-
-(defun insert-monthly-diary-entry (arg)
-  "Insert a monthly diary entry for the day of the month indicated by point.
-Prefix arg will make the entry nonmarking."
-  (interactive "P")
-  (let* ((calendar-date-display-form
-          (if european-calendar-style
-              '(day " * ")
-            '("* " day))))
-    (make-diary-entry
-     (calendar-date-string
-      (or (calendar-cursor-to-date)
-          (error "Cursor is not on a date!"))
-      t)
-     arg)))
-
-(defun insert-yearly-diary-entry (arg)
-  "Insert an annual diary entry for the day of the year indicated by point.
-Prefix arg will make the entry nonmarking."
-  (interactive "P")
-  (let* ((calendar-date-display-form
-          (if european-calendar-style
-              '(day " " monthname)
-            '(monthname " " day))))
-    (make-diary-entry
-     (calendar-date-string
-      (or (calendar-cursor-to-date)
-          (error "Cursor is not on a date!"))
-      t)
-     arg)))
-
-(defun insert-anniversary-diary-entry (arg)
-  "Insert an anniversary diary entry for the date given by point.
-Prefix arg will make the entry nonmarking."
-  (interactive "P")
-  (let* ((calendar-date-display-form
-          (if european-calendar-style
-              '(day " " month " " year)
-            '(month " " day " " year))))
-    (make-diary-entry
-     (format "%s(diary-anniversary %s)"
-             sexp-diary-entry-symbol
-             (calendar-date-string
-              (or (calendar-cursor-to-date)
-                  (error "Cursor is not on a date!"))))
-     arg)))
-
-(defun insert-block-diary-entry (arg)
-  "Insert a block diary entry for the days between the point and marked date.
-Prefix arg will make the entry nonmarking."
-  (interactive "P")
-  (let* ((calendar-date-display-form
-          (if european-calendar-style
-              '(day " " month " " year)
-            '(month " " day " " year)))
-         (cursor (or (calendar-cursor-to-date)
-                     (error "Cursor is not on a date!")))
-         (mark (or (car mark-ring)
-                   (error "No mark set in this buffer")))
-         (start)
-         (end))
-    (if (< (calendar-absolute-from-gregorian mark)
-           (calendar-absolute-from-gregorian cursor))
-        (setq start mark
-              end cursor)
-      (setq start cursor
-              end mark))
-    (make-diary-entry
-     (format "%s(diary-block %s %s)"
-      sexp-diary-entry-symbol
-      (calendar-date-string start)
-      (calendar-date-string end))
-     arg)))
-
-(defun insert-cyclic-diary-entry (arg)
-  "Insert a cyclic diary entry starting at the date given by point.
-Prefix arg will make the entry nonmarking."
-  (interactive "P")
-  (let* ((calendar-date-display-form
-          (if european-calendar-style
-              '(day " " month " " year)
-            '(month " " day " " year))))
-    (make-diary-entry
-     (format "%s(diary-cyclic %d %s)"
-             sexp-diary-entry-symbol
-             (calendar-read "Repeat every how many days: "
-                            '(lambda (x) (> x 0)))
-             (calendar-date-string
-              (or (calendar-cursor-to-date)
-                  (error "Cursor is not on a date!"))))
-     arg)))
-
-(defun insert-hebrew-diary-entry (arg)
-  "Insert a diary entry for the Hebrew date corresponding to the date
-indicated by point.  Prefix arg will make the entry nonmarking."
-  (interactive "P")
-  (let* ((calendar-date-display-form
-          (if european-calendar-style
-              '(day " " monthname " " year)
-            '(monthname " " day ", " year)))
-         (calendar-month-name-array
-          calendar-hebrew-month-name-array-leap-year))
-    (make-diary-entry
-     (concat
-      hebrew-diary-entry-symbol
-      (calendar-date-string 
-       (calendar-hebrew-from-absolute
-        (calendar-absolute-from-gregorian
-         (or (calendar-cursor-to-date)
-             (error "Cursor is not on a date!"))))))
-     arg)))
-
-(defun insert-monthly-hebrew-diary-entry (arg)
-  "Insert a monthly diary entry for the day of the Hebrew month corresponding
-to the date indicated by point.  Prefix arg will make the entry nonmarking."
-  (interactive "P")
-  (let* ((calendar-date-display-form
-          (if european-calendar-style '(day " * ") '("* " day )))
-         (calendar-month-name-array
-          calendar-hebrew-month-name-array-leap-year))
-    (make-diary-entry
-     (concat
-      hebrew-diary-entry-symbol
-      (calendar-date-string 
-       (calendar-hebrew-from-absolute
-        (calendar-absolute-from-gregorian
-         (or (calendar-cursor-to-date)
-             (error "Cursor is not on a date!"))))))
-     arg)))
-
-(defun insert-yearly-hebrew-diary-entry (arg)
-  "Insert an annual diary entry for the day of the Hebrew year corresponding
-to the date indicated by point.  Prefix arg will make the entry nonmarking."
-  (interactive "P")
-  (let* ((calendar-date-display-form
-          (if european-calendar-style
-              '(day " " monthname)
-            '(monthname " " day)))
-         (calendar-month-name-array
-          calendar-hebrew-month-name-array-leap-year))
-    (make-diary-entry
-     (concat
-      hebrew-diary-entry-symbol
-      (calendar-date-string 
-       (calendar-hebrew-from-absolute
-        (calendar-absolute-from-gregorian
-         (or (calendar-cursor-to-date)
-             (error "Cursor is not on a date!"))))))
-     arg)))
-
-(defun insert-islamic-diary-entry (arg)
-  "Insert a diary entry for the Islamic date corresponding to the date
-indicated by point.  Prefix arg will make the entry nonmarking."
-  (interactive "P")
-  (let* ((calendar-date-display-form
-          (if european-calendar-style
-              '(day " " monthname " " year)
-            '(monthname " " day ", " year)))
-         (calendar-month-name-array calendar-islamic-month-name-array))
-    (make-diary-entry
-     (concat
-      islamic-diary-entry-symbol
-      (calendar-date-string 
-       (calendar-islamic-from-absolute
-        (calendar-absolute-from-gregorian
-         (or (calendar-cursor-to-date)
-             (error "Cursor is not on a date!"))))))
-     arg)))
-
-(defun insert-monthly-islamic-diary-entry (arg)
-  "Insert a monthly diary entry for the day of the Islamic month corresponding
-to the date indicated by point.  Prefix arg will make the entry nonmarking."
-  (interactive "P")
-  (let* ((calendar-date-display-form
-          (if european-calendar-style '(day " * ") '("* " day )))
-         (calendar-month-name-array calendar-islamic-month-name-array))
-    (make-diary-entry
-     (concat
-      islamic-diary-entry-symbol
-      (calendar-date-string 
-       (calendar-islamic-from-absolute
-        (calendar-absolute-from-gregorian
-         (or (calendar-cursor-to-date)
-             (error "Cursor is not on a date!"))))))
-     arg)))
-
-(defun insert-yearly-islamic-diary-entry (arg)
-  "Insert an annual diary entry for the day of the Islamic year corresponding
-to the date indicated by point.  Prefix arg will make the entry nonmarking."
-  (interactive "P")
-  (let* ((calendar-date-display-form
-          (if european-calendar-style
-              '(day " " monthname)
-            '(monthname " " day)))
-         (calendar-month-name-array calendar-islamic-month-name-array))
-    (make-diary-entry
-     (concat
-      islamic-diary-entry-symbol
-      (calendar-date-string 
-       (calendar-islamic-from-absolute
-        (calendar-absolute-from-gregorian
-         (or (calendar-cursor-to-date)
-             (error "Cursor is not on a date!"))))))
-     arg)))
+;;; diary.el ends here

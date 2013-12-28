@@ -43,10 +43,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    which is a different size than this one.  The solution for this is to
    make x-faces.el try to use XtDefaultFont.  The problem with that is that
    XtDefaultFont is almost certainly variable-width.
+
+   #### Perhaps we could have this code explicitly set XtDefaultFont to this?
  */
 #define DEFAULT_FACE_FONT "-*-courier-medium-r-*-*-*-120-*-*-*-*-iso8859-*"
-
-#define COLOR_SCREEN_P(w) (XCellsOfScreen (XtScreen (w)) > 2)
 
 void emacs_Xt_focus_event_handler ();
 
@@ -106,20 +106,21 @@ static XtResource initial_geometry_resources[] = {
 
 static XtActionsRec
 emacsScreenActionsTable [] = {
-  {"keypress", key_press},
+  {"keypress",  key_press},
   {"focus_in",  emacs_screen_focus_handler},
   {"focus_out", emacs_screen_focus_handler},
 };
 
 static char
-emacsScreenTranslations [] = "<KeyPress>: keypress()\n\
-<FocusIn>: focus_in()\n\
+emacsScreenTranslations [] = "\
+<KeyPress>: keypress()\n\
+<FocusIn>:  focus_in()\n\
 <FocusOut>: focus_out()\n\
 ";
 
 EmacsScreenClassRec emacsScreenClassRec = {
     { /* core fields */
-    /* superclass		*/	&widgetClassRec, /*&xmLabelClassRec,*/
+    /* superclass		*/	&widgetClassRec,
     /* class_name		*/	"EmacsScreen",
     /* widget_size		*/	sizeof(EmacsScreenRec),
     /* class_initialize		*/	0,
@@ -237,26 +238,58 @@ set_screen_size (EmacsScreenWidget ew)
 
   wmshell = get_wm_shell ((Widget)ew);
 
-  if (!ew->emacs_screen.emacs_geometry)
-    XtVaGetValues (wmshell, XtNgeometry,
-		   &ew->emacs_screen.emacs_geometry, 0);
+  /* The widget hierarchy is
 
-  if (!ew->emacs_screen.emacs_geometry)
-    XtVaGetValues (XtParent (wmshell), XtNgeometry,
-		   &ew->emacs_screen.emacs_geometry, 0);
+	argv[0]			screen_name	pane	screen
+	ApplicationShell	EmacsShell	Paned	EmacsScreen
 
-  if (!ew->emacs_screen.emacs_geometry && is_first_screen)
+     We accept geometry specs in this order:
+
+	*screen-name.geometry
+	*EmacsScreen.geometry
+	Emacs.geometry
+
+     This is bad.  screen-name and EmacsScreen should be at the same
+     level of the hierarchy.  Possibilities would be
+
+	argv[0]			screen		pane	screen-name
+	ApplicationShell	EmacsShell	Paned	EmacsScreen
+     or
+	argv[0]			screen-name	pane	screen-name
+	ApplicationShell	EmacsShell	Paned	EmacsScreen
+     or
+	argv[0]			screen-name	pane	textPane
+	ApplicationShell	EmacsScreen	Paned	EmacsTextPane
+   */
+
+
+  /* If Emacs.this_screen.geometry was not specified, default to the
+     parent's geometry, so that the resource "Emacs.geometry" is the
+     same as the resource "Emacs.EmacsScreen.geometry".
+   */
+  if (!ew->emacs_screen.emacs_geometry)
     {
-      XtGetSubresources ((Widget)ew,
-			 (XtPointer)&ew->emacs_screen.emacs_geometry,
+      XtVaGetValues (XtParent (wmshell),
+		     XtNgeometry, &ew->emacs_screen.emacs_geometry, 0);
+      if (!ew->emacs_screen.emacs_geometry)
+	XtVaGetValues (wmshell,
+		       XtNgeometry, &ew->emacs_screen.emacs_geometry, 0);
+    }
+
+  /* -geometry overrides all other resources, but only applies to
+     the first screen. */
+  if (is_first_screen)
+    {
+      char *geom = 0;
+      XtGetSubresources ((Widget) ew, (XtPointer) &geom,
 			 ew->core.name,
 			 ew->core.widget_class->core_class.class_name,
 			 initial_geometry_resources,
-			 XtNumber (initial_geometry_resources),
-			 0, 0);
+			 XtNumber (initial_geometry_resources), 0, 0);
+      if (geom)
+	ew->emacs_screen.emacs_geometry = geom;
+      is_first_screen = False;
     }
-
-  is_first_screen = False;
 
   if (ew->emacs_screen.emacs_geometry)
     parse_result = XParseGeometry (ew->emacs_screen.emacs_geometry,
@@ -268,7 +301,7 @@ set_screen_size (EmacsScreenWidget ew)
   char_to_pixel_size (ew, columns, rows, &pixel_width, &pixel_height);
   ew->core.width = pixel_width;
   ew->core.height = pixel_height;
-  
+
   /* If a position was specified, assign it to the shell widget. */
   if (parse_result & (XValue | YValue))
     {
@@ -598,7 +631,9 @@ EmacsScreenQueryGeometry (Widget widget, XtWidgetGeometry* request,
 }
 
 
-/* action proc */
+/* I don't know why this is necessary; Matthieu said he had to do
+   it to make the focus handlers work??
+ */
 static void
 key_press (Widget w, XEvent* event, String *params, Cardinal *n_params)
 {
@@ -634,5 +669,3 @@ EmacsScreenSetCharSize (Widget widget, int columns, int rows)
       XtVaSetValues ((Widget) ew, XtNwidth, pixel_width, 0);
     }
 }
-
-

@@ -104,7 +104,8 @@ init_device (volume, data, fd, header_length)
 
   if (0 != audio_cmp_hdr (&dev_hdr, &file_hdr))
     {
-      Audio_hdr new_hdr = file_hdr;
+      Audio_hdr new_hdr;
+      new_hdr = file_hdr;
       reset_device_p = 1;
       if (AUDIO_SUCCESS != audio_set_play_config (audio_fd, &new_hdr))
 	{

@@ -1,5 +1,5 @@
 /* Definitions file for GNU Emacs running on bsd 4.2
-   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifndef _S_BSD4_2_H_
+#define _S_BSD4_2_H_
 
 /*
  *	Define symbols to identify the version of Unix this is.
@@ -163,3 +165,5 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define LDAV_SYMBOL "_avenrun"
 
 #define FLOAT_CATCH_SIGILL
+
+#endif /* _S_BSD4_2_H_ */

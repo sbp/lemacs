@@ -248,8 +248,16 @@ buffer_starting_extent (int index, struct buffer *buf)
     }
 
   /* index is before the cached values */
-  /* get the previous extent */
-  ext = soe->previous_extent;
+
+  /* The extent which is before the first one in the 
+     cache is a good starting point for backing up
+     previous extent. */
+  if (soe->stack_index)
+    ext = soe->stack [0];
+  else
+    /* if there is nothing in the cache the previous extent
+       can be used */
+    ext = soe->previous_extent;
 
   /* no previous extent in the cache */
   if (!ext)
@@ -1299,8 +1307,11 @@ insertions at FROM will be inside the extent (and the extent will grow.)")
    Lisp_Object from, to, buffer;
 {
   Lisp_Object extent_obj;
+  CHECK_FIXNUM (from, 0);
+  CHECK_FIXNUM (to, 0);
   if (NILP (buffer))
     XSET (buffer, Lisp_Buffer, current_buffer);
+  CHECK_BUFFER (buffer, 0);
   extent_obj = make_extent_internal (XINT(from), XINT(to), buffer, 0);
   return extent_obj;
 }
@@ -1602,7 +1613,7 @@ extent at POS.")
   (pos, buffer, flag)
    Lisp_Object pos, buffer, flag;
 {
-  int position = XINT (pos);
+  int position;
   int flag_to_check = 0;
   Lisp_Object extent_obj = Qnil;
   EXTENT extent;
@@ -1610,8 +1621,9 @@ extent at POS.")
   if (NILP (buffer))
     XSET (buffer, Lisp_Buffer, current_buffer);
 
-  CHECK_FIXNUM (pos, 0);
+  CHECK_FIXNUM_COERCE_MARKER (pos, 0);
   CHECK_BUFFER (buffer, 1);
+  position = XINT (pos);
   check_from_to (position, position, XBUFFER (buffer));
 
   if (!NILP (flag))

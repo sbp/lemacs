@@ -1,7 +1,7 @@
 ;;; Pending delete selection
-;;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+;;; Copyright (C) 1992 Free Software Foundation, Inc.
 ;;; Created: 14 Jul 92, Matthieu Devin <devin@lucid.com>
-;;; Last change  9-Sep-92. devin
+;;; Last change  18-Feb-93, devin.
 
 ;;; This file is part of GNU Emacs.
 
@@ -23,6 +23,8 @@
 ;;; text inserted while the region is active will replace the region contents.
 ;;; This is a popular behavior of personal computers text editors.
 
+(provide 'pending-del)
+
 (defun delete-active-region (&optional killp)
   (if (and (not buffer-read-only)
 	   (extentp primary-selection-extent)
@@ -35,6 +37,7 @@
 			 (extent-end-position primary-selection-extent))
 	  (delete-region (extent-start-position primary-selection-extent)
 			 (extent-end-position primary-selection-extent)))
+	(zmacs-deactivate-region)
 	t)))
 
 (defun pending-delete-pre-hook ()
@@ -61,6 +64,54 @@
 (put 'newline 'pending-delete t)
 (put 'open-line 'pending-delete t)
 
-(add-hook 'pre-command-hook 'pending-delete-pre-hook)
+(defun pending-delete ()
+  "Toggle the state of the pending-delete package.  
+When ON typed text replaces the selection if the selection is active.
+When OFF typed text is just inserted at point."
+  (interactive)
+  (if (memq 'pending-delete-pre-hook pre-command-hook)
+      (progn
+	(remove-hook 'pre-command-hook 'pending-delete-pre-hook)
+	(message "pending delete is OFF"))
+    (progn
+      (add-hook 'pre-command-hook 'pending-delete-pre-hook)
+      (message
+       "Pending delete is ON, use M-x pending-delete to turn it OFF"))))
 
-(setq zmacs-regions t)
+(pending-delete)
+
+;; This new definition of control-G makes the first control-G disown the 
+;; selection and the second one signal a QUIT.
+;; This is very useful for cancelling a selection in the minibuffer without 
+;; aborting the minibuffer.
+;; It has actually nothing to do with pending-delete but its more necessary
+;; with pending delete because pending delete users use the selection more.
+(defun keyboard-quit ()
+  "Signal a `quit' condition.
+If this character is typed while lisp code is executing, it will be treated
+ as an interrupt.
+If this character is typed at top-level, this simply beeps.
+If `zmacs-regions' is true, and the zmacs region is active, then this
+ key deactivates the region without beeping or signalling."
+  (interactive)
+  (if (and zmacs-regions (zmacs-deactivate-region))
+      ;; pseudo-zmacs compatibility: don't beep if this ^G is simply
+      ;; deactivating the region.  If it is inactive, beep.
+      nil
+    (signal 'quit nil)))
+
+(defun minibuffer-keyboard-quit ()
+  "Abort recursive edit
+If `zmacs-regions' is true, and the zmacs region is active, then this
+ key deactivates the region without beeping."
+  (interactive)
+  (if (and zmacs-regions (zmacs-deactivate-region))
+      ;; pseudo-zmacs compatibility: don't beep if this ^G is simply
+      ;; deactivating the region.  If it is inactive, beep.
+      nil
+    (abort-recursive-edit)))
+
+(define-key minibuffer-local-map '(control g) 'minibuffer-keyboard-quit) 
+
+
+

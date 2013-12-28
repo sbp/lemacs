@@ -157,7 +157,8 @@ make_menu_in_widget (widget_instance* instance, Widget widget,
       XtSetArg (al [ac], XtNuserData, instance); ac++;
       XtSetArg (al [ac], XtNacceleratorText, cur->key); ac++;
       
-      label = (char *) resource_string (widget, cur->name);
+/*      label = (char *) resource_string (widget, cur->name);*/
+      label = cur->name;
       if (label)
 	{
 	  XtSetArg (al [ac], XtNlabel, label); ac++;

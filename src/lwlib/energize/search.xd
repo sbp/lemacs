@@ -1,0 +1,209 @@
+module 'Energize'
+applicationName = 'Energize';
+generateNameC = 'search.xdc';
+generateNameUIL = '';
+generateNameResDB = '';
+generateUidFile = '';
+generateMask = 458980;
+useMask = 1;
+value
+object '' : XmDialogShell {
+	arguments {
+	name = 'dialog';
+	XmNallowShellResize= true;
+	};
+object '' : XmForm {
+	arguments {
+	name = 'searchDialog';
+	XmNautoUnmanage= false;
+	XmNdefaultButton= 'button1';
+	};
+object '' : XmRowColumn {
+	arguments {
+	XmNorientation= 2;
+	};
+object '' : XmFrame {
+	arguments {
+	};
+object '' : XmRadioBox {
+	arguments {
+	name = 'directionBox';
+	XmNorientation= 2;
+	XmNpacking= 1;
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'directionForward';
+	XmNlabelString= 'Forward';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'directionBackward';
+	XmNlabelString= 'Backward';
+	};
+};
+};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'regexpSearch';
+	XmNlabelString= 'Regular Expression';
+	};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'caseSearch';
+	XmNlabelString= 'Match Case';
+	};
+};
+};
+object '' : XmRowColumn {
+	arguments {
+	};
+object 'button1' : XmPushButton {
+	arguments {
+	name = 'button1';
+	XmNlabelString= 'Find Next';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'button2';
+	XmNlabelString= 'Replace';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'button3';
+	XmNlabelString= 'Replace All';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'button4';
+	XmNlabelString= 'Done';
+	};
+};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'iconSeparator';
+	XmNlabelString= ' ';
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'iconSeparator';
+	XmNlabelString= ' ';
+	};
+};
+object '' : XmRowColumn {
+	arguments {
+	};
+object '' : XmPushButton {
+	arguments {
+	name = 'gotoStart';
+	XmNlabelString= 'Beginning';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'scrollBack';
+	XmNlabelString= 'Page Back';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'scrollForward';
+	XmNlabelString= 'Page Forward';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'gotoEnd';
+	XmNlabelString= 'End';
+	};
+};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'searchLabel';
+	XmNlabelString= 'Search For:';
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'replaceLabel';
+	XmNlabelString= 'Replace with:';
+	};
+};
+object '' : XmTextField {
+	arguments {
+	name = 'searchText';
+	};
+};
+object '' : XmTextField {
+	arguments {
+	name = 'replaceText';
+	};
+};
+    attachments {
+    attachment {
+	XmNrightAttachment = 3 2 4;
+	XmNleftAttachment = 1 0 4;
+	XmNbottomAttachment = 3 4 4;
+	XmNtopAttachment = 3 9 4;
+    };
+    attachment {
+	XmNrightAttachment = 3 5 4;
+	XmNleftAttachment = 0 0 0;
+	XmNbottomAttachment = 1 0 4;
+	XmNtopAttachment = 1 0 4;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 7;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 1 0 67;
+    };
+    attachment {
+	XmNrightAttachment = 3 2 4;
+	XmNleftAttachment = 1 0 4;
+	XmNbottomAttachment = 1 0 4;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 4;
+	XmNleftAttachment = 0 0 0;
+	XmNbottomAttachment = 1 0 4;
+	XmNtopAttachment = 1 0 4;
+    };
+    attachment {
+	XmNrightAttachment = 4 7 0;
+	XmNleftAttachment = 0 0 0;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 1 0 5;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 4;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 1 0 41;
+    };
+    attachment {
+	XmNrightAttachment = 3 2 4;
+	XmNleftAttachment = 3 7 4;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 1 0 4;
+    };
+    attachment {
+	XmNrightAttachment = 3 2 4;
+	XmNleftAttachment = 3 7 4;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 3 8 4;
+    };
+    };
+};
+};
+end module;

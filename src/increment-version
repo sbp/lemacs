@@ -1,0 +1,10 @@
+#!/bin/csh -f
+set real_dir = `/cadillac1/utilities/realpath $cwd `
+set base_dir = `/cadillac1/utilities/realpath /wg1/emacs-base/src `
+if ( $real_dir == $base_dir ) then
+ echo "Release directory: incrementing version."
+ ./temacs -batch -l inc-vers
+else
+ echo "Not release directory: not incrementing version, removing old versions."
+ rm -f emacs-19.*
+endif

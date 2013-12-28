@@ -1,4 +1,4 @@
-Info file dired.info, produced by Makeinfo, -*- Text -*- from input
+Info file ../info/dired, produced by Makeinfo, -*- Text -*- from input
 file dired.texi.
 
    This file documents Tree Dired, the GNU Emacs Directory Browser, and
@@ -24,59 +24,59 @@ License" may be included in a translation approved by the author
 instead of in the original English.
 
 Indirect:
-dired.info-1: 1096
-dired.info-2: 47939
-dired.info-3: 95621
+dired-1: 1099
+dired-2: 47839
+dired-3: 95416
 
 Tag Table:
 (Indirect)
-Node: Top1098
+Node: Top1101
 Node: Dired3340
-Node: Entering Dired4376
-Node: Editing in Dired6260
-Node: Listing Files in Dired8850
-Node: Marking Files in Dired17085
-Node: Mark-using Commands19446
-Node: Copy and Move Into a Directory21375
-Node: Renaming and More With Regexps25290
-Node: Other File Creating Commands28173
-Node: Deleting Files With Dired28571
-Node: Dired Shell Commands33338
-Node: Compressing and Uncompressing37371
-Node: Changing File Attributes37951
-Node: Loading and Byte-compiling Emacs Lisp Files38813
-Node: Printing the Marked Files39319
-Node: Commands That Do Not Use Marks40134
-Node: Subdirectories in Dired42371
-Node: Hiding Directories in Dired45279
-Node: Acknowledgement46320
-Node: Dired Customization47547
-Node: Dired User Options47941
-Node: Dired Configuration52559
-Node: Dired Hooks53724
-Node: Tree Dired Extra57389
-Node: Tree Dired Extra Features58272
-Node: Dired Minibuffer History61327
-Node: Inserting All Marked Subdirectories62176
-Node: Dynamic Dired Markers62833
-Node: Omitting Files in Dired64082
-Node: Advanced Dired Mark Commands69056
-Node: Virtual Dired74545
-Node: Multiple Dired Directories76104
-Node: Dired Local Variables79148
-Node: Making Relative Symbolic Links in Dired80182
-Node: Letting Dired Guess What Shell Command to Apply82089
-Node: dired-trns.el84853
-Node: dired-cd.el87604
-Node: dired-nstd.el90176
-Node: find-dired.el90406
-Node: Dired Internals92283
-Node: Tree Dired Internals92636
-Node: Dired Mark Internals95623
-Node: Dired Known Problems98564
-Node: Dired Variable Index103458
-Node: Dired Function Index107905
-Node: Dired Key Index115255
-Node: Dired Concept Index121987
+Node: Entering Dired4371
+Node: Editing in Dired6250
+Node: Listing Files in Dired8835
+Node: Marking Files in Dired17065
+Node: Mark-using Commands19421
+Node: Copy and Move Into a Directory21345
+Node: Renaming and More With Regexps25255
+Node: Other File Creating Commands28133
+Node: Deleting Files With Dired28526
+Node: Dired Shell Commands33288
+Node: Compressing and Uncompressing37316
+Node: Changing File Attributes37891
+Node: Loading and Byte-compiling Emacs Lisp Files38748
+Node: Printing the Marked Files39249
+Node: Commands That Do Not Use Marks40059
+Node: Subdirectories in Dired42291
+Node: Hiding Directories in Dired45194
+Node: Acknowledgement46230
+Node: Dired Customization47452
+Node: Dired User Options47841
+Node: Dired Configuration52454
+Node: Dired Hooks53614
+Node: Tree Dired Extra57274
+Node: Tree Dired Extra Features58152
+Node: Dired Minibuffer History61202
+Node: Inserting All Marked Subdirectories62046
+Node: Dynamic Dired Markers62698
+Node: Omitting Files in Dired63942
+Node: Advanced Dired Mark Commands68911
+Node: Virtual Dired74395
+Node: Multiple Dired Directories75949
+Node: Dired Local Variables78988
+Node: Making Relative Symbolic Links in Dired80017
+Node: Letting Dired Guess What Shell Command to Apply81919
+Node: dired-trns.el84678
+Node: dired-cd.el87424
+Node: dired-nstd.el89991
+Node: find-dired.el90216
+Node: Dired Internals92088
+Node: Tree Dired Internals92436
+Node: Dired Mark Internals95418
+Node: Dired Known Problems98354
+Node: Dired Variable Index103243
+Node: Dired Function Index107685
+Node: Dired Key Index115030
+Node: Dired Concept Index121757
 
 End Tag Table

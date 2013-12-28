@@ -1,11 +1,11 @@
 ;; Lisp interface to the c "face" structure.
-;; Copyright (C) 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1992-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -172,25 +172,27 @@ in that screen\; otherwise it will be changed in all screens."
 
 (defun make-face (name)
   "Defines and returns a new FACE on all screens.  
-You can modify the font, color, etc of this face with the set-face- functions."
-  (let ((face (make-vector 8 nil)))
-    (aset face 0 'face)
-    (aset face 1 name)
-    (let* ((screens (screen-list))
-	   (inhibit-quit t)
-	   (id face-id-tick))
-      (make-face-internal name face id) ; may error
-      (setq face-id-tick (1+ face-id-tick)) ; now it's safe
-      (while screens
-	(aset (get-face name (car screens)) 2 id)
-	(setq screens (cdr screens)))
-      (setq face (copy-sequence face))
-      (aset face 2 id)
-      (setq global-face-data (cons (cons name face) global-face-data)))
-    ;; when making a face after screens already exist
-    (if (eq window-system 'x)
-	(x-resource-face face))
-    face))
+You can modify the font, color, etc of this face with the set-face- functions.
+If the face already exists, it is unmodified."
+  (or (find-face name)
+      (let ((face (make-vector 8 nil)))
+	(aset face 0 'face)
+	(aset face 1 name)
+	(let* ((screens (screen-list))
+	       (inhibit-quit t)
+	       (id face-id-tick))
+	  (make-face-internal name face id) ; may error
+	  (setq face-id-tick (1+ face-id-tick)) ; now it's safe
+	  (while screens
+	    (aset (get-face name (car screens)) 2 id)
+	    (setq screens (cdr screens)))
+	  (setq face (copy-sequence face))
+	  (aset face 2 id)
+	  (setq global-face-data (cons (cons name face) global-face-data)))
+	;; when making a face after screens already exist
+	(if (eq window-system 'x)
+	    (x-resource-face face))
+	face)))
 
 (defun copy-face (old-face new-name &optional screen)
   "Defines and returns a new face which is a copy of an existing one,

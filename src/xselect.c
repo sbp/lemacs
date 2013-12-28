@@ -25,6 +25,14 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "dispextern.h"	/* screen.h seems to want this */
 #include "screen.h"	/* Need this to get the X window of selected_screen */
 
+#ifdef LWLIB_USES_MOTIF
+# define MOTIF_CLIPBOARDS
+#endif
+
+#ifdef MOTIF_CLIPBOARDS
+# include <Xm/CutPaste.h>
+#endif
+
 #define CUT_BUFFER_SUPPORT
 
 static Atom Xatom_CLIPBOARD, Xatom_TIMESTAMP, Xatom_TEXT, Xatom_DELETE,
@@ -139,9 +147,6 @@ symbol_to_x_atom (display, sym)
 #endif
   if (!SYMBOLP (sym)) abort ();
 
-#if 0
-  fprintf (stderr, " XInternAtom %s\n", (char *) XSYMBOL (sym)->name->data);
-#endif
   BLOCK_INPUT;
   val = XInternAtom (display, (char *) XSYMBOL (sym)->name->data, False);
   UNBLOCK_INPUT;
@@ -188,9 +193,6 @@ x_atom_to_symbol (display, atom)
   BLOCK_INPUT;
   str = XGetAtomName (display, atom);
   UNBLOCK_INPUT;
-#if 0
-  fprintf (stderr, " XGetAtomName --> %s\n", str);
-#endif
   if (! str) return Qnil;
   val = intern (str);
   BLOCK_INPUT;
@@ -269,6 +271,39 @@ x_own_selection (selection_name, selection_value)
 	    }
       }
   }
+
+#ifdef MOTIF_CLIPBOARDS
+  /* Those Motif wankers can't be bothered to follow the ICCCM, and do
+     their own non-Xlib non-Xt clipboard processing.  So we have to do
+     this so that linked-in Motif widgets don't get themselves wedged.
+   */
+  if (selection_atom == Xatom_CLIPBOARD &&
+      STRINGP (selection_value))
+    {
+      Widget widget = selected_screen->display.x->edit_widget;
+      int result;
+      long itemid;
+      int dataid;
+      XmString fmh;
+      BLOCK_INPUT;
+      fmh = XmStringCreateLtoR ("Clipboard", XmSTRING_DEFAULT_CHARSET);
+      while (ClipboardSuccess !=
+	     XmClipboardStartCopy (display, selecting_window, fmh, time,
+				   widget, NULL, &itemid))
+	;
+      XmStringFree (fmh);
+      while (ClipboardSuccess !=
+	     XmClipboardCopy (display, selecting_window, itemid, "STRING",
+			      (char *) XSTRING (selection_value)->data,
+			      XSTRING (selection_value)->size + 1,
+			      0, &dataid))
+	;
+      while (ClipboardSuccess !=
+	     XmClipboardEndCopy (display, selecting_window, itemid))
+	;
+      UNBLOCK_INPUT;
+    }
+#endif /* MOTIF_CLIPBOARDS */
 }
 
 
@@ -281,7 +316,7 @@ x_get_local_selection (selection_symbol, target_type)
      Lisp_Object selection_symbol, target_type;
 {
   Lisp_Object local_value = assq_no_quit (selection_symbol, Vselection_alist);
-  Lisp_Object handler_fn, value, type, check;
+  Lisp_Object handler_fn, value, check;
 
   if (NILP (local_value)) return Qnil;
 
@@ -291,16 +326,6 @@ x_get_local_selection (selection_symbol, target_type)
       handler_fn = Qnil;
       value = XCONS (XCONS (XCONS (local_value)->cdr)->cdr)->car;
     }
-#if 0
-  else if (EQ (target_type, QDELETE))
-    {
-      handler_fn = Qnil;
-      Fx_disown_selection_internal
-	(selection_symbol,
-	 XCONS (XCONS (XCONS (local_value)->cdr)->cdr)->car);
-      value = QNULL;
-    }
-#endif
 
 #if 0 /* #### MULTIPLE doesn't work yet */
   else if (CONSP (target_type) &&
@@ -334,18 +359,29 @@ x_get_local_selection (selection_symbol, target_type)
 		     XCONS (XCONS (local_value)->cdr)->car);
     }
 
+  /* This lets the selection function to return (TYPE . VALUE).  For example,
+     when the selected type is LINE_NUMBER, the returned type is SPAN, not
+     INTEGER.
+   */
   check = value;
-  if (CONSP (value) &&
-      SYMBOLP (XCONS (value)->car))
-    type = XCONS (value)->car,
+  if (CONSP (value) && SYMBOLP (XCONS (value)->car))
     check = XCONS (value)->cdr;
   
+  /* Strings, vectors, and symbols are converted to selection data format in
+     the obvious way.  Integers are converted to 16 bit quantities if they're
+     small enough, otherwise 32 bits are used.
+   */
   if (STRINGP (check) ||
       VECTORP (check) ||
       SYMBOLP (check) ||
       FIXNUMP (check) ||
       NILP (value))
     return value;
+
+  /* (N . M) or (N M) get turned into a 32 bit quantity.  So if you want to
+     always return a small quantity as 32 bits, your converter routine needs
+     to return a cons.
+   */
   else if (CONSP (check) &&
 	   FIXNUMP (XCONS (check)->car) &&
 	   (FIXNUMP (XCONS (check)->cdr) ||
@@ -353,6 +389,8 @@ x_get_local_selection (selection_symbol, target_type)
 	     FIXNUMP (XCONS (XCONS (check)->cdr)->car) &&
 	     NILP (XCONS (XCONS (check)->cdr)->cdr))))
     return value;
+  /* Otherwise the lisp converter function returned something unrecognised. 
+   */
   else
     return
       Fsignal (Qerror,
@@ -1246,6 +1284,19 @@ selection_data_to_lisp_data (display, data, size, type, format)
 
   /* Convert any other kind of data to a vector of numbers, represented
      as above (as an integer, or a cons of two 16 bit integers.)
+
+     #### Perhaps we should return the actual type to lisp as well.
+
+	(x-get-selection-internal 'PRIMARY 'LINE_NUMBER)
+	==> [4 4]
+
+     and perhaps it should be
+
+	(x-get-selection-internal 'PRIMARY 'LINE_NUMBER)
+	==> (SPAN . [4 4])
+
+     Right now the fact that the return type was SPAN is discarded before
+     lisp code gets to see it.
    */
   else if (format == 16)
     {

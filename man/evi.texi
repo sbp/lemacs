@@ -1,0 +1,822 @@
+% -*-texinfo-*-
+
+\input texinfo
+
+@setfilename evi.info
+@settitle Evi - Emulate/Enhanced VI for GNU Emacs
+@setchapternewpage odd
+
+@iftex
+@finalout
+@end iftex
+
+@ifinfo
+This file documents Evi - a vi emulator for GNU Emacs
+
+Copyright @copyright{} 1992, 1993  Jeffrey R. Lewis
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+@ignore
+Permission is granted to process this file through Tex and print the
+results, provided the printed document carries copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+@end ignore
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the same conditions as for modified versions.
+@end ifinfo
+
+@titlepage
+@title Evi - Emulate/Enhanced vi for GNU Emacs
+@subtitle January 1993, Evi Version 0.99.7
+
+@author Jeffrey R. Lewis
+
+@page
+@vskip 0pt plus 1filll
+
+Copyright @copyright{} 1992, 1993  Jeffrey R. Lewis
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+@ignore
+Permission is granted to process this file through Tex and print the
+results, provided the printed document carries copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+@end ignore
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the same conditions as for modified versions.
+@end titlepage
+
+@node Top,Overview,(DIR),(DIR)
+
+@menu
+* Overview::			What is Evi?
+* Setting up Evi::		How to start using Evi
+* File and buffer management::	How vi file and buffer commands
+				work under Evi, plus Evi extensions
+* Window management::		How vi window management commands
+				work under Evi, plus Evi extensions
+* Emacs commands::		How to access emacs commands from Evi
+* Emacs editing modes::		Taking advantage of emacs editing modes
+* Customizing::			How to customize Evi
+* Arrow keys::			How to use the arrow keys
+* Enhancements::		Various Evi enhancements to vi
+* New operators::		New commands that operate over regions
+* Differences::			Differences between Evi and vi
+* Ex commands::			Supported ex commands and variable settings
+* Note to vip users::		Differences between Evi and vip
+* Bugs::			What to do if things go wrong
+* Mailing list::		How to join and submit to the Evi mailing list
+* Getting a copy of Evi::	How and where to get more recent copies of Evi
+* Credits::			Who contributed to Evi
+@end menu
+
+@node Overview,Setting up Evi,Top,Top
+
+Evi is a vi emulator aimed at those who are either just plain accustomed
+to vi, or who just simply happen to like its style of editing better
+than emacs' default.  Evi's first goal is vi compatibility.  Its second
+goal is to be an extension of vi, taking advantage of features supplied
+by the emacs environment, without simply becoming emacs with vi'ish key
+bindings.
+
+Ideally, you shouldn't need any special manual to start using Evi, other
+than your vi manual.  By default evi is set-up to emulate vi as closely
+as possible, including using your EXINIT environment variable and/or
+.exrc startup files.  Of course, you'll need to know how to get started
+with Evi, and you'll probably want to take advantage of some of Evi's
+extensions, and be aware of what's different between vi and Evi.  That's
+what this manual covers.
+
+A note on conventions used in this manual: @kbd{M-x} means the escape
+key followed by the character x (where x is any character), @kbd{C-x}
+means control-x, @key{RET} means the return key,
+@key{ESC} means the escape key. @refill
+
+@node Setting up Evi,File and buffer management,Overview,Top
+@section Setting up Evi
+
+To just test Evi out, type:
+@example
+M-x load-file @key{RET} evi.el @key{RET}
+M-x evi @key{RET}
+@end example
+(don't type the spaces) You will now be in the emulator.
+
+If you have any trouble at this point due to something in your @file{.exrc} or
+@code{EXINIT}, and wish to suppress sourcing of
+@file{.exrc} and @code{EXINIT}, place the
+following in your @file{.emacs}: @refill
+@example
+(setq evi-supress-ex-startup t)
+@end example
+Then, send me a note with the contents of your @file{.exrc} and @code{EXINIT}
+so we can fix the problem.
+
+If you decide to continue using Evi, I would recommend first you byte
+compile it to speed things up, using the following shell command:
+@example
+emacs -batch -l evi.el -f batch-byte-compile evi.el
+@end example
+Next, if you want to use Evi all the time, put the following at the end
+of your @file{.emacs} file:
+@example
+(load "<wherever-evi-is>/evi")
+(setq term-setup-hook 'evi)
+@end example
+this will make emacs go into Evi every time you fire it up.  Of course,
+you may wish to have Evi properly installed for all to use - consult
+your local emacs guru.
+
+@node File and buffer management,Window management,Setting up Evi,Top
+@section File and buffer management
+
+Vi's file management commands have long tried to mimic having multiple
+buffers, and as such, work well enough to use in an emacs setting.  They
+of course have to take on slightly different meanings, since it makes
+little sense to emulate the limitations of the vi/ex model that
+presumably you are trying to avoid by using Evi!
+
+@table @code
+@item :e
+Edit a file in the current window.  With no argument, brings
+in a new copy of the file (useful if it has been subsequently
+modified on disk).  @code{:e!} will override any complaints about
+the current buffer being modified, and discards all
+modifications.  With a filename argument, edits that file
+in the current window (using the copy already in the editor
+if it was previously read in).  There is no difference
+between @code{:e! filename} and @code{:e filename}, because in Evi we
+don't need to worry about the disposition of the current
+file before editing the next one.  Use @code{:e#} as a shorthand for
+editing the most recently accessed buffer not visible in a window. @refill
+@item :E
+Same as @code{:e}, but edits the file in another window, creating
+that window if necessary.  If used with no filename, this command splits the
+current buffer into two windows. @refill
+@item :n
+Switch to the next file in buffer list that's not currently
+displayed.  Rotates the current file to the end of the buffer
+list, so repeated use of @code{:n} will cycle thru all buffers. @refill
+@item :N
+Same as @code{:n}, but switches to another window, or creates another
+window and puts the next file into it. @refill
+@item :b
+This is an extension.  This command switches the current
+window to the specified buffer, e.g. @code{:b foo} would switch
+to the buffer named @code{foo} (if it exists).  By default @code{:b}
+switches to the next buffer not displayed.  @code{:b!} will create
+the buffer if it doesn't exist. @refill
+@item :B
+Analogous to :E and :N.
+@item :k
+Another extension.  This command kills the named buffer.  If given
+no argument, kills the current buffer.  @code{:k!} will kill the buffer
+even if it is modified. @refill
+@item :wk
+Writes the current buffer, and kills it.
+@item :W
+Another extension.  This command writes all modified buffers, querying
+the user before each write.  @code{:W!} will
+write all buffers with no questions asked. @refill
+@item :Wq
+As above, then exits emacs.  See @kbd{ZZ} below.
+@end table
+
+The ex commands which accept filenames as arguments can be file
+completed using space or tab.  Similarly,
+@code{:b} and @code{:k} will buffer-name complete.
+One thing you might find handy is
+@code{:b @key{TAB}} to see a list of buffers.
+Use @kbd{C-c} or backspace to escape this. @refill
+
+@node Window management,Emacs commands,File and buffer management,Top
+@section Window management
+
+Vi had commands for multiple file management, but it never tried to
+pretend it handled multiple windows.  However, it did have the @kbd{z}
+command for simple window management, like making the window bigger or
+smaller.  In Evi, the @kbd{z} command is extended to handle most Emacs
+window management needs.  Additional suggestions are welcome.
+
+@table @kbd
+@item z0=
+Delete the current window from the screen.
+@item z1=
+Make the current window fill the screen.
+@item z2=
+Split the current window in two vertically.
+@item z0|
+Same as @kbd{z0=}.
+@item z1|
+Same as @kbd{z1=}.
+@item z2|
+Split the current window in two horizontally.
+@item z<num>+
+@item z<num>-
+These two let you adjust the size of the current window by <num>.
+Use z<num>. to adjust the window size absolutely.
+@item zf
+Go to the next window (forward).
+@item zn
+Same as @kbd{zf}.
+@item zb
+Go to the previous window (backward).
+@item zp
+Same as @kbd{zb}.
+@item zH
+@item zM
+@item zL
+These are aliases for @kbd{z@key{RET}}, @kbd{z.}, and @kbd{z-} and correspond
+to the arguments to the mark command. @refill
+@end table
+
+@node Emacs commands,Emacs editing modes,Window management,Top
+@section Accessing emacs commands
+
+By default, no emacs commands are accessible from Evi.  However, the
+three main classes of emacs commands can easily be made accessible by
+adding selected elisp commands suggested below to your .evirc file.
+
+The @kbd{C-x} prefix commands integrate most easily with Evi since it would
+only override kill-line in input modes.  To access @kbd{C-x} prefix commands
+in all modes, use:
+@example
+(evi-define-key evi-all-keymaps "\C-x" 'evi-emacs-command)
+@end example
+The Meta (or @key{ESC} prefix) commands are no problem if you just want to
+access them from the top-level, where in vi @key{ESC} only serves the purpose
+of ringing the bell, which in vi is a handy way of verifying that you're
+in command mode, but is not vital considering the emacs mode line.  Use
+the following to access Meta (or @key{ESC} prefix) commands only from the
+top-level:
+@example
+(evi-define-key '(top-level) "\e" 'evi-emacs-command)
+@end example
+Accessing Meta (or @key{ESC} prefix) commands from other modes is problematic
+because @key{ESC} is the command to exit that mode.  However, if you wish, you
+can redefine the meta prefix to something else - I recommend @kbd{C-a}.  Thus
+to use Meta commands in all modes use:
+@example
+(setq evi-meta-prefix-char ?\C-a)
+(evi-define-key evi-all-keymaps "\C-a" (cons (current-global-map) ?\e))
+@end example
+The @kbd{C-c} prefix commands are also problematic because @kbd{C-c} is vi's
+interrupt character.  At the top-level, this is again not much of a
+problem, and you could use:
+@example
+(evi-define-key '(top-level) "\C-c" 'evi-emacs-command)
+@end example
+@kbd{C-c} will still function as an interrupt character at all other places
+(including in the middle of a command, where it's most useful).  In the
+various input modes you could forego @kbd{C-c} as your interrupt character and
+access the @kbd{C-c} prefix commands by using the following (presumably in
+addition to the above):
+@example
+(evi-define-key '(input replace ex) "\C-c" 'evi-emacs-command)
+@end example
+Note that setting evi-insert-mode-local-bindings (described in the next
+section) will have the same effect because all @kbd{C-c} commands are local
+bindings.
+
+@node Emacs editing modes,Customizing,Emacs commands,Top
+@section Taking advantage of emacs editing modes
+
+A number of emacs editing modes have handy local key bindings other than
+Meta, @kbd{C-x} and @kbd{C-c} prefix bindings.
+For example, in C mode, @key{RET} does
+intelligent indenting, and @kbd{@}} is bound to a command which automatically
+exdents.  By default, these aren't accessible of course, but you can
+have Evi enable these local bindings in insert mode by setting: @refill
+@example
+(setq evi-insert-mode-local-bindings t)
+@end example
+As current policy, however, Evi will not allow local mode bindings to
+override @key{TAB}, @key{BS}, or @key{DEL}, as well as, for obvious reasons, @key{ESC}.
+@key{ESC} prefix commands, however, can be accessed as described in the
+previous section.
+
+@node Customizing,Arrow keys,Emacs editing modes,Top
+@section Customizing Evi
+
+Like vi, Evi will source your @file{.exrc} or @file{~/.exrc} file,
+and/or your @code{EXINIT}
+environment variable.  If your startup runs into problems, let me know -
+you shouldn't have to change your vi initialization stuff to make Evi
+happy. @refill
+
+If you wish to use some Evi extensions in your startup, but still need
+to use vi, place these in @file{.exrc.evi}, @file{~/.exrc.evi}
+or @code{EVIINIT} so that vi won't gag on them. @refill
+
+Emacs lisp startup code for evi, such at that suggested in the previous
+sections, can be placed in either @file{.evirc} or @file{~/.evirc}.
+
+And you can, of course, hack away at the the Evi source code if you want
+something not easily addressed by the above methods.  If you feel what
+you've done would be generally useful, please email it to me, or post it.
+
+One particular customization, not covered elsewhere, is how Evi handles
+the current directory.  By default it behaves like vi - you have one
+global current directory, which you change using @code{:cd} (also see
+@code{:pushd}, and friends described below).  Alternately, you may like the
+emacs behaviour better, which is that each buffer has its own idea of
+the current directory, and by default that directory is the directory
+that the file for that buffer resides in.  In this mode, you can also
+change the current directory using @code{:cd}, but that will only affect the
+current buffer.  To get this behaviour, place the following in your
+@file{.evirc}:
+@example
+(setq evi-global-directory nil)
+@end example
+
+Another customization you might like to make is to alter the behaviour
+of @kbd{ZZ}.  By default it is bound to @code{:Wq!}, which quietly writes all
+modified files and exits.  If, however, you would like to be asked about
+each modified buffer before it is saved in order to avoid accidently
+saving a file you didn't want saved, map @kbd{ZZ} to @code{:Wq}:
+@example
+map ZZ :Wq\n
+@end example
+
+@node Arrow keys,Enhancements,Customizing,Top
+@section Arrow keys
+
+If you like your arrow keys, there's one incompatibility that's not
+easily fixed under version 18 of emacs.  Vi recognizes arrow keys that
+send @key{ESC} prefixed sequences by using a very short timeout to determine
+the difference between an @key{ESC} typed by a person,
+and an @key{ESC} sequence
+sent by the terminal.  A compromise, if you happen to have such a
+terminal is to @code{:set notimeout},
+which makes @kbd{@key{ESC} @key{ESC}} behave like a
+single @key{ESC} and maps your arrow keys to @kbd{h}, @kbd{j}, @kbd{k},
+and @kbd{l}.  As a
+side effect in Evi, the normal emacs @key{ESC} prefix commands will be in
+effect (except for @kbd{@key{ESC} @key{ESC}} of course).
+This could be undesirable if
+you're in the habit of hitting the escape key a lot to verify you're in
+command mode, and follow that immediately with a command.  This should
+be fixable in version 19 of emacs. @refill
+
+@node Enhancements,New operators,Arrow keys,Top
+@section Enhancements
+
+@menu
+* Edit repeat command::
+* Ex input escapes::
+* Extended undo::
+* Ex command completion::
+* Word definition::
+* Sentence and larger motions::
+* Directory commands::
+* Background shell commands::
+* Unnamed register::
+* New command counts::
+* Rectangle edits and arbitrary regions::
+* Shell window::
+* Extended marks::
+* Register enhancements::
+* Language/mode specific editing::
+@end menu
+
+@node Edit repeat command,Ex input escapes,,Enhancements
+@subsection Edit repeat command
+
+@kbd{_} is a new version of the repeat command @kbd{.}
+that prompts you with the
+keystrokes to repeat, allowing you to edit them before executing.  This
+is particularly useful for the abovementioned complex operators.  If you
+don't wish to re-execute the command, just hit @kbd{C-c}. @refill
+
+@node Ex input escapes,Extended undo,Edit repeat command,Enhancements
+@subsection Ex input escapes
+
+If you put
+@example
+(setq ex-input-escapes t)
+@end example
+in your @file{.evirc}, then
+Ex (@kbd{:}) commands will accept the
+following escapes: @code{\e} for @key{ESC},
+@code{\n} for newline, @code{\r} for @key{RET},
+and @code{\C-x} for control-x (for all valid control characters).
+@code{\} otherwise works like @kbd{C-v}.  Thus: @refill
+@example
+map \  \C-f
+@end example
+would make the space character be page forward, and
+@example
+map g \|
+@end example
+would make @kbd{g} be goto-column.  Note that @kbd{|} is normally a command
+separator and thus must be escaped.
+
+@node Extended undo,Ex command completion,Ex input escapes,Enhancements
+@subsection Extended undo
+
+The command @kbd{[u} continues the previous undo, by undoing one more change
+previous to the last change undone.  Thus, a long enough sequence of
+@kbd{[u}s will take you back to the unmodified state.  If you went back too
+far, a @kbd{u} will reverse this process, and subsequent @kbd{[u}s will
+move forward through the changes.
+Note that vip does this using repeat command (@kbd{.}); however,
+that conflicts with the meaning of @kbd{u.} in vi, which is: `undo, then do
+again'.  This is quite handy for reapplying a change that you initially
+did in the wrong place, so evi leaves that meaning alone, and
+defines a new command for `extended undo'.
+Personally, I use `extended undo' more than `undo line', so I swap
+the two definitions in my .evirc: @refill
+@example
+(evi-define-key '(vi) "[u" 'evi-undo-line)
+(evi-define-key '(vi) "U" 'evi-undo-more)
+@end example
+
+@node Ex command completion,Word definition,Extended undo,Enhancements
+@subsection Ex command completion
+
+In Ex (@kbd{:}) commands, you can use the @key{TAB} to perform completion
+on the following: commands, variable names (:set), filenames, buffernames,
+maps, or abbreviations.  Which completion to perform is determined solely
+by where you are in the partial command you are typing.  For example:
+@example
+:set er@key{TAB}
+@end example
+would complete to:
+@example
+:set errorbells
+@end example
+(leaving the cursor after the @code{s} in @code{errorbells}.
+
+@node Word definition,Sentence and larger motions,Ex command completion,Enhancements
+@subsection Word definition
+
+You can define exactly what Evi treats as words for the w, b, e, W, B
+and E commands.  They are defined by setting either or both of the new
+options @code{word} (for w, b and e) or
+@code{Word} (for W, B and E) to a regular
+expression describing what words look like.  For example, here's a
+definition of words that only considers alphanumeric words: @refill
+@example
+set word=[a-zA-Z0-9]+
+@end example
+Contrast this with the default definition:
+@example
+[a-zA-Z0-9_]+\\\|[^a-zA-Z0-9_\ \t\n]+\\\|^[\ \t]*\n
+@end example
+See the emacs documentation on regular expressions for details.
+
+@node Sentence and larger motions,Directory commands,Word definition,Enhancements
+@subsection Sentence and larger motions
+
+My interpretation of sentence, paragraph, and section motion differs
+somewhat from vi's in that they behave more analogously to how word
+motion behaves - e.g. a forward paragraph takes you to the beginning of
+the next paragraph - not the blank line after the previous paragraph.
+However, when doing a delete using one of these motions, unless you are
+at the beginning of the sentence, paragraph or section, the delete will
+only happen to the end of the sentence, paragraph or section, not to the
+beginning of the next.  I find this *much* more useful than the vi
+behaviour - if you disagree, please let me know.
+
+@node Directory commands,Background shell commands,Sentence and larger motions,Enhancements
+@subsection Directory commands
+
+@code{:pushd}, @code{:popd} and @code{:dirs} commands exist,
+similar to those found in
+csh and bash.  Note these only make sense in conjunction with
+evi-global-directory = t (which is the default). @refill
+
+@node Background shell commands,Unnamed register,Directory commands,Enhancements
+@subsection Background shell commands
+
+The @code{:!} command now takes an optional @code{&} (as in @code{:!&}),
+which causes
+the shell command to be executed asynchronously, with the output going
+to the window `*Shell Command Output*'. @refill
+
+@node Unnamed register,New command counts,Background shell commands,Enhancements
+@subsection Unnamed register
+
+The unnamed register (where deleted text goes) is preserved across
+excursions into insert mode, etc.  This means you can delete something,
+insert something, then `put' the deleted text.  In vi, for no apparent
+reason, you can't do this, even though insert mode doesn't use the
+unnamed register.
+
+The unnamed register is also preserved between buffers, so you can yank
+text in one buffer and put it into another.
+
+@node New command counts,Rectangle edits and arbitrary regions,Unnamed register,Enhancements
+@subsection New command counts
+
+Several commands that didn't take counts in vi take counts in Evi.  @kbd{p}
+and @kbd{P} take a prefix count and will put the text that many times,
+regardless of the size of the text - vi will apparently only do the
+prefix count for less than line sized text.  @kbd{/} takes a prefix count to
+find the nth occurence of a string.  @kbd{D} takes a count (I could never
+figure out why it didn't, since @kbd{C} takes a count).
+
+@node Rectangle edits and arbitrary regions,Shell window,New command counts,Enhancements
+@subsection Rectangle edits and arbitrary regions
+
+In vi, you do most of your editing based on regions defined by vi's motion
+commands.  For example, @kbd{dw} deletes the region starting at the current
+cursor location and extending up to where the cursor would be if you'd typed
+@kbd{w}.  Those edit commands that don't explicitly use a motion command are
+just shorthand for ones that do: e.g. @kbd{x} is shorthand for @kbd{dl}.
+
+However, this doesn't give you a convenient way of operating on arbitrary
+rectangular regions, or regions that are inconvenient to describe by a
+single motion command.  Evi allows you to operate on such regions by a
+special form of the @kbd{m} (mark) command, and several new commands that
+are only understood when they are operands to edit operators (such as @kbd{c},
+@kbd{d}, @kbd{>}, etc).
+
+The basic idea is that you will define a region by two points.  For a rectangle
+region, for example, you will define two opposite corners.  You define the
+first point by using @kbd{m.}.  Then you move to the second point and
+execute the operator you want, specifying the motion to be one of: @kbd{r} for
+rectangle, @kbd{R} for rows, @kbd{C} for columns, and @kbd{a} for arbitrary
+(meaning everything between the marked point and where the cursor currently
+is).
+@example
+m.3j5wda
+@end example
+would delete the text from where the cursor started to 3 lines down and
+5 words over.  @kbd{R} is often handy for operating on large arbitrary
+sections of text, for example say you needed to shift some text that ran
+on for several pages and you weren't sure just how long it was at the
+start:
+@example
+m.@kbd{C-f}@kbd{C-f}jjj>R
+@end example
+
+@node Shell window,Extended marks,Rectangle edits and arbitrary regions,Enhancements
+@subsection Shell window
+
+@code{:shell} starts up an emacs shell in the current window (instead of
+suspending emacs, and starting a subshell).  The shell to run comes from
+the vi variable @code{ishell}, and defaults to the value of the environment
+variable @code{SHELL}.
+@code{:gdb program} starts up gdb in the current window on
+the specified program.  For both of these, you are automatically placed
+in insert mode, where you should be able to interact as you would expect
+to, except that @key{ESC} will take you into command mode.  While in command
+mode, hitting return will send the current line as input to the
+shell/gdb, similar to command-line editing vi-style in bash, but will
+leave you in command mode. @refill
+
+@node Extended marks,Register enhancements,Shell window,Enhancements
+@subsection Extended marks
+
+The marks used by the mark command @kbd{m} are emacs markers, thus they mark
+a position in a buffer, not necessarily the current one.  This affects
+the goto mark commands @kbd{`} and @kbd{'}.
+For example, if mark @kbd{a} is placed
+in one buffer, then later in another buffer, the command @kbd{`a} is typed,
+evi will first switch to that buffer, then go to the location in that
+buffer.  @kbd{'} and @kbd{`} also accept @kbd{.} and @kbd{,} for pop context,
+and unpop context respectively.
+Thus, @kbd{'.} will take you to the previous context
+(defined as in vi by a region of relative motion, with an `absolute'
+motion pushing a new context.  quotes surround `absolute' because a
+search is considered an absolute motion for this purpose), and @kbd{'.}
+will take you to the context before that.  There is a ring of 10
+contexts so after 10 @kbd{'.} commands you'll end up at the original
+previous context.  `Unpop context' means move forward thru the ring.
+@kbd{''} and @kbd{``} are defined as exchange current
+location with the location
+of the previous context.  The context ring is buffer local, so use of it
+will always keep you in the same buffer. @refill
+
+@node Register enhancements,Language/mode specific editing,Extended marks,Enhancements
+@subsection Register enhancements
+
+Two changes involving registers.  First, @kbd{"'}, and @kbd{""}, are new
+commands which allow you to insert literal text directly into a
+register.  @kbd{"'} inserts a single character, and @kbd{""} inserts a string.
+E.g.  @kbd{""hello@key{ESC}} inserts the string @samp{hello} into the unnamed
+register, and @kbd{"a"'/} inserts a slash into register a.  The choice of
+command names are intuitive (they suggest quotes around a literal
+char/string), albeit unfortunate because @kbd{"} is supposed to be the
+prefix for a register specification, not a command.  Second, the
+register specification @kbd{"^} specifies appending to the unnamed register
+(the one that gets used when no register is specified).  E.g.,
+@kbd{"^""ick@key{ESC}} appends @samp{ick} to the unnamed register. @refill
+
+@node Language/mode specific editing,,Register enhancements,Enhancements
+@subsection Language/mode specific editing
+
+@kbd{%} exhibits language sensitivity in that it ignores parentheses
+embedded in quotes.  What defines quotes is based on what minor mode
+emacs is in (such as c-mode or lisp-mode), or you can roll your own (see
+emacs command modify-syntax-entry).
+
+@kbd{=} is no longer specific to @code{:set lisp}.  It indents according to the
+mode.  See emacs command indent-according-to-mode.
+
+@node New operators,Differences,Enhancements,Top
+@section New operators
+
+The @kbd{*} operator can be used to send text to emacs processes.  @kbd{*}
+prompts for the name of a process buffer, and the region specified is
+sent to that process.  Subsequent invocations of @kbd{*} will use the same
+process buffer as last specified as a default.  E.g., to send the
+current line of text as a command to the emacs shell (see @code{:shell}),
+type @kbd{***shell*@key{RET}}, or if the shell is already the default, just
+@kbd{**@key{RET}}.  Paragraph motion or parenthesis match is often perfect for
+sending function definitions to an interpreter, e.g. place the cursor at
+the beginning of the function,
+and type @kbd{*@}@key{RET}} or @kbd{*%@key{RET}}.  If the
+function def is less easily described you can use @kbd{m.} and @kbd{yR}
+described above.  In specifiying the process buffer, you can use buffer
+completion using space or tab. @refill
+
+I'm experimenting with some new complex operators.  I'm particularly
+interested in your thoughts on these:
+
+@kbd{[@{} operates over lines in a region.  It takes a motion, and a sequence
+of operations to perform on each line in the region defined by the
+motion.  The sequence of operations is prompted for on the bottom line.
+Double the @kbd{@{} to operate on whole lines.  The point starts in the first
+column for each line operated on.  For example:
+@example
+[@{@}i> @kbd{C-v}@key{ESC}@key{RET}
+@end example
+would prefix every line in the rest of the current paragraph with @samp{> }.
+The @kbd{C-v @key{ESC}} sequence inserts an @key{ESC} into the string you are
+entering so that it will terminate input when the loop body is executed,
+not as you are entering the command.  For example:
+@example
+10[@{@{i/* @kbd{C-v}@key{ESC}A */@kbd{C-v}@key{ESC}@key{RET}
+@end example
+would place C-style comments around the next 10 lines.
+
+@kbd{[(} defines a parameterized macro body.  A parameterized macro is diff-
+erent from standard macro text in that it is parameterized by prefix
+count and register specification.  In the body of such a macro, there
+are two special commands: @kbd{#} and @kbd{&}.
+@kbd{#} is replaced by the prefix
+count applied to this macro, and @kbd{&} is replaced by the register
+specification applied to this macro.  For example: @refill
+@example
+"a8[(j#w&dw@key{RET}
+@end example
+would go down one line, move over 8 words, then delete the next word
+into register `a'.  This is rather contrived, but it gives you the idea.
+Param- eterized macro bodies are obviously not very useful typed out
+each time, and are intended to be the body of a map macro.  For example:
+@example
+:map M [(j#w&dw\e@key{RET}
+"a8M
+@end example
+would be a much more likely scenario for the use of such a macro.
+
+@node Differences,Ex commands,New operators,Top
+@section Differences
+
+The following vi commands behave differently in Evi or not implemented:
+
+@table @kbd
+@item C-@@
+(insert mode only) Not implemented.
+@item C-q
+Not implemented.
+@item C-[
+Doesn't always do the right thing, and it doesn't do the
+timeout trick necessary to allow it to recognize keypad sequences.
+@item #
+Not implemented.
+@item Q
+Quits evi mode, returning you to emacs, similiar to the way @kbd{Q}
+in vi quits visual mode, returning you to ex.
+@end table
+
+Digit registers don't work entirely correctly - there are circumstances
+in which separate lines of a change/deletion are supposed to go into
+separate registers
+
+@code{:set lisp} has no effect, however, emacs does largely take care of
+any lisp'ish behaviour you'd want automatically if the file you're
+editing is suffixed with @file{.l} or @file{.el}.
+One particular loss, however,
+is that @kbd{)} and @kbd{(} don't work on s-expressions
+like they would in vi with lisp set. @refill
+
+@node Ex commands,Note to vip users,Differences,Top
+@section Supported ex commands and variable settings
+
+The following ex commands are supported in Evi:
+@example
+abbrev, cd, chdir, copy, delete, edit, file, global, map, move, next,
+preserve, print, put, quit, read, recover, set, shell, source, substitute,
+tag, unabbrev, unmap, write, wq, yank, !, <, >, &
+@end example
+
+The following ex variable settings are supported in Evi:
+@example
+autoindent, errorbells, ignorecase, magic, notimeout, shell,
+shiftwidth, showmatch, tabstop, wrapmargin, wrapscan
+@end example
+
+@node Note to vip users,Bugs,Ex commands,Top
+@section Note to vip users
+
+Undo does not continue via @kbd{.}.  This is incompatible with vi - the
+sequence @kbd{u.} in vi means `undo, then do again', whereas in vip it means
+`undo, then undo some more.'  For the vip functionality use
+evi-undo-more, described in the section on enhancements.
+
+The vip commands for editing a file (@kbd{v} and @kbd{V}) and switching buffers
+(@kbd{s}, and @kbd{S}) are not supported.
+Use @code{:e}, @code{:E}, @code{:b}, and @code{:B}
+instead.  See previous section on file and buffer management, or try
+these cute macros which are (mostly) functional replacements, including
+doing file and buffer completion (note the space on the end of the
+line): @refill
+@example
+:map v :edit |map V :Edit |map K :kill |map s :buffer |map S :Buffer 
+@end example
+
+@code{:q} exits emacs.  I believe the default behaviour in vip is to simply
+kill the current buffer (a concept vi doesn't really have) - either that
+or quit vi emulation.  Any of these choices is reasonable, however,
+given @code{:k} for killing buffers (a new command for a new concept), and
+@kbd{Q} for exiting vi emulation, I chose to have @code{:q} do exactly what it
+does in vi.
+
+@node Bugs,Mailing list,Note to vip users,Top
+@section What to do if things go wrong
+
+There are still some glitches in evi, of course, and if you encounter
+one, please email me what went wrong, in as much detail as you can.  My
+address is jlewis@@cse.ogi.edu.  In the meantime, if Evi doesn't seem to
+be responding, or you're having difficulty getting out of some mode,
+first try @kbd{C-c} (this is vi's interrupt character), then if you're still
+in a pickle, try @kbd{C-g} (this is emacs' interrupt character - there are
+some situations that you might get into where it works instead of
+@kbd{C-c}).
+
+@node Mailing list,Getting a copy of Evi,Bugs,Top
+@section Mailing list
+
+There is a mailing list for discussion of evi - usage, bugs, new features,
+etc.  To join the list, send a note to evi-list-request@@brandx.rain.com
+including your e-mail address in the body of the message.  To submit to
+the list, send mail to evi-list@@brandx.rain.com.
+
+@node Getting a copy of Evi,Credits,Mailing list,Top
+@section Getting a copy of Evi
+
+You can obtain a copy of Evi via FTP from an elisp archive site, or from
+the mail-server on my machine (which will assure the most up-to-date
+version).  The main elisp-archive is at archive.cis.ohio-state.edu (in
+the directory gnu/emacs/elisp-archive) - Evi is in modes/evi.el.Z.  To
+get it from my mail-server, send a message to
+mail-server@@brandx.rain.com containing:
+@example
+send evi.el
+@end example
+-- or --
+@example
+send evi.el.Z
+@end example
+followed by:
+@example
+end
+@end example
+@code{evi.el.Z} will be uuencoded for delivery.  Also, add `send index'
+if you want the file sizes.
+
+@node Credits,,Getting a copy of Evi,Top
+@section Credits
+
+Masahiko Sato - for having the audacity to write vip in the first place ;-)
+Eric Bensen - for being the first real advocate
+and those helpful folks who gave feedback on the first release
+and the following immensely helpful souls: James Montebello, Steven Dick,
+Mike Sangrey, Brian Divine, Bill Reynolds, Roger E. Benz, Richard Ryan,
+Volker Englisch, John Haugen, Calvin Clark, Sam Falkner, Mark Pulver
+and Cameron Gregory
+
+@bye

@@ -10,15 +10,9 @@
 (defvar energize-disconnect-hook nil
  "*Function or functions to run when the Emacs/Energize connection is closed.")
 
-;;; Multi and single screen modes
 
-;;    what should happen in non-vi multi-screen mode when one selects a 
-;;    non-visible source buffer?  Show it in the current screen?  
-;;    In vi-mode, we show all sources in the debugger screen, since they're
-;;    read-only.  But in emacs-mode, we use a "sources" screen, and create
-;;    a new one each time.  So find-file will reuse a screen, but the buffers
-;;    menu will reuse an old one or create a new one.  Another option is to 
-;;    always us the same screen, possibly the "energize" screen.
+(defvar energize-screen-mode nil)
+(defvar energize-split-screens-p t)
 
 (defun energize-multi-screen-mode ()
   "Call this function to put Energize into multi-screen mode.
@@ -55,6 +49,7 @@ information on how to customize this."
   (put 'manual       'instance-limit 5)
   (put 'browser      'instance-limit 5)
   (put 'energize-debugger-mode        'screen-name 'debugger)
+  (put 'gdb-mode		      'screen-name 'debugger)
   (put 'energize-top-level-mode       'screen-name 'energize)
   (put 'energize-browser-mode         'screen-name 'browser)
   (put 'energize-breakpoint-mode      'screen-name 'browser)
@@ -67,17 +62,55 @@ information on how to customize this."
     ;; hmmmm...
     (setq get-screen-for-buffer-default-screen-name 'sources))
   (setq buffers-menu-switch-to-buffer-function 'pop-to-buffer)
+  (setq energize-screen-mode 'multi)
+  t)
+
+(defun energize-several-screens-mode ()
+  "Call this function to put Energize into multi-screen mode, 
+but with only a few screens.  See also `energize-multi-screen-mode'.
+
+A screen named \"debugger\" will be used for the *Debugger* buffer,
+  and its associated source files.
+A screen named \"energize\" will be used for the Top-Level buffer.
+A single screen named \"browser\" will be created for L.E. Browser buffers.
+A single screen named \"project\" will be created for Project buffers.
+A screen named \"error-log\" will be created for the Error Log buffer
+ and its associated source files (as when the Next Error command 
+ displays a source file.)
+A single screen named \"manual\" will be created for UNIX Manual page buffers.
+
+If an external editor is being used, then source files will be displayed
+read-only in the \"debugger\" screen.
+
+If an external editor is not being used, then a single screen named 
+\"sources\" will be created to edit source files.  Find-file will use the
+current screen, whatever that happens to be, but find-file-other-window, 
+and selecting source files from the Buffers menu will use an existing screen
+displaying the file in question, or create a new one if there isn't one.
+
+Call `energize-single-screen-mode' to turn this off.
+
+See the documentation for the function get-screen-for-buffer for 
+information on how to customize this."
+  (interactive)
+  (energize-multi-screen-mode)
+  (remprop 'browser 'instance-limit)
+  (remprop 'project 'instance-limit)
+  (remprop 'manual  'instance-limit)
+  (remprop 'sources 'instance-limit)
+  (setq energize-screen-mode 'several)
   t)
 
 (defun energize-single-screen-mode ()
   "Call this function to put Energize into single-screen mode.
 All buffers will be displayed in the currently selected screen."
   (interactive)
-  (remprop 'browser      'instance-limit)
-  (remprop 'project      'instance-limit)
-  (remprop 'manual       'instance-limit)
-  (remprop 'sources      'instance-limit)
+  (remprop 'browser 'instance-limit)
+  (remprop 'project 'instance-limit)
+  (remprop 'manual  'instance-limit)
+  (remprop 'sources 'instance-limit)
   (remprop 'energize-debugger-mode        'screen-name)
+  (remprop 'gdb-mode		          'screen-name)
   (remprop 'energize-top-level-mode       'screen-name)
   (remprop 'energize-browser-mode         'screen-name)
   (remprop 'energize-breakpoint-mode      'screen-name)
@@ -87,6 +120,7 @@ All buffers will be displayed in the currently selected screen."
   (remprop 'energize-manual-entry-mode    'screen-name)
   (setq get-screen-for-buffer-default-screen-name nil)
   (setq buffers-menu-switch-to-buffer-function 'switch-to-buffer)
+  (setq energize-screen-mode 'single)
   nil)
 
 (energize-single-screen-mode)
@@ -94,12 +128,20 @@ All buffers will be displayed in the currently selected screen."
 
 ;;; Connecting and disconnecting
 
-(setq energize-attributes-mapping 
-  '((51 attributeSectionHeader) (54 attributeBrowserHeader)
-    (68 attributeWriteProtected) (69 attributeModifiedText)
-    (1 bold) (2 italic) (3 bold-italic)
-    (4 attributeSmall) (50 attributeGlyph) (52 attributeToplevelFormGlyph)
-    (53 attributeModifiedToplevelFormGlyph)))
+(or energize-attributes-mapping 
+    (setq energize-attributes-mapping
+	  '((1 bold)
+	    (2 italic)
+	    (3 bold-italic)
+	    (4 attributeSmall)
+	    (50 attributeGlyph)
+	    (51 attributeSectionHeader)
+	    (52 attributeToplevelFormGlyph)
+	    (53 attributeModifiedToplevelFormGlyph)
+	    (54 attributeBrowserHeader)
+	    (68 attributeWriteProtected)
+	    (69 attributeModifiedText)
+	    )))
 
 (defun energize-initialize-faces ()
   (setq energize-attributes-mapping
@@ -136,22 +178,33 @@ userid USER."
   (setq default-screen-name "energize")
   (energize-rename-things)
   (energize-hack-external-editor-mode)
-  (connect-to-energize-internal server enarg)
-  (energize-initialize-faces)
-  ;; Wait for the Top-Level buffer to be created.
-  ;; This really should happen down in C, but...
-  (let ((p (or (get-process "energize")
-	       (error "Could not connect to Energize.")))
-	b)
-    (while (progn
-	     (or (connected-to-energize-p)
-		 (error "Energize connection refused."))
-	     (not (setq b (any-energize-buffers-p))))
-      (accept-process-output p))
-    ;; Make the displayed Energize buffer initially displayed.
-    (pop-to-buffer b)
-    (delete-other-windows)
-    (run-hooks 'energize-connect-hook)))
+
+  (let ((energize-disconnect-hook
+	 ;; If we're being run interactively, don't exit emacs if connecting
+	 ;; to Energize fails!  That's damn annoying.
+	 (if (and (interactive-p)
+		  (consp energize-disconnect-hook)
+		  (memq 'save-buffers-kill-emacs energize-disconnect-hook))
+	     (delq 'save-buffers-kill-emacs
+		   (copy-sequence energize-disconnect-hook))
+	   energize-disconnect-hook)))
+
+    (connect-to-energize-internal server enarg)
+    (energize-initialize-faces)
+    ;; Wait for the Top-Level buffer to be created.
+    ;; This really should happen down in C, but...
+    (let ((p (or (get-process "energize")
+		 (error "Could not connect to Energize.")))
+	  b)
+      (while (progn
+	       (or (connected-to-energize-p)
+		   (error "Energize connection refused."))
+	       (not (setq b (any-energize-buffers-p))))
+	(accept-process-output p))
+      ;; Make the displayed Energize buffer initially displayed.
+      (pop-to-buffer b)
+      (delete-other-windows)
+      (run-hooks 'energize-connect-hook))))
 
 (defun disconnect-from-energize ()
   (interactive)
@@ -243,8 +296,8 @@ Has to be called after Emacs has been connected to Energize"
 				      (delete-extent extent))
 				  nil))
 		      buffer)
-		     (setq write-file-hooks
-			   (delq 'energize-write-file-hook write-file-hooks))
+		     (remove-hook 'write-file-data-hooks
+				  'energize-write-data-hook)
 		     (setq revert-buffer-insert-file-contents-function nil)
 		     (energize-orig-normal-mode))
 		    (t ; non-source-file Energize buffers
@@ -312,6 +365,16 @@ Has to be called after Emacs has been connected to Energize"
 		   (list "null buffer type for energize buffer" buffer)))
 	  (t type))))
 
+(defun energize-extent-at (pos &optional buffer)
+  (let (e)
+    (map-extents (function (lambda (extent junk)
+			     (if (eq 'energize-extent-data
+				     (car-safe (extent-data extent)))
+				 ;; return non-nil
+				 (setq e extent))))
+		 (or buffer (current-buffer))
+		 pos pos nil t)
+    e))
 
 ;;; Misc Energize hook functions
 
@@ -357,6 +420,8 @@ Has to be called after Emacs has been connected to Energize"
 	       (energize-debugger-mode))
 	      ((eq type 'energize-breakpoint-buffer)
 	       (energize-breakpoint-mode))
+	      ((eq type 'energize-unix-manual-buffer)
+	       (energize-manual-mode))
 	      ((or (eq type 'energize-source-buffer)
 		   ;;(eq type 'energize-unspecified-buffer)
 		   ;;(null type)
@@ -369,6 +434,10 @@ Has to be called after Emacs has been connected to Energize"
 	       )
 	      (t
 	       (signal 'error (list "unknown energize buffer type" type)))))
+
+      (if (eq (energize-buffer-type (current-buffer)) 'energize-source-buffer)
+	  (energize-source-minor-mode))
+
       (energize-external-editor-set-mode buffer)
       )))
 

@@ -79,13 +79,13 @@ static struct context_cache bol_context_cache;
 static int
 beginning_of_defun (int pt)
 {
-  int npt;
+  int opt = PT;
   if (pt == BEGV) return pt;
   SET_PT (pt);
   call0 (intern ("beginning-of-defun"));
-  npt = PT;
-  SET_PT (pt);
-  return npt;
+  pt = PT;
+  SET_PT (opt);
+  return pt;
 }
 
 extern Lisp_Object Fre_search_forward (Lisp_Object, Lisp_Object,
@@ -94,13 +94,13 @@ extern Lisp_Object Fre_search_forward (Lisp_Object, Lisp_Object,
 static int
 end_of_defun (int pt)
 {
-  int npt;
+  int opt = PT;
   SET_PT (pt);
   /* ## superfluous consing */
   Fre_search_forward (build_string ("\n\\s("), Qnil, Qlambda, Qnil);
-  npt = PT;
-  SET_PT (pt);
-  return npt;
+  pt = PT;
+  SET_PT (opt);
+  return pt;
 }
 
 
@@ -222,6 +222,7 @@ find_context (int pt, int end)
 	  if (context_cache.context == context_none)
 	    {
 	      context_cache.context = context_comment;
+	      context_cache.ccontext = ccontext_none;
 #ifdef NEW_SYNTAX
 	      context_cache.style = SINGLE_SYNTAX_STYLE (c);
 	      if (context_cache.style == comment_style_none) abort ();
@@ -265,6 +266,7 @@ find_context (int pt, int end)
 	    {
 	      context_cache.context = context_string;
 	      context_cache.scontext = c;
+	      context_cache.ccontext = ccontext_none;
 	    }
 	  break;
 	default:
@@ -422,7 +424,9 @@ The returned value is one of the following symbols:\n\
 See also the function `buffer-syntactic-context-depth', which returns\n\
 the current nesting-depth within all parenthesis-syntax delimiters\n\
 and the function `syntactically-sectionize', which will map a function\n\
-over each syntactic context in a region.")
+over each syntactic context in a region.\n\
+\n\
+Warning, this may alter match-data.")
 	()
 {
   find_context (PT, 0);
@@ -431,7 +435,8 @@ over each syntactic context in a region.")
 
 DEFUN ("buffer-syntactic-context-depth", Fbuffer_syntactic_context_depth,
        Sbuffer_syntactic_context_depth, 0, 0, 0,
-   "Returns the depth within all parenthesis-syntax delimiters at point.")
+   "Returns the depth within all parenthesis-syntax delimiters at point.\n\
+Warning, this may alter match-data.")
      ()
 {
   find_context (PT, 0);
@@ -446,7 +451,9 @@ Calls the given function when each extent is created with three arguments:\n\
 the extent, a symbol representing the syntactic context, and the current\n\
 depth (as returned by the functions `buffer-syntactic-context' and\n\
 `buffer-syntactic-context-depth').  If the optional arg `extent-data' is\n\
-provided, the extent will be created with that in its data slot.")
+provided, the extent will be created with that in its data slot.\n\
+\n\
+Warning, this may alter match-data.")
 	(start, end, function, extent_data)
 	Lisp_Object start, end, function, extent_data;
 {
@@ -479,12 +486,31 @@ provided, the extent will be created with that in its data slot.")
       /* We've found a non-blank area; keep going until we reach its end */
       this_context = context_cache.context;
       estart = pt;
+
+      /* Minor kludge: consider the comment-start character(s) a part of
+	 the comment.
+       */
+      if (this_context == context_block_comment &&
+	  context_cache.ccontext == ccontext_start2)
+	estart -= 2;
+      else if (this_context == context_comment)
+	estart -= 1;
+
       edepth = context_cache.depth;
       while (context_cache.context == this_context && pt < end)
 	{
 	  pt++;
 	  find_context (pt, end);
 	}
+
+      /* Minor kludge: consider the character which terminated the comment
+	 a part of the comment.
+       */
+      if ((this_context == context_block_comment ||
+	   this_context == context_comment)
+	  && pt < end)
+	pt++;
+
       if (estart == pt)
 	continue;
       /* Now make an extent for it. */

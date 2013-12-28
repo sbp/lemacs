@@ -1,8 +1,5 @@
 
-Read the file ../lisp/NEWS.
-
-Edit src/config.h, read the comments, and define the symbols that you need.
-Currently, you cannot compile emacs without HAVE_X_WINDOWS.
+Read the file ../etc/NEWS before you do anything else.
 
 Edit src/lwlib/Imakefile, read the comments, and define the symbols you 
 want.  Note that the symbols LWLIB_HAS_EXTENSIONS, LWLIB_USES_MOTIF, and
@@ -10,25 +7,15 @@ LWLIB_USES_OLIT in src/config.h must correspond to the choices you made
 in src/lwlib/Imakefile.  Imake comes with X.  If you don't have Imake, 
 you'll have to hack up a Makefile for lwlib by hand.  
 
-Lucid GNU Emacs requires an ANSI C compiler, like GCC.
+Lucid GNU Emacs requires an ANSI C compiler, like Lucid C/C++ or GCC.
 
 Now all you should have to do is
 
 cd src
 make clean
-make xemacs
+make
 
-If you get "undefined symbol __fixunsdfsi" when compiling with GCC, then
-this means that you need to link with the GCC library.  It may be called
-"gcc-gnulib" or "libgcc.a"; define LIB_GCC in config.h to point to it.
-
-If you get "undefined symbol _XtStrings", then you are trying to link Emacs
-against the X11r4 version of libXt.a, but you have compiled either Emacs or
-the code in the lwlib directory with the X11r5 header files.
-
-Remember, you can't compile lwlib for r4 and emacs for r5, or vice versa.
-They must be in sync.
-
+If anything goes wrong, read the file ../PROBLEMS.
 
 There have been a few incompatible changes due to the new input model, and
 we have included modified versions of many popular emacs-lisp packages.  
@@ -37,11 +24,8 @@ the standard distribution of GNUS instead of the one we ship.  We hope to
 get our compatibility changes folded back into the main distribution of 
 these packages eventually.
 
-Notice that the lisp directory has subdirectories now.
-
 If you install emacs in such a way that an emacs18 lisp directory is searched
 before the lisp directory shipped with this emacs, or if you do this with
 your .emacs file, nothing will work.
 
-
-If you're still having problems, read the file ../PROBLEMS.
+If you are thinking of editing paths.h, think again.  Re-read ../etc/NEWS.

@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifndef _EMACS_SCREEN_H_
+#define _EMACS_SCREEN_H_
 
 #ifdef MULTI_SCREEN
 
@@ -151,6 +153,8 @@ struct screen
 
 typedef struct screen *SCREEN_PTR;
 
+#ifdef emacs
+
 #define XSCREEN(p) ((struct screen *) XPNTR (p))
 #define XSETSCREEN(p, v) ((struct screen *) XSETPNTR (p, v))
 
@@ -202,8 +206,13 @@ extern Lisp_Object Vscreen_list;
 extern Lisp_Object Vglobal_minibuffer_screen;
 
 extern Lisp_Object Vterminal_screen;
+
+#endif /* emacs */
+
 
 #else /* not MULTI_SCREEN */
+
+#ifdef emacs
 
 /* These definitions are used in a single-screen version of Emacs.  */
 
@@ -251,7 +260,11 @@ extern int selected_screen;
 extern int screen_width, screen_height;
 extern int cursX, cursY;
 
+#endif /* emacs */
+
 #endif /* not MULTI_SCREEN */
+
+#ifdef emacs
 
 extern SCREEN_PTR choose_minibuf_screen ();
 
@@ -265,4 +278,17 @@ extern void do_line_insertion_deletion_costs (SCREEN_PTR,
 					      int);
 extern void get_screen_size (int *, int *);
 
+/* select_screen() and Fselect_screen() should only be called in response to
+   user action, since we use the mouse_timestamp as the timestamp for a
+   call to XSetInputFocus.  select_screen_internal() changes selected_screen
+   and runs some hooks, but does not set focus.  It is appropriate to call
+   in response to a FocusIn event.
+
+   Fselect_screen() and select_screen() are the same (different typed args.)
+ */
 extern void select_screen (struct screen *);
+extern void select_screen_internal (struct screen *);
+
+#endif /* emacs */
+
+#endif /* _EMACS_SCREEN_H_ */

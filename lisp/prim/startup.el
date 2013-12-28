@@ -31,6 +31,7 @@
   -version		Print version info and exit.
   -funcall <function>	Invoke the named lisp function with no arguments.
   -f <function>		Same as -funcall.
+  -eval <form>		Evaluate the lisp form.  Quote it carefully.
   -load <file>		Load the named file of lisp code into emacs.
   -l <file>		Same as -load.
   -insert <file>	Insert file into the current buffer.
@@ -75,8 +76,8 @@ starting emacs to run the tutorial.  Type ^Hi to enter the manual browser.
   "*Alist of abbreviations for file directories.
 A list of elements of the form (FROM . TO), each meaning to replace
 FROM with TO when it appears in a directory name.
-This replacement is done when setting up the default directory
-of a newly visited file.  *Every* FROM string should start with `^'.
+This replacement is done when setting up the default directory of a
+newly visited file.  *Every* FROM string should start with \\\\` or ^.
 
 Use this feature when you have directories which you normally refer to
 via absolute symbolic links.  Make TO the name of the link, and FROM
@@ -163,6 +164,11 @@ this variable, if non-nil; 2. ~/.emacs; 3. default.el.")
     (setq command-line-args-left (cdr command-line-args-left))
     (funcall fn)))
 
+(defun command-line-process-eval (arg)
+  (let ((form (car command-line-args-left)))
+    (setq command-line-args-left (cdr command-line-args-left))
+    (eval (read form))))
+
 (defun command-line-process-load (arg)
   (let ((file (car command-line-args-left)))
     ;; Take file from default dir if it exists there;
@@ -187,6 +193,7 @@ this variable, if non-nil; 2. ~/.emacs; 3. default.el.")
       '(("-f"		. command-line-process-funcall)
 	("-e"		. command-line-process-funcall)
 	("-funcall"	. command-line-process-funcall)
+	("-eval"	. command-line-process-eval)
 	("-l"		. command-line-process-load)
 	("-load"	. command-line-process-load)
 	("-i"		. command-line-process-insert)

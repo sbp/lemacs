@@ -51,6 +51,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif /* not VMS */
 #endif /* LOAD_AVE_TYPE */
 
+#ifdef HAVE_HPUX_PSTAT
+#include <sys/pstat.h>
+#endif /* HAVE_HPUX_PSTAT */
+
 /* Note on some machines this defines `vector' as a typedef,
    so make sure we don't use that name in this file.  */
 #undef vector
@@ -1501,6 +1505,9 @@ assuming that /dev/kmem is in the group kmem.)")
 #else /* LOAD_AVE_TYPE defined */
 
   LOAD_AVE_TYPE load_ave[3];
+#ifdef HAVE_HPUX_PSTAT
+  struct pst_dynamic pst_dyn;
+#endif /* HAVE HPUX_PSTAT */
 #ifdef VMS
 #ifndef eunice
 #include <iodef.h>
@@ -1548,6 +1555,13 @@ assuming that /dev/kmem is in the group kmem.)")
 	}
     }
 #else  /* not VMS */
+
+#ifdef HAVE_HPUX_PSTAT
+    pstat(PSTAT_DYNAMIC,(union pstun)&pst_dyn,sizeof(pst_dyn),0,0);
+    load_ave[0] = pst_dyn.psd_avg_1_min;
+    load_ave[1] = pst_dyn.psd_avg_5_min;
+    load_ave[2] = pst_dyn.psd_avg_15_min;
+#else /* HAVE_HPUX_PSTAT */
   /*
    *	4.2BSD UNIX-specific code -- read _avenrun from /dev/kmem
    */
@@ -1615,6 +1629,7 @@ assuming that /dev/kmem is in the group kmem.)")
 	  initialized = 0;
 	}
     }
+#endif /* not HAVE_HPUX_PSTAT */
 #endif /* not VMS */
 
   /*

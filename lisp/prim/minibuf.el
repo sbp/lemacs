@@ -181,14 +181,14 @@ Third arg KEYMAP is a keymap to use whilst reading;
 If fourth arg READ is non-nil, then interpret the result as a lisp object
   and return that object:
   in other words, do `(car (read-from-string INPUT-STRING))'
-Fifth arg HIST, if non-nil, specifies a history list
+Fifth arg HISTORY, if non-nil, specifies a history list
   and optionally the initial position in the list.
   It can be a symbol, which is the history list variable to use,
   or it can be a cons cell (HISTVAR . HISTPOS).
   In that case, HISTVAR is the history list variable to use,
   and HISTPOS is the initial position (the position in the list
   which INITIAL-CONTENTS corresponds to).
-  If HIST is t, no history will be recorded.
+  If HISTORY is `t', no history will be recorded.
   Positions are counted starting from 1 at the beginning of the list."
   (if (and (not enable-recursive-minibuffers)
            (> (minibuffer-depth) 0)
@@ -296,6 +296,7 @@ Fifth arg HIST, if non-nil, specifies a history list
   (let ((savemax (point-max)))
     (save-excursion
       (goto-char (point-max))
+      (message nil)
       (insert m))
     (let ((inhibit-quit t))
       (sit-for 2)
@@ -441,9 +442,9 @@ Fifth arg HIST, if non-nil, specifies a history list
 
 (defun completing-read (prompt table
                         &optional predicate require-match
-                                  initial-contents hist)
+                                  initial-contents history)
   "Read a string in the minibuffer, with completion.
-Args: PROMPT, TABLE, PREDICATE, REQUIRE-MATCH, INITIAL-CONTENTS, HIST.
+Args: PROMPT, TABLE, PREDICATE, REQUIRE-MATCH, INITIAL-CONTENTS, HISTORY.
 PROMPT is a string to prompt with; normally it ends in a colon and a space.
 TABLE is an alist whose elements' cars are strings, or an obarray.
 PREDICATE limits completion to a subset of TABLE.
@@ -454,14 +455,14 @@ If REQUIRE-MATCH is non-nil, the user is not allowed to exit unless
 If INITIAL-CONTENTS is non-nil, insert it in the minibuffer initially.
   If it is (STRING . POSITION), the initial input
   is STRING, but point is placed POSITION characters into the string.
-HIST, if non-nil, specifies a history list
+HISTORY, if non-nil, specifies a history list
   and optionally the initial position in the list.
   It can be a symbol, which is the history list variable to use,
   or it can be a cons cell (HISTVAR . HISTPOS).
   In that case, HISTVAR is the history list variable to use,
   and HISTPOS is the initial position (the position in the list
   which INITIAL-CONTENTS corresponds to).
-  If HIST is t, no history will be recorded.
+  If HISTORY is `t', no history will be recorded.
   Positions are counted starting from 1 at the beginning of the list.
 Completion ignores case if the ambient value of
   `completion-ignore-case' is non-nil."
@@ -475,7 +476,7 @@ Completion ignores case if the ambient value of
                               minibuffer-local-completion-map
                               minibuffer-local-must-match-map)
                           nil
-                          hist)))
+                          history)))
 
 
 ;;;; Minibuffer completion commands
@@ -558,7 +559,7 @@ the character in question must be typed again)."
           (setq quit-flag nil))
         (cond ((equal event last-command-event)
                (throw 'exit nil))
-              ((eq interrupt-char (event-to-character event nil))
+              ((equal interrupt-char (event-to-character event nil))
                (deallocate-event event)
                ;; Minibuffer abort.
                (throw 'exit t)))
@@ -592,7 +593,7 @@ is added, provided that matches some possible completion."
            (cond ((or (eq status 'uncompleted)
                       (eq status 'exact))
                   (let ((foo (function (lambda (s)
-                               (condition-case ()
+                               (condition-case nil
                                    (if (try-completion
                                         (concat buffer-string s)
                                         minibuffer-completion-table
@@ -737,13 +738,12 @@ or may be a list of two strings to be printed as if concatenated."
   (let ((completions (all-completions (buffer-string)
                                       minibuffer-completion-table
                                       minibuffer-completion-predicate)))
+    (message nil)
     (if (null completions)
         (progn
           (ding nil 'no-completion)
-          (temp-minibuffer-message " [No completions]")
-          (message nil))
+          (temp-minibuffer-message " [No completions]"))
         (with-output-to-temp-buffer "*Completions*"
-          (message nil)
           (display-completion-list (sort completions 
                                          (function string-lessp)))))))
 
@@ -785,7 +785,7 @@ If N is negative, find the next or Nth next match."
   (interactive
    (let ((enable-recursive-minibuffers t)
 	 (minibuffer-history-sexp-flag nil))
-     (if (eq t (symbol-value minibuffer-history-variable))
+     (if (eq 't (symbol-value minibuffer-history-variable))
 	 (error "history is not being recorded in this context"))
      (list (read-from-minibuffer "Previous element matching (regexp): "
 				 nil
@@ -842,14 +842,13 @@ If N is negative, find the previous or Nth previous match."
 (defun next-history-element (n)
   "Insert the next element of the minibuffer history into the minibuffer."
   (interactive "p")
-  (if (eq t (symbol-value minibuffer-history-variable))
+  (if (eq 't (symbol-value minibuffer-history-variable))
       (error "history is not being recorded in this context"))
   (let ((narg (min (max 1 (- minibuffer-history-position n))
 		   (length (symbol-value minibuffer-history-variable)))))
     (if (= minibuffer-history-position narg)
 	(error (format "No %s item in %s"
-		       (if (= minibuffer-history-position 1)
-			   "following" "preceding")
+		       (if (>= n 0) "following" "preceding")
 		       minibuffer-history-variable))
       (erase-buffer)
       (setq minibuffer-history-position narg)
@@ -871,33 +870,33 @@ If N is negative, find the previous or Nth previous match."
 
 ;;;; reading various things from a minibuffer
 
-(defun read-minibuffer (prompt &optional initial-contents hist)
+(defun read-minibuffer (prompt &optional initial-contents history)
   "Return a Lisp object read using the minibuffer.
 Prompt with PROMPT.  If non-nil, optional second arg INITIAL-CONTENTS
 is a string to insert in the minibuffer before reading.
-Third arg HIST, if non-nil, specifies a history list."
+Third arg HISTORY, if non-nil, specifies a history list."
   (read-from-minibuffer prompt
                         initial-contents
                         minibuffer-local-map
                         t
-			(or hist 'minibuffer-sexp-history)))
+			(or history 'minibuffer-sexp-history)))
 
-(defun read-string (prompt &optional initial-contents hist)
+(defun read-string (prompt &optional initial-contents history)
   "Return a string from the minibuffer, prompting with string PROMPT.
 If non-nil, optional second arg INITIAL-CONTENTS is a string to insert
 in the minibuffer before reading.
-Third arg HIST, if non-nil, specifies a history list."
+Third arg HISTORY, if non-nil, specifies a history list."
   (read-from-minibuffer prompt
                         initial-contents
                         minibuffer-local-map
-                        nil hist))
+                        nil history))
 
-(defun eval-minibuffer (prompt &optional initial-contents hist)
+(defun eval-minibuffer (prompt &optional initial-contents history)
   "Return value of Lisp expression read using the minibuffer.
 Prompt with PROMPT.  If non-nil, optional second arg INITIAL-CONTENTS
 is a string to insert in the minibuffer before reading.
-Third arg HIST, if non-nil, specifies a history list."
-  (eval (read-minibuffer prompt initial-contents hist)))
+Third arg HISTORY, if non-nil, specifies a history list."
+  (eval (read-minibuffer prompt initial-contents history)))
 
 ;;;>> Screw this crock!!
 ;(defun read-no-blanks-input (prompt &optional initial-contents)
@@ -1015,9 +1014,9 @@ only existing buffer names are allowed."
                          completer)
   (if (not dir)
       (setq dir default-directory))
-  (setq dir (abbreviate-file-name dir))
+  (setq dir (abbreviate-file-name dir t))
   (let* ((insert (cond ((not insert-default-directory)
-                        nil)
+                        "")
                        (initial-contents
                         (cons (un-substitute-in-file-name
                                 (concat dir initial-contents))
@@ -1032,6 +1031,21 @@ only existing buffer names are allowed."
                                  must-match
                                  insert
                                  history))))
+    ;; Kludge!  Put "/foo/bar" on history rather than "/default//foo/bar"
+    (let ((hist (cond ((not history) 'minibuffer-history)
+                      ((consp history) (car history))
+                      (t history))))
+      (if (and val
+               hist
+               (not (eq hist 't))
+               (boundp hist)
+               (equal (car-safe (symbol-value hist)) val))
+          (let ((e (condition-case nil
+                       (expand-file-name val)
+                     (error nil))))
+            (if (and e (not (equal e val)))
+                (set hist (cons e (cdr (symbol-value hist))))))))
+
     (cond ((not val)
            (error "No file name specified"))
           ((and default
@@ -1042,7 +1056,8 @@ only existing buffer names are allowed."
 
 
 (defun read-file-name (prompt
-                       &optional dir default must-match initial-contents hist)
+                       &optional dir default must-match initial-contents
+		       history)
   "Read file name, prompting with PROMPT and completing in directory DIR.
 Value is not expanded---you must call `expand-file-name' yourself.
 Value is subject to interpreted by substitute-in-file-name however.
@@ -1051,9 +1066,11 @@ Default name to DEFAULT if user enters a null string.
 Fourth arg MUST-MATCH non-nil means require existing file's name.
  Non-nil and non-t means also require confirmation after completion.
 Fifth arg INITIAL-CONTENTS specifies text to start with.
+Sixth arg HISTORY specifies the history list to use.  Default is
+ `minibuffer-file-name-history'.
 DIR defaults to current buffer's directory default."
   (read-file-name-1
-   'minibuffer-file-name-history
+   (or history 'minibuffer-file-name-history)
    prompt dir (or default buffer-file-name) must-match initial-contents
    ;; A separate function (not an anonymous lambda-expression)
    ;; and passed as a symbol because of disgusting kludges in various
@@ -1071,20 +1088,21 @@ DIR defaults to current buffer's directory default."
 
 ;; Environment-variable completion hack
 (defun read-file-name-internal-1 (string dir action completer)
-  (if (not (string-match "[^$]\\(\\$\\$\\)*\\$\\([A-Za-z0-9_]*\\|{[^}]*\\)\\'"
+  (if (not (string-match "\\([^$]\\|\\`\\)\\(\\$\\$\\)*\\$\\([A-Za-z0-9_]*\\|{[^}]*\\)\\'"
                          string))
+      ;; Not doing environment-variable completion hack
       (let* ((orig (if (equal string "") nil string))
-	     (sstring (if orig (substitute-in-file-name string) string))
-	     (specdir (if orig (file-name-directory sstring) nil)))
-	(funcall completer 
-		 action 
-		 orig 
-		 sstring 
-		 specdir
-		 (if specdir (expand-file-name specdir dir) dir)
-		 (if orig (file-name-nondirectory sstring) string)))
+             (sstring (if orig (substitute-in-file-name string) string))
+             (specdir (if orig (file-name-directory sstring) nil)))
+        (funcall completer 
+                 action 
+                 orig 
+                 sstring 
+                 specdir
+                 (if specdir (expand-file-name specdir dir) dir)
+                 (if orig (file-name-nondirectory sstring) string)))
       ;; An odd number of trailing $'s
-      (let* ((start (match-beginning 2))
+      (let* ((start (match-beginning 3))
              (env (substring string 
                              (cond ((= start (length string))
                                     ;; "...$"
@@ -1132,7 +1150,13 @@ DIR defaults to current buffer's directory default."
       (cond ((eq action 'lambda)
              (if (not orig)
                  nil
-                 (file-exists-p string)))
+               (let ((sstring (condition-case nil 
+                                  (expand-file-name string)
+                                (error nil))))
+                 (if (not sstring)
+                     ;; Some pathname syntax error in string
+                     nil
+                     (file-exists-p sstring)))))
             ((eq action 't)
              ;; all completions
              (mapcar (function un-substitute-in-file-name)

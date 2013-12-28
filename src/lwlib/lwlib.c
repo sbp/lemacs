@@ -833,6 +833,10 @@ lw_destroy_all_pop_ups ()
     }
 }
 
+#ifdef USE_MOTIF
+extern Widget first_child (Widget);	/* garbage */
+#endif
+
 Widget
 lw_raise_all_pop_up_widgets ()
 {
@@ -847,7 +851,15 @@ lw_raise_all_pop_up_widgets ()
 	  Widget widget = instance->widget;
 	  if (widget)
 	    {
-	      if (XtIsManaged (widget))
+	      if (XtIsManaged (widget)
+#ifdef USE_MOTIF
+		  /* What a complete load of crap!!!!
+		     When a dialogShell is on the screen, it is not managed!
+		   */
+		  || (lw_motif_widget_p (instance->widget) &&
+		      XtIsManaged (first_child (widget)))
+#endif
+		  )
 		{
 		  if (!result)
 		    result = widget;

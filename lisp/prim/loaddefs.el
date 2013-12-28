@@ -523,54 +523,29 @@ since it looks at only one line at a time.
 The more patterns there are in this list, the slower the initial fontification
 of the buffer will be.")
 
+
+(autoload 'holidays "holidays"
+  "\
+Prepare a list of holidays in the previous, present, and next months."
+  t)
 (autoload 'calendar "calendar"
   "\
-Display a three-month calendar in another window.
-The three months appear side by side, with the current month in the middle
-surrounded by the previous and next months.  The cursor is put on today's date.
-
-This function is suitable for execution in a .emacs file; appropriate setting
-of the variable view-diary-entries-initially will cause the diary entries for
-the current date to be displayed in another window.  The value of the variable
-number-of-diary-entries controls the number of days of diary entries displayed.
-
-An optional prefix argument ARG causes the calendar displayed to be ARG
-months in the future if ARG is positive or in the past if ARG is negative;
-in this case the cursor goes on the first day of the month.
-
-Once in the calendar window, future or past months can be moved into view.
-Arbitrary months can be displayed, or the calendar can be scrolled forward
-or backward.
-
-The cursor can be moved forward or backward by one day, one week, one month,
-or one year.  All of these commands take prefix arguments which, when negative,
-cause movement in the opposite direction.  For convenience, the digit keys
-and the minus sign are automatically prefixes.  The window is replotted as
-necessary to display the desired date.
-
-Diary entries can be marked on the calendar or displayed in another window.
-
-Use describe-mode for details of the key bindings in the calendar window.
-
-The Gregorian calendar is assumed.
-
-After preparing the calendar window initially, the hooks
-initial-calendar-window-hook are run.
-
-The hooks today-visible-calendar-hook are run everytime the calendar window
-gets shifted, if the current date is visible in the window.  If it is not
-visible, the hooks today-invisible-calendar-hook are run.  Thus, for
-example, setting today-visible-calendar-hook to 'calendar-star-date will
-cause today's date to be replaced by asterisks to highlight it whenever it
-is in the window."
+Display a three-month calendar window."
   t)
-
-(autoload 'diary "calendar"
+(autoload 'diary "diary"
   "\
-Generate the diary window for the current date.
-The number of days of diary entries is governed by number-of-diary-entries.
+Display a window of diary entries."
+  t)
+(autoload 'phases-of-moon "lunar"
+  "\
+Display the quarters of the moon for last month, this month, and next month.
 This function is suitable for execution in a .emacs file."
   t)
+(autoload 'sunrise-sunset "solar"
+  "\
+Local time of sunrise and sunset for today.  Accurate to +/- 2 minutes."
+  t)
+
 
 (autoload 'diff "diff"
   "\
@@ -942,34 +917,12 @@ Each file will be processed even if an error occurred previously.
 For example, invoke \"emacs -batch -f batch-info-validate $info/ ~/*.info\""
   nil)
 
-(autoload 'ispell "ispell" "\
-Run ispell over a buffer.  (Actually over the buffer's file.)
-First the file is scanned for misspelled words, then ispell
-enters a loop with the following commands for every misspelled word:
-
-DIGIT	Near miss selector.  If the misspelled word is 'close' to
-	some words in the dictionary, they are offered as near misses.
-r	Replace.  Replace the word with a string you type.  Each word
-	of your new string is also checked.
-i	Insert.  Insert this word in your private dictonary (kept in
-	$HOME/ispell.words)
-a	Accept.  Accept this word for the rest of this editing session,
- 	but don't put it in your private dictonary.
-l	Lookup.  Look for a word in the dictionary by fast binary
-	search, or search for a regular expression in the dictionary
-	using grep.
-SPACE	Accept the word this time, but complain if it is seen again.
-q, C-G	Leave the command loop.  You can come back later with \\[ispell-next]."
-	  t)
-
-(autoload 'ispell-region "ispell" "\
-Check the spelling for all of the words in the region."
-	  t)
-
-(autoload 'ispell-word "ispell" "\
-Check the spelling of the word under the cursor.
-See `ispell' for more documentation."
-	  t)
+(autoload 'ispell-word "ispell" "Check the spelling of a word." t)
+(autoload 'ispell-region "ispell" "Check the spelling of words in a region." t)
+(autoload 'ispell-buffer "ispell" "Check the spelling of buffer." t)
+(autoload 'ispell-complete-word "ispell"
+	  "Look up current word in dictionary and try to complete it." t)
+(autoload 'ispell-change-dictionary "ispell" "Change ispell dictionary." t)
 
 (autoload 'ledit-mode "ledit"
   "\
@@ -2546,3 +2499,6 @@ Run an inferior Kyoto Common LISP." t)
 Run an inferior generic Scheme." t)
 (autoload 'oaklisp   "ilisp" "\
 Run an inferior Oaklisp Scheme." t)
+
+(autoload 'hexl-find-file "hexl" "\
+Edit file FILENAME in hexl-mode." t)

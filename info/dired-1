@@ -1,4 +1,4 @@
-Info file dired.info, produced by Makeinfo, -*- Text -*- from input
+Info file ../info/dired, produced by Makeinfo, -*- Text -*- from input
 file dired.texi.
 
    This file documents Tree Dired, the GNU Emacs Directory Browser, and
@@ -24,7 +24,7 @@ License" may be included in a translation approved by the author
 instead of in the original English.
 
 
-File: dired.info,  Node: Top,  Next: Dired,  Prev: (dir),  Up: (dir)
+File: dired,  Node: Top,  Next: Dired,  Prev: (dir),  Up: (dir)
 
    This file documents Tree Dired (version 6), the GNU Emacs Directory
 Editor, including the optional "Dired Extra" features.
@@ -35,7 +35,7 @@ Emacs 18.55 and 18.57 (and probably most earlier versions).
 
 Revision of this manual:
 
-$Id: dired-1,v 1.1.1.1 1992/06/29 22:32:24 devin Exp $
+$Id: dired-1,v 1.2 1993/01/30 06:46:29 jwz Exp $
 
 Report bugs to:
 
@@ -112,7 +112,7 @@ Dired Internals
 * Dired Mark Internals::
 
 
-File: dired.info,  Node: Dired,  Next: Tree Dired Extra,  Prev: Top,  Up: Top
+File: dired,  Node: Dired,  Next: Tree Dired Extra,  Prev: Top,  Up: Top
 
 Dired, the Directory Editor
 ***************************
@@ -142,7 +142,7 @@ criteria.
 * Dired Customization::
 
 
-File: dired.info,  Node: Entering Dired,  Next: Editing in Dired,  Prev: Dired,  Up: Dired
+File: dired,  Node: Entering Dired,  Next: Editing in Dired,  Prev: Dired,  Up: Dired
 
 Entering Dired
 ==============
@@ -182,7 +182,7 @@ selected window, use `C-x 4 d' (`dired-other-window)' instead of `C-x
 d'.
 
 
-File: dired.info,  Node: Editing in Dired,  Next: Listing Files in Dired,  Prev: Entering Dired,  Up: Dired
+File: dired,  Node: Editing in Dired,  Next: Listing Files in Dired,  Prev: Entering Dired,  Up: Dired
 
 Editing in Dired
 ================
@@ -234,7 +234,7 @@ often in Dired that it deserves to be easy to type.  DEL (move up and
 unflag) is often useful simply for moving up.
 
 
-File: dired.info,  Node: Listing Files in Dired,  Next: Marking Files in Dired,  Prev: Editing in Dired,  Up: Dired
+File: dired,  Node: Listing Files in Dired,  Next: Marking Files in Dired,  Prev: Editing in Dired,  Up: Dired
 
 Listing Files in Dired
 ======================
@@ -395,7 +395,7 @@ single file.
      `g' only list those subdirectories that were listed before.
 
 `M-k'
-     (`dired-do-kill') Kill are marked lines (not files).  With a
+     (`dired-do-kill') Kill all marked lines (not files).  With a
      prefix argument, kill all lines not marked or flagged.
 
      (For file marking, *Note Marking Files in Dired::.)
@@ -409,7 +409,7 @@ single file.
      parse the buffer again for the new subdirectory list.
 
 
-File: dired.info,  Node: Marking Files in Dired,  Next: Mark-using Commands,  Prev: Listing Files in Dired,  Up: Dired
+File: dired,  Node: Marking Files in Dired,  Next: Mark-using Commands,  Prev: Listing Files in Dired,  Up: Dired
 
 Marking Files in Dired
 ======================
@@ -475,7 +475,7 @@ Directories in Dired::.
      wrapping around the beginning of the buffer.
 
 
-File: dired.info,  Node: Mark-using Commands,  Next: Commands That Do Not Use Marks,  Prev: Marking Files in Dired,  Up: Dired
+File: dired,  Node: Mark-using Commands,  Next: Commands That Do Not Use Marks,  Prev: Marking Files in Dired,  Up: Dired
 
 Mark-using Commands
 ===================
@@ -521,7 +521,7 @@ separately and goes together with the usual output (`stdout').
 * Printing the Marked Files::
 
 
-File: dired.info,  Node: Copy and Move Into a Directory,  Next: Renaming and More With Regexps,  Prev: Mark-using Commands,  Up: Mark-using Commands
+File: dired,  Node: Copy and Move Into a Directory,  Next: Renaming and More With Regexps,  Prev: Mark-using Commands,  Up: Mark-using Commands
 
 Copy, Move etc. Into a Directory
 --------------------------------
@@ -558,8 +558,9 @@ character, usually `C-h', at that time for help.
      directory, or copy a single file.
 
      Thus, a zero prefix argument (N-0) copies nothing.  But it toggles
-     the variable `dired-copy-preserve-time'.  *Note Dired User
-     Options::, on how to set cutomization variables.
+     the variable `dired-copy-preserve-time'.
+       *Note Dired User Options::, on how to set customization
+     variables.
 
 `r'
      (`dired-do-move') Move the marked files into a directory.  If
@@ -603,7 +604,7 @@ to set the variable `dired-keep-marker-move' to `t' (the default) so
 that moved files "take their markers with them".
 
 
-File: dired.info,  Node: Renaming and More With Regexps,  Next: Other File Creating Commands,  Prev: Copy and Move Into a Directory,  Up: Mark-using Commands
+File: dired,  Node: Renaming and More With Regexps,  Next: Other File Creating Commands,  Prev: Copy and Move Into a Directory,  Up: Mark-using Commands
 
 Renaming (and More) With Regexps
 --------------------------------
@@ -667,7 +668,7 @@ from several filenames, use `%m' `^V17I12-' `RET' `%r' `RET' `RET', in
 effect replacing the prefix with the empy string.
 
 
-File: dired.info,  Node: Other File Creating Commands,  Next: Deleting Files With Dired,  Prev: Renaming and More With Regexps,  Up: Mark-using Commands
+File: dired,  Node: Other File Creating Commands,  Next: Deleting Files With Dired,  Prev: Renaming and More With Regexps,  Up: Mark-using Commands
 
 Other File Creating Commands
 ----------------------------
@@ -681,7 +682,7 @@ Other File Creating Commands
      (`dired-downcase') Rename each marked file to lower case.
 
 
-File: dired.info,  Node: Deleting Files With Dired,  Next: Dired Shell Commands,  Prev: Other File Creating Commands,  Up: Mark-using Commands
+File: dired,  Node: Deleting Files With Dired,  Next: Dired Shell Commands,  Prev: Other File Creating Commands,  Up: Mark-using Commands
 
 Deleting Files With Dired
 -------------------------
@@ -714,7 +715,7 @@ deleting behave exactly like any mark-using command.
      The special directories `.' and `..' are never flagged.
 
 `x'
-     (`dired-do-flagged-delete') Delete the files that are flagged for
+     (`dired-do-deletions') Delete the files that are flagged for
      deletion (with `D').
 
 `X'
@@ -788,7 +789,7 @@ the number of newest versions to keep, overriding
 the number of oldest versions of each file to keep.
 
 
-File: dired.info,  Node: Dired Shell Commands,  Next: Compressing and Uncompressing,  Prev: Deleting Files With Dired,  Up: Mark-using Commands
+File: dired,  Node: Dired Shell Commands,  Next: Compressing and Uncompressing,  Prev: Deleting Files With Dired,  Up: Mark-using Commands
 
 Shell Commands on Marked files
 ------------------------------
@@ -812,6 +813,8 @@ indicate the place(s) where the list should go.  Thus,
 
    The filenames are inserted in the order they appear in the buffer. 
 The file listed topmost in the buffer will be the leftmost in the list.
+
+   Currently, there is no way to insert a real `*' into the command.
 
    As with all mark-using commands, if no files are marked or a
 specific numeric prefix arg is given, the current or the next N files
@@ -908,7 +911,7 @@ buffers.
      a single `SPC' as command would also work.
 
 
-File: dired.info,  Node: Compressing and Uncompressing,  Next: Changing File Attributes,  Prev: Dired Shell Commands,  Up: Mark-using Commands
+File: dired,  Node: Compressing and Uncompressing,  Next: Changing File Attributes,  Prev: Dired Shell Commands,  Up: Mark-using Commands
 
 Compressing and Uncompressing
 -----------------------------
@@ -925,7 +928,7 @@ file) and to uncompress files not ending in `.Z'.
      (`dired-do-uncompress') Uncompress the marked files.
 
 
-File: dired.info,  Node: Changing File Attributes,  Next: Loading and Byte-compiling Emacs Lisp Files,  Prev: Compressing and Uncompressing,  Up: Mark-using Commands
+File: dired,  Node: Changing File Attributes,  Next: Loading and Byte-compiling Emacs Lisp Files,  Prev: Compressing and Uncompressing,  Up: Mark-using Commands
 
 Changing File Attributes
 ------------------------
@@ -950,7 +953,7 @@ files.
      variable `dired-chown-program' to do the change.
 
 
-File: dired.info,  Node: Loading and Byte-compiling Emacs Lisp Files,  Next: Printing the Marked Files,  Prev: Changing File Attributes,  Up: Mark-using Commands
+File: dired,  Node: Loading and Byte-compiling Emacs Lisp Files,  Next: Printing the Marked Files,  Prev: Changing File Attributes,  Up: Mark-using Commands
 
 Loading and Byte-compiling Emacs Lisp Files
 -------------------------------------------
@@ -965,7 +968,7 @@ and reported after all files have been processed.
      (`dired-do-byte-compile') Byte compile the marked elisp files.
 
 
-File: dired.info,  Node: Printing the Marked Files,  Prev: Loading and Byte-compiling Emacs Lisp Files,  Up: Mark-using Commands
+File: dired,  Node: Printing the Marked Files,  Prev: Loading and Byte-compiling Emacs Lisp Files,  Up: Mark-using Commands
 
 Printing the Marked Files
 -------------------------
@@ -980,15 +983,15 @@ Printing the Marked Files
      shell command, e.g.,
 
           (setq lpr-command: "lwf")
-          (setq lpr-switches: "-l -m * | lpr -Palw")
+          (setq lpr-switches: '("-l -m * | lpr -Palw"))
 
           to print with the shell command `lwf -l -m * | lpr -Palw', where
      `*' will be substituted by the marked files.  The `lpr-buffer'
-     and `lpr-region' don't now about `*' or `|', though, only Dired
+     and `lpr-region' don't know about `*' or `|', though, only Dired
      does.
 
 
-File: dired.info,  Node: Commands That Do Not Use Marks,  Next: Subdirectories in Dired,  Prev: Mark-using Commands,  Up: Dired
+File: dired,  Node: Commands That Do Not Use Marks,  Next: Subdirectories in Dired,  Prev: Mark-using Commands,  Up: Dired
 
 Commands That Do Not Use Marks
 ==============================
@@ -1045,7 +1048,7 @@ Other commands:
      are reported by a command.
 
 
-File: dired.info,  Node: Subdirectories in Dired,  Next: Hiding Directories in Dired,  Prev: Commands That Do Not Use Marks,  Up: Dired
+File: dired,  Node: Subdirectories in Dired,  Next: Hiding Directories in Dired,  Prev: Commands That Do Not Use Marks,  Up: Dired
 
 Subdirectories in Dired
 =======================
@@ -1121,7 +1124,7 @@ headerlines:
      regardless of level.
 
 
-File: dired.info,  Node: Hiding Directories in Dired,  Next: Acknowledgement,  Prev: Subdirectories in Dired,  Up: Dired
+File: dired,  Node: Hiding Directories in Dired,  Next: Acknowledgement,  Prev: Subdirectories in Dired,  Up: Dired
 
 Hiding Directories in Dired
 ===========================
@@ -1147,7 +1150,7 @@ vice versa.
      very deep directory trees or to move quickly to subdirs far away.
 
 
-File: dired.info,  Node: Acknowledgement,  Next: Dired Customization,  Prev: Hiding Directories in Dired,  Up: Dired
+File: dired,  Node: Acknowledgement,  Next: Dired Customization,  Prev: Hiding Directories in Dired,  Up: Dired
 
 Acknowledgement
 ===============
@@ -1188,7 +1191,7 @@ and all other beta testers and people who reported bugs or just said
 "thanks".
 
 
-File: dired.info,  Node: Dired Customization,  Prev: Acknowledgement,  Up: Dired
+File: dired,  Node: Dired Customization,  Prev: Acknowledgement,  Up: Dired
 
 Dired Customization
 ===================

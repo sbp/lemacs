@@ -83,7 +83,7 @@
 (energize-advise-function ask-user-about-lock	"userlock")
 
 (energize-advise-function next-error		"compile")
-(energize-advise-function previous-error	nil)
+;(energize-advise-function previous-error	nil)
 
 (energize-advise-function gdb-break		"gdb")
 (energize-advise-function gdb-step		nil)

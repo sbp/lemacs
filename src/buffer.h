@@ -1,5 +1,5 @@
 /* Header file for the buffer manipulation primitives.
-   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -16,6 +16,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#ifndef _EMACS_BUFFER_H_
+#define _EMACS_BUFFER_H_
 
 #ifdef lint
 #include "undo.h"
@@ -216,6 +219,8 @@ struct buffer
 #undef MARKED_SLOT
 };
 
+#ifdef emacs
+
 extern struct buffer *current_buffer;
 extern struct buffer *all_buffers;
 
@@ -305,3 +310,7 @@ whatever you like.  */
 extern Lisp_Object Vbuffer_alist;
 #define internal_set_buffer(b) set_buffer_internal((b)) /*Compatibility*/
 extern void set_buffer_internal (struct buffer *b);
+
+#endif /* emacs */
+
+#endif /* _EMACS_BUFFER_H_ */

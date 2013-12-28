@@ -25,8 +25,6 @@
 ;;; Right button pops up a menu of commands in all VM buffers.
 ;;; Middle button selects indicated article in VM Summary buffers.
 
-(require 'vm)
-
 (defvar vm-menu
   '("View Mail"
     ["Next Nondeleted Message"		 vm-next-message t]
@@ -137,10 +135,15 @@
 
 ;;; originally defined in vm-folder.el
 
+(require 'highlight-headers)
+
+(or vm-highlighted-header-regexp
+    (setq vm-highlighted-header-regexp "^Subject: "))
+
 (defun vm-highlight-headers (message window)
   (let ((highlight-headers-regexp vm-highlighted-header-regexp))
     (highlight-headers (marker-position (vm-start-of (car vm-message-pointer)))
-		       (marker-position (vm-text-of (car vm-message-pointer)))
+		       (vm-text-end-of (car vm-message-pointer))
 		       t)))
 
 

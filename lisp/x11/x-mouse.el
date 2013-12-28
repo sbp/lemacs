@@ -1,5 +1,5 @@
 ;; Mouse support for X window system.
-;; Copyright (C) 1985, 1987, 1988, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -90,6 +90,9 @@ If this is nil, then `x-pointer-shape' is used.")
 If this is nil, then either `x-nontext-pointer-shape' or `x-pointer-shape'
 will be used.")
 
+(defvar x-selection-pointer-shape nil
+  "*The shape of the mouse-pointer when over a selectable text region.")
+
 (defvar x-pointer-foreground-color nil
   "*The foreground color of the mouse pointer.")
 
@@ -102,7 +105,9 @@ will be used.")
 	 (buffer (and window (window-buffer window)))
 	 (point (and buffer (event-point event)))
 	 (extent (and point (extent-at point buffer 'highlight)))
-	 (var (cond (point 'x-pointer-shape)
+	 (var (cond ((and extent x-selection-pointer-shape)
+		     'x-selection-pointer-shape)
+		    (point 'x-pointer-shape)
 		    (buffer
 		     (cond (x-nontext-pointer-shape 'x-nontext-pointer-shape)
 			   (x-pointer-shape 'x-pointer-shape)))
@@ -176,6 +181,9 @@ database."
     (setq x-pointer-shape
 	  (or (x-get-resource "textPointer" "Cursor" 'string screen)
 	      "xterm"))
+    (setq x-selection-pointer-shape
+	  (or (x-get-resource "selectionPointer" "Cursor" 'string screen)
+	      "top_left_arrow"))
     (setq x-nontext-pointer-shape
 	  (or (x-get-resource "spacePointer" "Cursor" 'string screen)
 	      "crosshair"))

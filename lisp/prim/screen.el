@@ -1,5 +1,5 @@
 ;; Multi-screen management that is independent of window systems.
-;; Copyright (C) 1990, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1990-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -37,7 +37,7 @@
   "Alist of default values for screen creation, other than the first one.
 These may be set in your init file, like this:
   (setq screen-default-alist '((width . 80) (height . 55)))
-For values specific to the first emacs screen, you must use X Resources.")
+For values specific to the first emacs screen, you must use X resources.")
 
 (defvar minibuffer-alist '((minibuffer . only)
 			   (height . 1)

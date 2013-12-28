@@ -1,12 +1,16 @@
 /****************************************************************************
  ***
- ***        (c) Copyright 1990 by Sun/Lucid,  All Rights Reserved.
+ ***	Copyright © 1990 by Sun/Lucid,  All Rights Reserved.
+ ***	Copyright © 1991-1993 by Lucid, Inc.  All Rights Reserved.
  ***
  *****************************************************************************/
 
-/* system */
 #include "config.h"
+
+#ifdef ENERGIZE 	/* whole file */
+
 #include "lisp.h"
+#include "events.h"
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -30,15 +34,10 @@
 
 #include <lwlib.h>
 
-/* this doesn't work because of conflicts with the fucking C++ hash table code
- */
-/* #include "hash.h" */
-
 /* Display Context for the icons */ 
 #include <X11/Intrinsic.h>
-#include <X11/IntrinsicP.h>
-#include <X11/CoreP.h>
 #include <X11/StringDefs.h>
+#include <Xm/DialogS.h>
 
 /* Energize editor requests and I/O operations */
 #include "editorside.h"
@@ -100,6 +99,9 @@ Lisp_Object Venergize_attributes_mapping;
 Lisp_Object Venergize_kernel_busy_hook;
 Lisp_Object Venergize_menu_update_hook;
 Lisp_Object Qenergize_extent_data;
+
+/*static int energize_font_lock_p;*/
+
 
 /************************ Functions ********************/
 extern Lisp_Object Venergize_kernel_busy;
@@ -442,10 +444,9 @@ static GDataClass *
 alloc_GDataclass (EId id, BufferInfo *binfo)
 {
   GDataClass *cl = xnew (GDataClass);
+  memset (cl, 0, sizeof (GDataClass));
   cl->seal = GDATA_CLASS_SEAL;
   cl->id = id;
-  cl->flags = 0;
-/*  cl->image = 0;*/
   put_class (cl->id, binfo, cl);
   return cl;
 } 
@@ -1006,8 +1007,11 @@ ParseAnImage (Connection *conn, BufferInfo *binfo)
     resource[0].resource_name = pix_name;
     resource[0].resource_class = XtCBitmap;
     resource[0].resource_type = XtRString;
+    resource[0].resource_size = sizeof (char *);
     resource[0].resource_offset = 0;
-    resource[0].default_type = XtRString;
+    resource[0].default_type = XtRImmediate;
+    resource[0].default_addr = 0;
+    file = 0;
     BLOCK_INPUT;
     XtGetSubresources (selected_screen->display.x->widget, (XtPointer) &file,
 		       "image", "Image", resource, 1, NULL, 0);
@@ -1375,7 +1379,31 @@ safe_funcall_hook (Lisp_Object hook, int nargs, Lisp_Object arg1,
 		   Lisp_Object arg2, Lisp_Object arg3);
 
 extern void del_range (int, int);
-extern void process_extents_for_destruction (int, int, struct buffer *);
+
+extern Lisp_Object Fdelete_extent (Lisp_Object);
+
+static int
+destroy_if_energize_extent (EXTENT ext, void* arg)
+{
+  if (energize_extent_data (ext))
+    {
+      Lisp_Object extent;
+      XSET (extent, Lisp_Extent, ext);
+      Fdelete_extent (extent);
+    }
+  return 0;
+}
+
+/*extern void process_extents_for_destruction (int, int, struct buffer *);*/
+static void
+destroy_all_energize_extents (struct buffer* buf)
+{
+/*  if (energize_font_lock_p)*/
+    map_extents (BUF_BEG (buf), BUF_Z (buf), NULL, destroy_if_energize_extent,
+		 NULL, buf, 1);
+/*  else
+    process_extents_for_destruction (BUF_BEG (buf), BUF_Z (buf), buf);*/
+}
 
 static void
 ParseBuffer (Connection *conn, CBuffer *cbu, Editor *editor, 
@@ -1524,7 +1552,9 @@ ParseBuffer (Connection *conn, CBuffer *cbu, Editor *editor,
   specbind (Qenergize_buffer_modified_hook, Qnil);
   specbind (Qfirst_change_function, Qnil);
   specbind (Qbefore_change_function, Qnil);
-  specbind (Qafter_change_function, Qnil);
+  /* As energize does not use the after-change-function it's not useful to
+     bind it to NIL */
+  /* specbind (Qafter_change_function, Qnil); */
   specbind (Qinside_parse_buffer, Qt);
   specbind (Qbuffer_undo_list, Qt);
 
@@ -1576,14 +1606,14 @@ ParseBuffer (Connection *conn, CBuffer *cbu, Editor *editor,
             {
               Fsetcdr (Fcdr (restore_buffer_state_cons), Qnil);
               no_text_deleted = 1;
-              process_extents_for_destruction (from, to, buf);
+	      destroy_all_energize_extents (buf);
             }
 	  else
             {
               /* Do not keep window start if we actually delete text */
               should_keep_window_start = 0;
 	      Fset_buffer (binfo->emacs_buffer);
-              process_extents_for_destruction (from, to, buf);
+	      destroy_all_energize_extents (buf);
               del_range (from, to);
             }
         }
@@ -2068,8 +2098,13 @@ execute_energize_menu (Lisp_Object buffer, Energize_Extent_Data* ext, char* name
 	xfree (rw.message);
       error (message);
     }
-  else if (rw.message)
-    xfree (rw.message);
+  else
+    {
+      if (rw.message)
+	xfree (rw.message);
+      if (!energize_connection)
+	error ("Connection to Energize was closed.");
+    }
  }
 
 /* Returns a list of vectors representing the menu choices.  Next request
@@ -3101,7 +3136,10 @@ HandleControlChange (Widget widget, EId sheet_id, void* arg)
   widget_value* val;
   widget_value* cur;
   widget_value* this_val = NULL;
+  widget_value* cancel = NULL;
   char* 	this_name;
+  int delete_window_p = (((int) arg) == -1);
+  
 
   if (!energize_connection)
     return;
@@ -3113,12 +3151,29 @@ HandleControlChange (Widget widget, EId sheet_id, void* arg)
   this_name = XtName (widget);
   val = lw_get_all_values (sheet_id);
 
+  if (delete_window_p)
+    /* Complete and utter kludge.  If this dbox was dismissed with the
+       WM close box (WM_DELETE_WINDOW, meaning the widget was destroyed)
+       then we look for a likely "cancel" button and pretend the user
+       clicked on that.  Really the protocol should be extended for this.
+     */
+    for (cur = val; cur; cur = cur->next)
+      {
+	char *v = cur->value;
+	if (v &&
+	    ((strlen (v) >= 6 && !strncmp (v, "cancel", 6)) ||
+	     (strlen (v) >= 5 && !strncmp (v, "abort", 5))))
+	  cancel = cur;
+      }
+
   /* first send all the edited widgets */
   for (cur = val; cur; cur = cur->next)
     {
       /* do not send the widget that ran the callback */
       if (!strcmp (cur->name, this_name))
 	this_val = cur;
+      else if (cur == cancel)
+	;
       /* send the edited widgets */
       else if (cur->edited)
 	{
@@ -3141,6 +3196,12 @@ HandleControlChange (Widget widget, EId sheet_id, void* arg)
 	  CWriteChoice (conn, 0, flags, value, 0);
 	  CWriteLength (conn);
 	}
+    }
+
+  if (delete_window_p && !this_val)
+    {
+      this_val = cancel;
+/*      if (! this_val) abort (); */
     }
 
   /* Then send the widget that ran the callback */
@@ -4191,6 +4252,452 @@ notify_that_sheet_has_been_hidden (EId id)
 }
 
 
+/* edit-mode dialog box 
+ */
+
+extern int dbox_up_p;
+extern unsigned int popup_id_tick;
+extern Lisp_Object Fpopup_dialog_box (Lisp_Object);
+
+static struct editmode {
+  int ok, external, view, edit, window, split;
+  char *other;
+} editmode;
+
+static void
+edit_mode_callback (Widget widget, LWLIB_ID id, XtPointer client_data)
+{
+  widget_value *data;
+  char *name = (char *) client_data;
+
+  if ((int) client_data == -1) name = "cancel";	/* WM_DELETE_WINDOW */
+
+  if (!strcmp (XtName (widget), "otherText")) /* screw it */
+    ;
+  else if (!strcmp (name, "externalBox"))
+    {
+      /* make the text slot be active only if "other" is selected */
+      BLOCK_INPUT;
+      data = malloc_widget_value ();
+      data->name = "externalOther";
+      if (! lw_get_some_values (id, data)) abort ();
+      data->enabled = data->selected;
+      data->name = "otherText";
+      lw_modify_all_widgets (id, data, True);
+      free_widget_value (data);
+      UNBLOCK_INPUT;
+    }
+  else if (!strcmp (name, "cancel"))
+    {
+      editmode.ok = -1;
+      lw_destroy_all_widgets (id);
+    }
+  else if (!strcmp (name, "help"))
+    {
+      Lisp_Object v = Fmake_vector (3, Qt);
+      XVECTOR (v)->contents [0] = build_string ("ok");
+      XVECTOR (v)->contents [1] = list1 (intern ("ignore"));
+      Fpopup_dialog_box (list2 (build_string ("dbx_editmode_help"), v));
+    }
+  else if (!strcmp (name, "ok"))
+    {
+      BLOCK_INPUT;
+      editmode.ok = 1;
+      data = malloc_widget_value ();
+      data->name = "externalEmacs";
+      if (! lw_get_some_values (id, data)) abort ();
+      if (data->selected) editmode.external = 0;
+      data->name = "externalViXterm";
+      if (! lw_get_some_values (id, data)) abort ();
+      if (data->selected) editmode.external = 1;
+      data->name = "externalViCmdtool";
+      if (! lw_get_some_values (id, data)) abort ();
+      if (data->selected) editmode.external = 2;
+      data->name = "externalOther";
+      if (! lw_get_some_values (id, data)) abort ();
+      if (data->selected) editmode.external = 3;
+      data->name = "otherText";
+      if (! lw_get_some_values (id, data)) abort ();
+      editmode.other = data->value;
+
+      data->name = "emacsView";
+      if (! lw_get_some_values (id, data)) abort ();
+      if (data->selected) editmode.view = 0;
+      data->name = "viView";
+      if (! lw_get_some_values (id, data)) abort ();
+      if (data->selected) editmode.view = 1;
+      data->name = "lessView";
+      if (! lw_get_some_values (id, data)) abort ();
+      if (data->selected) editmode.view = 2;
+
+      data->name = "editEmacs";
+      if (! lw_get_some_values (id, data)) abort ();
+      if (data->selected) editmode.edit = 0;
+      data->name = "editVi";
+      if (! lw_get_some_values (id, data)) abort ();
+      if (data->selected) editmode.edit = 1;
+
+      data->name = "windowOne";
+      if (! lw_get_some_values (id, data)) abort ();
+      if (data->selected) editmode.window = 0;
+      data->name = "windowSeveral";
+      if (! lw_get_some_values (id, data)) abort ();
+      if (data->selected) editmode.window = 1;
+      data->name = "windowMany";
+      if (! lw_get_some_values (id, data)) abort ();
+      if (data->selected) editmode.window = 2;
+
+      data->name = "splitScreens";
+      if (! lw_get_some_values (id, data)) abort ();
+      editmode.split = !!data->selected;
+
+      free_widget_value (data);
+      lw_destroy_all_widgets (id);
+      UNBLOCK_INPUT;
+    }
+  else
+    {
+      abort ();
+    }
+}
+
+static int
+editmode_done (void *arg)
+{
+  return (editmode.ok != 0);
+}
+
+DEFUN ("energize-edit-mode-prompt", Fenergize_edit_mode_prompt,
+       Senergize_edit_mode_prompt, 6, 6, 0, "")
+     (external, edit_mode, view_mode, other_text, window, split)
+     Lisp_Object external, edit_mode, view_mode, other_text, window, split;
+{
+  int dbox_id;
+  struct screen *s = selected_screen;
+  widget_value *data;
+  Widget parent, dbox;
+
+  if (!SCREEN_IS_X (s)) error ("not an X screen");
+  parent = s->display.x->widget;
+
+  CHECK_FIXNUM (external, 0);
+  CHECK_FIXNUM (edit_mode, 0);
+  CHECK_FIXNUM (view_mode, 0);
+  CHECK_FIXNUM (window, 0);
+  CHECK_FIXNUM (split, 0);
+  CHECK_STRING (other_text, 0);
+
+  editmode.ok = 0;
+  editmode.external = XINT (external);
+  editmode.view = XINT (view_mode);
+  editmode.edit = XINT (edit_mode);
+  editmode.window = XINT (window);
+  editmode.split = XINT (split);
+  editmode.other = 0;
+
+  BLOCK_INPUT;
+  data = malloc_widget_value ();
+  data->name = "editmode";
+  data->value = "editmode";
+  data->enabled = 1;
+
+  dbox_id = ++popup_id_tick;
+  dbox = lw_create_widget ("editmode", "editmode", dbox_id, data, parent,
+			   1, 0, edit_mode_callback, 0);
+  data->value = 0;
+
+  data->name = "button1"; data->call_data = data->value = "ok";
+  lw_modify_all_widgets (dbox_id, data, True);
+  data->name = "button2"; data->call_data = data->value = "cancel";
+  lw_modify_all_widgets (dbox_id, data, True);
+  data->name = "button3"; data->call_data = data->value = "help";
+  lw_modify_all_widgets (dbox_id, data, True);
+  data->name = data->call_data = "externalBox";
+  lw_modify_all_widgets (dbox_id, data, True);
+  data->name = "otherText"; data->call_data = "otherText";
+  lw_modify_all_widgets (dbox_id, data, True);
+  data->name = "message"; data->value = "editmode";
+  lw_modify_all_widgets (dbox_id, data, True);
+
+  data->selected = 1;
+  switch (editmode.external)
+    {
+    case 0: data->name = "externalEmacs"; break;
+    case 1: data->name = "externalViXterm"; break;
+    case 2: data->name = "externalViCmdtool"; break;
+    case 3: data->name = "externalOther"; break;
+    default: abort ();
+    }
+  lw_modify_all_widgets (dbox_id, data, True);
+  switch (editmode.view)
+    {
+    case 0: data->name = "emacsView"; break;
+    case 1: data->name = "viView"; break;
+    case 2: data->name = "lessView"; break;
+    default: abort ();
+    }
+  lw_modify_all_widgets (dbox_id, data, True);
+  switch (editmode.edit)
+    {
+    case 0: data->name = "editEmacs"; break;
+    case 1: data->name = "editVi"; break;
+    default: abort ();
+    }
+  lw_modify_all_widgets (dbox_id, data, True);
+  switch (editmode.window)
+    {
+    case 0: data->name = "windowOne"; break;
+    case 1: data->name = "windowSeveral"; break;
+    case 2: data->name = "windowMany"; break;
+    default: abort ();
+    }
+  lw_modify_all_widgets (dbox_id, data, True);
+  
+  data->name = "otherText";
+  data->selected = 0;
+  data->value = (char *) XSTRING (other_text)->data;
+  data->enabled = (editmode.external == 3);
+  lw_modify_all_widgets (dbox_id, data, True);
+
+  data->name = "splitScreens";
+  data->enabled = 1;
+  data->selected = editmode.split;
+  data->value = 0;
+  lw_modify_all_widgets (dbox_id, data, True);
+
+  free_widget_value (data);
+
+  dbox_up_p++;
+  lw_pop_up_all_widgets (dbox_id);
+  UNBLOCK_INPUT;
+
+  wait_delaying_user_input (editmode_done, 0);
+
+  if (editmode.ok == -1)
+    return Fcons (external,
+		  list5 (edit_mode, view_mode, other_text, window, split));
+  else if (editmode.ok == 1)
+    return Fcons (make_number (editmode.external),
+		  list5 (make_number (editmode.view),
+			 make_number (editmode.edit),
+			 build_string (editmode.other ? editmode.other : ""),
+			 make_number (editmode.window),
+			 make_number (editmode.split)));
+  else
+    abort ();
+}
+
+extern Time mouse_timestamp;
+extern Time global_mouse_timestamp;
+
+static LWLIB_ID search_id;
+static int last_search_up_p;
+
+static void
+hide_search_dialog (Widget w, LWLIB_ID id)
+{
+#if 0
+  /* I'd like to do this, but the widget occasionally gets FUCKED */
+  XUnmapWindow (XtDisplay (w), XtWindow (w));
+#else
+  lw_destroy_all_widgets (id);
+#endif
+}
+
+
+static void
+search_callback (Widget widget, LWLIB_ID id, XtPointer client_data)
+{
+  Widget parent = widget;
+  Lisp_Object event;
+  widget_value *data;
+  char *name = (char *) client_data;
+  Lisp_Object search, replace;
+  Lisp_Object case_sensitive_p, regexp_p, direction;
+
+  if ((int) client_data == -1) name = "done";	/* WM_DELETE_WINDOW */
+
+  while (parent && XtClass (parent) != xmDialogShellWidgetClass)
+    parent = XtParent (parent);
+  if (! parent) abort ();
+
+  if (!strcmp (name, "done"))
+    {
+      hide_search_dialog (parent, id);
+      return;
+    }
+  else if (!strcmp (name, "gotoStart"))
+    {
+      event = Fallocate_event ();
+      XEVENT (event)->event_type = menu_event;
+      XEVENT (event)->event.eval.function = Qcall_interactively;
+      XEVENT (event)->event.eval.object = intern ("beginning-of-buffer");
+      mouse_timestamp = global_mouse_timestamp;
+      enqueue_command_event (event);
+      return;
+    }
+  else if (!strcmp (name, "gotoEnd"))
+    {
+      event = Fallocate_event ();
+      XEVENT (event)->event_type = menu_event;
+      XEVENT (event)->event.eval.function = Qcall_interactively;
+      XEVENT (event)->event.eval.object = intern ("end-of-buffer");
+      mouse_timestamp = global_mouse_timestamp;
+      enqueue_command_event (event);
+      return;
+    }
+  else if (!strcmp (name, "scrollForward"))
+    {
+      event = Fallocate_event ();
+      XEVENT (event)->event_type = menu_event;
+      XEVENT (event)->event.eval.function = Qcall_interactively;
+      XEVENT (event)->event.eval.object = intern ("scroll-up");
+      mouse_timestamp = global_mouse_timestamp;
+      enqueue_command_event (event);
+      return;
+    }
+  else if (!strcmp (name, "scrollBack"))
+    {
+      event = Fallocate_event ();
+      XEVENT (event)->event_type = menu_event;
+      XEVENT (event)->event.eval.function = Qcall_interactively;
+      XEVENT (event)->event.eval.object = intern ("scroll-down");
+      mouse_timestamp = global_mouse_timestamp;
+      enqueue_command_event (event);
+      return;
+    }
+#if 0
+  else if (!strcmp (name, "help"))
+    {
+      Lisp_Object v = Fmake_vector (3, Qt);
+      XVECTOR (v)->contents [0] = build_string ("ok");
+      XVECTOR (v)->contents [1] = list1 (intern ("ignore"));
+      Fpopup_dialog_box (list2 (build_string ("dbx_search_help"), v));
+      return;
+    }
+#endif
+
+  BLOCK_INPUT;
+  data = malloc_widget_value ();
+  data->name = "searchText";
+  if (! lw_get_some_values (id, data)) abort ();
+  search = build_string (data->value);
+  data->name = "replaceText";
+  if (! lw_get_some_values (id, data)) abort ();
+  replace = build_string (data->value);
+  data->name = "regexpSearch";
+  if (! lw_get_some_values (id, data)) abort ();
+  regexp_p = (data->selected ? Qt : Qnil);
+  data->name = "caseSearch";
+  if (! lw_get_some_values (id, data)) abort ();
+  case_sensitive_p = (data->selected ? Qt : Qnil);
+
+  data->name = "directionForward";
+  if (! lw_get_some_values (id, data)) abort ();
+  direction = data->selected ? Qt : Qnil;
+
+  if (!strcmp (name, "search"))
+    replace = Qnil;
+  else if (!strcmp (name, "replace"))
+    ;
+  else if (!strcmp (name, "replace_all"))
+    {
+      replace = list1 (replace);
+/*      hide_search_dialog (parent, id); */
+    }
+  else
+    abort ();
+
+  free_widget_value (data);
+  UNBLOCK_INPUT;
+
+  event = Fallocate_event ();
+  XEVENT (event)->event_type = menu_event;
+  XEVENT (event)->event.eval.function = intern ("energize-search-internal");
+  XEVENT (event)->event.eval.object =
+    (NILP (replace)
+     ? list4 (case_sensitive_p, regexp_p, direction, search)
+     : list5 (case_sensitive_p, regexp_p, direction, search, replace));
+
+  mouse_timestamp = global_mouse_timestamp;
+  enqueue_command_event (event);
+}
+
+
+DEFUN ("energize-search", Fenergize_search, Senergize_search, 0, 0, "",
+       "Pop up the search-and-replace dialog box.")
+     ()
+{
+  int dbox_id;
+  struct screen *s = selected_screen;
+  widget_value *data;
+  Widget parent, dbox;
+
+  if (!SCREEN_IS_X (s)) error ("not an X screen");
+  parent = s->display.x->widget;
+
+  BLOCK_INPUT;
+  data = malloc_widget_value ();
+
+  dbox_id = (search_id ? search_id : (++popup_id_tick));
+  dbox = lw_create_widget ("search", "search", dbox_id, NULL, parent,
+			   1, 0, search_callback, 0);
+  data->enabled = 1;
+  data->value = 0;
+
+  data->name = "button1"; data->value = data->call_data = "search";
+  lw_modify_all_widgets (dbox_id, data, True);
+  data->name = "button2"; data->value = data->call_data = "replace";
+  lw_modify_all_widgets (dbox_id, data, True);
+  data->name = "button3"; data->value = data->call_data = "replace_all";
+  lw_modify_all_widgets (dbox_id, data, True);
+  data->name = "button4"; data->value = data->call_data = "done";
+  lw_modify_all_widgets (dbox_id, data, True);
+
+  data->value = 0;
+  data->name = data->call_data = "gotoStart";
+  lw_modify_all_widgets (dbox_id, data, True);
+  data->name = data->call_data = "gotoEnd";
+  lw_modify_all_widgets (dbox_id, data, True);
+  data->name = data->call_data = "scrollBack";
+  lw_modify_all_widgets (dbox_id, data, True);
+  data->name = data->call_data = "scrollForward";
+  lw_modify_all_widgets (dbox_id, data, True);
+
+  data->value = 0;
+  data->name = data->call_data = "caseSearch";
+  data->selected = NILP (current_buffer->case_fold_search);
+  lw_modify_all_widgets (dbox_id, data, True);
+
+  data->name = data->call_data = "directionForward";
+  data->selected = 1;
+  lw_modify_all_widgets (dbox_id, data, True);
+  data->name = data->call_data = "directionBackward";
+  data->selected = 0;
+  lw_modify_all_widgets (dbox_id, data, True);
+  
+  free_widget_value (data);
+
+  lw_pop_up_all_widgets (dbox_id);
+  last_search_up_p = 0;
+  if (search_id)
+    {
+      Widget w = lw_get_widget (dbox_id, parent, True);
+      if (! w) abort ();
+      XMapRaised (XtDisplay (w), XtWindow (w));
+    }
+  else
+    {
+      search_id = dbox_id;
+      dbox_up_p++;
+    }
+  UNBLOCK_INPUT;
+
+  return Qnil;
+}
+
+
+
 /*************** Definition of Emacs Lisp-callable functions ***************/
 
 void
@@ -4226,6 +4733,10 @@ syms_of_editorside()
   defsubr(&Senergize_psheets_visible_p);
   defsubr(&Senergize_buffer_has_psheets_p);
   defsubr(&Senergize_protocol_level);
+  defsubr(&Senergize_edit_mode_prompt);
+  defsubr(&Senergize_search);
+
+  search_id = 0;
 
   DEFVAR_BOOL ("   inside-parse-buffer", &inside_parse_buffer,
                "internal variable used to control extent deletion.");
@@ -4271,6 +4782,11 @@ takes no arguments.");
 	       "A-list to map kernel attributes indexes to Emacs attributes");
   Venergize_attributes_mapping = Qnil;
 
+/*  DEFVAR_INT ("energize-font-lock-p", &energize_font_lock_p,
+               "Set to true enable to use Energize with font-lock");
+  energize_font_lock_p = 1;
+ */
+
   Qbefore_change_function = intern ("before-change-function");
 
   Qafter_change_function = intern ("after-change-function");
@@ -4301,3 +4817,4 @@ takes no arguments.");
 	build_string ("Buffer is currently locked by kernel"));
 }
 
+#endif /* ENERGIZE */

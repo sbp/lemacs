@@ -163,10 +163,16 @@ Keymap for characters following C-c.")
 
 (define-key global-map "\M-," 'tags-loop-continue)
 
-(define-key global-map '(meta left) 'backward-sexp)
-(define-key global-map '(meta right) 'forward-sexp)
-(define-key global-map '(meta up) 'backward-list)
-(define-key global-map '(meta down) 'forward-list)
+;; this is so that where-is says backward-list is M-C-p instead of M-up.
+(fset 'deprecated-backward-list 'backward-list)
+(fset 'deprecated-forward-list  'forward-list)
+(fset 'deprecated-backward-sexp 'backward-sexp)
+(fset 'deprecated-forward-sexp  'forward-sexp)
+
+(define-key global-map '(meta left)  'deprecated-backward-sexp)
+(define-key global-map '(meta right) 'deprecated-forward-sexp)
+(define-key global-map '(meta up)    'deprecated-backward-list)
+(define-key global-map '(meta down)  'deprecated-forward-list)
 
 (define-key global-map "\M-\C-f" 'forward-sexp)
 (define-key global-map "\M-\C-b" 'backward-sexp)
@@ -313,4 +319,8 @@ Keymap for characters following C-c.")
 ;; Default binding of "Backspace" is the same as delete.
 ;; Default binding of "Control-h" is help.
 (define-key global-map 'backspace '[delete])
+(define-key global-map '(meta backspace) '[(meta delete)])
+(define-key global-map '(control backspace) '[(control delete)])
+(define-key global-map '(control meta backspace) '[(control meta delete)])
+
 (define-key global-map '(control h) 'help-command)

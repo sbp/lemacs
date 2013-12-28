@@ -92,6 +92,8 @@ typedef struct extent *EXTENT;
 extern Lisp_Object Qextent;
 extern Lisp_Object Qextentp;
 
+#ifdef emacs	/* things other than emacs want the structs */
+
 /* from alloc.c */
 extern EXTENT make_extent();
 
@@ -108,6 +110,8 @@ extern Lisp_Object Fextent_flag_set();
 extern Lisp_Object Fextent_write_protected_p();
 extern Lisp_Object Fset_extent_write_protected();
 
+#endif /* emacs */
+
 struct extent_replica
 {
   int start;
@@ -121,6 +125,8 @@ typedef struct extent_replica *DUP;
 #define MARK_DUP(dup) {XMARK((dup)->extent);}
 #define DUP_MARKED_P(dup) XMARKBIT((dup)->extent)
 #define UNMARK_DUP(dup) {XUNMARK((dup)->extent);}
+
+#ifdef emacs
 
 /* used in concat() and merge_replicas() */
 struct merge_replicas_struct
@@ -218,5 +224,7 @@ extern GLYPH extent_glyph_at (EXTENT extent, int pos, int endp);
 extern Lisp_Object Vlast_highlighted_extent;
 #define EXTENT_BEGIN_GLYPH_AT(extent,pos) extent_glyph_at (extent, pos, 0)
 #define EXTENT_END_GLYPH_AT(extent, pos) extent_glyph_at (extent, pos, 1)
+
+#endif /* emacs */
 
 #endif /* EXTENTS_DEFINED */

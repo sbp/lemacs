@@ -1,5 +1,5 @@
 ;; Menubar support.
-;; Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1991-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -64,9 +64,11 @@
 (defun x-new-screen (&optional screen-name)
   "Creates a new emacs screen (that is, a new X window.)"
   (interactive)
-  (select-screen (x-create-screen (if screen-name
-				      (list (cons 'name screen-name))
-				    nil)))
+  (select-screen (x-create-screen
+		  (append (if screen-name
+			      (list (cons 'name screen-name))
+			    nil)
+			  screen-default-alist)))
   (switch-to-buffer (get-buffer-create "*scratch*"))
   ;; hack: if evi mode is loaded and in use, put the new screen in evi mode.
   (if (and (boundp 'evi-install-undo-list) evi-install-undo-list)
@@ -88,15 +90,19 @@
 
 ;;; menu manipulation functions
 
-(defun find-menu-item (menubar path &optional parent)
-  (or parent (setq path (mapcar 'downcase path)))
+(defun find-menu-item (menubar item-path-list &optional parent)
+  "Searches MENUBAR for item given by ITEM-PATH-LIST.
+Returns (ITEM . PARENT), where PARENT is the immediate parent of
+ the item found.
+Signals an error if the item is not found."
+  (or parent (setq item-path-list (mapcar 'downcase item-path-list)))
   (if (not (consp menubar))
       nil
     (let ((rest menubar)
 	  result)
       (while rest
 	(if (and (car rest)
-		 (equal (car path)
+		 (equal (car item-path-list)
 			(downcase (if (vectorp (car rest))
 				      (aref (car rest) 0)
 				    (if (stringp (car rest))
@@ -104,12 +110,12 @@
 				      (car (car rest)))))))
 	    (setq result (car rest) rest nil)
 	  (setq rest (cdr rest))))
-      (if (cdr path)
+      (if (cdr item-path-list)
 	  (if (consp result)
-	      (find-menu-item (cdr result) (cdr path) result)
+	      (find-menu-item (cdr result) (cdr item-path-list) result)
 	    (if result
 		(signal 'error (list "not a submenu" result))
-	      (signal 'error (list "no such submenu" (car path)))))
+	      (signal 'error (list "no such submenu" (car item-path-list)))))
 	(cons result parent)))))
 
 

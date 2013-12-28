@@ -178,6 +178,8 @@ unexec (new_name, a_name, data_start, bss_start, entry_address)
 	    i, hdr.fhdr.f_nscns);
 #endif
 
+  text_section->s_scnptr = 0;
+
   pagesize = getpagesize();
   brk = (sbrk(0) + pagesize - 1) & (-pagesize);
   hdr.aout.dsize = brk - DATA_START;

@@ -33,12 +33,11 @@
 ;; highlight-headers-citation-header-regexp	matches headers for quoted text
 
 
-(or (find-face 'message-headers) (make-face 'message-headers))
-(or (find-face 'message-header-contents) (make-face 'message-header-contents))
-(or (find-face 'message-highlighted-header-contents)
-    (make-face 'message-highlighted-header-contents))
-(or (find-face 'message-cited-text) (make-face 'message-cited-text))
-;;(or (find-face 'message-addresses)  (make-face 'message-addresses))
+(make-face 'message-headers)
+(make-face 'message-header-contents)
+(make-face 'message-highlighted-header-contents)
+(make-face 'message-cited-text)
+;;(make-face 'message-addresses)
 
 (or (face-differs-from-default-p 'message-headers)
     (copy-face 'bold 'message-headers))
@@ -126,7 +125,8 @@ interpreted as cited text.)"
 	    (set-extent-data e 'headers)
 	    (setq p (match-end 0))
 	    (cond
-	     ((looking-at highlight-headers-regexp)
+	     ((and highlight-headers-regexp
+		   (looking-at highlight-headers-regexp))
 	      (setq current 'message-highlighted-header-contents)
 	      (end-of-line)
 	      (setq e (make-extent p (point)))
@@ -196,3 +196,5 @@ interpreted as cited text.)"
 		 ))
 	  (forward-line 1))))
     ))
+
+(provide 'highlight-headers)

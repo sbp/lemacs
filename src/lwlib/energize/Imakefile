@@ -1,5 +1,5 @@
 /**/# Imakefile file for Energize dialog boxes in lwlib.a.
-/**/# Copyright (c) 1992 Lucid, Inc.
+/**/# Copyright (c) 1992-1993 Lucid, Inc.
 
 
 /* BUILD_SHARED_LIB must be defined if it is defined in ../Imakefile */
@@ -19,12 +19,14 @@
 # include <Library.tmpl>
 #endif
 
-GENERATED_SRC = debuggerps.c blpsheet.c classbr_ps.c leb_psheet.c \
-                ctreebr_ps.c projectps.c build.c
+GENERATED_SRC = blpsheet.c build.c classbr_ps.c ctreebr_ps.c debuggerps.c \
+                editmode.c leb_psheet.c projectdisp.c projectps.c search.c \
+                target.c
          SRCS = $(GENERATED_SRC)
 
-         OBJS = debuggerps.o blpsheet.o classbr_ps.o leb_psheet.o \
-                ctreebr_ps.o projectps.o build.o
+         OBJS = blpsheet.o build.o classbr_ps.o ctreebr_ps.o debuggerps.o \
+                editmode.o leb_psheet.o projectdisp.o projectps.o search.o \
+                target.o
 
 all:: $(OBJS)
 
@@ -33,20 +35,28 @@ clean::
 
 .SUFFIXES: .xd .xdc
 
-blpsheet.c:
-	fidget-widget $(@:.c=.xdc) create_breaklist_p_sheet     > $@
-classbr_ps.c:
-	fidget-widget $(@:.c=.xdc) create_class_browser_p_sheet > $@
-ctreebr_ps.c:
-	fidget-widget $(@:.c=.xdc) create_call_browser_p_sheet  > $@
-debuggerps.c:
-	fidget-widget $(@:.c=.xdc) create_debugger_p_sheet      > $@
-leb_psheet.c:
-	fidget-widget $(@:.c=.xdc) create_le_browser_p_sheet    > $@
-projectps.c:
-	fidget-widget $(@:.c=.xdc) create_project_p_sheet       > $@
+blpsheet.c: blpsheet.xdc
+	./fidget-widget $(@:.c=.xdc) create_breaklist_p_sheet     > $@
 build.c:
-	fidget-widget $(@:.c=.xdc) create_build_dialog       > $@
+	./fidget-widget $(@:.c=.xdc) create_build_dialog           > $@
+classbr_ps.c: classbr_ps.xdc
+	./fidget-widget $(@:.c=.xdc) create_class_browser_p_sheet  > $@
+ctreebr_ps.c: ctreebr_ps.xdc
+	./fidget-widget $(@:.c=.xdc) create_call_browser_p_sheet   > $@
+debuggerps.c: debuggerps.xdc
+	./fidget-widget $(@:.c=.xdc) create_debugger_p_sheet       > $@
+editmode.c: editmode.xdc
+	./fidget-widget $(@:.c=.xdc) create_editmode_dialog        > $@
+leb_psheet.c: leb_psheet.xdc
+	./fidget-widget $(@:.c=.xdc) create_le_browser_p_sheet     > $@
+projectdisp.c:
+	./fidget-widget $(@:.c=.xdc) create_project_display_dialog > $@
+projectps.c: projectps.xdc
+	./fidget-widget $(@:.c=.xdc) create_project_p_sheet        > $@
+search.c: search.xdc
+	./fidget-widget $(@:.c=.xdc) create_search_dialog          > $@
+target.c: target.xdc
+	./fidget-widget $(@:.c=.xdc) create_target_dialog          > $@
 
 #ifdef BUILD_SHARED_LIB
 # if (ProjectX == 4)

@@ -1,3 +1,7 @@
+
+#ifndef _EMACS_BLOCKIO_H_
+#define _EMACS_BLOCKIO_H_
+
 /* Nonzero during a critical section.  At such a time, an input interrupt
    does nothing but set `x_pending_input'.  */
 extern int x_input_blocked;
@@ -34,3 +38,5 @@ extern int x_input_blocked;
 #define UNBLOCK_INPUT_RESIGNAL UNBLOCK_INPUT
 
 #endif /* DEBUG_INPUT_BLOCKING */
+
+#endif /* _EMACS_BLOCKIO_H_ */

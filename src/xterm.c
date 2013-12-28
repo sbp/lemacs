@@ -22,7 +22,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <stdio.h>
 #include <X11/Xlib.h>
-#include <X11/Xos.h>
 #include <X11/Xmu/Error.h>
 #include <X11/IntrinsicP.h>	/* CoreP.h needs this */
 #include <X11/CoreP.h>		/* foul, but we need this to use our own
@@ -44,6 +43,8 @@ extern Widget Xt_app_shell;
 /* This may include sys/types.h, and that somehow loses
    if this is not done before the other system files.  */
 #include "xterm.h"
+
+#include "lwlib.h"
 
 /* Load sys/types.h if not already loaded.
    In some systems loading it twice is suicidal.  */
@@ -719,7 +720,7 @@ x_write_glyphs (s, left, top, n, force_gc, box_p)
 	  {
 	    GLYPH index = s->current_glyphs->glyphs[top][left];
 	    struct x_pixmap *p = glyph_to_x_pixmap (index);
-	    int height = p->height;
+	    int height = (p ? p->height : 0);
 	    int bitmap_y_offset = 0;
 	    int y = pix_y;
 #ifdef LINE_INFO_WIDGET
@@ -728,6 +729,9 @@ x_write_glyphs (s, left, top, n, force_gc, box_p)
 #endif
 	    int real_pix_x = pix_x;
 	    struct face *face = 0;
+
+	    if (! p)	/* #### KLUDGE */
+	      break;
 
 	    if (!p->width || !p->height)
 	      abort ();
@@ -1870,7 +1874,8 @@ glyph_to_x_pixmap (GLYPH g)
 {
   struct x_pixmap *p;
   if (g >= max_pixmap_id)
-    abort ();
+/*    abort (); */
+    return 0; /* #### KLUDGE */
   p = glyph_to_x_pixmaps_table [g];
   if (! p) abort ();
   if (g != p->glyph_id) abort ();
@@ -2014,7 +2019,6 @@ emacs_options[] =
   {"-ib",	"*EmacsScreen.internalBorderWidth", XrmoptionSepArg, NULL},
   {"-geometry",	"*EmacsScreen.initialGeometry", XrmoptionSepArg, NULL},
   {"-iconic",	"*EmacsShell.iconic", XrmoptionNoArg, (XtPointer) "on"},
-  {"-name",	"*EmacsShell.name", XrmoptionSepArg, (XtPointer) NULL},
   {"-T",	"*EmacsShell.title", XrmoptionSepArg, (XtPointer) NULL},
   {"-wn",	"*EmacsShell.title", XrmoptionSepArg, (XtPointer) NULL},
   {"-title",	"*EmacsShell.title", XrmoptionSepArg, (XtPointer) NULL},
@@ -2172,10 +2176,12 @@ sanity_check_geometry_resource (Display *dpy)
   if (XrmGetResource (XtDatabase (dpy), buf1, buf2, &type, &value) == True)
     {
       fprintf (stderr, "\n\
-Apparently \"%s*geometry: %s\" was specified in the resource\n\
-database.  Specifying \"*geometry\" will make emacs (and most other X\
- programs)\nmalfunction in obscure ways.  You should always use\
- \".geometry\" instead.\n\n", app_class, (char *) value.addr);
+Apparently \"%s*geometry: %s\" or \"%s*geometry: %s\" was\n\
+specified in the resource database.  Specifying \"*geometry\" will make\n\
+emacs (and most other X programs) malfunction in obscure ways.  You\n\
+should always use \".geometry\" instead.\n\n",
+	       app_name, (char *) value.addr,
+	       app_class, (char *) value.addr);
       exit (-1);
     }
 }
@@ -2249,8 +2255,6 @@ x_set_offset (s, xoff, yoff)
 /* Call this to change the size of screen S's x-window. */
 
 extern void EmacsScreenSetCharSize (Widget, int, int);
-extern Widget lw_raise_all_pop_up_widgets (void);
-extern void lw_set_keyboard_focus (Widget, Widget);
 
 void
 x_set_window_size (s, cols, rows)
@@ -2323,7 +2327,6 @@ x_raise_screen (s, force)
   if (s->visible || force)
     {
       emacs_window = XtWindow (s->display.x->widget);
-#ifdef ENERGIZE
       /* first raises all the dialog boxes, then put emacs just below the 
        * bottom most dialog box */
       bottom_dialog = lw_raise_all_pop_up_widgets ();
@@ -2334,7 +2337,6 @@ x_raise_screen (s, force)
 	  flags = CWSibling | CWStackMode;
 	}
       else
-#endif
 	{
 	  xwc.stack_mode = Above;
 	  flags = CWStackMode;

@@ -4,8 +4,9 @@ BINDIR=/usr/local/bin
 MANDIR=/usr/man/man1
 MANEXT=1
 
+# make sure executables are linked statically.
 # add -DUSG for SysV movemail and timer
-CFLAGS= -g
+CFLAGS= -g -Bstatic
 # For Xenix.  Needed for movemail
 #  LOADLIBES= -lx
 

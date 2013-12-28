@@ -1,5 +1,5 @@
 ;; Basic lisp subroutines for Emacs
-;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -232,7 +232,7 @@ Returns nil if FUNCTION was already present in HOOK-VAR, else new
 	nil
       (set hook-var
 	   (if at-end
-	       (nconc old (list function))
+	       (append old (list function)) ; don't nconc
 	     (cons function old))))))
 
 (defun remove-hook (hook-var function)
@@ -245,7 +245,8 @@ First argument HOOK-VAR (a symbol) is the name of a hook, second
 	  ((eq function (setq val (symbol-value hook-var)))
 	   (setq hook-var nil))
 	  ((consp val)
-	   (set hook-var (delq function val))))))
+	   ;; don't side-effect the list
+	   (set hook-var (delq function (copy-sequence val)))))))
 
 
 (defun momentary-string-display (string pos &optional exit-char message) 

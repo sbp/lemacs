@@ -255,7 +255,7 @@ news-reply-mode."
 While composing the reply, use \\[news-reply-yank-original] to yank the
 original message into it."
   (interactive)
-  (let (from cc subject date to reply-to references message-id b
+  (let (from cc subject date to reply-to references message-id ;;b
 	(buffer (current-buffer)))
     (save-restriction
       (widen)
@@ -276,7 +276,7 @@ original message into it."
 	  (setq subject (concat news-reply-subject-prefix " " subject)))
       (setq to from)
       (pop-to-buffer "*mail*")
-      (setq b (current-buffer))
+;;      (setq b (current-buffer))
       (if (mail nil (if reply-to reply-to to) subject
 		(let ((stop-pos
 		       (string-match "  *at \\|  *@ \\| *(\\| *<" from)))
@@ -286,7 +286,7 @@ original message into it."
 		nil
 		buffer)
 	  (save-excursion
-	    (set-buffer b)
+;;	    (set-buffer b)
 	    (mail-position-on-field "References")
 	    (if references (insert references))
 	    (if (and references message-id) (insert " "))

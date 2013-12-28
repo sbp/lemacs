@@ -35,7 +35,7 @@ cppdir = ../cpp/
 CC=gcc
 #else
 #ifdef USE_LCC
-CC=xlcc -XA -Xe -wa $(EMACS_ENERGIZE_CONNECT)
+CC=lcc -XA -Xe -wuc $(EMACS_ENERGIZE_CONNECT)
 #endif
 #endif
 
@@ -218,7 +218,7 @@ SHORT= shortnames
 #endif /* ! USE_SOUND */
 
 #ifdef ENERGIZE
-CONN_DIR=../connection
+CONN_DIR=$${ENERGIZE_ROOTDIR}/etc/unsupported/connection
 #define ENERGIZE_INCLUDES -I${CONN_DIR}
 #define ENERGIZE_LDFLAGS -L${CONN_DIR}
 #define ENERGIZE_LIBS -lconn
@@ -229,7 +229,7 @@ CONN_DIR=../connection
 #endif /* !ENERGIZE */
 
 
-CFLAGS= C_DEBUG_SWITCH C_SWITCH_MACHINE C_SWITCH_SYSTEM C_SWITCH_SITE \
+CFLAGS= C_OPTIMIZE_SWITCH C_SWITCH_MACHINE C_SWITCH_SYSTEM C_SWITCH_SITE \
 	-Demacs $(MYCPPFLAG) $(LIBX11_INCLUDES) ENERGIZE_INCLUDES
 
 LDFLAGS= LD_SWITCH_SYSTEM LD_SWITCH_MACHINE LD_SWITCH_SITE \
@@ -335,6 +335,8 @@ termcapobj = termcap.o tparam.o
 termcapobj = tparam.o
 #endif
 #endif
+
+#undef alloca
 
 #ifndef HAVE_ALLOCA
 #define ALLOCA_OBJ alloca.o
@@ -477,7 +479,7 @@ ${etcdir}DOC: ${etcdir}make-docfile ${obj} ${lisp}
 	  ${etcdir}DOC
 
 ${etcdir}make-docfile:
-	cd ${etcdir}; make ${MFLAGS} make-docfile
+	cd ${etcdir}; ${MAKE} ${MFLAGS} make-docfile
 
 /* Some systems define this to cause parallel Make-ing.  */
 #ifndef MAKE_PARALLEL
@@ -506,14 +508,14 @@ $(LWLIBDIR)/Makefile: $(LWLIBDIR)/Imakefile
 	cd $(LWLIBDIR); if [ -f Makefile ]; then $(MAKE) Makefile;else xmkmf;fi
 
 $(LWLIBDIR)/liblw.a: $(LWLIBDIR)/Makefile
-	cd $(LWLIBDIR) ; $(MAKE) $(MFLAGS) liblw.a
+	cd $(LWLIBDIR) ; $(MAKE) $(MFLAGS) all
 #endif
 
 /* These are needed for C compilation, on the systems that need them */
 #ifdef NEED_CPP
 CPP = ./localcpp
 localcpp:
-	cd ${cppdir}; make ${MFLAGS} EMACS=-DEMACS
+	cd ${cppdir}; ${MAKE} ${MFLAGS} EMACS=-DEMACS
 	ln ${cppdir}cpp localcpp  /* Name where CFLAGS will refer to it */
 /* cc appears to be cretinous and require all of these to exist
    if -B is specified -- we can't use one local pass and let the
@@ -530,7 +532,7 @@ CPP = $(CC) -E
 
 #ifdef SHORTNAMES
 shortnames:
-	cd ${shortnamesdir}; make ${MFLAGS}
+	cd ${shortnamesdir}; ${MAKE} ${MFLAGS}
 #endif /* SHORTNAMES */
 
 paths.h: paths.h-dist
@@ -612,11 +614,9 @@ libsst.o : libsst.h
    select which of these should be compiled.  */
 
 ${etcdir}emacstool: ${etcdir}emacstool.c
-	cd ${etcdir}; make ${MFLAGS} emacstool
+	cd ${etcdir}; ${MAKE} ${MFLAGS} emacstool
 
 /* Machine generated dependencies on .h files */
-
-#undef alloca
 
 ColumnWidget.o: ColumnWidgetP.h ColumnWidget.h
 EmacsShell.o: EmacsShellP.h EmacsShell.h

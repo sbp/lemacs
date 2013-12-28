@@ -176,6 +176,9 @@
 (add-hook 'activate-menubar-hook 'rmail-activate-menubar-hook)
 
 ;;; Put message headers in boldface, etc...
+
+(require 'highlight-headers)
+
 (defun rmail-fontify-headers ()
   (highlight-headers (point-min) (point-max) t))
 

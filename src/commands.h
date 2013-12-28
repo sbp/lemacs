@@ -1,5 +1,5 @@
 /* Definitions needed by most editing commands.
-   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifndef _EMACS_COMMANDS_H_
+#define _EMACS_COMMANDS_H_
 
 /* Previous command symbol found here for comparison */
 extern Lisp_Object last_command;
@@ -54,3 +56,5 @@ extern int zmacs_regions;
 extern int zmacs_region_active_p;
 extern int zmacs_region_stays;
 extern void zmacs_update_region (void);
+
+#endif /* _EMACS_COMMANDS_H_ */

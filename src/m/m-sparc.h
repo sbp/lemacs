@@ -1,5 +1,5 @@
 /* m- file for Sun 4 SPARC.
-   Copyright (C) 1987, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1987-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -16,6 +16,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#ifndef _M_SPARC_H_
+#define _M_SPARC_H_
 
 
 /* The following three symbols give information on
@@ -113,3 +116,5 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* This is the offset of the executable's text, from the start of the file.  */
 
 #define A_TEXT_SEEK(HDR) (N_TXTOFF (hdr) + sizeof (hdr))
+
+#endif /* _M_SPARC_H_ */

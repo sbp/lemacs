@@ -29,22 +29,20 @@
 
 (defvar electric-buffer-menu-mode-map nil)
 (defun electric-buffer-list (arg)
-  "Vaguely like ITS lunar select buffer;
-combining typeoutoid buffer listing with menuoid buffer selection.
+  "Pops up a buffer describing the set of Emacs buffers.
+Vaguely like ITS lunar select buffer; combining typeoutoid buffer
+listing with menuoid buffer selection.
 
-This pops up a buffer describing the set of emacs buffers.
 If the very next character typed is a space then the buffer list
- window disappears.
+window disappears.  Otherwise, one may move around in the
+buffer list window, marking buffers to be selected, saved or deleted.
 
-Otherwise, one may move around in the buffer list window, marking
- buffers to be selected, saved or deleted.
-
-To exit and select a new buffer, type Space when the cursor is on the
- appropriate line of the buffer-list window.
+To exit and select a new buffer, type a space when the cursor is on the
+appropriate line of the buffer-list window.
 
 Other commands are much like those of buffer-menu-mode.
 
-Calls value of  electric-buffer-menu-mode-hook  on entry if non-nil.
+Calls value of `electric-buffer-menu-mode-hook' on entry if non-nil.
 
 \\{electric-buffer-menu-mode-map}" 
   (interactive "P")
@@ -79,19 +77,20 @@ Calls value of  electric-buffer-menu-mode-hook  on entry if non-nil.
 	    (set-buffer buffer)
 	    (Buffer-menu-mode))
 	  (bury-buffer buffer)
-	  (message ""))))
+	  (message nil))))
     (if select
 	(progn
 	  (set-buffer buffer)
 	  (let ((opoint (point-marker)))
 	    (Buffer-menu-execute)
 	    (goto-char (point-min))
-	    (if (prog1 (search-forward "\n>" nil t)
-		  (goto-char opoint) (set-marker opoint nil))
-		(Buffer-menu-select)
-	      (if (bufferp select)
-		  (switch-to-buffer select)
-		(switch-to-buffer (Buffer-menu-buffer t)))))))))
+	    (cond ((prog1 (search-forward "\n>" nil t)
+		     (goto-char opoint) (set-marker opoint nil))
+		   (Buffer-menu-select))
+		  ((bufferp select)
+		   (switch-to-buffer select))
+		  (t
+		   (switch-to-buffer (Buffer-menu-buffer t)))))))))
 
 (defun electric-buffer-menu-looper (state condition)
   (cond ((and condition
@@ -113,25 +112,25 @@ Calls value of  electric-buffer-menu-mode-hook  on entry if non-nil.
   "Major mode for editing a list of buffers.
 Each line describes one of the buffers in Emacs.
 Letters do not insert themselves; instead, they are commands.
-\\{electric-buffer-menu-mode-map}
-
-C-g or C-c C-c -- exit buffer menu, returning to previous window and buffer
+\\<electric-buffer-menu-mode-map>
+\\[Electric-buffer-menu-quit] -- exit buffer menu, returning to previous window and buffer
   configuration.  If the very first character typed is a space, it
   also has this effect.
-Space -- select buffer of line point is on.
+\\[Electric-buffer-menu-select] -- select buffer of line point is on.
   Also show buffers marked with m in other windows,
   deletes buffers marked with \"D\", and saves those marked with \"S\".
-m -- mark buffer to be displayed.
-~ -- clear modified-flag on that buffer.
-s -- mark that buffer to be saved.
-d or C-d -- mark that buffer to be deleted.
-u -- remove all kinds of marks from current line.
-v -- view buffer, returning when done.
-Delete -- back up a line and remove marks.
+\\[Buffer-menu-mark] -- mark buffer to be displayed.
+\\[Buffer-menu-not-modified] -- clear modified-flag on that buffer.
+\\[Buffer-menu-save] -- mark that buffer to be saved.
+\\[Buffer-menu-delete] or \\[Buffer-menu-delete-backwards] -- mark that buffer to be deleted.
+\\[Buffer-menu-unmark] -- remove all kinds of marks from current line.
+\\[Electric-buffer-menu-mode-view-buffer] -- view buffer, returning when done.
+\\[Buffer-menu-backup-unmark] -- back up a line and remove marks.
 
+\\{electric-buffer-menu-mode-map}
 
-Entry to this mode via command \\[electric-buffer-list] calls the value of
-electric-buffer-menu-mode-hook if it is non-nil."
+Entry to this mode via command `electric-buffer-list' calls the value of
+`electric-buffer-menu-mode-hook' if it is non-nil."
   (kill-all-local-variables)
   (use-local-map electric-buffer-menu-mode-map)
   (setq mode-name "Electric Buffer Menu")
@@ -155,6 +154,8 @@ electric-buffer-menu-mode-hook if it is non-nil."
 (if electric-buffer-menu-mode-map
     nil
   (let ((map (make-keymap)))
+    (set-keymap-name map 'electric-buffer-menu-mode-map)
+    ;;>>> Urk! There must be a buffer way in Lucid Emacs.
     (let ((i 0))
       (while (< i 128)
 	(define-key map (make-string 1 i) 'Electric-buffer-menu-undefined)
@@ -165,9 +166,9 @@ electric-buffer-menu-mode-hook if it is non-nil."
       (while (< i 128)
 	(define-key map2 (make-string 1 i) 'Electric-buffer-menu-undefined)
 	(setq i (1+ i))))
-;;    (define-key map "\C-z" 'suspend-emacs)
+;;  (define-key map "\C-z" 'suspend-emacs)
     (define-key map "v" 'Electric-buffer-menu-mode-view-buffer)
-;;    (define-key map "\C-h" 'Helper-help)
+;;  (define-key map "\C-h" 'Helper-help)
     (define-key map '(control h) 'Helper-help)
     (define-key map "?" 'Helper-describe-bindings)
     (define-key map "\C-c" nil)
@@ -188,6 +189,7 @@ electric-buffer-menu-mode-hook if it is non-nil."
     (let ((i ?0))
       (while (<= i ?9)
 	(define-key map (char-to-string i) 'digit-argument)
+        ;;>>> Urk!
 	(define-key map (concat "\e" (char-to-string i)) 'digit-argument)
 	(setq i (1+ i))))
     (define-key map "-" 'negative-argument)
@@ -200,6 +202,8 @@ electric-buffer-menu-mode-hook if it is non-nil."
     (define-key map "n" 'next-line)
     (define-key map "\C-v" 'scroll-up)
     (define-key map "\ev" 'scroll-down)
+    (define-key map ">" 'scroll-right)
+    (define-key map "<" 'scroll-left)
     (define-key map "\e\C-v" 'scroll-other-window)
     (define-key map "\e>" 'end-of-buffer)
     (define-key map "\e<" 'beginning-of-buffer)

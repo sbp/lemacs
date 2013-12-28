@@ -1,5 +1,5 @@
 ;; Define pathnames for use by various Emacs commands.
-;; Copyright (C) 1986, 1988, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1986-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -67,9 +67,9 @@
 Its name should end with a slash.")
 
 (defconst sendmail-program
-  (if (file-exists-p "/usr/lib/sendmail")
-      "/usr/lib/sendmail"
-    "fakemail")			;In ../etc, to interface to /bin/mail.
+  (cond ((file-exists-p "/usr/lib/sendmail") "/usr/lib/sendmail")
+	((file-exists-p "/usr/ucblib/sendmail") "/usr/ucblib/sendmail")
+	(t "fakemail"))			;In ../etc, to interface to /bin/mail.
   "Program used to send messages.")
 
 (defconst term-file-prefix (if (eq system-type 'vax-vms) "[.term]" "term/")

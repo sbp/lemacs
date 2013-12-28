@@ -89,7 +89,7 @@ get_doc_string (filepos)
       p[count] = 0;
       if (!count)
 	break;
-      p1 = index (p, '\037');
+      p1 = strchr (p, '\037');
       if (p1)
 	{
 	  *p1 = 0;
@@ -244,7 +244,7 @@ when doc strings are referred to later in the dumped Emacs.")
       /* p points to ^_Ffunctionname\n or ^_Vvarname\n.  */
       if (p != end)
 	{
-	  end = index (p, '\n');
+	  end = strchr (p, '\n');
 	  sym = oblookup (Vobarray, (unsigned char *) p + 2, end - p - 2);
 	  if (SYMBOLP (sym))
 	    {
@@ -478,7 +478,7 @@ thus, \\=\\=\\=\\= puts \\=\\= into the output, and \\=\\=\\=\\[ puts \\=\\[ int
 	    {
 	      tem = Fsymbol_value (name);
 	      if (! NILP (tem))
-		tem = get_keymap_1 (tem, 0);
+		tem = get_keymap (tem, 0);
 	    }
 
 	  /* Now switch to a temp buffer.  */

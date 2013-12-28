@@ -23,33 +23,34 @@
 
 ;; perhaps this should be in subr.el...
 (defun shrink-window-if-larger-than-buffer (window)
-  (if (not (and (one-window-p) (eq (selected-window) window)))
-   (save-excursion
-    (set-buffer (window-buffer window))
-    (let ((w (selected-window)) ;save-window-excursion can't win
-	  (buffer-file-name buffer-file-name)
-	  (p (point))
-	  (n 0)
-	  (window-min-height 0)
-	  (buffer-read-only nil)
-	  (modified (buffer-modified-p))
-	  (buffer (current-buffer)))
-      (unwind-protect
-	  (progn
-	    (select-window window)
-	    (goto-char (point-min))
-	    (while (pos-visible-in-window-p (point-max))
-	      ;; defeat file locking... don't try this at home, kids!
-	      (setq buffer-file-name nil)
-	      (insert ?\n) (setq n (1+ n)))
-	    (if (> n 0) (shrink-window (1- n))))
-	(delete-region (point-min) (point))
-	(set-buffer-modified-p modified)
-	(goto-char p)
-	(select-window w)
-	;; Make sure we unbind buffer-read-only
-	;; with the proper current buffer.
-	(set-buffer buffer))))))
+  (if (not (and (one-window-p)
+		(eq (selected-window) window)))
+      (save-excursion
+	(set-buffer (window-buffer window))
+	(let ((w (selected-window))	;save-window-excursion can't win
+	      (buffer-file-name buffer-file-name)
+	      (p (point))
+	      (n 0)
+	      (window-min-height 0)
+	      (buffer-read-only nil)
+	      (modified (buffer-modified-p))
+	      (buffer (current-buffer)))
+	  (unwind-protect
+	      (progn
+		(select-window window)
+		(goto-char (point-min))
+		(while (pos-visible-in-window-p (point-max))
+		  ;; defeat file locking... don't try this at home, kids!
+		  (setq buffer-file-name nil)
+		  (insert ?\n) (setq n (1+ n)))
+		(if (> n 0) (shrink-window (1- n))))
+	    (delete-region (point-min) (point))
+	    (set-buffer-modified-p modified)
+	    (goto-char p)
+	    (select-window w)
+	    ;; Make sure we unbind buffer-read-only
+	    ;; with the proper current buffer.
+	    (set-buffer buffer))))))
       
 ;; This loop is the guts for non-standard modes which retain control
 ;; until some event occurs.  It is a `do-forever', the only way out is to

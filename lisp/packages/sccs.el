@@ -22,8 +22,17 @@
 ;;; It is distantly derived from an rcs mode written by Ed Simpson
 ;;; ({decvax, seismo}!mcnc!duke!dukecdu!evs) in years gone by
 ;;; and revised at MIT's Project Athena.
+;;; 
+;;; Made to work for Lucid Emacs by persons who don't know SCCS.
 
 ;; User options
+
+(defvar sccs-bin-directory
+  (cond ((file-executable-p "/usr/sccs/unget") "/usr/sccs")
+	((file-executable-p "/usr/bin/unget") "/usr/bin")
+	((file-directory-p "/usr/sccs") "/usr/sccs")
+	((file-directory-p "/usr/bin/sccs") "/usr/bin/sccs")
+	(t "/usr/bin")))
 
 (defvar sccs-max-log-size 510
   "*Maximum allowable size of an SCCS log message.")
@@ -99,7 +108,7 @@ Return nil if there is no such person."
 
 (defun sccs-load-vars ()
   (if (error-occurred (load-file "SCCS/emacs-vars.el"))
-      (setq sccs-current-major-version "1.1"))
+      (setq sccs-current-major-version "1"))
 )
 
 ;; The following functions do most of the real work
@@ -113,7 +122,7 @@ if no such version exists."
     (setq vbuf (create-file-buffer oldversion))
     (prog1
 	(if (not (error-occurred
-	     (sccs-do-command vbuf "/usr/bin/get" file
+	     (sccs-do-command vbuf "get" file
 			      (and sid (concat "-r" sid))
 			      "-p" "-s")))
 	    (save-excursion
@@ -143,36 +152,43 @@ FILE is the file being visited to put in the modeline."
   "  Execute an SCCS command, notifying the user and checking for errors."
   (setq file (expand-file-name file))
   (message (format "Running %s on %s..." command file))
-  (save-window-excursion
-    (set-buffer (get-buffer-create buffer))
-    (erase-buffer)
-    (while (and flags (not (car flags)))
-      (setq flags (cdr flags)))
-    (setq flags (append flags (and file (list (sccs-name file)))))
-    (let
-	((default-directory (file-name-directory (or file "./"))))
-      (apply 'call-process command nil t nil flags)
-      )
-    (goto-char (point-max))
-    (previous-line 1)
-    (if (looking-at "ERROR")
-	(progn
-	  (previous-line 1)
-	  (print (cons command flags))
-	  (next-line 1)
-	  (error (format "Running %s...FAILED" command))
-	  )
-      (message (format "Running %s...OK" command))
-      )
-    )
-  (if file (sccs-mode-line file))
-  )
+  (let ((status
+	 (save-window-excursion
+	   (set-buffer (get-buffer-create buffer))
+	   (erase-buffer)
+	   (while (and flags (not (car flags)))
+	     (setq flags (cdr flags)))
+	   (setq flags (append flags (and file (list (sccs-name file)))))
+	   (let ((default-directory (file-name-directory (or file "./")))
+		 (exec-path (cons sccs-bin-directory exec-path)))
+	     (apply 'call-process command nil t nil flags)
+	     )
+	   (goto-char (point-max))
+	   (previous-line 1)
+	   (if (looking-at "ERROR")
+	       (progn
+		 (previous-line 1)
+		 (print (cons command flags))
+		 (next-line 1)
+		 nil)
+	     t))))
+    (if status
+	(message (format "Running %s...OK" command))
+      (pop-to-buffer buffer)
+      (error (format "Running %s...FAILED" command))))
+  (if file (sccs-mode-line file)))
+
+(defun sccs-shell-command (command)
+  "Like shell-command except that the *Shell Command Output*buffer
+is created even if the command does not output anything"
+  (shell-command command)
+  (get-buffer-create "*Shell Command Output*"))
 
 (defun sccs-tree-walk (func &rest optargs)
   "Apply FUNC to each SCCS file under the default directory.
 If present, OPTARGS are also passed."
-  (shell-command (concat
-		  "find " default-directory " -print | grep 'SCCS/s\\.'"))
+  (sccs-shell-command (concat
+		       "find " default-directory " -print | grep 'SCCS/s\\.'"))
   (set-buffer "*Shell Command Output*")
   (goto-char (point-min))
   (replace-string "SCCS/s." "")
@@ -232,7 +248,7 @@ returned indicating who has locked it."
 	       file
 	       (cond 
 		(verbose (read-string "Initial SID: "))
-		((error-occurred (load-file "SCCS/emacs-vars.el")) "1.1")
+		((error-occurred (load-file "SCCS/emacs-vars.el")) "1")
 		(t sccs-current-major-version))
 	       )
 	      )
@@ -314,13 +330,18 @@ returned indicating who has locked it."
 
 (defun sccs-get (file writeable)
   "Retrieve a copy of the latest delta of the given file."
-    (sccs-do-command "*SCCS*" "/usr/bin/get" file (if writeable "-e")))
+    (sccs-do-command "*SCCS*" "get" file (if writeable "-e")))
 
 (defun sccs-admin (file sid)
   "Checks a file into sccs.
 FILE is the unmodified name of the file.  SID should be the base-level sid to
 check it in under."
-  (sccs-do-command "*SCCS*" "/usr/bin/admin" file
+  ; give a change to save the file if it's modified
+  (if (and (buffer-modified-p)
+	   (y-or-n-p (format "%s has been modified. Write it out? "
+			     (buffer-name))))
+      (save-buffer))
+  (sccs-do-command "*SCCS*" "admin" file
 		   (concat "-i" file) (concat "-r" sid))
   (chmod "-w" file)
   (if (sccs-check-headers)
@@ -332,7 +353,7 @@ check it in under."
 (defun sccs-delta (file &optional rev comment)
    "Delta the file specified by FILE.
 The optional argument REV may be a string specifying the new revision level
-(if nil increment the current level). The file is retained with write
+\(if nil increment the current level). The file is retained with write
 permissions zeroed. COMMENT is a comment string; if omitted, the contents of
 the current buffer up to point becomes the comment for this delta."
   (if (not comment)
@@ -342,11 +363,10 @@ the current buffer up to point becomes the comment for this delta."
 	(newline)
 	(setq comment (buffer-substring (point-min) (1- (point)))))
     )
-  (sccs-do-command "*SCCS*" "/usr/bin/delta" file "-n"
+  (sccs-do-command "*SCCS*" "delta" file "-n"
 	   (if rev (format "-r%s" rev))
 	   (format "-y%s" comment))
-  (chmod "-w" file)
-)
+  (chmod "-w" file))
 
 (defun sccs-delta-abort ()
   "Abort an SCCS delta command."
@@ -415,7 +435,7 @@ Or, if given a prefix argument, with another specified revision."
   (interactive)
   (if (and buffer-file-name (file-exists-p (sccs-name buffer-file-name "s")))
       (progn
-	(sccs-do-command "*SCCS*" "/usr/bin/prs" buffer-file-name)
+	(sccs-do-command "*SCCS*" "prs" buffer-file-name)
 	(pop-to-buffer (get-buffer-create "*SCCS*"))
 	)
     (error "There is no SCCS file associated with this buffer")
@@ -555,7 +575,7 @@ the variable sccs-headers-wanted"
 
 (defun sccs-status (prefix legend)
    "List all files underneath the current directory matching a prefix type."
-   (shell-command
+   (sccs-shell-command
     (format "find . -print | grep 'SCCS/%s\\.'" prefix))
    (if
        (save-excursion
@@ -604,7 +624,7 @@ the variable sccs-headers-wanted"
        (buffer-file-name)
        (cond 
 	(override (read-string "Initial SID: "))
-	((error-occurred (load-file "SCCS/emacs-vars.el")) "1.1")
+	((error-occurred (load-file "SCCS/emacs-vars.el")) "1")
 	(t sccs-current-major-version))
        )
       )
@@ -620,8 +640,8 @@ omitted or nil, the comparison is done against the most recent version."
   (interactive "sOlder version: \nsNewer version: ")
   (if (string-equal rel1 "") (setq rel1 nil))
   (if (string-equal rel2 "") (setq rel2 nil))
-  (shell-command (concat
-		  "find " default-directory " -print | grep 'SCCS/s\\.'"))
+  (sccs-shell-command (concat
+		       "find " default-directory " -print | grep 'SCCS/s\\.'"))
   (set-buffer "*Shell Command Output*")
   (goto-char (point-min))
   (replace-string "SCCS/s." "")
@@ -702,14 +722,14 @@ omitted or nil, the comparison is done against the most recent version."
   "*Revert the current buffer's file back to the last saved version."
   (interactive)
   (let ((file (buffer-file-name)))
-    (delete-file file)
-    (delete-file (sccs-name file "p"))
-    (rename-file (sccs-get-version file nil) file)
-    (chmod "-w" file)
-    (revert-buffer nil t)
-    (sccs-mode-line file)
-    )
-  )
+    (if (y-or-n-p (format "Revert file %s to last SCCS revision?" file))
+	(progn
+	  (delete-file file)
+	  (delete-file (sccs-name file "p"))
+	  (rename-file (sccs-get-version file nil) file)
+	  (chmod "-w" file)
+	  (revert-buffer nil t)
+	  (sccs-mode-line file)))))
 
 (defun sccs-rename-file (old new)
   "*Rename a file, taking its SCCS files with it."
@@ -790,5 +810,76 @@ Global user options:
   (define-key sccs-log-entry-mode "\C-c\C-c" 'sccs-log-exit)
   (define-key sccs-log-entry-mode "\C-x\C-s" 'sccs-log-exit)
   )
+
+
+;;; Lucid Emacs supprot
+
+(defconst sccs-menu
+  '("SCCS Commands"
+
+    ["SCCS"			sccs			t	nil] ; C-c n
+    ["Insert Headers"		sccs-insert-headers	t]	     ; C-c h
+    "----"
+    ["Delta file"		sccs-dummy-delta	t	nil]
+    ["Register file"		sccs-register-file	t	nil] ; C-c h
+    ["Revert File"		sccs-revert-buffer	t	nil] ; C-c r
+    ["Rename File"		sccs-rename-file	t	nil]
+    "----"
+    ["Show Log of"		sccs-prs		t	nil] ; C-c p
+    ["Diff File"		sccs-revert-diff	t	nil] ; C-c d
+;    ["Diff Files"		sccs-version-diff	t]	     ; C-c d
+    "----"
+    ["List Locked Files"	sccs-pending		t]	     ; C-c C-p
+    ["List Registered Files"	sccs-registered		t]	     ; C-c C-r
+    ["Diff Directory"		sccs-release-diff	t]
+    ["Delta directory"		sccs-delta-release	t]
+    ))
+
+(progn
+  (delete-menu-item '("SCCS"))
+  (add-menu '() "SCCS" (cdr sccs-menu)))
+
+(defun sccs-sensitize-menu ()
+  (let* ((rest (cdr (car (find-menu-item current-menubar '("SCCS")))))
+	 (case-fold-search t)
+	 (file (if buffer-file-name
+		   (file-name-nondirectory buffer-file-name)
+		 (buffer-name)))
+	 (dir (file-name-directory
+	       (if buffer-file-name buffer-file-name default-directory)))
+	 (sccs-file (and buffer-file-name (sccs-name buffer-file-name)))
+	 (known-p (and sccs-file (file-exists-p sccs-file)))
+	 command
+	 item)
+    (while rest
+      (setq item (car rest))
+      (if (not (vectorp item))
+	  nil
+	(setq command (aref item 1))
+	(cond ((eq 'sccs command)
+	       (aset item 0
+		     (cond ((or (null sccs-file) (not known-p))
+			    "SCCS Create")
+			   ((not (file-exists-p
+				  (sccs-name buffer-file-name "p")))
+			    "SCCS Edit")
+			   (t
+			    "SCCS Delta"))))
+	      ((and (> (length item) 3)
+		    (string-match "directory" (aref item 0)))
+	       (aset item 3 dir))
+	      ((> (length item) 3)
+	       (aset item 3 file))
+	      (t nil))
+	(aset item 2
+	      (if (memq command '(sccs sccs-insert-headers sccs-release-diff
+				  sccs-version-diff sccs-pending
+				  sccs-registered sccs-delta-release))
+		  t
+		known-p)))
+      (setq rest (cdr rest))))
+  nil)
+
+(add-hook 'activate-menubar-hook 'sccs-sensitize-menu)
 
 ;; sccs.el ends here

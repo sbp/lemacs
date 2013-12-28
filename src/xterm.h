@@ -17,6 +17,9 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifndef _EMACS_XTERM_H_
+#define _EMACS_XTERM_H_
+
 #include <X11/Xlib.h>
 #include <X11/cursorfont.h>
 #include <X11/Xutil.h>
@@ -191,3 +194,5 @@ struct x_display
 
 /* Number of pixels below each line. */
 extern int x_interline_space;
+
+#endif /* _EMACS_XTERM_H_ */

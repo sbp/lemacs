@@ -317,7 +317,9 @@ Obeying it means displaying in another window the specified file and line."
 ;; Put the overlay-arrow on the line LINE in that buffer.
 
 (defun gdb-display-line (true-file line)
-  (let* ((buffer (find-file-noselect true-file))
+  (let* ((pre-display-buffer-function nil) ; screw it, put it all in one screen
+	 (pop-up-windows t)
+	 (buffer (find-file-noselect true-file))
 	 (window (display-buffer buffer t))
 	 (pos))
     (save-excursion

@@ -115,6 +115,8 @@
 
 ;;; Put message headers in boldface, etc...
 
+(require 'highlight-headers)
+
 (defun gnus-fontify-headers ()
   (save-excursion
     (set-buffer gnus-Article-buffer)
@@ -123,7 +125,7 @@
 	(widen)
 	(highlight-headers (point-min) (point-max) t)))))
 
-(or (find-face 'gnus-underline) (make-face 'gnus-underline))
+(make-face 'gnus-underline)
 (or (face-differs-from-default-p 'gnus-underline)
     (set-face-underline-p 'gnus-underline t))
 

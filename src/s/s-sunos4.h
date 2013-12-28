@@ -1,5 +1,8 @@
 /* For building Lucid Emacs under SunOS 4.1.* with static libraries. */
 
+#ifndef _S_SUNOS4_H_
+#define _S_SUNOS4_H_
+
 #include "s-bsd4-2.h"
 
 #ifdef THIS_IS_YMAKEFILE
@@ -23,3 +26,5 @@
    sysdep.c from introducing bogus symbols */
 #define TEXT_START 0
 #define DATA_START 0
+
+#endif /* _S_SUNOS4_H_ */

@@ -183,6 +183,7 @@ make_screen_glyphs (screen, empty)
     (struct screen_glyphs *) xmalloc (sizeof (struct screen_glyphs));
 
   SET_GLYPHS_SCREEN (new, screen);
+  new->short_cut_taken = 0;
   new->height = height;
   new->width = width;
   new->used = (int *) xmalloc (height * sizeof (int));
@@ -1770,6 +1771,9 @@ scrolling (screen)
 
 #ifdef HAVE_X_WINDOWS
 
+extern int shot_cut_taken_p (SCREEN_PTR s);
+extern void recompute_glyphs_no_short_cut (SCREEN_PTR s);
+
 int
 pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
 			    begin_p)
@@ -1795,6 +1799,16 @@ pixel_to_glyph_translation (s, pix_x, pix_y, x, y, w, bufp, gly, class,
   struct buffer *buffer;
   Lisp_Object ctl_arrow;
 
+  /* Gross hack to workaround the bug of clicking after point when
+     edits were done. */
+  if (shot_cut_taken_p (s))
+    {
+      /* recompute the desired glyphs */
+      recompute_glyphs_no_short_cut (s);
+      /* use the desired glyphs instead of the current glyphs */
+      current_screen = SCREEN_DESIRED_GLYPHS (s);
+    }
+      
   *x = 0;
   *y = 0;
 

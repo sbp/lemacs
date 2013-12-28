@@ -1,5 +1,5 @@
 /* Primitive operations on Lisp data types for GNU Emacs Lisp interpreter.
-   Copyright (C) 1985, 1986, 1988, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -1077,6 +1077,12 @@ From now on the default value will apply in this buffer.")
     sv = XSYMBOL (sym)->value;
     if (current_buffer == XBUFFER (XCONS (XCONS (sv)->cdr)->car))
       XCONS (XCONS (sv)->cdr)->car = Qnil;
+
+    /* If this variable is both Buffer_Local and Objfwd, we need to
+       access its symbol value cell to flush the curent prevailing
+       value back down into the C variable.
+     */
+    (void) Fboundp (sym);
   }
 
   return sym;
@@ -1987,6 +1993,7 @@ syms_of_data ()
   defsubr (&Smake_variable_buffer_local);
   defsubr (&Smake_local_variable);
   defsubr (&Skill_local_variable);
+  defsubr (&Sindirect_function);
   defsubr (&Saref);
   defsubr (&Saset);
   defsubr (&Sint_to_string);

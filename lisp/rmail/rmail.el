@@ -1,5 +1,5 @@
 ;; "RMAIL" mail reader for Emacs.
-;; Copyright (C) 1985, 1986, 1987, 1988, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -159,9 +159,6 @@ but does not copy any new mail into the file."
 ; 			 list))))
 ;     list))
 
-; I have checked that adding "-*- rmail -*-" to the BABYL OPTIONS line
-; will not cause emacs 18.55 problems.
-
 (defun rmail-convert-file ()
   (let (convert)
     (widen)
@@ -174,7 +171,7 @@ but does not copy any new mail into the file."
 	   ;; Just fix the babyl file header; don't make a new one,
 	   ;; so we don't lose the Labels: file attribute, etc.
 	   (let ((buffer-read-only nil))
-	     (insert "BABYL OPTIONS: -*- rmail -*-\n")))
+	     (insert "BABYL OPTIONS:\n")))
 	  (t
 	   (setq convert t)
 	   (rmail-insert-rmail-file-header)))
@@ -193,12 +190,9 @@ but does not copy any new mail into the file."
 	  (rmail-convert-to-babyl-format)
 	  (message "Converting to Babyl format...done")))))
 
-; I have checked that adding "-*- rmail -*-" to the BABYL OPTIONS line
-; will not cause emacs 18.55 problems.
-
 (defun rmail-insert-rmail-file-header ()
   (let ((buffer-read-only nil))
-    (insert "BABYL OPTIONS: -*- rmail -*-
+    (insert "BABYL OPTIONS:
 Version: 5
 Labels:
 Note:   This is the header of an rmail file.

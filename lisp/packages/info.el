@@ -1,5 +1,5 @@
 ;; Info package for Emacs  -- could use a "create node" feature.
-;; Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -356,15 +356,17 @@ Marker points nowhere if file has no tag table.")
    (Info-following-node-name)))
 
 (defun Info-following-node-name (&optional allowedchars)
+  (or allowedchars (setq allowedchars "^,\t\n"))
   (skip-chars-forward " \t")
   (buffer-substring
    (point)
-   (progn
-     (while (looking-at (concat "[" (or allowedchars "^,\t\n") "]"))
-       (skip-chars-forward (concat (or allowedchars "^,\t\n") "("))
+   (let ((allowed (concat "[" allowedchars "]"))
+	 (skip (concat allowedchars "(")))
+     (while (looking-at allowed)
+       (skip-chars-forward skip)
        (if (looking-at "(")
 	   (skip-chars-forward "^)")))
-     (skip-chars-backward " ")
+     (skip-chars-backward " \t")
      (point))))
 
 (defun Info-next ()
@@ -435,34 +437,41 @@ NAME may be an abbreviation of the reference name."
 				  "Follow reference named: ")
 				completions nil t))
        (error "No cross-references in this node"))))
-  (let (target beg i (str (concat "\\*note " footnotename)))
+  (let (i
+        (blanks "[ \t\n]+")
+        (str (concat "\\*note " footnotename)))
+    ;; replace " " with "[ \t\n]+"
     (while (setq i (string-match " " str i))
-      (setq str (concat (substring str 0 i) "[ \t\n]+" (substring str (1+ i))))
-      (setq i (+ i 6)))
+      (setq str (concat (substring str 0 i)
+			blanks
+			(substring str (1+ i))))
+      (setq i (+ i (length blanks))))
+
     (save-excursion
       (goto-char (point-min))
       (or (re-search-forward str nil t)
 	  (error "No cross-reference named %s" footnotename))
-      (goto-char (+ (match-beginning 0) 5))
-      (setq target (Info-extract-menu-node-name "Bad format cross reference")))
-    (while (setq i (string-match "[ \t\n]+" target i))
-      (setq target (concat (substring target 0 i) " "
-			   (substring target (match-end 0))))
-      (setq i (+ i 1)))
-    (Info-goto-node target)))
+      (goto-char (+ (match-beginning 0) 5)) ;5 is (length "*note")
+      (setq str (Info-extract-menu-node-name "Bad format cross reference")))
+
+    (Info-goto-node str)))
 
 (defun Info-extract-menu-node-name (&optional errmessage)
   (skip-chars-forward " \t\n")
   (let ((beg (point))
-	str i)
+	str
+	i)
     (skip-chars-forward "^:")
     (forward-char 1)
-    (setq str
-	  (if (looking-at ":")
-	      (buffer-substring beg (1- (point)))
-	    (Info-following-node-name "^.,\t\n")))
-    (while (setq i (string-match "\n" str i))
-      (aset str i ?\ ))
+    (setq str (if (looking-at ":")
+		  (buffer-substring beg (1- (point)))
+		(Info-following-node-name "^.,\t")))
+    ;; replace regexp "[ \t\n]+" with " "
+    (while (setq i (string-match "[ \t\n]+" str i))
+      (setq str (concat (substring str 0 i) 
+                        " "
+                        (substring str (match-end 0))))
+      (setq i (+ i 1)))
     str))
 
 (defun Info-menu (menu-item)
@@ -805,20 +814,27 @@ Allowed only if variable Info-enable-edit is non-nil."
 
 (defvar Info-fontify t)
 
-(defvar Info-faces-initted nil)
-(defun Info-init-faces ()
-  (if Info-faces-initted
-      nil
-    (or (find-face 'info-node) (make-face 'info-node))
-    (or (find-face 'info-xref) (make-face 'info-xref))
-    (or (face-differs-from-default-p 'info-node (selected-screen))
-	(copy-face 'bold-italic 'info-node (selected-screen)))
-    (or (face-differs-from-default-p 'info-xref (selected-screen))
-	(copy-face 'bold 'info-xref (selected-screen)))
-    (setq Info-faces-initted t)))
+;(defvar Info-faces-initted nil)
+;(defun Info-init-faces ()
+;  (if Info-faces-initted
+;      nil
+;    (make-face 'info-node)
+;    (make-face 'info-xref)
+;    (or (face-differs-from-default-p 'info-node)
+;	(copy-face 'bold-italic 'info-node))
+;    (or (face-differs-from-default-p 'info-xref)
+;	(copy-face 'bold 'info-xref))
+;    (setq Info-faces-initted t)))
+
+(make-face 'info-node)
+(make-face 'info-xref)
+(or (face-differs-from-default-p 'info-node)
+    (copy-face 'bold-italic 'info-node))
+(or (face-differs-from-default-p 'info-xref)
+    (copy-face 'bold 'info-xref))
 
 (defun Info-fontify-node ()
-  (Info-init-faces)
+;;  (Info-init-faces)
   (if Info-fontify
       (save-excursion
 	(map-extents (function (lambda (x y)

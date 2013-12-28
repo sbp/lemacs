@@ -1,5 +1,6 @@
 ;;; Timezone package for GNU Emacs
-;; Copyright(C) 1990 Masanobu UMEDA (umerin@mse.kyutech.ac.jp)
+;; Copyright(C) 1990, 1991, 1992 Masanobu UMEDA (umerin@mse.kyutech.ac.jp)
+;; Header: timezone.el,v 1.4 93/01/26 12:05:40 umerin Locked 
 
 ;; This file is part of GNU Emacs.
 
@@ -65,10 +66,10 @@ Optional 2nd argument TIMEZONE specifies a timezone to be represented in."
 	 (second (string-to-int (aref time 2)))
 	 (local  (or (aref date 4) local)) ;Use original if defined
 	 (timezone (or timezone local))
-	 (diff   (- (timezone-zone-to-hour timezone)
-		    (timezone-zone-to-hour local)))
+	 (diff   (- (timezone-zone-to-minute timezone)
+		    (timezone-zone-to-minute local)))
 	 (new    (timezone-fix-time year month day
-				    (+ hour diff) minute second)))
+				    hour (+ minute diff) second)))
     (timezone-make-arpa-date (aref new 0) (aref new 1) (aref new 2)
 			     (timezone-make-time-string
 			      (aref new 3) (aref new 4) (aref new 5))
@@ -89,10 +90,10 @@ Optional 2nd argument TIMEZONE specifies a timezone to be represented in."
 	 (second (string-to-int (aref time 2)))
 	 (local  (or (aref date 4) local)) ;Use original if defined
 	 (timezone (or timezone local))
-	 (diff   (- (timezone-zone-to-hour timezone)
-		    (timezone-zone-to-hour local)))
+	 (diff   (- (timezone-zone-to-minute timezone)
+		    (timezone-zone-to-minute local)))
 	 (new    (timezone-fix-time year month day
-				    (+ hour diff) minute second)))
+				    hour (+ minute diff) second)))
     (timezone-make-sortable-date (aref new 0) (aref new 1) (aref new 2)
 				 (timezone-make-time-string
 				  (aref new 3) (aref new 4) (aref new 5)))
@@ -106,18 +107,20 @@ Optional 2nd argument TIMEZONE specifies a timezone to be represented in."
 (defun timezone-make-arpa-date (year month day time &optional timezone)
   "Make arpanet standard date string from YEAR, MONTH, DAY, and TIME.
 Optional argument TIMEZONE specifies a time zone."
-  (format "%2d %s %02d %s%s"
+  (format "%02d %s %4d %s%s"
 	  day
 	  (capitalize (car (rassq month timezone-months-assoc)))
-	  (- year (* (/ year 100) 100))	;1990 -> 90
+	  ;;(- year (* (/ year 100) 100))	;1990 -> 90
+	  (if (< year 100) (+ year 1900) year) ;90->1990
 	  time
 	  (if timezone (concat " " timezone) "")
 	  ))
 
 (defun timezone-make-sortable-date (year month day time)
   "Make sortable date string from YEAR, MONTH, DAY, and TIME."
-  (format "%02d%02d%02d%s"
-	  (- year (* (/ year 100) 100))	;1990 -> 90
+  (format "%4d%02d%02d%s"
+	  ;;(- year (* (/ year 100) 100))	;1990 -> 90
+	  (if (< year 100) (+ year 1900) year) ;90->1990
 	  month day time))
 
 (defun timezone-make-time-string (hour minute second)
@@ -130,7 +133,8 @@ Optional argument TIMEZONE specifies a time zone."
 Understand the following styles:
  (1) 14 Apr 89 03:20[:12] [GMT]
  (2) Fri, 17 Mar 89 4:01[:33] [GMT]
- (3) Mon Jan 16 16:12[:37] [GMT] 1989"
+ (3) Mon Jan 16 16:12[:37] [GMT] 1989
+ (4) 6 May 1992 1641-JST (Wednesday)"
   (let ((date (or date ""))
 	(year nil)
 	(month nil)
@@ -152,22 +156,29 @@ Understand the following styles:
 	  ((string-match
 "\\([^ ,]+\\) +\\([0-9]+\\) \\([0-9]+:[0-9:]+\\) \\([-+a-zA-Z0-9]+\\) \\([0-9]+\\)" date)
 	   ;; Styles: (3) with timezoen
-	   (setq year 5 month 1 day 2 time 3 zone 4)))
+	   (setq year 5 month 1 day 2 time 3 zone 4))
+	  ((string-match
+"\\([0-9]+\\) \\([^ ,]+\\) \\([0-9]+\\) \\([0-9]+\\)[ ]*\\([-+a-zA-Z0-9]+\\)" date)
+	   ;; Styles: (4) with timezone
+	   (setq year 3 month 2 day 1 time 4 zone 5))
+	  )
     (if year
 	(progn
 	  (setq year
 		(substring date (match-beginning year) (match-end year)))
-	  ;; I don't care about 2000 year.  There must come out a
-	  ;; better program by then.
-	  (if (> (length year) 2)
-	      (setq year (substring year -2 nil))) ;Use last two letters
+	  ;; It is now Dec 1992.  8 years before the end of the World.
+	  (if (< (length year) 4)
+	      (setq year (concat "19" (substring year -2 nil))))
 	  (setq month
 		(int-to-string
 		 (cdr
 		  (assoc
 		   (upcase
+		    ;; Don't use `match-end' in order to take 3
+		    ;; letters from the beginning.
 		    (substring date
-			       (match-beginning month) (match-end month)))
+			       (match-beginning month)
+			       (+ (match-beginning month) 3)))
 		   timezone-months-assoc))))
 	  (setq day
 		(substring date (match-beginning day) (match-end day)))
@@ -183,7 +194,8 @@ Understand the following styles:
     ))
 
 (defun timezone-parse-time (time)
-  "Parse TIME (HH:MM:SS) and return a vector [hour minute second]."
+  "Parse TIME (HH:MM:SS) and return a vector [hour minute second].
+Recognize HH:MM:SS, HH:MM, HHMMSS, HHMM."
   (let ((time (or time ""))
 	(hour nil)
 	(minute nil)
@@ -193,7 +205,14 @@ Understand the following styles:
 	   (setq hour 1 minute 2 second 3))
 	  ((string-match "\\`\\([0-9]+\\):\\([0-9]+\\)\\'" time)
 	   ;; HH:MM
-	   (setq hour 1 minute 2 second nil)))
+	   (setq hour 1 minute 2 second nil))
+	  ((string-match "\\`\\([0-9][0-9]\\)\\([0-9][0-9]\\)\\([0-9][0-9]\\)\\'" time)
+	   ;; HHMMSS
+	   (setq hour 1 minute 2 second 3))
+	  ((string-match "\\`\\([0-9][0-9]\\)\\([0-9][0-9]\\)\\'" time)
+	   ;; HHMM
+	   (setq hour 1 minute 2 second nil))
+	  )
     ;; Return [hour minute second]
     (vector
      (if hour
@@ -207,8 +226,8 @@ Understand the following styles:
 
 ;; Miscellaneous
 
-(defun timezone-zone-to-hour (timezone)
-  "Translate TIMEZONE (in zone name or integer) to integer hour."
+(defun timezone-zone-to-minute (timezone)
+  "Translate TIMEZONE (in zone name or integer) to integer minute."
   (if timezone
       (progn
 	(setq timezone
@@ -217,11 +236,20 @@ Understand the following styles:
 		  timezone))
 	(if (stringp timezone)
 	    (setq timezone (string-to-int timezone)))
-	(/ timezone 100))
+	;; Taking account of minute in timezone.
+	;; HHMM -> MM
+	(+ (* 60 (/ timezone 100)) (% timezone 100)))
     0))
 
 (defun timezone-fix-time (year month day hour minute second)
   "Fix date and time."
+  ;; MINUTE may be larger than 60 or smaller than -60.
+  (let ((hour-fix
+	 (if (< minute 0)
+	     (/ (- minute 59) 60) (/ minute 60))))
+    (setq hour (+ hour hour-fix))
+    (setq minute (- minute (* 60 hour-fix))))
+  ;; HOUR may be larger than 24 or smaller than 0.
   (cond ((<= 24 hour)			;24 -> 00
 	 (setq hour (- hour 24))
 	 (setq day  (1+ day))

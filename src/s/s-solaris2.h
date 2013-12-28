@@ -45,6 +45,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Solaris2 can use SIGPOLL as SIGIO  */
 #define SIGIO SIGPOLL
 
+#define HAVE_SYSCONF
+
 /* Flags for OpenWindows */
 #if 1
 #undef LD_SWITCH_SYSTEM

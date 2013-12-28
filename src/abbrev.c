@@ -1,5 +1,5 @@
 /* Primitives for word-abbrev mode.
-   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -253,7 +253,7 @@ Returns t if expansion took place.")
 
   p = buffer = (char *) alloca (wordend - wordstart);
 
-  for (idx = wordstart; idx < point; idx++)
+  for (idx = wordstart; idx < wordend; idx++)
     {
       register int c = CHAR_AT (idx);
       if (UPPERCASEP (c))

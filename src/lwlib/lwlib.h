@@ -85,7 +85,7 @@ void lw_destroy_widget (Widget w);
 void lw_destroy_all_widgets (LWLIB_ID id);
 void lw_destroy_everything (void);
 void lw_destroy_all_pop_ups (void);
-Widget lw_raise_all_pop_up_widgets ();
+Widget lw_raise_all_pop_up_widgets (void);
 widget_value* lw_get_all_values (LWLIB_ID id);
 Boolean lw_get_some_values (LWLIB_ID id, widget_value* val);
 void lw_pop_up_all_widgets (LWLIB_ID id);

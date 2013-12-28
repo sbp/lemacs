@@ -1,5 +1,5 @@
 /* Window definitions for GNU Emacs.
-   Copyright (C) 1985, 1986, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifndef _EMACS_WINDOW_H_
+#define _EMACS_WINDOW_H_
 
 /* Windows are allocated as if they were vectors, but then the
 Lisp data type is changed to Lisp_Window.  They are garbage
@@ -154,6 +156,8 @@ struct window
     Lisp_Object dedicated;
   };
 
+#ifdef emacs  /* some things other than emacs want the structs */
+
 /* 1 if W is a minibuffer window.  */
 #define MINI_WINDOW_P(W)  (!EQ ((W)->mini_p, Qnil))
 
@@ -229,3 +233,7 @@ extern int windows_or_buffers_changed;
 /* Number of windows displaying the selected buffer.
    Normally this is 1, but it can be more.  */
 extern int buffer_shared;
+
+#endif /* emacs */
+
+#endif /* _EMACS_WINDOW_H_ */

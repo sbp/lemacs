@@ -1,5 +1,5 @@
 /* Buffer insertion/deletion and gap motion for GNU Emacs.
-   Copyright (C) 1985, 1986, 1991, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -16,6 +16,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#ifndef _EMACS_INSDEL_H_
+#define _EMACS_INSDEL_H_
 
 /* Move gap to position `pos'.   Note that this can quit!  */
 extern void move_gap (int pos);
@@ -64,3 +67,5 @@ extern void insert_buffer_string (struct buffer *b, int index, int length);
 /* Delete characters in current buffer
    from FROM up to (but not including) TO.  */
 extern void del_range (int from, int to);
+
+#endif /* _EMACS_INSDEL_H_ */

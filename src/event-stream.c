@@ -362,10 +362,10 @@ which is often more appropriate.")
       num_input_chars++;
       /* fall through */
     case button_press_event:	/* key or mouse input can trigger prompting */
-    case button_release_event:
       if (store_this_key)
 	echo_char_event (XEVENT (event));
       /* fall through */
+    case button_release_event:
     case menu_event:
 
       /* Store the last-input-event.  The semantics of this is that it is
@@ -878,7 +878,11 @@ timeout granularity will vary from system to system.\n\
 Adding a timeout causes a timeout event to be returned by `next-event', and\n\
 the function will be invoked by `dispatch-event,' so if emacs is in a tight\n\
 loop, the function will not be invoked until the next call to sit-for or\n\
-until the return to top-level (the same is true of process filters.)")
+until the return to top-level (the same is true of process filters.)\n\
+\n\
+WARNING: if you are thinking of calling add-timeout from inside of a\n\
+callback function as a way of resignalling a timeout, think again.  There\n\
+is a race condition.  That's why the RESIGNAL argument exists.")
      (secs, function, object, resignal)
      Lisp_Object secs, function, object, resignal;
 {
@@ -1429,6 +1433,9 @@ compose_command (event, execute_p)
   Lisp_Object leaf;
   int count;
 
+  /* for button-release events, kludges abound */
+  int button_up_p = (event->event_type == button_release_event);
+
   command_builder_push (event);
   command_builder_find_leaf (! execute_p);
 
@@ -1438,7 +1445,8 @@ compose_command (event, execute_p)
   {
     Lisp_Object leaf2 = leaf;
 
-    echo_area_glyphs = 0;
+    if (! button_up_p)
+      echo_area_glyphs = 0;
 
     while (SYMBOLP (leaf2) && !NILP (Ffboundp (leaf2)))
       leaf2 = Fsymbol_function (leaf2);
@@ -1462,91 +1470,101 @@ compose_command (event, execute_p)
   /* Now we've got a complete key sequence.  Execute it or return a vector
      of the events, depending on the value of execute_p.
    */
-  if (execute_p) {
-    if (NILP (leaf)) {
-
-      /* At this point, we know that the sequence is not bound to a command.
-	 Normally, we beep and print a message informing the user of this.
-	 But we do not beep or print a message when:
-
-	   o  the last event in this sequence is a mouse-up event; or
-	   o  the last event in this sequence is a mouse-down event and
-	      there is a binding for the mouse-up version.
-
-	 That is, if the sequence ``C-x button1'' is typed, and is not
-	 bound to a command, but the sequence ``C-x button1up'' is bound
-	 to a command, we do not complain about the ``C-x button1'' sequence.
-	 If neither ``C-x button1'' nor ``C-x button1up'' is bound to a
-	 command, then we complain about the ``C-x button1'' sequence, but
-	 later will *not* complain about the ``C-x button1up'' sequence,
-	 which would be redundant.
-
-	 This is pretty hairy, but I think it's the most intuitive behavior.
-       */
-      struct Lisp_Event *terminal_event =
-	XEVENT (XVECTOR (command_builder->events)->contents [count-1]);
-
-      if (terminal_event->event_type == button_press_event)
+  if (execute_p)
+    {
+      if (NILP (leaf))
 	{
-	  int suppress_bitching;
-	  /* Temporarily pretend the last event was an "up" instead of a
-	     "down", and look up its binding. */
-	  terminal_event->event_type = button_release_event;
-	  command_builder_find_leaf (0);
-	  /* If the "up" version is bound, don't complain. */
-	  suppress_bitching = !NILP (command_builder->leaf);
-	  /* Undo the temporary changes we just made. */
-	  terminal_event->event_type = button_press_event;
-	  command_builder->leaf = leaf;
-	  if (suppress_bitching) {
-	    /* Pretend this press was not seen (treat it as a prefix) */
-	    command_builder->event_count--;
-	    maybe_echo_keys ();
-	    return Qnil;
-	  }
-	}
+	 /* At this point, we know that the sequence is not bound to a
+	    command.  Normally, we beep and print a message informing the
+	    user of this.  But we do not beep or print a message when:
+
+	    o  the last event in this sequence is a mouse-up event; or
+	    o  the last event in this sequence is a mouse-down event and
+	       there is a binding for the mouse-up version.
+
+	    That is, if the sequence ``C-x button1'' is typed, and is not
+	    bound to a command, but the sequence ``C-x button1up'' is bound
+	    to a command, we do not complain about the ``C-x button1''
+	    sequence.  If neither ``C-x button1'' nor ``C-x button1up'' is
+	    bound to a command, then we complain about the ``C-x button1''
+	    sequence, but later will *not* complain about the ``C-x button1up''
+	    sequence, which would be redundant.
+
+	    This is pretty hairy, but I think it's the most intuitive behavior.
+	  */
+	  struct Lisp_Event *terminal_event =
+	    /* `terminal-event' is equal but not eq to `event' */
+	    XEVENT (XVECTOR (command_builder->events)->contents [count-1]);
+
+	  if (terminal_event->event_type == button_press_event)
+	    {
+	      int suppress_bitching;
+	      /* Temporarily pretend the last event was an "up" instead of a
+		 "down", and look up its binding. */
+	      terminal_event->event_type = button_release_event;
+	      command_builder_find_leaf (0);
+	      /* If the "up" version is bound, don't complain. */
+	      suppress_bitching = !NILP (command_builder->leaf);
+	      /* Undo the temporary changes we just made. */
+	      terminal_event->event_type = button_press_event;
+	      command_builder->leaf = leaf;
+	      if (suppress_bitching)
+		{
+		  /* Pretend this press was not seen (treat it as a prefix) */
+		  command_builder->event_count--;
+		  maybe_echo_keys ();
+		  return Qnil;
+		}
+	    }
       
-      /* Complain that the typed sequence is not defined, if this is the
-	 kind of sequence that warrants a complaint.
-       */
-      echo_area_glyphs = 0;
-      command_builder->echo_keys = 1;
-      if (terminal_event->event_type != button_release_event) {
-	strcpy (command_builder->echoptr,"not defined."); /* doo dah, doo dah*/
-	maybe_echo_keys ();
-	command_builder->echo_keys = 0;
-	/* Run the pre-command-hook before barfing about an undefined key. */
-	Vthis_command = Qnil;
-	pre_command_hook ();
-	/* Beep (but don't signal).  The post-command-hook doesn't run,
-	   just as it wouldn't run if we had executed a real command which
-	   signalled an error.  But maybe it should in this case. */
-	bitch_at_user (intern ("undefined-key"));
-      }
-      /* Reset the command builder to read the next sequence.
-       */
-      cancel_echoing ();
-      command_builder->event_count = 0;
-      command_builder->leaf = Qnil;
-      defining_kbd_macro = 0;
-      Vprefix_arg = Qnil;
+	  /* Complain that the typed sequence is not defined, if this is the
+	     kind of sequence that warrants a complaint.
+	   */
+	  command_builder->echo_keys = 1;
+	  if (! button_up_p)
+	    {
+	      echo_area_glyphs = 0;
+	      strcpy (command_builder->echoptr,
+		      "not defined."); /* doo dah, doo dah */
+	      maybe_echo_keys ();
+	      command_builder->echo_keys = 0;
+	      /* Run the pre-command-hook before barfing about an
+		 undefined key. */
+	      Vthis_command = Qnil;
+	      pre_command_hook ();
+	      /* Beep (but don't signal).  The post-command-hook doesn't run,
+		 just as it wouldn't run if we had executed a real command
+		 which signalled an error.  But maybe it should in this case.
+	       */
+	      bitch_at_user (intern ("undefined-key"));
+
+	      cancel_echoing ();
+	    }
+	  /* Reset the command builder to read the next sequence.
+	   */
+	  command_builder->event_count = 0;
+	  command_builder->leaf = Qnil;
+	  defining_kbd_macro = 0;
+	  Vprefix_arg = Qnil;
+	  return Qnil;
+	}
+      dispatch_command_event_internal (event, leaf);
       return Qnil;
     }
-    dispatch_command_event_internal (event, leaf);
-    return Qnil;
-  } 
-  else {
-    /* Copy the vector and the events in it.
-     */
-    Lisp_Object vector = Fmake_vector (make_number (count), Qnil);
-    Lisp_Object *vec = XVECTOR (vector)->contents;
-    Lisp_Object *events = XVECTOR (command_builder->events)->contents;
-    int i;
-    for (i = 0; i < count; i++) vec [i] = Fcopy_event (events [i], Qnil);
-    command_builder->event_count = 0;
-    command_builder->leaf = Qnil;
-    return vector;
-  }
+  else
+    {
+      /* Copy the vector and the events in it.
+       */
+      Lisp_Object vector = Fmake_vector (make_number (count), Qnil);
+      Lisp_Object *vec = XVECTOR (vector)->contents;
+      Lisp_Object *events = XVECTOR (command_builder->events)->contents;
+      int i;
+      for (i = 0; i < count; i++)
+	vec [i] = Fcopy_event (events [i], Qnil);
+      command_builder->event_count = 0;
+      command_builder->leaf = Qnil;
+      return vector;
+    }
 }
 
 
@@ -1813,7 +1831,7 @@ syms_of_event_stream ()
   Vthis_command_keys = Fmake_vector (40, Qnil);
   staticpro (&Vthis_command_keys);
 
-  num_input_chars = Qnil;
+  num_input_chars = 0;
   self_insert_countdown = 0;
  
   Qundefined = intern ("undefined");

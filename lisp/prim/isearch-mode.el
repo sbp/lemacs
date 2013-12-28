@@ -164,46 +164,59 @@ thing searched for.")
 
 (if isearch-mode-map
     nil
-  (let ((i 0)
-	(str (make-string 1 0)))
-    (setq isearch-mode-map (make-keymap))
+  (let ((map (make-keymap)))
+    (set-keymap-name map 'map)
+
+    ;; Bind all printing characters to `isearch-printing-char'.
+    ;; This isn't normally necessary, but if a printing character were 
+    ;; bound to something other than self-insert-command in global-map, 
+    ;; then it would terminate the search and be executed without this.
+    (let ((i 32)
+	  (str (make-string 1 0)))
+      (while (< i 127)
+	(aset str 0 i)
+	(define-key map str 'isearch-printing-char)
+	(setq i (1+ i))))
+    (define-key map "\t" 'isearch-printing-char)
 
     ;; Several non-printing chars change the searching behavior.
     ;;
-    (define-key isearch-mode-map "\C-s" 'isearch-repeat-forward)
-    (define-key isearch-mode-map "\C-r" 'isearch-repeat-backward)
-    (define-key isearch-mode-map "\177" 'isearch-delete-char)
-    (define-key isearch-mode-map "\C-g" 'isearch-abort)
+    (define-key map "\C-s" 'isearch-repeat-forward)
+    (define-key map "\C-r" 'isearch-repeat-backward)
+    (define-key map "\177" 'isearch-delete-char)
+    (define-key map "\C-g" 'isearch-abort)
 
-    (define-key isearch-mode-map "\C-q" 'isearch-quote-char)
-    
-    (define-key isearch-mode-map "\C-m" 'isearch-exit)
-    (define-key isearch-mode-map "\C-j" 'isearch-printing-char)
-    (define-key isearch-mode-map "\t" 'isearch-printing-char)
-    
-    (define-key isearch-mode-map "\C-w" 'isearch-yank-word)
-    (define-key isearch-mode-map "\C-y" 'isearch-yank-line)
+    (define-key map "\C-q" 'isearch-quote-char)
+
+    (define-key map "\C-m" 'isearch-exit)
+    (define-key map "\C-j" 'isearch-printing-char)
+    (define-key map "\t" 'isearch-printing-char)
+
+    (define-key map "\C-w" 'isearch-yank-word)
+    (define-key map "\C-y" 'isearch-yank-line)
 
     ;; Define keys for regexp chars * ? |
-    (define-key isearch-mode-map "*" 'isearch-*-char)
-    (define-key isearch-mode-map "?" 'isearch-*-char)
-    (define-key isearch-mode-map "|" 'isearch-|-char)
+    (define-key map "*" 'isearch-*-char)
+    (define-key map "?" 'isearch-*-char)
+    (define-key map "|" 'isearch-|-char)
 
     ;; Some bindings you may want to put in your isearch-mode-hook.
     ;; Suggest some alternates...
-    ;; (define-key isearch-mode-map "\C-t" 'isearch-toggle-regexp)
-    ;; (define-key isearch-mode-map "\C-^" 'isearch-edit-string)
+    ;; (define-key map "\C-t" 'isearch-toggle-regexp)
+    ;; (define-key map "\C-^" 'isearch-edit-string)
 
     ;; backspace deletes, but C-h is help.
-    (define-key isearch-mode-map 'backspace 'isearch-delete-char)
-    (define-key isearch-mode-map '(control h) 'isearch-mode-help)
+    (define-key map 'backspace 'isearch-delete-char)
+    (define-key map '(control h) 'isearch-mode-help)
 
-    (define-key isearch-mode-map "\M-n" 'isearch-ring-advance)
-    (define-key isearch-mode-map "\M-p" 'isearch-ring-retreat)
-    (define-key isearch-mode-map "\M- " 'isearch-whitespace-chars)
-    (define-key isearch-mode-map "\M-\t" 'isearch-complete)
+    (define-key map "\M-n" 'isearch-ring-advance)
+    (define-key map "\M-p" 'isearch-ring-retreat)
+    (define-key map "\M- " 'isearch-whitespace-chars)
+    (define-key map "\M-\t" 'isearch-complete)
 
-    isearch-mode-map
+    (define-key map 'button2 'isearch-yank-x-selection)
+
+    (setq isearch-mode-map map)
     ))
 
 (defvar minibuffer-local-isearch-map nil
@@ -211,22 +224,19 @@ thing searched for.")
 
 (if minibuffer-local-isearch-map
     nil
-  (progn
-    (setq minibuffer-local-isearch-map (copy-keymap minibuffer-local-map))
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map minibuffer-local-map)
+    (set-keymap-name map 'minibuffer-local-isearch-map)
 
-    (define-key minibuffer-local-isearch-map "\r" 
-      'isearch-nonincremental-exit-minibuffer)
-    (define-key minibuffer-local-isearch-map "\M-n" 'isearch-ring-advance-edit)
-    (define-key minibuffer-local-isearch-map "\M-p" 'isearch-ring-retreat-edit)
-    (define-key minibuffer-local-isearch-map "\M-\t" 
-      'isearch-complete-edit)
-    (define-key minibuffer-local-isearch-map "\C-s" 
-      'isearch-forward-exit-minibuffer)
-    (define-key minibuffer-local-isearch-map "\C-r" 
-      'isearch-reverse-exit-minibuffer)
+    ;;#### This should just arrange to use the usual Emacs minibuffer histories
+    (define-key map "\r" 'isearch-nonincremental-exit-minibuffer)
+    (define-key map "\M-n" 'isearch-ring-advance-edit)
+    (define-key map "\M-p" 'isearch-ring-retreat-edit)
+    (define-key map "\M-\t" 'isearch-complete-edit)
+    (define-key map "\C-s" 'isearch-forward-exit-minibuffer)
+    (define-key map "\C-r" 'isearch-reverse-exit-minibuffer)
 
-    minibuffer-local-isearch-map
-    ))
+    (setq minibuffer-local-isearch-map map)))
 
 ;;;========================================================
 ;; Internal variables declared globally for byte-compiler.
@@ -287,8 +297,10 @@ thing searched for.")
 ;; echo area, but if isearching in multiple windows, it can be useful.
 
 (or (assq 'isearch-mode minor-mode-alist)
-    (nconc minor-mode-alist
-	   (list '(isearch-mode isearch-mode))))
+    (setq minor-mode-alist
+	  (purecopy
+	   (append minor-mode-alist
+		   '((isearch-mode isearch-mode))))))
 
 (defvar isearch-mode nil)
 (make-variable-buffer-local 'isearch-mode)
@@ -427,7 +439,14 @@ is treated as a regexp.  See \\[isearch-forward] for more info."
     (add-hook 'pre-command-hook 'isearch-pre-command-hook)
     (set-buffer-modified-p (buffer-modified-p)) ; update modeline
     (isearch-push-state)
+
     (use-local-map isearch-mode-map)
+
+    ;; This is so that the buffer-local bindings are accessible from isearch
+    ;; as well; that way, a buffer-local binding will cause isearch to
+    ;; terminate correctly (for example, if C-c is a buffer-local prefix key,
+    ;; but is globally unbound.)
+    (set-keymap-parent isearch-mode-map isearch-old-local-map)
 
     ) ; inhibit-quit is t before here
 
@@ -493,6 +512,7 @@ is treated as a regexp.  See \\[isearch-forward] for more info."
 	  (set-buffer isearch-buffer)
 	  (use-local-map isearch-old-local-map)
 	  (setq pre-command-hook isearch-old-pre-command-hook)
+	  (set-keymap-parent isearch-mode-map nil)
 	  (setq isearch-mode nil)
 	  (setq isearch-buffer nil)
 	  (set-buffer-modified-p (buffer-modified-p));; update modeline
@@ -610,29 +630,40 @@ The following additional command keys are active while editing.
 	;; like switch buffers and start another isearch, and return.
 	(condition-case err
 	    (isearch-done)
+          ;;#### What does this mean?  There is no such condition!
 	  (exit nil))			; was recursive editing
 
 	(unwind-protect
 	    (let ((e (allocate-event))
-		  (cursor-in-echo-area t))
+                  (prompt (isearch-message-prefix nil t)))
 	      ;; If the first character the user types when we prompt them
 	      ;; for a string is the yank-word character, then go into
 	      ;; word-search mode.  Otherwise unread that character and
 	      ;; read a string the normal way.
-	      (message (isearch-message-prefix nil t))
-	      (if (eq 'isearch-yank-word
-		      (lookup-key
-		       isearch-mode-map
-		       (char-to-string
-			(or (event-to-character (next-command-event e)) 0))))
-		  (setq isearch-word t)
-		(setq unread-command-event e))
-	      (setq isearch-new-string 
-		    (if (featurep 'gmhist)
-			(gmhist-old-read-from-minibuffer
-			 (isearch-message-prefix nil t) isearch-string)
-		      (read-string (isearch-message-prefix nil t)
-				   isearch-string))
+	      (let ((cursor-in-echo-area t))
+		(message "%s" prompt)
+		(if (eq 'isearch-yank-word
+			(lookup-key isearch-mode-map
+				    (vector (next-command-event e))))
+		    (setq isearch-word t)
+		  (setq unread-command-event e)))
+	      (setq isearch-new-string
+                    (if (fboundp 'gmhist-old-read-from-minibuffer)
+                        ;; Eschew gmhist crockery
+			(gmhist-old-read-from-minibuffer prompt isearch-string)
+		      (read-string
+		       prompt isearch-string
+		       't            ;does its own history (but shouldn't)
+;;                     (if isearch-regexp
+;;                         ;; The search-rings aren't exactly minibuffer
+;;                         ;;  histories, but they are close enough
+;;                         (cons 'regexp-search-ring
+;;                               (- (length regexp-search-ring-yank-pointer)
+;;                                  (length regexp-search-ring)))
+;;                         (cons 'search-ring
+;;                               (- (length search-ring-yank-pointer)
+;;                                  (length search-ring))))
+		       ))
 		    isearch-new-message (mapconcat
 					 'isearch-text-char-description
 					 isearch-new-string ""))
@@ -772,18 +803,20 @@ If no previous match was done, just beep."
 
 (defun isearch-yank (chunk)
   ;; Helper for isearch-yank-word and isearch-yank-line
-  (let ((word (save-excursion
-		(and (not isearch-forward) isearch-other-end
-		     (goto-char isearch-other-end))
-		(buffer-substring
-		 (point)
-		 (save-excursion
-		   (cond
-		    ((eq chunk 'word)
-		     (forward-word 1))
-		    ((eq chunk 'line)
-		     (end-of-line)))
-		   (point))))))
+  (let ((word (if (stringp chunk)
+		  chunk
+		(save-excursion
+		  (and (not isearch-forward) isearch-other-end
+		       (goto-char isearch-other-end))
+		  (buffer-substring
+		   (point)
+		   (save-excursion
+		     (cond
+		      ((eq chunk 'word)
+		       (forward-word 1))
+		      ((eq chunk 'line)
+		       (end-of-line)))
+		     (point)))))))
     ;; if configured so that typing upper-case characters turns off case
     ;; folding, then downcase the string so that yanking an upper-case
     ;; word doesn't mess with case-foldedness.
@@ -810,6 +843,10 @@ If no previous match was done, just beep."
   (interactive)
   (isearch-yank 'line))
 
+(defun isearch-yank-x-selection ()
+  "Pull the current X selection into the search string."
+  (interactive)
+  (isearch-yank (x-get-selection)))
 
 (defun isearch-search-and-update ()
   ;; Do the search and update the display.
@@ -1017,7 +1054,7 @@ Default nil means edit the string from the search ring first.")
 	(setq isearch-string completion))
       t)
      (t
-      (message "No completion") ; waits a second if in minibuffer
+      (temp-minibuffer-message "No completion")
       nil))))
 
 (defun isearch-complete ()
@@ -1144,6 +1181,7 @@ If there is no completion possible, say so and continue searching."
 (put 'isearch-forward-exit-minibuffer		'isearch-command t)
 (put 'isearch-reverse-exit-minibuffer		'isearch-command t)
 (put 'isearch-nonincremental-exit-minibuffer	'isearch-command t)
+(put 'isearch-yank-x-selection			'isearch-command t)
 
 (defun isearch-pre-command-hook ()
   ;;
@@ -1208,8 +1246,8 @@ currently matches the search-string.")
 
 (defvar isearch-extent nil)
 
-(or (find-face 'isearch)	;; this face is initialized by x-faces.el
-    (make-face 'isearch))	;; since isearch is preloaded
+;; this face is initialized by x-faces.el since isearch is preloaded.
+(make-face 'isearch)
 
 (defun isearch-highlight (begin end)
   (if (null isearch-highlight)
@@ -1253,6 +1291,17 @@ currently matches the search-string.")
   (isearch-message nil t)
   (if (and case-fold-search search-caps-disable-folding)
       (setq isearch-case-fold-search (isearch-no-upper-case-p isearch-string)))
+
+  (setq isearch-mode (if case-fold-search
+                         (if isearch-case-fold-search
+                             " Isearch"  ;As God Intended Mode
+                             " ISeARch") ;Warn about evil case via StuDLYcAps.
+		         "Isearch"
+;		         (if isearch-case-fold-search
+;                            " isearch"    ;Presumably case-sensitive losers
+;                                          ;will notice this 1-char difference.
+;                            " Isearch")   ;Weenie mode.
+			 ))
   (condition-case lossage
       (let ((inhibit-quit nil)
 	    (case-fold-search isearch-case-fold-search))

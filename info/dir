@@ -17,8 +17,8 @@ File: dir	Node: Top	This is the top of the INFO tree
 
 * Info:     (info).	Documentation browsing system.
 
-* Emacs:    (emacs).	The extensible self-documenting text editor.
-			This manual is for Lucid GNU Emacs 19.4.
+* Emacs:    (lemacs).	The extensible self-documenting text editor.
+			This manual is for Lucid GNU Emacs 19.5.
 
 * Dired:    (dired).	Manual for Tree Dired.
 
@@ -43,6 +43,8 @@ File: dir	Node: Top	This is the top of the INFO tree
 			Full documentation in this menu item.
 
 * Tar:      (tar).	The GNU implementation of 'tar'.
+
+* Gzip:     (gzip).	The GNU compression/decompression utility.
 
 * Finger:   (finger).	The GNU implementation of finger, with bitmaps.
 

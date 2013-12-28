@@ -1,5 +1,5 @@
 \input texinfo  @c -*-texinfo-*-
-@setfilename ../info/emacs
+@setfilename ../info/lemacs
 @comment  node-name,  next,  previous,  up
 
 
@@ -1033,9 +1033,7 @@ the particular call to @code{x-create-screen}.
 
 @vindex create-screen-hook
 When you create a new screen, the variable @code{create-screen-hook}
-causes the screen to be displayed with a menubar. The variable takes a
-function with one argument, @var{screen}, that is called with each newly
-created screen.
+is called with one argument, the screen just created.
 
 If you want to close one or more of the X windows you created using
 @b{New Screen}, use the @b{Close} menu item from the @b{File} menu.  

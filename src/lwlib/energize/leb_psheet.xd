@@ -26,7 +26,7 @@ object '' : XmLabel {
 	name = 'nameLabel';
 	};
 };
-object '' : XmText {
+object '' : XmTextField {
 	arguments {
 	name = 'nameText';
 	XmNmarginHeight=2;
@@ -38,7 +38,7 @@ object '' : XmLabel {
 	name = 'fileLabel';
 	};
 };
-object '' : XmText {
+object '' : XmTextField {
 	arguments {
 	name = 'fileText';
 	XmNmarginHeight=2;
@@ -50,7 +50,7 @@ object '' : XmLabel {
 	name = 'projectLabel';
 	};
 };
-object '' : XmText {
+object '' : XmTextField {
 	arguments {
 	name = 'projectText';
 	XmNmarginHeight=2;

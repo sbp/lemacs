@@ -16,10 +16,12 @@
 ;; along with GNU Emacs; see the file COPYING.  If not, write to
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
+;; Written by Richard Mlynarik
+
 (require 'electric)
 (provide 'ehelp) 
 
-(defvar electric-help-map ()
+(defvar electric-help-map nil
   "Keymap defining commands available whilst scrolling
 through a buffer in electric-help-mode")
 
@@ -27,10 +29,12 @@ through a buffer in electric-help-mode")
 (if electric-help-map
     ()
   (let ((map (make-keymap)))
+    (set-keymap-name map 'electric-help-map)
     (let ((i 0))
       (while (< i 128)
 	(define-key map (make-string 1 i) 'electric-help-undefined)
 	(setq i (1+ i))))
+    ;;>>> Urk!  There should be a better way in Lucid Emacs!
     (define-key map (char-to-string meta-prefix-char) (copy-keymap map))
     (define-key map (char-to-string help-char) 'electric-help-help)
     (define-key map "?" 'electric-help-help)
@@ -48,8 +52,9 @@ through a buffer in electric-help-mode")
     (setq electric-help-map map)))
    
 (defun electric-help-mode ()
-  "with-electric-help temporarily places its buffer in this mode
-\(On exit from with-electric-help, the buffer is put in default-major-mode)"
+  "`with-electric-help' temporarily places its buffer in this mode.
+\(On exit from `with-electric-help', the buffer is put in
+ `default-major-mode')"
   (setq buffer-read-only t)
   (setq mode-name "Help")
   (setq major-mode 'help)
@@ -64,67 +69,56 @@ through a buffer in electric-help-mode")
 BUFFER defaults to \"*Help*\"
 THUNK is a function of no arguments which is called to initialise
  the contents of BUFFER.  BUFFER will be erased before THUNK is called unless
- NOERASE is non-nil.  THUNK will be called with  standard-output  bound to
+ NOERASE is non-nil.  THUNK will be called with `standard-output' bound to
  the buffer specified by BUFFER
 
 After THUNK has been called, this function \"electrically\" pops up a window
 in which BUFFER is displayed and allows the user to scroll through that buffer
 in electric-help-mode.
-When the user exits (with electric-help-exit, or otherwise) the help
-buffer's window disappears (ie we use save-window-excursion)
-BUFFER is put into default-major-mode (or fundamental-mode) when we exit"
+When the user exits (with `electric-help-exit', or otherwise) the help
+buffer's window disappears (ie we use `save-window-excursion')
+BUFFER is put into `default-major-mode' (or `fundamental-mode') when we exit."
   (setq buffer (get-buffer-create (or buffer "*Help*")))
   (let ((one (one-window-p t))
-	(two nil))
-    (save-window-excursion
-      (save-excursion
-	(if one (goto-char (window-start (selected-window))))
-	(let ((pop-up-windows t))
-	  (pop-to-buffer buffer))
-	(unwind-protect
-	    (progn
-	      (save-excursion
+        (config (current-window-configuration))
+        (bury nil))
+    (unwind-protect
+	(save-excursion
+	  (if one (goto-char (window-start (selected-window))))
+	  (let ((pop-up-windows t))
+	    (pop-to-buffer buffer))
+	  (save-excursion
+	    (set-buffer buffer)
+	    (electric-help-mode)
+	    (setq buffer-read-only nil)
+	    (or noerase (erase-buffer)))
+		(let ((standard-output buffer))
+		  (if (not (funcall thunk))
+		      (progn
+			(set-buffer buffer)
+			(set-buffer-modified-p nil)
+			(goto-char (point-min))
+			(if one (shrink-window-if-larger-than-buffer (selected-window))))))
 		(set-buffer buffer)
-		(electric-help-mode)
-		(setq buffer-read-only nil)
-		(or noerase (erase-buffer)))
-	      (let ((standard-output buffer))
-		(if (funcall thunk)
-		    ()
-		  (set-buffer buffer)
-		  (set-buffer-modified-p nil)
-		  (goto-char (point-min))
-		  (if one (shrink-window-if-larger-than-buffer (selected-window)))))
-	      (set-buffer buffer)
-	      (run-hooks 'electric-help-mode-hook)
-	      (setq two (electric-help-command-loop))
-	      (cond ((eq (car-safe two) 'retain)
-		     (setq two (vector (window-height (selected-window))
-				       (window-start (selected-window))
-				       (window-hscroll (selected-window))
-				       (point))))
-		    (t (setq two nil))))
-				  
-	  (message "")
-	  (set-buffer buffer)
-	  (setq buffer-read-only nil)
-	  (condition-case ()
-	      (funcall (or default-major-mode 'fundamental-mode))
-	    (error nil)))))
-    (if two
-	(let ((pop-up-windows t)
-	      tem)
-	  (pop-to-buffer buffer)
-	  (setq tem (- (window-height (selected-window)) (elt two 0)))
-	  (if (> tem 0) (shrink-window tem))
-	  (set-window-start (selected-window) (elt two 1) t)
-	  (set-window-hscroll (selected-window) (elt two 2))
-	  (goto-char (elt two 3)))
-      ;;>> Perhaps this shouldn't be done.
-      ;; so that when we say "Press space to bury" we mean it
-      (replace-buffer-in-windows buffer)
-      ;; must do this outside of save-window-excursion
-      (bury-buffer buffer))))
+		(run-hooks 'electric-help-mode-hook)
+		           (if (eq (car-safe (electric-help-command-loop))
+                   'retain)
+               (setq config (current-window-configuration))
+               (setq bury t)))
+      (message nil)
+      (set-buffer buffer)
+      (setq buffer-read-only nil)
+      (condition-case ()
+	  (funcall (or default-major-mode 'fundamental-mode))
+	(error nil))
+      (set-window-configuration config)
+      (if bury
+          (progn
+            ;;>> Perhaps this shouldn't be done.
+            ;; so that when we say "Press space to bury" we mean it
+            (replace-buffer-in-windows buffer)
+            ;; must do this outside of save-window-excursion
+            (bury-buffer buffer))))))
 
 (defun electric-help-command-loop ()
   (catch 'exit
@@ -183,7 +177,7 @@ BUFFER is put into default-major-mode (or fundamental-mode) when we exit"
   (throw 'exit t))
 
 (defun electric-help-retain ()
-  "Exit electric-help, retaining the current window/buffer conifiguration.
+  "Exit `electric-help', retaining the current window/buffer configuration.
 \(The *Help* buffer will not be selected, but \\[switch-to-buffer-other-window] RET
 will select it.)"
   (interactive)
@@ -229,57 +223,34 @@ will select it.)"
   (sit-for 2))
 
 
-(defun electric-helpify (fun)
-  (let ((name "*Help*"))
-    (if (save-window-excursion
-	  ;; kludge-o-rama
-	  (let* ((p (symbol-function 'print-help-return-message))
-		 (b (get-buffer name))
-		 (m (buffer-modified-p b)))
-	    (and b (not (get-buffer-window b))
-		 (setq b nil))
-	    (unwind-protect
-		(progn
-		  (message "%s..." (capitalize (symbol-name fun)))
-		  ;; with-output-to-temp-buffer marks the buffer as unmodified.
-		  ;; kludging excessively and relying on that as some sort
-		  ;;  of indication leads to the following abomination...
-		  ;;>> This would be doable without such icky kludges if either
-		  ;;>> (a) there were a function to read the interactive
-		  ;;>>     args for a command and return a list of those args.
-		  ;;>>     (To which one would then just apply the command)
-		  ;;>>     (The only problem with this is that interactive-p
-		  ;;>>      would break, but that is such a misfeature in
-		  ;;>>      any case that I don't care)
-		  ;;>>     It is easy to do this for emacs-lisp functions;
-		  ;;>>     the only problem is getting the interactive spec
-		  ;;>>     for subrs
-		  ;;>> (b) there were a function which returned a
-		  ;;>>     modification-tick for a buffer.  One could tell
-		  ;;>>     whether a buffer had changed by whether the
-		  ;;>>     modification-tick were different.
-		  ;;>>     (Presumably there would have to be a way to either
-		  ;;>>      restore the tick to some previous value, or to
-		  ;;>>      suspend updating of the tick in order to allow
-		  ;;>>      things like momentary-string-display)
-		  (and b
-		       (save-excursion
-			 (set-buffer b)
-			 (set-buffer-modified-p t)))
-		  (fset 'print-help-return-message 'ignore)
-		  (let ((temp-buffer-show-function 'ignore))
-		    (call-interactively fun))
-		  (and (get-buffer name)
-		       (get-buffer-window (get-buffer name))
-		       (or (not b)
-			   (not (eq b (get-buffer name)))
-			   (not (buffer-modified-p b)))))
-	      (fset 'print-help-return-message p)
-	      (and b (buffer-name b)
-		   (save-excursion
-		     (set-buffer b)
-		     (set-buffer-modified-p m))))))
-	(with-electric-help 'ignore name t))))
+(defun electric-helpify (fun &optional buffer-name)
+  (or buffer-name (setq buffer-name "*Help*"))
+  (let* ((p (symbol-function 'print-help-return-message))
+         (b (get-buffer buffer-name))
+         (tick (and b (buffer-modified-tick b))))
+    (and b (not (get-buffer-window b))
+         (setq b nil))
+    (if (unwind-protect
+             (save-window-excursion
+               (message "%s..." (capitalize (symbol-name fun)))
+               ;; kludge-o-rama
+               (fset 'print-help-return-message 'ignore)
+               (let ((a (call-interactively fun 'lambda)))
+                 (let ((temp-buffer-show-function 'ignore))
+                   (apply fun a)))
+               (message nil)
+               ;; Was a non-empty help buffer created/modified?
+               (let ((r (get-buffer buffer-name)))
+                 (and r
+                      ;(get-buffer-window r)
+                      (or (not b)
+                          (not (eq b r))
+                          (not (eql tick (buffer-modified-tick b))))
+                      (save-excursion
+                        (set-buffer r)
+                        (> (buffer-size) 0)))))
+          (fset 'print-help-return-message p))
+        (with-electric-help 'ignore buffer-name t))))
 
 
 (defun electric-describe-key ()
@@ -326,20 +297,28 @@ will select it.)"
 
 ;;;; ehelp-map
 
-(defvar ehelp-map ())
+(defvar ehelp-map nil)
 (if ehelp-map
     nil
-  (let ((map (copy-keymap help-map))) 
-    (substitute-key-definition 'describe-key 'electric-describe-key map)
-    (substitute-key-definition 'describe-mode 'electric-describe-mode map)
-    (substitute-key-definition 'view-lossage 'electric-view-lossage map)
-    (substitute-key-definition 'describe-function 'electric-describe-function map)
-    (substitute-key-definition 'describe-variable 'electric-describe-variable map)
-    (substitute-key-definition 'describe-bindings 'electric-describe-bindings map)
-    (substitute-key-definition 'describe-syntax 'electric-describe-syntax map)
-
+  (let ((shadow '((describe-key . electric-describe-key) 
+                  (describe-mode . electric-describe-mode)
+                  (view-lossage . electric-view-lossage) 
+                  (describe-function . electric-describe-function)
+                  (describe-variable . electric-describe-variable)
+                  (describe-bindings . electric-describe-bindings)
+                  (describe-syntax . electric-describe-syntax)))
+        (map (make-sparse-keymap)))
+    (set-keymap-name map 'ehelp-map)
+    (set-keymap-parent map help-map)
+    ;; Shadow bindings which would be inherited from help-map
+    ;;>>> This doesn't descend into sub-keymaps
+    (map-keymap (function (lambda (key binding)
+                              (let ((tem (assq binding shadow)))
+                                (if tem
+                                    (define-key map key (cdr tem))))))
+                help-map)
     (setq ehelp-map map)
     (fset 'ehelp-command map)))
 
-;; Do (define-key global-map "\C-h" 'ehelp-command) if you want to win
 
+;; Do (define-key global-map "\C-h" 'ehelp-command) if you want to win

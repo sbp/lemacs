@@ -537,6 +537,13 @@ list4 (Lisp_Object obj0, Lisp_Object obj1, Lisp_Object obj2, Lisp_Object obj3)
   return Fcons (obj0, list3 (obj1, obj2, obj3));
 }
 
+Lisp_Object
+list5 (Lisp_Object obj0, Lisp_Object obj1, Lisp_Object obj2, Lisp_Object obj3,
+       Lisp_Object obj4)
+{
+  return Fcons (obj0, list4 (obj1, obj2, obj3, obj4));
+}
+
 DEFUN ("make-list", Fmake_list, Smake_list, 2, 2, 0,
   "Return a newly created list of length LENGTH, with each element being INIT.")
   (length, init)

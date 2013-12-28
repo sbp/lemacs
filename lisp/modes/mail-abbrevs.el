@@ -1,8 +1,8 @@
 ;;; Abbrev-expansion of mail aliases.
-;;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+;;; Copyright (C) 1985-1993 Free Software Foundation, Inc.
 ;;; Created: 19 oct 90, Jamie Zawinski <jwz@lucid.com>
 ;;; Modified: 5 apr 92, Roland McGrath <roland@gnu.ai.mit.edu>
-;;; Last change 27-aug-92. jwz
+;;; Last change 16-feb-93. jwz
 
 ;;; This file is part of GNU Emacs.
 
@@ -473,7 +473,8 @@ characters which may be a part of the name of a mail-alias.")
 	;; expand the abbrev now (that is, don't expand when the user types -.)
 	;; Check the character's syntax in the mail-mode-header-syntax-table.
 	(set-syntax-table mail-mode-header-syntax-table)
-	(or (eq (char-syntax last-command-char) ?_)
+	(or (and last-command-char
+		 (eq (char-syntax last-command-char) ?_))
 	    (let ((pre-abbrev-expand-hook nil)) ; That's us; don't loop.
 	      ;; Use this table so that abbrevs can have hyphens in them.
 	      (set-syntax-table mail-abbrev-syntax-table)
@@ -561,7 +562,8 @@ end of line."
 (defun sendmail-v18-self-insert-command (arg)
   "Just like self-insert-command, but runs sendmail-pre-abbrev-expand-hook."
   (interactive "p")
-  (if (not (eq (char-syntax last-command-char) ?w))
+  (if (not (and last-command-char
+		(eq (char-syntax last-command-char) ?w)))
       (progn
 	(sendmail-pre-abbrev-expand-hook)
         ;; Unhack expand-abbrev, so it will work right next time around.

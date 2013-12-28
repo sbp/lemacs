@@ -434,7 +434,7 @@ locate_file (path, str, suffix, storeptr, mode)
       /* Loop over suffixes.  */
       while (1)
 	{
-	  char *esuffix = (char *) index (nsuffix, ':');
+	  char *esuffix = (char *) strchr (nsuffix, ':');
 	  int lsuffix = esuffix ? esuffix - nsuffix : strlen (nsuffix);
 
 	  /* Concatenate path element/specified name with the suffix.  */

@@ -54,4 +54,4 @@ tags TAGS::
 cemacs: xmakefile docemacs
 
 docemacs:
-	make -f xmakefile "EMACS_ENERGIZE_CONNECT=-Xez" cemacs
+	${MAKE} -f xmakefile "EMACS_ENERGIZE_CONNECT=-Xez" cemacs

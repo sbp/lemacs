@@ -44,7 +44,7 @@ src:	etc
 .RECURSIVE: ${SUBDIR}
 
 ${SUBDIR}: FRC
-	cd $@; make ${MFLAGS} all
+	cd $@; ${MAKE} ${MFLAGS} all
 
 install: all mkdir lockdir
 # B option to tar xf removed because some systems don't have it.
@@ -125,12 +125,12 @@ mkdir: FRC
 	-mkdir ${LIBDIR} ${BINDIR} ${MANDIR}
 
 distclean:
-	for i in ${SUBDIR}; do (cd $$i && make ${MFLAGS} distclean); done
+	for i in ${SUBDIR}; do (cd $$i && ${MAKE} ${MFLAGS} distclean); done
 
 clean:
-	cd src; make clean
+	cd src; ${MAKE} clean
 	if [ "`/bin/pwd`" != "`(cd ${LIBDIR} && /bin/pwd)`" ] ; then \
-		cd etc; make clean; \
+		cd etc; ${MAKE} clean; \
 	else true; \
 	fi
 

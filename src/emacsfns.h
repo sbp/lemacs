@@ -18,6 +18,9 @@ You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifndef _EMACSFNS_H_
+#define _EMACSFNS_H_
+
 extern void ring_bell (Lisp_Object sound);
 
 struct buffer;
@@ -202,10 +205,12 @@ extern Lisp_Object pure_cons (Lisp_Object, Lisp_Object);
 extern Lisp_Object make_pure_vector (int len, enum Lisp_Type vector_type);
 extern Lisp_Object make_float (double float_value);
 extern Lisp_Object Fgarbage_collect (void);
-extern Lisp_Object list1 (Lisp_Object obj0);
-extern Lisp_Object list2 (Lisp_Object obj0, Lisp_Object obj1);
-extern Lisp_Object list3 (Lisp_Object obj0, Lisp_Object obj1, Lisp_Object obj2);
-extern Lisp_Object list4 (Lisp_Object obj0, Lisp_Object obj1, Lisp_Object obj2, Lisp_Object obj3);
+extern Lisp_Object list1 (Lisp_Object);
+extern Lisp_Object list2 (Lisp_Object, Lisp_Object);
+extern Lisp_Object list3 (Lisp_Object, Lisp_Object, Lisp_Object);
+extern Lisp_Object list4 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
+extern Lisp_Object list5 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object,
+			  Lisp_Object);
 extern void free_cons (struct Lisp_Cons *ptr);
 
 
@@ -640,9 +645,7 @@ extern void describe_map_tree (Lisp_Object startmap, int partial,
                                int mice_only_p);
 extern Lisp_Object Fmake_sparse_keymap (void);
 
-extern Lisp_Object get_keymap_1 (Lisp_Object, int);
-extern Lisp_Object get_keymap (Lisp_Object);
-
+extern Lisp_Object get_keymap (Lisp_Object, int);
 
 /* defined in indent.c */ 
 extern Lisp_Object Fvertical_motion (Lisp_Object, Lisp_Object); 
@@ -861,6 +864,13 @@ extern Lisp_Object Fx_close_current_connection (void);
 extern Lisp_Object Fx_debug_mode (Lisp_Object);
 extern void Xatoms_of_xfns (void);
 
+/* Defined in faces.c */
+
+extern unsigned long
+load_pixmap (struct screen *s, Lisp_Object name,
+	     unsigned int *wP, unsigned int *hP, unsigned int *dP,
+	     unsigned long *maskP);
+
 /* Defined in xselect.c */
 
 extern void Xatoms_of_xselect (void);
@@ -897,3 +907,65 @@ extern Lisp_Object Fwhere_is_internal (Lisp_Object, Lisp_Object, Lisp_Object,
 				       Lisp_Object, Lisp_Object);
 extern Lisp_Object Fkey_description (Lisp_Object);
 extern Lisp_Object Fevent_window (Lisp_Object);
+
+
+/* Defined in eval.c */
+extern Lisp_Object Qautoload, Qexit, Qinteractive, Qcommandp, Qdefun, Qmacro;
+extern Lisp_Object Vinhibit_quit, Vquit_flag, Qinhibit_quit;
+extern Lisp_Object Vmocklisp_arguments, Qmocklisp, Qmocklisp_arguments;
+extern Lisp_Object Vautoload_queue;
+extern Lisp_Object Vrun_hooks;
+extern Lisp_Object Fuser_variable_p (Lisp_Object);
+extern Lisp_Object Finteractive_p (void);
+extern void signal_error (Lisp_Object sig, Lisp_Object data);
+extern Lisp_Object Fprogn (Lisp_Object args);
+extern Lisp_Object Fcommandp (Lisp_Object obj);
+extern Lisp_Object Feval (Lisp_Object form);
+extern Lisp_Object Fapply (int nargs, Lisp_Object *args);
+extern Lisp_Object Ffuncall (int nargs, Lisp_Object *args);
+extern Lisp_Object Fbacktrace (Lisp_Object stream);
+extern Lisp_Object apply1 (Lisp_Object fn, Lisp_Object args);
+extern Lisp_Object call0 (Lisp_Object fn);
+extern Lisp_Object call1 (Lisp_Object fn, Lisp_Object arg0);
+extern Lisp_Object call2 (Lisp_Object fn, Lisp_Object a0, Lisp_Object a1);
+extern Lisp_Object call3 (Lisp_Object fn,
+                          Lisp_Object a0, Lisp_Object a1, Lisp_Object a2);
+extern Lisp_Object call4 (Lisp_Object fn,
+                          Lisp_Object a0, Lisp_Object a1, Lisp_Object a2,
+                          Lisp_Object a3);
+extern Lisp_Object call5 (Lisp_Object fn,
+                          Lisp_Object a0, Lisp_Object arg1, Lisp_Object a2,
+                          Lisp_Object a3, Lisp_Object a4);
+extern Lisp_Object Fsignal (Lisp_Object signame, Lisp_Object data);
+/* C Code should be using internal_catch, record_unwind_p, condition_case_1 */
+/* extern Lisp_Object Fcatch (Lisp_Object args); */
+/* extern Lisp_Object Funwind_protect (Lisp_Object args); */
+/* extern Lisp_Object Fcondition_case (Lisp_Object args); */
+extern Lisp_Object Fthrow (Lisp_Object tag, Lisp_Object val);
+extern Lisp_Object internal_catch (Lisp_Object tag, 
+                                   Lisp_Object (*func) (Lisp_Object arg),
+                                   Lisp_Object arg);
+extern Lisp_Object condition_case_1 (Lisp_Object handlers,
+                                     Lisp_Object (*bfun) (Lisp_Object barg),
+                                     Lisp_Object barg,
+                                     Lisp_Object (*hfun) (Lisp_Object val,
+                                                          Lisp_Object harg),
+                                     Lisp_Object harg);
+extern Lisp_Object Fcondition_case_3 (Lisp_Object bodyform, 
+                                      Lisp_Object var, 
+                                      Lisp_Object handlers);
+extern Lisp_Object unbind_to (int n, Lisp_Object val);
+extern void specbind (Lisp_Object symbol, Lisp_Object value);
+extern void record_unwind_protect (Lisp_Object (*function) (Lisp_Object),
+                                   Lisp_Object arg);
+extern void do_autoload (Lisp_Object fundef, Lisp_Object funname);
+extern void error ();
+
+#ifdef MAINTAIN_ENVIRONMENT
+extern char *egetenv (const char *);
+extern char *getenv (const char *);
+#else
+#define egetenv getenv
+#endif
+
+#endif /* _EMACSFNS_H_ */

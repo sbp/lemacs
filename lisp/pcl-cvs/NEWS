@@ -1,0 +1,57 @@
+This is a list of user-visible changes to pcl-cvs from release 1.02 to
+release 1.03.1. First, the differences between 1.03.1 and 1.03:
+
+* If you give a prefix argument to "M-x cvs-update" it only tries to
+  update the local directory, without traversing subdirectories. This
+  was broken in 1.03.
+
+* RCS 5.6 support was broken in 1.03. It couldn't handle conflicts.
+
+* It is somewhat more robust. Some error messages should be better.
+
+The differences between 1.02 and 1.03:
+
+* Output from CVS to stdout and stderr is separated and parsed
+  independently.  In that way pcl-cvs should work regardless of
+  whether stdout is buffered or line-buffered.  Pcl-cvs should now
+  work with CVS 1.3 without modifications on hosts such as
+  DECstations.
+
+* Pcl-cvs now fully supports RCS version 5.6 as well as 5.5.
+
+* New functions:
+
+    + cvs-undo-local-changes ("U") - Undo all your modifications
+				     to a file and get the newest
+				     version from the repository.
+    + cvs-update-other-window	   - Similar to cvs-update.
+    + cvs-byte-compile-files       - Byte compile the selected files.
+
+* cvs-update now displays the *cvs* buffer, which initially contains a
+  small message ("Running `cvs update' in /foo/bar/gazonk/...") until
+  the update is ready.  The *cvs* buffer no longer pops up when the
+  update is ready.  It often failed to pop up, due to race conditions
+  that are very hard to solve (and I doubt that they were at all
+  solvable).
+
+* cvs-unmark-all-files is moved from "U" to "ESC DEL" to be
+  "compatible" with dired.
+
+* cvs-diff ("d") and cvs-diff-backup ("b") can be configured to work
+  on only the file the cursor is positioned on, and ignore any marked
+  files.  A prefix argument toggles this.
+
+* Only one `cvs update' can be run at a time.  (It was previously
+  possible to start more than one simultaneously, but pcl-cvs could
+  not really handle more than one.)
+
+* Some rudimentary support for programs that CVS runs at update (due
+  to the -u switch in the modules file).
+
+* Pcl-cvs now automatically generates a bug report if it can't parse
+  the output from CVS.
+
+* The *cvs* buffer is read-only.
+
+* Pcl-cvs now creates temporary files in $TMPDIR if that environment
+  variable is set. It uses /tmp by default.

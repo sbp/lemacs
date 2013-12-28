@@ -47,11 +47,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "EmacsShell.h"
 #include "EmacsShellP.h"
 
-/*
- *  #ifdef ENERGIZE
- *  #include "dbox.h"
- *  #endif
-*/
+#if (XtSpecificationRelease >= 5)	/* Do the EDITRES protocol */
+#define HACK_EDITRES
+extern void _XEditResCheckMessages();
+#endif /* R5 */
 
 #ifdef USE_SOUND
 # include <netdb.h>
@@ -67,7 +66,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "faces.h"
 
 #ifdef HAVE_X_WINDOWS
-extern void abort ();
 
 #define min(a,b) ((a) < (b) ? (a) : (b))
 #define max(a,b) ((a) > (b) ? (a) : (b))
@@ -182,6 +180,10 @@ init_x_parm_symbols ()
   def ("border-color", XtNborderColor);
   defi("border-width", XtNborderWidth);
   defi("internal-border-width", XtNinternalBorderWidth);
+  defi("width", XtNwidth);
+  defi("height", XtNheight);
+  defi("x", XtNx);
+  defi("y", XtNy);
 /*  def ("icon-type", "iconType"); */
 #ifdef LINE_INFO_COLUMN
   defi("line-info-column-width", XtNlineInfoColumnWidth);
@@ -308,6 +310,11 @@ x_set_screen_values (s, alist)
      struct screen *s;
      Lisp_Object alist;
 {
+  int x, y;
+  Dimension width = 0, height = 0;
+  Bool size_specified_p = False;
+  Bool x_specified_p = False;
+  Bool y_specified_p = False;
   Lisp_Object tail;
   Widget w = s->display.x->edit_widget;
   
@@ -341,6 +348,43 @@ x_set_screen_values (s, alist)
 	  if (NILP (prop) || NILP (str))
 	    continue;
 	  CHECK_STRING (str, 0);
+
+	  /* Kludge the width/height so that we interpret them in characters
+	     instead of pixels.  Yuck yuck yuck. */
+	  if (!strcmp ((char *) XSTRING (str)->data, "width"))
+	    {
+	      CHECK_FIXNUM (val, 0);
+	      width = XINT (val);
+	      size_specified_p = True;
+	      continue;
+	    }
+	  if (!strcmp ((char *) XSTRING (str)->data, "height"))
+	    {
+	      CHECK_FIXNUM (val, 0);
+	      height = XINT (val);
+	      size_specified_p = True;
+	      continue;
+	    }
+	  /* Further kludge the x/y to call set-screen-position instead. */
+#if 0
+	  /* this doesn't work because the window isn't around yet,.
+	     I guess we really need to cons up a geometry spec. */
+	  if (!strcmp ((char *) XSTRING (str)->data, "x"))
+	    {
+	      CHECK_FIXNUM (val, 0);
+	      x = XINT (val);
+	      x_specified_p = True;
+	      continue;
+	    }
+	  if (!strcmp ((char *) XSTRING (str)->data, "y"))
+	    {
+	      CHECK_FIXNUM (val, 0);
+	      y = XINT (val);
+	      y_specified_p = True;
+	      continue;
+	    }
+#endif
+
 	  BLOCK_INPUT;
 	  if (int_p)
 	    {
@@ -367,6 +411,26 @@ x_set_screen_values (s, alist)
 	    }
 	  UNBLOCK_INPUT;
 	}
+    }
+
+  /* Kludge kludge kludge. */
+  if (size_specified_p)
+    {
+      Lisp_Object screen;
+      XSET (screen, Lisp_Screen, s);
+      if (width == 0) width = SCREEN_WIDTH (s);
+      if (height == 0) height = SCREEN_HEIGHT (s);
+      Fset_screen_size (screen, make_number (width), make_number (height),
+			Qnil);
+    }
+  /* Kludge kludge kludge kludge. */
+  if (x_specified_p || y_specified_p)
+    {
+      Lisp_Object screen;
+      XSET (screen, Lisp_Screen, s);
+      if (!x_specified_p) x = s->display.x->widget->core.x;
+      if (!y_specified_p) y = s->display.x->widget->core.y;
+      Fset_screen_position (screen, make_number (x), make_number (y));
     }
 }
 
@@ -722,6 +786,10 @@ x_create_widgets (s, parms, lisp_window_id)
   maybe_store_wm_command (s);
   hack_wm_protocols (shell_widget);
 
+#ifdef HACK_EDITRES
+  XtAddEventHandler (shell_widget, 0, True, _XEditResCheckMessages, 0);
+#endif
+
   /* Do a stupid property change to force the server to generate a
      propertyNotify event so that the event_stream server timestamp will
      be initialized to something relevant to the time we created the window.
@@ -873,45 +941,13 @@ with \"0x\".")
      get written on the terminal screen.  This is kind of a hack...
    */
   if (selected_screen == XSCREEN (Vterminal_screen))
-    select_screen (s);
+    select_screen_internal (s);
   init_screen_faces (s);
   x_format_screen_title (s);
   run_hooks_1_arg (Qcreate_screen_hook, screen);
   UNGCPRO;
   return screen;
 }
-
-
-DEFUN ("x-focus-screen", Fx_focus_screen, Sx_focus_screen, 1, 2, 0,
-  "Obsolete function.  Superceded by select-screen")
-     (focus_p, screen)
-     Lisp_Object focus_p, screen;
-{
-  Lisp_Object screen_to_select;
-  
-  if (NILP (screen))
-    {
-      XSET (screen_to_select, Lisp_Screen, selected_screen);
-    }
-  else
-    {
-      CHECK_SCREEN (screen, 0);
-      screen_to_select = screen;
-    }
-  Fselect_screen (screen_to_select);
-  
-  return screen_to_select;
-}
-
-
-#if 0
-void
-map_psheets (screen)
-     struct screen *screen;
-{
-  /* #### obsolete */
-}
-#endif
 
 
 DEFUN ("x-show-lineinfo-column",
@@ -1176,19 +1212,17 @@ number.  See also `x-server-vendor'.")
 }
 
 
-extern unsigned long load_pixmap (struct screen *, Lisp_Object,
-				  unsigned int *, unsigned int *,
-				  unsigned int *);
-
 DEFUN ("x-set-screen-icon-pixmap", Fx_set_screen_icon_pixmap,
        Sx_set_screen_icon_pixmap, 2, 3, 0,
        "Set the icon-pixmap of the given screen.\n\
 This should be the name of a bitmap file, or a bitmap description list\n\
-of the form (width height \"bitmap-data\").\n\
+ of the form (width height \"bitmap-data\").\n\
 If the optional third argument is specified, it is the bitmap to use for\n\
-the icon-pixmap-mask (not all window managers obey this.)\n\
-Warning: when you call this function, the pixmap of the previous icon\n\
-of this screen (if any) is currently not freed.")
+ the icon-pixmap-mask (not all window managers obey this.)  If the bitmap\n\
+ is an XPM file which also contains a mask, the mask argument, if provided,\n\
+ will override the mask in the file.\n\
+WARNING: when you call this function, the pixmap of the previous icon\n\
+ of this screen (if any) is currently not freed (this is a bug).")
   (screen, pixmap, mask)
     Lisp_Object screen, pixmap, mask;
 {
@@ -1204,14 +1238,29 @@ of this screen (if any) is currently not freed.")
       CHECK_SCREEN (screen, 0);
       s = XSCREEN (screen);
     }
-  if (NILP (pixmap))
-    p = 0;
-  else
-    p = (Pixmap) load_pixmap (s, pixmap, &w, &h, &d);
+
   if (NILP (mask))
     m = 0;
   else
-    m = (Pixmap) load_pixmap (s, mask, &w, &h, &d);
+    {
+      m = (Pixmap) load_pixmap (s, mask, &w, &h, &d, 0);
+      if (d > 1)
+	{
+	  BLOCK_INPUT;
+	  XFreePixmap (XtDisplay (s->display.x->widget), m);
+	  UNBLOCK_INPUT;
+	  m = 0;
+	  Fsignal (Qerror,
+		   list3 (build_string ("mask pixmap must be 1 plane deep"),
+			  mask, make_number (d)));
+	}
+    }
+
+  if (NILP (pixmap))
+    p = 0;
+  else
+    p = (Pixmap) load_pixmap (s, pixmap, &w, &h, &d, (m ? 0 : &m));
+
   XtSetArg (av [ac], XtNiconPixmap, p); ac++;
   XtSetArg (av [ac], XtNiconMask, m); ac++;
   XtSetValues (s->display.x->widget, av, ac);
@@ -1320,14 +1369,14 @@ DEFUN ("x-LeaveNotify-internal", Fx_LeaveNotify_internal,
 int any_screen_has_focus_p;
 
 /* The select-screen-hook and deselect-screen-hook are run from the 
-   select_screen() function; however, we run them from the FocusIn and
-   FocusOut handlers as well, because under X, the "selectedness" of a
+   select_screen_internal() function; however, we run them from the FocusIn
+   and FocusOut handlers as well, because under X, the "selectedness" of a
    screen has slightly funny semantics; according to emacs, a screen is
    not "deselected" unless some other screen is selected.  This is so that
    there is always some current window and buffer, and so on.  However, it's
    useful to run the deselect-screen-hook when emacs loses the X keyboard
    focus (that is, no emacs screen is the X selected window).  Likewise,
-   it's useful to run the select-screen- hook when some emacs window regains
+   it's useful to run the select-screen-hook when some emacs window regains
    the focus, even if that window is already the selected screen from emacs's
    point of view.
 
@@ -1335,6 +1384,50 @@ int any_screen_has_focus_p;
    isn't run if (in a point-to-type world) the mouse moves into the same
    emacs window that it originally left.  Clearly this isn't what someone
    who would want auto-raise would want.
+
+   This means that sometimes the deselect-screen-hook will be called twice.
+   This kind of stinks.
+
+   If there are two screens, s1, and s2, where s1 is selected:
+
+    mouse moves into s1:   FocusIn s1 runs select-screen-hook, because s1
+    			   is the selected screen (FocusIn only does this
+			   for the selected screen.)
+
+    			   select_screen_internal doesn't run deselect-hook
+			   since s1 is already selected_screen, although it
+			   didn't have the X focus.
+
+			   net result: select s1 run.
+
+    mouse moves into s2:   FocusOut s1 runs deselect-screen-hook, but the
+			   selected_screen is still s1.
+
+			   FocusIn s2 does not run select-screen-hook,
+			   because s2 is not the selected screen.
+
+			   select_screen_internal runs deselect-hook s1,
+			   then selects s2, then runs select-hook s2.
+
+			   net result: deselect s1, deselect s1, select s2.
+			   One of those deselects is superfluous.
+
+    mouse moves elsewhere: FocusOut s2 runs deselect-screen-hook, but the
+			   selected_screen is still s2.
+
+			   net result: deselect s2.
+
+    mouse moves into s1:   FocusIn s1 does not run select-screen-hook.
+
+    			   select_screen_internal runs deselect-hook s2;
+			   changes selected_screen, runs select-hook s1.
+
+			   net result: deselect s2, select s1.
+			   That deselect is superfluous.
+
+   Things get even nastier if there is a big delay between when select-screen
+   is called and when the Focus events are handled (as when lisp code calls
+   select-screen and then doesn't return to top level for a while.)
  */
 
 extern Lisp_Object Qselect_screen_hook, Qdeselect_screen_hook;
@@ -1360,7 +1453,7 @@ DEFUN ("x-FocusIn-internal", Fx_FocusIn_internal,
 	  call1 (Vrun_hooks, Qselect_screen_hook);
     }
   else
-    select_screen (XSCREEN (screen));
+    select_screen_internal (XSCREEN (screen));
   return Qnil;
 }
 
@@ -1374,10 +1467,12 @@ DEFUN ("x-FocusOut-internal", Fx_FocusOut_internal,
   any_screen_has_focus_p = 0;
   XSCREEN (screen)->display.x->focus_p = 0;
   if (XSCREEN (screen) == selected_screen)
-    x_screen_redraw_cursor (XSCREEN (screen));
-  /* see comment above */
-  if (!NILP (Vrun_hooks))
-    call1 (Vrun_hooks, Qdeselect_screen_hook);
+    {
+      x_screen_redraw_cursor (XSCREEN (screen));
+      /* see comment above */
+      if (!NILP (Vrun_hooks))
+	call1 (Vrun_hooks, Qdeselect_screen_hook);
+    }
   return Qnil;
 }
 
@@ -2217,7 +2312,6 @@ Beware: allowing emacs to process SendEvents opens a big security hole.");
 #ifdef ENERGIZE
   defsubr (&Senergize_toggle_psheet);
 #endif
-  defsubr (&Sx_focus_screen);
   defsubr (&Sx_show_lineinfo_column);
   defsubr (&Sx_hide_lineinfo_column);
   defsubr (&Sx_debug_mode);

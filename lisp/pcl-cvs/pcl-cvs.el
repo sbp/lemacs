@@ -1142,6 +1142,7 @@ This function doesn't return anything particular."
   (define-key cvs-mode-map "b"	'cvs-diff-backup)
   (define-key cvs-mode-map "c"	'cvs-commit)
   (define-key cvs-mode-map "d"	'cvs-diff-cvs)
+  (define-key cvs-mode-map "e"	'cvs-find-file)
   (define-key cvs-mode-map "f"	'cvs-find-file)
   (define-key cvs-mode-map "g"	'cvs-update-no-prompt)
   (define-key cvs-mode-map "i"	'cvs-ignore)

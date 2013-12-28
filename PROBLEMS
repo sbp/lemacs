@@ -27,14 +27,20 @@ The problem is in the Sun shared C library, not in GNU ld.
 
 The solution is to install Patch-ID# 100267-03 from Sun.
 
+* SunOS 4.1.2: undefined symbol _get_wmShellWidgetClass
+
+  Apparently the version of libXmu.so.a that Sun ships is hosed: it's missing
+  some stuff that is in libXmu.a (the static version).  Sun has a patch for 
+  this, but a workaround is to use the static version of libXmu, by changing
+  the link command from "-lXmu" to "-Bstatic -lXmu -Bdynamic".  If you have
+  OpenWindows 3.0, ask Sun for these patches:
+    100512-02       4.1.x OpenWindows 3.0 libXt Jumbo patch
+    100573-03       4.1.x OpenWindows 3.0 undefined symbols with shared libXmu
+
 * Random other SunOS 4.1.[12] link errors.
 
   The X headers and libraries that Sun ships in /usr/{include,lib}/X11 are
   broken.  Use the ones in /usr/openwin/{include,lib} instead.
-
-  Apparently the SunOS 4.1.2 libXmu.so.a is hosed: it's missing some stuff 
-  that is in libXmu.a, so you may need to change the link command from
-  "-lXmu" to "-Bstatic -lXmu -Bdynamic" if you want to link dynamically.
 
 * Bus errors on startup when compiled with Sun's "acc" (in the routine
   make_string_internal() called from initialize_environment_alist())

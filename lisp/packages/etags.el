@@ -175,19 +175,20 @@
 	       (tags-remove-duplicates (tags-delete (car list) (cdr list)))))))
 
 ;; derived from generate-new-buffer
-(defun generate-new-buffer-name (name)
-  "Foo"
-  (if (not (get-buffer name))
-      name
-    (let ((count 1)
-	  (template (concat name "<%d>"))
-	  tempname)
-      (catch 'found
-	(while t
-	  (setq tempname (format template count))
-	  (if (not (get-buffer tempname))
-	      (throw 'found tempname))
-	  (setq count (1+ count)))))))
+;; now defined in C
+;(defun generate-new-buffer-name (name)
+;  "Foo"
+;  (if (not (get-buffer name))
+;      name
+;    (let ((count 1)
+;	  (template (concat name "<%d>"))
+;	  tempname)
+;      (catch 'found
+;	(while t
+;	  (setq tempname (format template count))
+;	  (if (not (get-buffer tempname))
+;	      (throw 'found tempname))
+;	  (setq count (1+ count)))))))
 
 
 ;; Tag tables for a buffer
@@ -604,7 +605,7 @@ this buffer uses."
 	      (setq file-type-syntax-table
 		    (intern (concat (symbol-name file-type)
 				    "-syntax-table"))))
-	  ;;	  (message "%s %s" filename file-type-syntax-table)
+          (message "%s..." filename)
 	  (if (and file-type-syntax-table (boundp file-type-syntax-table))
 	      (set-syntax-table (symbol-value file-type-syntax-table))
 	    (set-syntax-table (standard-syntax-table)))

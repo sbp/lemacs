@@ -55,8 +55,13 @@
     (select-window window)
     (if (and pos (> pos 0))
 	(goto-char pos)
-      (move-to-window-line (- (event-y event) (nth 1 (window-edges window))))
-      (end-of-line))))
+      (if (> (move-to-window-line
+	      (- (event-y event) (nth 1 (window-edges window))))
+	     0)
+	  ;; if target line was past end of buffer, go to eol of last line.
+	  (end-of-line)
+	(move-to-column (- (event-x event) (nth 0 (window-edges window))))
+	))))
 
 (defun mouse-eval-last-sexpr (event)
   (interactive "@e")
@@ -440,7 +445,16 @@ Display cursor at that position for a second."
 		  (t
 		   (dispatch-event event))))
 	  (setq result (cons (extent-start-position extent)
-			     (extent-end-position extent))))
+			     (extent-end-position extent)))
+	  ;; Minor kludge: if we're selecting in line-mode, include the
+	  ;; final newline.  It's hard to do this in *-normalize-point.
+	  (if (eq mouse-track-type 'line)
+	      (let ((end-p (= (point) (cdr result))))
+		(goto-char (cdr result))
+		(if (not (eobp))
+		    (setcdr result (1+ (cdr result))))
+		(goto-char (if end-p (cdr result) (car result)))))
+	  )
       ;; protected
       (delete-extent extent)
       (mouse-track-cleanup-timeout))
@@ -491,8 +505,7 @@ released the button, and the mark will be left at the initial click position.
 
 See also the `mouse-track-adjust' command, on \\[mouse-track-adjust]."
   (interactive "e")
-  (if (eq window-system 'x)
-      (x-focus-screen (window-screen (event-window event))))
+  (select-screen (window-screen (event-window event)))
   (let ((p (point))
 	(b (current-buffer))
 	(pair (mouse-track-select event nil 'primary-selection)))
@@ -510,8 +523,7 @@ The selection will be enlarged or shrunk so that the point of the mouse
 click is one of its endpoints.  This is only really meaningful after the
 `mouse-track' command (\\[mouse-track]) has been executed."
   (interactive "e")
-  (if (eq window-system 'x)
-      (x-focus-screen (window-screen (event-window event))))
+  (select-screen (window-screen (event-window event)))
   (mouse-track-maybe-own-selection
    (mouse-track-select event t 'primary-selection)
    'PRIMARY))

@@ -1,0 +1,211 @@
+module 'Energize'
+applicationName = 'Energize';
+generateNameC = 'projectdisp.xdc';
+generateNameUIL = '';
+generateNameResDB = '';
+generateUidFile = '';
+generateMask = 458980;
+useMask = 1;
+value
+object '' : XmDialogShell {
+	arguments {
+	name = 'dialog';
+	XmNtitle= 'Question';
+	XmNallowShellResize= true;
+	};
+object '' : XmForm {
+	arguments {
+	name = 'projectDisplayDialog';
+	XmNautoUnmanage= false;
+	XmNdefaultButton= 'button1';
+	};
+object '' : XmRowColumn {
+	arguments {
+	name = 'row';
+	XmNspacing= 13;
+	XmNorientation= 2;
+	XmNpacking= 2;
+	XmNentryAlignment= 1;
+	XmNadjustLast= false;
+	XmNisAligned= true;
+	};
+object 'button1' : XmPushButton {
+	arguments {
+	name = 'button1';
+	XmNdefaultButtonShadowThickness= 1;
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'button2';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'separator_button';
+	XmNmappedWhenManaged= false;
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'button3';
+	};
+};
+};
+object '' : XmSeparator {
+	arguments {
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'dbox-question';
+	XmNlabelType= 1;
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'groupLabel';
+	};
+};
+object '' : XmFrame {
+	arguments {
+	};
+object '' : XmRadioBox {
+	arguments {
+	name = 'groupBox';
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'groupType';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'groupDirectory';
+	};
+};
+};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'showLabel';
+	};
+};
+object '' : XmFrame {
+	arguments {
+	};
+object '' : XmRowColumn {
+	arguments {
+	};
+object '' : XmToggleButton {
+	arguments {
+	name = 'showHeaders';
+	};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'showSources';
+	};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'showOthers';
+	};
+};
+};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'fileSetLabel';
+	};
+};
+object '' : XmFrame {
+	arguments {
+	};
+object '' : XmRadioBox {
+	arguments {
+	name = 'fileSetBox';
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'fileSetOwn';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'fileSetUsed';
+	};
+};
+};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'message';
+	XmNalignment= 0;
+	};
+};
+    attachments {
+    attachment {
+	XmNrightAttachment = 1 0 13;
+	XmNleftAttachment = 1 0 13;
+	XmNbottomAttachment = 1 0 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 0;
+	XmNleftAttachment = 1 0 0;
+	XmNbottomAttachment = 3 1 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 13;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 1 0 13;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 4 5 6;
+	XmNbottomAttachment = 3 5 -6;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 13;
+	XmNleftAttachment = 3 9 13;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 4 9 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 4 7 6;
+	XmNbottomAttachment = 3 7 -6;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 3 13;
+	XmNbottomAttachment = 3 2 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 4 9 6;
+	XmNbottomAttachment = 3 9 -6;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 3 7 13;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 4 7 0;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 13;
+	XmNleftAttachment = 3 3 13;
+	XmNbottomAttachment = 3 6 13;
+	XmNtopAttachment = 1 0 13;
+    };
+    };
+};
+};
+end module;

@@ -1,5 +1,5 @@
 /* The lisp stack.
-   Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -16,6 +16,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU Emacs; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+
+#ifndef _EMACS_BACKTRACE_H_
+#define _EMACS_BACKTRACE_H_
 
 #include <setjmp.h>
        
@@ -59,3 +62,4 @@ struct catchtag
 extern struct catchtag *catchlist;
 extern struct backtrace *backtrace_list;
 
+#endif /* _EMACS_BACKTRACE_H_ */

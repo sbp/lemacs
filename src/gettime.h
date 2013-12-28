@@ -2,6 +2,9 @@
    The caller should include sys/socket.h before this file,
    if the system has sockets.   */
 
+#ifndef _EMACS_GETTIME_H_
+#define _EMACS_GETTIME_H_
+
 #ifdef IRIS
 #include <sys/sysmacros.h>	/* for "minor" */
 #include <sys/time.h>
@@ -34,3 +37,5 @@
 #ifdef DPX2
 #include <sys/time.h>
 #endif
+
+#endif /* _EMACS_GETTIME_H_ */

@@ -1,5 +1,5 @@
 /* Definitions for data structures callers pass the regex library.
-   Copyright (C) 1985, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@ In other words, you are welcome to use, share and improve this program.
 You are forbidden to forbid anyone else to use, share and improve
 what you give them.   Help stamp out software-hoarding!  */
 
+#ifndef _EMACS_REGEX_H_
+#define _EMACS_REGEX_H_
 
 /* Define number of parens for which we record the beginnings and ends.
    This affects how much space the `struct re_registers' type takes up.  */
@@ -182,3 +184,5 @@ extern int re_exec ();
 #ifdef SYNTAX_TABLE
 extern char *re_syntax_table;
 #endif
+
+#endif /* _EMACS_REGEX_H_ */

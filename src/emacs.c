@@ -299,7 +299,7 @@ static int
 absolute_program (string)
      char *string;
 {
-  return ((char *)index (string, '/') != 0);
+  return ((char *)strchr (string, '/') != 0);
 }
 
 /* Given a string containing units of information separated by colons,
@@ -1191,7 +1191,7 @@ decode_env_path (evarname, defalt)
   lpath = Qnil;
   while (1)
     {
-      p = index (path, SEPCHAR);
+      p = strchr (path, SEPCHAR);
       if (!p) p = path + strlen (path);
       lpath = Fcons (p - path ? make_string (path, p - path) : Qnil,
 		     lpath);

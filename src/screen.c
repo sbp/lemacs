@@ -260,8 +260,23 @@ extern void x_new_selected_screen (struct screen *);
 extern void x_focus_screen (struct screen *);
 #endif
 
+/* select_screen_internal changes selected_screen, hollows the cursor on
+   the previously selected sceen, and fils the cursor on the newly selected
+   screen.
+
+   select_screen (and Fselect_screen) do that, and tell the WM to focus on
+   this screen, with the timestamp of the last user event.  Therefore, 
+   select_screen should only be called as a result of user action.
+
+   select_screen_internal is called as a result of a FocusIn event.  It
+   would be wrong to call select_screen from there, because then we would 
+   use a user timestamp instead of the timestamp of the FocusIn event.
+   (This is further complicated by the fact that FocusIn doesn't have a
+   timestamp in it at all.)
+ */
+
 void
-select_screen (s)
+select_screen_internal (s)
      struct screen* s;
 {
   if (s->display.nothing == 0)
@@ -288,14 +303,19 @@ select_screen (s)
       if (!NILP (Vrun_hooks))
 	call1 (Vrun_hooks, Qselect_screen_hook);
     }
+}
 
+void
+select_screen (s)
+     struct screen* s;
+{
+  select_screen_internal (s);
 #ifdef HAVE_X_WINDOWS
   if (SCREEN_IS_X (s))
-    {
-      x_focus_screen (s);
-    }
+    x_focus_screen (s);
 #endif
-}  
+}
+
 
 DEFUN ("select-screen", Fselect_screen, Sselect_screen, 1, 1, 0,
   "Select the screen S.\n\
@@ -963,7 +983,7 @@ DEFUN ("set-screen-size", Fset_screen_size,
        Sset_screen_size, 3, 4, 0,
   "Sets size of SCREEN to COLS by ROWS.\n\
 Optional fourth arg non-nil means that redisplay should use COLS by ROWS\n\
-but that the idea oft eh acrual size of the screen should not be changed.")
+but that the idea of the actual size of the screen should not be changed.")
   (screen, cols, rows, pretend)
      Lisp_Object screen, cols, rows, pretend;
 {

@@ -1,0 +1,325 @@
+module 'Energize'
+applicationName = 'Energize';
+generateNameC = 'editmode.xdc';
+generateNameUIL = '';
+generateNameResDB = '';
+generateUidFile = '';
+generateMask = 458980;
+useMask = 1;
+value
+object '' : XmDialogShell {
+	arguments {
+	name = 'dialog';
+	XmNtitle= 'Question';
+	XmNallowShellResize= true;
+	};
+object '' : XmForm {
+	arguments {
+	name = 'editModeDialog';
+	XmNautoUnmanage= false;
+	XmNdefaultButton= 'button1';
+	};
+object '' : XmLabel {
+	arguments {
+	name = 'message';
+	XmNlabelString= 'Hurky Durky
+Hurky Durky
+Hurky Durky
+Durk';
+	XmNalignment= 0;
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'iconSeparator';
+	XmNlabelString= ' ';
+	};
+};
+object '' : XmRowColumn {
+	arguments {
+	name = 'row';
+	XmNnumColumns= 5;
+	XmNspacing= 13;
+	XmNmarginWidth= 0;
+	XmNmarginHeight= 0;
+	XmNorientation= 1;
+	XmNpacking= 2;
+	XmNentryAlignment= 1;
+	XmNadjustLast= false;
+	XmNisAligned= true;
+	};
+object 'button1' : XmPushButton {
+	arguments {
+	name = 'button1';
+	XmNdefaultButtonShadowThickness= 1;
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'button2';
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'separator_button';
+	XmNmappedWhenManaged= false;
+	};
+};
+object '' : XmPushButton {
+	arguments {
+	name = 'button3';
+	};
+};
+};
+object '' : XmSeparator {
+	arguments {
+	};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'externalLabel';
+	XmNlabelString= 'Edit source files using:';
+	};
+};
+object '' : XmFrame {
+	arguments {
+	};
+object '' : XmRowColumn {
+	arguments {
+	XmNnumColumns= * 1;
+	XmNspacing= 3;
+	XmNmarginWidth= 3;
+	XmNmarginHeight= 3;
+	XmNorientation= 2;
+	};
+object '' : XmRadioBox {
+	arguments {
+	name = 'externalBox';
+	XmNnumColumns= 1;
+	XmNspacing= 0;
+	XmNmarginWidth= 0;
+	XmNmarginHeight= 0;
+	XmNorientation= 2;
+	XmNpacking= 1;
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'externalEmacs';
+	XmNlabelString= 'Lucid Emacs';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'externalViXterm';
+	XmNlabelString= 'VI (xterm)';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'externalViCmdtool';
+	XmNlabelString= 'VI (cmdtool)';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'externalOther';
+	XmNlabelString= 'Other:';
+	};
+};
+};
+object '' : XmTextField {
+	arguments {
+	name = 'otherText';
+	XmNcolumns= 30;
+	};
+};
+};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'viewLabel';
+	XmNlabelString= 'View buffers with:';
+	};
+};
+object '' : XmFrame {
+	arguments {
+	};
+object '' : XmRadioBox {
+	arguments {
+	name = 'viewBox';
+	XmNnumColumns= 1;
+	XmNorientation= 1;
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'emacsView';
+	XmNlabelString= '`emacs\' Keybindings';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'viView';
+	XmNlabelString= '`vi\' Keybindings';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'lessView';
+	XmNlabelString= '`less\' Keybindings';
+	};
+};
+};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'editLabel';
+	XmNlabelString= 'Edit buffers with:';
+	};
+};
+object '' : XmFrame {
+	arguments {
+	};
+object '' : XmRadioBox {
+	arguments {
+	name = 'editBox';
+	XmNnumColumns= 1;
+	XmNorientation= 1;
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'editEmacs';
+	XmNlabelString= '`emacs\' Keybindings';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'editVi';
+	XmNlabelString= '`vi\' Keybindings';
+	};
+};
+};
+};
+object '' : XmLabel {
+	arguments {
+	name = 'windowLabel';
+	XmNlabelString= 'Create Screens:';
+	};
+};
+object '' : XmRowColumn {
+	arguments {
+	XmNspacing= 0;
+	XmNmarginWidth= 0;
+	XmNmarginHeight= 0;
+	};
+object '' : XmFrame {
+	arguments {
+	};
+object '' : XmRadioBox {
+	arguments {
+	name = 'windowBox';
+	XmNorientation= 1;
+	};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'windowOne';
+	XmNlabelString= 'Never';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'windowSeveral';
+	XmNlabelString= 'Sometimes';
+	};
+};
+object '' : XmToggleButton GADGET {
+	arguments {
+	name = 'windowMany';
+	XmNlabelString= 'Often';
+	};
+};
+};
+};
+object '' : XmToggleButton {
+	arguments {
+	name = 'splitScreens';
+	XmNlabelString= 'Split Screens';
+	};
+};
+};
+    attachments {
+    attachment {
+	XmNrightAttachment = 1 0 13;
+	XmNleftAttachment = 1 0 13;
+	XmNbottomAttachment = 3 5 13;
+	XmNtopAttachment = 1 0 13;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 4;
+	XmNleftAttachment = 0 0 0;
+	XmNbottomAttachment = 3 4 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 13;
+	XmNleftAttachment = 1 0 13;
+	XmNbottomAttachment = 1 0 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 0;
+	XmNleftAttachment = 1 0 0;
+	XmNbottomAttachment = 3 3 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 4 6 6;
+	XmNbottomAttachment = 3 6 -6;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 1 0 13;
+	XmNleftAttachment = 1 0 13;
+	XmNbottomAttachment = 3 11 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 4 8 6;
+	XmNbottomAttachment = 3 8 -6;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 1 0 13;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 4 10 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 4 10 6;
+	XmNbottomAttachment = 3 10 -6;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 5 0 29;
+	XmNbottomAttachment = 0 0 0;
+	XmNtopAttachment = 4 12 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 4 12 6;
+	XmNbottomAttachment = 3 12 -6;
+	XmNtopAttachment = 0 0 0;
+    };
+    attachment {
+	XmNrightAttachment = 0 0 0;
+	XmNleftAttachment = 5 0 56;
+	XmNbottomAttachment = 3 4 13;
+	XmNtopAttachment = 0 0 0;
+    };
+    };
+};
+};
+end module;

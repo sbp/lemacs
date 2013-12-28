@@ -27,7 +27,7 @@ object '' : XmLabel {
 	name = 'nameLabel';
 	};
 };
-object '' : XmText {
+object '' : XmTextField {
 	arguments {
 	name = 'nameText';
 	XmNmaxLength=0;
@@ -38,7 +38,7 @@ object '' : XmLabel {
 	name = 'fileLabel';
 	};
 };
-object '' : XmText {
+object '' : XmTextField {
 	arguments {
 	name = 'fileText';
 	};
@@ -48,7 +48,7 @@ object '' : XmLabel {
 	name = 'projectLabel';
 	};
 };
-object '' : XmText {
+object '' : XmTextField {
 	arguments {
 	name = 'projectText';
 	};
@@ -70,7 +70,7 @@ object '' : XmToggleButton {
 	name = 'dataMemberToggle';
 	};
 };
-object '' : XmText {
+object '' : XmTextField {
 	arguments {
 	name = 'dataMemberText';
 	};
@@ -80,7 +80,7 @@ object '' : XmToggleButton {
 	name = 'memberFunctionToggle';
 	};
 };
-object '' : XmText {
+object '' : XmTextField {
 	arguments {
 	name = 'memberFunctionText';
 	};

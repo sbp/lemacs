@@ -1,5 +1,5 @@
 /* Evaluator for GNU Emacs Lisp interpreter.
-   Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1985-1993 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -1774,7 +1774,7 @@ call5 (Lisp_Object fn,
   args[2] = arg1;
   args[3] = arg2;
   args[4] = arg3;
-  args[4] = arg4;
+  args[5] = arg4;
   GCPRO1 (args[0]);
   gcpro1.nvars = 6;
   RETURN_UNGCPRO (Ffuncall (6, args));

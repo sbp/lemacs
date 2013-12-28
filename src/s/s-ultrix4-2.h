@@ -2,3 +2,4 @@
 
 #define NEED_STRDUP
 #define NEED_REALPATH
+#define BROKEN_O_NONBLOCK

@@ -1220,7 +1220,10 @@ a non-nil `permanent-local' property are not eliminated by this function.")
 	 that the cache is fully computed; we need the cache to be up
 	 to date in order to correctly hack the permanent-local property.
        */
-      tem = Fsymbol_value (sym);
+      if (NILP (Fboundp (sym)))
+	tem = Qunbound;
+      else
+	tem = Fsymbol_value (sym);
       XCONS (XCONS (alist)->car)->cdr = tem;
 
       tem = XCONS (XCONS (XSYMBOL (sym)->value)->cdr)->car;
@@ -1653,8 +1656,8 @@ Each buffer has its own value of this variable.");
   DEFVAR_PER_BUFFER ("buffer-file-truename", truename,
     "The real name of the file visited in the current buffer, \n\
 or nil if not visiting a file.  This is the result of passing \n\
-buffer-file-name to the real-path-name function.  Every buffer \n\
-has its own value of this variable.  This variable is automatically \n\
+buffer-file-name to the `truename' function.  Every buffer has \n\
+its own value of this variable.  This variable is automatically \n\
 maintained by the functions that change the file name associated \n\
 with a buffer.");
 
@@ -1725,9 +1728,10 @@ Each window can have its own, overriding display table.");
     "If this is true, then the find-file command will check the truenames\n\
 of all visited files when deciding whether a given file is already in\n\
 a buffer, instead of just the buffer-file-name.  This means that if you\n\
-attempt to visit another file which is a hard-link or symbolic-link to a\n\
-file which is already in a buffer, the existing buffer will be found instead\n\
-of a newly-created one.\n\
+attempt to visit another file which is a symbolic-link to a file which is\n\
+already in a buffer, the existing buffer will be found instead of a newly-\n\
+created one.  This works if some non-terminal component of the pathname is\n\
+a symbolic link as well, but doesn't work with hard links (nothing does.)\n\
 \n\
 See also the variable find-file-use-truenames.");
   find_file_compare_truenames = 0;
@@ -1737,6 +1741,7 @@ See also the variable find-file-use-truenames.");
 chased back to the real file; it will never be a symbolic link, and there\n\
 will never be a symbolic link anywhere in its directory path.\n\
 That is, the buffer-file-name and buffer-file-truename will be equal.\n\
+This doesn't work with hard links.\n\
 \n\
 See also the variable find-file-compare-truenames.");
   find_file_use_truenames = 0;

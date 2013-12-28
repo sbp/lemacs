@@ -158,7 +158,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* #define REL_ALLOC */
 
-/* Non-Lucid sites can't compile with Energize support yet */
+/* Define ENERGIZE to compile with support for the Energize Programming System.
+   If you do this, don't forget to define ENERGIZE in lwlib/Imakefile as well.
+   You will need to set your C_SWITCH_SITE and LD_SWITCH_SITE to point at the
+   Energize connection library (libconn.a) and associated header files.
+ */
 /* #define ENERGIZE */
 
 /* You should define LWLIB_HAS_EXTENSIONS if and only if the lwlib Imakefile
@@ -196,6 +200,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* #define LWLIB_USES_MOTIF */
 /* #define LWLIB_USES_OLIT */
 
+/* Energize requires Motif. */
+#if defined(ENERGIZE) && !defined(LWLIB_USES_MOTIF)
+# define LWLIB_USES_MOTIF
+# undef LWLIB_USES_OLIT
+#endif
+
 
 #ifdef THIS_IS_YMAKEFILE
 
@@ -211,7 +221,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    X include files aren't in a place that your compiler can find on its
    own, you might want to add "-I/..." or something similar.  */
 
-/* #define C_SWITCH_SITE -I/cadillacgnu/gcc-include -I/x11r4/usr/include */
+/* #define C_SWITCH_SITE -I/x11r4/usr/include */
 
 #ifdef USE_GCC
 /* Depending on how GCC is installed, you may need to add the gcc library
@@ -227,6 +237,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #endif /* USE_GCC */
 
+#ifdef USE_LCC
+# undef C_OPTIMIZE_SWITCH
+# define C_OPTIMIZE_SWITCH -O4 -Oi -G
+#endif
+
 /* If you are using SunOS 4.1.1 and X11r5, then you need this patch.
    There is a stupid bug in the SunOS libc.a: two functions which X11r5
    uses, mbstowcs() and wcstombs(), are unusable when programs are
@@ -239,6 +254,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
    Also, SunOS 4.1.1 contains buggy versions of strcmp and strcpy that
    sometimes reference memory past the end of the string, which can segv.
+   I don't know whether this is has been fixed as of 4.1.2 or 4.1.3.
  */
 #if defined(sparc) && !defined(__svr4__)
 #define OBJECTS_SYSTEM sunOS-fix.o strcmp.o strcpy.o

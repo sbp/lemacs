@@ -252,6 +252,8 @@ DEFUN ("redraw-display", Fredraw_display, Sredraw_display, 0, 0, "",
 }
 #endif /* not MULTI_SCREEN */
 
+extern void cancel_line (int, struct screen *);
+
 static void
 echo_area_display (s)
      SCREEN_PTR s;
@@ -277,6 +279,7 @@ echo_area_display (s)
 	return;
 
       vpos = XFASTINT (XWINDOW (minibuf_window)->top);
+      cancel_line (vpos, s);	/* don't ask me why... */
       get_display_line (s, vpos, 0);
       display_string (XWINDOW (minibuf_window), vpos,
 		      echo_area_glyphs ? echo_area_glyphs : "",
@@ -386,11 +389,40 @@ message (m, a1, a2, a3)
 extern void update_psheets (void);
 extern int pos_tab_offset (struct window *, int); 
 extern void preserve_other_columns (struct window *); 
-extern void cancel_line (int, struct screen *);
 extern void request_sigio (void);
 extern void unrequest_sigio (void);
 extern void update_screen_menubars (void);
 extern void flush_face_cache (void);
+
+int
+shot_cut_taken_p (SCREEN_PTR s)
+{
+  return s->desired_glyphs->short_cut_taken == 1;
+}
+
+void
+mark_short_cut_taken (SCREEN_PTR s)
+{
+  s->desired_glyphs->short_cut_taken = 1;
+}
+
+void
+clear_short_cut_taken (SCREEN_PTR s)
+{
+  s->desired_glyphs->short_cut_taken = 0;
+}
+
+/* This flag is set to 1 when we have to run a blank redisplay. */
+static int bogus_mouse_hat_trick;
+void
+recompute_glyphs_no_short_cut (SCREEN_PTR s)
+{
+  /* force the recomputation of the desired glyphs */
+  bogus_mouse_hat_trick = 1;
+  mark_window_display_accurate (SCREEN_ROOT_WINDOW (s), 0);
+  redisplay ();
+  bogus_mouse_hat_trick = 0;
+}
 
 void
 redisplay ()
@@ -407,6 +439,9 @@ redisplay ()
 
   Lisp_Object tail;
   SCREEN_PTR s;
+
+  if (bogus_mouse_hat_trick)
+    input_pending = 0;
 
   if (noninteractive || in_display || input_pending)
     return;
@@ -434,8 +469,13 @@ redisplay ()
 
   if (echo_area_glyphs || previous_echo_glyphs)
     {
+      /* #### I doubt this is right.  It used to always set
+	 must_finish to 1 here, but that meant that every screen
+	 got redisplayed evry time whenever there was a message in
+	 the minibuffer... */
+      if (echo_area_glyphs != previous_echo_glyphs)
+	must_finish = 1;
       echo_area_display (choose_minibuf_screen ());
-      must_finish = 1;
     }
 
   if (clip_changed || windows_or_buffers_changed)
@@ -505,8 +545,11 @@ redisplay ()
 	    {
 	      if (XFASTINT (w->width) != 
                   SCREEN_WIDTH (XSCREEN (WINDOW_SCREEN (w))))
-		preserve_other_columns (w);
-	      goto update;
+		{
+		  preserve_other_columns (w);
+		  mark_short_cut_taken (XSCREEN (w->screen));
+		  goto update;
+		}
 	    }
 	  else
 	    goto cancel;
@@ -587,6 +630,7 @@ redisplay ()
 		}
 
 	      /* Redraw its windows.  */
+	      clear_short_cut_taken (s);
 	      redisplay_windows (SCREEN_ROOT_WINDOW (s));
 	    }
 	}
@@ -602,6 +646,12 @@ redisplay ()
     }
 
 update: 
+  if (bogus_mouse_hat_trick)
+    {
+      in_display--;
+      return;
+    }
+
   if (interrupt_input)
     unrequest_sigio ();
 
@@ -1021,7 +1071,10 @@ redisplay_window (window, just_this_one)
 	  and nothing but whitespace follows the changed stuff.
 	 tem == 0 means try again with same start.  */
       if (tem > 0)
-	goto done;
+	{
+	  mark_short_cut_taken (XSCREEN (w->screen));
+	  goto done;
+	}
     }
   else if (startp >= BEGV && startp <= ZV
 	   /* Avoid starting display at end of buffer! */
@@ -1033,7 +1086,9 @@ redisplay_window (window, just_this_one)
       /* If point has not moved off screen, accept the results */
       try_window (window, startp);
       if (cursor_vpos >= 0)
-	goto done;
+	{
+	  goto done;
+	}
       else
 	cancel_my_columns (w);
     }
@@ -1060,7 +1115,10 @@ redisplay_window (window, just_this_one)
 	{
 	  try_window (window, pos.bufpos);
 	  if (cursor_vpos >= 0)
-	    goto done;
+	    {
+	      mark_short_cut_taken (XSCREEN (w->screen));
+	      goto done;
+	    }
 	  else
 	    cancel_my_columns (w);
 	}
