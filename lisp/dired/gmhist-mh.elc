@@ -1,0 +1,139 @@
+;;; compiled by jwz@thalidomide on Tue May 19 23:07:29 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/dired/gmhist-mh.el
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "¿¡!à¬√!àƒ≈!¨Ç∆«»Má" [require gmhist provide gmhist-mh boundp max-minibuffer-history-length not-implemented gmhist-overwrite #[(fun) "¿	!√ƒ\nP!√∆\nP!»!¨Ö	KMà	M+á" [symbol-name fun fun-name intern "gmhist-old-" old-name "gmhist-new-" new-name fboundp] 3]] 2)
+(fset 'gmhist-new-read-string #[(gnrs-prompt &optional initial-input) "´Ü¡\n#á≈\n\"á" [minibuffer-history-symbol gmhist-read-from-minibuffer gnrs-prompt initial-input gmhist-map gmhist-old-read-string] 4 "\
+Read a string from the minibuffer, prompting with string PROMPT.
+If non-nil second arg INITIAL-INPUT is a string to insert before reading.
+See also `minibuffer-history-symbol'."])
+(gmhist-overwrite 'read-string)
+(fset 'gmhist-new-completing-read #[(gncr-prompt table &optional predicate mustmatch initial) "´â¡\n%á«\n%á" [minibuffer-history-symbol gmhist-completing-read gncr-prompt table predicate mustmatch initial gmhist-old-completing-read] 6 "\
+Read a string in the minibuffer, with completion and history.
+Args are PROMPT, TABLE, PREDICATE, REQUIRE-MATCH and INITIAL-INPUT.
+PROMPT is a string to prompt with; normally it ends in a colon and a space.
+TABLE is an alist whose elements' cars are strings, or an obarray (see
+  try-completion).
+PREDICATE limits completion to a subset of TABLE see try-completion
+  for details.
+If REQUIRE-MATCH is non-nil, the user is not allowed to exit unless
+ the input is (or completes to) an element of TABLE.
+ If it is also not t, Return does not exit if it does non-null completion.
+If INITIAL-INPUT is non-nil, insert it in the minibuffer initially.
+Case is ignored if ambient value of  completion-ignore-case  is non-nil.
+
+*** This is the gmhist version ***
+See variable `minibuffer-history-symbol'."])
+(gmhist-overwrite 'completing-read)
+(defvar file-history (get file-history-symbol 'initial-hist) "\
+Default history of file names read with read-file-name.
+This symbol is the default value of file-history-symbol (q.v.).")
+(defvar insert-file-default nil "\
+*If non-nil, defaults for filenames will be inserted into the
+minibuffer prompt.  This has the advantage of putting the default onto
+the file-history (which see).")
+(fset 'gmhist-new-read-file-name #[(gnrfn-prompt &optional dir default mustmatch initial) "¨á¡\n$á∆\n´á¨É™Ç%á" [file-history-symbol gmhist-old-read-file-name gnrfn-prompt dir default mustmatch gmhist-read-file-name insert-file-default initial] 6 "\
+Read file name, maintaining history in value of
+file-history-symbol, prompting with PROMPT, completing in directory DIR.
+
+Value is not expanded!  You must call expand-file-name yourself.
+
+Default name to third arg DEFAULT if user enters a null string.
+(If DEFAULT is omitted, the visited file name is used.)
+
+Fourth arg MUSTMATCH non-nil means require existing file's name.
+Non-nil and non-t means also require confirmation after completion.
+
+Fifth arg INITIAL specifies text to start with.
+DIR defaults to current buffer's default-directory.
+
+*** This is the gmhist version ***
+
+It differs from the original read-file-name in providing a
+history of filenames in the variable whose name is the value of
+file-history-symbol (usually 'file-history) (both of which see).
+
+INITIAL defaults to default-directory's value if
+insert-default-directory is non-nil.  Also, if insert-file-default is
+non-nil, it inserts the DEFAULT string if no INITIAL is given, which
+has the advantage of putting the default onto the file-history.
+However, setting INITIAL to a string is a way for providing an
+editable default, something not possible with (pre Emacs-19)
+read-file-name.  Setting INITIAL and insert-default-directory to nil
+will yield a basename for the file, relative to default-directory.
+
+See function read-with-history-in for a list of properties you can put
+on file-history-symbol."])
+(defvar after-write-region-hook nil "\
+Run after the gmhist version of `write-region'.
+The variables `start', `end', `filename', `append', `visit' are bound
+around the call to the hook.")
+(fset 'gmhist-new-write-region #[(start end filename &optional append visit) "¿	\n%∆«»èàá" [gmhist-old-write-region start end filename append visit err (byte-code "¿¡!á" [run-hooks after-write-region-hook] 2) ((error (byte-code "¿¡\n\"à√ƒ!á" [message "Error in after-write-region-hook %s" err sit-for 1] 3)))] 6 "\
+Write current region into specified file.
+When called from a program, takes three arguments:
+START, END and FILENAME.  START and END are buffer positions.
+Optional fourth argument APPEND if non-nil means
+  append to existing file contents (if any).
+Optional fifth argument VISIT if t means
+  set last-save-file-modtime of buffer to this file's modtime
+  and mark buffer not modified.
+If VISIT is neither t nor nil, it means do not print
+  the \"Wrote file\" message.
+
+*** This is the gmhist version ***
+See variable `after-write-region-hook'." "r\nFWrite region to file: "])
+(defvar after-delete-file-hook nil "\
+Run after the gmhist version of `delete-file'.
+The hook is run with `filename' bound to the filename.")
+(fset 'gmhist-new-delete-file #[(filename) "¿	!¬√ƒèàá" [gmhist-old-delete-file filename err (byte-code "¿¡!á" [run-hooks after-delete-file-hook] 2) ((error (byte-code "¿¡\n\"à√ƒ!á" [message "Error in after-delete-file-hook %s" err sit-for 1] 3)))] 4 "\
+Delete specified file.  One argument, a file name string.
+If file has multiple names, it continues to exist with the other names.
+
+*** This is the gmhist version ***
+See variable `after-delete-file-hook'." "fDelete file: "])
+(byte-code "¿¡!à¿¬!à¿√!àƒ≈∆\"àƒ«∆\"àƒ»∆\"àƒ…∆\"àƒ ∆\"àƒÀ∆\"àƒÃ∆\"àƒ¬∆\"àƒ√∆\"à¨äƒŒ∆\"àƒœ∆\"à¿á" [gmhist-overwrite read-file-name write-region delete-file gmhist-make-magic find-file file-history-symbol find-file-other-window find-file-read-only insert-file load-file set-visited-file-name append-to-file gmhist-emacs-19-p write-file find-alternate-file] 3)
+(defvar buffer-history-lru-order nil "\
+*If non-nil, the buffer history will be the complete buffer
+list in most recently used order (as returned by buffer-list).
+
+Usually, the buffer history is in the order entered using read-buffer.")
+(defvar buffer-history (get 'buffer-history 'initial-hist) "\
+History of all buffer names read with read-buffer.")
+(fset 'gmhist-new-read-buffer #[(gnrb-prompt &optional default existing) "´ã	´à¬√ƒ \"Là≈#á" [buffer-history-symbol buffer-history-lru-order mapcar buffer-name buffer-list gmhist-read-buffer gnrb-prompt default existing] 4 "\
+One arg PROMPT, a string.  Read the name of a buffer and return as a string.
+Prompts with PROMPT.
+Optional second arg is value to return if user enters an empty line.
+If optional third arg REQUIRE-MATCH is non-nil, only existing buffer names are allowed.
+
+*** This is the gmhist version ***
+
+See variables `buffer-history-symbol' and `buffer-history-lru-order'."])
+(fset 'gmhist-new-switch-to-buffer #[(buffer &optional norecord) "¿	\n\"á" [gmhist-old-switch-to-buffer buffer norecord] 3 "\
+Select buffer BUFFER in the current window.
+BUFFER may be a buffer or a buffer name.
+Optional second arg NORECORD non-nil means
+do not put this buffer at the front of the list of recently selected ones.
+
+WARNING: This is NOT the way to work on another buffer temporarily
+within a Lisp program!  Use `set-buffer' instead.  That avoids messing with
+the window-buffer correspondences.
+
+*** This is the gmhist version ***
+
+It adds buffer-history to switch-to-buffer." (byte-code "¿¡¬ √#Cá" [gmhist-new-read-buffer "Switch to buffer: " other-buffer nil] 4)])
+(byte-code "¿¡!à¿¬!à√ƒ≈\"à∆«Mà»	 À#á" [gmhist-overwrite read-buffer switch-to-buffer mapcar #[(fun) "¿	¬\"á" [gmhist-make-magic fun buffer-history-symbol] 3] (switch-to-buffer-other-window append-to-buffer prepend-to-buffer copy-to-buffer) read-from-minibuffer gmhist-new-read-from-minibuffer define-key ctl-x-map "" gmhist-repeat-complex-command] 4)
+(fset 'gmhist-repeat-complex-command #[(arg) "¿¬√ƒ#à¬√∆¿#à«»√… À$!à¬√ƒ #)á" [t print-escape-newlines put command-history backup arg cursor-end eval read-with-history-in "Redo: " nil lisp] 6 "\
+Edit and re-evaluate last complex command, or ARGth from last.
+A complex command is one which used the minibuffer.
+The command is placed in the minibuffer as a Lisp form for editing.
+The result is executed, repeating the command as changed.
+If the command has been changed or is not the most recent previous command
+it is added to the front of the command history." "p"])

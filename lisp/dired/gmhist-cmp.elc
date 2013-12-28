@@ -1,0 +1,13 @@
+;;; compiled by jwz@thalidomide on Tue May 19 23:08:03 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/dired/gmhist-cmp.el
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÄÆÈ	!È\n!ËÌD\"‡" [require completer t completer-complete-filenames gmhist-completer-filename-completion-map gmhist-filename-completion-map gmhist-completer-filename-must-match-map gmhist-filename-must-match-map copy-keymap minibuffer-local-must-match-map minibuffer-local-completion-map mapcar #[(map) "À	!ˆÂ	ÃÄ#ˆÂ	ÅÆ#ˆÂ	ÇÈ#ˆÂ	ÉÊ#‡" [gmhist-define-keys map define-key "	" completer-complete " " completer-word "	" minibuffer-complete " " minibuffer-complete-word] 4]] 4)

@@ -1,7 +1,7 @@
 ;;; -*-Emacs-Lisp-*-
 ;;;%Header
 ;;; Inferior LISP interaction package source submodule.
-;;; Copyright (C) 1990 Chris McConnell, ccm@cs.cmu.edu.
+;;; Copyright (C) 1990, 1991, 1992 Chris McConnell, ccm@cs.cmu.edu.
 
 ;;; See ilisp.el for more information.
 
@@ -17,11 +17,11 @@
 
 ;;;%%lisp-directory
 (defvar lisp-edit-files t
-  "If T, then buffers in one of lisp-source-modes willbe searched by
-edit-definition if the source cannot be found theough the inferior
-LISP.  It can also be a list of files to edit definitions from set up
-by \(\\[lisp-directory]).  If it is set to nil, then no additional
-files will be searched.")
+  "If T, then buffers in one of lisp-source-modes will be searched by
+edit-definitions-lisp if the source cannot be found through the
+inferior LISP.  It can also be a list of files to edit definitions
+from set up by \(\\[lisp-directory]).  If it is set to nil, then no
+additional files will be searched.")
 
 ;;;
 (defun lisp-extensions ()
@@ -62,7 +62,7 @@ either case set tags-file-name to nil so that tags are not used."
 	  (setq lisp-edit-files
 		(append
 		 (directory-files directory t (lisp-extensions))
-		 (if add lisp-edit-files)))
+		 (if add (if (eq lisp-edit-files t) nil lisp-edit-files))))
 	  (error "%s is not a directory" directory))))
 
 ;;;%%Utilities
@@ -139,7 +139,9 @@ if successful."
 	    (progn
 	      (setq lisp-last-file file
 		    lisp-last-point (point))
-	      (beginning-of-line)
+	      (if (bolp)
+		  (forward-line -1)
+		  (beginning-of-line))
 	      (recenter 0)
 	      (if name 
 		  (message "Found %s %s definition" type name)
@@ -259,17 +261,18 @@ first type in ilisp-source-types."
 	 (symbol-name (lisp-symbol-name symbol))
 	 (command (ilisp-value 'ilisp-find-source-command t))
 	 (source
-	  (if (and command (not search))
+	  (if (and command (not search) (comint-check-proc ilisp-buffer))
 	      (ilisp-send
 	       (format command symbol-name
 		       (lisp-symbol-package symbol)
 		       type)
 	       (concat "Finding " type " " name " definitions")
-	       'source)))
+	       'source)
+	      "nil"))
 	 (result (lisp-last-line source))
 	 (case-fold-search t)
-	 (source-ok (not (or (ilisp-value 'comint-errorp t) (null source) 
-			     (string-match "nil" result))))
+	 (source-ok (not (or (ilisp-value 'comint-errorp t)
+			     (string-match "nil" (car result)))))
 	 (tagged nil))
     (unwind-protect
 	 (if (and tags-file-name (not source-ok))
@@ -283,7 +286,7 @@ first type in ilisp-source-types."
 		  lisp-last-locator (or locator (ilisp-value 'ilisp-locator)))
 	    (lisp-setup-edit-definitions
 	     (format "%s %s definitions:" type name)
-	     (if source-ok source lisp-edit-files))
+	     (if source-ok (cdr result) lisp-edit-files))
 	    (next-definition-lisp nil t))))))
 
 ;;;%%Searching
@@ -387,22 +390,22 @@ and show it unless NO-SHOW is T.  Return T if successful."
 	 (command (ilisp-value 'ilisp-callers-command t))
 	 (callers
 	  (if command
-	      (car (ilisp-send
-		    (format command
-			    (lisp-symbol-name function)
-			    (lisp-symbol-package function))
-		    (concat "Finding callers of " name)
-		    'callers))))
+	      (ilisp-send
+	       (format command
+		       (lisp-symbol-name function)
+		       (lisp-symbol-package function))
+	       (concat "Finding callers of " name)
+	       'callers)))
 	 (last-line (lisp-last-line callers))
 	 (case-fold-search t))
     (set-buffer (get-buffer-create "*All-Callers*"))
     (erase-buffer)
     (insert (format "All callers of function %s:\n\n" name))
     (if (and command (not (ilisp-value 'comint-errorp t)))
-	(if (or (null last-line) (string-match "nil" last-line))
+	(if (string-match "nil" (car last-line))
 	    (error "%s has no callers" name)
 	    (message "")
-	    (insert callers)
+	    (insert (cdr last-line))
 	    (goto-char (point-min))
 	    ;; Remove garbage collection messages
 	    (replace-regexp "^;[^\n]*\n" "")
@@ -410,7 +413,8 @@ and show it unless NO-SHOW is T.  Return T if successful."
 	    (forward-line 2)
 	    (if (not no-show) 
 		(if temp-buffer-show-hook
-		    (funcall temp-buffer-show-hook "*All-Callers*")
+		    (funcall temp-buffer-show-hook 
+			     (get-buffer "*All-Callers*"))
 		    (view-buffer "*All-Callers*")))
 	    t)
 	(insert "Using the current source files to find callers.")
@@ -496,17 +500,17 @@ is T to go backwards."
 	  (if (string-match "-" name)
 	      (let ((struct (substring name 0 (1- (match-end 0)))))
 		(format 
-		 "^[ \t\n]*(def[^ \t\n]*[ \t\n]+(?%s[ \t\n)]\\|:conc-name[ \t\n]+%s-" 
+		 "^\\(.\\)?[ \t\n]*(def[^ \t\n]*\\([ \t\n]+\\(.\\)?\\|\\|[ \t\n]*.[ \t\n]+\\)(?%s[ \t\n)]\\|:conc-name\\([ \t\n]+\\(.\\)?[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)%s-" 
 		 struct struct))))
 	 ;; Defclass accessors
 	 (class
-	  "\\(:accessor\\|:writer\\|:reader\\)[ \t\n]+%s\\([ \t\n]\\|)\\)"))
+	  "\\(:accessor\\|:writer\\|:reader\\)\\([ \t\n]+\\(.\\)?+[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)%s[ \t\n)]"))
     (or
      (if (equal type "any")
 	 (lisp-re 
 	  back
 	  (concat
-	   "^[ \t\n]*(def[^ \t\n]*[ \t\n]+\\((setf[ \t\n]+\\|(?\\)%s\\([ \t\n]\\|)\\)"
+	   "^\\(.\\)?[ \t\n]*(def[^ \t\n]*\\([ \t\n]+\\(.\\)?[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)\\((setf\\([ \t\n]+\\(.\\)?[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)\\|(?[ \t\n]*\\(.\\)?[ \t\n]*\\)%s[ \t\n)]"
 	   (if prefix (concat "\\|" prefix))
 	   "\\|"
 	   class)
@@ -518,45 +522,59 @@ is T to go backwards."
 		 (read (substring type (match-beginning 2) (match-end 2))))
 		(class-re nil)
 		(position 0))
-	   (while (setq position (string-match "[ \t\n]+" quals position))
+	   (while (setq position (string-match 
+				  "\\([ \t\n]+.[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\|[ \t\n]+\\)"
+				  quals position))
 	     (setq quals
 		   (concat (substring quals 0 position)
-			   "[ \t\n]+"
+			   "\\([ \t\n]+.[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\|[ \t\n]+\\)"
 			   (substring quals (match-end 0)))))
 	   (while class
 	     (setq class-re 
 		   (concat 
 		    class-re 
-		    (format "[ \t\n]*([^ \t\n]*[ \t\n]+%s)" (car class)))
+		    (format
+		     "[ \t\n]*\\(.\\)?[ \t\n]*([ \t\n]*\\(.\\)?[ \t\n]*[^ \t\n]*\\([ \t\n]+\\(.\\)?[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)%s[ \t\n]*\\(.\\)?[ \t\n]*"
+		     (car class)))
 		   class (cdr class)))
-	   (lisp-re back "^[ \t\n]*(def[^ \t\n]*[ \t\n]+%s[ \t\n]+%s(%s"
+	   (lisp-re back 
+		    "^\\(.\\)?[ \t\n]*(def[^ \t\n]*\\([ \t\n]+\\(.\\)?[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)%s\\([ \t\n]+\\(.\\)?[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)%s[^ \t\n]*([^ \t\n]*%s"
 		    name quals class-re)))
      ;; Setf method
      (if (equal type "setf")
 	 (lisp-re back 
-		  "^[ \t\n]*(def[^ \t\n]*[ \t\n]+(setf[ \t\n]+%s[ \t\n]*)"
+		  "^\\(.\\)?[ \t\n]*(def[^ \t\n]*\\([ \t\n]+\\(.\\)?[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)(setf\\([ \t\n]+\\(.\\)?[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)%s[ \t\n]*\\(.\\)?[ \t\n]*)"
 		  name))
      ;; Function
      (if (equal type "function")
-	 (lisp-re back "^[ \t\n]*(defun[ \t\n]+%s[ \t\n]" name))
+	 (lisp-re back 
+		  "^\\(.\\)?[ \t\n]*(defun\\([ \t\n]+\\(.\\)?[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)%s[ \t\n(]"
+		  name))
      ;; Macro
      (if (equal type "macro")
-	 (lisp-re back "^[ \t\n]*(defmacro[ \t\n]+%s[ \t\n]" name))
+	 (lisp-re back 
+		  "^\\(.\\)?[ \t\n]*(defmacro\\([ \t\n]+\\(.\\)?[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)%s[ \t\n(]"
+		  name))
      ;; Variable
      (if (equal type "variable")
 	 (lisp-re back 
-		  "^[
-\t\n]*(def\\(\\(var\\)\\|\\(parameter\\)\\|constant\\)[ \t\n]+%s[ \t\n]"
+		  "^\\(.\\)?[ \t\n]*(def\\(\\(var\\)\\|\\(parameter\\)\\|constant\\)\\([ \t\n]+\\(.\\)?[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)%s[ \t\n(]"
 		  name))
      ;; Structure
      (if (equal type "structure")
-	 (lisp-re back "^[ \t\n]*(defstruct[ \t\n]+(?%s[ \t\n]" name))
+	 (lisp-re back 
+		  "^\\(.\\)?[ \t\n]*(defstruct\\([ \t\n]+\\(.\\)?[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)(?[ \t\n]*\\(.\\)?[ \t\n]*%s[ \t\n(]"
+		  name))
      ;; Type
      (if (equal type "type")
-	 (lisp-re back "^[ \t\n]*(deftype[ \t\n]+%s[ \t\n]" name))
+	 (lisp-re back 
+		  "^\\(.\\)?[ \t\n]*(deftype\\([ \t\n]+\\(.\\)?[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)%s[ \t\n(]"
+		  name))
      ;; Class
      (if (equal type "class")
-	 (lisp-re back "^[ \t\n]*(defclass[ \t\n]+%s[ \t\n]" name))
+	 (lisp-re back
+		  "^\\(.\\)?[ \t\n]*(defclass\\([ \t\n]+\\(.\\)?[ \t\n]*\\|[ \t\n]*.[ \t\n]+\\)%s[ \t\n(]"
+		  name))
      ;; Standard def form
      (if first (lisp-locate-ilisp symbol type first back))
      ;; Automatically generated defstruct accessors

@@ -379,7 +379,7 @@ hexl-mode.
 If there is no byte at the target address move to the last byte in that
 line."
   (interactive "p")
-  (hexl-goto-address (let ((address (+ (hexl-current-address) (* arg 16)) t))
+  (hexl-goto-address (let ((address (+ (hexl-current-address) (* arg 16))))
 		       (if (and (< arg 0) (< address 0))
 				(progn (message "Out of hexl region.")
 				       (setq address

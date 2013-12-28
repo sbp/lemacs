@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Aug 14 22:23:55 1991
-;;; from file /wg1/emacs-base/lisp/life.el
-;;; emacs version 19.60.
-;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; compiled by jwz@thalidomide on Tue Apr 21 17:48:10 1992
+;;; from file /u/jwz/emacs19/lisp/life.el
+;;; emacs version 19.0.2 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -13,7 +13,7 @@
 (provide 'life)
 (defconst life-patterns [("@@@" " @@" "@@@") ("@@@ @@@" "@@  @@ " "@@@ @@@") ("@@@ @@@" "@@   @@" "@@@ @@@") ("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@") ("@@@@@@@@@@") ("   @@@@@@@@@@       " "     @@@@@@@@@@     " "       @@@@@@@@@@   " "@@@@@@@@@@          " "@@@@@@@@@@          ") ("@" "@" "@" "@" "@" "@" "@" "@" "@" "@" "@" "@" "@" "@" "@") ("@               @" "@               @" "@               @" "@               @" "@               @" "@               @" "@               @" "@               @" "@               @" "@               @" "@               @" "@               @" "@               @" "@               @" "@               @") ("@@               " " @@              " "  @@             " "   @@            " "    @@           " "     @@          " "      @@         " "       @@        " "        @@       " "         @@      " "          @@     " "           @@    " "            @@   " "             @@  " "              @@ " "               @@") ("@@@@@@@@@" "@   @   @" "@ @@@@@ @" "@ @   @ @" "@@@   @@@" "@ @   @ @" "@ @@@@@ @" "@   @   @" "@@@@@@@@@")] "\
 Vector of rectangles containing some Life startup patterns.")
-(byte-code "ÀÁÂMˆÃÄMˆÅÆMˆÇÈMˆÉÊMˆËÌMˆÍÎMˆÏÐMˆÑÒMˆÓÔMˆÕÖMˆ×ØMˆÙÚMˆÛ!ˆÜÜÜÜ áâM‡" [require life-life-char (macro lambda nil 64) life-death-char (macro . #[nil "ÀT‡" [64] 1]) life-birth-char (macro lambda nil 3) life-void-char (macro lambda nil 32) life-life-string (macro . #[nil "ÀÁ!‡" [char-to-string 64] 2]) life-death-string (macro . #[nil "ÀÁ!‡" [char-to-string 65] 2]) life-birth-string (macro . #[nil "ÀÁ!‡" [char-to-string 3] 2]) life-void-string (macro . #[nil "ÀÁ!‡" [char-to-string 32] 2]) life-not-void-regexp (macro . #[nil "ÀÁÂQ‡" ["[^" " " "\n]"] 3]) goto-beginning-of-buffer (macro . #[nil "À‡" [(goto-char 1)] 1]) maxint (macro . #[nil "À‰ÁÂ\"Á\"‡" [lsh -1 1] 4]) goto-end-of-buffer (macro . #[nil "À‡" [(goto-char (maxint))] 1]) increment (macro . #[(variable) "À	Â	DE‡" [setq variable 1+] 4]) life nil life-neighbor-deltas life-window-start life-current-generation life-generation-string abs #[(n) "ÁW«ƒ[‡‡" [n 0] 2]] 3)
+(byte-code "ÀÁÂMˆÃÄMˆÅÆMˆÇÈMˆÉÊMˆËÌMˆÍÎMˆÏÐMˆÑÒMˆÓÔMˆÕÖMˆ×ØMˆÙÚMˆÛ!ˆÜÜÜÜ áâM‡" [require life-life-char (macro lambda nil 64) life-death-char (macro lambda nil 65) life-birth-char (macro lambda nil 3) life-void-char (macro lambda nil 32) life-life-string (macro . #[nil "ÀÁ!‡" [char-to-string 64] 2]) life-death-string (macro . #[nil "ÀÁ!‡" [char-to-string 65] 2]) life-birth-string (macro . #[nil "ÀÁ!‡" [char-to-string 3] 2]) life-void-string (macro . #[nil "ÀÁ!‡" [char-to-string 32] 2]) life-not-void-regexp (macro . #[nil "ÀÁÂQ‡" ["[^" " " "\n]"] 3]) goto-beginning-of-buffer (macro . #[nil "À‡" [(goto-char 1)] 1]) maxint (macro . #[nil "À‰ÁÂ\"Á\"‡" [lsh -1 1] 4]) goto-end-of-buffer (macro . #[nil "À‡" [(goto-char (maxint))] 1]) increment (macro . #[(variable) "À	Â	DE‡" [setq variable 1+] 4]) life nil life-neighbor-deltas life-window-start life-current-generation life-generation-string abs #[(n) "ÁW«ƒ[‡‡" [n 0] 2]] 3)
 (fset 'life #[(&optional sleeptime) "¬‚ÁÂ ˆÃ!ˆÄÆ ˆÇ ˆÈ ˆÃ!ˆ)ªn" [sleeptime 1 life-setup life-display-generation t inhibit-quit life-grim-reaper life-expand-plane-if-needed life-increment-generation] 2 "\
 Run Conway's Life simulation.
 The starting pattern is randomly selected.  Prefix arg (optional first arg

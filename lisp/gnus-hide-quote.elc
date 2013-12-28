@@ -1,89 +1,0 @@
-;;; compiled by jwz@thalidomide on Sat Dec 28 01:46:49 1991
-;;; from file /wg1/emacs-base/lisp/gnus-hide-quote.el
-;;; emacs version 19.39.
-;;; bytecomp version 2.03; 29-oct-91.
-;;; optimization is on.
-;;; this file uses opcodes which do not exist in Emacs18.
-
-(if (and (boundp 'emacs-version)
-	 (or (and (boundp 'epoch::version) epoch::version)
-	     (string-lessp emacs-version "19")))
-    (error "This file was compiled for Emacs19."))
-
-(byte-code "ÀÁ!ˆÂÃ!ˆÄÆÇ#ˆÄÈÉ#ˆÄÊË#‡" [provide gnus-hide require gnus define-key gnus-Subject-mode-map "S" gnus-Subject-hide-sig "h" gnus-Subject-hide-quote "H" gnus-Subject-unhide] 4)
-(defvar gnus-possible-quote-prefixes '("^[^ 	\n(A-Z#%;]" "^[ 	]+[^ 	\n(A-Z#%;]" "^[ 	]*[A-Z]+[]}>[{<-]") "\
-Regexps to search for to identify quoted-text attributions.
-These regexps should match the initial subsequence of the line that is the
-attribution prefix.  They are ordered; regexps which are less ambiguous and 
-less likely to produce mismatches should come first.  The entire buffer will 
-be searched for two or more consecutive lines which match the first element 
-of this list, then the second, and so on.  The initial subsequence of the 
-two lines which first match is returned. Regular quote hiding also
-uses gnus-aggressive-quote-prefixes, unlike hookified quote hiding 
-which, by default, does not.")
-(defvar gnus-hide-hookified-be-aggressive nil "\
-Variable to determine if hooked calling of gnus-hide-Article-quote
-should use aggressive quote prefixes. If set to t, aggressive 
-prefixes will be used.
-Default: nil")
-(defvar gnus-aggressive-quote-prefixes '("^[ 	]+" "^[(#%;]") "\
-Regexps for last-resort hiding. By default, these are not 
-used in hookified calling (gnus-Article-hide-{quote/sig}).
-See gnus-hide-hookified-be-conservative and gnus-possible-quote-prefixes.")
-(fset 'gnus-identify-quote-prefix #[(use-aggressive) "ŠŒÀ ˆ`eU¬„e`}ˆebˆÁÂÃÄ#ˆÃ`«ˆÆ\"ª‚	\n	«Ä¬À\nbˆ	@¬ªm¬§ÍÃÎ#«šŠÎyˆ`Î•{ÐyˆÑÒ!!«„*ÐyˆªR)	A‰	¬<-‡" [gnus-find-sig-position search-forward "\n\n" nil t use-aggressive append gnus-possible-quote-prefixes gnus-aggressive-quote-prefixes rest start match regexp re-search-forward 0 prefix 1 looking-at regexp-quote] 6 "\
-Figure out what the current message uses for attribution.  See the
-documentation for gnus-possible-quote-prefixes."])
-(fset 'gnus-Article-hide-quote #[(&optional prefix-string) "®ƒÁ\n!‰­¥ÃÄ\"ˆŠebˆÅÆÇ!P	Ê!ˆËÅ!ˆ*Ì)ÃÎ\"‡" [prefix-string gnus-identify-quote-prefix gnus-hide-hookified-be-aggressive message "Hiding text beginning with \"%s\"..." nil "\n*" regexp-quote quote-regexp buffer-read-only gnus-hide-quote-internal set-buffer-modified-p t selective-display "Hiding text beginning with \"%s\"... done."] 5 "\
-Hide quotations in current article.
-For use with gnus-Article-prepare-hook."])
-(fset 'gnus-Subject-hide-quote #[(&optional prefix-string) "Á˜«„ÂÃ!ˆÄ ÆŽÇ!ˆÉ!*‡" [prefix-string "" error "empty string" selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer gnus-Article-hide-quote] 2 "\
-Hide quotations in current article." (byte-code "À ÂŽÃ!ˆÅÆ!*¬„¬ÉÊ­…ËÌQÍQ!ª‚‰Ï˜«‰®‡ÐÑ!ª‚*C‡" [selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer gnus-identify-quote-prefix t default current-prefix-arg read-from-minibuffer "String that starts quotation lines" " (default \"" "\")" ": " string "" error "You tell me, buckaroo."] 6)])
-(fset 'gnus-hide-quote-internal #[(prefix) "À	PÂ	PŠŒ~ˆebˆÅÆÇÈ#«ƒÉuˆÊÇÈ#­”ËyˆÌ!«qÍÉ!ˆÎcˆËyˆªo,‡" ["\n+" prefix "^" looking-at-pattern search-pattern search-forward "\n\n" nil t -1 re-search-forward 1 looking-at delete-char ""] 4])
-(defvar gnus-possible-signature-prefixes '("^--[ 	]*$" "^[---=_~*]+[ 	]*$") "\
-Regexps to search for beginning of a signature.
-   They are ordered; regexps which are less ambiguous and 
-   less likely to produce mismatches should come first. 
-   Replace [
-] for ^ if you wish the sig indicator
-   to be shown.")
-(defvar gnus-sig-start-search-point 0 "\
-Point from end of file to start searching for signature.
-  Set in gnus-get-sig-start-search-point.")
-(fset 'gnus-get-sig-start-search-point #[nil "dbˆÀÁÂÃ#«„Ä”bˆe`dÅZ^]‰‡" [re-search-backward "\n\n" nil move 0 500 gnus-sig-start-search-point] 4 "\
-Determine point at which searches for signatures should begin."])
-(fset 'gnus-search-for-sig-start #[(regexp-list) "bˆ	­Â	@ÃÄ#«„Å”b‡Æ	A!‡" [gnus-sig-start-search-point regexp-list re-search-forward nil move 0 gnus-search-for-sig-start] 4 "\
-Loop through gnus-possible-signature-prefixes until 
-    a regexp matches or the end of list is found."])
-(fset 'gnus-find-sig-position #[nil "À ˆÁ\n!ˆ`U«ƒebˆ`‡" [gnus-get-sig-start-search-point gnus-search-for-sig-start gnus-possible-signature-prefixes gnus-sig-start-search-point] 2 "\
-Move point to start of signature."])
-(fset 'gnus-Article-hide-sig #[nil "ŠÀÂ ÃU¬ƒÄ ˆÅÀ!ˆ)Æ‰)‡" [nil buffer-read-only gnus-find-sig-position 1 gnus-hide-to-eob set-buffer-modified-p t selective-display] 2 "\
-Signature hiding for use with gnus-Article-prepare-hook."])
-(fset 'gnus-Subject-hide-sig #[nil "À ÂŽÃ!ˆŠÅÇ ÈU¬ƒÉ ˆÊÅ!ˆ)Ë‰+‡" [selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer nil buffer-read-only gnus-find-sig-position 1 gnus-hide-to-eob set-buffer-modified-p t selective-display] 2 "\
-Hide signature." nil])
-(fset 'gnus-hide-to-eob #[nil "À`dÁÂ$‡" [subst-char-in-region 10 13] 5 "\
-Hide all lines to end of buffer."])
-(defvar gnus-save-article-prepare-hook '(lambda nil (gnus-Subject-unhide)) "\
-Hook to prepare article buffer for saving, (o,C-o)
-  eg. undoing things that are done by gnus-article-prepare-hook.")
-(fset 'gnus-Subject-save-in-rmail #[(&optional filename) "À	??	\"ˆÂÃ!ˆÄ ÆŽÇ!ˆŠŒ~ˆ	\n#¬‘ÏÐÑ!ÒQÓ!#ÔÓ!!ˆÕ!ˆ‰-‡" [gnus-Subject-select-article gnus-save-all-headers run-hooks gnus-save-article-prepare-hook selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer gnus-rmail-save-name gnus-newsgroup-name gnus-current-headers gnus-newsgroup-last-rmail default-name filename read-file-name "Save article in Rmail file: (default " file-name-nondirectory ") " file-name-directory gnus-make-directory gnus-output-to-rmail] 4 "\
-Append this article to Rmail file.
-Optional argument FILENAME specifies file name.
-Directory to save to is default to `gnus-article-save-directory' which
-is initialized from the SAVEDIR environment variable." nil])
-(fset 'gnus-Subject-save-in-mail #[(&optional filename) "À	??	\"ˆÂÃ!ˆÄ ÆŽÇ!ˆŠŒ~ˆ	\n#¬‘ÏÐÑ!ÒQÓ!#ÔÓ!!ˆÕ!ˆ‰-‡" [gnus-Subject-select-article gnus-save-all-headers run-hooks gnus-save-article-prepare-hook selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer gnus-mail-save-name gnus-newsgroup-name gnus-current-headers gnus-newsgroup-last-mail default-name filename read-file-name "Save article in Unix mail file: (default " file-name-nondirectory ") " file-name-directory gnus-make-directory rmail-output] 4 "\
-Append this article to Unix mail file.
-Optional argument FILENAME specifies file name.
-Directory to save to is default to `gnus-article-save-directory' which
-is initialized from the SAVEDIR environment variable." nil])
-(fset 'gnus-Subject-save-in-file #[(&optional filename) "À	??	\"ˆÂÃ!ˆÄ ÆŽÇ!ˆŠŒ~ˆ	\n#¬‘ÏÐÑ!ÒQÓ!#ÔÓ!!ˆÕ!ˆ‰-‡" [gnus-Subject-select-article gnus-save-all-headers run-hooks gnus-save-article-prepare-hook selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer gnus-file-save-name gnus-newsgroup-name gnus-current-headers gnus-newsgroup-last-file default-name filename read-file-name "Save article in file: (default " file-name-nondirectory ") " file-name-directory gnus-make-directory gnus-output-to-file] 4 "\
-Append this article to file.
-Optional argument FILENAME specifies file name.
-Directory to save to is default to `gnus-article-save-directory' which
-is initialized from the SAVEDIR environment variable." nil])
-(fset 'gnus-Subject-save-in-folder #[(&optional folder) "À	??	\"ˆÂÃ!ˆÄ ÆŽÇ!ˆŒ~ˆÉ ˆ\n®ËÌ#Ñ#ÒÓ!\nÕŽÖed×Ø\"ÚÚ\n&.‡" [gnus-Subject-select-article gnus-save-all-headers run-hooks gnus-save-article-prepare-hook selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer mh-find-path folder mh-prompt-for-folder "Save article in" gnus-folder-save-name gnus-newsgroup-name gnus-current-headers gnus-newsgroup-last-folder t get-buffer-create " *GNUS rcvstore*" errbuf ((byte-code "qˆÁ ÂU«‡ÃÄ\"ˆª†ÃÆÇ \"ˆÈ!ˆ	Á‡" [errbuf buffer-size 0 message "Article saved in folder: %s" folder "%s" buffer-string kill-buffer gnus-newsgroup-last-folder] 3)) call-process-region expand-file-name "rcvstore" mh-lib nil] 8 "\
-Save this article to MH folder (using `rcvstore' in MH library).
-Optional argument FOLDER specifies folder name." nil])
-(fset 'gnus-Subject-unhide #[nil "À ÂŽÃ!ˆÅÇedÈÉ$ˆÊÅ!+‡" [selected-window GNUSStartBufferWindow ((select-window GNUSStartBufferWindow)) pop-to-buffer gnus-Article-buffer nil buffer-read-only subst-char-in-region 13 10 set-buffer-modified-p] 5 "\
-Show signature and quotations in current article." nil])
-(fset 'gnus-hide-yank-original-unhide #[nil "ÀÂedÃÄ$ˆÅÀ!)‡" [nil buffer-read-only subst-char-in-region 13 10 set-buffer-modified-p] 5 "\
-Unhiding function for use in mail-yank-hooks."])

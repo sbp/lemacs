@@ -1,0 +1,25 @@
+;;; compiled by jwz@thalidomide on Tue May 19 23:06:26 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/dired/dired-rcs.el
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defconst dired-rcs-version (substring "$Revision: 1.5 $" 11 -2) "\
+$Id: dired-rcs.el,v 1.5 1992/05/20 05:27:55 jwz Exp $")
+(require 'dired)
+(fset 'dired-rcs-mark-rcs-locked-files #[(&optional unflag-p) "À	Â\"‡" [dired-rcs-mark-rcs-files unflag-p t] 3 "\
+Mark all files that are under RCS control and RCS-locked.
+With prefix argument, unflag all those files.
+Mentions RCS files for which a working file was not found in this buffer.
+Type \\[dired-why] to see them again." "P"])
+(fset 'dired-rcs-mark-rcs-files #[(&optional unflag-p locked) "ÀÁ\n«ƒÃªÄ«ƒÆªÇ#ˆ\n«ƒÈª‚	Ê‰‰‰‰	ĞÑĞÒ\"\"ˆG««Ô@!AŠÕ!«†Ö×!ˆªØÙ\"ˆÚ!B)ªQ¬šÀÛ«ƒÆªÇÜ!\n«ƒİªÇ%ˆª­GŞß\"ˆÀà«ƒÆªÇÜ!Z\n«ƒİªÇ&ˆ.‡" [message "%s %sRCS controlled files..." unflag-p "Unmarking" "Marking" locked "locked " "" 32 dired-marker-char nil total count failures wf rcs-files mapcar #[(dir) "ÀÁ\n!!Ãš®’Ä«…Æ\n!ªƒÇ\n!\"‰‡" [file-name-nondirectory directory-file-name dir "RCS" append locked rcs-locked-files rcs-files] 3] car dired-subdir-alist rcs-working-file dired-goto-file dired-mark-file 1 dired-log "RCS working file not found: %s\n" dired-make-relative "%d %sRCS file%s %smarked." dired-plural-s "un" dired-log-summary "RCS working file not found %s" "%d %sRCS file%s: %d %smarked - %d not found %s."] 9 "\
+Mark all files that are under RCS control.
+With prefix argument, unflag all those files.
+Mentions RCS files for which a working file was not found in this buffer.
+Type \\[dired-why] to see them again." "P"])

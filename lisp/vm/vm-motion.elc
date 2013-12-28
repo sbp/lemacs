@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Sat Dec 28 16:57:43 1991
-;;; from file /wg1/emacs-base/lisp/vm/vm-motion.el
-;;; emacs version 19.39.
-;;; bytecomp version 2.03; 29-oct-91.
+;;; compiled by jwz@thalidomide on Tue Apr 21 16:44:47 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/vm/vm-motion.el
+;;; emacs version 19.0.2 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,7 +10,7 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(byte-code "ÀÁ!ˆÂÃM‡" [require vm vm-record-and-change-message-pointer #[(old new) "\n\n‰‡" [old vm-last-message-pointer new vm-message-pointer] 2]] 2)
+(fset 'vm-record-and-change-message-pointer #[(old new) "\n\n‰‡" [old vm-last-message-pointer new vm-message-pointer] 2])
 (fset 'vm-goto-message #[(n) "??­À	«ˆÂ	!«ƒ	qˆÃ!«‡Â!¬‚ÅÆ ˆS›‰¬„ÉÊ!ˆ=«„Ì ªŒÍ\"ˆÎÌ )‡" [n vm-mail-buffer buffer-name bufferp vm-summary-buffer nil vm-error-if-folder-empty vm-message-list cons error "No such message." vm-message-pointer vm-preview-current-message vm-record-and-change-message-pointer t vm-need-summary-pointer-update] 4 "\
 Go to the message numbered N.
 Interactively N is the prefix argument.  If no prefix arg is provided

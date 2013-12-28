@@ -1,0 +1,114 @@
+;;; compiled by jwz@thalidomide on Tue May  5 23:26:57 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/feedmail.el
+;;; emacs version 19.0.5 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar feedmail-confirm-outgoing nil "\
+*If non-nil, gives a y-or-n confirmation prompt after prepping,
+before sending mail.")
+(defvar feedmail-nuke-bcc t "\
+*Non-nil means get rid of the BCC: lines from the message header
+text before sending the mail.  In any case, the BCC: lines do
+participate in the composed address list.  You probably want to keep
+them if you're using sendmail (see feedmail-buffer-eating-function).")
+(defvar feedmail-fill-to-cc t "\
+*Non-nil means do smart filling (line-wrapping) of TO: and CC: header
+lines.  If nil, the lines are left as-is.  The filling is done after
+mail address alias expansion.")
+(defvar feedmail-fill-to-cc-fill-column default-fill-column "\
+*Fill column used when wrapping mail TO: and CC: lines.")
+(defvar feedmail-nuke-empty-headers t "\
+*If non-nil, headers with no contents are removed from the outgoing
+email.  A completely empty SUBJECT: header is always removed,
+regardless of the setting of this variable.  The only time you would
+want them left in would be if you used some headers whose presence
+indicated something rather than their contents.")
+(defvar feedmail-sender-line nil "\
+*If nil, no SENDER: header is forced.  If non-nil and the email
+already has a FROM: header, a SENDER: header is forced with this as
+its contents.  You can probably leave this nil, but if you feel like
+using it, a good value would be a fully-qualified domain name form of
+your address.  For example, william.j.carpenter@att.com.  Don't
+include a trailing newline or the keyword SENDER:.  They're
+automatically provided.")
+(defvar feedmail-from-line (byte-code "À ÁÂ ÃÄ Å°‡" [user-login-name "@" system-name " (" user-full-name ")"] 6) "\
+*If non-nil and the email has no FROM: header, one will be forced
+with this as its contents. A good value would be a fully-qualified
+domain name form of your address.  For example, william.j.carpenter@att.com.
+(The default value of this variable is probably not very good, since
+it doesn't have a domain part.)  Don't include a trailing newline or
+the keyword FROM:.  They're automatically provided.")
+(defvar feedmail-message-id-generator nil "\
+*If non-nil, should be a function (called with no arguments) which
+will generate a unique message ID which will be inserted on a
+Message-ID: header.  The message ID should be the return value of the
+function.  Don't include trailing newline, leading space, or the
+keyword MESSAGE-ID.  They're automatically provided.  Do include
+surrounding <> brackets.  For an example of a message ID generating
+function, you could look at the GNUS function gnus-inews-message-id.
+When called, the current buffer is the prepped outgoing mail buffer
+(the function may inspect it, but shouldn't modify it).  If the returned
+value doesn't contain any non-whitespace characters, no message ID
+header is generated, so you could generate them conditionally,
+based on the contents of the mail.")
+(fset 'feedmail-confirm-addresses-hook-example #[nil "À‹‡" [((byte-code "À	!ˆÂÃ!?­ƒÄÅ!‡" [display-buffer feedmail-address-buffer y-or-n-p "How do you like them apples? " error "Sending...gave up in last chance hook"] 2))] 1 "\
+An example of a last chance hook that shows the simple addresses
+and gets a confirmation.  Use as (setq feedmail-last-chance-hook
+'feedmail-confirm-addresses-hook-example)."])
+(defvar feedmail-last-chance-hook nil "\
+*User's last opportunity to modify the message on its way out.  It
+has already had all the header prepping from the standard package.
+The next step after running the hook will be to push the buffer into a
+subprocess that mails the mail.  The hook might be interested in these
+buffers:  (1) feedmail-prepped-text-buffer contains the header and body
+of the message, ready to go;  (2) feedmail-address-buffer contains the
+space-separated, simplified list of addresses which is to be given to
+the subprocess (the hook may change them).  feedmail-error-buffer is
+an empty buffer intended to soak up errors for display to the user.
+If the hook allows interactive activity, the user should not send more
+mail while in the hook since some of the internal buffers will be reused.")
+(defvar feedmail-buffer-eating-function 'feedmail-buffer-to-binmail "\
+*Function used to send the prepped buffer to a subprocess.  The
+function's three (mandatory) arguments are: (1) the buffer containing
+the prepped message; (2) a buffer where errors should be directed; and
+(3) a string containing the space-separated list of simplified
+addresses.  Two popular choices for this are 'feedmail-buffer-to-binmail
+and 'feedmail-buffer-to-sendmail.  If you use the sendmail form, you
+probably want to set feedmail-nuke-bcc to nil.  If you use the binmail
+form, check the value of feedmail-binmail-template.")
+(defvar feedmail-binmail-template (byte-code "«‚Á‡Â‡" [mail-interactive "/bin/mail %s" "/bin/rmail %s"] 1) "\
+*Command template for the subprocess which will get rid of the
+mail.  It can result in any command understandable by /bin/sh.  The
+single '%s', if present, gets replaced by the space-separated,
+simplified list of addressees.  Used in feedmail-buffer-to-binmail to
+form the shell command which will receive the contents of the prepped
+buffer as stdin.  If you'd like your errors to come back as mail
+instead of immediately in a buffer, try /bin/rmail instead of
+/bin/mail (this can be accomplished by keeping the default nil setting
+of mail-interactive).  You might also like to consult local mail
+experts for any other interesting command line possibilities.")
+(fset 'feedmail-buffer-to-binmail #[(prepped-mail-buffer mail-error-buffer simple-address-list) "ŠqˆÁÂÃedÄÅÅÇÈ	\n\"¯!\")‡" [prepped-mail-buffer apply call-process-region append "/bin/sh" nil mail-error-buffer "-c" format feedmail-binmail-template simple-address-list] 13 "\
+Function which actually calls /bin/mail as a subprocess and feeds the buffer to it."])
+(fset 'feedmail-buffer-to-sendmail #[(prepped-mail-buffer feedmail-error-buffer simple-address-list) "ŠqˆÁÂÃedÄÅ!«ƒªÆÇÇÉÊ¯Ë Ìš­„ÍÎ D?­Ğ#\")‡" [prepped-mail-buffer apply call-process-region append boundp sendmail-program "/usr/lib/sendmail" nil feedmail-error-buffer "-oi" "-t" user-real-login-name "root" "-f" user-login-name mail-interactive ("-oem" "-odb")] 11 "\
+Function which actually calls sendmail as a subprocess and feeds the buffer to it."])
+(fset 'feedmail-send-it #[nil "ÀÂÃ!ÂÅ!ÂÇ!p	ÊÊÍŠqˆÎ ˆÏ	!ˆdbˆhĞU¬ƒĞcˆebˆÑÒÓ!ÕQ!ˆÖÕ!ˆ× ØÙ!«Š«†Ùe\"ˆ«…Ü!ˆebˆÑİÀ#«Œ`W«†ÖÕ!ˆªlÀŞe#ˆŠqˆebˆÑßdÀ#¬„àá!ˆ)\"«…ã!ˆebˆÑäÀ#«…å!ˆebˆÑæÀ#«'«§ŠebˆÑèÀ#)¬šéyˆê'Õ±ˆª+«Šebˆì+Õ±ˆebˆÑíÀ#«„Öî!ˆebˆ/«ÑğÀ#«†Öî!ˆªr)1«©ebˆÑòÀ#«„Öî!ˆ1 3ebˆ3«ôõ3\"«‡ö3Õ±ˆŠqˆÎ ˆ)÷ø!ˆ9«†ú!«;Šqˆü )#ªƒàı!.	‡" [t default-case-fold-search get-buffer-create " *Outgoing Email Errors*" feedmail-error-buffer " *Outgoing Email Text*" feedmail-prepped-text-buffer " *Outgoing Email Address List*" feedmail-address-buffer feedmail-raw-text-buffer nil case-fold-search end-of-headers-marker ((byte-code "À	!ˆÀ\n!ˆqˆÄ ÅU«†À!ˆªˆÆ!ˆÇÈ!ˆ	q‡" [kill-buffer feedmail-prepped-text-buffer feedmail-address-buffer feedmail-error-buffer buffer-size 0 display-buffer error "Sending...failed" feedmail-raw-text-buffer] 2)) erase-buffer insert-buffer-substring 10 re-search-forward "^" regexp-quote mail-header-separator "\n" replace-match point-marker fboundp expand-mail-aliases mail-aliases feedmail-fill-to-cc feedmail-fill-to-cc-function "\n\n\n*" feedmail-deduce-address-list "\\S-" error "Sending...abandoned, no addressees!" feedmail-nuke-bcc feedmail-do-bcc "^FCC:" mail-do-fcc "^FROM:" feedmail-sender-line "^SENDER:" 1 "Sender: " feedmail-from-line "From: " "^Subject:[ 	]*\n" "" feedmail-nuke-empty-headers "^[A-Za-z0-9-]+:[ 	]*\n" feedmail-message-id-generator "^MESSAGE-ID:[ 	]*\n" feedmail-msgid-part string-match "[^ 	]" "Message-ID: " run-hooks feedmail-last-chance-hook feedmail-confirm-outgoing feedmail-one-last-look feedmail-buffer-eating-function buffer-string "Sending...abandoned"] 4])
+(fset 'feedmail-do-bcc #[(header-end) "ÀŠebˆÂÃÀ#­˜Å”Æyˆ`|ˆÇÈ!«l`W«gÉÊ!ˆªp*‡" [t case-fold-search re-search-forward "^BCC:" header-end 0 1 looking-at "^[ 	].*\n" replace-match ""] 4 "\
+Delete BCC: and their continuation lines from the header area.
+There may be multiple BCC: lines, and each may have arbitrarily
+many continuation lines."])
+(fset 'feedmail-fill-to-cc-function #[(header-end) "ÀÁ\nÃ‰ŠebˆÉÊÀ#­ÖÌ”ÍyˆÎÏ!«`W«‰ĞÑ!ˆÍyˆªlÒ ÓÔÕÀ%ˆÓÖÔÀ%ˆ×\"ˆÓÔÖÀ%ˆÓÕÔÀ%ˆŠbˆÉØÀ#«†ĞÙ!ˆªs)ª\".‡" [t "	" feedmail-fill-to-cc-fill-column nil this-line-end this-line fill-column fill-prefix case-fold-search re-search-forward "^\\(TO:\\|CC:\\)" header-end 0 1 looking-at "^[ 	]+" replace-match " " point-marker subst-char-in-region 32 2 44 fill-region-as-paragraph "\\([^,]\\)\n	[ ]*" "\\1,\n	"] 6 "\
+Smart filling of TO: and CC: headers.  The filling tries to avoid
+splitting lines except at commas.  This avoids, in particular,
+splitting within parenthesized comments in addresses."])
+(fset 'feedmail-deduce-address-list #[(feedmail-text-buffer header-start header-end) "ÀÁ!ˆÂÃÄ‰ÄŠ	qˆÊ ˆË#ˆebˆÏĞÂ#«¬ÑÃ!ˆÒ”ÓyˆÔÕ!«‹`W«…ÓyˆªpÖ ×Ø{!QªLÊ ˆÙ!ˆÚedÛÜÂ%ˆÚedİÜÂ%ˆÚedŞÜÂ%ˆebˆÏßÂ#­†Ñ×!ˆªr.‡" [require mail-utils t "" nil this-line-end this-line simple-address-list case-fold-search feedmail-address-buffer erase-buffer insert-buffer-substring feedmail-text-buffer header-start header-end re-search-forward "^\\(TO:\\|CC:\\|BCC:\\)" replace-match 0 1 looking-at "^[ 	]+" point-marker " " mail-strip-quoted-names insert-string subst-char-in-region 10 32 44 9 "[ 	]+"] 6 "\
+Get address list suitable for command line use on simple /bin/mail."])
+(fset 'feedmail-one-last-look #[(feedmail-prepped-text-buffer) "ŠÀ‹)‡" [((byte-code "À	!ˆÂÃ!‡" [switch-to-buffer feedmail-prepped-text-buffer y-or-n-p "Send this email? "] 2))] 1 "\
+Offer the user one last chance to give it up."])
+(provide 'feedmail)

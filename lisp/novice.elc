@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Aug 14 22:27:00 1991
-;;; from file /wg1/emacs-base/lisp/novice.el
-;;; emacs version 19.60.
-;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; compiled by jwz@thalidomide on Tue Apr 21 18:13:24 1992
+;;; from file /u/jwz/emacs19/lisp/novice.el
+;;; emacs version 19.0.2 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -11,7 +11,7 @@
     (error "This file was compiled for Emacs19."))
 
 (fset 'disabled-command-hook #[(&rest ignore) "ÀÂ‹ˆ	ÃU«“ÄÅ!«‡Æ!ˆª‡ÈÉÀ#ˆ	ÊU?­„Ë!)‡" [nil char ((byte-code "ÀÁÂ ÃH!Ä=«†ÅÆ!ˆªÅÇ!ˆÅÈÂ !!ˆÅÉ!ˆÅ\n!ˆÅË!ˆ\nÌN;«‡Å\nÌN!ˆÅÍÎÏ®Ð!ˆŠÀqˆebˆÑÒÍÓ#«‡`Sd|ˆªƒdbˆ)ÅÒ!ˆÅÔ!‘ˆÕÖ!ˆÓ× ÁÚ!!—‰Ü>¬‰Ý ˆÕÞ!ˆªi*Í‡" ["*Help*" event-to-character this-command-keys 0 248 princ "You have invoked the disabled command " "You have typed " key-description ", invoking disabled command " this-command ":\n" disabled nil (documentation this-command) ((error)) "<< not documented >>" search-forward "\n\n" t "You can now type\nSpace to try the command just this once,\n      but leave it disabled,\nY to try it and enable it (no questions if you use it again),\nN to do nothing (command remains disabled)." message "Type y, n or Space: " allocate-event event cursor-in-echo-area next-command-event char (32 121 110) ding "Please type y, n or Space: "] 5)) 121 y-or-n-p "Enable command for future editing sessions also? " enable-command this-command put disabled 110 call-interactively] 4])
-(fset 'enable-command #[(command) "À	ÂÃ#ˆŠÄÅÆ!!qˆebˆÇÈÉ	!ÊQÃË#«ŒÌyˆ`Íyˆ`|ˆª‹dbˆÎÉ	!Ï±ˆÐ Ò )‡" [put command disabled nil find-file-noselect substitute-in-file-name "~/.emacs" search-forward "(put '" symbol-name " " t 0 1 "\n(put '" " 'disabled nil)\n" buffer-modified-p foo save-buffer] 4 "\
+(fset 'enable-command #[(command) "À	ÂÃ#ˆŠÄÅÆ!!qˆebˆÇÈÉ	!ÊQÃË#«ŒÌyˆ`Íyˆ`|ˆª‹dbˆÎÉ	!Ï±ˆÐ )‡" [put command disabled nil find-file-noselect substitute-in-file-name "~/.emacs" search-forward "(put '" symbol-name " " t 0 1 "\n(put '" " 'disabled nil)\n" save-buffer] 4 "\
 Allow COMMAND to be executed without special confirmation from now on.
 The user's .emacs file is altered so that this will apply
 to future sessions." "CEnable command: "])

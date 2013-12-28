@@ -33,9 +33,11 @@ If the function returns the same value for both buffers, then the
 whitespace is considered to match, and is skipped.")
 
 (defvar compare-ignore-case nil
-  "*Non-nil means \\[compare-windows] ignores case differences.")
+  "*If the value of this variable evaluates to non-nil, \\[compare-windows]
+ignores case differences.  Some useful settings: nil, t or 'case-fold-search,
+meaning to track the value of the `case-fold-search' variable.")
 
-(defun compare-windows (ignore-whitespace)
+(defun compare-windows (&optional ignore-whitespace)
   "Compare text in current window with text in next window.
 Compares the text starting at point in each window,
 moving over text in each one as far as they match.
@@ -45,10 +47,11 @@ The variable `compare-windows-whitespace' controls how whitespace is skipped.
 
 If `compare-ignore-case' is non-nil, changes in case are also ignored."
   (interactive "P")
-  (let (p1 p2 maxp1 maxp2 b1 b2 w2
+  (let (p1 p2 maxp1 maxp2 b1 b2 s2 w2
 	   success size
 	   (opoint1 (point))
 	   opoint2
+	   (compare-ignore-case (eval compare-ignore-case))
 	   (skip-whitespace (if ignore-whitespace
 				compare-windows-whitespace)))
     (setq p1 (point) b1 (current-buffer))
@@ -76,6 +79,8 @@ If `compare-ignore-case' is non-nil, changes in case are also ignored."
       (and skip-whitespace
 	   (save-excursion
 	     (let (p1a p2a w1 w2 result1 result2)
+	       ;; ### bug: skip-whitespace is passed to skip-chars-backward,
+	       ;; ### but it's a regexp, not a character-set.
 	       (if (stringp skip-whitespace)
 		   (progn
 		     (if (not (eobp))

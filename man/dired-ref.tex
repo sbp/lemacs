@@ -1,0 +1,477 @@
+% Document Type: TeX
+% Master File: dired-ref.tex
+% TREE DIRED Reference Card for GNU Emacs version 18 on Unix systems
+%**start of header
+\newcount\columnsperpage
+
+% This file can be printed with 1, 2, or 3 columns per page (see below).
+% Specify how many you want here.  Nothing else needs to be changed.
+
+\columnsperpage=1
+
+% Copyright (c) 1991 Free Software Foundation, Inc.
+
+% This file is part of GNU Emacs.
+
+% This file is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY.  No author or distributor
+% accepts responsibility to anyone for the consequences of using it
+% or for whether it serves any particular purpose or describes
+% any piece of software unless they say so in writing.  Refer to the
+% GNU Emacs General Public License for full details.
+%
+% Permission is granted to copy, modify and redistribute this source
+% file provided the copyright notice and permission notices are
+% preserved on all copies.
+%
+% Permission is granted to process this file through TeX and print the
+% results, provided the printed document carries copyright and
+% permission notices identical to the ones below.
+
+% This file is intended to be processed by plain TeX (TeX82).
+%
+% The final reference card has six columns, three on each side.
+% This file can be used to produce it in any of three ways:
+% 1 column per page
+%    produces six separate pages, each of which needs to be reduced to 80%.
+%    This gives the best resolution.
+% 2 columns per page
+%    produces three already-reduced pages.
+%    You will still need to cut and paste.
+% 3 columns per page
+%    produces two pages which must be printed sideways to make a
+%    ready-to-use 8.5 x 11 inch reference card.
+%    For this you need a dvi device driver that can print sideways.
+% Which mode to use is controlled by setting \columnsperpage above.
+%
+% TeX Layout commands taken from the GNU Emacs Refcard (thanks to
+% Stephen Gildea <gildea@erl.mit.edu> for this work)
+
+\def\diredx{$^\dagger$}		% marks extra feature not present in dired.el
+\let\diredx\diredx		% `compile' while ^ still active
+\overfullrule0pt
+\def\~{\char`~}			% an ASCII tilde character
+
+\def\versionnumber{1.0}
+\def\year{1992}
+\def\version{\year\ v\versionnumber}
+
+\def\shortcopyrightnotice{\vskip 1ex plus 2 fill
+  \centerline{\small \copyright\ \year\ Free Software Foundation, Inc.
+  Permissions on back.  v\versionnumber}}
+
+\def\copyrightnotice{
+\vskip 1ex plus 2 fill\begingroup\small
+\centerline{Copyright \copyright\ \year\ Free Software Foundation, Inc.}
+% \centerline{designed by Stephen Gildea, \version}
+\centerline{\version}
+\centerline{for GNU Emacs version 18 on Unix systems}
+
+Permission is granted to make and distribute copies of
+this card provided the copyright notice and this permission notice
+are preserved on all copies.
+
+For copies of the GNU Emacs manual, write to the Free Software
+Foundation, Inc., 675 Massachusetts Ave, Cambridge MA 02139.
+
+\endgroup}
+
+% make \bye not \outer so that the \def\bye in the \else clause below
+% can be scanned without complaint.
+\def\bye{\par\vfill\supereject\end}
+
+\newdimen\intercolumnskip
+\newbox\columna
+\newbox\columnb
+
+\def\ncolumns{\the\columnsperpage}
+
+\message{[\ncolumns\space 
+  column\if 1\ncolumns\else s\fi\space per page]}
+
+\def\scaledmag#1{ scaled \magstep #1}
+
+% This multi-way format was designed by Stephen Gildea
+% October 1986.
+\if 1\ncolumns
+  \hsize 4in
+  \vsize 10in
+  \voffset -.7in
+  \font\titlefont=\fontname\tenbf \scaledmag3
+  \font\headingfont=\fontname\tenbf \scaledmag2
+  \font\smallfont=\fontname\sevenrm
+  \font\smallsy=\fontname\sevensy
+
+  \footline{\hss\folio}
+  \def\makefootline{\baselineskip10pt\hsize6.5in\line{\the\footline}}
+\else
+  \hsize 3.2in
+  \vsize 7.95in
+  \hoffset -.75in
+  \voffset -.745in
+  \font\titlefont=cmbx10 \scaledmag2
+  \font\headingfont=cmbx10 \scaledmag1
+  \font\smallfont=cmr6
+  \font\smallsy=cmsy6
+  \font\eightrm=cmr8
+  \font\eightbf=cmbx8
+  \font\eightit=cmti8
+  \font\eighttt=cmtt8
+  \font\eightsy=cmsy8
+  \textfont0=\eightrm
+  \textfont2=\eightsy
+  \def\rm{\eightrm}
+  \def\bf{\eightbf}
+  \def\it{\eightit}
+  \def\tt{\eighttt}
+  \normalbaselineskip=.8\normalbaselineskip
+  \normallineskip=.8\normallineskip
+  \normallineskiplimit=.8\normallineskiplimit
+  \normalbaselines\rm		%make definitions take effect
+
+  \if 2\ncolumns
+    \let\maxcolumn=b
+    \footline{\hss\rm\folio\hss}
+    \def\makefootline{\vskip 2in \hsize=6.86in\line{\the\footline}}
+  \else \if 3\ncolumns
+    \let\maxcolumn=c
+    \nopagenumbers
+  \else
+    \errhelp{You must set \columnsperpage equal to 1, 2, or 3.}
+    \errmessage{Illegal number of columns per page}
+  \fi\fi
+
+  \intercolumnskip=.46in
+  \def\abc{a}
+  \output={%
+      % This next line is useful when designing the layout.
+      %\immediate\write16{Column \folio\abc\space starts with \firstmark}
+      \if \maxcolumn\abc \multicolumnformat \global\def\abc{a}
+      \else\if a\abc
+	\global\setbox\columna\columnbox \global\def\abc{b}
+        %% in case we never use \columnb (two-column mode)
+        \global\setbox\columnb\hbox to -\intercolumnskip{}
+      \else
+	\global\setbox\columnb\columnbox \global\def\abc{c}\fi\fi}
+  \def\multicolumnformat{\shipout\vbox{\makeheadline
+      \hbox{\box\columna\hskip\intercolumnskip
+        \box\columnb\hskip\intercolumnskip\columnbox}
+      \makefootline}\advancepageno}
+  \def\columnbox{\leftline{\pagebody}}
+
+  \def\bye{\par\vfill\supereject
+    \if a\abc \else\null\vfill\eject\fi
+    \if a\abc \else\null\vfill\eject\fi
+    \end}  
+\fi
+
+% we won't be using math mode much, so redefine some of the characters
+% we might want to talk about
+\catcode`\^=12
+\catcode`\_=12
+
+\chardef\\=`\\
+\chardef\{=`\{
+\chardef\}=`\}
+
+\hyphenation{mini-buf-fer}
+
+\parindent 0pt
+\parskip 1ex plus .5ex minus .5ex
+
+\def\small{\smallfont\textfont2=\smallsy\baselineskip=.8\baselineskip}
+
+\outer\def\newcolumn{\vfill\eject}
+
+\outer\def\title#1{{\titlefont\centerline{#1}}\vskip 1ex plus .5ex}
+
+\outer\def\section#1{\par\filbreak
+  \vskip 3ex plus 2ex minus 2ex {\headingfont #1}\mark{#1}%
+  \vskip 2ex plus 1ex minus 1.5ex}
+
+\newdimen\keyindent
+
+\def\beginindentedkeys{\keyindent=1em}
+\def\endindentedkeys{\keyindent=0em}
+\endindentedkeys
+
+\def\paralign{\vskip\parskip\halign}
+
+\def\<#1>{$\langle${\rm #1}$\rangle$}
+
+\def\kbd#1{{\tt#1}\null}	%\null so not an abbrev even if period follows
+
+\def\beginexample{\par\leavevmode\begingroup
+  \obeylines\obeyspaces\parskip0pt\tt}
+{\obeyspaces\global\let =\ }
+\def\endexample{\endgroup}
+
+\def\key#1#2{\leavevmode\hbox to \hsize{\vtop
+  {\hsize=.75\hsize\rightskip=1em
+  \hskip\keyindent\relax#1}\kbd{#2}\hfil}}
+
+\newbox\metaxbox
+\setbox\metaxbox\hbox{\kbd{M-x }}
+\newdimen\metaxwidth
+\metaxwidth=\wd\metaxbox
+
+\def\metax#1#2{\leavevmode\hbox to \hsize{\hbox to .75\hsize
+  {\hskip\keyindent\relax#1\hfil}%
+  \hskip -\metaxwidth minus 1fil
+  \kbd{#2}\hfil}}
+
+\def\threecolumn#1#2#3{\hskip\keyindent\relax{#1}\hfil&{#2}\quad &{#3}\quad\cr}
+\def\threecol#1#2#3{\threecolumn{#1}{\kbd{#2}}{\kbd{#3}}}
+
+%**end of header
+
+
+\title{Tree Dired Reference Card}
+
+\centerline{(for GNU Emacs version 18)}
+
+\centerline{$ $Id: dired-ref.tex,v 1.8 1992/03/17 14:23:42 sk RelBeta $ $}
+
+A feature marked like this\diredx{} is optional and not part of dired
+proper. 
+
+
+\section{Starting Dired}
+
+\key{Dired in current window} {C-x d}
+\key{Dired in other window} {C-x 4 d}
+
+The last component of the pathname may contain wildcards.  With prefix
+argument, Dired asks you to enter the listing switches for the {\tt
+ls} command.
+
+Another way is from within {\tt find-file}, \kbd{C-x C-f}: just enter
+a directory name (no wildcards possible).
+
+
+\section {Cursor Motion}
+All the usual Emacs cursor motion commands are available in Dired
+buffers. Special motion commands are (see also ``Subdirectories''
+below):
+
+\beginindentedkeys
+\paralign to \hsize{#\tabskip=10pt plus 1 fil&#\tabskip=0pt&#\cr
+\threecol{\bf go to}           {\bf previous}      {\bf next}
+\threecol{line}                {C-p {\rm or} p}    {C-n {\rm or} n}
+\threecol{directory line}      {<}                 {>}
+%\threecol{inserted directory}  {ESC C-p}           {ESC C-n} % now below
+\threecol{marked file}         {ESC \{}            {ESC \}}
+}
+\endindentedkeys
+
+
+\section{Visiting Files}
+
+\key{visit current file (dired if directory)} {f}
+\key{visit current file in other window}{o}
+\key{view current file read-only} {v}
+
+
+\section{Displaying Files}
+
+\key{toggle between sort by name/date} {s}
+\key{specify new ls switches}{C-u s}
+\key{redisplay current, marked or next N files}{l}
+\key{revert buffer}{g}
+
+\key{kill this line (but not this file)}{k}
+\key{undo changes to Dired buffer}  {C-x u {\rm or} C-_}
+\key{copy file name(s) to kill ring\diredx} {w}
+
+
+\section{Marking and Unmarking Files}
+
+\key{mark (with \kbd{*}) the current or next N file(s)} {m}
+\key{remove mark}{u}
+\key{remove mark on previous line}{DEL}
+
+\key{mark all files matching REGEXP}{\%m}
+\key{mark all executable files}{*}
+\key{mark all symbolic links}{@}
+\key{mark all directories}{/}
+
+\key{unmark the current or next N file(s)} {u}
+\key{move up lines and remove flags there} {DEL}
+\key{remove a specific or all flags from every file}{ESC DEL}
+%\key{toggle marks\diredx}{T} % this command is not very important
+
+
+\section {Mark Using Commands} 
+
+The following commands are applied to the marked files or (if there
+are none) to the current file. Numeric prefix argument means, apply
+command to the next N (previous N if negative) files.  Digits work as
+prefix arguments.
+
+{\bf Copying And Moving Files\dots}
+
+Default target directory is where point is.
+
+\beginindentedkeys
+\key{move or rename} {r}
+\key{copy} {c}
+\key{make hard links} {H}
+\key{make symbolic links} {Y}
+\key{make relative symbolic links\diredx} {S}
+\endindentedkeys
+
+{\bf \dots With Regexps}
+
+{\tt \\\&} in NEWNAME stands for the entire text being replaced.  {\tt
+\\N} in NEWNAME, where N is a digit, stands for whatever matched the
+N'th parenthesized grouping in REGEXP.
+
+\beginindentedkeys
+\key{move or rename} {\%r}
+\key{copy} {\%c}
+\key{make hard links} {\%H}
+\key{make symbolic links} {\%Y}
+\key{make relative symbolic links\diredx} {\%S}
+
+\key{rename to upper case}{\%u}
+\key{rename to lower case}{\%l}
+\endindentedkeys
+
+{\bf Shell Commands}
+
+Shell commands have the top level directory as working directory.
+A {\tt *} indicates where filenames go (default: at end).
+
+\beginindentedkeys
+\key{run a shell command}{!}
+\key{run a shell command in background\diredx}{\&}
+\endindentedkeys
+
+{\bf Other Mark Using Commands}
+
+\beginindentedkeys
+\key{compress files}{C}
+\key{uncompress files}{U}
+
+\key{change the mode ({\tt g+w} etc. allowed)} {M}
+\key{change the group} {G}
+\key{change the owner} {O}
+
+\key{load elisp files}{L}
+\key{byte compile elisp files} {B}
+
+\key{print files} {P}
+\endindentedkeys
+
+
+\section {Deleting Files}
+
+\key{flag (with \kbd{D}) file for deletion}{d}
+
+\key{flag auto-save files}{\#}
+\key{flag backup files}{\~}
+\key{flag excess numeric backup files}{.}
+\key{flag files matching REGEXP}{\%d}
+
+\key{delete \kbd{D}-flagged files}{x}
+\key{delete \kbd{*}-marked files} {X}
+
+
+\section{Comparing files}
+
+\key{diff current file with file mark is on} {D}
+\key{diff current file with its backup file} {ESC \~}
+
+
+\section{Making Directories}
+
+\key{create a new directory}{+}
+
+
+\section{Error Logging}
+
+\key{see why something went wrong}{W}
+
+
+\section{Subdirectories}
+
+\key{insert directory into same Dired buffer}{i}
+\key{insert all marked directories\diredx}{I}
+
+\key{relist subdirectory of this headerline}{l}
+\key{kill subdirectory of this headerline}{k}
+
+\key{go up (Dired parent directory)}{^}
+\key{go down (view this directory)}{v}
+
+\key{go up in inserted directory tree}{ESC C-u}
+\key{go down in inserted directory tree}{ESC C-d}
+\key{next inserted directory}{ESC C-n}
+\key{previous inserted directory}{ESC C-p}
+
+
+\section{Hiding Directories}
+\key{hide or unhide current inserted directory}{\$}
+\key{hide or unhide all inserted directories}{=}
+
+
+\section{Advanced Commands\diredx}
+
+%{\bf Dynamic Markers}
+%\section{Dynamic Markers\diredx}
+
+\key{push a new marker character}{(}
+\key{pop current marker off stack}{)}
+
+%{\bf Omitting}
+%\section{Omitting\diredx}
+
+\key{toggle omitting}{ESC o}
+
+%{\bf Advanced Mark Commands}
+%\section{Advanced Mark Commands\diredx}
+
+\key{mark files for which PREDICATE is non-nil}{ESC (}
+
+{\beginindentedkeys
+\advance\leftskip by \keyindent
+%
+PREDICATE is a lisp expression, e.g., {\tt (= size 0)}, that can refer
+to the following symbols:
+
+\paralign to \hsize{#\tabskip=10pt plus 1 fil&#\tabskip=0pt&#\cr
+\threecolumn{\bf meaning}                             {\bf symbol} {\bf type}
+\threecolumn{inode (only for {\tt ls -i})}            {\tt inode}{\rm integer} 
+\threecolumn{size, usually in blocks (only for {\tt ls -s})}{\tt s}{\rm integer}
+\threecolumn{file permission bits ({\tt "-rw-r--r--"})}{\tt mode}{\rm string} 
+\threecolumn{number of links to file}                 {\tt nlink}{\rm integer}
+\threecolumn{owner}                                   {\tt uid}{\rm string}
+\threecolumn{group}                                   {\tt gid}{\rm string}
+\threecolumn{file size in bytes}                      {\tt size}{\rm integer}
+\threecolumn{time that {\tt ls} displays ({\tt "Feb 12 14:17"})}{\tt time}{\rm string}
+\threecolumn{name of the file}                        {\tt name}{\rm string}
+\threecolumn{if symlink, linked-to name, else {\tt ""}}{\tt sym}{\rm string}
+}
+\endindentedkeys
+}
+
+\section{Filename Transformers\diredx}
+Use e.g. {\tt [b]} instead of {\tt *} to access basenames in shell
+commands.
+
+\key{unmodified filename (equivalent to {\tt [dbe]}).}{*}
+\key{name without directory information}{n}
+\key{directory component}{d}
+\key{basename, without directory and extension}{b}
+\key{extension}{e}
+\key{file without directory and without {\tt,v} suffix.}{v}
+\key{without directory and without {\tt .Z} suffix}{z}
+
+
+\section{Find Dired\diredx}
+
+\metax{Feed arbitrary find(1) command to Dired}{M-x find-dired}
+\metax{Find file names matching WILDCARD}{M-x find-name-dired}
+\metax{Find files containing PATTERN}{M-x find-grep-dired}
+
+\bye

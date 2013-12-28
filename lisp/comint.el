@@ -275,7 +275,7 @@ Entry to this mode runs the hooks on comint-mode-hook"
   (cond ((consp km)
 	 (cons (full-copy-sparse-keymap (car km))
 	       (full-copy-sparse-keymap (cdr km))))
-	(t km)))
+	(t (copy-keymap km))))
 
 (defun comint-check-proc (buffer-name)
   "True if there is a process associated w/buffer BUFFER-NAME, and
@@ -296,7 +296,7 @@ it is alive (status RUN or STOP)."
 	  ;; problems with default mode being text and text-mode-hook
 	  ;; turning on auto-fill, thus causing shell buffers to be
 	  ;; in auto-fill, certainly not what the user intended!
-	  (let ((default-major-mode nil))
+	  (let ((default-major-mode 'fundamental-mode))
 	    (get-buffer-create (concat "*" name "*"))))
 	 (proc (get-buffer-process buffer)))
     ;; If no process, or nuked process, crank up a new one and put buffer in

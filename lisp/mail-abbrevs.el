@@ -1,7 +1,8 @@
 ;;; Abbrev-expansion of mail aliases.
-;;; Copyright (C) 1985, 1986, 1987 Free Software Foundation, Inc.
+;;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
 ;;; Created: 19 oct 90, Jamie Zawinski <jwz@lucid.com>
-;;; Last change  5-mar-92. jwz
+;;; Modified: 5 apr 92, Roland McGrath <roland@gnu.ai.mit.edu>
+;;; Last change  2-may-92. jwz
 
 ;;; This file is part of GNU Emacs.
 
@@ -66,7 +67,7 @@
 ;;;
 ;;; If you like, you can call the function define-mail-alias to define your
 ;;; mail-aliases instead of using a .mailrc file.  When you call it in this
-;;; way, addresses are seperated by commas.
+;;; way, addresses are separated by commas.
 ;;;
 ;;; CAVEAT: This works on most Sun systems; I have been told that some versions
 ;;; of /bin/mail do not understand double-quotes in the .mailrc file.  So you
@@ -106,13 +107,37 @@
 ;;;	(define-key mail-mode-map "\C-n" 'abbrev-hacking-next-line)
 ;;;	(define-key mail-mode-map "\M->" 'abbrev-hacking-end-of-buffer)
 ;;;
-;;; If you want multiple addresses seperated by a string other than ", " then
-;;; you can set the variable mail-alias-seperator-string to it.  This has to
+;;; If you want multiple addresses separated by a string other than ", " then
+;;; you can set the variable mail-alias-separator-string to it.  This has to
 ;;; be a comma bracketed by whitespace if you want any kind of reasonable
 ;;; behaviour.
 ;;;
 ;;; Thanks to Harald Hanche-Olsen, Michael Ernst, David Loeffler, and
 ;;; Noah Friedman for suggestions and bug reports.
+;;;
+;;; INSTALLATION 
+;;;
+;;; If you are using Emacs 18, you shouldn't have to do anything at all to
+;;; install this code other than load this file.  You might want to do this
+;;; to have this code loaded only when needed:
+;;;
+;;;     (setq mail-setup-hook '(lambda () (require 'mail-abbrevs)))
+;;;
+;;; Simply loading this file will redefine and overload the required 
+;;; functions.
+;;;
+;;; If you want to install this code more permanently (instead of loading
+;;; it as a patch) you need to do the following:
+;;;
+;;;    -  Remove the entire file mailalias.el;
+;;;    -  Remove the definition of mail-aliases from sendmail.el;
+;;;    -  Add a call to mail-aliases-setup to the front of the function
+;;;       mail-setup in the file sendmail.el;
+;;;    -  Remove the call to expand-mail-aliases from the function
+;;;       sendmail-send-it in the file sendmail.el;
+;;;    -  Remove the autoload of expand-mail-aliases from the file sendmail.el;
+;;;    -  Remove the autoload of build-mail-aliases from the file sendmail.el;
+;;;    -  Add an autoload of define-mail-alias to loaddefs.el.
 
 (require 'sendmail)
 
@@ -131,6 +156,7 @@ If this is nil, it means the aliases have not yet been initialized and
 should be read from the .mailrc file.  (This is distinct from there being
 no aliases, which is represented by this being a table with no entries.)")
 
+;;;###autoload
 (defun mail-aliases-setup ()
   (if (and (not (vectorp mail-aliases))
 	   (file-exists-p (mail-abbrev-mailrc-file)))
@@ -146,6 +172,7 @@ no aliases, which is represented by this being a table with no entries.)")
 
 ;;; Originally defined in mailalias.el.  Changed to call define-mail-alias
 ;;; with an additional argument.
+;;;###autoload
 (defun build-mail-aliases (&optional file recursivep)
   "Read mail aliases from .mailrc and set mail-aliases."
   (setq file (expand-file-name (or file (mail-abbrev-mailrc-file))))
@@ -153,7 +180,7 @@ no aliases, which is represented by this being a table with no entries.)")
       nil
     (setq mail-aliases nil)
     (define-abbrev-table 'mail-aliases '()))
-  (message "Parsing %s ..." file)
+  (message "Parsing %s..." file)
   (let ((buffer nil)
 	(obuf (current-buffer)))
     (unwind-protect
@@ -209,9 +236,9 @@ no aliases, which is represented by this being a table with no entries.)")
 	  mail-aliases)
       (if buffer (kill-buffer buffer))
       (set-buffer obuf)))
-    (message "Parsing %s ... done" file))
+    (message "Parsing %s... done" file))
 
-(defvar mail-alias-seperator-string ", "
+(defvar mail-alias-separator-string ", "
   "*A string inserted between addresses in multi-address mail aliases.
 This has to contain a comma, so \", \" is a reasonable value.  You might 
 also want something like \",\\n    \" to get each address on its own line.")
@@ -223,9 +250,10 @@ also want something like \",\\n    \" to get each address on its own line.")
 ;; originally defined in mailalias.el ; build-mail-aliases calls this with
 ;; stuff parsed from the .mailrc file.
 ;;
+;;;###autoload
 (defun define-mail-alias (name definition &optional from-mailrc-file)
   "Define NAME as a mail-alias that translates to DEFINITION.
-If DEFINITION contains multiple addresses, seperate them with commas."
+If DEFINITION contains multiple addresses, separate them with commas."
   ;; When this is called from build-mail-aliases, the third argument is
   ;; true, and we do some evil space->comma hacking like /bin/mail does.
   (interactive "sDefine mail alias: \nsDefine %s as mail alias for: ")
@@ -248,7 +276,7 @@ If DEFINITION contains multiple addresses, seperate them with commas."
     (while start
       ;; If we're reading from the mailrc file, then addresses are delimited
       ;; by spaces, and addresses with embedded spaces must be surrounded by
-      ;; double-quotes.  Otherwise, addresses are seperated by commas.
+      ;; double-quotes.  Otherwise, addresses are separated by commas.
       (if from-mailrc-file
 	  (if (eq ?\" (aref definition start))
 	      (setq start (1+ start)
@@ -261,7 +289,7 @@ If DEFINITION contains multiple addresses, seperate them with commas."
 		       (match-end 0))))
     (setq definition (mapconcat (function identity)
 				(nreverse result)
-				mail-alias-seperator-string)))
+				mail-alias-separator-string)))
   (setq mail-abbrev-aliases-need-to-be-resolved t)
   (setq name (downcase name))
   ;; use an abbrev table instead of an alist for mail-aliases.
@@ -295,36 +323,41 @@ If DEFINITION contains multiple addresses, seperate them with commas."
 				   (intern-soft x mail-aliases))
 				 x)))
 			   (nreverse result)
-			   mail-alias-seperator-string))
+			   mail-alias-separator-string))
 	  (set sym definition))))
   (symbol-value sym))
 
 
 (defun mail-abbrev-expand-hook ()
   "For use as the fourth arg to define-abbrev.
-  After expanding a mail-abbrev, if fill-mode is on and we're past the 
+After expanding a mail-abbrev, if fill-mode is on and we're past the
 fill-column, break the line at the previous comma, and indent the next
 line."
   (save-excursion
     (let ((p (point))
-	  bol)
-      (if (and auto-fill-function (>= (current-column) fill-column))
-	  (let (fp)
-	    (beginning-of-line)
-	    (setq bol (point))
-	    (goto-char p)
-	    (if (search-backward "," bol t)
-		(save-excursion
-		  (forward-char 1)
-		  (insert "\n")
-		  (delete-horizontal-space)
-		  (setq p (point))
-		  (indent-relative)
-		  (setq fp (buffer-substring p (point)))))
-	    (if (> (current-column) fill-column)
-		(let ((fill-prefix (or fp "\t")))
-		  (do-auto-fill))))))))
-
+	  bol comma fp)
+      (beginning-of-line)
+      (setq bol (point))
+      (goto-char p)
+      (while (and auto-fill-function
+		  (>= (current-column) fill-column)
+		  (search-backward "," bol t))
+	(setq comma (point))
+	(forward-char 1)		; Now we are just past the comma.
+	(insert "\n")
+	(delete-horizontal-space)
+ 	(setq p (point))
+	(indent-relative)
+	(setq fp (buffer-substring p (point)))
+	;; Go to the end of the new line.
+	(end-of-line)
+	(if (> (current-column) fill-column)
+	    ;; It's still too long; do normal auto-fill.
+	    (let ((fill-prefix (or fp "\t")))
+	      (do-auto-fill)))
+	;; Resume the search.
+	(goto-char comma)
+	))))
 
 ;;; Syntax tables and abbrev-expansion
 
@@ -341,7 +374,7 @@ turned on.")
 
 (defvar mail-mode-header-syntax-table
   (let ((tab (copy-syntax-table text-mode-syntax-table)))
-    ;; This makes the caracters "@%!._-" be considered symbol-consituents
+    ;; This makes the characters "@%!._-" be considered symbol-consituents
     ;; but not word-constituents, so forward-sexp will move you over an
     ;; entire address, but forward-word will only move you over a sequence
     ;; of alphanumerics.  (Clearly the right thing.)
@@ -353,11 +386,6 @@ turned on.")
     (modify-syntax-entry ?- "_" tab)
     (modify-syntax-entry ?< "(>" tab)
     (modify-syntax-entry ?> ")<" tab)
-    ;; I hate this more than you can possibly imagine.
-    ;; Do this if you want to have aliases with hyphens in them.  This causes
-    ;; hyphens to be considered word-syntax, so forward-word will not stop at
-    ;; hyphens.
-    ;;(modify-syntax-entry ?- "w" tab)
     tab)
   "The syntax table used in send-mail mode when in a mail-address header.
 mail-mode-syntax-table is used when the cursor is in the message body or in
@@ -445,7 +473,6 @@ characters which may be a part of the name of a mail-alias.")
 	;; and do this just because.
 	(set-syntax-table mail-mode-header-syntax-table)
 	)))
-
 
 ;;; utilities
 
@@ -501,16 +528,112 @@ end of line."
 ;;(define-key mail-mode-map "\C-n" 'abbrev-hacking-next-line)
 ;;(define-key mail-mode-map "\M->" 'abbrev-hacking-end-of-buffer)
 
-
-;;; Patching it in:
-;;; Remove the entire file mailalias.el
-;;; Remove the definition of mail-aliases from sendmail.el
-;;; Add a call to mail-aliases-setup to mail-setup in sendmail.el
-;;; Remove the call to expand-mail-aliases from sendmail-send-it in sendmail.el
-;;; Remove the autoload of expand-mail-aliases from sendmail.el
-;;; Remove the autoload of build-mail-aliases from sendmail.el
-;;; Add an autoload of define-mail-alias
-
-(fmakunbound 'expand-mail-aliases)
-
 (provide 'mail-abbrevs)
+
+
+;;; V18 compatibility
+;;;
+;;; All of the Emacs18 stuff is isolated down here so that it will be
+;;; easy to delete once v18 finally bites the dust.
+;;;
+;;; These defuns and defvars aren't inside the cond in deference to
+;;; the intense brokenness of the v18 byte-compiler.
+
+(defun sendmail-v18-self-insert-command (arg)
+  "Just like self-insert-command, but runs sendmail-pre-abbrev-expand-hook."
+  (interactive "p")
+  (if (not (= (char-syntax last-command-char) ?w))
+      (progn
+	(sendmail-pre-abbrev-expand-hook)
+        ;; Unhack expand-abbrev, so it will work right next time around.
+	(setq abbrev-start-location nil)))
+  (self-insert-command arg))
+
+(defvar mail-abbrevs-v18-map-munged nil)
+
+(defun mail-abbrevs-v18-munge-map ()
+  ;; For every key that is bound to self-insert-command in global-map,
+  ;; bind that key to sendmail-self-insert-command in mail-mode-map.
+  ;; We used to do this by making the mail-mode-map be a non-sparse map,
+  ;; but that made the esc-map be shared in such a way that making a
+  ;; local meta binding in the mail-mode-map made a *global* binding
+  ;; instead.  Yucko.
+  (let ((global-map (current-global-map))
+	new-bindings
+	(i 0))
+    (while (< i 128)
+      (if (eq 'self-insert-command (or (cdr (assq i mail-mode-map))
+				       (aref global-map i)))
+	  (setq new-bindings
+		(cons (cons i 'sendmail-v18-self-insert-command)
+		      new-bindings)))
+      (setq i (1+ i)))
+    (setq mail-mode-map
+	  (nconc (copy-keymap mail-mode-map) (nreverse new-bindings))))
+  (setq mail-abbrevs-v18-map-munged t))
+
+(defun mail-aliases-setup-v18 ()
+  "Put this on `mail-setup-hook' to use mail-abbrevs."
+  (if (and (not (vectorp mail-aliases))
+	   (file-exists-p (mail-abbrev-mailrc-file)))
+      (build-mail-aliases))
+  (or mail-abbrevs-v18-map-munged (mail-abbrevs-v18-munge-map))
+  (use-local-map mail-mode-map)
+  (abbrev-mode 1))
+
+
+(cond ((or (string-match "^18\\." emacs-version)
+	   (and (boundp 'epoch::version) epoch::version))
+       ;;
+       ;; v19 (and this code) uses a new name for this function.
+       (or (fboundp 'buffer-disable-undo)
+	   (fset 'buffer-disable-undo 'buffer-flush-undo))
+       ;;
+       ;; v19 (and this code) uses a new name for auto-fill-hook (-function).
+       ;; Encapsulate the function that uses it to bind the new name.
+       (or (fboundp 'mail-abbrev-expand-hook-v19)
+	   (fset 'mail-abbrev-expand-hook-v19
+		 (symbol-function 'mail-abbrev-expand-hook)))
+       (fset 'mail-abbrev-expand-hook
+	     (function (lambda ()
+			 (let ((auto-fill-function auto-fill-hook))
+			   (mail-abbrev-expand-hook-v19)))))
+       ;;
+       ;; Turn off the broken v18 code (that is still called from sendmail.el)
+       (fset 'expand-mail-aliases
+	     (function (lambda (&rest args)
+			 "Obsoleted by mail-abbrevs.  Does nothing."
+			 nil)))
+       ;;
+       ;; Encapsulate mail-setup to do the necessary buffer initializations.
+       (or (fboundp 'mail-setup-v18)
+	   (fset 'mail-setup-v18 (symbol-function 'mail-setup)))
+       (fset 'mail-setup
+	     (function (lambda (&rest args)
+			 (mail-aliases-setup-v18)
+			 (apply 'mail-setup-v18 args))))
+
+       ;;
+       ;; Encapsulate VM's version of mail-setup as well, if vm-mail is
+       ;; defined as a function or as an autoload.
+       (cond ((and (fboundp 'vm-mail)
+		   (if (eq 'autoload (car-safe (symbol-function 'vm-mail)))
+		       (load (nth 1 (symbol-function 'vm-mail)) t)
+		     t))
+	      (or (fboundp 'vm-mail-internal-v18)
+		  (fset 'vm-mail-internal-v18
+			(symbol-function 'vm-mail-internal)))
+	      (fset 'vm-mail-internal
+		    (function (lambda (&rest args)
+				(mail-aliases-setup-v18)
+				(apply 'vm-mail-internal-v18 args))))))
+
+       ;; If we're being loaded from mail-setup-hook or mail-mode-hook
+       ;; as run from inside mail-setup or vm-mail-internal, then install
+       ;; right now.
+       (if (eq major-mode 'mail-mode)
+	   (mail-aliases-setup-v18))
+       )
+
+      (t ; v19
+       (fmakunbound 'expand-mail-aliases)))

@@ -1,43 +1,0 @@
-;;; compiled by jwz@thalidomide on Wed Aug 14 22:37:06 1991
-;;; from file /wg1/emacs-base/lisp/x-menu.el
-;;; emacs version 19.60.
-;;; bytecomp version 2.01 beta; 13-aug-91.
-;;; optimization is on.
-;;; this file uses opcodes which do not exist in Emacs18.
-
-(if (and (boundp 'emacs-version)
-	 (or (and (boundp 'epoch::version) epoch::version)
-	     (string-lessp emacs-version "19")))
-    (error "This file was compiled for Emacs19."))
-
-(byte-code "ÀÁMˆÂÃM‡" [caar (macro . #[(conscell) "À‰	DD‡" [car conscell] 3]) cdar (macro . #[(conscell) "ÀÁ\nDD‡" [cdr car conscell] 3])] 2)
-(fset 'x-menu-mode #[nil "ÀÁ!ˆÀÂ!ˆÀÃ!ˆÀÄ!ˆÀÅ!ˆÆÆÉÊ‰‡" [make-local-variable x-menu-items-per-line x-menu-item-width x-menu-items-alist x-process-mouse-hook x-menu-assoc-buffer t buffer-read-only truncate-lines x-menu-pick-entry ("MENU: %32b") mode-line-buffer-identification] 2 "\
-Major mode for creating permanent menus for use with X.
-These menus are implemented entirely in Lisp; popup menus, implemented
-with x-popup-menu, are implemented using XMenu primitives."])
-(byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÂÀÄ!¬‚ÂÀÅ!¬‚ÆÀÇ!¬ƒÆÆ‡" [boundp x-menu-max-width 0 x-menu-items-per-line x-menu-item-width x-menu-items-alist nil x-menu-assoc-buffer] 2)
-(defvar x-menu-item-spacing 1 "\
-*Minimum horizontal spacing between objects in a permanent X menu.")
-(fset 'x-menu-create-menu #[(name) "pÀ	!\nqˆÄ ˆqˆ\n*‡" [get-buffer-create name buf old x-menu-mode x-menu-assoc-buffer] 3 "\
-Create a permanent X menu.  Returns an item which should be used as a
-menu object whenever referring to the menu."])
-(fset 'x-menu-change-associated-buffer #[(menu buffer) "p	qˆ\nq)‡" [old menu buffer x-menu-assoc-buffer] 1 "\
-Change associated buffer of MENU to BUFFER.  BUFFER should be a buffer
-object."])
-(fset 'x-menu-add-item #[(menu item binding) "pÀqˆÄ\"‰«‡	¡ˆª‹ÈBC\"\nqˆ*‡" [nil elt old menu assoc item x-menu-items-alist binding append] 4 "\
-Adds to MENU an item with name ITEM, associated with BINDING.
-Following a sequence of calls to x-menu-add-item, a call to x-menu-compute
-should be performed before the menu will be made available to the user.
-
-BINDING should be a function of one argument, which is the numerical
-button/key code as defined in x-menu.el."])
-(fset 'x-menu-delete-item #[(menu item) "pÀqˆÄ\"‰«„	À ˆ\nqˆ*‡" [nil elt old menu assoc item x-menu-items-alist] 3 "\
-Deletes from MENU the item named ITEM.  x-menu-compute should be called
-before the menu is made available to the user."])
-(fset 'x-menu-activate #[(menu) "pÁ\n!ˆÃÅ SÇÃ	\n\n« \n@@«’\n@B\n@@G]\nA‰\n¬`Ì!	*\\Î¥]Ğ ˆ	«¯Ç«¢T‰X«—ÒÓÔ!ÕQ@@\"cˆA‰¬^)ÖcˆªM)×ÇØ Ùed\"TZ]!ˆebˆ)Á!)‡" [buf pop-to-buffer menu nil buffer-read-only screen-width x-menu-max-width 0 x-menu-item-width x-menu-items-alist items-tail items-head reverse x-menu-item-spacing 1 x-menu-items-per-line erase-buffer items format "%" int-to-string "s" 10 shrink-window window-height count-lines] 7 "\
-Computes all necessary parameters for MENU.  This must be called whenever
-a menu is modified before it is made available to the user.
-
-This also creates the menu itself."])
-(fset 'x-menu-pick-entry #[(position event) "Si	¥^Ãe`\"iÄU«ƒÄªÅZ\n_\\‰8A‰	«†	\n!ˆ,Ë!‡" [x-menu-items-per-line x-menu-item-width x count-lines 0 1 y item x-menu-items-alist litem event pop-to-buffer x-menu-assoc-buffer] 4 "\
-Internal function for dispatching on mouse/menu events"])

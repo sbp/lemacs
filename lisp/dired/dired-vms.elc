@@ -1,0 +1,41 @@
+;;; compiled by jwz@thalidomide on Tue May 19 22:58:56 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/dired/dired-vms.el
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁÂ\"ˆÃÀ‡" [autoload subprocess-command-to-buffer "vmsproc" "^ *Directory \\([][:.A-Z-0-9_$;<>]+\\)\\(\\)[\n]" dired-subdir-regexp] 3)
+(defconst dired-vms-filename-regexp "\\(\\([_A-Z0-9$]?\\|[_A-Z0-9$][_A-Z0-9$---]*\\)\\.[_A-Z0-9$---]*;+[0-9]*\\)" "\
+Regular expression to match for a valid VMS file name in Dired buffer.
+Stupid freaking bug! Position of _ and $ shouldn't matter but they do.
+Having [A-Z0-9$_] bombs on filename _$$CHANGE_LOG$.TXT$ and $CHANGE_LOG$.TX
+Other orders of $ and _ seem to all work just fine.")
+(byte-code "ÀÂ‡" ["^[^ \n	]" dired-re-mark nil] 1)
+(defvar dired-directory-command "DIRECTORY/SIZE/DATE/PROT" "\
+Directory command for dired under VMS.")
+(fset 'dired-ls #[(file switches &optional wildcard full-directory-p) "Œ``}ˆÀ	ÂQp\"ˆ«„dbª ebˆÅÇ!ˆÇÉ\nP!ˆ)Ëyˆe`|ˆÌyˆ`d|)‡" [subprocess-command-to-buffer dired-directory-command " " file full-directory-p nil case-fold-search re-search-forward dired-subdir-regexp "^" dired-vms-filename-regexp 0 1] 4 "\
+Insert ls output of FILE,formatted according to SWITCHES.
+Optional third arg WILDCARD means treat FILE as shell wildcard.
+Optional fourth arg FULL-DIRECTORY-P means file is a directory and
+switches do not contain `d'.
+
+SWITCHES default to dired-listing-switches.
+
+This is the VMS version of this UNIX command.
+The SWITCHES and WILDCARD arguments are ignored.
+Uses dired-directory-command."])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉM‡" [dired-insert-headerline #[(dir) "À	!ˆÂ•b‡" [re-search-forward dired-subdir-regexp 1] 2] dired-make-absolute #[(file &optional dir) "®…Á ®\nP‡" [dir dired-current-directory default-directory file] 2] dired-make-relative (lambda (file &optional dir) file) dired-in-this-tree #[(file dir) "ÁÂOÃ˜¬ÁÂOÄ˜¬…ÅÆ\"ˆÇÈÉÊÁO!P\"‡" [dir -1 nil "]" ":" error "Not a directory: %s" string-match "^" regexp-quote 0 file] 6] dired-vms-split-filename #[(file) "ÀÁ\n\"­„ÃÄÅ\"‡" [string-match "^\\([.A-Z-0-9_$;]*\\):?[[<]\\([.A-Z-0-9_$;]*\\)[]>]\\([.A-Z-0-9_$;]*\\)$" file mapcar #[(x) "	”	•O‡" [file x] 3] (1 2 3)] 3]] 2)
+(fset 'dired-noselect #[(dirname &optional switches) "À	!Â	\"‡" [dired-fix-directory dirname dired-internal-noselect switches] 3 "\
+Like M-x dired but returns the dired buffer as value, does not select it."])
+(fset 'dired-fix-directory #[(dirname) "À	®ƒ\n‰!‰GSÃ‰ÇÈ	œ\"¬‰ÇÉ	œ\"«ƒ	ªÕÊË	\"ÊÌ	\"ÊÍ	®#‰«©«ˆ	ÎOÏPª«‰	ÎTOĞPªĞ‰	®TOÒQ)ª•«‡	ÎTOª‹«‡	ÎTOª\n+‡" [expand-file-name dirname default-directory nil colon bracket end char-equal 93 58 string-match "\\]" "\\:" "\\.DIR" 0 "." "[" newdir "]"] 5 "\
+Fix up dirname to be a valid directory name and return it"])
+(fset 'dired-move-to-filename #[(&optional raise-error eol) "¬…Áˆ`ÂyˆÃÄPÆ#«„Ç”b‡­ƒÉÊ!‡" [eol nil 0 re-search-forward " " dired-vms-filename-regexp t 1 raise-error error "No file on this line"] 4 "\
+In dired, move to first char of filename on this line.
+Returns position (point) or nil if no filename on this line."])
+(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇMˆÈÉMˆÊËM‡" [dired-move-to-end-of-filename #[(&optional no-error eol) "À‰‰‰‰‰`¬ˆŠÀˆ`)­ˆŠÉÊË#)‰¬ˆÌË#ˆ¬’`=«ŒÏ\n«…ĞÑ!ªÒ!ˆ`=?­`.‡" [nil case-fold-search hidden sym ex flag opoint eol selective-display search-forward "" t re-search-forward dired-vms-filename-regexp no-error error substitute-command-keys "File line is hidden, type \\[dired-hide-subdir] to unhide" "No file on this line"] 7] dired-tree-lessp #[(dir1 dir2) "À	!ÂÃOÀ!ÂÃOÅÆ	\"ÅÆ\"«™«•@@š«ŒAAªc@@	‰\n«‹	«‡\n	™ªœ\n¬‡	¬ƒËª‘\n¬ƒÌªŠ	¬ƒËªƒÍÎ!,‡" [file-name-as-directory dir1 0 -1 dir2 dired-split "[:.]" components-2 components-1 c2 c1 nil t error "This can't happen"] 5] dired-insert-subdir-validate #[(dirname) "Á‰«’¬@AÅ\n@\"ªk?­…ÇÈ\"+‡" [dired-subdir-alist nil item found alist dired-in-this-tree dirname error "%s: directory not in this buffer"] 3] dired-insert-subdir-newpos #[(new-dir) "À	!Â‰‰‰‰«Á@A@É!«Ê\"¬”Â‰¬Ê\"«P‰«JÌ\"«BÍ!ª;bˆ.m¬ƒÎyˆÏcˆ`‡" [reverse dired-subdir-alist nil found new-pos pos dir elt alist dired-get-subdir-min dired-in-this-tree new-dir dired-tree-lessp dired-get-subdir-max -1 "\n"] 6] dired-between-files #[nil "ŠÀyˆgÁš®‹ÂuˆÃÄ!®ƒgÅš)‡" [0 9 2 looking-at "Total of" 32] 2] dired-buffers-for-dir #[(dir) "À	!\nÃ‰‰«°@‰AÈ!«”É	Šqˆ\n)\"«ŒBª…Ë\n\")A‰¬P+‡" [file-name-as-directory dir dired-buffers nil elt result alist buf buffer-name assoc dired-subdir-alist delq] 4]] 2)

@@ -15,8 +15,6 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(require 'vm)
-
 (defun vm-summary-mode ()
   "Major mode for VM folder summaries.
 This major mode uses the same keymap as vm-mode.  See the vm-mode documentation
@@ -31,7 +29,7 @@ for a list of available commands."
 
 (put 'vm-summary-mode 'mode-class 'special)
 
-(defun vm-summarize (&optional dont-redo)
+(defun vm-summarize (&optional display)
   "Summarize the contents of the folder in a summary buffer. 
 The format is as described by the variable vm-summary-format.  Generally
 one line per message is most pleasing to the eye but this is not
@@ -40,7 +38,7 @@ mandatory."
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
   (vm-error-if-folder-empty)
-  (if (or (null vm-summary-buffer) (not dont-redo))
+  (if (null vm-summary-buffer)
       (let ((b (current-buffer))
 	    (inhibit-quit t))
 	(setq vm-summary-buffer
@@ -49,17 +47,17 @@ mandatory."
 	  (set-buffer vm-summary-buffer)
 	  (abbrev-mode 0)
 	  (auto-fill-mode 0)
-	  (setq vm-mail-buffer b))
-	(setq vm-summary-redo-start-point t)
-	(save-excursion
-	  (set-buffer vm-summary-buffer)
-	  (vm-summary-mode))))
-  (if vm-mutable-windows
-      (let ((pop-up-windows (and pop-up-windows (eq vm-mutable-windows t))))
-	(display-buffer vm-summary-buffer))
-    (switch-to-buffer vm-summary-buffer))
-  (if (eq vm-mutable-windows t)
-      (vm-proportion-windows))
+	  (setq vm-mail-buffer b)
+	  (vm-summary-mode))
+	(setq vm-summary-redo-start-point t)))
+  (if display
+      (if vm-mutable-windows
+	  (if (not (vm-set-window-configuration 'summarize))
+	      (let ((pop-up-windows (and pop-up-windows (eq vm-mutable-windows t))))
+		(display-buffer vm-summary-buffer)
+		(if (eq vm-mutable-windows t)
+		    (vm-proportion-windows))))
+	(switch-to-buffer vm-summary-buffer)))
   (vm-select-folder-buffer)
   (vm-update-summary-and-mode-line))
 
@@ -93,6 +91,22 @@ mandatory."
 	  (if (zerop (% n modulus))
 	      (message "Generating summary... %d" n)))))
     (message "Generating summary... done")))
+
+(defun vm-do-needed-summary-rebuild ()
+  (if (and vm-summary-redo-start-point vm-summary-buffer)
+      (progn
+	(vm-do-summary (and (consp vm-summary-redo-start-point)
+			    vm-summary-redo-start-point))
+	(setq vm-summary-redo-start-point nil)
+	(and vm-message-pointer
+	     (vm-set-summary-pointer (car vm-message-pointer)))
+	(setq vm-need-summary-pointer-update nil))
+    (and vm-need-summary-pointer-update
+	 vm-summary-buffer
+	 vm-message-pointer
+	 (progn
+	   (vm-set-summary-pointer (car vm-message-pointer))
+	   (setq vm-need-summary-pointer-update nil)))))
 
 (defun vm-update-message-summary (m)
   (let ((m-list (cons m
@@ -139,6 +153,64 @@ mandatory."
 		  (forward-char -2)
 		  (and w vm-auto-center-summary (vm-auto-center-summary))))
 	    (and old-window (select-window old-window)))))))
+
+(defun vm-mark-for-display-update (message)
+  (setq vm-messages-needing-display-update
+	(cons message vm-messages-needing-display-update)))
+
+(defun vm-force-mode-line-update ()
+  (save-excursion
+    (set-buffer (other-buffer))
+    (set-buffer-modified-p (buffer-modified-p))))
+
+(defun vm-update-summary-and-mode-line ()
+  (vm-do-needed-renumbering)
+  (vm-do-needed-summary-rebuild)
+  (if (null vm-message-pointer)
+      ()
+    (setq vm-ml-message-number (vm-number-of (car vm-message-pointer)))
+    (cond ((vm-new-flag (car vm-message-pointer))
+	   (setq vm-ml-attributes-string "new"))
+	  ((vm-unread-flag (car vm-message-pointer))
+	   (setq vm-ml-attributes-string "unread"))
+	  (t (setq vm-ml-attributes-string "read")))
+    (cond ((vm-edited-flag (car vm-message-pointer))
+	   (setq vm-ml-attributes-string
+		 (concat vm-ml-attributes-string " edited"))))
+    (cond ((vm-filed-flag (car vm-message-pointer))
+	   (setq vm-ml-attributes-string
+		 (concat vm-ml-attributes-string " filed"))))
+    (cond ((vm-written-flag (car vm-message-pointer))
+	   (setq vm-ml-attributes-string
+		 (concat vm-ml-attributes-string " written"))))
+    (cond ((vm-replied-flag (car vm-message-pointer))
+	   (setq vm-ml-attributes-string
+		 (concat vm-ml-attributes-string " replied"))))
+    (cond ((vm-forwarded-flag (car vm-message-pointer))
+	   (setq vm-ml-attributes-string
+		 (concat vm-ml-attributes-string " forwarded"))))
+    (cond ((vm-deleted-flag (car vm-message-pointer))
+	   (setq vm-ml-attributes-string
+		 (concat vm-ml-attributes-string " deleted"))))
+    (cond ((vm-mark-of (car vm-message-pointer))
+	   (setq vm-ml-attributes-string
+		 (concat vm-ml-attributes-string " MARKED")))))
+  (if (and vm-summary-buffer (not vm-real-buffers))
+      (vm-copy-local-variables vm-summary-buffer
+			       'vm-ml-attributes-string
+			       'vm-ml-message-number
+			       'vm-ml-highest-message-number
+			       'vm-buffer-modified-p
+			       'vm-message-list))
+  (while vm-messages-needing-display-update
+    (vm-update-message-summary (car vm-messages-needing-display-update))
+    (setq vm-messages-needing-display-update
+	  (cdr vm-messages-needing-display-update)))
+  (and vm-deferred-message
+       (progn
+	 (message vm-deferred-message)
+	 (setq vm-deferred-message nil)))
+  (vm-force-mode-line-update))
 
 (defun vm-auto-center-summary ()
   (if vm-auto-center-summary
@@ -390,7 +462,7 @@ mandatory."
 ;; Some yogurt-headed delivery agents don't provide a Date: header.
 (defun vm-grok-From_-date (message)
   ;; If this is MMDF, forget it.
-  (if (not (eq vm-folder-type 'From_))
+  (if (eq vm-folder-type 'mmdf)
       nil
     (save-excursion
       (set-buffer (marker-buffer (vm-start-of message)))
@@ -483,7 +555,7 @@ mandatory."
 ;; Some yogurt-headed delivery agents don't even provide a From: header.
 (defun vm-grok-From_-author (message)
   ;; If this is MMDF, forget it.
-  (if (not (eq vm-folder-type 'From_))
+  (if (eq vm-folder-type 'mmdf)
       nil
     (save-excursion
       (set-buffer (marker-buffer (vm-start-of message)))

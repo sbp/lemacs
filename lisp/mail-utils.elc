@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Aug 14 22:24:28 1991
-;;; from file /wg1/emacs-base/lisp/mail-utils.el
-;;; emacs version 19.60.
-;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; compiled by jwz@thalidomide on Tue Apr 21 17:48:37 1992
+;;; from file /u/jwz/emacs19/lisp/mail-utils.el
+;;; emacs version 19.0.2 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -18,7 +18,7 @@ often-correct parser.")
 (fset 'mail-string-delete #[(string start end) "¬…	ÂO‡	ÂO	ÄOP‡" [end string 0 start nil] 4 "\
 Returns a string containing all of STRING except the part
 from START (inclusive) to END (exclusive)."])
-(fset 'mail-strip-quoted-names #[(address) "«ÁÂ!ˆÃÄÅ!Ç#‡È	ÊË\"ˆÌ•ÊÍÌ•#OÊÎ\"«ØŠÏĞ!qˆÑ ˆcˆ¬›Ó!ÕÖ×#ˆÕØÙ#ˆÕÚÙ#ˆÛ!ˆÜbˆİŞÈß#«“àuˆáÈxˆ`ŠâÜ!ˆ`)|ˆªfã Ñ ˆ)ª–Êä\"‰	«Œå	Ì•#ªjÌ	Êæ	#‰	«£GÌ•V«Ì•HçU«†Ì•	ª]å	Ì•#ªQÊè\"‰	«¤Ü•é”Ì•*+,å*S*#å,+#+ªR)‡" [mail-use-rfc822 require rfc822 mapconcat identity rfc822-addresses address ", " nil pos string-match "\\`[ 	\n]*" 0 "[ 	\n]*\\'" "[ 	]*(\\([^)\"\\]\\|\\\\.\\|\\\\\n\\)*(" get-buffer-create " *temp*" erase-buffer lisp-mode-syntax-table copy-syntax-table emacs-lisp-mode-syntax-table modify-syntax-entry 124 "\"   " 91 "_   " 93 set-syntax-table 1 search-forward "(" t -1 " 	" forward-sexp buffer-string "[ 	]*(\\([^)\"\\]\\|\\\\.\\|\\\\\n\\)*)" mail-string-delete "[ 	]*\"\\([^\"\\]\\|\\\\.\\|\\\\\n\\)*\"[ 	\n]*" 64 "\\(,\\|\\`\\)[^,]*<\\([^>,]*>\\)" 2 close junk-end junk-beg] 6 "\
+(fset 'mail-strip-quoted-names #[(address) "«ÁÂ!ˆÃÄÅ!Ç#‡È	ÊË\"ˆÌ•ÊÍÌ•#OÊÎ\"«¹ŠÏĞ!qˆÑ ˆcˆÒ!ˆÔbˆÕÖÈ×#«“ØuˆÙÈxˆ`ŠÚÔ!ˆ`)|ˆªfÛ Ñ ˆ)ª–ÊÜ\"‰	«Œİ	Ì•#ªjÌ	ÊŞ	#‰	«£GÌ•V«Ì•HßU«†Ì•	ª]İ	Ì•#ªQÊà\"‰	«¤Ô•á”Ì•\"#$İ\"S\"#İ$##+ªR)‡" [mail-use-rfc822 require rfc822 mapconcat identity rfc822-addresses address ", " nil pos string-match "\\`[ 	\n]*" 0 "[ 	\n]*\\'" "[ 	]*(\\([^)\"\\]\\|\\\\.\\|\\\\\n\\)*(" get-buffer-create " *temp*" erase-buffer set-syntax-table lisp-mode-syntax-table 1 search-forward "(" t -1 " 	" forward-sexp buffer-string "[ 	]*(\\([^)\"\\]\\|\\\\.\\|\\\\\n\\)*)" mail-string-delete "[ 	]*\"\\([^\"\\]\\|\\\\.\\|\\\\\n\\)*\"[ 	\n]*" 64 "\\(,\\|\\`\\)[^,]*<\\([^>,]*>\\)" 2 close junk-end junk-beg] 6 "\
 Delete comments and quoted strings in an address list ADDRESS.
 Also delete leading/trailing whitespace and replace FOO <BAR> with just BAR.
 Return a modified address list."])

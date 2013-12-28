@@ -82,22 +82,129 @@ Precisely,\\{Buffer-menu-mode-map}"
 
 (defvar Buffer-menu-buffer-column 4)
 
+;; from mly@ai.mit.edu (Richard Mlynarik)
 (defun Buffer-menu-buffer (error-if-non-existent-p)
   "Return buffer described by this line of buffer menu."
   (save-excursion
     (beginning-of-line)
     (forward-char Buffer-menu-buffer-column)
-    (let ((start (point))
-	  string)
-      ;; End of buffer name marked by tab or two spaces.
-      (re-search-forward "\t\\|  ")
-      (skip-chars-backward " \t")
-      (setq string (buffer-substring start (point)))
+    (let* ((start (point))
+           (string (if (/= (preceding-char) ?\")
+                       ;; End of buffer name marked by tab or a space.
+                       (progn (re-search-forward "\t\\| ")
+                              (skip-chars-backward " \t")
+                              (buffer-substring start (point)))
+                       (progn
+                         (backward-char 1)
+                         (read (current-buffer))))))
       (or (get-buffer string)
 	  (if error-if-non-existent-p
 	      (error "No buffer named \"%s\"" string)
 	    nil)))))
 
+(defvar list-buffers-header-line
+  (concat " MR Buffer           Size  Mode         File\n"
+	  " -- ------           ----  ----         ----\n"))
+
+(defvar list-buffers-identification 'default-list-buffers-identification
+  "String used to identify this buffer, or a function of one argument
+to generate such a string.  This variable is always buffer-local.")
+(make-variable-buffer-local 'list-buffers-identification)
+
+(defun default-list-buffers-identification (output)
+  (save-excursion
+    (let ((file (or (buffer-file-name (current-buffer))
+		    (and (boundp 'list-buffers-directory)
+			 list-buffers-directory)))
+	  (size (buffer-size))
+	  (mode mode-name)
+	  p s)
+      (set-buffer output)
+      (prin1 size)
+      (setq p (point))
+      ;; right-justify the size
+      (move-to-column 19 t)
+      (setq s (- 6 (- p (point))))
+      (while (> s 0) ; speed/consing tradeoff...
+	(insert ? )
+	(setq s (1- s)))
+      (end-of-line)
+      (indent-to 27 1)
+      (insert mode)
+      (if (not file)
+	  nil
+	;; if the mode-name is really long, clip it for the filename
+	(if (> 0 (setq s (- 39 (current-column))))
+	    (delete-char s))
+	(indent-to 40 1)
+	(insert file)))))
+
+(defun list-buffers (&optional files-only)
+  "Display a list of names of existing buffers.
+Inserts it in buffer *Buffer List* and displays that.
+Note that buffers with names starting with spaces are omitted.
+Non-null optional arg FILES-ONLY means mention only file buffers.
+
+The M column contains a * for buffers that are modified.
+The R column contains a % for buffers that are read-only."
+  (interactive "P")
+  (let ((current (current-buffer))
+	(col1 19)
+	output)
+    (save-excursion
+      (with-output-to-temp-buffer "*Buffer List*"
+        (let ((buffers (buffer-list)))
+          (setq output standard-output)
+          (set-buffer output)
+          (Buffer-menu-mode)
+          (setq buffer-read-only nil)
+          (buffer-flush-undo output)
+          (insert list-buffers-header-line)
+          (while buffers
+            (let* ((buffer (car buffers))
+                   (name (buffer-name buffer))
+                   (file (buffer-file-name buffer)))
+              (setq buffers (cdr buffers))
+              (cond ((null name)) ;deleted buffer
+                    ((and (/= 0 (length name));don't mention if starts with " "
+                          (= (aref name 0) ?\ )))
+                    ((and files-only (null file)))
+                    (t
+                     (set-buffer buffer)
+                     (let ((ro buffer-read-only)
+                           (id list-buffers-identification))
+                       (set-buffer output)
+                       (insert (if (eq buffer current)
+                                   (progn (setq current (point)) ?\.)
+                                   ?\ ))
+		       (insert (if (buffer-modified-p buffer)
+                                   ?\* 
+				   ?\ ))
+		       (insert (if ro
+                                   ?\%
+                                   ?\ ))
+                       (if (string-match "[\n\"\\ \t]" name)
+                           (let ((print-escape-newlines t))
+                             (prin1 name output))
+                           (insert ?\  name))
+                       (indent-to col1 1)
+                       (cond ((stringp id)
+                              (insert id))
+                             (id
+                              (set-buffer buffer)
+                              (condition-case e
+                                  (funcall id output)
+                                (error
+                                 (princ "***" output) (prin1 e output)))
+                              (set-buffer output)
+                              (goto-char (point-max)))))
+                     (insert ?\n)))))
+          (setq buffer-read-only t))))
+    (if (not (bufferp current))
+	(save-excursion
+	  (set-buffer output)
+	  (goto-char current)))))
+
 (defun buffer-menu (arg)
   "Make a menu of buffers so you can save, delete or select them.
 With argument, show only buffers that are visiting files.

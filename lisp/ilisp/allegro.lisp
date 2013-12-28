@@ -2,7 +2,7 @@
 ;;; Allegro initializations
 ;;; Author: Chris McConnell, ccm@cs.cmu.edu
 ;;;
-(in-package 'user)
+(in-package "ILISP")
 
 ;;;
 (defun ilisp-callers (symbol package)
@@ -59,7 +59,7 @@ return T if successful."
 
 ;;;
 (dolist (symbol '(ilisp-callers ilisp-source-files))
-  (export symbol)
-  (unless (compiled-function-p (symbol-function symbol))
-    (compile symbol)))
+  (export symbol))
+(unless (compiled-function-p #'ilisp-callers)
+  (format t "\"ILISP: File is not compiled, use M-x ilisp-compile-inits\""))
 

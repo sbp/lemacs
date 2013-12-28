@@ -5,3 +5,5 @@
 (load "energize/energize-menus")
 (load "energize/energize-shell")
 (load "energize/backtrace-logging")
+
+(provide 'energize)

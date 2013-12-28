@@ -1,46 +1,0 @@
-;;; compiled by jwz@thalidomide on Sun Mar  1 15:06:59 1992
-;;; from file /u/jwz/emacs19/lisp/dired-nstd.el
-;;; emacs version 19.66 Lucid.
-;;; bytecomp version 2.04; 5-feb-92.
-;;; optimization is on.
-;;; this file uses opcodes which do not exist in Emacs18.
-
-(if (and (boundp 'emacs-version)
-	 (or (and (boundp 'epoch::version) epoch::version)
-	     (string-lessp emacs-version "19")))
-    (error "This file was compiled for Emacs19."))
-
-(defconst dired-subdir-alist nil "\
-Association list of subdirectories and their buffer positions:
-
-  ((LASTDIR STARTMARKER ENDMARKER NESTING-DEPTH)
-   ...
-   (DEFAULT-DIRECTORY POINTMIN POINTMAX 0)).
-")
-(byte-code "ÀÁMˆÂÄÅ#ˆÂÆÇ#ˆÈÉMˆÊËMˆÌÍMˆÎÏMˆĞÑMˆÒÓM‡" [dired-simple-subdir-alist #[nil "ÀÁ!\nÃ Ä ÅFCL‡" [make-local-variable dired-subdir-alist default-directory point-min-marker point-max-marker 0] 5] define-key dired-mode-map "i" dired-insert-subdir-inline "j" dired-maybe-insert-subdir dired-get-subdir-min #[(elt) "A@‡" [elt] 1] dired-get-subdir-max #[(elt) "À	8‡" [2 elt] 2] dired-subdir-min #[nil "À ÁÄ\"‰«‡ÆÇ\n!!ªƒÈÉ!*‡" [dired-current-directory nil c d assoc dired-subdir-alist marker-position dired-get-subdir-min error "not in a subdir!"] 3] dired-subdir-max #[nil "À ÁÄ\"‰«‡ÆÇ\n!!ªd*‡" [dired-current-directory nil c d assoc dired-subdir-alist marker-position dired-get-subdir-max] 3] dired-clear-alist #[nil "­™@‰A@Â‰“ˆÃ	8Â‰“ˆ)A‰¬hÂ‡" [dired-subdir-alist elt nil 2] 4] dired-unsubdir #[(dir) "À	\n\"‰A@Å8Ç\n‰	­¥	@A@X«Å8Y«†Ê\n\"	A‰	¬\\Ç-‡" [assoc dir dired-subdir-alist elt min 2 max nil other-elt rest delq] 4]] 4)
-(fset 'dired-build-subdir-alist #[nil "À ˆŠÁebˆÃÅÃÇ#« \nTÈÉ”É•{ŠÁ”bˆÁyˆÊ )Ë Á$ˆÌÍ\n\"ˆªXÌÎ\n‰ÉU«ƒÏªĞ#ˆ*‡" [dired-clear-alist 0 count nil dired-subdir-alist re-search-forward dired-subdir-regexp t dired-alist-add 1 point-marker point-max-marker message "%d" "%d director%s." "y" "ies"] 5 "\
-Build dired-subdir-alist by parsing the buffer and return it's new value." nil])
-(fset 'dired-alist-add #[(dir start-marker end-marker indentation-depth) "¬„ÁÂ!ˆ¬„ÁÄ!ˆÅ\"É!\n®ËFÌ\"BÍ )‡" [start-marker error "start marker nil" end-marker "end marker nil" assoc dir dired-subdir-alist old dired-normalize-subdir indentation-depth 0 delq dired-alist-sort] 4])
-(fset 'dired-current-directory #[(&optional relative) "À`	®‚Â À«³@A@W¬¡Ç8V¬™«“Ç8A@ZÇ8A@ZW«ƒA‰¬M«ˆÉ@\n\"ª‚@,‡" [nil dired-subdir-alist dired-build-subdir-alist best-so-far alist here elt 2 relative dired-make-relative default-directory] 5 "\
-Get the subdirectory to which this line belongs.
-This returns a string with trailing slash, like default-directory.
-Optional argument means return a name relative to default-directory."])
-(byte-code "ÀÁMˆÂÃM‡" [dired-insert-subdir-del #[(element) "À	!Â	!bˆm¬ŠÅÆ	8U«ƒÇuˆÆ	8ÅU«ƒÈcˆÉ`\"`|ˆ*‡" [dired-get-subdir-min element dired-get-subdir-max end-marker begin-marker 0 3 -1 "\n\n" dired-remember-marks] 3] dired-insert-subdir-doupdate #[(dirname elt beg-end) "@A@Á8®Â«“Á8=¬‹ÇÈ	\"	« A@Á8\n‰Ç“ˆ\nÇ“ˆÌ› *ªÍÏ Ç“Ï Ç“$+‡" [beg-end 2 0 indent end beg elt nil delq dired-subdir-alist old-end old-start 3 dired-alist-add dirname make-marker] 7]] 2)
-(fset 'dired-insert-subdir-inline #[(dirname &optional switches no-error-if-not-dir-p) "ÀÁ\n!!ÃÅÆ®È\")«É‰”OÉ•ÃOPÊ\n\"ˆ¬ŠÍ\n!¬…ÎÏ\n\"ˆĞ\n\"ÒÓ\n!!Ã‰‰‰‰‰‰‰‰‰‰«’ßà!\"á\"â\n!ˆãyˆä\nå\n##ˆæ\n!ˆŠç!ˆ.è ‡" [file-name-as-directory expand-file-name dirname nil case-fold-search string-match "R" switches "" 0 dired-make-relative default-directory no-error-if-not-dir-p file-directory-p error "Attempt to insert a non-directory: %s" assoc dired-subdir-alist file-name-directory directory-file-name buffer-read-only tail-adjascents mark-alist new-end new-start old-end old-start end beg parentdir elt append dired-insert-subdir-del delq dired-goto-file 1 dired-insert-subdir-doupdate dired-insert-subdir-inline-doinsert dired-initial-position dired-mark-remembered dired-nuke-extra-newlines] 13 "\
-Insert this subdirectory into the same dired buffer.
-If it is already present, overwrites previous entry,
-  else inserts it, indented, within its parent's listing.
-With a prefix arg, you may edit the ls switches used for this listing.
-  This command ignores the `R' switch." (byte-code "À 	­„ÂÃ\"D‡" [dired-get-filename current-prefix-arg read-string "Switches for listing: " dired-actual-switches] 4)])
-(fset 'dired-insert-subdir #[(dirname &optional switches no-error-if-not-dir-p) "ÀÁ\n!!Ã\n\"ˆ¬ŠÆ\n!¬…ÇÈ\n\"ˆÉ\n\n\"­…ÌÍ\"Î‰‰«†Ô\nÕ\"Ö8­‡Ö8×=?«ŠÙÚ!\"¬„¬„Û\n!ˆ«‡Ö›× ˆ)Ü\nİ\n\"#ˆ«ƒŞ ˆß\n!ˆŠà!ˆ.á ‡" [file-name-as-directory expand-file-name dirname dired-make-relative default-directory no-error-if-not-dir-p file-directory-p error "Attempt to insert a non-directory: %s" assoc dired-subdir-alist switches string-match "R" nil case-fold-search buffer-read-only mark-alist switches-have-R elt dired-kill-tree t 3 0 was-nested append dired-insert-subdir-del dired-insert-subdir-newpos dired-insert-subdir-doupdate dired-insert-subdir-doinsert dired-build-subdir-alist dired-initial-position dired-mark-remembered dired-nuke-extra-newlines] 6 "\
-Insert this subdirectory into the same dired buffer.
-If it is already present, overwrites previous entry,
-  else appends at end of buffer.
-With a prefix arg, you may edit the ls switches used for this listing.
-  You can add `R' to the switches to expand the whole tree starting at
-  this subdirectory.
-This function takes some pains to conform to ls -lR output." (byte-code "À 	­„ÂÃ\"D‡" [dired-get-filename current-prefix-arg read-string "Switches for listing: " dired-actual-switches] 4)])
-(byte-code "ÀÁMˆÂÃM‡" [dired-nuke-extra-newlines #[nil "ÀŠebˆÂÃÀÄ#­Å”Æ\\bˆ`Å•|ˆªl*‡" [nil buffer-read-only re-search-forward "\n\n\n+" t 0 2] 4] dired-insert-subdir-newpos #[(new-dir) "Á‰‰‰«¨@A@Ç!È8ÉU«eÊ\"«^Ì!Á‰¬X\nbˆ-Ícˆ`‡" [dired-subdir-alist nil new-pos pos dir elt alist dired-get-subdir-min 3 0 dired-tree-lessp new-dir dired-get-subdir-max "\n\n"] 6]] 2)
-(defvar dired-no-inline-headerlines t "\
-*set this to t to suppress the directory header and `total' line.")
-(byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇM‡" [dired-insert-subdir-inline-doinsert #[(dirname switches parentdir) "`À‰‰ÅÆ\"ˆÈ	®†ÊËÌ#ÀÎ$ˆÅÏ\"ˆ`ĞÑ\"8TŠbˆ¬’Õ!ˆŠÖ )¬‡b¬ƒÖ ˆ«×Ø!«‰`Ùyˆ`|ˆ`)‰«—`Û@8U«†@	BA‰¬i)Àİ`\nTÛ_#ˆ)Ş bˆ	«Û	@8À“ˆ	A‰¬r«ŠŒ}ˆàß!ˆ)á!À‰“ˆbˆ\nE,‡" [nil tail-adjascents indent end begin message "Reading directory %s..." dirname dired-ls switches dired-replace-in-string "R" "" dired-actual-switches t "Reading directory %s...done" 3 assoc parentdir dired-subdir-alist dired-no-inline-headerlines dired-insert-headerline delete-horizontal-space looking-at "^ *total [0-9]" 1 rest 2 indent-tabs-mode indent-rigidly point-marker dired-after-readin-hook run-hooks marker-position] 7] dired-insert-subdir-doinsert #[(dirname switches) "`ÀÃÄ\"ˆÆ®†ÈÉÊ#ÀÌ$ˆÃÍ\"ˆÎcˆÏ Ğ\n`Ñ#ˆ«ŠŒ\n`}ˆÓÒ!ˆ)\nbˆÔ!ˆÕ	!	À‰“ˆ\n	*D‡" [nil end begin message "Reading directory %s..." dirname dired-ls switches dired-replace-in-string "R" "" dired-actual-switches t "Reading directory %s...done" "\n\n" point-marker indent-rigidly 2 dired-after-readin-hook run-hooks dired-insert-headerline marker-position] 6] dired-insert-old-subdirs #[(old-subdir-alist) "ÀÁ\n\"®£Ã‰ÆÈ\"­“@A@ÃÉÊˆªi*‡" [string-match "R" dired-actual-switches nil dir elt sort old-subdir-alist #[(x y) "À	8À\n8W‡" [3 x y] 3] (byte-code "À	8ÂU«†Ã!ˆª„Å!ˆÀ‡" [3 elt 0 dired-insert-subdir dir dired-insert-subdir-inline] 2) ((error))] 3] dired-add-entry-do-indentation #[(marker-char) "«Š¨«ƒª„	ªÂÂ±ˆÃÄ\"8È‰\\Â\"c)‡" [marker-char dired-marker-char 32 3 assoc directory dired-subdir-alist indent make-string] 4]] 2)

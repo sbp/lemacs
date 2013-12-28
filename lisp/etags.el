@@ -832,9 +832,10 @@ Is of the form (TAG POINT TAG-TABLE TAG-TABLE ...).")
 and puts point at its definition.
  If TAGNAME is a null string, the expression in the buffer
 around or before point is used as the tag name.
- If second arg NEXT is non-nil (interactively, with prefix arg),
-searches for the next tag in the tag table
-that matches the tagname used in the previous find-tag.
+ If called interactively with a numeric argument, searches for the next tag
+in the tag table that matches the tagname used in the previous find-tag.
+ If second arg OTHER-WINDOW is non-nil, uses another window to display
+the tag.
 
 This version of this function supports multiple active tags tables,
 and completion.

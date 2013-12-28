@@ -1,0 +1,26 @@
+;;; compiled by jwz@thalidomide on Tue May 19 23:05:31 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/dired/dired-link.el
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(require 'dired)
+(fset 'dired-link-noselect-classic #[(dirname) "¬‚	ÂÃ!!‰Äš?­¬ÅHÆU«„Ç!È!«„É!Ê!‰qˆÌ\"ˆÍ ˆÎ!ˆ)‡" [dirname default-directory dired-link-referent directory-file-name "" 0 126 expand-file-name file-directory-p file-name-as-directory dired-find-buffer buffer dired-readin dired-move-to-filename dired-mode] 4 "\
+Like M-x dired but returns the dired buffer as value, does not select it."])
+(fset 'dired-link-noselect-tree #[(dirname &optional switches) "¬‚	ÂÃÄ!!!Å!«„Æ!Ç\"‡" [dirname default-directory expand-file-name dired-link-referent directory-file-name file-directory-p file-name-as-directory dired-internal-noselect switches] 4 "\
+Like `dired' but returns the dired buffer as value, does not select it."])
+(byte-code "ÀÁÂ!«ƒÃªÄM‡" [dired-noselect fboundp dired-internal-noselect dired-link-noselect-tree dired-link-noselect-classic] 3)
+(fset 'dired-link-referent #[(linkname) ";??­™ÁÃ!‰«‰Ä\nÅ!\"ªp)ÄÅ!\"‡" [linkname nil referent file-symlink-p dired-link-expand file-name-directory] 4 "\
+Returns expanded file or directory referent of LINKNAME.
+LINKNAME should not end with a directory delimiter.
+If LINKNAME is not a string, returns nil.
+If LINKNAME is not a link, it is simply expanded and returned."])
+(fset 'dired-link-expand #[(referent dirname) "À	ÄÅ\"«œÇÈ”È•O!É‰”OÉ•ÀOQª]ÄÊ\"‰«šÉU«”ÄÌ	\"­…	É‰•OÍÈÀOQ)ÄÎ\"«ÂÄÏ\"«ŠÈ•ÀOªoÄĞ\"«’ÑÒ\n!!‰É•ÀOPªgÄÓ\"«HÉ‰”OÉ•ÀOPªhÉHÔU¬ÉHÕU¬†	P*‡" [nil dirname dir var-link string-match "\\$(\\([^)]*\\))" referent getenv 1 0 "`node_data" nd-abbrev "^//[^/]+" "/sys/" "\\.\\." "^\\(//\\.\\.\\|/\\.\\.\\)\\(/\\|$\\)" "^\\.\\.\\(/\\|$\\)" file-name-directory directory-file-name "[^/]+/\\.\\./" 126 47] 6 "\
+Expands REFERENT relative to DIRNAME and returns."])
+(byte-code "ÀÁ!ˆÀÂ!‡" [provide dir-links dired-link] 2)

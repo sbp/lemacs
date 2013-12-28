@@ -380,7 +380,7 @@ Finishes by calling the functions in find-file-hooks."
       (if msg
 	  (progn
 	    (message msg)
-	    (or not-serious (sit-for 1 nil t)))))
+	    (or not-serious (sit-for 1 t)))))
     (if auto-save-default
 	(auto-save-mode t)))
   (normal-mode t)
@@ -802,9 +802,6 @@ Value is a list whose car is the name for the backup file
   "Return number of names file FILENAME has."
   (car (cdr (file-attributes filename))))
 
-(defvar after-save-buffer-hooks nil
-  "A function or list of functions to be run after saving the current buffer.")
-
 (defun save-buffer (&optional args)
   "Save current buffer in visited file if modified.  Versions described below.
 
@@ -836,8 +833,7 @@ If `trim-versions-without-asking' is nil, system will query user
     (and modp (memq args '(16 64)) (setq buffer-backed-up nil))
     (if (and modp large) (message "Saving file %s..." (buffer-file-name)))
     (basic-save-buffer)
-    (and modp (memq args '(4 64)) (setq buffer-backed-up nil))
-    (if modp (run-hooks 'after-save-buffer-hooks))))
+    (and modp (memq args '(4 64)) (setq buffer-backed-up nil))))
 
 (defun delete-auto-save-file-if-necessary (&optional force)
   "Delete the auto-save filename for the current buffer (if it has one)

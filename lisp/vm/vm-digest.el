@@ -15,8 +15,6 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(require 'vm)
-
 (defun vm-rfc934-char-stuff-region (start end)
   (setq end (vm-marker end))
   (save-excursion

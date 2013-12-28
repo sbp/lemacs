@@ -11,6 +11,7 @@
 ;;; 13 nov 90  Jamie Zawinski <jwz@lucid.com>  created
 ;;; 14 sep 91  Jamie Zawinski <jwz@lucid.com>  hacked on some more
 ;;; 19 feb 91  Jamie Zawinski <jwz@lucid.com>  added Lucid Emacs font support
+;;; 15 apr 92  Jamie Zawinski <jwz@lucid.com>  added mouse support
 
 (defvar webster-host "pasteur" "*The host with the webster server")
 (defvar webster-port "1964" "*The port on which the webster server listens")
@@ -26,14 +27,28 @@
 (defvar webster-fontify (string-match "Lucid" emacs-version)
   "*Set to t to use the Lucid GNU Emacs font-change mechanism.")
 
-(defconst webster-normal-font 0)
-(defconst webster-bold-font 1)
-(defconst webster-italic-font 2)
-(defconst webster-bold-italic-font 3)
-(defconst webster-small-font 4)
+(cond ((fboundp 'make-face)
+       (or (find-face 'webster)
+	   (face-differs-from-default-p (make-face 'webster))
+	   (copy-face 'default 'webster))
+       (or (find-face 'webster-bold)
+	   (face-differs-from-default-p (make-face 'webster-bold))
+	   (copy-face 'bold 'webster-bold))
+       (or (find-face 'webster-italic)
+	   (face-differs-from-default-p (make-face 'webster-italic))
+	   (copy-face 'italic 'webster-italic))
+       (or (find-face 'webster-bold-italic)
+	   (face-differs-from-default-p (make-face 'webster-bold-italic))
+	   (copy-face 'bold-italic 'webster-bold-italic))
+       (or (find-face 'webster-small)
+	   (face-differs-from-default-p (make-face 'webster-small))
+	   (copy-face 'webster-bold 'webster-small))
+       ))
 
-(defun webster-fontify (start end attr)
-  (set-extent-attribute (make-extent start end (current-buffer)) attr))
+(defun webster-fontify (start end face &optional highlight)
+  (let ((e (make-extent start end (current-buffer))))
+    (set-extent-face e face)
+    (if highlight (set-extent-attribute e 'highlight))))
 
 ;;;
 ;;; Initial filter for ignoring information until successfully connected
@@ -189,6 +204,32 @@ Communication with host is recorded in a buffer *webster*."
     (display-buffer webster-buffer nil)
     (process-send-string webster-process (concat kind " " word "\n"))))
 
+(defun webster-xref-word (event)
+  "Define the highlighted word under the mouse.
+Words which are known to have definitions are highlighted when the mouse
+moves over them.  You may define any word by selecting it with the left
+mouse button and then clicking middle."
+  (interactive "e")
+  (let* ((buffer (window-buffer (event-window event)))
+	 (extent (extent-at (event-point event) buffer 'highlight))
+	 text)
+    (cond (extent
+	   (setq text (save-excursion
+			(set-buffer buffer)
+			(buffer-substring
+			 (extent-start-position extent)
+			 (extent-end-position extent)))))
+	  ((x-selection-owner-p) ; the selection is in this emacs process.
+	   (setq text (x-get-selection)))
+	  (t
+	   (error "click on a highlighted word to define")))
+    (while (string-match "\\." text)
+      (setq text (concat (substring text 0 (match-beginning 0))
+			 (substring text (match-end 0)))))
+    (message "looking up %s..." (upcase text))
+    (webster text)))
+
+
 (defun webster-quit ()
   "Close connection and quit webster-mode.  Buffer is not deleted."
   (interactive)
@@ -198,6 +239,19 @@ Communication with host is recorded in a buffer *webster*."
   (setq webster-state "closed")
   (if (eq (current-buffer) webster-buffer)
       (bury-buffer)))
+
+(defvar webster-mode-map nil)
+(if webster-mode-map
+    nil
+  (setq webster-mode-map (make-sparse-keymap))
+  (define-key webster-mode-map "?" 'describe-mode)
+  (define-key webster-mode-map "d" 'webster)
+  (define-key webster-mode-map "e" 'webster-endings)
+  (define-key webster-mode-map "q" 'webster-quit)
+  (define-key webster-mode-map "s" 'webster-spell)
+  (if (string-match "Lucid" emacs-version)
+      (define-key webster-mode-map 'button2 'webster-xref-word))
+  )
 
 (defun webster-mode ()
   "Major mode for interacting with on-line Webster's dictionary.
@@ -217,16 +271,6 @@ Use webster-mode-hook for customization."
   (set (make-local-variable 'webster-start-mark)
        (set-marker (make-marker) (point-max)))
   (run-hooks 'webster-mode-hook))
-
-(defvar webster-mode-map nil)
-(if webster-mode-map
-    nil
-  (setq webster-mode-map (make-sparse-keymap))
-  (define-key webster-mode-map "?" 'describe-mode)
-  (define-key webster-mode-map "d" 'webster)
-  (define-key webster-mode-map "e" 'webster-endings)
-  (define-key webster-mode-map "q" 'webster-quit)
-  (define-key webster-mode-map "s" 'webster-spell))
 
 ;; Snatched from unix-apropos by Henry Kautz
 (defun current-word ()
@@ -264,8 +308,7 @@ Use webster-mode-hook for customization."
       (while (search-forward "@" nil t)
 	(delete-char -1) (insert "~")
 	(if webster-fontify
-	    (webster-fontify (- (point) 1) (point)
-			     webster-bold-italic-font)))
+	    (webster-fontify (- (point) 1) (point) 'webster-bold-italic)))
       ;; some conversions
       (goto-char (point-min))
       (while (search-forward "\b" nil t)
@@ -278,15 +321,14 @@ Use webster-mode-hook for customization."
 			 (e (and (save-excursion (search-forward ")\b>" nil t))
 				 (match-beginning 0))))
 		     (if e
-			 (webster-fontify p e webster-italic-font)))))
+			 (webster-fontify p e 'webster-italic)))))
 	      ((looking-at ")>")
 	       (insert ">>"))
 	      ((looking-at "[a-z][-.]") ; overstrike
 	       (insert (following-char))
 	       (if webster-fontify
-		   (webster-fontify (- (point) 1) (point)
-				    webster-bold-font)))
-	      ((looking-at "[a-z][:]")  ; umlaut
+		   (webster-fontify (- (point) 1) (point) 'webster-bold)))
+	      ((looking-at "[a-z][:_]")  ; umlaut or overbar
 	       (insert "  ")
 	       (forward-char -2))
 	      ((looking-at "([MXY]") ; start smallcaps, italic, or bold
@@ -295,12 +337,13 @@ Use webster-mode-hook for customization."
 		      (webster-intern
 		       (buffer-substring (match-beginning 1) (match-end 1)))
 		      (if webster-fontify
-			  (webster-fontify
-			   (match-beginning 1) (match-end 1)
-			   (let ((c (char-after (1- (match-beginning 1)))))
-			     (cond ((= ?M c) webster-bold-font) ;##
-				   ((= ?X c) webster-italic-font)
-				   ((= ?Y c) webster-bold-font)))))))
+			  (let ((c (char-after (1- (match-beginning 1)))))
+			    (webster-fontify
+			     (match-beginning 1) (match-end 1)
+			     (cond ((= ?M c) 'webster-bold) ;##
+				   ((= ?X c) 'webster-italic)
+				   ((= ?Y c) 'webster-bold))
+			     (or (= ?M c)))))))
 	       nil)
 	      ((looking-at ")[MXY]") ; end smallcaps, italic, or bold
 	       nil)
@@ -425,14 +468,14 @@ Use webster-mode-hook for customization."
 	  (let ((e (save-excursion (end-of-line) (point))))
 	    (webster-intern (buffer-substring (point) e))
 	    (if webster-fontify
-		(webster-fontify (point) e webster-bold-font)))
+		(webster-fontify (point) e 'webster-bold t)))
 	  (beginning-of-line)
 	  (if (not homonym)
 	      (insert " ")
 	    (let ((p (point)))
 	      (insert homonym)
 	      (if webster-fontify
-		  (webster-fontify p (point) webster-bold-italic-font))))
+		  (webster-fontify p (point) 'webster-bold-italic))))
 	  (while dots
 	    (forward-char (- (car dots) ?0))
 	    (insert ".")
@@ -443,7 +486,7 @@ Use webster-mode-hook for customization."
 	    (if posj (insert " " posj))
 	    (if pos2 (insert " " pos2))
 	    (if (and webster-fontify (or pos posj pos2))
-		(webster-fontify p (point) webster-italic-font)))
+		(webster-fontify p (point) 'webster-italic)))
 	  (insert "  ")
 	  ;; prefix/suffix is "p" or "s"; I don't know what it's for.
 	  (setq last-part pos)))
@@ -458,7 +501,7 @@ Use webster-mode-hook for customization."
 	  (insert " ")
 	  (if webster-fontify
 	      (progn
-		(webster-fontify (1- p) (1- (point)) webster-italic-font)
+		(webster-fontify (1- p) (1- (point)) 'webster-italic)
 		(forward-char -1)))
 	  (webster-textify-region p (point))
 	  (insert "\\")))
@@ -499,18 +542,18 @@ Use webster-mode-hook for customization."
 	      (setq word2 (upcase (buffer-substring (point) (match-end 0)))))
 	  (delete-region p (point))
 	  (insert "  ")
-	  (cond ((eq type 0) (insert "see (\bY" word ")\bY"))
-		((eq type 1) (insert "see (\bY" word ")\bY table"))
+	  (cond ((eq type 0) (insert "see (\bM" word ")\bM"))
+		((eq type 1) (insert "see (\bM" word ")\bM table"))
 		((eq type 2) (insert "### ILLEGAL XREF CODE 2"))
-		((eq type 3) (insert "see (\bY" word2 " at " word
-				     ")\bY table"))
-		((eq type 4) (insert "compare (\bY" word ")\bY"))
-		((eq type 5) (insert "compare (\bY" word ")\bY table"))
-		((eq type 6) (insert "called also (\bY" word ")\bY"))
+		((eq type 3) (insert "see (\bM" word2 ")\bM at (\bM" word
+				     ")\bM table"))
+		((eq type 4) (insert "compare (\bM" word ")\bM"))
+		((eq type 5) (insert "compare (\bM" word ")\bM table"))
+		((eq type 6) (insert "called also (\bM" word ")\bM"))
 		((eq type 7) (insert "### ILLEGAL XREF CODE 7"))
-		((eq type 8) (insert "(\bYsyn)\bY see in addition (\bY" word
-				     ")\bY"))
-		((eq type 9) (insert "(\bYsyn)\bY see (\bY" word ")\bY"))
+		((eq type 8) (insert "(\bYsyn)\bY see in addition (\bM" word
+				     ")\bM"))
+		((eq type 9) (insert "(\bYsyn)\bY see (\bM" word ")\bM"))
 		(t (insert "#### ILLEGAL XREF CODE " (or type "nil"))))
 	  (let ((fill-prefix "     "))
 	    (webster-textify-region p (point)))))
@@ -553,7 +596,7 @@ Use webster-mode-hook for customization."
 	  (if sub2 (insert " (" sub2 ") "))
 	  (insert ": ")
 	  (if webster-fontify
-	      (webster-fontify p (point) webster-bold-italic-font))
+	      (webster-fontify p (point) 'webster-bold-italic))
 	  (setq p (point))
 	  (end-of-line)
 	  (let ((fill-prefix (make-string (if sub2 17 (if sub1 12 9)) ? )))
@@ -567,7 +610,7 @@ Use webster-mode-hook for customization."
 	(let ((beg (save-excursion (beginning-of-line) (+ (point) 2))))
 	  (webster-intern (buffer-substring beg (point)))
 	  (if webster-fontify
-	      (webster-fontify beg (point) webster-bold-font)))
+	      (webster-fontify beg (point) 'webster-bold t)))
 	(if (looking-at "[0-9]+")
 	    (let* ((dots (append (buffer-substring (point) (match-end 0))
 				 nil)))
@@ -614,7 +657,7 @@ Use webster-mode-hook for customization."
 	  (if sub2 (insert " (" sub2 ")"))
 	  (insert " ")
 	  (if webster-fontify
-	      (webster-fontify p (point) webster-bold-italic-font))
+	      (webster-fontify p (point) 'webster-bold-italic))
 	  (setq p (point))
 	  (end-of-line)
 	  (let ((fill-prefix (make-string (if sub2 17 (if sub1 12 9)) ? )))
@@ -631,7 +674,7 @@ Use webster-mode-hook for customization."
 					   (setq beg (point)))
 			   (point)))
 	  (if webster-fontify
-	      (webster-fontify beg (point) webster-bold-font))
+	      (webster-fontify beg (point) 'webster-bold t))
 	  (if (looking-at "[0-9]+")
 	      (let* ((dots (append (buffer-substring (point) (match-end 0))
 				   nil)))

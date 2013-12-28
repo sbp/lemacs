@@ -131,12 +131,7 @@ thing searched for.")
 			 interrupt-char
 		       (or (event-to-character event t) event))))
 	   (setq quit-flag nil adjusted nil yank-flag nil)
-	   (cond ((not (or (integerp char)
-			   (key-press-event-p char)
-			   (button-press-event-p char)
-			   (button-release-event-p char)))
-		  (dispatch-event char))
-		 ((and (or (not (integerp char))
+	   (cond ((and (or (not (integerp char))
 			   (and (>= char 128)
 				(not (= char search-ring-advance-char))
 				(not (= char search-ring-retreat-char))))
@@ -387,7 +382,8 @@ thing searched for.")
 
 (defvar isearch-extent nil)
 
-(defconst isearch-extent-attribute 72)
+(or (find-face 'isearch)
+    (make-face 'isearch))
 
 (defun isearch-highlight (begin end)
   (if (and (extentp isearch-extent)
@@ -398,7 +394,7 @@ thing searched for.")
 	     (buffer-name (extent-buffer isearch-extent)))
 	(delete-extent isearch-extent))
     (setq isearch-extent (make-extent begin end (current-buffer))))
-  (set-extent-attribute isearch-extent isearch-extent-attribute))
+  (set-extent-face isearch-extent 'isearch))
 
 (defun isearch-dehighlight (totally)
   (if isearch-extent
@@ -412,12 +408,12 @@ thing searched for.")
 	(if (and (extentp isearch-extent)
 		 (bufferp (extent-buffer isearch-extent))
 		 (buffer-name (extent-buffer isearch-extent)))
-	    (set-extent-attribute isearch-extent 0)
+	    (set-extent-face isearch-extent 'default)
 	  (isearch-dehighlight t)))))
 
 (defun isearch-next-event (event)
   (if (not isearch-highlight)
-      (next-event event)
+      (next-command-event event)
     (let* ((begin
 	    (and other-end (/= other-end (point))
 		 (if (< other-end (point)) other-end (point))))
@@ -428,7 +424,7 @@ thing searched for.")
 	  (isearch-highlight begin end)
 	(isearch-dehighlight nil))
       (unwind-protect
-	  (next-event event)
+	  (next-command-event event)
 	(isearch-dehighlight nil)))))
 
 
@@ -525,7 +521,7 @@ thing searched for.")
 		    (if forward "Search: " "Search backward: ")))
     (message "%s" message)
     ;; Read 1 char and switch to word search if it is ^W.
-    (next-event event) ; dynamic reference
+    (isearch-next-event event) ; dynamic reference
     (setq char (or (event-to-character event t) event))
     (if (and (numberp char) (eq char search-yank-word-char))
 	(setq message (if forward "Word search: " "Word search backward: "))

@@ -1,0 +1,381 @@
+% Quick Reference Card for VM 4 under GNU Emacs version 18 on Unix systems
+%**start of header
+\newcount\columnsperpage
+
+% This file can be printed with 1, 2, or 3 columns per page (see below).
+% Specify how many you want here.  Nothing else needs to be changed.
+
+\columnsperpage=2
+
+% Copyright (c) 1989 Free Software Foundation, Inc.
+
+% This file is part of GNU Emacs.
+
+% This file is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY.  No author or distributor
+% accepts responsibility to anyone for the consequences of using it
+% or for whether it serves any particular purpose or describes
+% any piece of software unless they say so in writing.  Refer to the
+% GNU Emacs General Public License for full details.
+%
+% Permission is granted to copy, modify and redistribute this source
+% file provided the copyright notice and permission notices are
+% preserved on all copies.
+%
+% Permission is granted to process this file through TeX and print the
+% results, provided the printed document carries copyright and
+% permission notices identical to the ones below.
+
+% This file is intended to be processed by plain TeX (TeX82).
+%
+% The final reference card has six columns, three on each side.
+% This file can be used to produce it in any of three ways:
+% 1 column per page
+%    produces six separate pages, each of which needs to be reduced to 80%.
+%    This gives the best resolution.
+% 2 columns per page
+%    produces three already-reduced pages.
+%    You will still need to cut and paste.
+% 3 columns per page
+%    produces two pages which must be printed sideways to make a
+%    ready-to-use 8.5 x 11 inch reference card.
+%    For this you need a dvi device driver that can print sideways.
+% Which mode to use is controlled by setting \columnsperpage above.
+%
+% VMREFCARD 1.0 - October 9, 1989 - jgraf@mipos3.intel.com
+%  Hacked up vipcard.tex by msato which was hacked from refcard.tex
+%  by sgildea.  No doubt a tradition for years to come.
+%
+% Author:
+%  Masahiko Sato
+%  Internet: ms@sail.stanford.edu
+%  Junet: masahiko@sato.riec.tohoku.junet
+%
+% The original TeX code for formatting the reference card was written by:
+%  Stephen Gildea
+%  UUCP: mit-erl!gildea
+%  Internet: gildea@erl.mit.edu
+
+
+\def\versionnumber{1.0}
+\def\year{1989}
+\def\version{September \year\ v\versionnumber}
+
+\def\shortcopyrightnotice{\vskip 1ex plus 2 fill
+  \centerline{\small \copyright\ \year\ Kyle Jones
+  Permissions on back.  v\versionnumber}}
+
+\def\copyrightnotice{
+%\vskip 1ex plus 2 fill\begingroup\small
+\vskip 1ex \begingroup\small
+\centerline{Copyright \copyright\ \year\ Kyle Jones}
+\centerline{refcard redesigned by jgraf, \version}
+\centerline{for VM 4 under GNU Emacs version 18 on Unix systems}
+
+Permission is granted to make and distribute copies of
+this card provided the copyright notice and this permission notice
+are preserved on all copies.
+
+\endgroup}
+
+% make \bye not \outer so that the \def\bye in the \else clause below
+% can be scanned without complaint.
+\def\bye{\par\vfill\supereject\end}
+
+\newdimen\intercolumnskip
+\newbox\columna
+\newbox\columnb
+
+\def\ncolumns{\the\columnsperpage}
+
+\message{[\ncolumns\space 
+  column\if 1\ncolumns\else s\fi\space per page]}
+
+\def\scaledmag#1{ scaled \magstep #1}
+
+% This multi-way format was designed by Stephen Gildea
+% October 1986.
+% Slightly modified by Masahiko Sato, September 1987.
+\if 1\ncolumns
+  \hsize 4in
+  \vsize 10in
+  %\voffset -.7in
+  \voffset -.57in
+  \font\titlefont=\fontname\tenbf \scaledmag3
+  \font\headingfont=\fontname\tenbf \scaledmag2
+  \font\miniheadingfont=\fontname\tenbf \scaledmag1 % masahiko
+  \font\smallfont=\fontname\sevenrm
+  \font\smallsy=\fontname\sevensy
+
+  \footline{\hss\folio}
+  \def\makefootline{\baselineskip10pt\hsize6.5in\line{\the\footline}}
+\else
+  %\hsize 3.2in
+  %\vsize 7.95in
+  \hsize 3.41in % masahiko
+  \vsize 8in % masahiko
+  \hoffset -.75in
+  \voffset -.745in
+  \font\titlefont=cmbx10 \scaledmag2
+  \font\headingfont=cmbx10 \scaledmag1
+  \font\miniheadingfont=cmbx10 % masahiko
+  \font\smallfont=cmr6
+  \font\smallsy=cmsy6
+  \font\eightrm=cmr8
+  \font\eightbf=cmbx8
+  \font\eightit=cmti8
+  \font\eightsl=cmsl8
+  \font\eighttt=cmtt8
+  \font\eightsy=cmsy8
+  \textfont0=\eightrm
+  \textfont2=\eightsy
+  \def\rm{\eightrm}
+  \def\bf{\eightbf}
+  \def\it{\eightit}
+  \def\sl{\eightsl} % masahiko
+  \def\tt{\eighttt}
+  \normalbaselineskip=.8\normalbaselineskip
+  \normallineskip=.8\normallineskip
+  \normallineskiplimit=.8\normallineskiplimit
+  \normalbaselines\rm		%make definitions take effect
+
+  \if 2\ncolumns
+    \let\maxcolumn=b
+    \footline{\hss\rm\folio\hss}
+    \def\makefootline{\vskip 2in \hsize=6.86in\line{\the\footline}}
+  \else \if 3\ncolumns
+    \let\maxcolumn=c
+    \nopagenumbers
+  \else
+    \errhelp{You must set \columnsperpage equal to 1, 2, or 3.}
+    \errmessage{Illegal number of columns per page}
+  \fi\fi
+
+  %\intercolumnskip=.46in
+  \intercolumnskip=.19in % masahiko .19x4 + 3.41x3 = 10.99
+  \def\abc{a}
+  \output={%
+      % This next line is useful when designing the layout.
+      %\immediate\write16{Column \folio\abc\space starts with \firstmark}
+      \if \maxcolumn\abc \multicolumnformat \global\def\abc{a}
+      \else\if a\abc
+	\global\setbox\columna\columnbox \global\def\abc{b}
+        %% in case we never use \columnb (two-column mode)
+        \global\setbox\columnb\hbox to -\intercolumnskip{}
+      \else
+	\global\setbox\columnb\columnbox \global\def\abc{c}\fi\fi}
+  \def\multicolumnformat{\shipout\vbox{\makeheadline
+      \hbox{\box\columna\hskip\intercolumnskip
+        \box\columnb\hskip\intercolumnskip\columnbox}
+      \makefootline}\advancepageno}
+  \def\columnbox{\leftline{\pagebody}}
+
+  \def\bye{\par\vfill\supereject
+    \if a\abc \else\null\vfill\eject\fi
+    \if a\abc \else\null\vfill\eject\fi
+    \end}  
+\fi
+
+% we won't be using math mode much, so redefine some of the characters
+% we might want to talk about
+\catcode`\^=12
+\catcode`\_=12
+
+\chardef\\=`\\
+\chardef\{=`\{
+\chardef\}=`\}
+
+\hyphenation{mini-buf-fer}
+
+\parindent 0pt
+\parskip 1ex plus .5ex minus .5ex
+
+\def\small{\smallfont\textfont2=\smallsy\baselineskip=.8\baselineskip}
+
+\outer\def\newcolumn{\vfill\eject}
+
+\outer\def\title#1{{\titlefont\centerline{#1}}\vskip 1ex plus .5ex}
+
+\outer\def\section#1{\par\filbreak
+  \vskip 3ex plus 2ex minus 2ex {\headingfont #1}\mark{#1}%
+  \vskip 2ex plus 1ex minus 1.5ex}
+
+% masahiko
+\outer\def\subsection#1{\par\filbreak
+  \vskip 2ex plus 2ex minus 2ex {\miniheadingfont #1}\mark{#1}%
+  \vskip 1ex plus 1ex minus 1.5ex}
+
+\newdimen\keyindent
+
+\def\beginindentedkeys{\keyindent=1em}
+\def\endindentedkeys{\keyindent=0em}
+\endindentedkeys
+
+\def\paralign{\vskip\parskip\halign}
+
+\def\<#1>{$\langle${\rm #1}$\rangle$}
+
+\def\kbd#1{{\tt#1}\null}	%\null so not an abbrev even if period follows
+
+\def\beginexample{\par\leavevmode\begingroup
+  \obeylines\obeyspaces\parskip0pt\tt}
+{\obeyspaces\global\let =\ }
+\def\endexample{\endgroup}
+
+\def\key#1#2{\leavevmode\hbox to \hsize{\vtop
+  {\hsize=.75\hsize\rightskip=1em
+  \hskip\keyindent\relax#1}\kbd{#2}\hfil}}
+
+\newbox\metaxbox
+\setbox\metaxbox\hbox{\kbd{M-x }}
+\newdimen\metaxwidth
+\metaxwidth=\wd\metaxbox
+
+\def\metax#1#2{\leavevmode\hbox to \hsize{\hbox to .75\hsize
+  {\hskip\keyindent\relax#1\hfil}%
+  \hskip -\metaxwidth minus 1fil
+  \kbd{#2}\hfil}}
+
+\def\fivecol#1#2#3#4#5{\hskip\keyindent\relax#1\hfil&\kbd{#2}\quad
+  &\kbd{#3}\quad&\kbd{#4}\quad&\kbd{#5}\cr}
+
+\def\fourcol#1#2#3#4{\hskip\keyindent\relax#1\hfil&\kbd{#2}\quad
+  &\kbd{#3}\quad&\kbd{#4}\quad\cr}
+
+\def\threecol#1#2#3{\hskip\keyindent\relax#1\hfil&\kbd{#2}\quad
+  &\kbd{#3}\quad\cr}
+
+\def\twocol#1#2{\hskip\keyindent\relax\kbd{#1}\hfil&\kbd{#2}\quad\cr}
+
+\def\twocolkey#1#2#3#4{\hskip\keyindent\relax#1\hfil&\kbd{#2}\quad&\relax#3\hfil&\kbd{#4}\quad\cr}
+
+%**end of header
+
+\beginindentedkeys
+
+\title{VM (View Mail) Reference Card}
+
+\centerline{(for version 4 under GNU Emacs version 18)}
+
+%\copyrightnotice
+
+\section{VM Major Mode}
+
+To invoke VM type {\bf M-x vm}
+
+\subsection{Selecting and Previewing Mail}
+
+\key{go to next message}{n}
+\key{go to previous message}{p}
+\key{like {\bf n} but ignore skip-variable setting}{N}
+\key{like {\bf p} but ignore skip-variable setting}{P}
+\key{go to next unread message}{M-n}
+\key{go to previous unread message}{M-p}
+\key{go to numbered message (uses prefix arg)}{RET}
+\key{go to last message seen}{TAB}
+\key{incremental search through folder}{M-s}
+
+\key{display hidden headers}{t}
+\key{scroll forward a page (or display next msg)}{SPC}
+\key{scroll back a page}{b {\rm or} DEL}
+\key{go to start of current message}{<}
+\key{go to end of current message}{>}
+
+\subsection{Deleting mail}
+\key{delete current message (mark)}{d}
+\key{undelete (mark)}{u}
+\key{delete all msgs with same subj as current msg}{k}
+
+\subsection{Sending mail from within VM}
+
+\key{originate a piece of mail}{m}
+\key{reply (only to sender of message)}{r}
+\key{reply with included text from current msg}{R}
+\key{followup (reply to all recipients of msg)}{f}
+\key{followup with included text}{F}
+\key{forward the current message}{z}
+
+\subsection{Folders}
+
+\key{digestify and mail folder contents}{@}
+\key{burst a digest}{*}
+
+\key{group msgs according to criteria}{G}
+
+\key{get any new mail from system mailbox}{g}
+\key{visit another mail folder}{v}
+
+\key{save current msg to folder (append if exist)}{s}
+\key{write msg to file sans headers (append if exist)}{w}
+\key{expunge and save mail folder}{S}
+\key{expunge deleted msgs (don't save folder)}{\#}
+\key{save unfiled msgs via vm-auto-folder-alist}{A}
+\key{quit VM, expunge and save folder}{q}
+\key{exit VM with no change to folder}{x}
+
+\shortcopyrightnotice
+
+\subsection {VM Miscellaneous Commands}
+
+\key{special undo for msg attributes only}{C-_}
+\key{help}{?}
+\key{run a shell command}{!}
+\key{run a shell cmd with cur. msg as input}{|}
+
+\hskip 5ex
+If the *mail* buffer was entered via the VM command {\bf m}, then the
+following commands are valid within the *mail* buffer:
+
+\hskip 5ex
+
+\key{copy msg from folder to *mail*}{C-C C-y}
+\key{execute VM cmd in *mail* buffer}{C-C C-v}
+
+\section{EMACS Mail Mode}
+
+\key{originate a piece of mail}{C-x m}
+\key{same as C-x m but use other window}{C-x 4 m}
+
+\subsection{Sending Mail}
+
+\key{send message, leave *mail* selected}{C-c C-s}
+\key{send message, select some other buffer}{C-c C-c}
+
+\subsection{Mail Mode Commands}
+
+\key{insert file \~/.signature at end of message}{C-c C-w}
+\key{yank selected message from Rmail/VM}{C-c C-y}
+\key{fill paragraphs of yanked messages}{C-c C-q}
+
+\subsection{Mail Header Fields}
+
+\hskip 5ex
+Fields that have commands associated with them will move to the 
+appropriate field creating one if needed.
+
+\paralign to \hsize{#\tabskip=10pt plus 1 fil&#\tabskip=0pt&#\cr
+
+\threecol{{\bf Field}}{{\bf Purpose}}{{\bf Command}}
+\threecol{To:}        {mail to  address(es)}{C-c C-f C-t}
+\threecol{Subject:}   {topic of mail message}{C-c C-f C-s}
+\threecol{CC:}        {copy to(appears in header)}{C-c C-f C-c}
+\threecol{BCC:}       {copy to (not in header)}{C-c C-f C-b}
+\threecol{FCC:}       {save file to after send}{NA}
+\threecol{From:}      {who sent the mail}{NA}
+\threecol{Reply-To:}  {send replies to address}{NA}
+\threecol{In-Reply-To}{subject of reply}{NA}
+}
+
+\hskip 5ex
+The `To', `CC', `BCC' and `FCC' fields can appear any number of times and
+`To', `CC' and `BCC' fields can have continuation lines.
+
+\hskip 5ex
+
+\copyrightnotice
+
+\bye
+
+% Local variables:
+% compile-command: "tex refcard"
+% End:

@@ -308,7 +308,9 @@ The SERVER argument should be the name of the host that the kernel is
 running on (empty-string for localhost).  It may also be of the form
 ``hostname:user'' or ``:user'', meaning to use the server running with
 userid USER."
-  (interactive "sconnect to energize server: ")
+  (interactive (if (connected-to-energize-p)
+		   (error "Already connected to the server.") ; you bogon.
+		 (list (read-string "connect to energize server: "))))
 ;; line info column is broken for now
 ;;  (x-show-lineinfo-column)
   (if (connected-to-energize-p)
@@ -413,3 +415,44 @@ cursor position, and selection positions) so that it can bring up a menu."
         (error (format "event's buffer, %s, isn't a buffer" buffer)))
     (select-window (event-window event))
     (funcall menu-proc buffer pos nil nil)))
+
+
+;;; Here's a converter that makes emacs understand how to convert to
+;;; selections of type ENERGIZE.  Eventually the Energize server won't
+;;; be using the selection mechanism any more, I hope.
+
+(defun xselect-convert-to-energize (selection type value)
+  (let (str id start end tmp)
+    (cond ((and (consp value)
+		(markerp (car value))
+		(markerp (cdr value)))
+	   (setq id (energize-buffer-id (marker-buffer (car value)))
+		 start (1- (marker-position (car value)))  ; zero based
+		 end (1- (marker-position (cdr value)))))
+	  ((extentp value)
+	   (setq id (extent-to-generic-id value)
+		 start 0
+		 end 0)))
+    (if (null id)
+	nil
+      (setq str (make-string 12 0))
+      (if (< end start) (setq tmp start start end end tmp))
+      (aset str 0 (logand (ash (car id) -8) 255))
+      (aset str 1 (logand (car id) 255))
+      (aset str 2 (logand (ash (cdr id) -8) 255))
+      (aset str 3 (logand (cdr id) 255))
+      (aset str 4 (logand (ash start -24) 255))
+      (aset str 5 (logand (ash start -16) 255))
+      (aset str 6 (logand (ash start -8) 255))
+      (aset str 7 (logand start 255))
+      (aset str 8 (logand (ash end -24) 255))
+      (aset str 9 (logand (ash end -16) 255))
+      (aset str 10 (logand (ash end -8) 255))
+      (aset str 11 (logand end 255))
+      (cons 'ENERGIZE_OBJECT str))))
+
+
+(or (assq 'ENERGIZE_OBJECT selection-converter-alist)
+    (setq selection-converter-alist
+	  (cons '(ENERGIZE_OBJECT . xselect-convert-to-energize)
+		selection-converter-alist)))

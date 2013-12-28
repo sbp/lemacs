@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Mon Jan  6 17:46:39 1992
+;;; compiled by jwz@thalidomide on Mon May 18 20:21:30 1992
 ;;; from file /cadillac-th/jwz/emacs19/lisp/etags.el
-;;; emacs version 19.40 Lucid.
-;;; bytecomp version 2.03; 29-oct-91.
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -138,9 +138,10 @@ Foo"])
 and puts point at its definition.
  If TAGNAME is a null string, the expression in the buffer
 around or before point is used as the tag name.
- If second arg NEXT is non-nil (interactively, with prefix arg),
-searches for the next tag in the tag table
-that matches the tagname used in the previous find-tag.
+ If called interactively with a numeric argument, searches for the next tag
+in the tag table that matches the tagname used in the previous find-tag.
+ If second arg OTHER-WINDOW is non-nil, uses another window to display
+the tag.
 
 This version of this function supports multiple active tags tables,
 and completion.

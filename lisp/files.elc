@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Sun Mar  1 15:08:09 1992
-;;; from file /u/jwz/emacs19/lisp/files.el
-;;; emacs version 19.66 Lucid.
-;;; bytecomp version 2.04; 5-feb-92.
+;;; compiled by jwz@thalidomide on Mon May 18 17:38:27 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/files.el
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -164,7 +164,7 @@ Read file FILENAME into a buffer and return the buffer.
 If a buffer exists visiting FILENAME, return that one,
 but verify that the file has not changed since visited or saved.
 The buffer is not selected, just returned to the caller."])
-(fset 'after-find-file #[(&optional error warn) "À	!?¬ÛÄ«ŠÇ	!«…ÈÉª¯\n¬—\n«ŠËÌ 	\"«ƒÍªžÈ­˜Îª•¬…ÈÏªŒÇÐ!!«ƒÒªÓ‰«ŽÕ!ˆ¬†Ö×ÄÈ#ˆ*«„ÙÈ!ˆÚÈ!ˆÛÜ\"‡" [file-writable-p buffer-file-name buffer-read-only noninteractive nil not-serious error file-attributes t "File exists, but is read-protected." warn file-newer-than-file-p make-auto-save-file-name "Auto save file is newer; consider M-x recover-file" "(New file)" "File is write protected" directory-file-name default-directory "File not found and directory write-protected" "File not found and directory doesn't exist" msg message sit-for 1 auto-save-default auto-save-mode normal-mode mapcar funcall find-file-hooks] 5 "\
+(fset 'after-find-file #[(&optional error warn) "À	!?¬ÚÄ«ŠÇ	!«…ÈÉª¯\n¬—\n«ŠËÌ 	\"«ƒÍªžÈ­˜Îª•¬…ÈÏªŒÇÐ!!«ƒÒªÓ‰«Õ!ˆ¬…Ö×È\"ˆ*«„ÙÈ!ˆÚÈ!ˆÛÜ\"‡" [file-writable-p buffer-file-name buffer-read-only noninteractive nil not-serious error file-attributes t "File exists, but is read-protected." warn file-newer-than-file-p make-auto-save-file-name "Auto save file is newer; consider M-x recover-file" "(New file)" "File is write protected" directory-file-name default-directory "File not found and directory write-protected" "File not found and directory doesn't exist" msg message sit-for 1 auto-save-default auto-save-mode normal-mode mapcar funcall find-file-hooks] 4 "\
 Called after finding a file and by the default revert function.
 Sets buffer mode, parses local variables.
 Optional args ERROR and WARN: ERROR non-nil means there was an
@@ -223,9 +223,7 @@ Value is a list whose car is the name for the backup file
 (fset 'backup-extract-version #[(fn) "ÀÁ\n#«Ä”U«‡Å\nÆO!‡Ä‡" [string-match "[0-9]+~$" fn bv-length 0 string-to-int -1] 4])
 (fset 'file-nlinks #[(filename) "À	!A@‡" [file-attributes filename] 2 "\
 Return number of names file FILENAME has."])
-(defvar after-save-buffer-hooks nil "\
-A function or list of functions to be run after saving the current buffer.")
-(fset 'save-buffer #[(&optional args) "À Á ÂV­„Å=?‰«ˆÈ>«ƒÉ\n«Š«†ËÌÍ \"ˆÎ ˆ«ˆÏ>«ƒÉ\n­ƒÐÑ!+‡" [buffer-modified-p buffer-size 50000 make-backup-files args 0 large modp (16 64) nil buffer-backed-up message "Saving file %s..." buffer-file-name basic-save-buffer (4 64) run-hooks after-save-buffer-hooks] 5 "\
+(fset 'save-buffer #[(&optional args) "À Á ÂV­„Å=?‰«ˆÈ>«ƒÉ\n«Š«†ËÌÍ \"ˆÎ ˆ­‰Ï>­„É‰\n+‡" [buffer-modified-p buffer-size 50000 make-backup-files args 0 large modp (16 64) nil buffer-backed-up message "Saving file %s..." buffer-file-name basic-save-buffer (4 64)] 5 "\
 Save current buffer in visited file if modified.  Versions described below.
 
 By default, makes the previous version into a backup file

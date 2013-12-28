@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Sat Dec 28 16:57:10 1991
-;;; from file /wg1/emacs-base/lisp/vm/vm-delete.el
-;;; emacs version 19.39.
-;;; bytecomp version 2.03; 29-oct-91.
+;;; compiled by jwz@thalidomide on Tue Apr 21 16:43:58 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/vm/vm-delete.el
+;;; emacs version 19.0.2 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,7 +10,6 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(require 'vm)
 (fset 'vm-delete-message #[(count) "t«ƒÀ ˆ	«ˆÂ	!«ƒ	qˆÃ!«‡Â!¬‚Å«ˆÇÈpC\"ˆªtÉ ˆ\nË=Í!‰«˜@ÐHÐH¬‡Ñ@Ò\"ˆA‰¬hÓ ˆ­Œ?­‡ÕÒ#*‡" [vm-follow-summary-cursor vm-mail-buffer buffer-name bufferp vm-summary-buffer nil vm-folder-read-only signal folder-read-only vm-error-if-folder-empty last-command vm-next-command-uses-marks used-marks vm-select-marked-or-prefixed-messages count mlist 2 vm-set-deleted-flag t vm-update-summary-and-mode-line vm-move-after-deleting vm-next-message executing-kbd-macro] 5 "\
 Add the `deleted' attribute to the current message.
 

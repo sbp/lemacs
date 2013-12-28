@@ -21,6 +21,8 @@
 
 (load "subr")
 (garbage-collect)
+(load "faces")		; must be loaded before any file that makes faces
+(garbage-collect)
 (load "loaddefs.el")  ;Don't get confused if someone compiled loaddefs by mistake.
 (garbage-collect)
 (load "simple")
@@ -109,7 +111,10 @@
 ;by writing a site-init.el that loads them.
 ;See also "site-load" above.
 (load "site-init" t)
-(load "energize/energize-load")
+
+(if (fboundp (intern-soft "handle-energize-request"))
+    (load "energize/energize-load"))
+
 (garbage-collect)
 
 (if (or (equal (nth 3 command-line-args) "dump")

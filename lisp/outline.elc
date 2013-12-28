@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Aug 14 22:27:26 1991
-;;; from file /wg1/emacs-base/lisp/outline.el
-;;; emacs version 19.60.
-;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; compiled by jwz@thalidomide on Tue May  5 18:42:29 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/outline.el
+;;; emacs version 19.0.5 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -23,7 +23,7 @@ The recommended way to set this is with a Local Variables: list
 in the file it applies to.")
 (defvar outline-mode-map nil "\
 ")
-(byte-code "¬µÁ \n¤ÃÄÅ#ˆÃÆÇ#ˆÃÈÉ#ˆÃÊË#ˆÃÌÍ#ˆÃÎÏ#ˆÃÐÑ#ˆÃÒÓ#ˆÁ‡" [outline-mode-map make-sparse-keymap text-mode-map define-key "" outline-next-visible-heading "" outline-previous-visible-heading "	" show-children "" show-subtree "" hide-subtree "" outline-up-heading "" outline-forward-same-level "" outline-backward-same-level] 4)
+(byte-code "¬¸Á Â\"ˆÄÅÆ#ˆÄÇÈ#ˆÄÉÊ#ˆÄËÌ#ˆÄÍÎ#ˆÄÏÐ#ˆÄÑÒ#ˆÄÓÔ#ˆÁ‡" [outline-mode-map make-sparse-keymap set-keymap-parent text-mode-map define-key "" outline-next-visible-heading "" outline-previous-visible-heading "	" show-children "" show-subtree "" hide-subtree "" outline-up-heading "" outline-forward-same-level "" outline-backward-same-level] 4)
 (defvar outline-minor-mode nil "\
 Non-nil if using Outline mode as a minor mode of some other mode.")
 (byte-code "À	ÂC\"À‡" [append minor-mode-alist (outline-minor-mode " Outl")] 3)

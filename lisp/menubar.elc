@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Feb 26 22:36:10 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/menubar.el
-;;; emacs version 19.64 Lucid.
-;;; bytecomp version 2.04; 5-feb-92.
+;;; compiled by jwz@thalidomide on Mon May 18 18:34:11 1992
+;;; from file /u/jwz/emacs19/lisp/menubar.el
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,19 +10,9 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(byte-code "ÀÂ‡" [(("File" ["New Screen" x-new-screen t] ["Open File..." find-file t] ["Save Buffer" save-buffer t] ["Save Buffer As..." write-file t] ["Revert Buffer" revert-buffer t] "-----" ["Print Buffer" lpr-buffer t] "-----" ["Delete Screen" delete-screen t] ["Kill Buffer..." kill-buffer t] ["Exit Emacs" save-buffers-kill-emacs t]) ("Edit" ["Undo" advertised-undo t] ["Cut" kill-primary-selection t] ["Copy" copy-primary-selection t] ["Paste" yank-clipboard-selection t] ["Clear" delete-primary-selection t]) ("Buffers" "") ("Help" ["Info" info t] ["Describe Mode" describe-mode t] ["Command Apropos..." command-apropos t] ["List Keybindings" describe-bindings t] ["Describe Key..." describe-key t] ["Describe Function..." describe-function t] ["Describe Variable..." describe-variable t] "-----" ["Unix Manual..." manual-entry t] ["Emacs Tutorial" help-with-tutorial t] ["Emacs News" view-emacs-news t])) default-menubar nil] 1)
+(byte-code "ÀÂ‡" [(("File" ["New Screen" x-new-screen t] ["Open File..." find-file t] ["Save Buffer" save-buffer t] ["Save Buffer As..." write-file t] ["Revert Buffer" revert-buffer t] "-----" ["Print Buffer" lpr-buffer t] "-----" ["Delete Screen" delete-screen t] ["Kill Buffer..." kill-buffer t] ["Exit Emacs" save-buffers-kill-emacs t]) ("Edit" ["Undo" advertised-undo t] ["Cut" x-kill-primary-selection t] ["Copy" x-copy-primary-selection t] ["Paste" x-yank-clipboard-selection t] ["Clear" x-delete-primary-selection t]) ("Buffers" "") ("Help" ["Info" info t] ["Describe Mode" describe-mode t] ["Command Apropos..." command-apropos t] ["List Keybindings" describe-bindings t] ["Describe Key..." describe-key t] ["Describe Function..." describe-function t] ["Describe Variable..." describe-variable t] "-----" ["Unix Manual..." manual-entry t] ["Emacs Tutorial" help-with-tutorial t] ["Emacs News" view-emacs-news t])) default-menubar nil] 1)
 (fset 'x-new-screen #[nil "ÀÁÂ!!ˆÃÄÅ!!ˆÆÇ!­†­‚È ‡" [select-screen x-create-screen nil switch-to-buffer get-buffer-create "*scratch*" boundp evi-install-undo-list evi-mode] 3 "\
 Creates a new emacs screen (that is, a new X window.)" nil])
-(fset 'copy-primary-selection #[nil "ÀÂ ¬„ÃÄ!ˆ¬„ÃÆ!ˆŠÇ!qˆÈÉ!Ê!\")‡" [nil last-command x-selection-owner-p error "emacs does not own the primary selection" primary-selection-extent "the primary selection is not an extent?" extent-buffer copy-region-as-kill extent-start-position extent-end-position] 4 "\
-If there is a selection, copy it to both the kill ring and the Clipboard." nil])
-(fset 'kill-primary-selection #[nil "À ¬„ÁÂ!ˆÃ¬„ÁÆ!ˆŠÇ!qˆÈÉ!Ê!\"ˆ)ËÃ!‡" [x-selection-owner-p error "emacs does not own the primary selection" nil last-command primary-selection-extent "the primary selection is not an extent?" extent-buffer kill-region extent-start-position extent-end-position x-disown-selection] 4 "\
-If there is a selection, delete the text it covers, and copy it to 
-both the kill ring and the Clipboard." nil])
-(fset 'delete-primary-selection #[nil "À ¬„ÁÂ!ˆÃ¬„ÁÆ!ˆŠÇ!qˆÈ!É!|ˆ)ÊÃ!‡" [x-selection-owner-p error "emacs does not own the primary selection" nil last-command primary-selection-extent "the primary selection is not an extent?" extent-buffer extent-start-position extent-end-position x-disown-selection] 3 "\
-If there is a selection, delete the text it covers *without* copying it to
-the kill ring or the Clipboard." nil])
-(fset 'yank-clipboard-selection #[nil "ÀÂ ‰¬„ÄÅ!ˆÆ ˆc)‡" [nil last-command x-get-clipboard clip error "there is no clipboard selection" push-mark] 3 "\
-If someone owns a Clipboard selection, insert it at point." nil])
 (fset 'find-menu-item #[(menubar path &optional parent) "¬…ÁÂ\":??­óÅ‰«»@«®@È@!«‡@ÉHª@;«…@ª„@@—š«‹@Å‰ªKA‰¬EA«¦:«‹ÊAA#ªš«‰ËÌÍD\"ªËÌÎ@D\"ª„B*‡" [parent mapcar downcase path menubar nil result rest vectorp 0 find-menu-item signal error "not a submenu" "no such submenu"] 5])
 (fset 'disable-menu-item #[(path) "À Â	\"‰@A¬ŽÇÈ«ƒÉªÊD\"ˆËÌIˆÍ	!ˆ,‡" [screen-menubar menubar find-menu-item path pair item menu signal error "No such menu item" "No such menu" 2 nil set-screen-menubar] 5 "\
 Make the named menu item be unselectable.
@@ -61,8 +51,8 @@ the menu hierarchy.  (\"File\" \"Save\") means the menu item called \"Save\"
 under the toplevel \"File\" menu.  (\"Menu\" \"Foo\" \"Item\") means the 
 menu item called \"Item\" under the \"Foo\" submenu of \"Menu\".
 NEW-NAME is the string that the menu item will be printed as from now on."])
-(fset 'sensitize-edit-menu-hook #[nil "À Â	Ã\"@AÂÅ\"@ÂÇ\"@ÂÉ\"@\nÂË\"@ÂÍ\"@®…ÂÎ\"@Ð ÒÓ!ÕÕÙ=?­“Ï=­ÛÜ!­‚Õ‰??ÕÕ«ŠàH=?®¨«ŠàH=?®š«ŠàH=?®Œ\n­ˆ\nàH=?!«‡àIˆ«‡àIˆ«‡àIˆ\n«‡\nàIˆÏ=«âÛÜ!­‚??ª™ãÙ=?­®‡ÛÜ!­‚??$«ƒÕ«£åHš«‰àH=¬‘åIˆàIˆÙ!!­ƒæ	!.‡" [screen-menubar menubar find-menu-item ("Edit") edit-menu ("Cut") cut ("Copy") copy ("Paste") paste ("Clear") clear ("Undo") ("Undo More") undo x-selection-owner-p emacs-owns-selection-p x-selection-exists-p CLIPBOARD clipboard-exists-p nil undo-available undoing-more buffer-undo-list t last-command boundp pending-undo-list undo-info-available undo-name undo-state 2 change-p "Undo More" "Undo" buffer-read-only 0 set-screen-menubar] 3 "\
-For use as a value of menu-popup-hook.
+(fset 'sensitize-edit-menu-hook #[(menubar) "À	Â\"@AÀÄ\"@ÀÆ\"@ÀÈ\"@	ÀÊ\"@ÀÌ\"@®…ÀÍ\"@Ï ÑÒ!ÔÔØ=?­“Î=­ÚÛ!­‚Ô‰??ÔÔ«‰ßH=?®¨«ŠßH=?®š«ŠßH=?®Œ	­ˆ	ßH=? «†ßIˆ«‡ßIˆ«‡ßIˆ	«‡	ßIˆÎ=«áÚÛ!­‚??ª™âØ=?­®‡ÚÛ!­‚??#«ƒÔ«£äHš«‰ßH=¬‘äIˆßIˆØ  «ƒ	ªØ.‡" [find-menu-item menubar ("Edit") edit-menu ("Cut") cut ("Copy") copy ("Paste") paste ("Clear") clear ("Undo") ("Undo More") undo x-selection-owner-p emacs-owns-selection-p x-selection-exists-p CLIPBOARD clipboard-exists-p nil undo-available undoing-more buffer-undo-list t last-command boundp pending-undo-list undo-info-available undo-name undo-state 2 change-p "Undo More" "Undo" buffer-read-only 0] 3 "\
+For use as a value of activate-menubar-hook.
 This function changes the sensitivity of the Edit menu items:
   Cut   sensitive only when emacs owns the primary X Selection.
   Copy  sensitive only when emacs owns the primary X Selection.
@@ -72,9 +62,9 @@ This function changes the sensitivity of the Edit menu items:
 Returns a string to represent the given buffer in the Buffer menu.
 nil means the buffer shouldn't be listed.  You can redefine this."])
 (fset 'format-buffers-menu-line #[(buffer) "ÀÁÂ!‰\"?­‡" [string-match "\\` " buffer-name buffer] 4])
-(fset 'build-buffers-menu-hook #[nil "À Â	Ã\"@ÅÅÅ??­¶É ‰GÊV«ŠÊ›Å¡ˆËÌÍ\"ÎÅ\"‰Ï¤‰Aš?­ˆ¡ˆÐ	!-‡" [screen-menubar menubar find-menu-item ("Buffers") buffer-menu nil name buffers lots-of-buffers buffer-list 10 t mapcar #[(buffer) "À	!‰­‰Ã\nÄÅ	!DÆ#‡" [format-buffers-menu-line buffer name vector switch-to-buffer buffer-name t] 5] delq ("----" ["List All Buffers" list-buffers t]) set-screen-menubar] 4 "\
-For use as a value of menu-popup-hook.
+(fset 'build-buffers-menu-hook #[(menubar) "À	Â\"@Ã‰‰??­«Ç ‰GÈV«†È›Ã¡ˆÉÊ\"ËÃ\"Ì¤‰Aš«ƒÍª†¡ˆ	+‡" [find-menu-item menubar ("Buffers") nil buffers name buffer-menu buffer-list 10 mapcar #[(buffer) "À	!‰­‰Ã\nÄÅ	!DÆ#‡" [format-buffers-menu-line buffer name vector switch-to-buffer buffer-name t] 5] delq ("----" ["List All Buffers" list-buffers t]) t] 4 "\
+For use as a value of activate-menubar-hook.
 This function changes the contents of the \"Buffers\" menu to correspond
 to the current set of buffers.  You can control how the text of the menu
 items are generated by redefining the function `format-buffers-menu-line'."])
-(byte-code "À	>¬„À	BÂ	>¬„Â	BÃÄ!‡" [build-buffers-menu-hook menu-popup-hook sensitize-edit-menu-hook provide menubar] 2)
+(byte-code "À	>¬„À	BÂ	>¬„Â	BÃÄMˆÃÆÇ!‡" [build-buffers-menu-hook activate-menubar-hook sensitize-edit-menu-hook install-default-menubar #[(screen) "À	\n\"‡" [set-screen-menubar default-menubar screen] 3] create-screen-hook provide menubar] 2)

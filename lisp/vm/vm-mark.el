@@ -15,8 +15,6 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(require 'vm)
-
 (defun vm-clear-all-marks ()
   "Removes all message marks in the current folder."
   (interactive)
@@ -113,3 +111,7 @@ on the marked messages in the current folder."
 	  (setq list (cons (car mp) list)))
       (setq mp (cdr mp)))
     (nreverse list)))
+
+(defun vm-mark-help ()
+  (interactive)
+  (message "MM = mark, MU = unmark, Mm = mark all, Mu = unmark all, MN - use marks"))

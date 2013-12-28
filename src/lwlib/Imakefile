@@ -1,0 +1,129 @@
+/**/# Imakefile file for lwlib.a, Copyright (c) 1992 Lucid, Inc.
+
+/*
+ *  If you have Motif and want to provide support for Motif widgets in lwlib,
+ *  then define USE_MOTIF.
+ *
+ *  If you have OpenLook and want to provide support for OpenLook widgets in
+ *  lwlib, then define USE_OLIT.
+ *
+ *  Otherwise, define USE_LUCID to use Lucid's own Motif-lookalike widgets.
+ *
+ *  You cannot define USE_MOTIF and USE_OLIT at the same time, but USE_LUCID
+ *  may be defined along with either of the other two.
+ *
+ *  If you have your X11 source tree online, then you should define 
+ *  INCLUDE_EXTENSIONS to cause the library to contain some useful functions
+ *  which Xt should provide but doesn't.  You can only do this if you have
+ *  the source tree online, because these functions require access to internal
+ *  Xt data structures that are not defined in the exported header files.
+ *  If you define INCLUDE_EXTENSIONS, then the variable $TOP must point at the
+ *  root of the X11 source tree.
+ */
+
+#define USE_LUCID
+/* #define USE_MOTIF */
+/* #define USE_OLIT */
+
+#define INCLUDE_EXTENSIONS
+
+
+#ifdef INCLUDE_EXTENSIONS	/* this is where it is at our site */
+            TOP = /$(WHICH_X)/mit
+#endif
+
+/* 
+ *
+ *  You shouldn't need to edit anything below this point.
+ *
+ */
+
+#if (ProjectX == 4)
+    STD_DEFINES = LibraryDefines
+    CDEBUGFLAGS = LibraryCDebugFlags
+    EXT_DEFINES = -DTHIS_IS_X11R4
+        WHICH_X = x11r4
+#define SpecialLibObjectRule SpecialObjectRule
+#define EXT_XRDB_C xrdb-r4.c
+#define EXT_XRDB_O xrdb-r4.o
+#else /* !4 */
+#if (ProjectX == 5)
+#include <Library.tmpl>
+    EXT_DEFINES = -DTHIS_IS_X11R5 -DINCLUDE_ALLOCA_H
+        WHICH_X = x11r4
+#define EXT_XRDB_C xrdb-r5.c
+#define EXT_XRDB_O xrdb-r5.o
+#else /* !5 */
+    EXT_DEFINES = "ERROR!  Imakefile was unable to determine whether this is X11r4 or X11r5."
+#endif /* !5 */
+#endif /* !4 */
+
+     LUCID_SRCS = lwlib-Xlw.c xlwmenu.c
+     LUCID_OBJS = lwlib-Xlw.o xlwmenu.o
+     MOTIF_SRCS = lwlib-Xm.c
+     MOTIF_OBJS = lwlib-Xm.o
+      OLIT_SRCS = lwlib-Xol.c
+      OLIT_OBJS = lwlib-Xol.o
+
+#ifdef INCLUDE_EXTENSIONS
+       EXT_SRCS = dispatch.c callback.c xrdb-cpp.c EXT_XRDB_C
+       EXT_OBJS = dispatch.o callback.o xrdb-cpp.o EXT_XRDB_O
+#endif
+
+#if (defined(USE_MOTIF) && defined(USE_OLIT))
+TOOLKIT_DEFINES = "ERROR!  You cannot define both USE_MOTIF and USE_OLIT at the same time (in Imakefile)."
+#else
+# if (defined(USE_MOTIF) && defined(USE_LUCID))
+TOOLKIT_DEFINES = -DUSE_MOTIF -DUSE_LUCID
+   TOOLKIT_SRCS = $(MOTIF_SRC) $(LUCID_SRCS)
+   TOOLKIT_OBJS = $(MOTIF_OBJS) $(LUCID_OBJS)
+# else
+#  if (defined(USE_OLIT) && defined(USE_LUCID))
+        DEFINES = -DUSE_OLIT -DUSE_LUCID
+   TOOLKIT_SRCS = $(OLIT_SRC) $(LUCID_SRCS)
+   TOOLKIT_OBJS = $(OLIT_OBJS) $(LUCID_OBJS)
+#  else
+#   if defined(USE_OLIT)
+TOOLKIT_DEFINES = -DUSE_OLIT
+   TOOLKIT_SRCS = $(OLIT_SRC)
+   TOOLKIT_OBJS = $(OLIT_OBJS)
+#   else
+#    if defined(USE_MOTIF)
+TOOLKIT_DEFINES = -DUSE_MOTIF
+   TOOLKIT_SRCS = $(MOTIF_SRC)
+   TOOLKIT_OBJS = $(MOTIF_OBJS)
+#    else
+#     if defined(USE_LUCID)
+TOOLKIT_DEFINES = -DUSE_LUCID
+   TOOLKIT_SRCS = $(LUCID_SRC)
+   TOOLKIT_OBJS = $(LUCID_OBJS)
+#     else
+TOOLKIT_DEFINES = "ERROR!  At least one of USE_MOTIF, USE_LUCID or USE_OLIT must be defined in Imakefile."
+#     endif
+#    endif
+#   endif
+#  endif
+# endif
+#endif
+
+           SRCS = lwlib.c $(TOOLKIT_SRCS) lwlib-utils.c $(EXT_SRCS)
+           OBJS = lwlib.o $(TOOLKIT_OBJS) lwlib-utils.o $(EXT_OBJS)
+      EXT_FLAGS = -I$(TOOLKITSRC) $(EXT_DEFINES)
+        LIBNAME = liblw.a
+
+NormalLibraryObjectRule ()
+NormalLibraryTarget (lw, $(OBJS))
+DependTarget ()
+
+SpecialLibObjectRule (lwlib.o, lwlib.c, $(TOOLKIT_DEFINES))
+SpecialLibObjectRule (dispatch.o, dispatch.c, $(EXT_FLAGS))
+SpecialLibObjectRule (callback.o, callback.c, $(EXT_FLAGS))
+SpecialLibObjectRule (xrdb-cpp.o, xrdb-cpp.c, $(EXT_FLAGS))
+SpecialLibObjectRule (xrdb-r4.o, xrdb-r4.c, $(EXT_FLAGS))
+SpecialLibObjectRule (xrdb-r5.o, xrdb-r5.c, $(EXT_FLAGS))
+
+lwlib-utils.o: lwlib-utils.h
+lwlib.o:       lwlib.h lwlib-internal.h
+lwlib-Xm.o:    lwlib.h lwlib-internal.h lwlib-utils.h
+lwlib-Xol.o:   lwlib.h lwlib-internal.h
+lwlib-Xlw.o:   lwlib.h lwlib-internal.h

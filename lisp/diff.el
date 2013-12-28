@@ -29,8 +29,9 @@
 ;; containing 0 or more arguments which are passed on to `diff'.
 ;; NOTE: This is not an ordinary hook; it may not be a list of functions.")
 
-(defvar diff-switches nil
-  "*A list of switches to pass to the diff program.")
+;;; moved to loaddefs.el
+;(defvar diff-switches nil
+;  "*A list of switches to pass to the diff program.")
 
 (defvar diff-search-pattern "^\\([0-9]\\|\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\)"
   "Regular expression that delineates difference regions in diffs.")

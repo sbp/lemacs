@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Sat Dec 28 01:57:28 1991
-;;; from file /wg1/emacs-base/lisp/postscript.el
-;;; emacs version 19.39.
-;;; bytecomp version 2.03; 29-oct-91.
+;;; compiled by jwz@thalidomide on Tue Apr 21 17:51:03 1992
+;;; from file /u/jwz/emacs19/lisp/postscript.el
+;;; emacs version 19.0.2 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

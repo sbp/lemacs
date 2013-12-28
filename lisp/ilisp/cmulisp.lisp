@@ -9,26 +9,15 @@
 ;;;  the terms of the GNU Public license.
 
 
-(in-package "USER")
+(in-package "ILISP")
 
 ;;;% CMU CL does not define defun as a macro
 (defun ilisp-compile (form package filename)
   "Compile FORM in PACKAGE recording FILENAME as the source file."
   (ilisp-errors
-   ;; This makes sure that function forms are compiled
-   (labels ((compiler (form env)
-	      (if (consp form)
-		  (if (and (eq (first form) 'function)
-			   (consp (second form)))
-		      (evalhook `(compile nil ,form) nil nil env)
-		      (if (eq (first form) 'defun)
-			  (prog1
-			      (evalhook form nil nil env)
-			    (compile (second form)))
-			  (evalhook form #'compiler nil env)))
-		  (evalhook form #'compiler nil env))))
-     (let ((*evalhook* #'compiler))
-       (ilisp-eval form package filename)))))
+   (ilisp-eval
+    (format nil "(funcall (compile nil '(lambda () ~A)))" form)
+    package filename)))
 
 ;;;% Stream settings, when running connected to pipes.
 ;;;
@@ -65,7 +54,7 @@
 ;;; This implementation of "POP" simply looks for the first restart that says
 ;;; "Return to debug level n" or "Return to top level." and executes it.
 ;;;
-(debug::def-debug-command "POP"
+(debug::def-debug-command "POP" #+:new-compiler ()
     ;; find the first "Return to ..." restart
     (if (not (boundp 'debug::*debug-restarts*))
 	(error "You're not in the debugger; how can you call this!?")
@@ -91,25 +80,26 @@
 
 ;;;% Extensions to describe.
 
-(in-package "LISP")
+;(in-package "LISP")
 
 ;;; Put these in the EXT package, but to define them we need access to
 ;;; symbols in lisp's guts. 
 
-(import '(arglist source-file) (find-package "EXTENSIONS"))
-(export '(arglist source-file) (find-package "EXTENSIONS"))
+;(import '(arglist source-file) (find-package "EXTENSIONS"))
+;(export '(arglist source-file) (find-package "EXTENSIONS"))
 
 
-;;;%% ext:arglist - return arglist of function
+;;;%% arglist - return arglist of function
 
+#+ignore
 (defun arglist (symbol package)
-  (user:ilisp-errors
-   (let* ((x (user:ilisp-find-symbol symbol package))
+  (ilisp:ilisp-errors
+   (let* ((x (ilisp:ilisp-find-symbol symbol package))
 	  (fun (symbol-function x)))
      (values
       (read-from-string
        (cond ((compiled-function-p fun)
-	      (%primitive header-ref fun %function-arg-names-slot)
+	      (system::%primitive header-ref fun %function-arg-names-slot)
 	      )
 	     ((desc-lambdap fun)	; (lambda (arglist) ..)  form
 	      (cadr fun))
@@ -122,14 +112,15 @@
 	      (cadadr fun))
 	     (t (error "Unknown type of function"))))))))
 
-;;;%% ext:source-file
+;;;%% source-file
 ;;;
 ;;; For compiled functions only, since the compiler adds this information.
 
+#+ignore
 (defun source-file (symbol package type)
   (declare (ignore type))
-  (user:ilisp-errors
-   (let ((fun (user:ilisp-find-symbol symbol package)))
+  (ilisp:ilisp-errors
+   (let ((fun (ilisp:ilisp-find-symbol symbol package)))
      (and (fboundp fun)
 	  (compiled-function-p (symbol-function fun))
 	  (let* ((compiler-string
@@ -142,4 +133,5 @@
 		(progn (print def-string)
 		       t)
 		))))))
-
+;(unless (compiled-function-p #'source-file)
+;  (format t "\"ILISP: File is not compiled, use M-x ilisp-compile-inits\""))

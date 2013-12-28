@@ -57,6 +57,18 @@
 
 (define-key help-map "v" 'describe-variable)
 
+;; This is a grody hack of the same genotype as `advertised-undo'; we want
+;; the default bindings of Backspace and C-h to be the same, but we want
+;; the menubar to claim that `info' in invoked with `C-h i', not `BS i'.
+
+(defun deprecated-help-command ()
+  (interactive)
+  (if (eq 'help-command (key-binding "\C-h"))
+      (setq unread-command-event (character-to-event ?\C-h (allocate-event)))
+    (help-for-help)))
+
+(define-key global-map 'backspace 'deprecated-help-command)
+
 (defun help-with-tutorial ()
   "Select the Emacs learn-by-doing tutorial."
   (interactive)
@@ -222,16 +234,21 @@ C-d print Emacs ordering information.
 C-n print news of recent Emacs changes.
 C-w print information on absence of warranty for GNU Emacs."
   (interactive)
-  (message
- "A B C F I K L M N S T V W C-c C-d C-n C-w.  Type C-h again for more help: ")
-  (let ((char (read-char)))
-    (if (or (= char ?\C-h) (= char ??))
+  (let ((help-key (copy-event last-command-event))
+	event char)
+    (message
+    "A B C F I K L M N S T V W C-c C-d C-n C-w.  Type %s again for more help: "
+     (single-key-description help-key))
+    (setq event (next-command-event (allocate-event))
+	  char (or (event-to-character event) event))
+    (if (or (equal char help-key) (equal char ?\C-h) (equal char ??))
 	(save-window-excursion
 	  (switch-to-buffer "*Help*")
 	  (erase-buffer)
 	  (insert (documentation 'help-for-help))
 	  (goto-char (point-min))
-	  (while (memq char '(?\C-h ?? ?\C-v ?\ ?\177 ?\M-v))
+	  (while (or (equal char help-key)
+		     (memq char '(?\C-h ?? ?\C-v ?\ ?\177 ?\M-v)))
 	    (if (memq char '(?\C-v ?\ ))
 		(scroll-up))
 	    (if (memq char '(?\177 ?\M-v))
@@ -240,8 +257,10 @@ C-w print information on absence of warranty for GNU Emacs."
 		     (if (pos-visible-in-window-p (point-max))
 			 "" " or Space to scroll"))
 	    (let ((cursor-in-echo-area t))
-	      (setq char (read-char))))))
-    (let ((defn (lookup-key help-map (char-to-string char))))
+	      (setq event (next-command-event event)
+		    char (or (event-to-character event) event))))))
+    (let ((defn (lookup-key help-map (if (eventp char) (vector char)
+				       (char-to-string (downcase char))))))
       (if defn (call-interactively defn) (ding)))))
 
 
@@ -259,8 +278,7 @@ C-w print information on absence of warranty for GNU Emacs."
 
 (defvar describe-function-show-arglist t  ; default to nil for the non-hackers?
   "*If true, then describe-function will show its arglist if the function is
-not a subr and not an autoload.")
-
+not an autoload.")
 
 (defun describe-function (function)
   "Display the full documentation of FUNCTION (a symbol)."
@@ -277,18 +295,34 @@ not a subr and not an autoload.")
   (with-output-to-temp-buffer "*Help*"
     (prin1 function)
     (princ ": ")
-    (if describe-function-show-arglist
-	(let ((def function) arglist)
-	  (while (symbolp def) (setq def (symbol-function def)))
-	  (setq arglist (cond ((subrp def) 'subr)
-			      ((eq 'autoload (car-safe def)) 'autoload)
-			      ((eq 'lambda (car-safe 'def)) (nth 1 def))
-			      ((compiled-function-p def) (aref def 0))))
-	  (if arglist (prin1 arglist) (princ "()"))))
-    (princ "\n")
-    (if (documentation function)
-        (princ (documentation function))
-      (princ "not documented"))
+    (let (arglist)
+      (if describe-function-show-arglist
+	  (let ((def function))
+	    (while (symbolp def) (setq def (symbol-function def)))
+	    (setq arglist (cond ((subrp def) 'subr)
+				((eq 'autoload (car-safe def)) 'autoload)
+				((eq 'lambda (car-safe 'def)) (nth 1 def))
+				((compiled-function-p def) (aref def 0))))
+	    (if arglist (prin1 arglist) (princ "()"))))
+      (princ "\n")
+      (if (documentation function)
+	  (princ (documentation function))
+	(princ "not documented"))
+      (if (eq arglist 'subr)
+	  (save-excursion
+	    (set-buffer "*Help*")
+	    (goto-char (point-max))
+	    (forward-line -1)
+	    (if (looking-at "arguments:")
+		(let ((p (point)))
+		  (goto-char (match-end 0))
+		  (setq arglist (buffer-substring (point) (point-max)))
+		  (delete-region p (point-max))
+		  (goto-char (point-min))
+		  (end-of-line)
+		  (delete-backward-char 5)
+		  (insert " ")
+		  (insert arglist))))))
     (print-help-return-message)))
 
 (defun variable-at-point ()
@@ -343,21 +377,11 @@ documentation found."
   "Show the full path name of Emacs library LIBRARY.
 This command searches the directories in `load-path' like  M-x load-library
 to find the file that  M-x load-library RET LIBRARY RET  would load.
-Optional 2nd arg NOSUFFIX non-nil means don't add suffixes `.elc' or `.el'
-to the specified name LIBRARY (a la calling `load' instead of `load-library')."
-  (interactive "sLocate library: ")
-  (catch 'answer
-    (mapcar
-     '(lambda (dir)
-	(mapcar
-	 '(lambda (suf)
-	    (let ((try (expand-file-name (concat library suf) dir)))
-	      (and (file-readable-p try)
-		   (null (file-directory-p try))
-		   (progn
-		     (message "Library is file %s" try)
-		     (throw 'answer try)))))
-	 (if nosuffix '("") '(".elc" ".el" ""))))
-     load-path)
-    (message "No library %s in search path" library)
-    nil))
+Optional prefix arg NOSUFFIX non-nil means don't add suffixes `.elc' or `.el'
+to the specified name LIBRARY - a la calling (load LIBRARY nil nil t)."
+  (interactive "sLocate library: \nP")
+  (let ((file (locate-file library load-path (if nosuffix nil ".elc:.el:"))))
+    (if file
+	(message "Library is file %s" file)
+      (message "No library %s in search path" library))
+    file))

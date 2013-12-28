@@ -1,6 +1,6 @@
-;;; compiled by jwz@thalidomide on Mon Mar 30 17:36:37 1992
+;;; compiled by jwz@thalidomide on Tue Apr 21 17:53:18 1992
 ;;; from file /u/jwz/emacs19/lisp/sendmail.el
-;;; emacs version 19.87 Lucid.
+;;; emacs version 19.0.2 Lucid.
 ;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.

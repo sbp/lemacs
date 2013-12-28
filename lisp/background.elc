@@ -1,0 +1,25 @@
+;;; compiled by jwz@thalidomide on Wed May 20 12:10:56 1992
+;;; from file /u/jwz/emacs19/lisp/background.el
+;;; emacs version 19.0.17 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÃ!‡" [provide background require comint] 2)
+(defvar background-show t "\
+*If non-nil, background jobs' buffers are shown when they're started.")
+(defvar background-select nil "\
+*If non-nil, background jobs' buffers are selected when they're started.")
+(fset 'background #[(command) "ÀÁ\nÆ!«‰ÇT‰Pªr«†É!ˆªŽ\n«…Ë‘ˆÌ!qˆÍ ˆÎÏ\"«—À”À•OÑ•ËOÒÓ!!)Ô\nÕÖ±ˆ×Ø‰ËÚD%!Ü ˆ«ÝÞ\"ˆßàá!#ˆâ#,‡" [1 "%1" default-directory dir job-name job-number process-status "%" background-select pop-to-buffer background-show nil get-buffer-create erase-buffer string-match "^cd[	 ]+\\([^	 ;]+\\)[	 ]*;[	 ]*" command 0 file-name-as-directory expand-file-name "--- working directory: " "\n% " 10 get-buffer-process comint-exec shell-file-name "-c" proc comint-mode set-process-sentinel background-sentinel message "[%d] %d" process-id "Background" mode-name] 8 "\
+Run COMMAND in the background like csh.  
+A message is displayed when the job starts and finishes.  The buffer is in
+comint mode, so you can send input and signals to the job.  The process object
+is returned if anyone cares.  See also comint-mode and the variables
+background-show and background-select." "s%% "])
+(fset 'background-sentinel #[(process msg) "À ÂŽÄ˜«ƒÅª¡ÆÇ\"«ˆÈÉÊOPª“GËU«ƒÌªŠËÍO–ÍÊOPÎÏÐ!ÍÒOÓÔ!8$ˆÕÖ!!¬‡×Ò\"ª¯Ø!Ù>­§ŠÖ!qˆmŠdbˆÛÜÝ ÞßOÛ±ˆ)«ƒdbˆ)àÒ!)+‡" [match-data ms ((store-match-data ms)) msg "finished\n" "Done" string-match "^exited" "Exit " 28 -1 0 "Continuing" 1 message "[%s] %s %s" process-name process nil 2 process-command buffer-name process-buffer set-process-buffer process-status (signal exit) at-end 10 32 current-time-string 11 19 set-buffer-modified-p] 7 "\
+Called when a background job changes state."])

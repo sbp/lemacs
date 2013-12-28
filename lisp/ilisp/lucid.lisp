@@ -2,7 +2,7 @@
 ;;; Lucid initializations 
 ;;; Author: Chris McConnell, ccm@cs.cmu.edu
 ;;;
-(in-package 'user)
+(in-package "ILISP")
 
 ;;;
 (defun ilisp-callers (symbol package &aux (list-of-callers nil))
@@ -20,7 +20,7 @@ currently.  Return T if successful."
 		  ((check-function (function &optional exclusions)
 		     (do ((i 4 (1+ i)))
 			 ((>= i (lucid::procedure-length function)))
-		       (let ((element (lucid::procedure-ref function i)))
+		       (let ((element (sys:procedure-ref function i)))
 			 (cond ((eq element function-name)
 				(pushnew symbol list-of-callers))
 			       ((and (compiled-function-p element)
@@ -58,6 +58,6 @@ return T if successful."
 
 ;;;
 (dolist (symbol '(ilisp-callers ilisp-source-files))
-  (export symbol)
-  (unless (compiled-function-p #'ilisp-callers)
-    (compile symbol)))
+  (export symbol))
+(unless (compiled-function-p #'ilisp-callers)
+  (format t "\"ILISP: File is not compiled, use M-x ilisp-compile-inits\""))

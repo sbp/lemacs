@@ -1,73 +1,0 @@
-;;; compiled by jwz@thalidomide on Sun Mar  1 15:07:00 1992
-;;; from file /u/jwz/emacs19/lisp/dired-trns.el
-;;; emacs version 19.66 Lucid.
-;;; bytecomp version 2.04; 5-feb-92.
-;;; optimization is on.
-;;; this file uses opcodes which do not exist in Emacs18.
-
-(if (and (boundp 'emacs-version)
-	 (or (and (boundp 'epoch::version) epoch::version)
-	     (string-lessp emacs-version "19")))
-    (error "This file was compiled for Emacs19."))
-
-(defvar dired-trans-map (make-keymap) "\
-Array that associates keys with file transformer functions")
-(fset 'dired-trans-define '(macro . #[(char &rest body) ";¬„Á!ÂÃÄÅÆ\"DF‡" [char char-to-string define-key dired-trans-map function append (lambda (file)) body] 7 "\
-Macro that assigns the transformer function (lambda (file) BODY) to 
-CHAR (a character or string). BODY must return a string (the transformed
-file or whatever. This macro allows easy definition of user specific
-transformation functions."]))
-(fset 'dired-trans-run #[(transformers file) "ÀÁ\nÃ#‡" [mapconcat #[(transformer) "À	!Â	\"®„ÄÅ	\"!‡" [char-to-string transformer lookup-key dired-trans-map error "Undefined transfomer: %s" file] 3] transformers nil] 4 "\
-Applies each transformer supplied in the string TRANSFORMERS in sequence
-to FILE and returns the concatenation of the results."])
-(defvar dired-trans-re-ext "\\.[^.]*\\(\\.Z\\)?$" "\
-The part of a filename matching this regexp will be viewed as extension")
-(fset 'dired-trans-init #[nil "À	ÂÃ#ˆÀ	ÄÅ#ˆÀ	ÆÇ#ˆÀ	ÈÉ#ˆÀ	ÊË#ˆÀ	ÌÍ#ˆÀ	ÎÏ#‡" [define-key dired-trans-map "*" (lambda (file) file) "n" #[(file) "À	!®Â‡" [file-name-nondirectory file ""] 2] "d" #[(file) "À	!®Â‡" [file-name-directory file ""] 2] "b" #[(file) "ÀÁ\n\"‰ÃÄ\n\"O‡" [dired-trans-run "n" file 0 string-match dired-trans-re-ext] 6] "e" #[(file) "À	\n\"‰«†\nÄOªÅ)‡" [string-match dired-trans-re-ext file e nil ""] 4] "v" #[(file) "ÀÁ\n\"‰ÃÄÅ\n\"O‡" [dired-trans-run "n" file 0 string-match ",v$"] 6] "z" #[(file) "ÀÁ\n\"‰ÃÄÅ\n\"O‡" [dired-trans-run "n" file 0 string-match "\\.Z$"] 6]] 4 "\
-Defines a basic set of useful transformers.
-
-*  is a noop that returns the unmodified filename (equivalent to [dbe]).
-n  returns the Name component of a filename without directory information
-d  returns the Directory component of a filename
-b  returns the Basename of a filename, i.e., the name of the file without
-   directory and extension (see dired-trans-re-ext)
-   A basename with directory component can be obtained by [db].
-e  returns the Extension of a filename (i.e., whatever
-   dired-trans-re-ext splits off)
-v  returns a file without directory and without ,v suffixes if any.
-z  returns a file without directory and without .Z suffixes if any."])
-(dired-trans-init)
-(fset 'dired-trans-mklist #[(files &optional transformers) ":¬ƒC	¬‚ÂÃÄ#GÇV«‰	Qª‚)‡" [files transformers "*" mapconcat #[(file) "ÀÁ\n\"!‡" [shell-quote dired-trans-run transformers file] 4] dired-mark-separator file-list 1 dired-mark-prefix dired-mark-postfix] 4 "\
-Takes a list of FILES and applies the sequence of TRANSFORMERS to each
-of them. The transformed results are concatenated, separated by 
-dired-mark-separator, prefixed by dired-mark-prefix and postfixed by
-dired-mark-postfix to generate a file list suitable for a particular shell."])
-(defvar dired-trans-starters "[#[]" "\
-User definable set of characters to be used to indicate the start of a
-transformer sequence")
-(defvar dired-trans-enders "[]# ]" "\
-User definable set of characters to be used to indicate the end of a
-transformer sequence")
-(fset 'dired-trans-expand #[(command files) "À‰ÁÅÆÀ#+‡" [nil "" transformers collect-transformers quoted mapconcat #[(char) "À	!\n«„Ã	‡	Äš«„ÅÃ‡«œÇ	\"«ÃÉ\n\"Ì‡	PÃ‡Ç	\"«…ÅÃ‡	Îš«†É\nÎ\"‡	‡" [char-to-string char quoted nil "\\" t collect-transformers string-match dired-trans-enders dired-trans-mklist files transformers "" dired-trans-starters "*"] 3] command] 4 "\
-Takes a shell COMMAND and a list of FILES and substitutes each occurance
-of a transformer sequence by an accordingly transformed file list. Special
-characters such as [,] or * can be quoted with a backslash."])
-(fset 'dired-trans-make #[(command files &optional all-at-once) "À‰«—Ä\"	š«‰ÄÇ\"Pª‰	ª†ÈÉÊ#*‡" [nil expanded-command fns all-at-once dired-trans-expand command files " *" mapconcat #[(file) "À	\nÃ#‡" [dired-trans-make command file t] 4] ";"] 4 "\
-Takes a shell COMMAND and a list of FILES and returns a command operating
-on the list of files (transformed if COMMAND contains transformers). If
-ALL-AT-ONCE is t the resulting command will be of the form
-  cmd file1 file2 ... fileN
-otherwise it will be
-  cmd file1; cmd file2; ... cmd fileN;
-Both examples assume a single reference to the file list."])
-(fset 'dired-shell-stuff-it #[(command file-list on-each &optional raw-arg) "À	\n?#‡" [dired-trans-make command file-list on-each] 4 "\
-Make up a shell command line from COMMAND and FILE-LIST.
-If ON-EACH is t, COMMAND should be applied to each file, else
-  simply concat all files.
-The list of marked files is appended to the command string unless asterisks
-  `*' or transformer sequences enclosed in `[]' indicate the place(s) where 
-  the (transformed) list should go.  See documentation of function
-  dired-trans-init for a list of transformers.
-With a zero argument the resulting command will be of the form
-  cmd file1; cmd file2; ... cmd fileN assuming only one reference to the
-  file list. E.g., to rename all .lsp files into .lisp files mark all the
-  .lsp files and issue the command `mv * [db].lisp' ."])

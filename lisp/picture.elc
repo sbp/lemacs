@@ -1,6 +1,6 @@
-;;; compiled by jwz@thalidomide on Mon Mar 30 17:36:23 1992
+;;; compiled by jwz@thalidomide on Tue Apr 21 17:51:00 1992
 ;;; from file /u/jwz/emacs19/lisp/picture.el
-;;; emacs version 19.87 Lucid.
+;;; emacs version 19.0.2 Lucid.
 ;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.

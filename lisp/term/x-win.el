@@ -36,8 +36,8 @@
 (if (eq window-system 'x)
     (progn
       (setq window-setup-hook (cons 'x-pop-initial-window window-setup-hook))
-      (require 'x-mouse)
       (require 'screen)
+      (require 'x-faces)
       (setq suspend-hook
 	    '(lambda ()
 	       (error "Suspending an emacs running under X makes no sense")))
@@ -61,8 +61,6 @@
 ;;; and not be hilighted, if it is in the active state and then some other
 ;;; application asserts the selection.  This is probably not a big deal.
 
-(load-library "xselect")
-
 (defun x-activate-region-as-selection ()
   (if (marker-buffer (mark-marker t))
       (x-own-selection (cons (point-marker t) (mark-marker t)))))
@@ -81,26 +79,30 @@
 (defun x-pop-initial-window ()
   ;; xterm.c depends on using interrupt-driven input.
   (set-input-mode t nil t)
+  (require 'x-mouse)
+  (require 'xselect)
   (setq mouse-motion-handler 'x-track-pointer)
   ;; see screen.el for this function
   (pop-initial-screen ())
-  (delete-screen terminal-screen))
+  (delete-screen terminal-screen)
+  )
 
 
 ;; Keypad type things
 
-(define-key global-map 'home		'beginning-of-line)
-(define-key global-map 'left		'backward-char)
-(define-key global-map 'up		'previous-line)
-(define-key global-map 'right		'forward-char)
-(define-key global-map 'down		'next-line)
-(define-key global-map 'prior		'previous-line)
-(define-key global-map 'next		'next-line)
-(define-key global-map 'end		'end-of-line)
-(define-key global-map 'begin		'beginning-of-line)
+(define-key global-map 'home		"\C-a")
+(define-key global-map 'left		"\C-b")
+(define-key global-map 'up		"\C-p")
+(define-key global-map 'right		"\C-f")
+(define-key global-map 'down		"\C-n")
+(define-key global-map 'prior		"\C-p")
+(define-key global-map 'next		"\C-n")
+(define-key global-map 'end		"\C-e")
+(define-key global-map 'begin		"\C-a")
 
-(define-key global-map 'help		'help-for-help)
 (define-key global-map 'undo		'undo)
+(define-key global-map 'help		'help-for-help)
+(define-key help-map 'help		'help-for-help)
 
 (define-key global-map 'kp_space	" ")
 (define-key global-map 'kp_tab		"\t")
@@ -123,30 +125,7 @@
 (define-key global-map 'kp_8		"8")
 (define-key global-map 'kp_9		"9")
 
-(define-key global-map '(shift kp_space)	" ")
-(define-key global-map '(shift kp_tab)		"\t")
-(define-key global-map '(shift kp_enter)	"\r")
-(define-key global-map '(shift kp_equal)	"=")
-(define-key global-map '(shift kp_multiply)	"*")
-(define-key global-map '(shift kp_add)		"+")
-(define-key global-map '(shift kp_separator)	";")
-(define-key global-map '(shift kp_subtract)	"-")
-(define-key global-map '(shift kp_decimal)	".")
-(define-key global-map '(shift kp_divide)	"/")
-(define-key global-map '(shift kp_0)		"0")
-(define-key global-map '(shift kp_1)		"1")
-(define-key global-map '(shift kp_2)		"2")
-(define-key global-map '(shift kp_3)		"3")
-(define-key global-map '(shift kp_4)		"4")
-(define-key global-map '(shift kp_5)		"5")
-(define-key global-map '(shift kp_6)		"6")
-(define-key global-map '(shift kp_7)		"7")
-(define-key global-map '(shift kp_8)		"8")
-(define-key global-map '(shift kp_9)		"9")
-
-(define-key global-map '(shift space)	" ")
-
 
 ;; Horizontal split window do not work in this emacs
-(substitute-key-definition 'split-window-horizontally nil global-map)
-(substitute-key-definition 'split-window-horizontally nil ctl-x-map)
+(substitute-key-definition 'split-window-horizontally 'x-new-screen global-map)
+(substitute-key-definition 'split-window-horizontally 'x-new-screen ctl-x-map)

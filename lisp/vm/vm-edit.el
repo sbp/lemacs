@@ -15,8 +15,6 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(require 'vm)
-
 (defun vm-edit-message (&optional prefix-argument)
   "Edit the current message.  Prefix arg means mark as unedited instead.
 If editing, the current message is copied into a temporary buffer, and
@@ -115,18 +113,19 @@ replace the original, use C-c C-]."
 		    src-b)))
 		(setq src-map (cdr src-map)))))
 	   ((fboundp 'map-keymap)
-	    (map-keymap
-	     (function
-	      (lambda (key src-b)
-		(cond ((keymapp src-b)
-		       (setq dest-b (local-key-binding (vector key)))
-		       (if (not (keymapp dest-b))
-			   (define-key dest-map key
-			     (setq dest-b (make-sparse-keymap))))
-		       (vm-overlay-keymap src-b dest-b))
-		      (t
-		       (define-key dest-map key src-b)))))
-	     src-map))))
+	    (let (src-b dest-b)
+	      (map-keymap
+	       (function
+		(lambda (key src-b)
+		  (cond ((keymapp src-b)
+			 (setq dest-b (local-key-binding (vector key)))
+			 (if (not (keymapp dest-b))
+			     (define-key dest-map key
+			       (setq dest-b (make-sparse-keymap))))
+			 (vm-overlay-keymap src-b dest-b))
+			(t
+			 (define-key dest-map key src-b)))))
+	       src-map)))))
       (use-local-map old-local-map))))
 				
 (defun vm-discard-cached-data (&optional count)

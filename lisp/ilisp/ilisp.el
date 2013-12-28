@@ -1,7 +1,8 @@
 ;;; -*-Emacs-Lisp-*-
 ;;;%Header
-;;; Inferior LISP interaction package for GNU Emacs.  Version 4.00
-;;; Copyright (C) 1990 Chris McConnell, ccm@cs.cmu.edu.
+;;; Inferior LISP interaction package for GNU Emacs.  Version 4.12
+;;; Copyright (C) 1990, 1991, 1992 Chris McConnell, ccm@cs.cmu.edu.
+;;; Hacked for Lucid GNU Emacs
 
 ;;; This file is part of GNU Emacs.
 
@@ -20,12 +21,17 @@
 ;;; file named COPYING.  Among other things, the copyright notice
 ;;; and this notice must be preserved on all copies.
 
-;;; This replaces the standard inferior-lisp mode.  It is based on
+;;; ILISP replaces the standard inferior LISP mode. It is based on
 ;;; comint mode and derived from a number of different interfaces
-;;; including Symbolics, cmulisp, and Thinking Machines.  Thanks also
-;;; to Todd Kaufmann, Neil Smithline, David Braunegg, Fred White, Jim
-;;; Healy, Hans Chalupsky, David Duff, Dan Pierson, Michael Kashket,
-;;; Jamie Zawinski and Brian Dennis for bug reports, suggestions and
+;;; including Symbolics, cmulisp, and Thinking Machines.  There are
+;;; many people that have taken the time to report bugs, make
+;;; suggestions and even better send code to fix bugs or implement new
+;;; features.  Special thanks to Todd Kaufmann for the texinfo file,
+;;; work on bridge, epoch-pop and for really exercising everything.
+;;; Thanks to Neil Smithline, David Braunegg, Fred White, Jim Healy,
+;;; Larry Stead, Hans Chalupsky, Michael Ernst, Frank Ritter, Tom
+;;; Emerson, David Duff, Dan Pierson, Michael Kashket, Jamie Zawinski,
+;;; Bjorn Victor and Brian Dennis for bug reports, suggestions and
 ;;; code.  Please send bug reports, fixes and extensions to
 ;;; ccm@cs.cmu.edu so I can merge them into the master source.
 
@@ -41,7 +47,7 @@
 ;;; derived from comint mode.  This makes it easier to use.
 
 ;;; For documentation on the functionality provided by comint mode,
-;;; and the hooks available for customising it, see the file
+;;; and the hooks available for customizing it, see the file
 ;;; comint.el.
 
 ;;; Throughout this file you will find comment lines with %'s on them.
@@ -50,105 +56,69 @@
 
 ;;;%%SITE INFORMATION
 ;;; The files you need to use ilisp are:
+;;;  ilisp.emacs     File with sample .emacs code for ILISP.
 ;;;  symlink.el      Expand pathnames resolving links.
 ;;;  completer.el    Partial completion code.
+;;;  completion.el   Completion package from TMC.
 ;;;  popper.el       Shrink-wrapped temporary windows.
 ;;;  epoch-pop.el    Popper for epoch.
+;;;  bridge.el       Process to process communication.
 ;;;  comint.el       The basic comint abstraction.
 ;;;  comint-ipc.el   Extensions for sending commands and getting results.
 ;;;  ilisp-ext.el    Standalone lisp-mode extensions.
 ;;;  ilisp-src.el    Ilisp source code module.
 ;;;  ilisp-bat.el    Ilisp batch code module.
 ;;;  ilisp.el        Actual ilisp definitions.
+;;;  ilisp.texi      Texinfo file.
+;;;  ilisp.ps        Postscript version of the manual.
+;;;  ilisp.info      Info file.
+;;;  *.lcd           Descriptors for the Lisp Code Directory.
 ;;;  *.lisp          Each dialect will have one of these files.
 ;;;
-;;; All of the .el files should be byte-compiled by typing C-u M-x
-;;; byte-recompile-directory.  Once a lisp dialect is started up, you
-;;; should execute the command ilisp-compile-inits which will compile
-;;; the *.lisp files and write them to the same directory as the ilisp
-;;; files.  An alternative is to not compile the interface files.
-;;; This will work although initialization will be slower.  The ILISP
-;;; interface files can also be built into the LISP image if desired.
+;;; All of the .el files in the ilisp directory should be
+;;; byte-compiled by typing C-u M-x byte-recompile-directory.  Before
+;;; compiling, make sure that load-path has the location of the files
+;;; on it.  If you plan to use epoch, you must make sure that the
+;;; epoch EMACS code is loaded before compiling epoch-pop.  If you do
+;;; not plan to use epoch, you should rename the epoch-pop.el file to
+;;; epoch-pop so that it will not get compiled.  The first time a
+;;; dialect is started, the interface files will complain about not
+;;; being compiled, just hit 'i' to ignore the message.  Once a lisp
+;;; dialect is started up, you should execute the EMACS command M-x
+;;; ilisp-compile-inits which will compile the *.lisp files and write
+;;; them to the same directory as the ilisp files.  The binary files
+;;; should have a unique extension for each different combination of
+;;; architecture and LISP dialect.  You will need to change
+;;; ilisp-init-binary-extension/command to get additional extensions.
+;;; The binary for each different architecture should be different.
+;;; If you want to build the interface files into a LISP world, you
+;;; will also need to set ilisp-load-inits to nil in the same place
+;;; that you change ilisp-program to load the LISP world.
 ;;;
-;;; There is also an ilisp-site-hook for initializing site specific
-;;; stuff like program locations when ilisp is first loaded.  You may
-;;; also want to define appropriate autoloads in your system Emacs
-;;; start up file.
+;;; There is an ilisp-site-hook for initializing site specific stuff
+;;; like program locations when ilisp is first loaded.  You may want
+;;; to define appropriate autoloads in your system Emacs start up
+;;; file.
 ;;;
 ;;; ;;; CMU site
 ;;; (setq ilisp-site-hook
 ;;;       '(lambda ()
 ;;;         (setq ilisp-motd "CMU ILISP V%s")
 ;;;         (setq expand-symlinks-rfs-exists t)
-;;;         (add-hook 'allegro-hook
-;;;          '(lambda ()
-;;;            (setq ilisp-program "/usr/misc/.allegro/bin/cl")))
-;;;         (add-hook 'lucid-hook
-;;;          '(lambda ()
-;;;            (setq ilisp-program "/usr/misc/.lucid/bin/lisp")))))
-
-;;;%% YOUR .EMACS FILE
-;;;============================================================================
-;;; Some suggestions for your .emacs file.
-;;;
-;;; If ilisp lives in some non-standard directory, you must tell emacs
-;;; where to get it. This may or may not be necessary.
-;;; (setq load-path (cons (expand-file-name "~jones/emacs/ilisp/") load-path))
-;;;
-;;; ;;; If you always want partial minibuffer completion
-;;; (require 'completer)
-;;;
-;;; ;;; If you always want popper windows
-;;; (require 'popper)
-;;;
-;;; ;;; If you want to redefine popper keys
-;;; (setq popper-load-hook
-;;;       '(lambda ()
-;;;         (define-key global-map "\C-c1" 'popper-bury-output)
-;;;         (define-key global-map "\C-cv" 'popper-scroll-output)
-;;;         (define-key global-map "\C-cg" 'popper-grow-output)))
-;;;
-;;; ;;; Autoload based on your LISP.  You only really need the one you use.
-;;; ;;; If called with a prefix, you will be prompted for a buffer name.
-;;; (autoload 'run-ilisp "ilisp" "Select a new inferior LISP." t)
-;;; (autoload 'clisp     "ilisp" "Inferior generic Common LISP." t)
-;;; (autoload 'allegro   "ilisp" "Inferior Allegro Common LISP." t)
-;;; (autoload 'lucid     "ilisp" "Inferior Lucid Common LISP." t)
-;;; (autoload 'cmulisp   "ilisp" "Inferior CMU Common LISP." t)
-;;; (autoload 'kcl       "ilisp" "Inferior Kyoto Common LISP." t)
-;;; (autoload 'scheme    "ilisp" "Inferior generic Scheme." t)
-;;; (autoload 'oaklisp   "ilisp" "Inferior Oaklisp Scheme." t)
-;;;
-;;; ;;; This makes reading a lisp file load in ilisp.
-;;; (set-default 'auto-mode-alist
-;;;              (append '(("\\.lisp$" . lisp-mode)) auto-mode-alist))
-;;; (setq lisp-mode-hook '(lambda () (require 'ilisp)))
-;;;
-;;; The default key prefix is C-z since C-c is reserved for the user.
-;;; To change it back to C-c, put this in your .emacs:
-;;; (setq ilisp-load-hook
-;;;   '(lambda () 
-;;;      (setq ilisp-prefix "\C-c")))
-;;;
-;;; ;;; Set the inferior LISP directory to the directory of the
-;;; ;;; buffer that spawned it.
-;;; (setq ilisp-load-hook 
-;;;       '(lambda ()
-;;;         (add-hook 'clisp-hook 
-;;;          (function (lambda ()
-;;;            (add-hook 'ilisp-init-hook
-;;;                      (function (lambda ()
-;;;                        (default-directory-lisp ilisp-last-buffer)))))))))
+;;;         (setq allegro-program "/usr/misc/.allegro/bin/cl")
+;;;         (setq lucid-program "/usr/misc/.lucid/bin/lisp")))
 
 ;;;%%CUSTOMIZING DIALECTS
 ;;;
 ;;; ILISP is already set up with support for a number of dialects.
 ;;; Each dialect has a command NAME that will start an inferior LISP
-;;; of that dialect and a hook NAME-hook that can be used for
-;;; customizing that dialect.  A prefix when starting a dialect will
-;;; cause you to be prompted for the buffer name and the program.
-;;; When setting something in a hook, you should use the most general
-;;; dialect that makes sense. The hooks will be executed before the
+;;; of that dialect.  NAME-hook is a hook that will run after the
+;;; default settings for NAME are set up.  NAME-program is the default
+;;; program for NAME. A prefix when starting a dialect will cause you
+;;; to be prompted for the buffer name and the program.  When setting
+;;; something in a hook, you should use the most general dialect that
+;;; makes sense. Dialect definitions and their hooks are executed from
+;;; least specific to most specific.  They will be executed before the
 ;;; inferior LISP is started.
 ;;;
 ;;; These are the currently supported dialects.  The dialects
@@ -159,6 +129,8 @@
 ;;;   lucid
 ;;;   cmulisp
 ;;;   kcl
+;;;     akcl
+;;;     ibcl
 ;;; scheme
 ;;;   oaklisp
 ;;;
@@ -168,12 +140,10 @@
 ;;; ;;; Example of local changes and extensions to ilisp mode
 ;;; (setq ilisp-load-hook
 ;;;       '(lambda ()
-;;;         ;; Define C-M-l to switch buffers
-;;;         (define-key global-map "\C-\M-l" 'lisp-previous-buffer)
 ;;;         ;; Change the allegro lisp program
-;;;         (add-hook 'allegro-hook
-;;;          '(lambda ()
-;;;            (setq ilisp-program "/usr/misc/bin/lisp")))
+;;;         (setq allegro-program "/usr/misc/bin/lisp")
+;;;         ;; Add a new key binding
+;;;         (defkey-ilisp "\C-\M-a" 'arglist-lisp)
 ;;;         ;; Define a new subdialect to run on another machine.
 ;;;         (defdialect cmlisp "Connection Machine LISP."
 ;;;           lucid
@@ -195,7 +165,7 @@
 ;;; ilisp-site-hook         Executed when file is loaded
 ;;; ilisp-load-hook  	    Executed when file is loaded
 ;;; ilisp-mode-hook         Executed when an ilisp buffer is created
-;;; ilisp-init-hook         Executed on first prompt
+;;; ilisp-init-hook         Executed after inferior LISP is initialized
 ;;; DIALECT-hook            Executed when dialect is set
 ;;;
 ;;; Variables you might want to set in a hook or dialect:
@@ -203,10 +173,11 @@
 ;;; ilisp-program         Program to start for inferior LISP
 ;;; ilisp-motd            String printed on startup with version
 ;;; lisp-wait-p           Set to T for synchronous sends
+;;; lisp-no-popper        Set to T to have all output in inferior LISP
 ;;; lisp-show-status      Set to nil to stop showing process status
 ;;; ilisp-prefix-match    Set to T if you do not want partial completion
 ;;; ilisp-filter-regexp	  Input history filter 
-;;; ilisp-filter-length   Input history minium length
+;;; ilisp-filter-length   Input history minimum length
 ;;; ilisp-other-prompt    Prompt for non top level read-eval print loops
 
 ;;; %%WRITING NEW COMMANDS
@@ -236,31 +207,29 @@
 ;;;
 
 ;;; See the documentation for ILISP mode, or read the rest of this
-;;; file for more information.  Commands that work only in lisp
-;;; buffers or work in both lisp buffers and inferior lisp buffers
-;;; have a package specifiction of lisp.  Otherwise they have a
-;;; package specifiction of ilisp.  If a function is intended to be
-;;; used interactively, then the package specification comes at the
-;;; end, otherwise at the start.
+;;; file for more information.  All of the EMACS function names begin
+;;; or end with lisp or ilisp to separate ilisp functions from
+;;; functions in other packages.  Functions that work only in lisp
+;;; buffers or that work in both lisp buffers and inferior lisp
+;;; buffers use lisp, all other functions use ilisp.  If a function is
+;;; intended to be used interactively, then the lisp or ilisp comes at
+;;; the end of the function name, otherwise at the start.
 
 ;;;%%KNOWN BUGS
 ;;; 
+;;; If you type multiple things to the top level before you get a
+;;; prompt, the LISP may be running with the status light indicating
+;;; ready.  This is because I have no way to distinguish between input
+;;; to a program and that to the top level.
+;;;
 ;;; When running a lisp on Ultrix, you need to set ilisp-program to
 ;;; "/bin/sh -c your/path/your-lisp-image".
 ;;; 
 ;;; If you get lisp output breaking up in weird places it almost
 ;;; certainly means that comint-prompt-regexp is not precise enough.
-
-;;;%%SUGGESTIONS
 ;;;
-;;; These are suggestions for future releases. Anybody ambitious
-;;; enough to implement these suggestions, please send them back to me!
-;;;
-;;; Should hack reverting a file and some other operations to
-;;; recompute the package.
-;;;
-;;; Write an edit compiler warnings facility.
-;;;
+;;; I would like to eat Lucid's return from break in the process
+;;; filter, but I can't tell how many newlines to eat after.
 
 ;;;%Requirements
 (require 'symlink)
@@ -278,14 +247,17 @@
 		       comint-input-sender
 		       comint-eol-on-send
 		       comint-send-newline
+		       comint-always-scroll
 		       comint-fix-error
 		       comint-continue
 		       comint-interrupt-regexp
+		       comint-error-regexp
 		       comint-output-filter
 		       comint-interrupt-start
 		       comint-handler
 		       comint-update-status
-		       comint-prompt-status)
+		       comint-prompt-status
+		       comint-abort-hook)
   "List of ilisp local variables.")
 (defun lisp-deflocal (local)
   (if (not (memq local ilisp-locals))
@@ -303,16 +275,24 @@
 (deflocal ilisp-program nil
   "*Program and arguments for invoking an inferior LISP.  The program
 can be an rsh to run on a remote machine.  If there is not a common
-file system, the interface files will be sent down the pipe instead.")
+file system, the interface files will be sent down the pipe instead.
+The value of this variable is set from DIALECT-program, or inherited
+from a less specific dialect if DIALECT-program is nil.")
 
 (defvar ilisp-motd 
   "ILISP V%s  Use M-x ilisp-bug for problems and suggestions."
-  "Message of the day format string for ILISP given VERSION.")
+  "*Message of the day format string for ILISP given VERSION. To
+prevent any message from being printed, set this to nil.")
 
 (defvar lisp-wait-p nil
   "*T if LISP eval/compile commands should wait for the result.  A
 minus prefix to the command will change the sense of this switch for
 just the next command.")
+
+(defvar lisp-no-popper nil
+  "*T if you want all output in the inferior LISP rather than in a
+pop-up window.  You should probably also set comint-always-scroll to T
+as well so that output is always visible.")
 
 (defvar lisp-show-status t 
   "*Set to nil to stop showing process status in lisp-mode buffers.")
@@ -334,6 +314,12 @@ mode.")
   "*Regexp to recognise prompts in the inferior LISP that are prompts
 of non-(read/eval/print) top-levels so that bol-ilisp skips them.")
 
+(deflocal ilisp-raw-echo nil
+  "*Set this to T to cause echoing in raw keyboard mode.")
+
+(deflocal ilisp-load-no-compile-query nil
+  "*Set this to T to stop load querying about compile.")
+
 ;;;%%%Hooks
 (defvar ilisp-site-hook nil
   "Hook for site customization of ilisp mode when it is loaded.")
@@ -342,24 +328,33 @@ of non-(read/eval/print) top-levels so that bol-ilisp skips them.")
   "Hook for customizing ilisp mode when it is loaded.")
 
 (defvar ilisp-mode-hook '()
-  "Hook for customising ilisp mode.")
+  "Hook for customizing ilisp mode.")
 
 (deflocal ilisp-init-hook nil
   "Hook of functions to call on first prompt in inferior LISP.")
 
 ;;;%%Advanced customization
 ;;;%%%Commands
+(deflocal ilisp-reset nil
+  "String for resetting the top-level of the inferior LISP.")
+
 (deflocal ilisp-load-or-send-command nil
   "Format string for loading BINARY if possible otherwise loading
 FILE.  If you can't load either, return NIL.")
 
 (deflocal ilisp-package-regexp nil
   "Regular expression for finding a package specification in a buffer.
-The next sexp after the end of the regular expression will be passed
-to ilisp-package-command to find the package.")
+The entire sexp starting with this pattern will be passed to
+ilisp-package-command to find the package.")
 
 (deflocal ilisp-package-command nil
-  "format string to find the package given PACKAGE.")
+  "Format string to find the package given PACKAGE.")
+
+(deflocal ilisp-package-name-command nil
+  "Format string to return the name of the current package.")
+
+(deflocal ilisp-in-package-command nil
+  "Format string to set the package given PACKAGE.")
 
 (deflocal ilisp-last-command nil
   "Format string for getting the last returned value.")
@@ -384,6 +379,9 @@ to ilisp-package-command to find the package.")
 
 (deflocal ilisp-describe-command nil
   "Format string for describing FORM in PACKAGE.")
+
+(deflocal ilisp-inspect-command nil
+  "Format string for inspecting FORM in PACKAGE.")
 
 (deflocal ilisp-arglist-command nil
   "Format string for arglist of SYMBOL in PACKAGE.")
@@ -415,6 +413,8 @@ should print out callers with one per line.")
   "Format for untracing SYMBOL in PACKAGE.")
 
 (deflocal ilisp-directory-command nil
+  "Format for getting default DIRECTORY.")
+(deflocal ilisp-set-directory-command nil
   "Format for setting default DIRECTORY.")
 
 (deflocal ilisp-binary-command nil
@@ -459,11 +459,13 @@ in the current buffer.  FIRST-P is T the first time it is called in a
 buffer.  BACK-P is T to move backwards.")
 
 ;;;%%%Misc
+(deflocal ilisp-use-map nil "Keymap to use in ILISP mode.")
+
 (defvar ilisp-bugs-to "ccm@cs.cmu.edu" "Who to send bug reports to.")
 
 (defvar ilisp-modes '(ilisp-mode) "List of all inferior ilisp modes.")
 (defvar lisp-source-modes '(lisp-mode scheme-mode)
-  "*Used to determine if a buffer contains Lisp source code.
+  "Used to determine if a buffer contains Lisp source code.
 If it's loaded into a buffer that is in one of these major modes, it's
 considered a lisp source file by find-file-lisp, load-file-lisp and
 compile-file-lisp. Used by these commands to determine defaults.")
@@ -474,10 +476,19 @@ compile-file-lisp. Used by these commands to determine defaults.")
 (deflocal ilisp-error-filter nil "Function to filter error output.")
 (deflocal ilisp-error-regexp nil "Regular expression to match error.")
 
+(deflocal ilisp-symbol-delimiters nil
+  "Delimiters found around symbols.")
+
 ;;;%%Program
-(defvar ilisp-version "4.00" "Interface version.")
+(defvar ilisp-epoch-running (and (boundp 'epoch::version) epoch::version)
+  "Non-nil if epoch is running.")
+(defvar ilisp-version "4.12" "Interface version.")
 (defvar ilisp-directory nil "The directory that ilisp is found in.")
 (defvar ilisp-mode-map nil "Key map for ILISP.")
+(defvar ilisp-raw-map  nil
+  "Keyboard map for sending characters directly to the inferior LISP.")
+(defvar ilisp-raw-message "Raw keyboard mode until C-g"
+  "Message for how to stop raw mode.")
 (defvar ilisp-buffer nil "Name of selected ilisp buffer.")
 (defvar ilisp-status nil "Status string for selected ilisp buffer.")
 (defvar ilisp-buffers nil "List of ILISP buffers.")
@@ -522,7 +533,6 @@ By default the file will be loaded from the ilisp-directory.")
 (defvar ilisp-original nil "Original string for ilisp completion.")
 (defvar ilisp-original-function-p nil "Function-p for ilisp completion.")
 (defvar ilisp-original-table nil "Completion table for ilisp-original.")
-(defvar ilisp-current-symbol nil "Current symbol for ilisp completion.")
 
 ;;;%Utilities
 ;;;%%Misc
@@ -558,6 +568,26 @@ Default test is equal."
     (setq list (cdr list)))
   (car list))
 
+;;;
+(defun lisp-pop-to-buffer (buffer)
+  "Like pop-to-buffer, but select a screen that buffer was shown in."
+  (let ((ilisp-window (if ilisp-epoch-running
+			  (epoch::get-buffer-window buffer)
+			  (get-buffer-window buffer))))
+    (if ilisp-window
+	(select-window ilisp-window)
+	;; It is not currently displayed, so find some place to display
+	;; it.
+	(if ilisp-epoch-running
+	    ;; Select a screen that the buffer has been displayed in before
+	    ;; or the current screen otherwise.
+	    (epoch::select-screen
+	     ;; allowed-screens in epoch 3.2, was called screens before that
+	     (or (car (symbol-buffer-value 'allowed-screens buffer))
+		 (epoch::current-screen))))
+	(pop-to-buffer buffer)))
+  (set-buffer buffer))
+
 ;;;%%Symbol
 (defun lisp-symbol (package delimiter name)
   "Create a LISP symbol."
@@ -587,28 +617,35 @@ as word delimiters."
   (let ((len1 (length s1)))
     (and (<= len1 (length s2))
 	 (let ((start 0)
-	       end next-start 
-	       (start2 0)
-	       end2)
-	   (while 
+	       (start2 0) 
+	       end
+	       (match t))
+	   (while
 	       (if (setq end (string-match "[^a-zA-Z0-9]" s1 start))
+		   ;; Found delimiter
 		   (if (string= (substring s1 start end)
 				(substring s2 start2 (+ start2 (- end start))))
+		       ;; Words are the same
 		       (progn (setq start (match-end 0))
-			      (if (string-match 
+			      (if (string-match
 				   (regexp-quote (substring s1 end start))
 				   s2 start2)
-				  (setq start2 (match-end 0)))))))
-	   (string= (substring s1 start len1)
-		    (substring s2 start2 (+ start2 (- len1 start))))))))
+				  (setq start2 (match-end 0)) ;OK
+				  (setq match nil))) ;Can't find delimiter
+		       (setq match nil)) ;Words don't match 
+		   nil))		;Ran out of delimiters in s1
+	   (and match
+		(string= (substring s1 start len1)
+			 (substring s2 start2 (+ start2 (- len1 start)))))))))
 
 ;;;
 (defun lisp-last-line (string)
-  "Return the last line of STRING."
+  "Return the last line of STRING with everything else."
   (let* ((position 0))
     (while (string-match "\\(\n+\\)[^\n]" string position)
       (setq position (match-end 1)))
-    (substring string position)))
+    (cons (substring string position)
+	  (substring string 0 position))))
 
 ;;;
 (defun lisp-show-send (string)
@@ -661,9 +698,20 @@ load-path is used for the directories."
   "Return the current ILISP buffer."
   (if (memq major-mode ilisp-modes)
       (current-buffer)
-      (if ilisp-buffer
-	  (get-buffer ilisp-buffer)
-	  (error "You must start an inferior LISP with run-ilisp."))))
+      (let ((buffer 
+	     (if ilisp-buffer 
+		 (or (get-buffer ilisp-buffer)
+		     (get-buffer
+		      (setq ilisp-buffers
+			    (lisp-del (substring ilisp-buffer 1 
+						 (1- (length ilisp-buffer)))
+				      ilisp-buffers 
+				      (function (lambda (s1 s2)
+					(string= s1 (car s2)))))
+			    ilisp-buffer 
+			    (format "*%s*" (car (car ilisp-buffers)))))))))
+	(or buffer
+	    (error "You must start an inferior LISP with run-ilisp.")))))
 
 ;;;
 (defun ilisp-process ()
@@ -714,28 +762,46 @@ argument, positions cursor at end of buffer.  If you don't want to
 split windows, set pop-up-windows to NIL."
   (interactive "P")
   (if (and (not ilisp-only) ilisp-last-buffer (memq major-mode ilisp-modes))
-      (pop-to-buffer ilisp-last-buffer)
+      (lisp-pop-to-buffer ilisp-last-buffer)
       (if (not (memq major-mode ilisp-modes))
 	  (setq ilisp-last-buffer (current-buffer)))
-      (pop-to-buffer (ilisp-buffer))
+      (lisp-pop-to-buffer (ilisp-buffer))
       (cond (eob-p (goto-char (point-max))))))
 
 ;;;
 (defun abort-commands-lisp (&optional message)
-  "Abort the sends of the current ilisp."
+  "Abort the commands sent to the current ilisp."
   (interactive)
-  (beep)
-  (message "Aborting sends")
-  (comint-abort-sends (ilisp-process))
-  (message (or message "Aborted sends")))
+  (if (ilisp-value comint-aborting t)
+      (message "Already aborted commands")
+      (beep)
+      (message (or message "Aborted commands"))
+      (comint-abort-sends (ilisp-process))))
+
+;;;
+(defun panic-lisp ()
+  "Panic reset for the inferior LISP."
+  (interactive)
+  (save-excursion
+    (if (y-or-n-p "Panic reset LISP? ")
+	(save-excursion
+	  (set-buffer (ilisp-buffer))
+	  (comint-setup-ipc t)
+	  (message "LISP is reset, state is unknown"))
+	(message ""))))
 
 ;;;
 (defun interrupt-subjob-ilisp ()
   "Interrupt the current top level command in the inferior LISP."
   (interactive)
-  (message "Interrupt top level")
-  (while (not (eq comint-send-queue comint-end-queue))
-    (accept-process-output))
+  (if (not (eq comint-send-queue comint-end-queue))
+      (if (y-or-n-p "Abort commands before interrupting top level? ")
+	  (abort-commands-lisp)
+	  (message "Waiting for commands to finish")
+	  (while (not (eq comint-send-queue comint-end-queue))
+	    (accept-process-output)
+	    (sit-for 0))))
+  (message "Interrupted top level")
   (comint-interrupt-subjob))
 
 ;;;
@@ -749,7 +815,8 @@ inferior LISP.  With a prefix show pending sends as well."
 
 ;;;%Buffer
 ;;;%%Packages
-(defvar buffer-package 'not-yet-computed)
+(defvar buffer-package 'not-yet-computed "Cached package name.")
+(defvar buffer-mode-name nil "Original mode name.")
 (defvar lisp-buffer-package nil "T if in lisp-buffer-package.")
 
 ;;;
@@ -765,8 +832,9 @@ this more than once is cheap."
 	 nil)
 	(t
 	 (make-local-variable 'buffer-package)
+	 (make-local-variable 'buffer-mode-name)
 	 (setq mode-line-process 'ilisp-status)
-	 ;; go search for the first in-package in the current buffer
+	 ;; go search for the first package in the current buffer
 	 (let* ((lisp-buffer-package t)
 		(case-fold-search t)
 		(regexp (ilisp-value 'ilisp-package-regexp t))
@@ -775,9 +843,11 @@ this more than once is cheap."
 		     (save-excursion
 		       (goto-char (point-min))
 		       (if (re-search-forward regexp nil t)
-			   (buffer-substring (match-end 0)
-					     (progn (forward-sexp)
-						    (point)))))))
+			   (buffer-substring (match-beginning 0)
+					     (progn 
+					       (goto-char (match-beginning 0))
+					       (forward-sexp)
+					       (point)))))))
 		(package
 		 (if spec
 		     (ilisp-send 
@@ -786,7 +856,7 @@ this more than once is cheap."
 		      'pkg))))
 	   (if (ilisp-value 'comint-errorp t)
 	       (progn
-		 (comint-display-output package)
+		 (lisp-display-output package)
 		 (error "No package"))
 	       (if (and package 
 			(string-match "[ \n\t:\"]*\\([^ \n\t\"]\\)*" package))
@@ -796,26 +866,71 @@ this more than once is cheap."
 	   (message "")
 	   (setq buffer-package package)
 	   ;; Display package in mode line
-	   (if package (setq mode-name (concat "Lisp:"  buffer-package)))
+	   (if package 
+	       (setq mode-name
+		     (concat (or buffer-mode-name
+				 (setq buffer-mode-name mode-name))
+			     ":" buffer-package)))
 	   buffer-package))))
 
 ;;;
-(defun reparse-attribute-list ()
-  "Reset the current package of the current buffer."
+(defun package-lisp ()
+  "Show current inferior LISP package."
   (interactive)
-  (setq buffer-package 'not-yet-computed
-	mode-name (if (memq major-mode ilisp-modes)
-		      "ILISP"
-		      "Lisp"))
-  (lisp-buffer-package))
+  (message "Inferior LISP package is %s"
+	   (ilisp-send (ilisp-value 'ilisp-package-name-command)
+		       "Finding inferior LISP package" 'pkg)))
+
+;;;
+(defun set-package-lisp (package)
+  "Set inferior LISP to package of buffer or a named package with prefix."
+  (interactive 
+   (let ((default (lisp-buffer-package)))
+     (if (or current-prefix-arg (null default))
+	 (let ((name
+		(read-no-blanks-input 
+		 (format "Package [%s]: " (lisp-buffer-package)) "")))
+	   (list (if (equal name "") default name)))
+	 (list default))))
+  (if package
+      (ilisp-send (format (ilisp-value 'ilisp-in-package-command) package)
+		  (format "Set %s's package to %s" 
+			  (buffer-name (ilisp-buffer))
+			  package)
+		  'pkg 'dispatch)
+      (error "No package")))
+
+;;;
+(defun set-buffer-package-lisp (package)
+  "Reset the current package of the current buffer.  With prefix
+specify manually."
+  (interactive (if current-prefix-arg
+		   (list (read-from-minibuffer "Package: " ))
+		   (list nil)))
+  (if package
+      (setq buffer-package package
+	    mode-name (concat (or buffer-mode-name mode-name) ":" package))
+      (setq buffer-package 'not-yet-computed)
+      (lisp-buffer-package)))
 
 ;;;%Process interface
 ;;;%%Comint 
 (defun ilisp-get-old-input ()
   "Snarf the sexp starting at the nearest previous prompt, or NIL if none."
   (save-excursion
-    (let ((begin (lisp-defun-begin))
-	  (end (lisp-defun-end t)))
+    (let* ((begin (lisp-defun-begin))
+	   (pmark (process-mark (get-buffer-process (current-buffer))))
+	   (once (if (< (point) pmark)
+		     (save-excursion (end-of-line) (point))))
+	   (end nil)
+	   (done nil))
+      (condition-case ()
+	  (while (and (not done) (< (point) (point-max)))
+	    (forward-sexp)
+	    (setq end (point))
+	    (skip-chars-forward " \t\n")
+	    (if (and once (>= (point) once)) (setq done t)))
+	(error (setq end nil)))
       (if end (buffer-substring begin end)))))
 
 ;;;
@@ -834,59 +949,99 @@ if there is no match."
       output))
 
 ;;;
+(defvar ilisp-last-message nil)
+(defvar ilisp-last-prompt nil)
+(defun lisp-display-output (output)
+  "Display OUTPUT in a popper window unless lisp-no-popper is T."
+  (if output
+      (progn
+	(if (ilisp-value 'comint-errorp t)
+	    (setq output (funcall (ilisp-value 'ilisp-error-filter) output)))
+	(if lisp-no-popper
+	    (let ((buffer (current-buffer))
+		  (window (selected-window)))
+	      (unwind-protect
+		   (progn
+		     (lisp-pop-to-buffer (ilisp-buffer))
+		     (if (not (eq (current-buffer) buffer))
+			 (setq ilisp-last-buffer buffer))
+		     (comint-insert 
+		      (concat (if ilisp-last-message
+				  (concat ";;; " ilisp-last-message "\n"))
+			      (comint-remove-whitespace output)
+			      "\n"
+			      ilisp-last-prompt))
+		     (setq ilisp-last-message nil))
+		(if (window-point window)
+		    (progn (select-window window)
+			   (set-buffer buffer)))))
+	    (comint-display-output output)))))
+
+;;;
 (defun ilisp-handler (error-p wait-p message output prompt)
   "Given ERROR-P, WAIT-P, MESSAGE, OUTPUT and PROMPT, show the message
 and output if there is an error or the output is multiple lines and
 let the user decide what to do."
-  (if (and (not wait-p)
-	   (setq output (comint-remove-whitespace output))
-	   (or error-p (string-match "\n" output)))
-      (let* ((buffer (popper-output-buffer))
-	     (out (if error-p 
-		      (funcall ilisp-error-filter output)
-		      output))
-	     (key
-	      (if (and error-p (not (comint-interrupted)))
-		  (comint-handle-error
-		   out
-		   "SPC-scroll, I-ignore, K-keep, A-abort sends and keep or B-break: "
-		   '(?i ?k ?a ?b))
-		  (comint-handle-error 
-		   out 
-		   "SPC-scroll, I-ignore, K-keep or A-abort sends and keep: "
-		   '(?i ?k ?a))))
-	     (clear comint-queue-emptied))
-	(if (= key ?i)
+  (if lisp-no-popper
+      (progn
+	(if message
 	    (progn
-	      (message "Ignore message")
-	      (if buffer 
-		  (funcall temp-buffer-show-hook buffer)
-		  (popper-bury-output))
-	      t)
-	    (save-excursion
-	      (set-buffer (get-buffer-create "*Errors*"))
-	      (if clear (delete-region (point-min) (point-max)))
-	      (goto-char (point-max))
-	      (insert message)
-	      (insert ?\n)
-	      (insert out) 
-	      (insert "\n\n"))
-	    (if clear (setq comint-queue-emptied nil))
-	    (if (= key ?a)
-		(progn 
-		  (message "Abort pending sends and keep in *Errors*")
-		  (comint-abort-sends)
+	      (setq ilisp-last-message message
+		    ilisp-last-prompt prompt)
+	      (if (not wait-p) (lisp-display-output output))))
+	nil)
+      (if (and (not wait-p)
+	       (setq output (comint-remove-whitespace output))
+	       (or error-p (string-match "\n" output)))
+	  (let* ((buffer (popper-output-buffer))
+		 (out (if error-p 
+			  (funcall ilisp-error-filter output)
+			  output))
+		 (key
+		  (if (and error-p (not (comint-interrupted)))
+		      (comint-handle-error
+		       out
+		       "SPC-scroll, I-ignore, K-keep, A-abort sends and keep or B-break: "
+		       '(?i ?k ?a ?b))
+		      (comint-handle-error 
+		       out 
+		       "SPC-scroll, I-ignore, K-keep or A-abort sends and keep: "
+		       '(?i ?k ?a))))
+		 (clear comint-queue-emptied))
+	    (if (= key ?i)
+		(progn
+		  (message "Ignore message")
+		  (if buffer 
+		      (funcall (if (boundp 'temp-buffer-show-function)
+				   temp-buffer-show-function
+				 temp-buffer-show-hook)
+			       buffer)
+		      (popper-bury-output))
 		  t)
-		(if (= key ?b)
+		(save-excursion
+		  (set-buffer (get-buffer-create "*Errors*"))
+		  (if clear (delete-region (point-min) (point-max)))
+		  (goto-char (point-max))
+		  (insert message)
+		  (insert ?\n)
+		  (insert out) 
+		  (insert "\n\n"))
+		(if clear (setq comint-queue-emptied nil))
+		(if (= key ?a)
 		    (progn 
-		      (comint-insert
-		       (concat comment-start comment-start comment-start
-			       message "\n"
-			       output "\n" prompt))
-		      (message "Preserve break") nil)
-		    (message "Keep error in *Errors* and continue")
-		    t))))
-      t))
+		      (message "Abort pending commands and keep in *Errors*")
+		      (comint-abort-sends)
+		      t)
+		    (if (= key ?b)
+			(progn 
+			  (comint-insert
+			   (concat comment-start comment-start comment-start
+				   message "\n"
+				   output "\n" prompt))
+			  (message "Preserve break") nil)
+			(message "Keep error in *Errors* and continue")
+			t))))
+	  t)))
 
 ;;;
 (defun ilisp-update-status (status)
@@ -945,35 +1100,32 @@ the process interface."
        (let* ((file (lisp-last ilisp-load-files))
 	      (process (get-buffer-process (current-buffer)))
 	      (case-fold-search t))
-	 (if error
-	     (progn (comint-display-error output)
-		    (abort-commands-lisp (format "Error loading %s" file)))
-	     (if (and output (string-match "nil" (lisp-last-line output)))
-		 (let* ((old-buffer (get-file-buffer file))
-			(buffer (find-file-noselect file))
-			(string (save-excursion
-				  (set-buffer buffer)
-				  (buffer-string))))
-		   (if (not old-buffer) (kill-buffer buffer))
-		   (if (string= "" string)
-		       (abort-commands-lisp (format "Can't find file %s" file))
-		       (comint-send
-			process
-			(format ilisp-block-command string)
-			t nil 'send (format "Sending %s" file)
-			(function (lambda (error wait message output last)
-			  (if error
-			      (progn 
-				(comint-display-error output)
-				(abort-commands-lisp
-				 (format "Error sending %s"
-					 (lisp-last
-					  ilisp-load-files))))
-			      (setq ilisp-load-files
-				    (delq (lisp-last ilisp-load-files)
-					  ilisp-load-files))))))))
-		 (setq ilisp-load-files 
-		       (delq file ilisp-load-files))))))))))
+	 (if (and output 
+		  (string-match "nil" (car (lisp-last-line output))))
+	     (let* ((old-buffer (get-file-buffer file))
+		    (buffer (find-file-noselect file))
+		    (string (save-excursion
+			      (set-buffer buffer)
+			      (buffer-string))))
+	       (if (not old-buffer) (kill-buffer buffer))
+	       (if (string= "" string)
+		   (abort-commands-lisp (format "Can't find file %s" file))
+		   (comint-send
+		    process
+		    (format ilisp-block-command string)
+		    t nil 'send (format "Sending %s" file)
+		    (function (lambda (error wait message output last)
+		      (if error
+			  (progn 
+			    (comint-display-error output)
+			    (abort-commands-lisp
+			     (format "Error sending %s"
+				     (lisp-last ilisp-load-files))))
+			  (setq ilisp-load-files
+				(delq (lisp-last ilisp-load-files)
+				      ilisp-load-files))))))))
+	       (if error (ilisp-handler error wait message output last))
+	       (setq ilisp-load-files (delq file ilisp-load-files)))))))))
 
 ;;;
 (defun ilisp-load-init (dialect file)
@@ -993,14 +1145,19 @@ dialect is initialized.  If FILE is NIL, the entry will be removed."
   (if (not (ilisp-value var t))
       (let ((binary (ilisp-value init t)))
 	(if binary
-	    (let ((result (comint-send (ilisp-process) binary
-				       t t 'binary)))
-	      (if (and (stringp (cdr result))
-		       (string-match "\"[^\"]*\"" (car result)))
-		  (set-ilisp-value var
-				   (substring (car result)
-					      (1+ (match-beginning 0))
-					      (1- (match-end 0))))))))))
+	    (comint-send 
+	     (ilisp-process) binary
+	     t nil 'binary nil 
+	     (` (lambda (error wait message output last)
+		  (if (or error
+			  (not (string-match "\"[^\"]*\"" output)))
+		      (progn
+			(lisp-display-output output)
+			(abort-commands-lisp "No binary"))
+		      (setq (, var)
+			    (substring output
+				       (1+ (match-beginning 0))
+				       (1- (match-end 0))))))))))))
 
 ;;;
 (defun ilisp-done-init ()
@@ -1009,54 +1166,92 @@ dialect is initialized.  If FILE is NIL, the entry will be removed."
       (comint-send-code (get-buffer-process (current-buffer))
 			'ilisp-done-init)
       (if ilisp-initializing
-	  (setq ilisp-initializing nil
-		ilisp-initialized
-		(cons (buffer-name (current-buffer)) ilisp-initialized)))))
+	  (progn
+	    (message "Finished initializing %s" (car ilisp-dialect))
+	    (setq ilisp-initializing nil
+		  ilisp-initialized
+		  (cons (buffer-name (current-buffer)) ilisp-initialized))))))
 
 ;;;
-(defun ilisp-init (&optional waitp)
+(defun ilisp-init-internal (&optional sync)
+  "Send all of the stuff necessary to initialize."
+  (unwind-protect
+       (progn
+	 (if sync
+	     (comint-sync
+	      (ilisp-process)
+	      "\"Start sync\""  "[ \t\n]*\"Start sync\""
+	      "\"End sync\""    "\"End sync\""))
+	 (ilisp-binary 'ilisp-binary-command 'ilisp-binary-extension)
+	 (ilisp-binary 'ilisp-init-binary-command 'ilisp-init-binary-extension)
+	 ;; This gets executed in the process buffer
+	 (comint-send-code
+	  (ilisp-process)
+	  (function (lambda ()
+	    (let ((files ilisp-load-inits)
+		  (done nil))
+	      (unwind-protect
+		   (progn
+		     (if (not ilisp-init-binary-extension)
+			 (setq ilisp-init-binary-extension 
+			       ilisp-binary-extension))
+		     (while files
+		       (ilisp-load-or-send
+			(expand-file-name 
+			 (cdr (car files)) ilisp-directory))
+		       (setq files (cdr files)))
+		     (comint-send-code (ilisp-process)
+				       'ilisp-done-init)
+		     (setq done t))
+		(if (not done)
+		    (progn
+		      (setq ilisp-initializing nil)
+		      (abort-commands-lisp))))))))
+	 (set-ilisp-value 'ilisp-initializing t))
+    (if (not (ilisp-value 'ilisp-initializing t))
+	(abort-commands-lisp))))
+
+;;;
+(defun ilisp-init (&optional waitp forcep sync)
   "Initialize the current inferior LISP if necessary by loading the
 files in ilisp-load-inits.  Optional WAITP waits for initialization to
-finish."  
-  (interactive)
-  (if (not (ilisp-initialized))
+finish.  When called interactively, force reinitialization.  With a
+prefix, get the binary extensions again."  
+  (interactive 
+   (list (if current-prefix-arg
+	     (progn
+	       (set-ilisp-value 'ilisp-init-binary-extension nil)
+	       (set-ilisp-value 'ilisp-binary-extension nil)
+	       nil))
+	 t))
+  (if (or forcep (not (ilisp-initialized)))
       (progn
 	(message "Started initializing ILISP")
+	(if (not ilisp-directory)
+	    (setq ilisp-directory (or (ilisp-directory "ilisp.elc" load-path)
+				      (ilisp-directory "ilisp.el" load-path))))
 	(if (not (ilisp-value 'ilisp-initializing t))
-	    (unwind-protect
-		 (let ((files (ilisp-value 'ilisp-load-inits t)))
-		   (comint-sync
-		    (ilisp-process)
-		    "\"Start sync\""  "\"Start sync\""
-		    "\"End sync\""    "\"End sync\"")
-		   (ilisp-binary 'ilisp-binary-command 'ilisp-binary-extension)
-		   (ilisp-binary 'ilisp-init-binary-command
-				 'ilisp-init-binary-extension)
-		   (if (not (ilisp-value 'ilisp-init-binary-extension t))
-		       (set-ilisp-value 
-			'ilisp-init-binary-extension 
-			(ilisp-value 'ilisp-binary-extension t)))
-		   (while files
-		     (ilisp-load-or-send
-		      (expand-file-name (cdr (car files)) ilisp-directory))
-		     (setq files (cdr files)))
-		   (comint-send-code (ilisp-process) 'ilisp-done-init)
-		   (set-ilisp-value 'ilisp-initializing t))
-	      (if (not (ilisp-value 'ilisp-initializing t))
-		  (abort-commands-lisp))))
+	    (ilisp-init-internal sync))
 	(if waitp
 	    (while (ilisp-value 'ilisp-initializing t)
-	      (accept-process-output))))))
+	      (accept-process-output)
+	      (sit-for 0))))))
 
 ;;;
-(defun ilisp-send (string &optional message status and-go)
+(defun ilisp-init-and-sync ()
+  "Synchronize with the inferior LISP and then initialize."
+  (ilisp-init nil nil t))
+
+;;;
+(defun ilisp-send (string &optional message status and-go handler)
   "Send STRING to the ILISP buffer, print MESSAGE set STATUS and
 return the result if AND-GO is NIL, otherwise switch to ilisp if
 and-go is T and show message and results.  If AND-GO is 'dispatch,
-then the command will be executed without waiting for results. If this
-is the first time an ilisp command has been executed, the lisp will
-also be initialized from the files in ilisp-load-inits.  If there is
-an error, comint-errorp will be T."
+then the command will be executed without waiting for results.  If
+AND-GO is 'call, then a call will be generated. If this is the first
+time an ilisp command has been executed, the lisp will also be
+initialized from the files in ilisp-load-inits.  If there is an error,
+comint-errorp will be T and it will be handled by HANDLER."
   (ilisp-init t)
   (let ((process (ilisp-process))
 	(dispatch (eq and-go 'dispatch)))
@@ -1066,23 +1261,29 @@ an error, comint-errorp will be T."
 			  message)))
     ;; No completion table
     (setq ilisp-original nil)
-    (if (eq and-go 't)
-	(progn (comint-send process string nil nil status message)
-	       (switch-to-lisp t t))
+    (if (memq and-go '(t call))
+	(progn (comint-send process string nil nil status message handler)
+	       (if (eq and-go 'call)
+		   (call-defun-lisp nil)
+		   (switch-to-lisp t t))
+	       nil)
 	(let* ((save (ilisp-value 'ilisp-save-command t))
 	       (result
 		(comint-send 
 		 process
 		 (if save (format save string) string)
-		 t (if (not dispatch) 'dispatch) status message)))
+		 ;; Interrupt without waiting
+		 t (if (not dispatch) 'wait) status message handler)))
 	  (if save 
 	      (comint-send
 	       process
 	       (ilisp-value 'ilisp-restore-command t)
-	       t 'dispatch 'restore nil nil t))
+	       t nil 'restore "Restore" t t))
 	  (if (not dispatch)
 	      (progn
-		(while (not (cdr result)) (accept-process-output))
+		(while (not (cdr result))
+		  (sit-for 0)
+		  (accept-process-output))
 		(comint-remove-whitespace (car result))))))))
 
 ;;;
@@ -1096,7 +1297,7 @@ a complete sexp, send it.  Otherwise, indent appropriately."
 	(let* ((pmark (process-mark proc))
 	       (input (ilisp-get-old-input)))
 	  (if input
-	      (progn
+	      (let ((input-ring (get-input-ring)))
 		(if (>= (point) pmark)
 		    (goto-char (point-max))
 		    (goto-char pmark)
@@ -1105,7 +1306,7 @@ a complete sexp, send it.  Otherwise, indent appropriately."
 		(if (and (funcall comint-input-filter input)
 			 (or (ring-empty-p input-ring)
 			     (not (string= (ring-ref input-ring 0) input))))
-		    (ring-insert input-ring input))
+		    (ring-insert-new input-ring input))
 		(funcall comint-input-sentinel input)
 		;; Nuke symbol table
 		(setq ilisp-original nil)
@@ -1113,20 +1314,106 @@ a complete sexp, send it.  Otherwise, indent appropriately."
 		(set-marker (process-mark proc) (point))
 		(set-marker comint-last-input-end (point))
 		(goto-char (point-max)))
-	      (insert ?\n)
-	      (save-restriction
-	       (narrow-to-region pmark (point-max))
-	       (funcall indent-line-function)))))))
+	      (if (= pmark (point-max)) 
+		  (let ((comint-send-newline t))
+		    (if (not ilisp-no-newline) (insert ?\n))
+		    (set-marker (process-mark proc) (point))
+		    (funcall comint-input-sender proc ""))
+		  (insert ?\n)
+		  (save-restriction
+		    (narrow-to-region pmark (point-max))
+		    (funcall indent-line-function))))))))
 
 ;;;
 (defun close-and-send-lisp ()
   "Close and indent the current sexp then send it to the inferior
-lisp." 
+LISP." 
   (interactive)
   (reindent-lisp)
   (if (memq major-mode ilisp-modes)
       (return-ilisp)
       (eval-defun-lisp)))
+
+;;;%%Keyboard mode
+(defun raw-keys-ilisp ()
+  "Start using raw keyboard mode to send each character typed to the
+inferior LISP until a key bound to interactive-keys-ilisp is
+encountered.  See also io-bridge-ilisp." 
+  (interactive)
+  (if (not ilisp-raw-map)
+      (let ((map (make-keymap)))
+	(if (vectorp map)
+	    (fillarray map 'ilisp-send-char)
+	  ;; Lucid GNU Emacs keymaps
+	  (let ((i 0))
+	    (while (< i 128)
+	      (define-key map (make-string 1 i) 'ilisp-send-char)
+	      (setq i (1+ i)))))
+	(define-key map "\C-g" 'interactive-keys-ilisp)
+	(setq ilisp-raw-map map)))
+  (use-local-map ilisp-raw-map)
+  (message ilisp-raw-message))
+
+;;;
+(defun interactive-keys-ilisp ()
+  "Go back to interactive keyboard interactions in the inferior LISP."
+  (interactive)
+  (use-local-map ilisp-use-map)
+  (message "Interactive keyboard mode"))
+
+;;;
+(defun ilisp-send-char ()
+  "Send the last typed character to the current inferior LISP echoing
+if ilisp-raw-echo is T."
+  (interactive)
+  (if (ilisp-value 'ilisp-raw-echo t)
+      (progn
+	(goto-char (point-max))
+	(insert last-input-char)
+	(set-marker (process-mark (ilisp-process)) (point))
+	(set-marker comint-last-input-end (point))))
+  (process-send-string (ilisp-process) 
+		       (make-string 1 last-input-char))
+  (message ilisp-raw-message))
+
+;;;
+(defun ilisp-raw-handler (process output)
+  "Turn on raw keyboard mode."
+  (raw-keys-ilisp))
+(defun ilisp-interactive-handler (process output)
+  "Turn on interactive keyboard mode."
+  (interactive-keys-ilisp))
+
+;;;
+(defun io-bridge-ilisp ()
+  "Set up so that the inferior LISP can turn on EMACS raw mode by
+sending ^[1^] and turn it off by sending ^[0^]."
+  (interactive)
+  (require 'bridge)
+  (install-bridge)
+  (setq bridge-handlers (cons '("1" . ilisp-raw-handler)
+			      (cons '("0" . ilisp-interactive-handler)
+				    bridge-handlers))))
+
+;;;%%Debugger interface
+(defun delete-char-or-pop-ilisp (arg &optional killflag)
+  "Delete ARG characters, or pop break level if at end of buffer.  
+Optional second arg KILLFLAG non-nil means kill instead (save in kill ring).
+Interactively, ARG is the prefix arg, and KILLFLAG is set if
+ARG was explicitly specified."
+  (interactive "p")
+  (if (eobp)
+      (progn
+	(message "Pop LISP one level")
+	(comint-simple-send (ilisp-process) (ilisp-value 'comint-fix-error)))
+      (call-interactively 'delete-char (list arg killflag))))
+
+;;;
+(defun reset-ilisp ()
+  "Reset the inferior LISP top level."
+  (interactive)
+  (message "Reset LISP to top level")
+  (comint-simple-send (ilisp-process) (ilisp-value 'ilisp-reset)))
 
 ;;;%Completion
 ;;; The basic idea behind the completion stuff is to use as much of
@@ -1167,15 +1454,16 @@ package will be used."
 		    (string= (lisp-symbol-delimiter symbol) ":")
 		    ilisp-prefix-match)
 	   (if (not ilisp-complete)
-	       (concat "Complete " (lisp-buffer-symbol symbol)))
+	       (concat "Complete " 
+		       (if function-p "function ")
+		       (lisp-buffer-symbol symbol)))
 	   'complete)))
     (if (ilisp-value 'comint-errorp t)
-	(progn (comint-display-output choices)
-	       (error "Completion error"))
+	(progn (lisp-display-output choices)
+	       (error "Error completing %s" (lisp-buffer-symbol symbol)))
 	(setq choices (read choices)
 	      choices (if (eq choices 'NIL) nil choices)))
-    (setq ilisp-current-symbol symbol
-	  ilisp-original symbol
+    (setq ilisp-original symbol
 	  ilisp-original-function-p function-p
 	  ilisp-original-table choices)))
 
@@ -1209,8 +1497,7 @@ be the ilisp-table."
 	(let* ((symbol-info (lisp-previous-symbol))
 	       (symbol (car symbol-info)))
 	  (setq minibuffer-completion-table 
-		(ilisp-completion-table symbol ilisp-completion-function-p)
-		ilisp-current-symbol symbol))
+		(ilisp-completion-table symbol ilisp-completion-function-p)))
 	(save-excursion 
 	  (skip-chars-backward "^: \(")
 	  (setq ilisp-mini-prefix (buffer-substring (point-min) (point)))
@@ -1283,27 +1570,30 @@ be the ilisp-table."
 ;;;%%ilisp-completer
 (defun ilisp-completer (symbol function-p)
   "Complete SYMBOL from the inferior LISP using only function symbols
-if FUNCTION-P is T.  Return the longest common substring.  If symbol
-is already the longest, possible completions will be displayed."
+if FUNCTION-P is T.  Return (SYMBOL LCS-SYMBOL CHOICES UNIQUEP)."
   (let* ((name (lisp-symbol-name symbol))
 	 (table (ilisp-completion-table symbol function-p))
-	 (choice (if table 
-		     (or (try-completion name table)
-			 (if (not ilisp-prefix-match)
-			     (car 
-			      (completer name table nil 
-					 completer-delimiters)))))))
-    (if choice
-	(setq ilisp-current-symbol 
-	      (if (or (eq choice t) (string= name choice))
-		  (progn
-		    (if (not (eq choice t))
-			(ilisp-display-choices symbol 
-					       ilisp-original-table))
-		    symbol)
+	 (choice (and table (try-completion name table))))
+    (cond ((eq choice t)		;Name is it
+	   (list symbol symbol nil t))
+	  ((string= name choice)	;Name is LCS
+	   (list symbol symbol (all-completions name table) nil))
+	  (choice			;New LCS
+	   (let ((symbol
 		  (lisp-symbol (lisp-symbol-package symbol) 
 			       (lisp-symbol-delimiter symbol)
-			       choice))))))
+			       choice)))
+	     (list symbol symbol (all-completions choice table) nil)))
+	  ((and (not ilisp-prefix-match) table)	;Try partial matches
+	   (let ((matches
+		  (completer name table nil (regexp-quote completer-words))))
+	     (cons (lisp-symbol (lisp-symbol-package symbol)
+				(lisp-symbol-delimiter symbol)
+				(car matches))
+		   (cons  (lisp-symbol (lisp-symbol-package symbol)
+				(lisp-symbol-delimiter symbol)
+				(car (cdr matches)))
+			  (cdr (cdr matches)))))))))
 
 ;;;%Interface functions
 ;;;%%Symbols
@@ -1315,7 +1605,7 @@ package is either package:symbol or from the current buffer."
     (if start
 	(lisp-symbol
 	 (if (= start 0)
-	     "KEYWORD"
+	     ""
 	     (substring string 0 start))
 	 (substring string start end)
 	 (substring string end))
@@ -1334,7 +1624,7 @@ package is either package:symbol or from the current buffer."
 	(pkg (lisp-symbol-package symbol))
 	(delimiter (lisp-symbol-delimiter symbol)))
     (cond ((string= pkg (lisp-buffer-package)) symbol-name)
-	  ((string= pkg "KEYWORD") (concat ":" symbol-name))
+	  ((string= pkg "") (concat ":" symbol-name))
 	  (pkg (concat pkg delimiter symbol-name))
 	  (t symbol-name))))
 
@@ -1350,11 +1640,12 @@ function-p start end).  If STAY is T, the end of the symbol will be point."
 	      (skip-chars-backward " \t\n")
 	      (or (bobp) (memq (char-after (1- (point))) '(?\) ?\")))))
 	nil
-	(let* ((end (progn
-		      (if (not stay) (skip-chars-forward "^ \t\n)\""))
+	(let* ((delimiters (ilisp-value 'ilisp-symbol-delimiters))
+	       (end (progn
+		      (if (not stay) (skip-chars-forward delimiters))
 		      (point)))
 	       (start (progn
-			(skip-chars-backward "^ \t\n('\"")
+			(skip-chars-backward delimiters)
 			(point)))
 	       (prefix (if (not (bobp)) (1- start)))
 	       (function-p
@@ -1390,22 +1681,32 @@ are allowed."
       (error nil))))
 
 ;;;
-(defun lisp-def-name ()
+(defun lisp-def-name (&optional namep)
   "Return the name of a definition assuming that you are at the start
 of the sexp.  If the form starts with DEF, the form start and the next
-symbol will be returned."
+symbol will be returned.  Optional NAMEP will return only the name without the defining symbol."
   (let ((case-fold-search t))
     (if (looking-at
+	 ;; (( \( (def*) (( \( (setf)) | \(?)) | \(?) (symbol)
+	 ;; 12    3    3 45    6    65      42      1 7      7
+	 ;;0011\(22 def*        22         32 43\(54 setf54         43   \(?32 11      00 60           60
 	 "\\(\\((\\(def[^ \t\n]*\\)[ \t\n]+\\(\\((\\(setf\\)[ \t\n]+\\)\\|(?\\)\\)\\|(?\\)\\([^ \t\n)]*\\)")
 	(let ((symbol (buffer-substring (match-beginning 7) (match-end 7))))
 	  (if (match-end 6)
-	      (concat (buffer-substring (match-beginning 3) (match-end 3))
-		      " ("
+	      (concat (if (not namep) 
+			  (concat 
+			   (buffer-substring (match-beginning 3) (match-end 3))
+			   " "))
+		      "("
 		      (buffer-substring (match-beginning 6) (match-end 6))
 		      " " symbol ")")
 	      (if (match-end 3)
-		  (concat (buffer-substring (match-beginning 3) (match-end 3))
-			  " " symbol)
+		  (concat (if (not namep)
+			      (concat 
+			       (buffer-substring (match-beginning 3) 
+						 (match-end 3))
+			       " "))
+			  symbol)
 		  symbol))))))
 
 ;;;
@@ -1449,7 +1750,10 @@ T if it is a negative."
 readers and return it."
   (if (not ilisp-completion-map)
       (progn
-	(setq ilisp-completion-map (copy-keymap lisp-mode-map))
+	(if (string-match "Lucid" emacs-version)
+	    ;; not necessary, but friendlier.
+	    (set-keymap-parent ilisp-completion-map lisp-mode-map)
+	  (setq ilisp-completion-map (copy-keymap lisp-mode-map)))
 	(define-key ilisp-completion-map " "  'ilisp-completion-word)
 	(define-key ilisp-completion-map "\t" 'ilisp-completion)
 	(define-key ilisp-completion-map "?" 'ilisp-completion-help)
@@ -1480,33 +1784,6 @@ allowed."
 (defvar lisp-program-map nil
   "Minibuffer map for reading a program and arguments.")
 
-;;; Replacement for comint version that uses pop-up window
-(defun comint-dynamic-list-completions ()
-  "List in help buffer all possible completions of the filename at point."
-  (interactive)
-  (let* ((pathname (comint-match-partial-pathname))
-	 (pathdir (file-name-directory pathname))
-	 (pathnondir (file-name-nondirectory pathname))
-	 (completions
-	  (file-name-all-completions pathnondir
-				     (or pathdir default-directory))))
-    (with-output-to-temp-buffer " *Completions*"
-      (display-completion-list completions))))
-
-;;;
-(defun lisp-complete-file ()
-  "Complete the previous filename or display possibilities if done
-twice in a row."
-  (interactive)
-  (setq this-command 'lisp-complete-file)
-  (if (eq last-command 'lisp-complete-file)
-      (comint-dynamic-list-completions)
-      (let* ((start (save-excursion (skip-chars-backward "^ \t") (point)))
-	     (string (buffer-substring start (point))))
-	(comint-dynamic-complete)
-	(if (string= (buffer-substring start (point)) string)
-	    (comint-dynamic-list-completions)))))
-
 ;;;
 (defun lisp-read-program (prompt &optional initial)
   "Read a program with PROMPT and INITIAL.  TAB or Esc-TAB will complete
@@ -1514,8 +1791,8 @@ filenames."
   (if (null lisp-program-map)
       (progn 
 	(setq lisp-program-map (copy-keymap minibuffer-local-map))
-	(define-key lisp-program-map "\M-\t" 'lisp-complete-file)
-	(define-key lisp-program-map "\t" 'lisp-complete-file)
+	(define-key lisp-program-map "\M-\t" 'comint-dynamic-complete)
+	(define-key lisp-program-map "\t" 'comint-dynamic-complete)
 	(define-key lisp-program-map "?" 'comint-dynamic-list-completions)))
   (read-from-minibuffer prompt initial lisp-program-map))
 
@@ -1586,7 +1863,39 @@ an inferior Lisp."
   "Return the name of the current defun."
   (save-excursion
     (lisp-defun-begin)
-    (lisp-string-to-symbol (lisp-def-name))))
+    (lisp-string-to-symbol (lisp-def-name t))))
+
+;;;
+(defun lisp-region-name (start end)
+  "Return a name for the region from START to END."
+  (save-excursion
+    (goto-char start)
+    (if (re-search-forward "^[ \t]*[^;\n]" end t)
+	(forward-char -1))
+    (setq start (point))
+    (goto-char end)
+    (re-search-backward "^[ \t]*[^;\n]" start 'move)
+    (end-of-line)
+    (skip-chars-backward " \t")
+    (setq end (min (point) end))
+    (goto-char start)
+    (let ((from
+	   (if (= (char-after (point)) ?\()
+	       (lisp-def-name)
+	       (buffer-substring (point) 
+				 (progn (forward-sexp) (point))))))
+      (goto-char end)
+      (if (= (char-after (1- (point))) ?\))
+	  (progn
+	    (backward-sexp)
+	    (if (= (point) start)
+		from
+		(concat "from " from " to " (lisp-def-name))))
+	  (concat "from " from " to " 
+		  (buffer-substring (save-excursion
+				      (backward-sexp)
+				      (point)) 
+				    (1- (point))))))))
 
 ;;;%Lisp mode extensions
 ;;;%%Movement
@@ -1623,12 +1932,14 @@ prior defun if at the start of one in an ilisp mode."
 prompt in an ILISP buffer and go to the end of the expression."
   (interactive)
   (let ((point (point)))
-    (if (memq major-mode lisp-source-modes)
-	(progn (beginning-of-line)
-	       (re-search-forward "^[ \t\n]*[^; \t\n]" nil t)
-	       (back-to-indentation)
-	       (if (not (bolp)) (beginning-of-defun-lisp t)))
-	(beginning-of-defun-lisp t))
+    (if (memq major-mode ilisp-modes)
+	(beginning-of-defun-lisp t)
+	(if (or (lisp-in-string)
+		(progn (beginning-of-line)
+		       (re-search-forward "^[ \t\n]*[^; \t\n]" nil t)
+		       (back-to-indentation)
+		       (not (bolp))))
+	    (beginning-of-defun-lisp t)))
     (lisp-end-defun-text t)
     (if (= point (point))		;Already at end so move to next end
 	(progn
@@ -1640,7 +1951,7 @@ prompt in an ILISP buffer and go to the end of the expression."
 	      (lisp-end-defun-text t))))))
 
 ;;;%%Indentation
-(defun newline-and-indent-ilisp ()
+(defun newline-and-indent-lisp ()
   "If at the end of the buffer, send the string back to the process
 mark with no newline.  Otherwise, insert a newline, then indent.  In
 an ilisp buffer the region is narrowed first.  See newline-and-indent
@@ -1661,6 +1972,83 @@ for more information."
 		  (narrow-to-region (save-excursion (lisp-input-start))
 				    (point-max)))
 	      (newline-and-indent))))))
+
+;;;%%Call
+(defun match-ring (ring regexp start)
+  "Return the index in RING of REGEXP starting at START."
+  (let ((n 0)
+	(len (ring-length ring)))
+    (while (and (< n len) 
+		(not (string-match regexp (ring-ref ring n))))
+      (setq n (1+ n)))
+    (if (= n len)
+	nil
+	n)))
+
+;;;
+(defun lisp-match-ring (regexp string &optional no-insert)
+  "Match REGEXP in the input-ring of the current buffer and set the
+ring variables to look like comint-previous-similar-input if found.
+If not found insert STRING, unless NO-INSERT."
+  (let ((n (if regexp (match-ring (get-input-ring) regexp 0))))
+    (if n
+	(let ((point (progn (comint-kill-input) (point))))
+	  (insert (ring-ref (get-input-ring) n))
+	  (save-excursion
+	    (goto-char (+ point (length string)))
+	    (skip-chars-forward "^ \t\n\)")
+	    (setq point (point)))
+	  (push-mark point)
+	  (setq this-command 'comint-previous-similar-input
+		input-ring-index n
+		comint-last-similar-string string)
+	  t)
+	(if (and string (not no-insert))
+	    (progn (comint-kill-input) (insert string) t)
+	    nil))))
+
+;;;
+(defun call-defun-lisp (arg)
+  "Put a call of the current defun in the inferior LISP and go there.
+If it is a \(def* name form, look up reasonable forms of name in the
+input history unless called with prefix ARG. If not found, use \(name
+or *name* as the call.  If is not a def* form, put the whole form in
+the buffer."
+  (interactive "P")
+  (if (save-excursion (lisp-defun-begin) (looking-at "(def"))
+      (let* ((symbol (lisp-defun-name))
+	     (name (lisp-symbol-name symbol))
+	     (package (if (lisp-symbol-package symbol)
+			  (concat "\\("
+				  (lisp-symbol-package symbol) ":+\\)?")))
+	     (variablep (string-match "^\\*" name))
+	     (setfp (string-match "(setf \\([^\)]+\\)" name)))
+	(switch-to-lisp t t)
+	(cond (setfp 
+	       (setq name (substring name (match-beginning 1) (match-end 1)))
+	       (lisp-match-ring (if (not arg)
+				    (concat "(setf[ \t\n]*(" 
+					    package name "[ \t\n]"))
+				(concat "(setf (" name)))
+	      (variablep (lisp-match-ring (if (not arg) 
+					      (concat package name))
+					  name))
+	      (t
+	       (let ((fun (concat "(" name)))
+		 (setq name (regexp-quote name))
+		 (or (lisp-match-ring 
+		      (if (not arg) (concat "(" package name "[ \t\n\)]"))
+		      fun 
+		      (not arg))
+		     (lisp-match-ring (concat "(" package
+					      "[^ \t\n]*-*" name)
+				      fun))))))
+      (let ((form 
+	     (save-excursion
+	       (buffer-substring (lisp-defun-begin) (lisp-end-defun-text t)))))
+	(switch-to-lisp t t)
+	(comint-kill-input)
+	(insert form))))
 
 ;;;%Special commands
 (defun describe-lisp (sexp)
@@ -1684,7 +2072,29 @@ and there is no current sexp, describe ilisp-last-command."
 		  (lisp-slashify sexp) (lisp-buffer-package))
 	  (concat "Describe " sexp)
 	  'describe)))
-    (comint-display-output result)))
+    (lisp-display-output result)))
+
+;;;
+(defun inspect-lisp (sexp)
+  "Inspect the current sexp using ilisp-inspect-command.  With a
+prefix, prompt for the expression.  If in an ILISP buffer, and there
+is no current sexp, inspect ilisp-last-command."
+  (interactive
+   (list
+    (if current-prefix-arg
+	(ilisp-read "Inspect: " (lisp-previous-sexp t))
+	(if (memq major-mode ilisp-modes)
+	    (if (= (point)
+		   (process-mark (get-buffer-process (current-buffer))))
+		(or (ilisp-value 'ilisp-last-command t)
+		    (error "No sexp to inspect."))
+		(lisp-previous-sexp t))
+	    (lisp-previous-sexp t)))))
+  (ilisp-send
+   (format (ilisp-value 'ilisp-inspect-command) 
+	   (lisp-slashify sexp) (lisp-buffer-package))
+   (concat "Inspect " sexp)
+   'inspect t))
 
 ;;;
 (defun arglist-lisp (symbol)
@@ -1713,7 +2123,7 @@ the symbol will be prompted for."
 	       (let ((temp (point)))
 		 (insert (substring arglist (1+ position)))
 		 (goto-char temp)))
-	      (t (comint-display-output 
+	      (t (lisp-display-output 
 		  (if position
 		      (substring arglist position)
 		      arglist)))))))
@@ -1721,10 +2131,11 @@ the symbol will be prompted for."
 ;;;
 (defun documentation-lisp (symbol type)
   "Return the documentation of the previous symbol using
-ilisp-documentation-command.  If the symbol is at the start of
-a list, it is assumed to be a function, otherwise variable
-documentation is searched for.  With a minus prefix, prompt for
-the symbol and type."
+ilisp-documentation-command.  If the symbol is at the start of a list,
+it is assumed to be a function, otherwise variable documentation is
+searched for.  With a minus prefix, prompt for the symbol and type.
+With a numeric prefix always return the current function call
+documentation."
   (interactive
    (if (lisp-minus-prefix)
        (let* ((symbol-info (lisp-previous-symbol))
@@ -1746,17 +2157,19 @@ the symbol and type."
 		    types
 		    default))))
 	 (list doc (if (stringp type) (read type) type)))
-       (let* ((symbol-info (lisp-previous-symbol)))
-	 (list (car symbol-info)
-	       (if (car (cdr symbol-info))
-		   'function
-		   'variable)))))
-  (comint-display-output
-       (ilisp-send
-	(format (ilisp-value 'ilisp-documentation-command)
-		(lisp-symbol-name symbol) (lisp-symbol-package symbol) type)
-	(format "Documentation %s %s" type (lisp-buffer-symbol symbol))
-	'doc)))
+       (if current-prefix-arg
+	   (list (lisp-function-name) 'function)
+	   (let* ((symbol-info (lisp-previous-symbol)))
+	     (list (car symbol-info)
+		   (if (car (cdr symbol-info))
+		       'function
+		       'variable))))))
+  (lisp-display-output
+   (ilisp-send
+    (format (ilisp-value 'ilisp-documentation-command)
+	    (lisp-symbol-name symbol) (lisp-symbol-package symbol) type)
+    (format "Documentation %s %s" type (lisp-buffer-symbol symbol))
+    'doc)))
 
 ;;;%%Macroexpand
 (defun lisp-macroexpand-form ()
@@ -1796,7 +2209,7 @@ prefix, insert into buffer."
 	       message 'expand))
 	(if current-prefix-arg
 	    (save-excursion (forward-sexp) (insert ?\n) (insert result))
-	    (comint-display-output result)))
+	    (lisp-display-output result)))
       (error "Not a form: %s" form)))
 
 (defun macroexpand-1-lisp (form)
@@ -1805,38 +2218,45 @@ prefix, insert into buffer."
   (macroexpand-lisp form t))
 
 ;;;%%complete-lisp
-(defun complete-lisp (all-p)
+(autoload 'complete "completion" "Complete previous symbol." t)
+(defun complete-lisp (mode)
   "Complete the current symbol using information from the current
 ILISP buffer.  If in a string, complete as a filename.  If called with
-a prefix force all symbols to be considered.  Partial completion is
+a positive prefix force all symbols to be considered.  If called with
+a negative prefix, undo the last completion.  Partial completion is
 allowed unless ilisp-prefix-match is T.  If a symbol starts after a
 left paren or #', then only function symbols will be considered.
 Package specifications are also allowed and the distinction between
 internal and exported symbols is considered."
   (interactive "P")
-  (let* ((filep
-	  (save-excursion
-	    (skip-chars-backward "^ \t\n")
-	    (= (char-after (point)) ?\"))))
-    (if filep
-	(lisp-complete-file)
-	(let* ((symbol-info (lisp-previous-symbol t))
-	       (symbol (car symbol-info))
-	       (name (lisp-symbol-name symbol))
-	       (choice (ilisp-completer 
-			symbol 
-			(if (not all-p) (car (cdr symbol-info))))))
-	  (if (not choice) 
-	      (if (not ilisp-complete) (error "No completions"))
-	      (let ((point (point)))
-		(apply 'delete-region (cdr (cdr symbol-info)))
-		(insert (lisp-buffer-symbol choice))
-		(if (not ilisp-complete) (message "Completed"))))))))
+  (if (< (prefix-numeric-value mode) 0)
+      (completer-undo)
+      (let* ((filep
+	      (save-excursion
+		(skip-chars-backward "^ \t\n")
+		(= (char-after (point)) ?\"))))
+	(if filep
+	    (comint-dynamic-complete)
+	    (let* ((symbol-info (lisp-previous-symbol))
+		   (symbol (car symbol-info))
+		   (name (lisp-symbol-name symbol))
+		   (choice (ilisp-completer 
+			    symbol 
+			    (if (not mode) (car (cdr symbol-info)))))
+		   (match (lisp-buffer-symbol (car choice)))
+		   (lcs (lisp-buffer-symbol (car (cdr choice))))
+		   (choices (car (cdr (cdr choice))))
+		   (unique (car (cdr (cdr (cdr choice))))))
+	      (skip-chars-backward " \t\n")
+	      (completer-goto match lcs choices unique 
+			      (ilisp-value 'ilisp-symbol-delimiters)
+			      completer-words)))
+	(message "Completed"))))
 
 ;;;%%Trace
-(defun trace-lisp (function)
+(defun trace-defun-lisp (function)
   "Trace FUNCTION without arg, untrace with.  Prompt for function with
-negative prefix."
+negative prefix.  Default function is the current defun."
   (interactive
    (let ((function (lisp-defun-name)))
      (if (lisp-minus-prefix)
@@ -1849,32 +2269,46 @@ negative prefix."
 		t))
 	 (list function))))
   (if function
-      (comint-display-output
-       (ilisp-send
-	(format (if current-prefix-arg 
-		    (ilisp-value 'ilisp-untrace-command)
-		    (ilisp-value 'ilisp-trace-command))
-		(lisp-symbol-name function)
-		(lisp-symbol-package function))
-	(format "%srace %s" (if current-prefix-arg "Unt" "T") 
-		(lisp-buffer-symbol function))
-	(if current-prefix-arg 'untrace 'trace)))
+      (ilisp-send
+       (format (if current-prefix-arg 
+		   (ilisp-value 'ilisp-untrace-command)
+		   (ilisp-value 'ilisp-trace-command))
+	       (lisp-symbol-name function)
+	       (lisp-symbol-package function))
+       (format "%srace %s" (if current-prefix-arg "Unt" "T") 
+	       (lisp-buffer-symbol function))
+       (if current-prefix-arg 'untrace 'trace)
+       (if lisp-wait-p nil 'dispatch))
       (error "No function to %strace" (if current-prefix-arg "un" ""))))
 
 ;;;%%Default-directory
 (defun default-directory-lisp (&optional buffer)
   "Set the inferior LISP default directory to the default directory of
-optional BUFFER."
+optional BUFFER.  If you are in an inferior LISP buffer, set the
+default directory to the current directory of the LISP."
   (interactive)
-  (let ((directory (save-excursion
-		     (set-buffer (or buffer (current-buffer)))
-		     default-directory)))
-    (ilisp-send 
-     (format (ilisp-value 'ilisp-directory-command)
-	     directory)
-     (format "Set LISP directory to %s" directory)
-     'dir
-     (if lisp-wait-p nil 'dispatch))))
+  (if (and (not buffer) (memq major-mode ilisp-modes))
+      (let ((dir
+	     (ilisp-send
+	      (ilisp-value 'ilisp-directory-command)
+	      (format "Getting LISP directory")
+	      'dir)))
+	(if (ilisp-value 'comint-errorp t)
+	    (progn
+	      (lisp-display-output dir)
+	      (error "Error getting directory"))
+	    (setq default-directory (read dir)
+		  lisp-prev-l/c-dir/file (cons default-directory nil))
+	    (message "Default directory is %s" default-directory)))
+      (let ((directory (save-excursion
+			 (set-buffer (or buffer (current-buffer)))
+			 default-directory)))
+	(ilisp-send 
+	 (format (ilisp-value 'ilisp-set-directory-command) directory)
+	 (format "Set %s's directory to %s" 
+		 (buffer-name (ilisp-buffer)) directory)
+	 'dir
+	 (if lisp-wait-p nil 'dispatch)))))
   
 ;;;%Source
 (autoload 'lisp-directory "ilisp-src" 
@@ -1891,17 +2325,19 @@ optional BUFFER."
 	  "Show callers of a function." t)
 (autoload 'next-caller-lisp "ilisp-src" 
 	  "Edit the next caller of a function." t)
-(autoload 'next-caller-lisp "ilisp-src" 
+(autoload 'edit-callers-lisp "ilisp-src" 
 	  "Edit the callers of a function." t)
 
 ;;;%Eval/compile
-(defun lisp-send-region (start end switch message status format)
-  "Given START, END, SWITCH, MESSAGE, STATUS and FORMAT send the
-region between START and END to the lisp buffer and execute the
-command defined by FORMAT on the region, its package and filename.  If
-called with a positive prefix, the results will be inserted at the end
-of the region.  If SWITCH is T, the command will be sent and the
-buffer switched to the inferior LISP buffer.  If SWITCH is 'result the
+(defun lisp-send-region (start end switch message status format
+			       &optional handler)
+  "Given START, END, SWITCH, MESSAGE, STATUS, FORMAT and optional
+HANDLER send the region between START and END to the lisp buffer and
+execute the command defined by FORMAT on the region, its package and
+filename.  If called with a positive prefix, the results will be
+inserted at the end of the region.  If SWITCH is T, the command will
+be sent and the buffer switched to the inferior LISP buffer.  if
+SWITCH is 'call, a call will be inserted.  If SWITCH is 'result the
 result will be returned without being displayed.  Otherwise the
 results will be displayed in a popup window if lisp-wait-p is T and
 the current-prefix-arg is not '- or if lisp-wait-p is nil and the
@@ -1910,6 +2346,7 @@ comint-handler will display the results in a pop-up window if they are
 more than one line long, or they are from an error.  STATUS will be
 the process status when the command is actually executing.  MESSAGE is
 a message to let the user know what is going on."
+  (if (= start end) (error "Region is empty"))
   (let ((sexp (lisp-count-pairs start end ?\( ?\)))
 	(string (buffer-substring start end)))
     (setq string
@@ -1922,44 +2359,43 @@ a message to let the user know what is going on."
     (let ((result 
 	   (ilisp-send
 	    string message status
-	    (cond ((eq switch t) t)
+	    (cond ((memq switch '(t call)) switch)
 		  ((or (not (eq lisp-wait-p (lisp-minus-prefix))) 
 		       current-prefix-arg
 		       (eq switch 'result)) nil)
-		  (t 'dispatch)))))
+		  (t 'dispatch))
+	    handler)))
       (if result
 	  (if current-prefix-arg
 	      (save-excursion
 		(goto-char end)
 		(insert ?\n)
 		(insert result))
-	      (if (or (if (ilisp-value 'comint-errorp t)
-			  (setq result 
-				(funcall (ilisp-value 'ilisp-error-filter)
-					 result)))
+	      (if (or (ilisp-value 'comint-errorp t)
 		      (string-match "\n" result))
-		  (comint-display-output result)
+		  (lisp-display-output result)
 		  (popper-bury-output t)
-		  (message result)))
+		  (message "%s" result)))
 	  result))))
 
 ;;;%%Eval
-(defun eval-region-lisp (start end &optional switch message status)
+(defun eval-region-lisp (start end &optional switch message status handler)
   "Evaluate the current region."
   (interactive "r")
-  (setq message (or message "Evaluate region"))
+  (setq message (or message 
+		    (concat "Evaluate " (lisp-region-name start end))))
   (let ((defvar (ilisp-value 'ilisp-defvar-regexp t)))
     (if (and defvar
 	     (save-excursion
 	       (goto-char start)
 	       (skip-chars-forward " \t\n")
-	       (and (let ((case-fold-search t)) (looking-at defvar) )
+	       (and (let ((case-fold-search t)) (looking-at defvar))
 		    (progn (forward-sexp) (skip-chars-forward " \t\n" end)
 			   (= (point) end)))))
 	(lisp-send-region start end switch message (or status 'defvar)
-			  'ilisp-defvar-command)
+			  'ilisp-defvar-command handler)
 	(lisp-send-region start end switch message (or status 'eval)
-			  'ilisp-eval-command))))
+			  'ilisp-eval-command handler))))
 
 ;;;
 (defun eval-next-sexp-lisp (&optional switch)
@@ -1970,18 +2406,6 @@ a message to let the user know what is going on."
       (setq start (point))
       (forward-sexp)
       (setq end (point)))
-    (eval-region-lisp start end switch
-		      (format "Evaluate %s" (buffer-substring start end)))))
-
-;;;
-(defun eval-prev-sexp-lisp (&optional switch)
-  "Evaluate the previous sexp."
-  (interactive)
-  (let (start end)
-    (save-excursion
-      (setq end (point))
-      (backward-sexp)
-      (setq start (point)))
     (eval-region-lisp start end switch
 		      (format "Evaluate %s" (buffer-substring start end)))))
 
@@ -1999,37 +2423,49 @@ a message to let the user know what is going on."
   (interactive "r")
   (eval-region-lisp start end t))
 
-(defun eval-next-sexp-lisp-and-go (&optional switch)
+(defun eval-next-sexp-and-go-lisp (&optional switch)
   "Evaluate the next sexp and switch to the current ILISP buffer."
   (interactive)
   (eval-next-sexp-lisp t))
 
-(defun eval-prev-sexp-and-go-lisp (&optional switch)
-  "Evaluate the previous sexp and switch to the current ILISP buffer."
-  (interactive)
-  (eval-prev-sexp-lisp t))
-
 (defun eval-defun-and-go-lisp ()
-  "Evaluate the current defun and switch to the current ILISP buffer."
+  "Evaluate the current defun and switch to the current ILISP buffer.
+With prefix, insert a call as well."
   (interactive)
-  (eval-defun-lisp t))
+  (eval-defun-lisp (if current-prefix-arg 
+		       (progn
+			 (setq current-prefix-arg nil)
+			 'call)
+		       t)))
 
 ;;;%%Compile
-(defun compile-region-lisp (start end &optional switch message status)
+(defun compile-region-lisp (start end &optional switch message status handler)
   "Compile the current region."
   (interactive "r")
   (lisp-send-region
-   start end switch (or message "Compile region") (or status 'compile)
-   'ilisp-compile-command))
+   start end switch 
+   (or message (concat "Compile " (lisp-region-name start end)))
+   (or status 'compile)
+   'ilisp-compile-command 
+   handler))
 		
 ;;;
 (defun compile-defun-lisp (&optional switch)
-  "Compile the current defun or the result of the last command in an
-ILISP buffer."
+  "Compile the current defun or the last command in the input-ring of
+an ILISP buffer if no current defun."
   (interactive)
-  (let ((form (lisp-defun-region-and-name)))
-    (compile-region-lisp (car form) (car (cdr form)) switch
-			 (format "Compile %s" (car (cdr (cdr form)))))))
+  (let* ((form (lisp-defun-region-and-name))
+	 (start (car form))
+	 (end (car (cdr form))))
+    (if (and (= start end) (memq major-mode ilisp-modes))
+	(save-excursion
+	  (let ((form (ring-ref (get-input-ring) input-ring-index)))
+	    (set-buffer "*ilisp-send*")
+	    (delete-region (point-min) (point-max))
+	    (insert form)
+	    (compile-defun-lisp)))
+	(compile-region-lisp start end switch
+			     (format "Compile %s" (car (cdr (cdr form))))))))
 
 ;;;%%%And-go
 (defun compile-region-and-go-lisp (start end)
@@ -2040,7 +2476,12 @@ ILISP buffer."
 (defun compile-defun-and-go-lisp ()
   "Compile the current defun and switch to the current ILISP buffer."
   (interactive)
-  (compile-defun-lisp t))
+  (compile-defun-lisp 
+   (if current-prefix-arg
+       (progn
+	 (setq current-prefix-arg nil)
+	 'call)
+       t)))
 
 ;;;%%Changed definitions
 (autoload 'mark-change-lisp "ilisp-bat" 
@@ -2097,17 +2538,17 @@ that buffer."
 		    buffers nil)
 	      (setq buffers (cdr buffers)))))))
   (if pop
-      (pop-to-buffer (find-file-noselect file))
+      (lisp-pop-to-buffer (find-file-noselect file))
       (find-file file)))
 
 ;;;
 (defun find-file-lisp (file-name)
-  "Find a file.  If point is on a string, that will be the default.
-If the buffer is one of lisp-source-modes, the buffer file will be the
-default.  Otherwise, the last file used in a lisp-source-mode will be
-used."
+  "Find a file.  If point is on a string that points to an existing
+file, that will be the default.  If the buffer is one of
+lisp-source-modes, the buffer file will be the default.  Otherwise,
+the last file used in a lisp-source-mode will be used."
   (interactive
-   (comint-get-source "Find Lisp file: " lisp-prev-l/c-dir/file
+   (comint-get-source "Find file: " lisp-prev-l/c-dir/file
 		      lisp-source-modes nil))
   (setq lisp-prev-l/c-dir/file (cons (file-name-directory    file-name)
 				     (file-name-nondirectory file-name)))
@@ -2118,26 +2559,43 @@ used."
   "Load a lisp file into the current inferior LISP and go there."
   (interactive (comint-get-source "Load Lisp file: " lisp-prev-l/c-dir/file
 				  lisp-source-modes nil))
-  (comint-check-source file-name) ; Check to see if buffer needs saved.
+  (comint-check-source file-name)	; Check to see if buffer needs saved.
   (setq lisp-prev-l/c-dir/file (cons (file-name-directory    file-name)
 				     (file-name-nondirectory file-name)))
   (ilisp-init t)
   (let* ((extension (ilisp-value 'ilisp-binary-extension t))
 	 (binary (lisp-file-extension file-name extension)))
+    (save-excursion
+      (set-buffer (ilisp-buffer))
+      (if (not (eq comint-send-queue comint-end-queue))
+	  (if (y-or-n-p "Abort commands before loading? ")
+	      (abort-commands-lisp)
+	      (message "Waiting for commands to finish")
+	      (while (not (eq comint-send-queue comint-end-queue))
+		(accept-process-output)
+		(sit-for 0))))
+      (if (and (car (comint-send-variables (car comint-send-queue)))
+	       (y-or-n-p "Interrupt top level? "))
+	  (let ((result (comint-send-results (car comint-send-queue))))
+	    (interrupt-subjob-ilisp)
+	    (while (not (cdr result))
+	      (accept-process-output)
+	      (sit-for 0)))))
     (if (file-newer-than-file-p file-name binary)
-	(if (and extension (y-or-n-p "Compile first? "))
+	(if (and (not ilisp-load-no-compile-query)
+		 extension (y-or-n-p "Compile first? "))
 	    ;; Load binary if just compiled
 	    (progn
 	      (message "")
 	      (compile-file-lisp file-name)
 	      (setq file-name binary)))
 	;; Load binary if it is current
-	(if (file-readable-p binary)
-	    (setq file-name binary)))
-    (ilisp-send
-     (format (ilisp-value 'ilisp-load-command) file-name)
-     (concat "Loading " file-name) 'load
-     t)))
+	(if (file-readable-p binary) (setq file-name binary)))
+    (switch-to-lisp t t)
+    (comint-sender
+     (ilisp-process)
+     (format (ilisp-value 'ilisp-load-command) file-name))
+    (message "Loading %s" file-name)))
 
 ;;;
 (defun compile-file-lisp (file-name &optional extension)
@@ -2163,53 +2621,65 @@ used."
 	    (cons (list dialect) ilisp-dialects))))
 
 ;;;
-(defun lisp-buffer-and-program (buffer)
-  "Return the buffer and the program to run in buffer.  BUFFER is the
-default buffer." 
-  (if current-prefix-arg
-      (list (read-from-minibuffer "Buffer: " buffer)
-	    (lisp-read-program "Program: " nil))
-      (list buffer nil)))
+(defun ilisp-start-dialect (buffer program setup)
+  ;; Allow dialects to be started from command line
+  (if (eq current-prefix-arg 0) (setq current-prefix-arg nil))
+  (setq ilisp-last-buffer (current-buffer)
+	buffer (if current-prefix-arg
+		   (read-from-minibuffer "Buffer: " buffer)
+		   buffer))
+  (funcall setup buffer)
+  (setq ilisp-program
+	(or program 
+	    (if current-prefix-arg
+		(lisp-read-program "Program: " ilisp-program)
+		ilisp-program)))
+  (ilisp buffer))
 
 ;;;
 (defmacro defdialect (dialect full-name parent &rest body)
   "Define a new ILISP dialect.  DIALECT is the name of the function to
 invoke the inferior LISP. The hook for that LISP will be called
-DIALECT-HOOK.  FULL-NAME is a string that describes the inferior LISP.
-PARENT is the name of the parent dialect."
+DIALECT-hook.  The default program will be DIALECT-program.  FULL-NAME
+is a string that describes the inferior LISP.  PARENT is the name of
+the parent dialect."
   (let ((setup (read (format "setup-%s" dialect)))
 	(hook (read (format "%s-hook" dialect)))
+	(program (read (format "%s-program" dialect)))
 	(dialects (format "%s" dialect)))
     (`
      (progn
        (defvar (, hook) nil (, (format "*Inferior %s hook." full-name)))
+       (defvar (, program) nil
+	 (, (format "*Inferior %s default program." full-name)))
        (defun (, setup) (buffer)
 	 (, (format "Set up for interacting with %s." full-name))
 	 (, (read (format "(setup-%s buffer)" parent)))
 	 (,@ body)
-	 (setq ilisp-dialect (cons '(, dialect) ilisp-dialect))
+	 (setq ilisp-program (or (, program) ilisp-program)
+	       ilisp-dialect (cons '(, dialect) ilisp-dialect))
 	 (run-hooks '(, (read (format "%s-hook" dialect)))))
-       (defun (, dialect) (buffer program)
+       (defun (, dialect) (&optional buffer program)
 	 (, (format "Create an inferior %s.  With prefix, prompt for buffer and program."
 		   full-name))
-	 (interactive (lisp-buffer-and-program (, dialects)))
-	 (setq ilisp-last-buffer (current-buffer))
-	 ((, setup) buffer)
-	 (if program (setq ilisp-program program))
-	 (ilisp buffer))
+	 (interactive (list nil nil))
+	 (ilisp-start-dialect (or buffer (, dialects)) 
+			      program 
+			      '(, setup))
+	 (setq (, program) ilisp-program))
        (lisp-add-dialect (, dialects))))))
 
 ;;;%%ilisp
 (defun setup-ilisp (buffer)
   "Set up for interacting with an inferior LISP."
   (set-buffer (get-buffer-create "*ilisp-send*"))
+  (kill-all-local-variables)
   (lisp-mode)
   (setq ilisp-buffer (format "*%s*" buffer))
   (set-buffer (get-buffer-create ilisp-buffer))
   (setq major-mode 'ilisp-mode
 	mode-name "ILISP")
   (lisp-mode-variables t)
-  (use-local-map ilisp-mode-map)
   ;; Set variables to nil
   (let ((binary ilisp-binary-extension)
 	(init ilisp-init-binary-extension)
@@ -2229,21 +2699,26 @@ PARENT is the name of the parent dialect."
 	comint-input-filter 'ilisp-input-filter
 	comint-input-sender 'comint-default-send
 	comint-eol-on-send t)
+;;  (or input-ring (set-input-ring (make-ring input-ring-size)))
   ;; Comint-ipc defaults
   (setq comint-send-newline t
+	comint-always-scroll nil
 	comint-output-buffer " *Output*"
 	comint-error-buffer " *Error Output*"
+	comint-error-regexp "^\"ILISP:"
 	comint-output-filter (function identity)
 	comint-interrupt-start 'comint-interrupt-start
 	comint-handler 'ilisp-handler
 	comint-update-status 'ilisp-update-status
 	comint-prompt-status 'comint-prompt-status
 	comint-abort-hook 'ilisp-abort-handler)
-  (setq ilisp-init-hook '(ilisp-init)
-	ilisp-filter-regexp "\\`\\s *\\(:\\(\\w\\|\\s_\\)\\)?\\s *\\'"
+  (setq ilisp-use-map ilisp-mode-map
+	ilisp-init-hook '((lambda () (ilisp-init nil nil t)))
+	ilisp-filter-regexp "\\`\\s *\\(:\\(\\w\\|\\s_\\)*\\)?\\s *\\'"
 	ilisp-filter-length 3
 	ilisp-error-filter 'ilisp-error-filter
 	ilisp-error-regexp ".*" 
+	ilisp-symbol-delimiters "^ \t\n\('\"#.\)<>"
 	ilisp-program "lisp"
 	ilisp-locator 'lisp-locate-ilisp
 	ilisp-calls-locator 'lisp-locate-calls)
@@ -2264,59 +2739,60 @@ for buffer name as well."
       (load "cl-indent"))
   (setq lisp-indent-hook 'common-lisp-indent-hook)
   (setq ilisp-load-or-send-command 
-	"(or (and (fboundp 'user::ilisp-matching-symbols) t)
-             (and (load \"%s\" :if-does-not-exist nil) t)
+	"(or (and (load \"%s\" :if-does-not-exist nil) t)
              (and (load \"%s\" :if-does-not-exist nil) t))")
   (ilisp-load-init 'clisp "clisp.lisp")
-  (setq ilisp-package-regexp "^[^;]*(in-package[ \t\n]*"
-	ilisp-package-command "%s"
+  (setq ilisp-package-regexp "^[ \t]*(in-package[ \t\n]*"
+	ilisp-package-command "(let ((*package* *package*)) %s (package-name *package*))"
+	ilisp-package-name-command "(package-name *package*)"
+	ilisp-in-package-command "(in-package \"%s\")"
 	ilisp-last-command "*"
-	ilisp-save-command "(progn (user:ilisp-save) %s)"
-	ilisp-restore-command "(user:ilisp-restore)"
-	ilisp-block-command "(progn %s)"
-	ilisp-eval-command "(user:ilisp-eval \"%s\" \"%s\" \"%s\")"
+	ilisp-save-command "(progn (ILISP:ilisp-save) %s\n)"
+	ilisp-restore-command "(ILISP:ilisp-restore)"
+	ilisp-block-command "(progn %s\n)"
+	ilisp-eval-command "(ILISP:ilisp-eval \"%s\" \"%s\" \"%s\")"
 	ilisp-defvar-regexp "(defvar[ \t\n]")
   (setq ilisp-defvar-command 
-	"(user:ilisp-eval \"(let ((form '%s)) (progn (makunbound (second form)) (eval form)))\" \"%s\" \"%s\")")
-  (setq ilisp-compile-command "(user:ilisp-compile \"%s\" \"%s\" \"%s\")"
-	ilisp-describe-command "(user:ilisp-describe \"%s\" \"%s\")"
-	ilisp-arglist-command "(user:ilisp-arglist \"%s\" \"%s\")")
+	"(ILISP:ilisp-eval \"(let ((form '%s)) (progn (makunbound (second form)) (eval form)))\" \"%s\" \"%s\")")
+  (setq ilisp-compile-command "(ILISP:ilisp-compile \"%s\" \"%s\" \"%s\")"
+	ilisp-describe-command "(ILISP:ilisp-describe \"%s\" \"%s\")"
+	ilisp-inspect-command "(ILISP:ilisp-inspect \"%s\" \"%s\")"
+	ilisp-arglist-command "(ILISP:ilisp-arglist \"%s\" \"%s\")")
   (setq ilisp-documentation-types
 	'(("function") ("variable")
 	  ("structure") ("type")
 	  ("setf") ("class")
 	  ("(qualifiers* (class ...))")))
   (setq ilisp-documentation-command
-	"(user:ilisp-documentation \"%s\" \"%s\" \"%s\")")
+	"(ILISP:ilisp-documentation \"%s\" \"%s\" \"%s\")")
   (setq ilisp-macroexpand-1-command 
-	"(user:ilisp-macroexpand-1 \"%s\" \"%s\")")
-  (setq ilisp-macroexpand-command "(user:ilisp-macroexpand \"%s\" \"%s\")")
+	"(ILISP:ilisp-macroexpand-1 \"%s\" \"%s\")")
+  (setq ilisp-macroexpand-command "(ILISP:ilisp-macroexpand \"%s\" \"%s\")")
   (setq ilisp-complete-command 
-	"(user:ilisp-matching-symbols \"%s\" \"%s\" %s %s %s)")
+	"(ILISP:ilisp-matching-symbols \"%s\" \"%s\" %s %s %s)")
   (setq ilisp-locator 'lisp-locate-clisp)
   (setq ilisp-source-types 
 	'(("function") ("macro") ("variable")
 	  ("structure") ("type")
 	  ("setf") ("class")
 	  ("(qualifiers* (class ...))")))
-  (setq ilisp-callers-command "(user:ilisp-callers \"%s\" \"%s\")"
-	ilisp-trace-command "(user:ilisp-trace \"%s\" \"%s\")"
-	ilisp-untrace-command "(user:ilisp-untrace \"%s\" \"%s\")")
-  (setq ilisp-directory-command
+  (setq ilisp-callers-command "(ILISP:ilisp-callers \"%s\" \"%s\")"
+	ilisp-trace-command "(ILISP:ilisp-trace \"%s\" \"%s\")"
+	ilisp-untrace-command "(ILISP:ilisp-untrace \"%s\" \"%s\")")
+  (setq ilisp-directory-command "(namestring *default-pathname-defaults*)"
+	ilisp-set-directory-command
 	"(setq *default-pathname-defaults* (parse-namestring \"%s\"))")
   (setq ilisp-load-command "(load \"%s\")")
   (setq ilisp-compile-file-command 
-	"(user:ilisp-compile-file \"%s\" \"%s\")"))
+	"(ILISP:ilisp-compile-file \"%s\" \"%s\")"))
 
 ;;;%%%Allegro
 (defun allegro-check-prompt (old new)
   "Compare the break level printed at the beginning of the prompt."
-  (let* ((was-in-break (and old (eq 1 (string-match "[0-9]+" old))))
- 	 (old-level (if was-in-break
+  (let* ((old-level (if (and old (eq 1 (string-match "[0-9]+" old)))
  			(string-to-int (substring old 1))
  			0))
- 	 (is-in-break (eq 1 (string-match "[0-9]+" new)))
- 	 (new-level (if is-in-break
+ 	 (new-level (if (eq 1 (string-match "[0-9]+" new))
  			(string-to-int (substring new 1))
  			0)))
     (<= new-level old-level)))
@@ -2326,37 +2802,38 @@ for buffer name as well."
   clisp
   (ilisp-load-init 'allegro "allegro.lisp")
   (setq comint-fix-error ":pop"
+	ilisp-reset ":reset"
 	comint-continue ":cont"
 	comint-interrupt-regexp  "Error: [^\n]* interrupt\)")
   (setq comint-prompt-status 
 	(function (lambda (old line)
 	  (comint-prompt-status old line 'allegro-check-prompt))))
-  (setq ilisp-program "cl")
   ;; <cl> or package> at top-level
   ;; [0-9c] <cl> or package> in error
-  (setq comint-prompt-regexp "^\\(\\[[0-9]*c*\\] \\|\\)\\(<\\|\\)[A-Z]*> ")
-  (setq ilisp-error-regexp "\\(Error:[^\n]*\\)\\|\\(Break:[^\n]*\\)")
+  (setq comint-prompt-regexp "^\\(\\[[0-9]*c*\\] \\|\\)\\(<\\|\\)[^>]*> ")
+  (setq ilisp-error-regexp
+	"\\(ILISP:[^\"]*\\)\\|\\(Error:[^\n]*\\)\\|\\(Break:[^\n]*\\)")
   (setq ilisp-binary-command "excl:*fasl-default-type*")
   (setq ilisp-source-types (append ilisp-source-types '(("any"))))
   (setq ilisp-find-source-command 
-	"(user:ilisp-source-files \"%s\" \"%s\" \"%s\")")
+	"(ILISP:ilisp-source-files \"%s\" \"%s\" \"%s\")")
   (setq ilisp-init-binary-command 
-	"(let ((ext #+m68k \"68fasl\"
-		    #+sparc \"sfasl\"
-		    #+iris4d \"ifasl\"
-                    #+dec3100 \"pfasl\"))
-	   (push (make-pathname :type ext) system:*load-search-list*)
+	"(let ((ext (or #+m68k \"68fasl\"
+		        #+sparc \"sfasl\"
+		        #+iris4d \"ifasl\"
+                        #+dec3100 \"pfasl\"
+                        excl:*fasl-default-type*)))
+           #+allegro-v4.0 (setq ext (concatenate 'string ext \"4\"))
            ext)"))
+(if (not allegro-program) (setq allegro-program "cl"))
 
 ;;;%%%Lucid
 (defun lucid-check-prompt (old new)
   "Compare the break level printed at the beginning of the prompt."
-  (let* ((was-in-break (and old (eq 1 (string-match "-+" old))))
- 	 (old-level (if was-in-break
+  (let* ((old-level (if (and old (eq 0 (string-match "\\(->\\)+" old)))
  			(- (match-end 0) (match-beginning 0))
  			0))
- 	 (is-in-break (eq 1 (string-match "-+" new)))
- 	 (new-level (if is-in-break
+	 (new-level (if (eq 0 (string-match "\\(->\\)+" new))
  			(- (match-end 0) (match-beginning 0))
  			0)))
     (<= new-level old-level)))
@@ -2365,23 +2842,63 @@ for buffer name as well."
 (defdialect lucid "Lucid Common LISP"
   clisp
   (ilisp-load-init 'lucid "lucid.lisp")
-  (setq comint-prompt-regexp "^\\(->\\)+ \\|[^> ]*> "
+  (setq comint-prompt-regexp "^\\(->\\)+ \\|^[^> ]*> "
 	comint-fix-error ":a"
+	ilisp-reset ":a :t"
 	comint-continue ":c"
 	comint-interrupt-regexp ">>Break: Keyboard interrupt"
 	comint-prompt-status 
 	(function (lambda (old line)
 	  (comint-prompt-status old line 'lucid-check-prompt))))
-  (setq ilisp-error-regexp ">>[^\n]*")
+  (setq ilisp-error-regexp "ILISP:[^\"]*\\|>>[^\n]*")
   (setq ilisp-source-types (append ilisp-source-types '(("any"))))
   (setq ilisp-find-source-command 
-	"(user:ilisp-source-files \"%s\" \"%s\" \"%s\")")
+	"(ILISP:ilisp-source-files \"%s\" \"%s\" \"%s\")")
   (setq ilisp-binary-command 
 	"(first (last lucid::*load-binary-pathname-types*))"))
+(if (not lucid-program) (setq lucid-program "lisp"))
 
-;;;%%%KCL
+;;;%%%KCL--these dialects by Tom Emerson
+;;; kcl-check-prompt doesn't after the first break because the
+;;; number of ">" characters doesn't increase.
+
+(defun kcl-check-prompt (old new)
+  "Compare the break level printed at the beginning of the prompt."
+  (let* ((was-in-break (and old (string-match ">+" old)))
+ 	 (old-level (if was-in-break
+ 			(- (match-end 0) (match-beginning 0))
+ 			0))
+ 	 (is-in-break (string-match ">+" new))
+ 	 (new-level (if is-in-break
+ 			(- (match-end 0) (match-beginning 0))
+ 			0)))
+    (<= new-level old-level)))
+
+;;;
 (defdialect kcl "Kyoto Common LISP" clisp
-  (setq comint-prompt-regexp "^>+ *"))
+  (setq comint-prompt-regexp "^>+"
+        ilisp-error-regexp "Error: "
+        ilisp-binary-extension "o"
+        comint-fix-error ":q"
+        comint-continue ":r"
+	comint-prompt-status
+	(function
+	 (lambda (old line)
+	   (comint-prompt-status old line 'kcl-check-prompt)))))
+(if (not kcl-program) (setq kcl-program "kcl"))
+
+;;;%%%AKCL
+(defdialect akcl "Austin Kyoto Common LISP" kcl)
+(if (not akcl-program) (setq akcl-program "akcl"))
+
+;;;%%%IBCL
+(defdialect ibcl "Ibuki Common LISP" kcl
+  (setq comint-prompt-regexp "^[-A-Z]*>+\\|^[-A-Z]* ->"
+        comint-interrupt-regexp ">>Condition: Terminal Interrupt"
+        comint-continue ":q"
+        ilisp-reset ":q!"
+        ilisp-error-regexp ">>Error:"))
+(if (not ibcl-program) (setq ibcl-program "ibcl"))
 
 ;;;%%%CMULisp
 (defun cmulisp-check-prompt (old new)
@@ -2400,24 +2917,25 @@ for buffer name as well."
 (defdialect cmulisp "CMU Common LISP"
   clisp
   (ilisp-load-init 'cmu "cmulisp.lisp")
-  (setq comint-prompt-regexp "\\([0-9]+\\]+\\|\\*\\) "
+  (setq comint-prompt-regexp "^\\([0-9]+\\]+\\|\\*\\) "
 	comint-prompt-status 
 	(function (lambda (old line)
 	  (comint-prompt-status old line 'cmulisp-check-prompt)))
-	ilisp-error-regexp "Error [^\n]*"
-	ilisp-arglist-command "(ext:arglist \"%s\" \"%s\")"
-	ilisp-find-source-command "(ext:source-file \"%s\" \"%s\" \"%s\")"
+	ilisp-error-regexp "ILISP:[^\"]*\\|Error [^\n]*"
+	ilisp-arglist-command "(ILISP:arglist \"%s\" \"%s\")"
+	ilisp-find-source-command "(ILISP:source-file \"%s\" \"%s\" \"%s\")"
 	comint-fix-error ":pop"
 	comint-continue ":go"
+	ilisp-reset ":q"
 	comint-interrupt-regexp "Software Interrupt"
 	ilisp-binary-extension "fasl"))
 
 ;;;%%Scheme
 (defdialect scheme "Scheme" ilisp
-  (setq ilisp-program "scheme")
-  (setq ilisp-block-command "(begin %s)")
+  (setq ilisp-block-command "(begin \n%s)")
   (setq ilisp-load-command "(load \"%s\")")
   )
+(if (not scheme-program) (setq scheme-program "scheme"))
 
 ;;;Cscheme
 ;;; This has a problem since interrupts cause things to crash
@@ -2441,45 +2959,53 @@ for buffer name as well."
 ;;;%ilisp-mode
 (defvar ilisp-documentation
   "Major mode for interacting with an inferior LISP process.  Runs a
-LISP interpreter as a subprocess of Emacs, with Lisp I/O through an
-Emacs buffer.
+LISP interpreter as a subprocess of Emacs, with LISP I/O through an
+Emacs buffer.  If you have problems, use M-x ilisp-bug in the buffer
+where you are having a problem to send a bug report.
 
 To start a LISP use M-x run-ilisp, or a specific dialect like M-x
 allegro.  If called with a prefix you will be prompted for a buffer
-name and a program to run.  If there are multiple LISP's, use the
-dialect name or select-ilisp \(\\[select-ilisp]) to select the current
-ILISP buffer.
+name and a program to run.  The default buffer name is the name of the
+dialect.  The default program for a dialect will be the value of
+DIALECT-program or the value of ilisp-program inherited from a less
+specific dialect.  If there are multiple LISP's, use the dialect name
+or select-ilisp \(\\[select-ilisp]) to select the current ILISP
+buffer.
 
 Currently supported LISP dialects include:
  clisp
    allegro
    lucid
    kcl
+     akcl
+     ibcl
    cmulisp
  scheme
    oaklisp
 
-Customization: Entry to this mode runs the hooks on comint-mode-hook and
-ilisp-mode-hook and then DIALECT-hooks specific to LISP
-dialects in the nesting order above.  For more information on creating
-a new dialect see ilisp.el.
+Customization: Starting a dialect runs the hooks on comint-mode-hook
+and ilisp-mode-hook and then DIALECT-hooks specific to dialects in the
+nesting order above.  On the very first prompt in the inferior LISP,
+the hooks on ilisp-init-hook are run.  For more information on
+creating a new dialect or variables to set in hooks, see ilisp.el.
 
 Most of these key bindings work in both Lisp Mode and ILISP mode.
 There are a few additional and-go bindings found in Lisp Mode.
-\\{ilisp-mode-map}
+\\{ilisp-use-map}
+There are also a few bindings found in global-map including:
+  \\[popper-bury-output] popper-bury-output
+  \\[popper-scroll-output] popper-scroll-output
+  \\[popper-other-window] popper-other-window
+  \\[popper-grow-output] popper-grow-output
+  \\[previous-buffer-lisp] previous-buffer-lisp
+  \\[switch-to-lisp] switch-to-lisp
 
 ILISP uses a dynamically sized pop-up window that can be buried and
-scrolled from any window for displaying output.  By default the
-smallest window will have just one line.  If you like bigger windows,
-set window-min-height to the number of lines desired plus one.  The
-variable popper-pop-buffers has a list of temporary buffer names that
-will be displayed in the pop-up window.  By default only
-\*Typeout-window* and \*Completions* will be displayed in the pop-up
-window.  If you want all temporary windows to use the pop-up window,
-set popper-pop-buffers to T.  The variable popper-buffers-to-skip has
-a list of the buffer names popper-other-window
-\(\\[popper-other-window]) skips.  popper-bury-output
-\(\\[popper-bury-output]) burys the output window.
+scrolled from any window for displaying output.  See the file
+popper.el or the ILISP info node for information on customizing popper
+windows.  \(\\[popper-other-window]) skips the popper window.  If
+called with a C-u prefix, the popper window will be selected.
+popper-bury-output \(\\[popper-bury-output]) buries the output window.
 popper-scroll-output \(\\[popper-scroll-output]) scrolls the output
 window if it is already showing, otherwise it pops it up.  If it is
 called with a negative prefix, it will scroll backwards.
@@ -2491,6 +3017,13 @@ If you are running epoch, the popper window will be in a separate
 X window that is not automatically grown or shrunk.  The variable
 popper-screen-properties can be used to set window properties for that
 window. 
+
+An alternative to popper windows is to always have the inferior LISP
+buffer visible and have all output go there.  Setting lisp-no-popper
+to T will cause all output to go to the inferior LISP buffer.
+Setting comint-always-scroll to T will cause process output to always
+be visible.  If a command gets an error, you will be left in the break
+loop.
 
 Each ILISP buffer has a command history associated with it.  Commands
 that do not match ilisp-filter-regexp and that are longer than
@@ -2508,66 +3041,104 @@ starts at the left margin in a LISP buffer, or after a prompt in the
 ILISP buffer.  So the commands refer to the \"defun\" that contains
 point.
 
+There are two keyboard modes for interacting with the inferior LISP,
+\"interactive\" and \"raw\".  Normally you are in interactive mode
+where keys are interpreted as commands to EMACS and nothing is sent to
+the inferior LISP unless a specific command does so.  In raw mode, all
+characters are passed directly to the inferior LISP without any
+interpretation as EMACS commands.  Keys will not be echoed unless
+ilisp-raw-echo is T.  Raw mode can be turned on interactively by
+raw-keys-ilisp \(\\[raw-keys-ilisp]) and will continue until you type
+C-g.  Raw mode can also be turned on/off by inferior LISP functions if
+io-bridge-ilisp \(\\[io-bridge-ilisp]) has been executed in the
+inferior LISP interactively or on a hook.  To turn on raw mode, a
+function should print ^[1^] and to turn it off should print ^[0^].
+
 When you send something to LISP, the status light will reflect the
-progress of the command. In a lisp mode buffer the light will reflect
-the status of the currently selected inferior LISP unless
-lisp-show-status is nil.  If you want to find out what command is
-currently running, use the command status-lisp \\(\[status-lisp]).  If
-you call it with a prefix, the pending commands will be displayed as well.
+progress of the command.  If you type top-level forms ahead of the
+processing, the status may indicate ready when the LISP is actually
+running.  In a lisp mode buffer the light will reflect the status of
+the currently selected inferior LISP unless lisp-show-status is nil.
+If you want to find out what command is currently running, use the
+command status-lisp \(\\[status-lisp]).  If you call it with a prefix,
+the pending commands will be displayed as well.
 
 If you are want to abort the last command you can use
-\\(\[keyboard-quit]).  If you want to abort all commands, you should
-use the command abort-commands-lisp \\(\[abort-commands-lisp]).
+\(\\[keyboard-quit]).  If you want to abort all commands, you should
+use the command abort-commands-lisp \(\\[abort-commands-lisp]).
 Commands that are aborted will be put in the buffer *Aborted Commands*
 so that you can see what was aborted.  If you want to abort the
 currently running top-level command, use interrupt-subjob-ilisp
-\(\\[interrupt-subjob-ilisp]).
+\(\\[interrupt-subjob-ilisp]).  As a last resort, \\[panic-lisp] will
+reset the ILISP state without affecting the inferior LISP so that you
+can see what is happening.
 
 bol-ilisp \(\\[bol-ilisp]) will go after the prompt as defined by
-comint-prompt-regexp or ilisp-other-prompt.  
+comint-prompt-regexp or ilisp-other-prompt or to the left margin with
+a prefix.
 
-\\[return-ilisp] knows about prompts and sexps.  If an sexp is not
-complete, it will indent properly.  When an entire sexp is complete,
-it is sent to the inferior LISP together with a new line.  If you edit
-old input, the input will be copied to the end of the buffer first.
+return-ilisp \(\\[return-ilisp]) knows about prompts and sexps.  If an
+sexp is not complete, it will indent properly.  When an entire sexp is
+complete, it is sent to the inferior LISP together with a new line.
+If you edit old input, the input will be copied to the end of the
+buffer first.
 
-\\[close-and-send-lisp] will close the current sexp, indent it, then
-send it to the current inferior LISP.
+close-and-send-lisp \(\\[close-and-send-lisp]) will close the current
+sexp, indent it, then send it to the current inferior LISP.
 
-\\[indent-line-ilisp] indents for LISP.  With prefix, shifts rest of
-expression rigidly with the current line.
+indent-line-ilisp \(\\[indent-line-ilisp]) indents for LISP.  With
+prefix, shifts rest of expression rigidly with the current line.
 
-\\[newline-and-indent-ilisp] will insert a new line and then indent to
-the appropriate level.  If you are at the end of the inferior LISP
-buffer and an sexp, the sexp will be sent to the inferior LISP without
-a trailing newline.  
+newline-and-indent-lisp \(\\[newline-and-indent-lisp]) will insert a
+new line and then indent to the appropriate level.  If you are at the
+end of the inferior LISP buffer and an sexp, the sexp will be sent to
+the inferior LISP without a trailing newline.
 
-\\[indent-sexp-ilisp] will indent each line in the next sexp.
+indent-sexp-ilisp \(\\[indent-sexp-ilisp]) will indent each line in
+the next sexp.
 
-\\[backward-delete-char-untabify] converts tabs to spaces as it moves
-back.
+backward-delete-char-untabify \(\\[backward-delete-char-untabify])
+converts tabs to spaces as it moves back.
+
+delete-char-or-pop-ilisp \(\\[delete-char-or-pop-ilisp]) will delete
+prefix characters unless you are at the end of an ILISP buffer in
+which case it will pop one level in the break loop.
+
+reset-ilisp, \(\\[reset-ilisp]) will reset the current inferior LISP's
+top-level so that it will no longer be in a break loop.
 
 switch-to-lisp \(\\[switch-to-lisp]) will pop to the current ILISP
 buffer or if already in an ILISP buffer, it will return to the buffer
 that last switched to an ILISP buffer.  With a prefix, it will also go
 to the end of the buffer.  If you do not want it to pop, set
-pop-up-windows to nil.
+pop-up-windows to nil.  
 
-reposition-window-lisp \(\\[reposition-window-lisp]) will put the
-start of the current defun at the top of the current window.
+call-defun-lisp \(\\[call-defun-lisp]) will put a call to the current
+defun in the inferior LISP and go there.  If it is a \(def* name form,
+it looks up reasonable forms of name in the input history unless
+called with a prefix. If not found, \(name or *name* will be inserted.
+If it is not a def* form, the whole defun will be put in the buffer.
 
-lisp-previous-buffer \(\\[lisp-previous-buffer]) will switch to the
-last visited buffer in the current window.
+reposition-window-lisp \(\\[reposition-window-lisp]) will scroll the
+current window to show as much of the current defun and its
+introductory comments as possible without moving the point.  If called
+with a prefix, the point will be moved if necessary to show the start
+of the defun.  If called more than once with the first line of the
+defun showing, the introductory comments will be shown or suppressed.
+
+previous-buffer-lisp \(\\[previous-buffer-lisp]) will switch to the
+last visited buffer in the current window or the Nth previous buffer
+with a prefix.
 
 find-unbalanced-lisp \(\\[find-unbalanced-lisp]) will find unbalanced
-parentheses in the current buffer.  When called with a prefix it will
-look in the current region.
+parens in the current buffer.  When called with a prefix it will look
+in the current region.
 
 close-all-lisp \(\\[close-all-lisp]) will close all outstanding
-parentheses back to the containing form, or a previous left bracket
-which will be converted to a left parentheses.  If there are too many
-parentheses, they will be deleted unless there is text between the
-last parenthese and the end of the defun.  If called with a prefix,
+parens back to the containing form, or a previous left bracket
+which will be converted to a left parens.  If there are too many
+parens, they will be deleted unless there is text between the
+last paren and the end of the defun.  If called with a prefix,
 all open left brackets will be closed.
 
 reindent-lisp \(\\[reindent-lisp]) will reindent the current paragraph
@@ -2590,35 +3161,48 @@ expression ilisp-package-regexp to find a package sexp and then
 passing that sexp to the inferior LISP through ilisp-package-command.
 For the clisp dialect, this will find the first \(in-package PACKAGE)
 form in the file.  A buffer's package will be displayed in the mode
-line.  reparse-attribute-list \(\\[reparse-attribute-list]) will
-update the current package from the buffer.  If a buffer has no
+line.  set-buffer-package-lisp \(\\[set-buffer-package-lisp]) will
+update the current package from the buffer.  If it is called with a
+prefix, the package can be set manually.  If a buffer has no
 specification, forms will be evaluated in the current inferior LISP
-package.
+package.  package-lisp \(\\[package-lisp]) will show the current
+package of the inferior LISP.  set-package-lisp
+\(\\[set-package-lisp]) will set the inferior LISP package to the
+current buffer's package or to a manually entered package with a
+prefix.
 
-describe-lisp, arglist-lisp, documentation-lisp, macroexpand-1-lisp,
-macroexpand-lisp, edit-definitions-lisp, who-calls-lisp,
-edit-callers-lisp and trace-lisp will switch whether they prompt for a
-response or use a default when called with a negative prefix.  If they
-are prompting, there is completion through the inferior LISP by using
-TAB or ESC-TAB.  When you are entering an expression in the
-minibuffer, all of the normal ilisp commands like arglist-lisp also
-work.
+describe-lisp, inspect-lisp, arglist-lisp, documentation-lisp,
+macroexpand-1-lisp, macroexpand-lisp, edit-definitions-lisp,
+who-calls-lisp, edit-callers-lisp and trace-defun-lisp will switch
+whether they prompt for a response or use a default when called with a
+negative prefix.  If they are prompting, there is completion through
+the inferior LISP by using TAB or M-TAB.  When you are entering an
+expression in the minibuffer, all of the normal ilisp commands like
+arglist-lisp also work.
 
 Commands that work on a function will use the nearest previous
 function symbol.  This is either a symbol after a #' or the symbol at
 the start of the current list.
 
 describe-lisp \(\\[describe-lisp]) will describe the previous sexp.
-If there is no previous-sexp and you are in an ILISP buffer, the
-previous result will be described.
+inspect-lisp \(\\[inpsect-lisp]) will inspect the previous sexp.If
+there is no previous-sexp and you are in an ILISP buffer, the previous
+result will be described or inspected.
 
 arglist-lisp \(\\[arglist-lisp]) will return the arglist of the
 current function.  With a numeric prefix, the leading paren will be
 removed and the arglist will be inserted into the buffer.
 
-documentation-lisp \(\\[documentation-lisp]) infers whether function or
-variable documentation is desired.  With a negative prefix, you can
-specify the type of documentation as well.
+documentation-lisp \(\\[documentation-lisp]) infers whether function
+or variable documentation is desired.  With a negative prefix, you can
+specify the type of documentation as well.  With a positive prefix the
+documentation of the current function call is returned.
+
+If the Franz online Common LISP manual is available, fi:clman
+\(\\[fi:clman]) will get information on a specific symbol.
+fi:clman-apropos \(\\[fi:clman-apropos]) will get information apropos
+a specific string.  Some of the documentation is specific to the
+allegro dialect, but most of it is for standard Common LISP.
 
 macroexpand-lisp \(\\[macroexpand-lisp]) and macroexpand-1-lisp
 \(\\[macroexpand-1-lisp]) will be applied to the next sexp.  They will
@@ -2626,51 +3210,73 @@ insert their result into the buffer if called with a numeric prefix.
 
 complete-lisp \(\\[complete-lisp]) will try to complete the previous
 symbol in the current inferior LISP.  Partial completion is supported
-unless ilisp-prefix-match is set to T.  (If you set it to T, inferior
+unless ilisp-prefix-match is set to T.  \(If you set it to T, inferior
 LISP completions will be faster.)  With partial completion, \"p--n\"
 would complete to \"position-if-not\" in Common LISP.  If the symbol
 follows a left paren or a #', only symbols with function cells will be
-considered.  If the symbol starts with a \* all possible completions
-will be considered.  To force all symbols to be considered, call it
-with a prefix.  Only external symbols are considered if there is a
-package qualification with only one colon.  The first time you try to
-complete a string the longest common substring will be inserted.  If
-you try to complete again, you can see the possible completions.  If
-you are in a string, then filename completion will be done instead.
-And if you try to complete a filename twice, you will see a list of
-possible completions.
+considered.  If the symbol starts with a \* or you call with a
+positive prefix all possible completions will be considered.  Only
+external symbols are considered if there is a package qualification
+with only one colon.  The first time you try to complete a string the
+longest common substring will be inserted and the cursor will be left
+on the point of ambiguity.  If you try to complete again, you can see
+the possible completions.  If you are in a string, then filename
+completion will be done instead.  And if you try to complete a
+filename twice, you will see a list of possible completions.  Filename
+components are completed individually, so /u/mi/ could expand to
+/usr/misc/.  If you complete with a negative prefix, the most recent
+completion \(symbol or filename) will be undone.
 
-trace-lisp \(\\[trace-lisp]) traces the previous function symol.  When
-called with a numeric prefix the function will be untraced.
+complete \(\\[complete]) will complete the current symbol to the most
+recently seen symbol in Emacs that matches what you have typed so far.
+Executing it repeatedly will cycle through potential matches.  This is
+from the TMC completion package and there may be some delay as it is
+initially loaded.
+
+trace-defun-lisp \(\\[trace-defun-lisp]) traces the current defun.
+When called with a numeric prefix the function will be untraced.
 
 default-directory-lisp \(\\[default-directory-lisp]\) sets the default
-directory in the inferior LISP to the directory of the current buffer.
+inferior LISP directory to the directory of the current buffer.  If
+called in an inferior LISP buffer, it sets the Emacs default-directory
+the LISP default directory.
 
-The eval/compile commands verify that their expressions are balanced
-and then send the form to the inferior LISP.  If called with a
-positive prefix, the result of the operation will be inserted into the
-buffer after the form that was just sent.  If lisp-wait-p is t, then
-EMACS will display the result of the command in the minibuffer or a
-pop-up window.  If lisp-wait-p is nil, (the default) the send is done
-asynchronously and the results will be brought up only if there is
-more than one line or there is an error.  In this case, you will be
-given the option of ignoring the error, keeping it in another buffer
-or keeping it and aborting all pending sends.  If there is not a
-command already running in the inferior LISP, you can preserve the
-break loop.  If called with a negative prefix, the sense of
-lisp-wait-p will be inverted for the next command.  The and-go
-versions will perform the operation and then immediately switch to the
-ILISP buffer where you will see the results of executing your form.
+The eval/compile commands evaluate or compile the forms specified.  If
+any of the forms contain an interactive command, then the command will
+never return.  To get out of this state, you need to use
+abort-commands-lisp \(\\[abort-commands-lisp]).  The eval/compile
+commands verify that their expressions are balanced and then send the
+form to the inferior LISP.  If called with a positive prefix, the
+result of the operation will be inserted into the buffer after the
+form that was just sent.  If lisp-wait-p is t, then EMACS will display
+the result of the command in the minibuffer or a pop-up window.  If
+lisp-wait-p is nil, (the default) the send is done asynchronously and
+the results will be brought up only if there is more than one line or
+there is an error.  In this case, you will be given the option of
+ignoring the error, keeping it in another buffer or keeping it and
+aborting all pending sends.  If there is not a command already running
+in the inferior LISP, you can preserve the break loop.  If called with
+a negative prefix, the sense of lisp-wait-p will be inverted for the
+next command.  The and-go versions will perform the operation and then
+immediately switch to the ILISP buffer where you will see the results
+of executing your form.  If eval-defun-and-go-lisp
+\(\\[eval-defun-and-go-lisp]) or compile-defun-and-go-lisp
+\(\\[compile-defun-and-go-lisp]) is called with a prefix, a call for
+the form will be inserted as well.
 
 When an eval is done of a single form matching ilisp-defvar-regexp,
 the corresponding symbol will be unbound and the value assigned again.
+
+When compile-defun-lisp \(\\[compile-defun-lisp]) is called in an
+inferior LISP buffer with no current form, the last form typed to the
+top-level will be compiled.
 
 The following commands all deal with finding things in source code.
 The first time that one of these commands is used, there may be some
 delay while the source module is loaded.  When searching files, the
 first applicable rule is used: 1) try the inferior LISP, 2) try a tags
-file if defined, 3) try all buffers in one of lisp-modes or all files
-defined using lisp-directory.
+file if defined, 3) try all buffers in one of lisp-source-modes or all
+files defined using lisp-directory.
 
 lisp-directory \(\\[lisp-directory]) defines a set of files to be
 searched by the source code commands.  It prompts for a directory and
@@ -2682,7 +3288,7 @@ is also what happens by default.  Using this command stops using a
 tags file.
 
 edit-definitions-lisp \(\\[edit-definitions-lisp]) will find a
-particular type of definition for a symbol.  It trys to use the rules
+particular type of definition for a symbol.  It tries to use the rules
 described above.  The files to be searched are listed in the buffer
 \*Edit-Definitions*.  If lisp-edit-files is nil, no search will be
 done if not found through the inferior LISP.  The variable
@@ -2697,7 +3303,7 @@ previous definition with a prefix.)
 
 edit-callers-lisp \(\\[edit-callers-lisp]) will generate a list of all
 of the callers of a function in the current inferior LISP and edit the
-first caller using edit-definition.  Each successive call to
+first caller using edit-definitions-lisp.  Each successive call to
 next-caller-lisp \(\\[next-caller-lisp]) will edit the next caller.
 \(Or the previous caller with a prefix.)  The list is stored in the
 buffer \*All-Callers*.  You can also look at the callers by doing
@@ -2727,22 +3333,20 @@ currently marked.
 eval-changes-lisp \(\\[eval-changes-lisp]), or compile-changes-lisp
 \(\\[compile-changes-lisp]) will evaluate or compile these changes as
 appropriate.  If called with a positive prefix, the changes will be
-kept.  If called with a negative prefix, the commands will be sent to
-the inferior LISP without waiting.  If there is an error, the process
-will stop and show the error and all remaining changes will remain in
-the list.  All of the results will be kept in the buffer
-*Last-Changes*.
+kept.  If there is an error, the process will stop and show the error
+and all remaining changes will remain in the list.  All of the results
+will be kept in the buffer *Last-Changes*.
 
 File commands in lisp-source-mode buffers keep track of the last used
 directory and file.  If the point is on a string, that will be the
-default.  If the buffer is one of lisp-source-modes, the buffer file
-will be the default.  Otherwise, the last file used in a
-lisp-source-mode will be used.
+default if the file exists.  If the buffer is one of
+lisp-source-modes, the buffer file will be the default.  Otherwise,
+the last file used in a lisp-source-mode will be used.
 
 find-file-lisp \(\\[find-file-lisp]) will find a file.  If it is in a
-string, that will be used as the default.  Symbolic links are expanded
-so that different references to the same file will end up with the
-same buffer. 
+string, that will be used as the default if it matches an existing
+file.  Symbolic links are expanded so that different references to the
+same file will end up with the same buffer.
 
 load-file-lisp \(\\[load-file-lisp]) will load a file into the inferior
 LISP.  You will be given the opportunity to save the buffer if it has
@@ -2756,16 +3360,23 @@ current inferior LISP."
 ;;;
 (defun ilisp-set-doc (function string)
   "Set the documentation of the symbol FUNCTION to STRING."
-  (let* ((old-function (symbol-function function))
-	 (old-doc (cdr (cdr old-function))))
-    ;; I did not use rplacd so that I can replace read-only objects
-    (fset function
-	  (nconc (list (car old-function)
-		       (car (cdr old-function))
-		       string)
-		 (if (or (stringp (car old-doc)) (numberp (car old-doc)))
-		     (cdr old-doc)
-		     old-doc)))))
+  (let* ((old-function (symbol-function function)))
+    (if (consp old-function)  ; old-style v18 compiled-function objects
+	;; I did not use rplacd so that I can replace read-only objects
+	(let ((old-doc (cdr (cdr old-function))))
+	  (fset function
+		(nconc (list (car old-function)
+			     (car (cdr old-function))
+			     string)
+		       (if (or (stringp (car old-doc)) (numberp (car old-doc)))
+			   (cdr old-doc)
+			 old-doc))))
+      ;; else, new-style compiled-code objects
+      (let ((code-as-list (append old-function nil)))
+	(if (nthcdr 4 code-as-list)
+	    (setcar (nthcdr 4 code-as-list) string)
+	  (setcdr (nthcdr 3 code-as-list) (cons string nil)))
+	(fset function (apply 'make-byte-code code-as-list))))))
 
 ;;;
 (defun ilisp-mode ()
@@ -2806,85 +3417,143 @@ Takes the program name from the variable ilisp-program.
 	     start)
 	(apply 'make-comint name (car args) nil (cdr args))
 	(comint-setup-ipc)
-	;; Comint-mode nukes locals, so we have to set them up again
-	(eval (read (format "(setup-%s \"%s\")" dialect name)))
+	(setq major-mode 'ilisp-mode
+	      mode-name "ILISP")
 	(rplaca (car comint-send-queue) (function (lambda ()
 					  (run-hooks 'ilisp-init-hook))))
 	(setq ilisp-initialized (lisp-del ilisp-buffer ilisp-initialized))
 	(if (not (lisp-memk names ilisp-buffers 'car))
 	    (setq ilisp-buffers (cons (list names) ilisp-buffers)))
-	(pop-to-buffer ilisp-buffer)
+	(lisp-pop-to-buffer ilisp-buffer)
 	(setq start (window-start (selected-window))
 	      ilisp-program program)
+	(goto-char (point-max))
 	(insert (format "Starting %s ...\n" ilisp-program))
 	(set-marker (process-mark (ilisp-process)) (point))
+	(funcall comint-update-status 'start)
 	(if ilisp-motd
-	    (progn (comint-display-output (format ilisp-motd ilisp-version))
+	    (progn (lisp-display-output (format ilisp-motd ilisp-version))
 		   (set-window-start (selected-window) start)))
 	(if (not ilisp-prefix-match) (require 'completer)))
-      (pop-to-buffer ilisp-buffer)))
+      (lisp-pop-to-buffer ilisp-buffer))
+  (use-local-map ilisp-use-map)
+  ;; This is necessary to get mode documentation to come out right
+  (set-default 'ilisp-use-map ilisp-use-map))
+
+;;;%Manual
+(autoload 'fi:clman         "fi/clman" 
+	  "Look up SYMBOL in the online manual with completion." t)
+(autoload 'fi:clman-apropos "fi/clman" 
+	  "Do an apropos search in online manual for STRING." t)
+
+;;;%Bridges
+(autoload 'install-bridge "bridge" "Install process bridge." t)
 
 ;;;%Bugs
 (defun ilisp-bug ()
   "Generate an ilisp bug report."
   (interactive)
-  (let ((buffer (current-buffer)))
-    (mail)
-    (insert ilisp-bugs-to)
-    (search-forward (concat "\n" mail-header-separator "\n"))
-    (forward-line 1)
-    (insert (emacs-version))
-    (insert 
-     (format "\nWindow System: %s %s" window-system window-system-version))
-    (insert (format "\n\nILISP V%s" ilisp-version))
-    (let ((mode (save-excursion (set-buffer buffer) major-mode))
-	  (local (if ilisp-buffer (buffer-local-variables (ilisp-buffer))))
-	  string)
-      (if (or (memq mode lisp-source-modes) (memq mode ilisp-modes))
-	  (progn
-	    (if (and (ilisp-buffer) 
-		     (memq 'clisp (ilisp-value 'ilisp-dialect)))
-		(insert (format "\nLISP: %s"
-				(comint-remove-whitespace
-				 (car (comint-send
-				       (save-excursion
-					 (set-buffer buffer)
-					 (ilisp-process))
-				       "(lisp-implementation-version)"
-				       t t 'version))))))
-	    (save-excursion
-	      (set-buffer buffer)
-	      (let ((point (point))
-		    (start (lisp-defun-begin))
-		    (end (lisp-end-defun-text t)))
-		(setq string
-		      (format "
+  (let ((buffer 
+	 (if (y-or-n-p 
+	      (format "Is %s the buffer where the error occurred? " 
+		      (buffer-name (current-buffer))))
+	     (current-buffer))))
+    (if (or (not buffer) (not (mail)))
+	(progn
+	  (message 
+	   (if buffer 
+	       "Can't send bug report until mail buffer is empty."
+	       "Switch to the buffer where the error occurred."))
+	  (beep))
+      (insert ilisp-bugs-to)
+      (search-forward (concat "\n" mail-header-separator "\n"))
+      (insert "\nYour problem: \n\n")
+      (insert "Type C-c C-c to send\n")
+      (insert "======= Emacs state below: for office use only =======\n")
+      (forward-line 1)
+      (insert (emacs-version))
+      (insert 
+       (format "\nWindow System: %s %s" window-system window-system-version))
+      (let ((mode (save-excursion (set-buffer buffer) major-mode))
+	    (match "popper-\\|completer-")
+	    (val-buffer buffer)
+	    string)
+	(if (or (memq mode lisp-source-modes) (memq mode ilisp-modes))
+	    (progn
+	      (setq match (concat "ilisp-\\|comint-\\|lisp-" match)
+		    val-buffer (save-excursion (set-buffer buffer)
+					       (or (ilisp-buffer) buffer)))
+	      (mapcar (function (lambda (dialect)
+				  (setq match (concat (format "%s-\\|" (car dialect))
+						      match))))
+		      ilisp-dialects)
+	      (save-excursion
+		(set-buffer buffer)
+		(let ((point (point))
+		      (start (lisp-defun-begin))
+		      (end (lisp-end-defun-text t)))
+		  (setq string
+			(format "
 Mode: %s
 Start: %s
 End: %s
 Point: %s
 Point-max: %s
 Code: %s"
-			      major-mode start end point (point-max)
-			      (buffer-substring start end)))))
-	    (insert string)
-	    (while local
-	      (let* ((entry (car local))
-		     (name (car entry)))
-		(if (string-match "ilisp-\\|comint-" 
-				  (format "%s" name))
-		    (insert (format "\n%s: %s" name (cdr entry))))
-		(setq local (cdr local)))))))
-    (goto-char (point-max))
-    (insert (format "\nLossage: %s" (key-description (recent-keys))))
-    (goto-char (point-min))
-    (re-search-forward "^Subject")
-    (end-of-line)))
+				major-mode start end point (point-max)
+				(buffer-substring start end)))))
+	      (insert string)))
+	(mapatoms
+	 (function (lambda (symbol)
+		     (if (and (boundp symbol)
+			      (string-match match (format "%s" symbol))
+			      (not (eq symbol 'ilisp-documentation)))
+			 (let ((val (save-excursion
+				      (set-buffer val-buffer) 
+				      (symbol-value symbol))))
+			   (if val
+			       (insert (format "\n%s: %s" symbol val))))))))
+	(insert (format "\nLossage: %s" (key-description (recent-keys))))
+	(if (and (or (memq mode lisp-source-modes)
+		     (memq mode ilisp-modes))
+		 (ilisp-buffer) 
+		 (memq 'clisp (ilisp-value 'ilisp-dialect t))
+		 (not (cdr (ilisp-value 'comint-send-queue))))
+	    (progn
+	      (insert (format "\nLISP: %s"
+			      (comint-remove-whitespace
+			       (car (comint-send
+				     (save-excursion
+				       (set-buffer buffer)
+				       (ilisp-process))
+				     "(lisp-implementation-version)"
+				     t t 'version)))))
+	      (insert (format "\n*FEATURES*: %s"
+			      (comint-remove-whitespace
+			       (car (comint-send
+				     (save-excursion
+				       (set-buffer buffer)
+				       (ilisp-process))
+				     "(let ((*print-length* nil)
+				       (*print-level* nil))
+				   (print *features*)
+				   nil)"
+				     t t 'version)))))))
+	(insert ?\n)
+	(goto-char (point-min))
+	(re-search-forward "^Subject")
+	(end-of-line)
+	(message "Send with sendmail or your favorite mail program.")))))
 
 ;;;%Modes
 (set-default 'auto-mode-alist
 	     (append '(("\\.cl$" . lisp-mode) ("\\.lisp$" . lisp-mode))
 		     auto-mode-alist))
+(setq completion-ignored-extensions 
+      (append '(".68fasl" ".sfasl" ".ifasl" ".pfasl" 
+		".68fasl4" ".sfasl4" ".ifasl4" ".pfasl4" 
+		".sbin")
+	      completion-ignored-extensions))
 
 ;;;%Bindings
 (defun ilisp-defkey (keymap key command)
@@ -2902,14 +3571,16 @@ KEYMAP."
   (if inferior-p
       (progn (define-key keymap "\C-m" 'return-ilisp)
 	     (define-key keymap "\C-a" 'bol-ilisp)
-	     (define-key keymap "\C-c\C-c" 'interrupt-subjob-ilisp))
+	     (define-key keymap "\C-c\C-c" 'interrupt-subjob-ilisp)
+	     (define-key keymap "\C-d" 'delete-char-or-pop-ilisp)
+	     (ilisp-defkey keymap "#" 'raw-keys-ilisp))
       (ilisp-defkey keymap "\C-c" 'compile-defun-and-go-lisp)
-      (define-key keymap "\C-m" 'newline-and-indent-ilisp))
+      (define-key keymap "\C-m" 'newline-and-indent-lisp))
   (define-key   keymap "]"        'close-all-lisp)
   (define-key   keymap "\M-q"     'reindent-lisp)
-  (define-key   keymap "\M-\C-m"  'close-and-send-lisp)
+  (define-key   keymap "\C-]"     'close-and-send-lisp)
   (define-key   keymap "\t"       'indent-line-ilisp)
-  (define-key   keymap "\n"       'newline-and-indent-ilisp)
+  (define-key   keymap "\n"       'newline-and-indent-lisp)
   (define-key   keymap "\M-\C-q"  'indent-sexp-ilisp)
   (ilisp-defkey keymap ";"        'comment-region-lisp)
   (ilisp-defkey keymap ")"        'find-unbalanced-lisp)
@@ -2917,6 +3588,7 @@ KEYMAP."
   (define-key   keymap "\M-\C-e"  'end-of-defun-lisp)
   (define-key   keymap "\C-\M-r"  'reposition-window-lisp)
   (ilisp-defkey keymap "i"        'describe-lisp)
+  (ilisp-defkey keymap "I"        'inspect-lisp)
   (ilisp-defkey keymap "a"        'arglist-lisp)
   (ilisp-defkey keymap "d"        'documentation-lisp)
   (ilisp-defkey keymap "m"        'macroexpand-1-lisp)
@@ -2928,19 +3600,20 @@ KEYMAP."
   (ilisp-defkey keymap "^"        'edit-callers-lisp)
   (define-key   keymap "\M-`"     'next-caller-lisp)
   (define-key   keymap "\M-\t"    'complete-lisp)
+  (define-key   keymap "\M-\C-m"  'complete)
   (ilisp-defkey keymap "r"        'eval-region-lisp)
   (define-key   keymap "\M-\C-x"  'eval-defun-lisp) ; Gnu convention
   (ilisp-defkey keymap "e"        'eval-defun-lisp)
   (ilisp-defkey keymap "n"        'eval-next-sexp-lisp)
-  (ilisp-defkey keymap "p"        'eval-prev-sexp-lisp)
+  (ilisp-defkey keymap "p"        'package-lisp)
+  (ilisp-defkey keymap "P"        'set-package-lisp)
   (ilisp-defkey keymap "w"        'compile-region-lisp)
   (ilisp-defkey keymap "c"        'compile-defun-lisp)
   (ilisp-defkey keymap "\C-r"     'eval-region-and-go-lisp)
   (ilisp-defkey keymap "\C-e"     'eval-defun-and-go-lisp)
   (ilisp-defkey keymap "\C-n"     'eval-next-sexp-and-go-lisp)
-  (ilisp-defkey keymap "\C-p"     'eval-prev-sexp-and-go-lisp)
   (ilisp-defkey keymap "\C-w"     'compile-region-and-go-lisp)
-  (ilisp-defkey keymap "t"        'trace-lisp)
+  (ilisp-defkey keymap "t"        'trace-defun-lisp)
   (ilisp-defkey keymap "!"        'default-directory-lisp)
   (ilisp-defkey keymap " "        'mark-change-lisp)
   (let ((ilisp-prefix (concat ilisp-prefix "*")))
@@ -2949,19 +3622,28 @@ KEYMAP."
     (ilisp-defkey keymap "c"      'compile-changes-lisp)
     (ilisp-defkey keymap "0"      'clear-changes-lisp))
   (ilisp-defkey keymap "b"        'switch-to-lisp)
-  (ilisp-defkey keymap "z"        'switch-to-lisp)
+  (ilisp-defkey keymap "y"        'call-defun-lisp)
+  (ilisp-defkey keymap "z"        'reset-ilisp)
   (ilisp-defkey keymap "g"        'abort-commands-lisp)
   (ilisp-defkey keymap "s"        'status-lisp)
   (ilisp-defkey keymap "S"        'select-ilisp)
   (define-key   keymap "\C-x\C-f" 'find-file-lisp)
   (ilisp-defkey keymap "l"        'load-file-lisp)
-  (ilisp-defkey keymap "k"        'compile-file-lisp))
+  (ilisp-defkey keymap "k"        'compile-file-lisp)
+  (ilisp-defkey keymap "A"        'fi:clman-apropos)
+  (ilisp-defkey keymap "D"        'fi:clman))
 
 ;;;
 (defun ilisp-bindings ()
   "Set up the key bindings for LISP and ILISP buffers."
   (setq ilisp-mode-map (full-copy-sparse-keymap comint-mode-map))
-  (lisp-mode-commands ilisp-mode-map)
+  ;; Remove stop and quit subjob from comint
+  (define-key ilisp-mode-map "\C-c\C-z" nil)
+  (define-key ilisp-mode-map "\C-c\C-\\" nil)
+  (if (fboundp 'lisp-mode-commands)
+      (lisp-mode-commands ilisp-mode-map)
+    (if (fboundp 'set-keymap-parent)
+	(set-keymap-parent ilisp-mode-map shared-lisp-mode-map)))
   (lisp-bindings ilisp-mode-map t)
   (if (boundp 'lisp-mode-map) (lisp-bindings lisp-mode-map))
   (if (boundp 'scheme-mode-map) (lisp-bindings scheme-mode-map))
@@ -2969,14 +3651,29 @@ KEYMAP."
   (ilisp-defkey global-map "b" 'switch-to-lisp)
   (ilisp-defkey global-map "1" 'popper-bury-output)
   (ilisp-defkey global-map "v" 'popper-scroll-output)
-  (ilisp-defkey global-map "g" 'popper-grow-output))
+  (ilisp-defkey global-map "G" 'popper-grow-output)
+  (if (not (boundp 'fi:clman-mode-map))
+      (setq fi:clman-mode-map (make-sparse-keymap)))
+  (ilisp-defkey fi:clman-mode-map "D" 'fi:clman)
+  (ilisp-defkey fi:clman-mode-map "A" 'fi:clman-apropos))
+
+(defun defkey-ilisp (key command &optional inferior-only)
+  "Define KEY as COMMAND in ilisp-mode-map and lisp-mode-map unless
+optional INFERIOR-ONLY is T.  If the maps do not exist they will be
+created.  This should only be called after ilisp-prefix is set to the
+desired prefix."
+  (if (not ilisp-mode-map) (ilisp-bindings))
+  (define-key ilisp-mode-map key command)
+  (define-key lisp-mode-map key command))
 
 ;;;
-(setq ilisp-directory (ilisp-directory "ilisp.el" load-path))
-
 ;;; All done
 (provide 'ilisp)
 (run-hooks 'ilisp-site-hook)
 (run-hooks 'ilisp-load-hook)
+(if (not lisp-no-popper) 
+    (if (and (boundp 'epoch::version) epoch::version)
+	(require 'epoch-pop)
+	(require 'popper)))
 (if (not ilisp-mode-map) (ilisp-bindings))
 

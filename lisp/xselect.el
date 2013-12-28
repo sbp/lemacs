@@ -22,6 +22,12 @@
 ;;; all upper-case; this may seem tasteless, but it makes there be a 1:1
 ;;; correspondence between these symbols and X Atoms (which are upcased.)
 
+(or (find-face 'primary-selection)
+    (make-face 'primary-selection))
+
+(or (find-face 'secondary-selection)
+    (make-face 'secondary-selection))
+
 (defun x-get-selection ()
   "Return text selected from some X window."
   (x-get-selection-internal 'PRIMARY 'STRING))
@@ -41,14 +47,11 @@
 (defvar secondary-selection-extent nil
   "The extent of the secondary selection; don't change this.")
 
-(defvar primary-selection-attribute 70
-  "The attribute used to display the primary selection")
 
-(defvar secondary-selection-attribute 70
-  "The attribute used to display the secondary selection")
-
-
-(defun x-select-make-extent-for-selection (selection previous-extent attribute)
+(defun x-select-make-extent-for-selection (selection previous-extent face)
+  ;; Given a selection, this makes an extent in the buffer which holds that
+  ;; selection, for highlighting purposes.  If the selection isn't associated
+  ;; with a buffer, this does nothing.
   (let ((buffer nil)
 	(valid (and (extentp previous-extent)
 		    (extent-buffer previous-extent)
@@ -81,7 +84,7 @@
       ;; normal case
       (if valid
 	  (update-extent previous-extent start end)
-	(set-extent-attribute (make-extent start end buffer) attribute)))))
+	(set-extent-face (make-extent start end buffer) face)))))
 
 
 (defun x-own-selection (selection &optional type)
@@ -111,15 +114,11 @@ the markers or the between extents endpoints"
   (cond ((eq type 'PRIMARY)
 	 (setq primary-selection-extent
 	       (x-select-make-extent-for-selection
-		selection
-		primary-selection-extent
-		primary-selection-attribute)))
+		selection primary-selection-extent 'primary-selection)))
 	((eq type 'SECONDARY)
 	 (setq secondary-selection-extent
 	       (x-select-make-extent-for-selection
-		selection
-		secondary-selection-extent
-		secondary-selection-attribute))))
+		selection secondary-selection-extent 'secondary-selection))))
   selection)
 
 
@@ -179,6 +178,35 @@ secondary selection instead of the primary selection."
 ;(setq x-sent-selection-hooks 'x-notice-selection-failures)
 
 
+;;; Selections in killed buffers
+;;; this function is called by kill-buffer as if it were on the 
+;;; kill-buffer-hook (though it isn't really.)
+
+(defun xselect-kill-buffer-hook ()
+  ;; Probably the right thing is to write a C function to return a list
+  ;; of the selections which emacs owns, since it could concievably own
+  ;; a user-defined selection type that we've never heard of.
+  (xselect-kill-buffer-hook-1 'PRIMARY)
+  (xselect-kill-buffer-hook-1 'SECONDARY)
+  (xselect-kill-buffer-hook-1 'CLIPBOARD))
+
+(defun xselect-kill-buffer-hook-1 (selection)
+  (let (value)
+    (if (and (x-selection-owner-p selection)
+	     (setq value (x-get-selection-internal selection '_EMACS_INTERNAL))
+	     ;; The _EMACS_INTERNAL selection type has a converter registered
+	     ;; for it that does no translation.  This only works if emacs is
+	     ;; requesting the selection from itself.  We could have done this
+	     ;; by writing a C function to return the raw selection data, and
+	     ;; that might be the right way to do this, but this was easy.
+	     (or (and (consp value)
+		      (markerp (car value))
+		      (eq (current-buffer) (marker-buffer (car value))))
+		 (and (extentp value)
+		      (eq (current-buffer) (extent-buffer value)))))
+	(x-disown-selection-internal selection))))
+
+
 ;;; Cut Buffer support
 
 (defun x-get-cutbuffer (&optional which-one)
@@ -202,6 +230,58 @@ Cut buffers are considered obsolete\; you should use selections instead."
   (x-store-cutbuffer-internal 'CUT_BUFFER0 string))
 
 
+;;; Random utility functions
+
+(defun x-kill-primary-selection ()
+  "If there is a selection, delete the text it covers, and copy it to 
+both the kill ring and the Clipboard."
+  (interactive)
+  (or (x-selection-owner-p) (error "emacs does not own the primary selection"))
+  (setq last-command nil)
+  (or primary-selection-extent
+      (error "the primary selection is not an extent?"))
+  (save-excursion
+    (set-buffer (extent-buffer primary-selection-extent))
+    (kill-region (extent-start-position primary-selection-extent)
+		 (extent-end-position primary-selection-extent)))
+  (x-disown-selection nil))
+
+(defun x-delete-primary-selection ()
+  "If there is a selection, delete the text it covers *without* copying it to
+the kill ring or the Clipboard."
+  (interactive)
+  (or (x-selection-owner-p) (error "emacs does not own the primary selection"))
+  (setq last-command nil)
+  (or primary-selection-extent
+      (error "the primary selection is not an extent?"))
+  (save-excursion
+    (set-buffer (extent-buffer primary-selection-extent))
+    (delete-region (extent-start-position primary-selection-extent)
+		   (extent-end-position primary-selection-extent)))
+  (x-disown-selection nil))
+
+(defun x-copy-primary-selection ()
+  "If there is a selection, copy it to both the kill ring and the Clipboard."
+  (interactive)
+  (setq last-command nil)
+  (or (x-selection-owner-p) (error "emacs does not own the primary selection"))
+  (or primary-selection-extent
+      (error "the primary selection is not an extent?"))
+  (save-excursion
+    (set-buffer (extent-buffer primary-selection-extent))
+    (copy-region-as-kill (extent-start-position primary-selection-extent)
+			 (extent-end-position primary-selection-extent))))
+
+(defun x-yank-clipboard-selection ()
+  "If someone owns a Clipboard selection, insert it at point."
+  (interactive)
+  (setq last-command nil)
+  (let ((clip (x-get-clipboard)))
+    (or clip (error "there is no clipboard selection"))
+    (push-mark)
+    (insert clip)))
+
+
 ;;; Functions to convert the selection into various other selection types.
 ;;; Every selection type that emacs handles is implemented this way, except
 ;;; for TIMESTAMP, which is a special case.
@@ -209,6 +289,11 @@ Cut buffers are considered obsolete\; you should use selections instead."
 (defun xselect-convert-to-string (selection type value)
   (cond ((stringp value)
 	 value)
+	((extentp value)
+	 (save-excursion
+	   (set-buffer (extent-buffer value))
+	   (buffer-substring (extent-start-position value)
+			     (extent-end-position value))))
 	((and (consp value)
 	      (markerp (car value))
 	      (markerp (cdr value)))
@@ -226,10 +311,13 @@ Cut buffers are considered obsolete\; you should use selections instead."
   (let ((value
 	 (cond ((stringp value)
 		(length value))
+	       ((extentp value)
+		(extent-length value))
 	       ((and (consp value)
 		     (markerp (car value))
 		     (markerp (cdr value)))
-		(or (eq (marker-buffer (car value)) (marker-buffer (cdr value)))
+		(or (eq (marker-buffer (car value))
+			(marker-buffer (cdr value)))
 		    (signal 'error
 			    (list "markers must be in the same buffer"
 				  (car value) (cdr value))))
@@ -239,13 +327,16 @@ Cut buffers are considered obsolete\; you should use selections instead."
       nil)))
 
 (defun xselect-convert-to-targets (selection type value)
-  ;; remove duplicates first.
+  ;; return a vector of atoms, but remove duplicates first.
   (let* ((all (cons 'TIMESTAMP (mapcar 'car selection-converter-alist)))
 	 (rest all))
     (while rest
-      (if (memq (car rest) (cdr rest))
-	  (setcdr rest (delq (car rest) (cdr rest)))
-	(setq rest (cdr rest))))
+      (cond ((memq (car rest) (cdr rest))
+	     (setcdr rest (delq (car rest) (cdr rest))))
+	    ((eq (car (cdr rest)) '_EMACS_INTERNAL)  ; shh, it's a secret
+	     (setcdr rest (cdr (cdr rest))))
+	    (t
+	     (setq rest (cdr rest)))))
     (apply 'vector all)))
 
 (defun xselect-convert-to-delete (selection type value)
@@ -256,47 +347,75 @@ Cut buffers are considered obsolete\; you should use selections instead."
   'NULL)
 
 (defun xselect-convert-to-filename (selection type value)
-  (and (consp value)
-       (markerp (car value))
-       (markerp (cdr value))
-       (buffer-file-name (or (marker-buffer (car value))
-			     (error "selection is in a killed buffer")))))
+  (cond ((extentp value)
+	 (buffer-file-name (or (extent-buffer value)
+			       (error "selection is in a killed buffer"))))
+	((and (consp value)
+	      (markerp (car value))
+	      (markerp (cdr value)))
+	 (buffer-file-name (or (marker-buffer (car value))
+			       (error "selection is in a killed buffer"))))
+	(t nil)))
 
 (defun xselect-convert-to-charpos (selection type value)
-  (and (consp value)
-       (markerp (car value))
-       (markerp (cdr value))
-       (let ((a (1- (marker-position (car value)))) ; zero-based
-	     (b (1- (marker-position (cdr value))))
-	     tmp)
-	 (if (< b a) (setq tmp a a b b tmp))
-	 (cons 'SPAN
-	       (vector (cons (ash a -16) (logand a 65535))
-		       (cons (ash b -16) (logand b 65535)))))))
+  (let (a b tmp)
+    (cond ((cond ((extentp value)
+		  (setq a (extent-start-position value)
+			b (extent-end-position value)))
+		 ((and (consp value)
+		       (markerp (car value))
+		       (markerp (cdr value)))
+		  (setq a (car value)
+			b (cdr value))))
+	   (setq a (1- a) b (1- b)) ; zero-based
+	   (if (< b a) (setq tmp a a b b tmp))
+	   (cons 'SPAN
+		 (vector (cons (ash a -16) (logand a 65535))
+			 (cons (ash b -16) (logand b 65535))))))))
 
 (defun xselect-convert-to-lineno (selection type value)
-  (and (consp value)
-       (markerp (car value))
-       (markerp (cdr value))
-       (let ((a (count-lines 1 (marker-position (car value))))
-	     (b (count-lines 1 (marker-position (cdr value))))
-	     tmp)
-	 (if (< b a) (setq tmp a a b b tmp))
-	 (cons 'SPAN
-	       (vector (cons (ash a -16) (logand a 65535))
-		       (cons (ash b -16) (logand b 65535)))))))
+  (let (a b buf tmp)
+    (cond ((cond ((extentp value)
+		  (setq buf (extent-buffer value)
+			a (extent-start-position value)
+			b (extent-end-position value)))
+		 ((and (consp value)
+		       (markerp (car value))
+		       (markerp (cdr value)))
+		  (setq a (marker-position (car value))
+			b (marker-position (cdr value))
+			buf (marker-buffer a))))
+	   (save-excursion
+	     (set-buffer buf)
+	     (setq a (count-lines 1 a)
+		   b (count-lines 1 b)))
+	   (if (< b a) (setq tmp a a b b tmp))
+	   (cons 'SPAN
+		 (vector (cons (ash a -16) (logand a 65535))
+			 (cons (ash b -16) (logand b 65535))))))))
 
 (defun xselect-convert-to-colno (selection type value)
-  (and (consp value)
-       (markerp (car value))
-       (markerp (cdr value))
-       (let ((a (save-excursion (goto-char (car value)) (current-column)))
-	     (b (save-excursion (goto-char (cdr value)) (current-column)))
-	     tmp)
-	 (if (< b a) (setq tmp a a b b tmp))
-	 (cons 'SPAN
-	       (vector (cons (ash a -16) (logand a 65535))
-		       (cons (ash b -16) (logand b 65535)))))))
+  (let (a b buf tmp)
+    (cond ((cond ((extentp value)
+		  (setq buf (extent-buffer value)
+			a (extent-start-position value)
+			b (extent-end-position value)))
+		 ((and (consp value)
+		       (markerp (car value))
+		       (markerp (cdr value)))
+		  (setq a (car value)
+			b (cdr value)
+			buf (marker-buffer a))))
+	   (save-excursion
+	     (set-buffer buf)
+	     (goto-char a)
+	     (setq a (current-column))
+	     (goto-char b)
+	     (setq b (current-column)))
+	   (if (< b a) (setq tmp a a b b tmp))
+	   (cons 'SPAN
+		 (vector (cons (ash a -16) (logand a 65535))
+			 (cons (ash b -16) (logand b 65535))))))))
 
 (defun xselect-convert-to-os (type size)
   (symbol-name system-type))
@@ -320,6 +439,9 @@ Cut buffers are considered obsolete\; you should use selections instead."
 (defun xselect-convert-to-atom (selection type value)
   (and (symbolp value) value))
 
+(defun xselect-convert-to-identity (selection type value) ; used internally
+  (vector value))
+
 (setq selection-converter-alist
       '((TEXT . xselect-convert-to-string)
 	(STRING . xselect-convert-to-string)
@@ -337,99 +459,8 @@ Cut buffers are considered obsolete\; you should use selections instead."
 	(NAME . xselect-convert-to-name)
 	(ATOM . xselect-convert-to-atom)
 	(INTEGER . xselect-convert-to-integer)
+	(_EMACS_INTERNAL . xselect-convert-to-identity)
 	))
 
 
-;;; The following stuff makes emacs understand how to convert to and from
-;;; selections of type ENERGIZE, and allows the local selection-value to
-;;; be an Extent as well as a string or a cons of two markers.
-
-(defun xselect-energize-convert-to-string (selection type value)
-  (if (extentp value)
-      (save-excursion
-	(set-buffer (extent-buffer value))
-	(buffer-substring (extent-start-position value)
-			  (extent-end-position value)))
-    (xselect-convert-to-string selection type value)))
-
-
-(defun xselect-convert-to-energize (selection type value)
-  (let (str id start end tmp)
-    (cond ((and (consp value)
-		(markerp (car value))
-		(markerp (cdr value)))
-	   (setq id (energize-buffer-id (marker-buffer (car value)))
-		 start (1- (marker-position (car value)))  ; zero based
-		 end (1- (marker-position (cdr value)))))
-	  ((extentp value)
-	   (setq id (extent-to-generic-id value)
-		 start 0
-		 end 0)))
-    (if (null id)
-	nil
-      (setq str (make-string 12 0))
-      (if (< end start) (setq tmp start start end end tmp))
-      (aset str 0 (logand (ash (car id) -8) 255))
-      (aset str 1 (logand (car id) 255))
-      (aset str 2 (logand (ash (cdr id) -8) 255))
-      (aset str 3 (logand (cdr id) 255))
-      (aset str 4 (logand (ash start -24) 255))
-      (aset str 5 (logand (ash start -16) 255))
-      (aset str 6 (logand (ash start -8) 255))
-      (aset str 7 (logand start 255))
-      (aset str 8 (logand (ash end -24) 255))
-      (aset str 9 (logand (ash end -16) 255))
-      (aset str 10 (logand (ash end -8) 255))
-      (aset str 11 (logand end 255))
-      (cons 'ENERGIZE_OBJECT str))))
-
-
-(defun xselect-energize-convert-to-length (selection type value)
-  (if (not (extentp value))
-      (xselect-convert-to-length selection type value)
-    (setq value (extent-length value))
-    (cons (ash value -16) (logand value 65535))))
-
-(defun xselect-energize-convert-to-filename (selection type value)
-  (if (extentp value)
-      (buffer-file-name (extent-buffer value))
-    (xselect-convert-to-filename selection type value)))
-
-(defun xselect-energize-convert-to-charpos (selection type value)
-  (if (extentp value)
-      (save-excursion
-	(set-buffer (extent-buffer value))
-	(setq value
-	      (cons (set-marker (make-marker) (extent-start-position value))
-		    (set-marker (make-marker) (extent-end-position value))))))
-  (xselect-convert-to-charpos selection type value))
-
-(defun xselect-energize-convert-to-lineno (selection type value)
-  (if (extentp value)
-      (save-excursion
-	(set-buffer (extent-buffer value))
-	(setq value
-	      (cons (set-marker (make-marker) (extent-start-position value))
-		    (set-marker (make-marker) (extent-end-position value))))))
-  (xselect-convert-to-lineno selection type value))
-
-(defun xselect-energize-convert-to-colno (selection type value)
-  (if (extentp value)
-      (save-excursion
-	(set-buffer (extent-buffer value))
-	(setq value
-	      (cons (set-marker (make-marker) (extent-start-position value))
-		    (set-marker (make-marker) (extent-end-position value))))))
-  (xselect-convert-to-colno selection type value))
-
-(setq selection-converter-alist
-      (append '((TEXT . xselect-energize-convert-to-string)
-		(STRING . xselect-energize-convert-to-string)
-		(LENGTH . xselect-energize-convert-to-length)
-		(FILE_NAME . xselect-energize-convert-to-filename)
-		(CHARACTER_POSITION . xselect-energize-convert-to-charpos)
-		(LINE_NUMBER . xselect-energize-convert-to-lineno)
-		(COLUMN_NUMBER . xselect-energize-convert-to-colno)
-		(ENERGIZE_OBJECT . xselect-convert-to-energize)
-		)
-	      selection-converter-alist))
+(provide 'xselect)

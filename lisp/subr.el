@@ -178,9 +178,6 @@ The normal global definition of the character C-x indirects to this keymap.")
 (defvar esc-map nil
   "Default keymap for ESC (meta) commands.
 The normal global definition of the character ESC indirects to this keymap.")
-
-(defvar mouse-map nil
-  "Keymap for mouse commands from the X window system.")
 
 (defun run-hooks (&rest hooklist)
   "Takes hook names and runs each one in turn.  Major mode functions use this.

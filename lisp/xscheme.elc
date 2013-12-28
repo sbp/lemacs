@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Aug 14 22:37:33 1991
+;;; compiled by devin@watergate on Sat May 16 14:12:52 1992
 ;;; from file /wg1/emacs-base/lisp/xscheme.el
-;;; emacs version 19.60.
-;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 23-apr-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

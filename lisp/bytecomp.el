@@ -4,7 +4,7 @@
 
 ;; By Jamie Zawinski <jwz@lucid.com> and Hallvard Furuseth <hbf@ulrik.uio.no>.
 
-(defconst byte-compile-version "2.05; 9-mar-92.")
+(defconst byte-compile-version "2.06; 17-may-92.")
 
 ;; This file is part of GNU Emacs.
 
@@ -409,7 +409,7 @@ Each element is (INDEX . VALUE)")
 (byte-defop  24 -1 byte-varbind	"for binding a variable")
 (byte-defop  32  0 byte-call	"for calling a function")
 (byte-defop  40  0 byte-unbind	"for unbinding special bindings")
-;; codes 41-47 are consumed by the preceeding opcodes
+;; codes 8-47 are consumed by the preceeding opcodes
 
 ;; unused: 48-55
 
@@ -1322,7 +1322,8 @@ With argument, insert value in current buffer after the form."
 	   (stringp (nth 3 form)))
       (byte-compile-output-docform '("\n(" 3 ")") form)
     (let ((print-escape-newlines t)
-	  (print-readably t))
+	  (print-readably t)	; print #[] for bytecode, 'x for (quote x)
+	  (print-gensym nil))	; this is too dangerous for now
       (princ "\n" outbuffer)
       (prin1 form outbuffer)
       nil)))
@@ -1335,7 +1336,8 @@ With argument, insert value in current buffer after the form."
      (insert (car info))
      (let ((docl (nthcdr (nth 1 info) form))
 	   (print-escape-newlines t)
-	   (print-readably t))
+	   (print-readably t)	; print #[] for bytecode, 'x for (quote x)
+	   (print-gensym nil))	; this is too dangerous for now
        (prin1 (car form) outbuffer)
        (while (setq form (cdr form))
 	 (insert " ")
@@ -1858,6 +1860,8 @@ If FORM is a lambda or a macro, byte-compile it as a function."
 	((symbolp (car form))
 	 (let* ((fn (car form))
 		(handler (get fn 'byte-compile)))
+	   (if (memq fn '(t nil))
+	       (byte-compile-warn "%s called as a function" fn))
 	   (if (and handler
 		    (or (byte-compile-version-cond
 			 byte-compile-generate-emacs19-bytecodes)

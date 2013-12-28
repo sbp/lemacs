@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Aug 14 22:37:03 1991
-;;; from file /wg1/emacs-base/lisp/window.el
-;;; emacs version 19.60.
-;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; compiled by jwz@thalidomide on Mon May 18 10:55:44 1992
+;;; from file /u/jwz/emacs19/lisp/window.el
+;;; emacs version 19.0.17 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -16,10 +16,19 @@ Optional arg NO-MINI non-nil means don't count the minibuffer
 even if it is active."])
 (fset 'balance-windows #[nil "ÀÂÃÄ\"ˆÅ 	¥ÂÇÄ\"*‡" [0 count walk-windows #[(w) "Á\\‰‡" [count 1] 2] nomini screen-height size #[(w) "À	!ˆÂÄ Z!‡" [select-window w enlarge-window size window-height] 3]] 3 "\
 Makes all visible windows the same size (approximately)." nil])
-(fset 'split-window-vertically #[(&optional arg) "À Á‰ÅÁ­„Ç!\"ŠÈ qˆÉ bˆÊË !ˆÌ`\"ˆ`Í!V«…Î`\"ˆÊÏ!ˆ`)\n`X«†Î\nS\"ˆ+‡" [selected-window nil bottom new-w old-w split-window arg prefix-numeric-value window-buffer window-start vertical-motion window-height set-window-start window-point set-window-point -1] 4 "\
+(fset 'split-window-vertically #[(&optional arg hack-display) "À ÁÄÁ­ƒÆ!\"«ÇÁŠÉ qˆÊ bˆËÌ !ˆÍ\n`\"ˆ`Î\n!Y«…Ï\n`\"ˆËÐ!ˆÑ`\n\"«…Í\n`\"ˆ`)`X«‹ÏS\"ˆÒ\n!ˆ)\n*‡" [selected-window nil new-w old-w split-window arg prefix-numeric-value hack-display bottom window-buffer window-start vertical-motion window-height set-window-start window-point set-window-point -1 pos-visible-in-window-p select-window] 4 "\
 Split current window into two windows, one above the other.
-This window becomes the uppermost of the two, and gets
-ARG lines.  No arg means split equally." "P"])
+The top window gets ARG lines.  No arg means split equally.
+
+The two windows will be displaying the same text as before: both windows will
+be displaying the current buffer, but the second window will be scrolled such
+that little redisplay will happen - the lines that were on the screen before
+the split will still be on the screen, in the same places.  
+
+An effort is made to keep the cursor in the same place relative to the text on
+the screen as well.  If the cursor is below the split-point before the split,
+then the bottom window will be selected; otherwise the top window will be
+selected." (list current-prefix-arg t)])
 (fset 'split-window-horizontally #[(&optional arg) "ÀÁ\n­ƒÃ\n!Ä#‡" [split-window nil arg prefix-numeric-value t] 4 "\
 Split current window into two windows side by side.
 This window becomes the leftmost of the two, and gets

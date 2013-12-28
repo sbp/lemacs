@@ -1,113 +1,0 @@
-;;; compiled by jwz@thalidomide on Wed Aug 14 22:15:49 1991
-;;; from file /wg1/emacs-base/lisp/edt.el
-;;; emacs version 19.60.
-;;; bytecomp version 2.01 beta; 13-aug-91.
-;;; optimization is on.
-;;; this file uses opcodes which do not exist in Emacs18.
-
-(if (and (boundp 'emacs-version)
-	 (or (and (boundp 'epoch::version) epoch::version)
-	     (string-lessp emacs-version "19")))
-    (error "This file was compiled for Emacs19."))
-
-(require 'keypad)
-(defvar edt-last-deleted-lines "" "\
-Last text deleted by an EDT emulation line-delete command.")
-(defvar edt-last-deleted-words "" "\
-Last text deleted by an EDT emulation word-delete command.")
-(defvar edt-last-deleted-chars "" "\
-Last text deleted by an EDT emulation character-delete command.")
-(fset 'delete-current-line #[(num) "`	yˆhÂ=¬ƒÃcˆ`{`|)‡" [beg num 10 "\n" edt-last-deleted-lines] 2 "\
-Delete one or specified number of lines after point.
-This includes the newline character at the end of each line.
-They are saved for the EDT undelete-lines command." "p"])
-(fset 'delete-to-eol #[(num) "`Áuˆ\nˆ`{`|)‡" [beg 1 num edt-last-deleted-lines] 2 "\
-Delete text up to end of line.
-With argument, delete up to to Nth line-end past point.
-They are saved for the EDT undelete-lines command." "p"])
-(fset 'delete-current-word #[(num) "`	vˆ`{`|)‡" [beg num edt-last-deleted-words] 2 "\
-Delete one or specified number of words after point.
-They are saved for the EDT undelete-words command." "p"])
-(fset 'edt-delete-previous-word #[(num) "`	[vˆ`{`|)‡" [beg num edt-last-deleted-words] 2 "\
-Delete one or specified number of words before point.
-They are saved for the EDT undelete-words command." "p"])
-(fset 'delete-current-char #[(num) "`d`\\^{`d`\\^|‡" [num edt-last-deleted-chars] 4 "\
-Delete one or specified number of characters after point.
-They are saved for the EDT undelete-chars command." "p"])
-(fset 'delete-previous-char #[(num) "e`Z]`{e`Z]`|‡" [num edt-last-deleted-chars] 3 "\
-Delete one or specified number of characters before point.
-They are saved for the EDT undelete-chars command." "p"])
-(fset 'undelete-lines #[nil "c‡" [edt-last-deleted-lines] 1 "\
-Yank lines deleted by last EDT line-deletion command." nil])
-(fset 'undelete-words #[nil "c‡" [edt-last-deleted-words] 1 "\
-Yank words deleted by last EDT word-deletion command." nil])
-(fset 'undelete-chars #[nil "c‡" [edt-last-deleted-chars] 1 "\
-Yank characters deleted by last EDT character-deletion command." nil])
-(fset 'next-end-of-line #[(num) "Àuˆ	‡" [nil num] 1 "\
-Move to end of line; if at end, move to end of next line.
-Accepts a prefix argument for the number of lines to move." "p"])
-(fset 'previous-end-of-line #[(num) "À	Z‡" [1 num] 2 "\
-Move EOL upward.
-Accepts a prefix argument for the number of lines to move." "p"])
-(fset 'forward-to-word #[(num) "TvˆÁv‡" [num -1] 1 "\
-Move to next word-beginning, or to Nth following word-beginning." "p"])
-(fset 'backward-to-word #[(num) "T[vˆÁv‡" [num 1] 1 "\
-Move back to word-end, or to Nth word-end seen." "p"])
-(fset 'backward-line #[(num) "[y‡" [num] 1 "\
-Move point to start of previous line.
-Prefix argument serves as repeat-count." "p"])
-(fset 'scroll-window-down #[(num) "ÀÁ \n_ÃZ!‡" [scroll-down window-height num 2] 3 "\
-Scroll the display down a window-full.
-Accepts a prefix argument for the number of window-fulls to scroll." "p"])
-(fset 'scroll-window-up #[(num) "ÀÁ \n_ÃZ!‡" [scroll-up window-height num 2] 3 "\
-Scroll the display up a window-full.
-Accepts a prefix argument for the number of window-fulls to scroll." "p"])
-(fset 'next-paragraph #[(num) "ÁV­˜ÂÃ!ˆÄ ˆÅÃ!ˆl«„ÂÃ!ˆS‰ªd‡" [num 0 next-line 1 forward-paragraph previous-line] 3 "\
-Move to beginning of the next indented paragraph.
-Accepts a prefix argument for the number of paragraphs." "p"])
-(fset 'previous-paragraph #[(num) "ÁV­”Â ˆÃÄ!ˆl«„ÅÄ!ˆS‰ªh‡" [num 0 backward-paragraph previous-line 1 next-line] 3 "\
-Move to beginning of previous indented paragraph.
-Accepts a prefix argument for the number of paragraphs." "p"])
-(fset 'move-to-beginning #[nil "eb‡" [] 1 "\
-Move cursor to the beginning of buffer, but don't set the mark." nil])
-(fset 'move-to-end #[nil "db‡" [] 1 "\
-Move cursor to the end of buffer, but don't set the mark." nil])
-(fset 'goto-percent #[(perc) "ÁV¬…ÂW«…ÃÄ\"‡d_Á¥b‡" [perc 100 0 error "Percentage %d out of range 0 < percent < 100"] 3 "\
-Move point to ARG percentage of the buffer." "NGoto-percentage: "])
-(fset 'update-mode-line #[nil "ÀÁ !ˆÂÃ!‡" [set-buffer-modified-p buffer-modified-p sit-for 0] 2 "\
-Make sure mode-line in the current buffer reflects all changes."])
-(fset 'advance-direction #[nil "ÀÂÄÅ#ˆÂÆÇ#ˆÂÈÉ#ˆÂÊË#ˆÂÌÍ#ˆÂÎÏ#ˆÂÐÑ#ˆÒ ‡" [" ADVANCE" edt-direction-string define-key function-keymap "" isearch-forward "8" scroll-window-up "7" next-paragraph "1" forward-to-word "2" next-end-of-line "3" forward-char "0" forward-line update-mode-line] 4 "\
-Set EDT Advance mode so keypad commands move forward." nil])
-(fset 'backup-direction #[nil "ÀÂÄÅ#ˆÂÆÇ#ˆÂÈÉ#ˆÂÊË#ˆÂÌÍ#ˆÂÎÏ#ˆÂÐÑ#ˆÒ ‡" [" BACKUP" edt-direction-string define-key function-keymap "" isearch-backward "8" scroll-window-down "7" previous-paragraph "1" backward-to-word "2" previous-end-of-line "3" backward-char "0" backward-line update-mode-line] 4 "\
-Set EDT Backup mode so keypad commands move backward." nil])
-(fset 'edt-beginning-of-window #[nil "ÀÁ!‡" [move-to-window-line 0] 2 "\
-Home cursor to top of window." nil])
-(fset 'edt-line-to-bottom-of-window #[nil "ÀÁ!‡" [recenter -1] 2 "\
-Move the current line to the top of the window." nil])
-(fset 'edt-line-to-top-of-window #[nil "ÀÁ!‡" [recenter 0] 2 "\
-Move the current line to the top of the window." nil])
-(fset 'case-flip-character #[(num) "ÁV­—ÂgX«ƒÃªÄ``T\"ˆÅuˆS‰ªe‡" [num 0 97 upcase-region downcase-region 1] 4 "\
-Change the case of the character under the cursor.
-Accepts a prefix argument of the number of characters to invert." "p"])
-(fset 'indent-or-fill-region #[nil "Á˜«‡Â`Ã Ä#‡Å`Ã \"‡" [paragraph-start "^$\\|^" indent-region mark nil fill-region] 4 "\
-Fill region in text modes, indent region in programming language modes." nil])
-(fset 'mark-section-wisely #[nil "Á=«ƒÂ ‡Ã=«ƒÂ ‡Ä=«ƒÅ ‡Æ ‡" [major-mode emacs-lisp-mode mark-defun lisp-mode c-mode mark-c-function mark-paragraph] 2 "\
-Mark the section in a manner consistent with the major-mode.
-Uses mark-defun for emacs-lisp, lisp,
-mark-c-function for C,
-and mark-paragraph for other modes." nil])
-(fset 'edt-emulation-on #[nil "À ˆÁ ˆÂÄ\"ÆÄÇ\"ˆÂÈ\"	ÆÈÊ\"ˆÂÈ\"ÍÈÊ#ˆÍÈÊ#ˆÂÏ\"ÆÏÑ\"ˆÍÓÔ#‡" [advance-direction edt-bind-gold-keypad lookup-key global-map "" edt-mode-old-c-\\ global-set-key quoted-insert "" edt-mode-old-delete delete-previous-char emacs-lisp-mode-map edt-mode-old-lisp-delete define-key lisp-mode-map "\n" edt-mode-old-linefeed edt-delete-previous-word esc-map "?" apropos] 4 "\
-Begin emulating DEC's EDT editor.
-Certain keys are rebound; including nearly all keypad keys.
-Use \\[edt-emulation-off] to undo all rebindings except the keypad keys.
-Note that this function does not work if called directly from the .emacs file.
-Instead, the .emacs file should do (setq term-setup-hook 'edt-emulation-on)
-Then this function will be called at the time when it will work." nil])
-(fset 'edt-emulation-off #[nil "ÀÂÃ\"ˆÂÅ\"ˆÇÅ	#ˆÇ\nÅ	#ˆÂË\"‡" [nil edt-direction-string global-set-key "" edt-mode-old-c-\\ "" edt-mode-old-delete define-key emacs-lisp-mode-map edt-mode-old-lisp-delete lisp-mode-map "\n" edt-mode-old-linefeed] 4 "\
-Return from EDT emulation to normal Emacs key bindings.
-The keys redefined by \\[edt-emulation-on] are given their old definitions." nil])
-(byte-code "À	ÂÃ#ˆÀ	ÄÅ#ˆÀ	ÆÇ#ˆÀ	ÈÉ#ˆÀ	ÊË#ˆÀ	ÌÍ#ˆÀ	ÎÏ#ˆÀ	ÐÑ#ˆÀ	ÒÓ#ˆÀ	ÔÕ#ˆÀ	Ö×#ˆÀ	ØÙ#ˆÀ	ÚÛ#ˆÀ	ÜÝ#ˆÀ	Þß#ˆÀ	àá#ˆá\"M‡" [define-key function-keymap "u" previous-line "d" next-line "l" backward-char "r" forward-char "h" edt-beginning-of-window "" describe-key "" delete-current-line "9" append-to-buffer "-" delete-current-word "4" advance-direction "5" backup-direction "6" kill-region "," delete-current-char "." set-mark-command "e" other-window "" GOLD-prefix GOLD-map] 4)
-(defvar GOLD-map (make-keymap) "\
-GOLD-map maps the function keys on the VT100 keyboard preceeded
-by the PF1 key.  GOLD is the ASCII the 7-bit escape sequence <ESC>OP.")
-(byte-code "ÀÁMˆÂÄÅ#ˆÂÆÇ#ˆÂÈÉ#ˆÂÊË#ˆÂÌÍ#ˆÂÎÏ#ˆÂÐÑ#ˆÂÒÓ#ˆÂÔÕ#ˆÂÖ×#ˆÂØ×#ˆÂÙÇ#ˆÂÚÇ#ˆÂÛÜ#ˆÂÝÜ#ˆÂÞß#ˆÂàß#ˆÂáÑ#ˆÂâÑ#ˆÂãä#ˆÂåä#ˆÂæç#ˆÂèç#ˆÂéê#ˆÂëê#ˆÂìí#ˆÂìí#ˆÂîï#ˆÂðï#ˆÂñò#ˆÂóò#ˆÂôõ#ˆÂôõ#ˆö÷Mˆø9ž¬†ú9B9À‡" [define-keypad-key #[(keymap function-keymap-slot definition) "À	!‰­…Â#)‡" [function-key-sequence function-keymap-slot define-key keymap definition] 5] define-key GOLD-map "" keyboard-quit "" delete-window "" delete-other-windows "" newline-and-indent " " undo "%" goto-percent "=" goto-line "`" what-line "" split-window-vertically "b" buffer-menu "B" "d" "D" "e" compile "E" "i" insert-file "I" "l" "L" "m" save-some-buffers "M" "n" next-error "N" "o" switch-to-buffer-other-window "O" "r" revert-file "s" save-buffer "S" "v" find-file-other-window "V" "w" write-file edt-bind-gold-keypad #[nil "À	ÂÃ#ˆÀ	ÄÅ#ˆÀ	ÆÇ#ˆÀ	ÈÉ#ˆÀ	ÊË#ˆÀ	ÌÍ#ˆÀ	ÎÏ#ˆÀ	ÐÑ#ˆÀ	ÒÓ#ˆÀ	ÔÕ#ˆÀ	Ö×#ˆÀ	ØÙ#ˆÀ	ÚÛ#ˆÀ	ÜÝ#ˆÀ	Þß#ˆÀ	àá#ˆÀ	âã#ˆÀ	äå#ˆÀ	æç#ˆÀ	èé#ˆÀ	êë#ˆÀ	ìí#‡" [define-keypad-key GOLD-map 117 edt-line-to-top-of-window 100 edt-line-to-bottom-of-window 108 backward-sentence 114 forward-sentence 1 mark-section-wisely 2 describe-function 3 occur 4 undelete-lines 48 open-line 49 case-flip-character 50 delete-to-eol 51 copy-region-as-kill 52 move-to-end 53 move-to-beginning 54 yank 55 execute-extended-command 56 indent-or-fill-region 57 replace-regexp 45 undelete-words 44 undelete-chars 46 redraw-display 101 shell-command] 4] edt-direction-string minor-mode-alist (edt-direction-string edt-direction-string)] 4)

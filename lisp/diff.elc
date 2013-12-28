@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Aug 14 22:12:50 1991
-;;; from file /wg1/emacs-base/lisp/diff.el
-;;; emacs version 19.60.
-;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; compiled by jwz@thalidomide on Fri Apr 24 16:36:55 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/diff.el
+;;; emacs version 19.0.3 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,8 +10,6 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(defvar diff-switches nil "\
-*A list of switches to pass to the diff program.")
 (defvar diff-search-pattern "^\\([0-9]\\|\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\*\\)" "\
 Regular expression that delineates difference regions in diffs.")
 (byte-code "ÀÁ!¬±Â Ã	!ˆÄ	ÅÆ#ˆÄ	ÇÈ#ˆÄ	ÉÊ#ˆÄ	ËÌ#ˆÄ	ÍÎ#ˆÄ	ÏÐ#ˆÄ	ÑÒ#ˆÀ‡" [boundp diff-mode-map make-keymap suppress-keymap define-key "?" describe-mode "." diff-beginning-of-diff " " scroll-up "" scroll-down "n" diff-next-difference "p" diff-previous-difference "j" diff-show-difference] 4)

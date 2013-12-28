@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Sat Dec 28 16:59:12 1991
-;;; from file /wg1/emacs-base/lisp/vm/vm-version.el
-;;; emacs version 19.39.
-;;; bytecomp version 2.03; 29-oct-91.
+;;; compiled by jwz@thalidomide on Tue Apr 21 16:45:38 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/vm/vm-version.el
+;;; emacs version 19.0.2 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,5 +10,6 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(defconst vm-version "5.31 (beta)" "\
+(provide 'vm)
+(defconst vm-version "5.32.L (beta)" "\
 Version number of VM.")

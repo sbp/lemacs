@@ -49,6 +49,10 @@
 ;;
 ;; 9/14/91 Jamie Zawinski <jwz@lucid.com>
 ;; Improved the above.
+;;
+;; 4/15/92 Jamie Zawinski <jwz@lucid.com>
+;; Improved formatting some more, and added Lucid GNU Emacs font and mouse
+;; support (mostly cannibalized from webster-ucb.el.)
 
 (defvar webster-host "129.79.254.192"
   "The host to use as a webster server.")
@@ -147,6 +151,33 @@ definitions as crossreferences.)")
 			 (substring string (match-end 0)))))
   (intern (downcase string) webster-completion-table))
 
+(defvar webster-fontify (string-match "Lucid" emacs-version)
+  "*Set to t to use the Lucid GNU Emacs font-change mechanism.")
+
+(cond ((fboundp 'make-face)
+       (or (find-face 'webster)
+	   (face-differs-from-default-p (make-face 'webster))
+	   (copy-face 'default 'webster))
+       (or (find-face 'webster-bold)
+	   (face-differs-from-default-p (make-face 'webster-bold))
+	   (copy-face 'bold 'webster-bold))
+       (or (find-face 'webster-italic)
+	   (face-differs-from-default-p (make-face 'webster-italic))
+	   (copy-face 'italic 'webster-italic))
+       (or (find-face 'webster-bold-italic)
+	   (face-differs-from-default-p (make-face 'webster-bold-italic))
+	   (copy-face 'bold-italic 'webster-bold-italic))
+       (or (find-face 'webster-small)
+	   (face-differs-from-default-p (make-face 'webster-small))
+	   (copy-face 'webster-bold 'webster-small))
+       ))
+
+(defun webster-fontify (start end face &optional highlight)
+  (let ((e (make-extent start end (current-buffer))))
+    (set-extent-face e face)
+    (if highlight (set-extent-attribute e 'highlight))))
+
+
 (defun webster-reformat (end)
   "Clean up the output of the webster server, and gather words for the 
 completion table."
@@ -154,8 +185,15 @@ completion table."
     (goto-char end)
     (let ((case-fold-search nil))
       (re-search-backward "^[A-Z]+" nil t)
-      (if (not (looking-at "^DEFINITION [0-9]"))
-	  nil
+      (if webster-fontify
+	  (save-excursion
+	    (previous-line 1)
+	    (if (looking-at "^DEFINE \\([^ \n]+\\)")
+		(webster-fontify (match-beginning 1) (match-end 1)
+				 'webster-bold t))))
+      (cond
+       ((or (looking-at "^DEFINITION [0-9]")
+	    (looking-at "^SPELLING"))
 	(forward-line 1)
 	(let ((p (point))
 	      (indent 2))
@@ -167,14 +205,35 @@ completion table."
 	    (just-one-space))
 	  (goto-char p)
 	  (while (not (eobp))
-	    (cond ((looking-at " *[0-9]+\\. ")
+	    (if (looking-at " *\n")
+		(delete-region (match-beginning 0) (match-end 0)))
+	    (cond ((looking-at "^[0-9]+ ")
+		   (if webster-fontify
+		       (webster-fontify (point) (match-end 0)
+					'webster-bold-italic))
+		   (goto-char (match-end 0))
+		   (if (looking-at "[^\n0-9]+ [0-9]")
+		       (save-excursion
+			 (goto-char (1- (match-end 0)))
+			 (insert "\n")))
+		   (if (looking-at "[a-z]+\\( [a-z]+\\)*[ \n]")
+		       (webster-intern
+			(buffer-substring (point) (1- (match-end 0)))))
+		   (if webster-fontify
+		       (webster-fontify (point) (1- (match-end 0))
+					'webster-bold t))
+		   (goto-char (1- (match-end 0)))
+		   (if (looking-at " *\n") (forward-line 1)))
+		  ((looking-at " *[0-9]+\\. ")
 		   (setq indent 5)
 		   (delete-horizontal-space)
-		   (insert "\n  ")
+		   (insert (if (= (preceding-char) ?\n) "  " "\n  "))
 		   (skip-chars-forward "0-9. ")
-		   (if (looking-at "[a-z]+")
-		       (webster-intern
-			(buffer-substring (point) (match-end 0)))))
+		   (if webster-fontify
+		       (webster-fontify
+			(save-excursion (beginning-of-line) (point))
+			(point)
+			'webster-bold-italic)))
 		  ((looking-at " *\\([0-9]+\\): *")
 		   (let ((n (buffer-substring (match-beginning 1)
 					      (match-end 1))))
@@ -182,7 +241,12 @@ completion table."
 		     (insert "\n")
 		     (indent-to (- 6 (length n)))
 		     (insert n " : ")
-		     (setq indent 9)))
+		     (setq indent 9)
+		     (if webster-fontify
+			 (webster-fontify
+			  (save-excursion (beginning-of-line) (point))
+			  (point)
+			  'webster-bold-italic))))
 		  ((looking-at " *\\([0-9]+\\)\\([a-z]+\\): *")
 		   (let ((n (buffer-substring (match-beginning 1)
 					      (match-end 1)))
@@ -194,7 +258,12 @@ completion table."
 		     (indent-to (- 6 (length n)))
 		     (insert n "  ")
 		     (insert m " : ")
-		     (setq indent 12)))
+		     (setq indent 12)
+		     (if webster-fontify
+			 (webster-fontify
+			  (save-excursion (beginning-of-line) (point))
+			  (point)
+			  'webster-bold-italic))))
 		  ((looking-at " *\\([0-9]+\\)\\([a-z]+\\)\\([0-9]+\\): *")
 		   (let ((n (buffer-substring (match-beginning 1)
 					      (match-end 1)))
@@ -210,7 +279,12 @@ completion table."
 		     (insert n "  ")
 		     (insert m "  ")
 		     (insert "(" o ") : ")
-		     (setq indent 17)))
+		     (setq indent 17)
+		     (if webster-fontify
+			 (webster-fontify
+			  (save-excursion (beginning-of-line) (point))
+			  (point)
+			  'webster-bold-italic))))
 		  ((looking-at " *\\\\")
 		   (setq indent 5)
 		   (setq p (point))
@@ -221,7 +295,9 @@ completion table."
 			 (goto-char p)
 			 (insert "\n")
 			 (indent-to 18)
-			 (search-forward "\\"))))
+			 (search-forward "\\")))
+		   (if webster-fontify
+		       (webster-fontify p (point) 'webster-italic)))
 		  ((looking-at " *\\[")
 		   (setq indent 6)
 		   (delete-horizontal-space)
@@ -240,14 +316,26 @@ completion table."
 		   (insert "  ")
 		   (setq indent 6)
 		   (if (looking-at "syn ")
-		       (progn (goto-char (match-end 0))
-			      (insert "see "))))
+		       (progn
+			 (if webster-fontify
+			     (webster-fontify (point) (+ (point) 3)
+					      'webster-bold))
+			 (goto-char (match-end 0))
+			 (insert "see "))))
 		  (t
 		   (setq p (point))
 		   (skip-chars-forward " ,:;-")
-		   (if (looking-at "\\([A-Z][A-Z][A-Z]+\\)\\( [A-Z][A-Z]+\\)*")
-		       (webster-intern
-			(buffer-substring (point) (match-end 0))))
+		   (if (or (looking-at
+			  "\\([A-Z][-A-Z]+[A-Z]\\)\\( [A-Z][-A-Z]*[A-Z]\\)*")
+			   (looking-at "[a-z][-a-z]*\\(\\.[a-z][-a-z]*\\)+"))
+		       (let ((s (buffer-substring (point) (match-end 0))))
+			 (if webster-fontify
+			     (webster-fontify (point) (match-end 0)
+					      'webster-bold t))
+			 (while (string-match "\\." s)
+			   (setq s (concat (substring s 0 (match-beginning 0))
+					   (substring s (match-end 0)))))
+			 (webster-intern s)))
 		   (skip-chars-forward "^ \\")
 		   (if (> (current-column) fill-column)
 		       (progn
@@ -263,7 +351,7 @@ completion table."
 	(while (looking-at "\n") (delete-char 1))
 	(goto-char (point-max))
 	(insert "\n\n")
-	(widen)))))
+	(widen))))))
 
 ;; " \\(\\(slang\\|cap\\|pl\\|aj\\|av\\|n\\|v\\|vt\\|vi\\)\\(,[ \n]+\\)?\\)+\n"
 
@@ -374,7 +462,9 @@ Use webster-mode-hook for customization."
   (define-key webster-mode-map "d" 'webster)
   (define-key webster-mode-map "e" 'webster-endings)
   (define-key webster-mode-map "q" 'webster-quit)
-  (define-key webster-mode-map "s" 'webster-spell))
+  (define-key webster-mode-map "s" 'webster-spell)
+  (if (string-match "Lucid" emacs-version)
+      (define-key webster-mode-map 'button2 'webster-xref-word)))
 
 ;; Snatched from unix-apropos by Henry Kautz
 (defun current-word ()
@@ -387,3 +477,29 @@ Use webster-mode-hook for customization."
 	 (re-search-forward "\\w*\\b" nil 2)
 	 (setq end (point))
 	 (buffer-substring beg end))))
+
+(defun webster-xref-word (event)
+  "Define the highlighted word under the mouse.
+Words which are known to have definitions are highlighted when the mouse
+moves over them.  You may define any word by selecting it with the left
+mouse button and then clicking middle."
+  (interactive "e")
+  (let* ((buffer (window-buffer (event-window event)))
+	 (extent (extent-at (event-point event) buffer 'highlight))
+	 text)
+    (cond (extent
+	   (setq text (save-excursion
+			(set-buffer buffer)
+			(buffer-substring
+			 (extent-start-position extent)
+			 (extent-end-position extent)))))
+	  ((x-selection-owner-p) ; the selection is in this emacs process.
+	   (setq text (x-get-selection)))
+	  (t
+	   (error "click on a highlighted word to define")))
+    (while (string-match "\\." text)
+      (setq text (concat (substring text 0 (match-beginning 0))
+			 (substring text (match-end 0)))))
+    (message "looking up %s..." (upcase text))
+    (goto-char (point-max))
+    (webster text)))

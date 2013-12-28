@@ -15,8 +15,6 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(require 'vm)
-
 (defun vm-scroll-forward (&optional arg)
   "Scroll forward a screenful of text.
 If the current message is being previewed, the message body is revealed.
@@ -37,77 +35,108 @@ Prefix N scrolls forward N lines."
     (if (eq vm-system-state 'previewing)
 	(vm-show-current-message)
       (if (or mp-changed was-invisible)
-	  ()
+	  (vm-howl-if-eom)
+	(let ((vmp vm-message-pointer)
+	      (msg-buf (vm-current-message-buffer))
+	      (h-diff 0)
+	      w old-w result)
 	(setq vm-system-state 'reading)
-	(let ((w (get-buffer-window (vm-current-message-buffer)))
-	      (vmp vm-message-pointer)
-	      (old-w (selected-window))
-	      (direction (prefix-numeric-value arg))
-	      error-data)
-	  (vm-within-current-message-buffer
-	   (unwind-protect
-	       (progn
-		 (select-window w)
-		 (let ((vm-message-pointer vmp))
-		   (while
-		     (catch 'tryagain
-		       (if (not
-			    (eq
-			     (condition-case error-data
-				 (scroll-up arg)
-			       (error
-				(if (or (and (< direction 0)
-					     (> (point-min)
-						(vm-text-of
-						 (car vm-message-pointer))))
-					(and (>= direction 0)
-					     (/= (point-max)
-						 (vm-text-end-of
-						  (car vm-message-pointer)))))
-				    (progn
-				      (vm-widen-page)
-				      (if (>= direction 0)
-					  (progn
-					    (forward-page 1)
-					    (set-window-start w (point))
-					    nil )
-					(if (or
-					     (bolp)
-					     (not
-					      (save-excursion
-						(beginning-of-line)
-						(looking-at page-delimiter))))
-					    (forward-page -1))
-					(beginning-of-line)
-					(set-window-start w (point))
-					(throw 'tryagain t)))
-				  (if (eq (car error-data) 'end-of-buffer)
-				      (if vm-auto-next-message
-					  (progn (setq do-next-message t)
-						 'next-message)
-					(message "End of message %s from %s"
-						 (vm-number-of
-						  (car vm-message-pointer))
-						 (vm-su-full-name
-						  (car vm-message-pointer)))
-					nil )))))
-			     'next-message))
-			   (progn
-			     (if vm-honor-page-delimiters
-				 (progn
-				   (vm-narrow-to-page)
-				   ;; This voodoo is required!  For some
-				   ;; reason the 18.52 emacs display
-				   ;; doesn't immediately reflect the
-				   ;; clip region change that occurs
-				   ;; above without this mantra. 
-				   (scroll-up 0)))))
-		       nil ))))
-	     (select-window old-w))))))
-    (if do-next-message
-	(vm-next-message)))
+	(setq old-w (get-buffer-window msg-buf))
+	(if (not (eq vm-window-configuration 'paging-message))
+	    (save-excursion (vm-set-window-configuration 'paging-message)))
+	(setq w (get-buffer-window msg-buf))
+	(if (null w)
+	    (error "paging-message configuration hides the message buffer.")
+	  (setq h-diff (- (window-height w) (window-height old-w))))
+	(setq old-w (selected-window))
+	(vm-within-current-message-buffer
+	 (unwind-protect
+	     (progn
+	       (select-window w)
+	       (let ((next-screen-context-lines
+		      (+ next-screen-context-lines h-diff))
+		     ;; restore
+		     (vm-message-pointer vmp))
+		 (while (eq (setq result (vm-scroll-forward-internal arg))
+			    'tryagain))
+		 (cond ((and (not (eq result 'next-message))
+			     vm-honor-page-delimiters)
+			(vm-narrow-to-page)
+			;; This voodoo is required!  For some
+			;; reason the 18.52 emacs display
+			;; doesn't immediately reflect the
+			;; clip region change that occurs
+			;; above without this mantra. 
+			(scroll-up 0)))))
+	   (select-window old-w)))
+	(cond ((eq result 'next-message)
+	       (vm-next-message)
+	       (vm-set-window-configuration 'auto-next-message))
+	      ((eq result 'end-of-message)
+	       (vm-set-window-configuration 'end-of-message)
+	       (let ((vm-message-pointer vmp))
+		 (vm-emit-eom-blurb)))
+	      (t
+	       (and (> (prefix-numeric-value arg) 0)
+		    (vm-howl-if-eom))))))))
   (if (not (or vm-startup-message-displayed vm-inhibit-startup-message))
       (vm-display-startup-message)))
+
+(defun vm-scroll-forward-internal (arg)
+  (let ((direction (prefix-numeric-value arg))
+	(w (selected-window)))
+    (condition-case error-data
+	(progn (scroll-up arg) nil)
+      (error
+       (if (or (and (< direction 0)
+		    (> (point-min) (vm-text-of (car vm-message-pointer))))
+	       (and (>= direction 0)
+		    (/= (point-max)
+			(vm-text-end-of (car vm-message-pointer)))))
+	   (progn
+	     (vm-widen-page)
+	     (if (>= direction 0)
+		 (progn
+		   (forward-page 1)
+		   (set-window-start w (point))
+		   nil )
+	       (if (or (bolp)
+		       (not (save-excursion
+			      (beginning-of-line)
+			      (looking-at page-delimiter))))
+		   (forward-page -1))
+	       (beginning-of-line)
+	       (set-window-start w (point))
+	       'tryagain))
+	 (if (eq (car error-data) 'end-of-buffer)
+	     (if vm-auto-next-message
+		 'next-message
+	       (set-window-point w (point))
+	       'end-of-message)))))))
+
+(defun vm-howl-if-eom ()
+  (let ((vmp vm-message-pointer))
+    (vm-within-current-message-buffer
+     (let ((w (get-buffer-window (current-buffer)))
+	   (vm-message-pointer vmp))
+       (and w
+	    (save-excursion
+	      (save-window-excursion
+		(condition-case ()
+		    (let ((next-screen-context-lines 0))
+		      (select-window w)
+		      (save-excursion
+			(save-window-excursion
+			  (scroll-up nil)))
+		      nil)
+		  (error t))))
+	    (= (vm-text-end-of (car vm-message-pointer)) (point-max))
+	    (vm-emit-eom-blurb))))))
+
+(defun vm-emit-eom-blurb ()
+  (message "End of message %s from %s"
+	   (vm-number-of (car vm-message-pointer))
+	   (vm-su-full-name (car vm-message-pointer))))
 
 (defun vm-scroll-backward (arg)
   "Scroll backward a screenful of text.
@@ -206,27 +235,6 @@ Prefix N scrolls backward N lines."
        (if vm-honor-page-delimiters
 	   (vm-narrow-to-page))))))
 
-(defun vm-display-current-message-buffer (&optional no-highlighting)
-  (vm-select-folder-buffer)
-  (vm-check-for-killed-summary)
-  (vm-within-current-message-buffer
-   (if (null (get-buffer-window (current-buffer)))
-       (if vm-mutable-windows
-	   (let ((pop-up-windows (and pop-up-windows
-				      (eq vm-mutable-windows t))))
-	     (display-buffer (current-buffer)))
-	 (switch-to-buffer (current-buffer))))
-   (let ((w (get-buffer-window (current-buffer))))
-     (if (>= (window-start w) (point-max))
-	 (set-window-start w (point-min) t))))
-  (if (and vm-summary-buffer (get-buffer-window vm-summary-buffer)
-	   (eq vm-mutable-windows t))
-      (vm-proportion-windows))
-  (vm-within-current-message-buffer
-   (if (not no-highlighting)
-       (vm-highlight-headers (car vm-message-pointer)
-			     (get-buffer-window (current-buffer))))))
-
 (defun vm-widen-page ()
   (if (or (> (point-min) (vm-text-of (car vm-message-pointer)))
 	  (/= (point-max) (vm-text-end-of (car vm-message-pointer))))
@@ -267,7 +275,7 @@ Prefix N scrolls backward N lines."
   (vm-display-current-message-buffer))
 
 (defun vm-end-of-message ()
-  "Moves to the end of the current message, exposing and marking it read
+  "Moves to the end of the current message, exposing and flagging it read
 as necessary."
   (interactive)
   (vm-follow-summary-cursor)

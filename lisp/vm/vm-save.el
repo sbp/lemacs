@@ -15,8 +15,6 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(require 'vm)
-
 ;; (match-data) returns the match data as MARKERS, often corrupting
 ;; it in the process due to buffer narrowing, and the fact that buffers are
 ;; indexed from 1 while strings are indexed from 0. :-(
@@ -180,7 +178,9 @@ The saved messages are flagged as `filed'."
 	  (set-buffer (marker-buffer (vm-start-of (car mlist))))
 	  (vm-save-restriction
 	   (widen)
-	   (if (vm-modflag-of (car mlist))
+	   ;; if message is deleted then we have to restuff with
+	   ;; the delete flag suppressed before we save.
+	   (if (or (vm-modflag-of (car mlist)) (vm-deleted-flag (car mlist)))
 	       (vm-stuff-attributes (car mlist) t))
 	   (if (null folder-buffer)
 	       (write-region (vm-start-of (car mlist))
@@ -199,7 +199,8 @@ The saved messages are flagged as `filed'."
 		       (marker-buffer (vm-start-of (car mlist)))
 		       start end))
 		    ;; vars should exist and be local
-		    ;; but they may have strange values
+		    ;; but they may have strange values,
+		    ;; so check the major-mode.
 		    (cond ((eq major-mode 'vm-mode)
 			   (vm-increment vm-messages-not-on-disk)
 			   (vm-set-buffer-modified-p (buffer-modified-p))
@@ -321,26 +322,26 @@ Output, if any, is displayed.  The message is not altered."
 		   (vm-select-marked-or-prefixed-messages 0)
 		 (list (car vm-message-pointer)))))
     (save-excursion (set-buffer buffer) (erase-buffer))
-    (while mlist
-      (set-buffer (marker-buffer (vm-start-of (car mlist))))
-      (save-restriction
-	(widen)
-	(cond ((equal prefix-arg nil)
-	       (narrow-to-region (vm-start-of (car mlist))
-				 (vm-end-of (car mlist))))
-	      ((equal prefix-arg '(4))
-	       (narrow-to-region (vm-text-of (car mlist))
-				 (vm-text-end-of (car mlist))))
-	      ((equal prefix-arg '(16))
-	       (narrow-to-region (vm-start-of (car mlist))
-				 (vm-text-of (car mlist))))
-	      (t (narrow-to-region (vm-start-of (car mlist))
-				   (vm-end-of (car mlist)))))
-	(let ((pop-up-windows (and pop-up-windows (eq vm-mutable-windows t))))
-	  (call-process-region (point-min) (point-max)
-			       (or shell-file-name "sh")
-			       nil buffer nil "-c" command)))
-      (setq mlist (cdr mlist)))
-    (set-buffer buffer)
-    (if (not (zerop (buffer-size)))
-	(display-buffer buffer))))
+    (save-excursion
+     (while mlist
+       (set-buffer (marker-buffer (vm-start-of (car mlist))))
+       (save-restriction
+	 (widen)
+	 (goto-char (vm-start-of (car mlist)))
+	 (forward-line)
+	 (cond ((equal prefix-arg nil)
+		(narrow-to-region (point) (vm-text-end-of (car mlist))))
+	       ((equal prefix-arg '(4))
+		(narrow-to-region (vm-text-of (car mlist))
+				  (vm-text-end-of (car mlist))))
+	       ((equal prefix-arg '(16))
+		(narrow-to-region (point) (vm-text-of (car mlist))))
+	       (t (narrow-to-region (point) (vm-text-end-of (car mlist)))))
+	 (let ((pop-up-windows (and pop-up-windows (eq vm-mutable-windows t))))
+	   (call-process-region (point-min) (point-max)
+				(or shell-file-name "sh")
+				nil buffer nil "-c" command)))
+       (setq mlist (cdr mlist)))
+     (set-buffer buffer)
+     (if (not (zerop (buffer-size)))
+	 (display-buffer buffer)))))

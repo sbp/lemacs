@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Oct  2 14:55:53 1991
-;;; from file /wg1/emacs-base/lisp/subr.el
-;;; emacs version 19.84.
-;;; bytecomp version 2.02 beta; 11-sep-91.
+;;; compiled by jwz@thalidomide on Mon May 11 03:28:09 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/subr.el
+;;; emacs version 19.0.12 Lucid.
+;;; bytecomp version 2.06; 23-apr-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -50,8 +50,6 @@ The normal global definition of the character C-x indirects to this keymap.")
 (defvar esc-map nil "\
 Default keymap for ESC (meta) commands.
 The normal global definition of the character ESC indirects to this keymap.")
-(defvar mouse-map nil "\
-Keymap for mouse commands from the X window system.")
 (fset 'run-hooks #[(&rest hooklist) "­¬@Â	!«œ	J«˜	J‰<«@Ä=¬‡ÅÆ\"ˆªƒ ˆ))A‰¬UÇ‡" [hooklist sym boundp value lambda mapcar funcall nil] 4 "\
 Takes hook names and runs each one in turn.  Major mode functions use this.
 Each argument should be a symbol, a hook variable.

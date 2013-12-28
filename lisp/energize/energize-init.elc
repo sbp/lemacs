@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Mar 24 13:57:06 1992
-;;; from file /u/jwz/emacs19/lisp/energize/energize-init.el
-;;; emacs version 19.80 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
+;;; compiled by jwz@thalidomide on Mon May 18 20:20:58 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/energize/energize-init.el
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -35,8 +35,9 @@ Connect this emacs to a Energize server.
 The SERVER argument should be the name of the host that the kernel is
 running on (empty-string for localhost).  It may also be of the form
 ``hostname:user'' or ``:user'', meaning to use the server running with
-userid USER." "sconnect to energize server: "])
+userid USER." (byte-code "À «„ÁÂ!‡ÃÄ!C‡" [connected-to-energize-p error "Already connected to the server." read-string "connect to energize server: "] 2)])
 (byte-code "ÀÁMˆÂÃMˆÄÅMˆÆÇM‡" [disconnect-from-energize #[nil "À ‡" [close-connection-to-energize] 1 nil nil] energize-buffer-creation-hook-function #[(buffer) "ŠqˆÁ!‰Ã=«•ÄÅÆ!\"«„Çª‰Æ!Èš«‚É\nÃ=«…Ê ˆªÚ\nÇ=«…Ë ˆªĞ\nÉ=«†ÌÍ!ˆªÅ\nÎ=«…Ï ˆª»\nĞ=«…Ñ ˆª±\nÒ=«…Ó ˆª§\nÔ=¬ˆ\nÕ=¬ƒ\n¬“Ö ˆ×!«…Ø ˆª ˆª‡ÚÛÜ\nD\"ˆ)İŞ!­­ŠÁ!Ğ=?­‚ß )‡" [buffer energize-buffer-type type energize-top-level-buffer string-match "^Browser" buffer-name energize-browser-buffer "Error Log" energize-error-log-buffer energize-top-level-mode energize-browser-mode toggle-read-only 1 energize-project-buffer energize-project-mode energize-debugger-buffer energize-debugger-mode energize-breakpoint-buffer energize-breakpoint-mode energize-source-buffer energize-unspecified-buffer compute-buffer-file-truename buffer-file-name after-find-file default-major-mode signal error "unknown energize buffer type" boundp evi-install-undo-list evi-mode] 5] request-energize-extent-menu #[(event) "ÀÁ\n\"‡" [display-menu #[(buffer pos s e) "ÀÁ\n!!«…Á\n!ª„Ã\"‰«†Ç!¬…ÈÉ!ªÊË\"ˆÌÍ!ˆÎ\"‰­‰ĞÑ‰%))‡" [extentp event-glyph event menu-extent-at pos buffer extent energize-extent-menu-p error "No energize menu here" force-highlight-extent t sit-for 0 energize::request-menu item energize-execute-menu-item-with-selection nil] 7] event] 3 nil "e"] request-energize-buffer-menu #[(event) "ÀÁ\n\"‡" [display-menu #[(buffer pos s e) "À	Â\"‰­‡Ä	ÂÂ‰%)‡" [energize::request-menu buffer nil item energize-execute-menu-item-with-selection] 7] event] 3 nil "e"]] 2)
 (fset 'display-menu #[(menu-proc event) "«„ÁÂ!ˆÃÄ!!Æ!É!¬ˆÁÊË\"!ˆÌÄ!!ˆÎ‰$*‡" [energize-kernel-busy error "Can't activate Energize menu, server busy" window-buffer event-window event event-point pos buffer bufferp format "event's buffer, %s, isn't a buffer" select-window menu-proc nil] 5 "\
 Call the menu-proc with information gotten from arg (the buffer, 
 cursor position, and selection positions) so that it can bring up a menu."])
+(byte-code "ÀÁMˆÂ¬„ÄBÀ‡" [xselect-convert-to-energize #[(selection type value) "À‰‰‰‰:«¦Ç@!«ŸÇA!«˜ÈÉ@!!Ê@!SÊA!SªË!«‰Ì!ÍÍ??…Ù ÎÏÍ\"\nW«†\n	ÍĞÑ@Ò\"Ó\"IˆÔĞ@Ó\"IˆÕĞÑAÒ\"Ó\"IˆÖĞAÓ\"Iˆ×ĞÑØ\"Ó\"IˆÙĞÑÚ\"Ó\"IˆÛĞÑÒ\"Ó\"IˆÜĞÓ\"IˆİĞÑ\nØ\"Ó\"IˆŞĞÑ\nÚ\"Ó\"IˆßĞÑ\nÒ\"Ó\"IˆàĞ\nÓ\"IˆáB-‡" [nil tmp end start id str value markerp energize-buffer-id marker-buffer marker-position extentp extent-to-generic-id 0 make-string 12 logand ash -8 255 1 2 3 4 -24 5 -16 6 7 8 9 10 11 ENERGIZE_OBJECT] 6] ENERGIZE_OBJECT selection-converter-alist (ENERGIZE_OBJECT . xselect-convert-to-energize)] 2)

@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Mar 31 09:03:32 1992
-;;; from file /wg1/emacs-base/lisp/mail-abbrevs.el
-;;; emacs version 19.87 Lucid.
-;;; bytecomp version 2.05; 9-mar-92.
+;;; compiled by jwz@thalidomide on Sat May  9 17:44:39 1992
+;;; from file /u/jwz/emacs19/lisp/mail-abbrevs.el
+;;; emacs version 19.0.12 Lucid.
+;;; bytecomp version 2.06; 23-apr-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -20,22 +20,22 @@ If this is nil, it means the aliases have not yet been initialized and
 should be read from the .mailrc file.  (This is distinct from there being
 no aliases, which is represented by this being a table with no entries.)")
 (fset 'mail-aliases-setup #[nil "À	!¬’Â®ˆÄÅ!®Æ‰!«ƒÇ ˆÈÉ!ˆ	<«	@Ê=¬†Ë	Bª„Ë	D	ÌÍ!‡" [vectorp mail-aliases file-exists-p mail-abbrev-mailrc-file getenv "MAILRC" "~/.mailrc" build-mail-aliases make-local-variable pre-abbrev-expand-hook lambda sendmail-pre-abbrev-expand-hook abbrev-mode 1] 3])
-(fset 'build-mail-aliases #[(&optional file recursivep) "À	®‹\n®ˆÃÄ!®Å‰!Æ!¬ˆÈÉÇÈ\"ˆÊË	\"ˆÈpÎÏĞ!Ñ!ˆqˆÒ	!«ŠÒ	!qˆed{)cˆª‰Ó	!«„Ô	!ˆdbˆhÕ=¬ƒÖ ˆebˆ×ØÈÙ#«`ÚZÈˆ`|ˆ)ªiebˆm¬šÈˆhÜU«İŞ!ˆİß!ˆàcˆªhßuˆªcebˆáâÈÙ#«¸ãyˆäå!«Èˆæß”ß•{Ù\"ˆªcáç!ˆß”ß•{(éÈwˆ`*Èˆë(*`{Ù#ˆ*ªA,¬ƒí ˆ+Êî	\"‡" [expand-file-name file mail-abbrev-mailrc-file getenv "MAILRC" "~/.mailrc" vectorp mail-aliases nil define-abbrev-table message "Parsing %s ..." obuf buffer ((byte-code "«„Á!ˆ\nq‡" [buffer kill-buffer obuf] 2)) generate-new-buffer "mailrc" buffer-disable-undo get-file-buffer file-exists-p insert-file-contents 10 newline search-forward "# " t 2 p 92 delete-char -1 1 32 re-search-forward "^\\(a\\(lias\\|\\)\\|g\\(roup\\)\\|source\\)[ 	]+" 0 looking-at "source[ 	]+\\([^ 	\n]+\\)" build-mail-aliases "[ 	]+\\([^ 	\n]+\\)" name " 	" start define-mail-alias recursivep mail-resolve-all-aliases "Parsing %s ... done"] 4 "\
+(fset 'build-mail-aliases #[(&optional file recursivep) "À	®‹\n®ˆÃÄ!®Å‰!Æ!¬ˆÈÉÇÈ\"ˆÊË	\"ˆÈpÎÏĞ!Ñ!ˆqˆÒ	!«ŠÒ	!qˆed{)cˆª‰Ó	!«„Ô	!ˆdbˆhÕ=¬ƒÖ ˆebˆ×ØÈÙ#«`ÚZÈˆ`|ˆ)ªiebˆm¬šÈˆhÜU«İŞ!ˆİß!ˆàcˆªhßuˆªcebˆáâÈÙ#«¸ãyˆäå!«Èˆæß”ß•{Ù\"ˆªcáç!ˆß”ß•{(éÈwˆ`*Èˆë(*`{Ù#ˆ*ªA,¬ƒí ˆ+Êî	\"‡" [expand-file-name file mail-abbrev-mailrc-file getenv "MAILRC" "~/.mailrc" vectorp mail-aliases nil define-abbrev-table message "Parsing %s..." obuf buffer ((byte-code "«„Á!ˆ\nq‡" [buffer kill-buffer obuf] 2)) generate-new-buffer "mailrc" buffer-disable-undo get-file-buffer file-exists-p insert-file-contents 10 newline search-forward "# " t 2 p 92 delete-char -1 1 32 re-search-forward "^\\(a\\(lias\\|\\)\\|g\\(roup\\)\\|source\\)[ 	]+" 0 looking-at "source[ 	]+\\([^ 	\n]+\\)" build-mail-aliases "[ 	]+\\([^ 	\n]+\\)" name " 	" start define-mail-alias recursivep mail-resolve-all-aliases "Parsing %s... done"] 4 "\
 Read mail aliases from .mailrc and set mail-aliases."])
-(defvar mail-alias-seperator-string ", " "\
+(defvar mail-alias-separator-string ", " "\
 *A string inserted between addresses in multi-address mail aliases.
 This has to contain a comma, so \", \" is a reasonable value.  You might 
 also want something like \",\\n    \" to get each address on its own line.")
 (byte-code "ÀÁ!¬‚ÂÀ‡" [boundp mail-abbrev-aliases-need-to-be-resolved t] 2)
-(fset 'define-mail-alias #[(name definition &optional from-mailrc-file) "À	!¬™ÂÃÁÂ\"ˆÄ®ˆÆÇ!®È‰!«ƒÉ ˆÊË\"«ˆÍ•ÂOÊÎ\"«ˆÍ‰”OÂÍGÂ«Ğ«¤HÔ=«TÊÕ#ª”ÊÖ#ª‰Ê×#OB­ŠÍ•U?­‚Í•‰¬0ØÙŸ#,Û—ß	à$)‡" [vectorp mail-aliases nil define-abbrev-table file-exists-p mail-abbrev-mailrc-file getenv "MAILRC" "~/.mailrc" build-mail-aliases string-match "\\`[ 	\n,]+" definition 0 "[ 	\n,]+\\'" end L start result from-mailrc-file 34 "\"[ 	,]*" "[ 	,]+" "[ 	\n,]*,[ 	\n,]*" mapconcat identity mail-alias-seperator-string t mail-abbrev-aliases-need-to-be-resolved name abbrevs-changed define-abbrev mail-abbrev-expand-hook] 6 "\
+(fset 'define-mail-alias #[(name definition &optional from-mailrc-file) "À	!¬™ÂÃÁÂ\"ˆÄ®ˆÆÇ!®È‰!«ƒÉ ˆÊË\"«ˆÍ•ÂOÊÎ\"«ˆÍ‰”OÂÍGÂ«Ğ«¤HÔ=«TÊÕ#ª”ÊÖ#ª‰Ê×#OB­ŠÍ•U?­‚Í•‰¬0ØÙŸ#,Û—ß	à$)‡" [vectorp mail-aliases nil define-abbrev-table file-exists-p mail-abbrev-mailrc-file getenv "MAILRC" "~/.mailrc" build-mail-aliases string-match "\\`[ 	\n,]+" definition 0 "[ 	\n,]+\\'" end L start result from-mailrc-file 34 "\"[ 	,]*" "[ 	,]+" "[ 	\n,]*,[ 	\n,]*" mapconcat identity mail-alias-separator-string t mail-abbrev-aliases-need-to-be-resolved name abbrevs-changed define-abbrev mail-abbrev-expand-hook] 6 "\
 Define NAME as a mail-alias that translates to DEFINITION.
-If DEFINITION contains multiple addresses, seperate them with commas." "sDefine mail alias: \nsDefine %s as mail alias for: "])
+If DEFINITION contains multiple addresses, separate them with commas." "sDefine mail alias: \nsDefine %s as mail alias for: "])
 (fset 'mail-resolve-all-aliases #[nil "­Á\n!«…ÃÄ\n\"ˆÅ‰‡" [mail-abbrev-aliases-need-to-be-resolved vectorp mail-aliases mapatoms mail-resolve-all-aliases-1 nil] 3 "\
 Resolve all forward references in the mail aliases table."])
-(fset 'mail-resolve-all-aliases-1 #[(sym) "À	!­‚	J‰«±ÃÄ«›ÇÈ\n#	\n	OB	­‚Ä•)ªbÊËŸ#	\nLˆ*)	J‡" [boundp sym definition nil 0 start result string-match "[ 	\n]*,[, 	\n]*" end mapconcat #[(x) "ÀÁ\n\"!®\n‡" [mail-resolve-all-aliases-1 intern-soft x mail-aliases] 4] mail-alias-seperator-string] 5])
-(fset 'mail-abbrev-expand-hook #[nil "Š`À­¹iY­´ÀÆyˆ`\nbˆÇÈ	É#«”ŠÊuˆËcˆÌ ˆ`Í ˆ\n`{)iV­‰®ÎĞ ))+‡" [nil bol p auto-fill-function fill-column fp 0 search-backward "," t 1 "\n" delete-horizontal-space indent-relative "	" fill-prefix do-auto-fill] 4 "\
+(fset 'mail-resolve-all-aliases-1 #[(sym) "À	!­‚	J‰«±ÃÄ«›ÇÈ\n#	\n	OB	­‚Ä•)ªbÊËŸ#	\nLˆ*)	J‡" [boundp sym definition nil 0 start result string-match "[ 	\n]*,[, 	\n]*" end mapconcat #[(x) "ÀÁ\n\"!®\n‡" [mail-resolve-all-aliases-1 intern-soft x mail-aliases] 4] mail-alias-separator-string] 5])
+(fset 'mail-abbrev-expand-hook #[nil "Š`À‰‰Åyˆ`bˆ­¹iY­³ÈÉÊ#­¬`ËuˆÌcˆÍ ˆ`Î ˆ`{ÀˆiV«Š	®ÏÑ ˆ)\nbˆªC-‡" [nil fp comma bol p 0 auto-fill-function fill-column search-backward "," t 1 "\n" delete-horizontal-space indent-relative "	" fill-prefix do-auto-fill] 4 "\
 For use as the fourth arg to define-abbrev.
-  After expanding a mail-abbrev, if fill-mode is on and we're past the 
+After expanding a mail-abbrev, if fill-mode is on and we're past the
 fill-column, break the line at the previous comma, and indent the next
 line."])
 (defvar mail-abbrev-mode-regexp "^\\(Resent-\\)?\\(To\\|From\\|CC\\|BCC\\):" "\
@@ -68,4 +68,10 @@ Prompt for and insert a mail alias." (byte-code "ÀÁ\nÃÄ$C‡" [completing-read "Ex
 Just like `next-line' (\\[next-line]) but expands abbrevs when at end of line." "p"])
 (fset 'abbrev-hacking-end-of-buffer #[(&optional arg) "ÀÁ!«ƒÂ ˆÃ!‡" [looking-at "[ 	]*\n" expand-abbrev end-of-buffer arg] 2 "\
 Just like `end-of-buffer' (\\[end-of-buffer]) but expands abbrevs when at end of line." "P"])
-(byte-code "À	ÂÃ#ˆÄÅ!ˆÆÇ!‡" [define-key mail-mode-map "" mail-interactive-insert-alias fmakunbound expand-mail-aliases provide mail-abbrevs] 4)
+(byte-code "À	ÂÃ#ˆÄÅ!‡" [define-key mail-mode-map "" mail-interactive-insert-alias provide mail-abbrevs] 4)
+(fset 'sendmail-v18-self-insert-command #[(arg) "zÁU¬…Â ˆÃÅ!‡" [last-command-char 119 sendmail-pre-abbrev-expand-hook nil abbrev-start-location self-insert-command arg] 2 "\
+Just like self-insert-command, but runs sendmail-pre-abbrev-expand-hook." "p"])
+(byte-code "ÀÁ!¬‚ÂÃÄM‡" [boundp mail-abbrevs-v18-map-munged nil mail-abbrevs-v18-munge-map #[nil "À ÁÂÆW«šA®ƒHÈ=«†ÉBBT‰ªbÊ!Ÿ¤+Ë‰‡" [current-global-map nil 0 i new-bindings global-map 128 mail-mode-map self-insert-command sendmail-v18-self-insert-command copy-keymap t mail-abbrevs-v18-map-munged] 4]] 2)
+(fset 'mail-aliases-setup-v18 #[nil "À	!¬’Â®ˆÄÅ!®Æ‰!«ƒÇ ˆ¬ƒÉ ˆÊ!ˆÌÍ!‡" [vectorp mail-aliases file-exists-p mail-abbrev-mailrc-file getenv "MAILRC" "~/.mailrc" build-mail-aliases mail-abbrevs-v18-map-munged mail-abbrevs-v18-munge-map use-local-map mail-mode-map abbrev-mode 1] 3 "\
+Put this on `mail-setup-hook' to use mail-abbrevs."])
+(byte-code "ÀÁ\n\"¬ˆÃÄ!«İ«ÚÅÆ!¬„ÆÇMˆÅÈ!¬…ÈÉKMˆÉÊMˆËÌMˆÅÍ!¬…ÍÎKMˆÎÏMˆÅĞ!«¡ĞK¢Ñ=«‰ÒĞKA@Ó\"ªÓ«ÅÔ!¬…ÔÕKMˆÕÖMˆØ=«‰Ù ˆª„ÚË!ˆÀ‡" [string-match "^18\\." emacs-version boundp epoch::version fboundp buffer-disable-undo buffer-flush-undo mail-abbrev-expand-hook-v19 mail-abbrev-expand-hook #[nil "Â )‡" [auto-fill-hook auto-fill-function mail-abbrev-expand-hook-v19] 1] expand-mail-aliases (lambda (&rest args) "Obsoleted by mail-abbrevs.  Does nothing." nil) mail-setup-v18 mail-setup #[(&rest args) "À ˆÁÂ\"‡" [mail-aliases-setup-v18 apply mail-setup-v18 args] 3] vm-mail autoload load t vm-mail-internal-v18 vm-mail-internal #[(&rest args) "À ˆÁÂ\"‡" [mail-aliases-setup-v18 apply vm-mail-internal-v18 args] 3] major-mode mail-mode mail-aliases-setup-v18 fmakunbound] 3)

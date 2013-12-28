@@ -15,8 +15,6 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(require 'vm)
-
 (defun vm-do-reply (to-all include-text count)
   (save-restriction
     (widen)
@@ -76,7 +74,6 @@
 	(setq mp (cdr mp)))
       (if vm-strip-reply-headers
 	  (let ((mail-use-rfc822 t))
-	    (require 'mail-utils)
 	    (and to (setq to (mail-strip-quoted-names to)))
 	    (and cc (setq cc (mail-strip-quoted-names cc)))))
       (setq to (vm-parse-addresses to)
@@ -85,7 +82,10 @@
 	  (setq to (vm-strip-ignored-addresses to)
 		cc (vm-strip-ignored-addresses cc)))
       (setq to (vm-delete-duplicates to))
-      (setq cc (vm-delete-duplicates cc))
+      (setq cc (vm-delete-duplicates
+		(append (vm-delete-duplicates cc)
+			to (copy-sequence to))
+		t))
       (and to (setq to (mapconcat 'identity to ",\n    ")))
       (and cc (setq cc (mapconcat 'identity cc ",\n    ")))
       (and (null to) (setq to cc cc nil))
@@ -127,7 +127,7 @@
 
 (defun vm-strip-ignored-addresses (addresses)
   (setq addresses (copy-sequence addresses))
-  (let (re-list list)
+  (let (re-list list addr-list)
     (setq re-list vm-reply-ignored-addresses)
     (while re-list
       (setq addr-list addresses)
@@ -294,11 +294,10 @@ as having been replied to, if appropriate."
       (let (prefix name n)
 	(if (not (= ?* (aref (buffer-name) 0)))
 	    (setq prefix (format "sent %s" (buffer-name)))
-	  (require 'mail-utils)
 	  (let (recipients)
 	    (cond ((not (zerop (length (setq recipients (mail-fetch-field "To"))))))
 		  ((not (zerop (length (setq recipients (mail-fetch-field "Cc"))))))
-		  (t (setq recipient "the horse with no name")))
+		  (t (setq recipients "the horse with no name")))
 	    (setq prefix (format "sent mail to %s" recipients))))
 	(setq name prefix n 1)
 	(while (get-buffer name)
@@ -462,38 +461,6 @@ must fill in the To: and Subject: headers manually."
     (local-set-key "\C-c\C-c" 'vm-mail-send-and-exit)
     (local-set-key "\C-cy" 'vm-yank-message-other-folder)))
 
-(defun vm-mail-internal
-     (&optional buffer-name to subject in-reply-to cc references newsgroups)
-  (switch-to-buffer (generate-new-buffer (or buffer-name "*VM-mail*")))
-  (auto-save-mode auto-save-default)
-  (mail-mode)
-  (if (fboundp 'mail-aliases-setup)
-      (mail-aliases-setup)
-    (if (eq mail-aliases t)
-	(progn
-	  (setq mail-aliases nil)
-	  (if (file-exists-p "~/.mailrc")
-	      (build-mail-aliases)))))
-  (insert "To: " (or to "") "\n")
-  (and cc (insert "Cc: " cc "\n"))
-  (insert "Subject: " (or subject "") "\n")
-  (and newsgroups (insert "Newsgroups: " newsgroups "\n"))
-  (and references (insert "References: " references "\n"))
-  (if mail-default-reply-to
-      (insert "Reply-to: " mail-default-reply-to "\n"))
-  (if mail-self-blind
-      (insert "Bcc: " (user-login-name) "\n"))
-  (if mail-archive-file-name
-      (insert "FCC: " mail-archive-file-name "\n"))
-  (if (not (zerop (length (user-full-name))))
-      (insert "Full-Name: " (user-full-name) "\n"))
-  (insert mail-header-separator "\n")
-  (if to
-      (goto-char (point-max))
-    (goto-char (point-min))
-    (end-of-line))
-  (run-hooks 'mail-setup-hook))
-
 (defun vm-resend-bounced-message ()
   "Extract the original text from a bounced message and resend it.
 You will be placed in a Mail mode buffer with the extracted message and
@@ -601,6 +568,10 @@ separated recipient list."
 	    (delete-region (point) (progn (forward-line 1) (point))))
 	  ;; indicate that this is a resend.  this should be all
 	  ;; that's needed, as sendmail will generate the rest.
+	  ;; But generate a Resent-From is the user is picky
+	  ;; about the From header.
+	  (if vm-mail-header-from
+	      (insert "Resent-From: " vm-mail-header-from "\n"))
 	  (insert "Resent-To: " (mapconcat 'identity recipient-list ", ") "\n")
 	  ;; delete all but pertinent headers
 	  (while (looking-at vm-generic-header-regexp)
@@ -700,19 +671,69 @@ only marked messages will be put into the digest."
       (end-of-line)
       (message "Building digest... done"))))
 
-(defun vm-continue-composing-message ()
+(defun vm-continue-composing-message (&optional not-picky)
   "Find and select the most recently used mail composition buffer.
-Non Mail mode buffers and unmodified Mail buffers are skipped.
-If no suitable buffer is found, the current buffer remains
-selected."
-  (interactive)
+If the selected buffer is already a Mail mode buffer then it is
+buried before beginning the search.  Non Mail mode buffers and
+unmodified Mail buffers are skipped.  Prefix arg means unmodified
+Mail mode buffers are not skipped.  If no suitable buffer is
+found, the current buffer remains selected."
+  (interactive "P")
   (if (eq major-mode 'mail-mode)
       (bury-buffer (current-buffer)))
-  (let ((blist (buffer-list)))
-    (while blist
-      (set-buffer (car blist))
-      (if (and (eq major-mode 'mail-mode)
-	       (buffer-modified-p))
-	  (progn (switch-to-buffer (car blist))
-		 (setq blist nil))
-	(setq blist (cdr blist))))))
+  (let ((b (vm-find-composition-buffer not-picky)))
+    (if (not (or (null b) (eq b (current-buffer))))
+	(switch-to-buffer b)
+      (message "No composition buffers found"))))
+
+(defun vm-find-composition-buffer (&optional not-picky)
+  (let ((b-list (buffer-list)) choice alternate)
+    (save-excursion
+     (while b-list
+       (set-buffer (car b-list))
+       (if (eq major-mode 'mail-mode)
+	   (if (buffer-modified-p)
+	       (setq choice (current-buffer)
+		     b-list nil)
+	     (and not-picky (null alternate)
+		  (setq alternate (current-buffer)))
+	     (setq b-list (cdr b-list)))
+	 (setq b-list (cdr b-list))))
+    (or choice alternate))))
+
+(defun vm-mail-internal
+     (&optional buffer-name to subject in-reply-to cc references newsgroups)
+  (set-buffer (generate-new-buffer (or buffer-name "*VM-mail*")))
+  (auto-save-mode auto-save-default)
+  (mail-mode)
+  (switch-to-buffer (current-buffer))
+  (if (fboundp 'mail-aliases-setup)
+      (mail-aliases-setup)
+    (if (eq mail-aliases t)
+	(progn
+	  (setq mail-aliases nil)
+	  (if (file-exists-p "~/.mailrc")
+	      (build-mail-aliases)))))
+  (if (stringp vm-mail-header-from)
+      (insert "From: " vm-mail-header-from "\n"))
+  (insert "To: " (or to "") "\n")
+  (and cc (insert "Cc: " cc "\n"))
+  (insert "Subject: " (or subject "") "\n")
+  (and newsgroups (insert "Newsgroups: " newsgroups "\n"))
+  (and in-reply-to (insert "In-Reply-To: " in-reply-to "\n"))
+  (and references (insert "References: " references "\n"))
+  (if mail-default-reply-to
+      (insert "Reply-To: " mail-default-reply-to "\n"))
+  (if mail-self-blind
+      (insert "Bcc: " (user-login-name) "\n"))
+  (if mail-archive-file-name
+      (insert "FCC: " mail-archive-file-name "\n"))
+  (insert mail-header-separator "\n")
+  (save-excursion (vm-set-window-configuration 'composing-message))
+  (if to
+      (goto-char (point-max))
+    (mail-position-on-field "To"))
+  (run-hooks 'mail-setup-hook))
+
+(require 'mail-utils)
+(require 'sendmail)

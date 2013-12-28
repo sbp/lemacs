@@ -527,6 +527,13 @@ Interactively you are prompted with the current buffer's file name for NEW
 and what appears to be it's backup for OLD."
   t)
 
+(defvar diff-switches nil "\
+*A list of switches to pass to the diff program.")
+
+(defvar kill-emacs-hook nil "\
+A list of functions (of no args) for `kill-emacs' to call before emacs is
+actually killed.")
+
 (autoload 'holidays "calendar"
   "\
 Display the holidays for last month, this month, and next month.
@@ -820,38 +827,6 @@ with no args, if that value is non-nil.
 \\{fortran-mode-map}"
   t)
 
-(autoload 'ftp-find-file "ftp"
-  "\
-FTP to HOST to get FILE, logging in as USER with password PASSWORD.
-Interactively, HOST and FILE are specified by reading a string with
- a colon character separating the host from the filename.
-USER and PASSWORD are defaulted from the values used when
- last ftping from HOST (unless password-remembering is disabled).
- Supply a password of the symbol `t' to override this default
- (interactively, this is done by giving a prefix arg)"
-  t)
-
-(autoload 'ftp-list-directory "ftp"
-  "\
-FTP to HOST to list DIRECTORY, logging in as USER with password PASSWORD.
-Interactively, HOST and FILE are specified by reading a string with
- a colon character separating the host from the filename.
-USER and PASSWORD are defaulted from the values used when
- last ftping from HOST (unless password-remembering is disabled).
- Supply a password of the symbol `t' to override this default
- (interactively, this is done by giving a prefix arg)"
-  t)
-
-(autoload 'ftp-write-file "ftp"
-  "\
-FTP to HOST to write FILE, logging in as USER with password PASSWORD.
-Interactively, HOST and FILE are specified by reading a string with colon
-separating the host from the filename.
-USER and PASSWORD are defaulted from the values used when
- last ftping from HOST (unless password-remembering is disabled).
- Supply a password of the symbol `t' to override this default
- (interactively, this is done by giving a prefix arg)"
-  t)
 
 (autoload 'gdb "gdb"
   "\
@@ -1361,15 +1336,42 @@ and the value of the environment variable MAIL overrides it).")
 
 ;;; Others are in paths.el.
 
-(autoload 'run-at-time "timer"
+
+(autoload 'start-timer "timer"
   "\
-Run a function at a time, and optionally on a regular interval.
-Arguments are TIME, REPEAT, FUNCTION &rest ARGS.
-TIME, a string,  can be specified absolutely or relative to now.
-REPEAT, an integer number of seconds, is the interval on which to repeat
-the call to the function."
+Start a timer.
+Args are NAME, FUNCTION, VALUE &optional RESTART.
+NAME is an identifier for the timer.  It must be a string.  If a timer
+  already exists with this name, NAME will be modified slightly to until
+  it is unique.
+FUNCTION should be a function (or symbol naming one) of no arguments.  It
+  will be called each time the timer expires.  The function can access
+  timer that invoked it through the variable `current-timer'.
+VALUE is the number of seconds until this timer expires.
+Optional fourth arg RESTART non-nil means that this timer should be
+  restarted automatically after its function is called.  Normally a timer
+  is deleted at expiration after its function has returned. 
+  If non-nil RESTART should be a number indicating the value at which the
+  timer should be set at restart time.
+Returns the newly created timer."
   t)
 
+(defvar auto-save-timeout 30 "\
+*Number of seconds idle time before auto-save.
+Zero or nil means disable auto-saving due to idleness.
+
+The actual amount of idle time between auto-saves is logarithmically related
+to the size of the current buffer.  This variable is the number of seconds
+after which an auto-save will happen when the current buffer is 50k or less;
+the timeout will be 2 1/4 times this in a 200k buffer, 3 3/4 times this in a
+1000k buffer, and 4 1/2 times this in a 2000k buffer.
+
+For this variable to have any effect, you must do (require 'timer).
+
+See also the variable `auto-save-interval', which controls auto-saving based
+on the number of characters typed.")
+
+
 (autoload 'run-scheme "xscheme"
   "\
 Run an inferior Scheme process.
@@ -1506,6 +1508,10 @@ C-c C-q  mail-fill-yanked-message (fill what was yanked)."
 *If non-nil, use a full, hairy RFC822 parser on mail addresses.
 Otherwise, (the default) use a smaller, somewhat faster and
 often-correct parser.")
+
+(autoload 'feedmail-send-it "feedmail" "\
+Replacement for sendmail-send-it.  Do this to use it:
+\(setq send-mail-function 'feedmail-send-it)")
 
 
 (autoload 'server-start "server"
@@ -2124,6 +2130,11 @@ Zippy goes to the analyst." t)
 (define-key esc-map ")" 'move-past-close-and-reindent)
 (define-key esc-map "\t" 'lisp-complete-symbol)
 
+(define-key esc-map '(control delete) 'backward-kill-sexp)
+
+(define-key global-map '(control <) 'mark-bob)
+(define-key global-map '(control >) 'mark-eob)
+
 (define-key ctl-x-map "\C-e" 'eval-last-sexp)
 
 (define-key ctl-x-map "/" 'point-to-register)
@@ -2133,7 +2144,7 @@ Zippy goes to the analyst." t)
 (define-key ctl-x-map "r" 'copy-rectangle-to-register)
 
 (define-key esc-map "q" 'fill-paragraph)
-;; (define-key esc-map "g" 'fill-region)
+(define-key esc-map "g" 'fill-region)
 (define-key ctl-x-map "." 'set-fill-prefix)
 
 (define-key esc-map "[" 'backward-paragraph)
@@ -2151,6 +2162,16 @@ Zippy goes to the analyst." t)
 (define-key ctl-x-map "p" 'narrow-to-page)
 (put 'narrow-to-page 'disabled t)
 (define-key ctl-x-map "l" 'count-lines-page)
+
+;; Make Control-0 - Control-9 set the prefix argument, like Meta-0.
+(let ((i ?0))
+  (while (<= i ?9)
+    (define-key global-map (list 'control i) 'digit-argument)
+    (define-key global-map (list 'control 'meta i) 'digit-argument)
+    (setq i (1+ i))))
+(define-key global-map '(control -) 'negative-argument)
+(define-key global-map '(control meta -) 'negative-argument)
+
 
 (defun isearch-forward ()
   "\
@@ -2549,19 +2570,18 @@ visited folder."
 Send a mail message from within View Mail, or from without."
   t)
 
-(autoload 'webster "webster-ucb"
+(autoload 'webster "webster"
    "\
 Look up a word in Webster's 7th edition"
    t)
-(autoload 'webster-spell "webster-ucb"
+(autoload 'webster-spell "webster"
    "\
 Search for an approximately-spelled word in Webster's 7th edition"
    t)
-(autoload 'webster-endings "webster-ucb"
+(autoload 'webster-endings "webster"
    "\
 Search for a word in Webster's 7th edition that begins with a certain prefix"
    t)
-(setq webster-host "thalidomide")
 
 (autoload 'postscript-mode "postscript"
   "\

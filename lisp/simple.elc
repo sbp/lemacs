@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Thu Feb 20 19:34:24 1992
+;;; compiled by jwz@thalidomide on Wed May 20 12:10:38 1992
 ;;; from file /u/jwz/emacs19/lisp/simple.el
-;;; emacs version 19.60 Lucid.
-;;; bytecomp version 2.04; 5-feb-92.
+;;; emacs version 19.0.17 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -69,6 +69,12 @@ Move point to the end of the buffer; leave mark at previous position.
 With arg N, put point N/10 of the way from the true end.
 Don't use this in Lisp programs!
 (goto-char (point-max)) is faster and avoids clobbering the mark." "P"])
+(fset 'mark-bob #[(&optional arg) "À	«œÂ ÃV«ŠÄ	!Â Å¥_ªÂ Ä	!_Å\\Å¥ªe!ˆÆ ‡" [push-mark arg buffer-size 10000 prefix-numeric-value 10 zmacs-activate-region] 4 "\
+Push a mark at the beginning of the buffer; leave point where it is.
+With arg N, push mark N/10 of the way from the true beginning." "P"])
+(fset 'mark-eob #[(&optional arg) "À	«žÂ TÂ ÃV«ŠÄ	!Â Å¥_ªˆÂ Ä	!_Å¥Zªd!ˆÆ ‡" [push-mark arg buffer-size 10000 prefix-numeric-value 10 zmacs-activate-region] 5 "\
+Push a mark at the end of the buffer; leave point where it is.
+With arg N, push mark N/10 of the way from the true end." "P"])
 (fset 'mark-whole-buffer #[nil "À`!ˆÀd!ˆebˆÁ ‡" [push-mark zmacs-activate-region] 2 "\
 Put point at beginning and mark at end of buffer." nil])
 (fset 'eval-current-buffer #[nil "Àp!‡" [eval-buffer] 2 "\
@@ -128,14 +134,13 @@ Undo back N undo-boundaries beyond what was already undone recently.
 Call undo-start to get ready to undo recent changes,
 then call undo-more one or more times to undo them."])
 (byte-code "ÀÁ!¬‚ÂÀÃ!¬‚ÂÀ‡" [boundp last-shell-command "" last-shell-command-on-region] 2)
-(fset 'shell-command #[(command &optional flag) "«•Á ˆÂ ˆÃÅÆÅÇ&ˆÉÆ!‡Ê ÌŽÍÎ\"«ÚÏÐ!ÅÕ‰”OÖ!‰«×Ø!«‡Ù!ˆª„ÚÛ!ˆŠqˆÜ ˆÝ!ˆÞßÇ%à!âã\"ˆäå\",ª‡æ``Å$*‡" [flag barf-if-buffer-read-only push-mark call-process shell-file-name nil t "-c" command exchange-point-and-mark match-data data ((store-match-data data)) string-match "[ 	]*&[ 	]*$" get-buffer-create "*shell-command*" default-directory proc directory buffer 0 get-buffer-process yes-or-no-p "A command is running.  Kill it? " kill-process error "Shell command in progress" erase-buffer display-buffer start-process "Shell" (": %s") mode-line-process set-process-sentinel shell-command-sentinel set-process-filter shell-command-filter shell-command-on-region] 8 "\
+(fset 'shell-command #[(command &optional flag) "«•Á ˆÂ ˆÃÅÆÅÇ&ˆÉÆ!‡Ê ÌŽÍÎ\"«ŽÏÐ!ˆÐÑ‰”O!ª‡Ò``Å$*‡" [flag barf-if-buffer-read-only push-mark call-process shell-file-name nil t "-c" command exchange-point-and-mark match-data data ((store-match-data data)) string-match "[ 	]*&[ 	]*$" require background 0 shell-command-on-region] 7 "\
 Execute string COMMAND in inferior shell; display output, if any.
 If COMMAND ends in ampersand, execute it asynchronously.
  
 Optional second arg non-nil (prefix arg, if interactive)
 means insert output in current buffer after point (leave mark after it).
 This cannot be done asynchronously." (byte-code "ÀÁ\n\"D‡" [read-string "Shell command: " last-shell-command current-prefix-arg] 3)])
-(byte-code "ÀÁMˆÂÃM‡" [shell-command-sentinel #[(process signal) "À	!Â>­œÃÄÅ	!AA@ÇÈO#ˆŠÉ	!qˆÊ)Ì	!‡" [process-status process (exit signal) message "%s: %s." process-command signal 0 -1 process-buffer nil mode-line-process delete-process] 6] shell-command-filter #[(proc string) "pÁ\n!ÄÆ!È!	ÊŽqˆ`dbˆË!.‡" [obuf process-buffer proc buffer nil opoint get-buffer-window window window-start pos ((byte-code "À	\n\"ˆbˆq‡" [set-window-start window pos opoint obuf] 3)) insert-before-markers string] 2]] 2)
 (fset 'shell-command-on-region #[(start end command &optional flag interactive) "«²	­„`Â W	«ƒÄ ˆÅÉ‰ÊË&ˆÍÎ!«„ÏÎ!ˆ	­†­ƒÐÉ!)‡ÑÎ!ŠqˆÓ ˆ)p=«†ÔÔÅÊÊË&ˆŠqˆÕ ÖU«ƒÖª„×ed\")‰ÖU«‰ÙÚ!ˆÏÎ!ª¡ÔU«”ÙÛŠqˆebˆ`Êˆ`{)\"ª‡ÜÝ!Ô\"*‡" [flag interactive mark swap push-mark call-process-region start end shell-file-name t nil "-c" command get-buffer "*Shell Command Output*" kill-buffer exchange-point-and-mark get-buffer-create buffer erase-buffer 1 buffer-size 0 count-lines lines message "(Shell command completed with no output)" "%s" set-window-start display-buffer] 10 "\
 Execute string COMMAND in inferior shell with region as input.
 Normally display output (if any) in temp buffer `*Shell Command Output*';
@@ -181,7 +186,7 @@ The tail of the kill ring whose car is the last thing yanked.")
 Kill between point and mark.
 The text is deleted but saved in the kill ring.
 The command \\[yank] can retrieve it from there.
-(If you want to kill and then yank immediately, use \\[copy-region-as-kill].)
+(If you want to kill and then yank immediately, use \\[kill-ring-save].)
 
 This is the primitive for programs to kill text (as opposed to deleting it).
 Supply two arguments, character numbers indicating the stretch of text

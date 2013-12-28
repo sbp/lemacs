@@ -1,0 +1,144 @@
+
+ Even a		Master of	Arts		Comes 		Simpler
+ Emacs		Manuals		Are 		Cryptic and	Surreal
+ Energetic	Merchants	Always		Cultivate	Sales
+ Each		Manual's	Audience is	Completely	Stupified
+ Emacs		Means		A		Crappy		Screen
+ Eventually	Munches		All		Computer	Storage
+ Even 		My 		Aunt		Crashes the	System
+ Eradication of	Memory		Accomplished with Complete	Simplicity
+ Elsewhere	Maybe		Alternative	Civilizations	Survive
+ Egregious	Managers	Actively	Court		Stallman
+ Esoteric	Malleability	Always		Considered	Silly
+ Emacs		Manuals		Always		Cause		Senility
+ Easily		Maintained with the  Assistance of  Chemical	Solutions
+ EMACS		MACRO		ACTED		CREDO		SODOM
+ Edwardian	Manifestation of  All		Colonial	Sins
+ Extended	Macros		Are		Considered	Superfluous
+ Every		Macro		Accelerates	Creation of	Software
+ Emacs				Allows		Customised	Screwups
+ Excellent	Manuals		Are		Clearly		Suppressed
+ Emetic		Macros		Assault		Core and	Segmentation
+ Embarrassed	Manual-Writer	Accused of	Communist	Subversion
+ Extensibilty and Modifiability	Aggravate	Confirmed	Simpletons
+ Emacs		May		Annihilate	Command		Structures
+ Easily		Mangles,	Aborts,		Crashes and	Stupifies
+ Extraneous	Macros		And		Commands	Stink
+ Exceptionally	Mediocre	Algorithm for	Computer	Scientists
+ EMACS		Makes no	Allowances	Considering its	Stiff price
+ Equine		Mammals		Are		Considerably	Smaller
+ Embarrasingly	Mundane		Advertising	Cuts		Sales
+ Every		Moron		Assumes		CCA is		Superior
+ Exceptionally	Mediocre	Autocratic	Control		System
+ EMACS		May		Alienate	Clients and	Supporters
+ Excavating	Mayan		Architecture	Comes		Simpler
+ Erasing 	Minds		Allows 		Complete	Submission
+ Every		Male		Adolescent	Craves		Sex
+ Elephantine	Memory		Absolutely	Considered	Sine que non
+ Emacs 		Makers		Are		Crazy		Sickos
+ Eenie-Meenie-Miney-Mo-	Macros	Are		Completely	Slow
+ Experience the	Mildest		Ad		Campaign ever	Seen
+ Emacs		Makefiles	Annihilate	C-		Shells
+ Eradication of	Memory		Accomplished with Complete	Simplicity
+ Emetic		Macros		Assault		Core and	Segmentation
+ Epileptic	MLisp		Aggravates	Compiler	Seizures
+ Eleven thousand Monkeys	Asynchronously	Crank out these	Slogans
+ Evenings,	Mornings,	And a 		Couple of	Saturdays
+ Emacs		Makes		All 		Computing 	Simple
+ Emacs		Makes		All 		Computers 	Slow
+ Evil		Manifestation	Also		Called		Satan
+ Eats		Memory		And		Compromises	Security
+ Eventually	Mallocs		All		Computer	Storage
+ Eight		Megs		And		Continuous	Swapping
+ Escape		Meta		Alt		Control		Shift
+ Eerie		Men		Acting		Computer	Science
+ Emacs		Means		A		Crummy		Screen
+ Ego		Maniacs		Addicted to	Control		Sequences
+ Easy		Man's		Advanced	Consciousness	System 
+
+From <sys/errno.h>:
+
+ #define ENOSR		74		/* Out of streams resources */
+ #define ENOMSG		75		/* No message of desired type */
+ #define EMACS		76		/* Editor too large */
+
+--- And other descendants:
+
+ GNU's		Not 	Unix
+ Mince		Is	Not a	Complete	Emacs
+ Fine		Is	Not	Emacs
+ Thief		Isn't	Even	Fine
+ Eine		Is	Not	Emacs
+ Zwei		Was	Eine	Initially
+ Drei -		Really	Emacs	Inside
+ Sine		is	Not	Eine
+ Generally	Not	Used	Except by	Aged	Computer   Scientists
+ Elle		Looks	Like	Emacs
+
+-----------------------
+> From: ncramer@bbn.com (Nichael Cramer)
+> Subject: Re: Emacs
+> Date: 19 Jan 90 14:54:58 PST  (19 Jan 90 22:54:58 GMT)
+> Organization: Bolt Beranek and Newman Inc., Cambridge MA
+> 
+> For a Previous Employer, I had to write an easily-usable-by-VMS-and-other-
+> business-weenies editor (that ran on the Lispm) which was named: DRIE
+> 
+> DRIE Really Isn't EDT
+> 
+> (...and, yes, I know it isn't spelled right.)
+
+-----------------------
+> From: wdh@well.UUCP (Bill Hofmann)
+> Subject: Re: Emacs
+> Date: 23 Jan 90 20:52:15 PST  (24 Jan 90 04:52:15 GMT)
+> Organization: Whole Earth 'Lectronic Link, Sausalito, CA
+> 
+> I'd believe that excruciatingly detailed history of EMACS.
+> However, I think that the influence of ice cream on computer systems,
+> especially around MIT, can't be underestimated.  EMACS was the text editor,
+> and the document formatter was known as BOLIO.  Now, at the time, one of
+> the better known premium ice cream places was Emac and Bolio's.  Let's not
+> forget mixins in Lisp Machine Lisp (or flavors)....
+> 
+> =Bill=
+
+-----------------------
+> From: nhess@dvlseq.oracle.com (Nate Hess)
+> Subject: Re: Emacs
+> Date: 01 Feb 90 19:08:10 PST  (2 Feb 90 03:08:10 GMT)
+>
+> % ls -l /usr/local/bin/gnu/emacs /usr/ucb/vi /bin/ed /bin/cat
+> -rwxr-xr-x  1 nhess     1350975 Jan 20 18:18 /usr/local/bin/gnu/emacs
+> -rwxr-xr-x  6 root       155648 Nov 16  1988 /usr/ucb/vi
+> -rwxr-xr-x  1 root        40960 Nov 16  1988 /bin/ed
+> -rwxr-xr-x  1 root         9476 Nov 16  1988 /bin/cat
+>
+> It just keeps getting better and better, or worse and worse, depending
+> on how you look at it.
+
+-----------------------
+> From: rlk@think.com (Robert Krawitz)
+> Subject: Re: Emacs
+> Date: 02 Feb 90 14:30:50 PST  (2 Feb 90 22:30:50 GMT)
+> 
+> Well, there's always
+> 
+> % ls -l /usr/bin/adb
+> -rwxr-xr-x  1 root       114688 May 25  1989 /usr/bin/adb
+> 
+> (emacs can't yet edit something the size of a decent filesystem).
+
+-----------------------
+> From: igb@fulcrum.bt.co.uk (Ian G Batten)
+> Subject: Re: Cryptic comments
+> Date: 02 Feb 90 04:39:31 PST  (2 Feb 90 12:39:31 GMT)
+> 
+> As barmar confirmed, many of the comments in Multics' Emacs by Bernie
+> Greenberg were in Latin.  Most of the code was as well:
+> 
+> 	(buffer-est-delenda-p ...)
+> 
+> and all the fenestra code.  Plus jeter-les-gazongas!
+> 
+> ian

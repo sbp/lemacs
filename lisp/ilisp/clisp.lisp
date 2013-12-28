@@ -1,75 +1,69 @@
 ;;;
 ;;; Common Lisp initializations 
-;;; Edit-History:
-;;;
 ;;; Author: Chris McConnell, ccm@cs.cmu.edu
-;;; 30-Oct-91 mm: LCL3.0 special case does not apply to LCL4.0
-;;;               send sexp (not value of sexp) to DESCRIBE in LCL4.0
 ;;;
-;;; End-of-Edit-History
-;;;
-(in-package 'user)
+#+allegro-v4.0 (setq excl:*cltl1-in-package-compatibility-p* t)
+(in-package "ILISP" :use '("LISP"))
 
 ;;;
-(defvar *ilisp-old-result* nil)
+(defvar *ilisp-old-result* nil "Used for save/restore of top level values.")
 
 ;;;
-(eval-when (load compile eval)
-  (unless (find-package 'pcl)
-    (make-package 'pcl)))
+(defmacro ilisp-handler-case (expression &rest handlers)
+  "Evaluate EXPRESSION using HANDLERS to handle errors."
+  handlers
+  (if (macro-function 'handler-case)
+      `(handler-case ,expression ,@handlers)
+      #+allegro `(excl::handler-case ,expression ,@handlers)
+      #+lucid `(lucid::handler-case ,expression ,@handlers)
+      #-(or allegro lucid) expression))
 
 ;;;
-(unless (macro-function 'handler-case)
-  (defmacro handler-case (expression &rest handlers)
-    "Evaluate EXPRESSION using HANDLERS to handle errors."
-    handlers
-    #+allegro `(excl::handler-case ,expression ,@handlers)
-    #+lucid `(lucid::handler-case ,expression ,@handlers)
-    #-(or allegro lucid) expression))
-
-;;;
-(unless (fboundp 'readtable-case)
-  #+allegro (defun readtable-case (readtable)
-	      readtable
-	      (case *current-case-mode*
-		(:case-insensitive-upper :upcase)
-		(:case-insensitive-lower :downcase)
-		(otherwise :preserve)))
-  #-allegro (defun readtable-case (readtable) readtable :upcase))
+(defun ilisp-readtable-case (readtable)
+  (if (fboundp 'readtable-case)
+      (funcall 'readtable-case readtable)
+      #+allegro (case excl:*current-case-mode*
+		  (:case-insensitive-upper :upcase)
+		  (:case-insensitive-lower :downcase)
+		  (otherwise :preserve))
+      #-allegro :upcase))
 
 ;;;
 (defmacro ilisp-errors (form)
   "Handle errors when evaluating FORM."
-  `(progn
+  `(let ((*standard-output* *terminal-io*)
+	 (*error-output* *terminal-io*))
      (princ " ")			;Make sure we have output
-     (handler-case
+     (ilisp-handler-case
       ,form	
       (error (error)
-	     error
-	     #+allegro (excl::condition-report error t)
-	     #+lucid (lucid::condition-report error t)
-	     #+cmu (conditions::condition-report error t)
-	     nil))))
-     
+       (with-output-to-string (string)
+	 (format string "ILISP: ~A" error))))))
+
 ;;;
 (defun ilisp-save ()
   "Save the current state of the result history."
+  (declare (special / // /// + ++ +++))
   (unless *ilisp-old-result*
-    (setq *ilisp-old-result* (list /// // /))))
+    (setq *ilisp-old-result* (list /// // +++ ++ + /))))
 
 ;;;
 (defun ilisp-restore ()
   "Restore the old result history."
+  (declare (special / // /// + ++ +++ * ** -))
   (setq // (pop *ilisp-old-result*)
 	** (first //)
 	/  (pop *ilisp-old-result*)
-	*  (first /))
+	*  (first /)
+	++  (pop *ilisp-old-result*)
+	+   (pop *ilisp-old-result*)
+	-   (pop *ilisp-old-result*))
   (values-list (pop *ilisp-old-result*)))
   
 ;;;
 (defun ilisp-symbol-name (symbol-name)
   "Return SYMBOL-NAME with the appropriate case as a symbol."
-  (case (readtable-case *readtable*)
+  (case (ilisp-readtable-case *readtable*)
     (:upcase (string-upcase symbol-name))
     (:downcase (string-downcase symbol-name))
     (:preserve symbol-name)))
@@ -80,7 +74,7 @@
   (if (string-equal package-name "nil")
       *package*
       (or (find-package (ilisp-symbol-name package-name))
-	  (error "Package not found"))))
+	  (error "Package ~A not found" package-name))))
 
 ;;;
 (defun ilisp-find-symbol (symbol-name package-name)
@@ -96,7 +90,11 @@ handle case issues intelligently."
   (let* ((*package* (ilisp-find-package package))
 	 #+allegro (excl::*source-pathname* filename)
 	 #+allegro (excl::*redefinition-warnings* nil)
-	 #+lucid (lucid::*source-pathname* (truename filename))
+	 #+lucid (lucid::*source-pathname*
+		  (if (probe-file filename)
+		      (truename filename)
+		      (merge-pathnames filename)))
+	 #+lucid (lucid::*redefinition-action* nil)
 	 )
     filename
     (eval (read-from-string form))))
@@ -106,36 +104,50 @@ handle case issues intelligently."
   "Compile FORM in PACKAGE recording FILENAME as the source file."
   (princ " ")
   ;; This makes sure that function forms are compiled
+  #-lucid
+  (ilisp-eval
+    (format nil "(funcall (compile nil '(lisp:lambda () ~A)))"
+	    form)
+    package
+    filename)
+  #+lucid
   (labels ((compiler (form env)
 	     (if (and (consp form)
 		      (eq (first form) 'function)
 		      (consp (second form)))
-		 #+(or (not LCL3.0) lcl4.0)
+		 #-LCL3.0
 		 (evalhook `(compile nil ,form) nil nil env)
-		 #+(and LCL3.0 (not lcl4.0))
+		 #+LCL3.0
 		 ;; If we have just compiled a named-lambda, and the
 		 ;; name didn't make it in to the procedure object,
 		 ;; then stuff the appropriate symbol in to the
 		 ;; procedure object.
 		 (let* ((proc (evalhook `(compile nil ,form) nil nil env))
+			(old-name (and proc (sys:procedure-ref proc 1)))
 			(lambda (second form))
 			(name (and (eq (first lambda) 'lucid::named-lambda)
 				   (second lambda))))
-		   (when (and proc (null (lucid::procedure-name proc)))
-		     (setf (lucid::procedure-name proc) name))
+		   (when (or (null old-name)
+			     (and (listp old-name) (eq :internal (car old-name))))
+		     (setf (sys:procedure-ref proc 1) name))
 		   proc)
 		 (evalhook form #'compiler nil env))))
-    (let ((*evalhook* #'compiler))
-      (ilisp-eval form package filename))))
+	  (let ((*evalhook* #'compiler))
+	    (ilisp-eval form package filename))))
 
 ;;;
 (defun ilisp-describe (sexp package)
   "Describe SEXP in PACKAGE."
   (ilisp-errors
    (let ((*package* (ilisp-find-package package)))
-     #-LCL4.0(describe (eval (read-from-string sexp)))
-     #+LCL4.0(describe (read-from-string sexp))
-	)))
+     (describe (eval (read-from-string sexp))))))
+
+;;;
+(defun ilisp-inspect (sexp package)
+  "Inspect SEXP in PACKAGE."
+  (ilisp-errors
+   (let ((*package* (ilisp-find-package package)))
+     (inspect (eval (read-from-string sexp))))))
 
 ;;;
 (defun ilisp-arglist (symbol package)
@@ -143,12 +155,19 @@ handle case issues intelligently."
   (ilisp-errors
    (let ((real-symbol (ilisp-find-symbol symbol package))
 	 (*print-length* nil)
-	 (*print-level* nil))
+	 (*print-level* nil)
+	 (*package* (ilisp-find-package package)))
      (if (and real-symbol (fboundp real-symbol))
-	 (pprint (let ((function (symbol-function real-symbol)))
-		   (if (and (fboundp 'pcl::generic-function-p)
-			    (pcl::generic-function-p function))
-		       (pcl::generic-function-pretty-arglist function)
+	 (pprint (let* ((function (symbol-function real-symbol))
+			(generic-p
+			 (find-symbol "GENERIC-FUNCTION-P"
+				      (or (find-package "PCL")
+					  *package*))))
+		   (if (and (fboundp generic-p) (funcall generic-p function))
+		       (funcall
+			(find-symbol "GENERIC-FUNCTION-PRETTY-ARGLIST"
+				     (or (find-package "PCL") *package*))
+			function)
 		       #+allegro (excl::arglist real-symbol)
 		       #+lucid (lucid::arglist real-symbol)
 		       #+(or ibcl kcl) (help real-symbol)
@@ -169,18 +188,27 @@ handle case issues intelligently."
 		    (ilisp-find-symbol type package))))
      (when (listp type)
        (setq real-symbol
-	     (find-method (symbol-function real-symbol)
-			  (reverse
-			   (let ((quals nil))
-			     (dolist (entry type quals)
-			       (if (listp entry)
-				   (return quals)
-				   (setq quals (cons entry quals))))))
-			  (reverse
-			   (let ((types nil))
-			     (dolist (class (first (last type)) types)
-			       (setq types
-				     (cons (find-class class) types))))))))
+	     (funcall
+	      (find-symbol "FIND-METHOD" (or (find-package "CLOS")
+					     (find-package "PCL")
+					     *package*))
+	      (symbol-function real-symbol)
+	      (reverse
+	       (let ((quals nil))
+		 (dolist (entry type quals)
+		   (if (listp entry)
+		       (return quals)
+		       (setq quals (cons entry quals))))))
+	      (reverse
+	       (let ((types nil))
+		 (dolist (class (first (last type)) types)
+		   (setq types
+			 (cons (funcall
+				(find-symbol "FIND-CLASS"
+					     (or (find-package "CLOS")
+						 (find-package "PCL")
+						 *package*))
+				class) types))))))))
      (if real-symbol
 	 (if (symbolp real-symbol)
 	     (documentation real-symbol type)
@@ -196,7 +224,8 @@ macro."
    (let ((*print-length* nil)
 	 (*print-level* nil)
 	 (*package* (ilisp-find-package package)))
-     (pprint (macroexpand (read-from-string expression))))))
+     (pprint (#-allegro macroexpand #+allegro excl::walk
+			(read-from-string expression))))))
 
 ;;;
 (defun ilisp-macroexpand-1 (expression package)
@@ -247,6 +276,47 @@ continuing with the last case beyond the end."
 	    (map 'string case (subseq string (length pattern))))))))
 
 ;;;
+(defun ilisp-words (string)
+  "Return STRING broken up into words.  Each word is (start end
+delimiter)."
+  (do* ((length (length string))
+	(start 0)
+	(end t)
+	(words nil))
+       ((null end) (nreverse words))
+    (if (setq end (position-if-not #'alphanumericp string :start start))
+	(setq words (cons (list end (1+ end) t)
+			  (if (= start end)
+			      words
+			      (cons (list start end nil) words)))
+	      start (1+ end))
+	(setq words (cons (list start length nil) words)))))
+
+;;;
+(defun ilisp-match-words (string pattern words)
+  "Match STRING to PATTERN using WORDS."
+  (do* ((strlen (length string))
+	(words words (cdr words))
+	(word (first words) (first words))
+	(start1 (first word) (first word))
+	(end1 (second word) (second word))
+	(delimiter (third word) (third word))
+	(len (- end1 start1) (and word (- end1 start1)))
+	(start2 0)
+	(end2 len))
+       ((or (null word) (null start2)) start2)
+    (setq end2 (+ start2 len)
+	  start2
+	  (if delimiter
+	      (position (elt pattern start1) string :start start2)
+	      (when (and (<= end2 strlen)
+			 (string= pattern string
+				  :start1 start1 :end1 end1
+				  :start2 start2 :end2 end2))
+		(1- end2))))
+    (when start2 (incf start2))))
+
+;;;
 (defun ilisp-matching-symbols (string package &optional (function-p nil)
 				      (external-p nil)
 				      (prefix-p nil))
@@ -259,7 +329,7 @@ original string."
   (ilisp-errors
    (let* ((lower-p (notany #'upper-case-p string))
 	  (upper-p (notany #'lower-case-p string))
-	  (no-casify (eq (readtable-case *readtable*) :preserve))
+	  (no-casify (eq (ilisp-readtable-case *readtable*) :preserve))
 	  (symbol-string (ilisp-symbol-name string))
 	  (length (length string))
 	  (results nil)
@@ -277,48 +347,11 @@ original string."
 				name
 				(ilisp-casify pattern name lower-p upper-p)))
 		      results))))
-	  ;; Break up STRING by non-alphanumerics
-	  (words (string)
-	    (do* ((length (length string))
-		  (start 0)
-		  (end t)
-		  (words nil))
-		 ((null end) (nreverse words))
-	      (if (setq end (position-if-not #'alphanumericp string
-					     :start start))
-		  (setq words (cons (list end (1+ end) t)
-				    (if (= start end)
-					words
-					(cons (list start end nil) words)))
-			start (1+ end))
-		  (setq words (cons (list start length nil) words)))))
-	  ;; Match STRING to PATTERN using WORDS
-	  (match-words (string pattern words)
-	    (do* ((strlen (length string))
-		  (words words (cdr words))
-		  (word (first words) (first words))
-		  (start1 (first word) (first word))
-		  (end1 (second word) (second word))
-		  (delimiter (third word) (third word))
-		  (len (- end1 start1) (and word (- end1 start1)))
-		  (start2 0)
-		  (end2 len))
-		 ((or (null word) (null start2)) start2)
-	      (setq end2 (+ start2 len)
-		    start2
-		    (if delimiter
-			(position (elt pattern start1) string :start start2)
-			(when (and (< end2 strlen)
-				   (string= pattern string
-					    :start1 start1 :end1 end1
-					    :start2 start2 :end2 end2))
-			  (1- end2))))
-	      (when start2 (incf start2))))
 	  ;; Check SYMBOL against PATTERN using WORDS 
 	  (check-symbol2 (symbol pattern words)
 	    (let ((name (symbol-name symbol)))
 	      (when (and (or (not function-p) (fboundp symbol))
-			 (match-words name pattern words))
+			 (ilisp-match-words name pattern words))
 		(push (list (if no-casify
 				name
 				(ilisp-casify pattern name lower-p upper-p)))
@@ -326,39 +359,40 @@ original string."
        (if external-p
 	   (do-external-symbols (symbol *package*)
 	     (check-symbol symbol symbol-string))
-	   ;; KCL does not go over used symbols.
-	   #+(or kcl ibcl)
-	   (dolist (used-package (package-use-list *package*))
-	     (do-external-symbols (symbol used-package)
-	       (check-symbol symbol symbol-string)))
-	   #-(or kcl ibcl)
-	   (do-symbols (symbol *package*)
-	     (check-symbol symbol symbol-string)))
+	   (progn
+	     ;; KCL does not go over used symbols.
+	     #+(or kcl ibcl)
+	     (dolist (used-package (package-use-list *package*))
+	       (do-external-symbols (symbol used-package)
+		 (check-symbol symbol symbol-string)))
+	     (do-symbols (symbol *package*)
+	       (check-symbol symbol symbol-string))))
        (unless (or results prefix-p)
-	 (let ((words (words symbol-string)))
+	 (let ((words (ilisp-words symbol-string)))
 	   (if external-p
 	       (do-external-symbols (symbol *package*)
 		 (check-symbol2 symbol symbol-string words))
-	       ;; KCL does not go over used symbols.
-	       #+(or kcl ibcl)
-	       (dolist (used-package (package-use-list *package*))
-		 (do-external-symbols (symbol used-package)
-		   (check-symbol2 symbol symbol-string words)))
-	       #-(or kcl ibcl)
-	       (do-symbols (symbol *package*)
-		 (check-symbol2 symbol symbol-string words)))))
+	       (progn
+		 ;; KCL does not go over used symbols.
+		 #+(or kcl ibcl)
+		 (dolist (used-package (package-use-list *package*))
+		   (do-external-symbols (symbol used-package)
+		     (check-symbol2 symbol symbol-string words)))
+		 (do-symbols (symbol *package*)
+		   (check-symbol2 symbol symbol-string words))))))
        (prin1 results)
        nil))))
 
-;;; Make sure that functions are compiled
-(dolist (symbol '(ilisp-save ilisp-restore
+;;; Make sure that functions are exported
+(dolist (symbol '(ilisp-errors ilisp-save ilisp-restore
 		  ilisp-symbol-name ilisp-find-symbol ilisp-find-package
 		  ilisp-eval ilisp-compile
-		  ilisp-describe ilisp-arglist ilisp-documentation
+		  ilisp-describe ilisp-inspect
+		  ilisp-arglist ilisp-documentation
 		  ilisp-macroexpand ilisp-macroexpand-1
 		  ilisp-trace ilisp-untrace
-		  ilisp-compile-file ilisp-casify ilisp-matching-symbols))
-  (export symbol)
-  (unless (compiled-function-p (symbol-function symbol))
-    (compile symbol)))
-(export 'ilisp-errors)
+		  ilisp-compile-file ilisp-casify
+		  ilisp-matching-symbols))
+  (export symbol))
+(unless (compiled-function-p #'ilisp-matching-symbols)
+  (format t "\"ILISP: File is not compiled, use M-x ilisp-compile-inits\""))

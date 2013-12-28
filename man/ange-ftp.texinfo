@@ -1,0 +1,1378 @@
+\input texinfo   @c -*-texinfo-*-
+@comment %**start of header (This is for running Texinfo on a region.)
+@setfilename ange-ftp.info
+@settitle ange-ftp
+@comment %**end of header (This is for running Texinfo on a region.)
+
+@synindex pg vr
+
+@node Top, What is ange-ftp?, (dir), (dir)
+@comment  node-name,  next,  previous,  up
+@ifinfo
+@unnumbered Ange-ftp
+
+This file documents ange-ftp, a system for transparent file-transfer
+between remote hosts using the FTP protocol within GNU Emacs.
+
+This info is current to Version 4.2 of Ange-ftp.
+
+Documentation version: 1.30
+
+Copyright @copyright{} 1991, 1992 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+@ignore
+Permission is granted to process this file through TeX and print the
+results, provided the printed document carries a copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+
+@end ignore
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+@end ifinfo
+
+@titlepage
+@sp5
+@center @titlefont{ange-ftp}
+@center version 4.2
+@sp2
+@center A transparent remote file system, by Andy Norman
+@sp7
+@center This documentation by David Smith.
+@center info-version 1.30
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1991, 1992 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+@end titlepage
+
+@menu
+* What is ange-ftp?::	A brief introduction to ange-ftp. Credits.
+* Installing ange-ftp:: Where to find it, and how to use it.
+* Using ange-ftp::	Ange-ftp -- a users' guide.
+* Getting help::	Mailing lists and newsgroups.
+* Bugs::		Known bugs, and a wish list.
+
+Indices:
+* Concept Index::
+* Variable and command index::
+@end menu
+
+
+@node What is ange-ftp?, Installing ange-ftp, Top, Top
+@comment  node-name,  next,  previous,  up
+@chapter Introducing ange-ftp.
+
+Ange-ftp is a system for transparent file-transfer between remote UNIX,
+VMS, CMS or MTS
+hosts using FTP. This means that you can edit, copy and otherwise
+manipulate files on any machine you have access to from within GNU Emacs
+as if it were a local file. Ange-ftp works by introducing an extended
+filename syntax, and overloading functions such as
+@code{insert-file-contents} so that accessing a remote file causes
+appropriate commands to be sent to an FTP process. Ange-ftp works with
+Dired (and in particular Sebastian Kremer's Tree Dired) to facilitate
+directory browsing and multiple file transfer from remote hosts.
+
+The author of ange-ftp is Andy (Ange) Norman (@code{ange@@hplb.hpl.hp.com}).
+@ifinfo
+Many people have sent in enhancements, and Ange has been kept quite
+busy testing them and incorporating them into ange-ftp. Current members
+of the Ange-Ftp Hall of Fame include:
+
+@itemize @bullet
+@item
+Many thanks to Roland McGrath for improving the filename syntax handling,
+for suggesting many enhancements and for numerous cleanups to the code.
+
+@item
+Thanks to Jamie Zawinski for bugfixes and for ideas such as gateways.
+
+@item
+Thanks to Ken Laprade for improved @file{.netrc} parsing and password
+reading, and Dired/shell autoloading.
+
+@item
+Thanks to Sebastian Kremer for tree dired support and for many ideas and
+bugfixes.
+
+@item
+Thanks to Joe Wells for bugfixes, non-UNIX system support, VOS support,
+and hostname completion.
+
+@item
+Thanks to Nakagawa Takayuki for many good ideas, filename-completion, help
+with file-name expansion, efficiency worries, stylistic concerns and many
+bugfixes.
+
+@item
+Thanks to Sandy Rutherford who re-wrote most of ange-ftp to support VMS,
+MTS, CMS and UNIX-dls.  Sandy also added dired-support for non-UNIX OS and
+auto-recognition of the host type.
+
+@item
+Also, thanks to Keith Waclena, Mark D. Baushke, Terence Kelleher,
+Ping Zhou, Edward Vielmetti, Jack Repenning, Mike Balenger, Todd
+Kaufmann, Kjetil Svarstad, Tom Wurgler, Linus Tolke, Niko Makila, Carl
+Edman, Bill Trost, Dave Brennan, Dan Jacobson, Andy Scott, Steve
+Anderson, Sanjay Mathur, the folks on the ange-ftp-lovers mailing list
+and many others whose names have been forgotten who have helped to debug
+and fix problems with @file{ange-ftp.el}.
+@end itemize
+@end ifinfo
+
+Finally, this info file was written by Dave Smith
+(@code{dsmith@@stats.adelaide.edu.au}), although large chunks of it
+@ifinfo
+@noindent
+(such as most of this node :-)
+@end ifinfo
+@noindent
+are plagiarised straight out of the extensive
+comments section of @file{ange-ftp.el}.
+
+@node Installing ange-ftp, Using ange-ftp, What is ange-ftp?, Top
+@comment  node-name,  next,  previous,  up
+@chapter Installing ange-ftp
+
+If you don't already have a copy of ange-ftp, or you want a later
+version, ange-ftp is pretty easy to get hold of. FTP is the probably the
+simplest method, but other options such as mail are available. 
+
+Once you have the Emacs-Lisp source, there are a few customisations you
+might need to make. The ideal configuration is to have the FTP process running
+on the same machine as you are running Emacs on, but this is not always
+possible since some machines cannot access hosts outside the local
+network. In this case, the FTP process needs to be run on a machine
+which @emph{does} have access to the local world --- this is called the
+@strong{gateway host}. Ange-ftp has facilities to make use of a
+gateway host when accessing remote hosts.
+
+@menu
+* Obtaining source code::	Where to find the ange-ftp source.
+* Installing source::		Where to put it, how to load it.
+* Using a gateway::		For when your local machine has limited access.
+* Other options::		More user variables to twiddle.
+@end menu
+
+@node Obtaining source code, Installing source, ,Installing ange-ftp    
+@section How to get the ange-ftp source code
+@comment  node-name,  next,  previous,  up
+
+The latest version of ange-ftp should always be available for anonymous
+FTP from 
+@example
+alpha.gnu.ai.mit.edu
+@end example
+@noindent
+in the file 
+@example
+ange-ftp/ange-ftp.el.Z
+@end example
+@noindent
+In ange-ftp notation, that's 
+@example
+/anonymous@@alpha.gnu.ai.mit.edu:ange-ftp/ange-ftp.el.Z
+@end example
+
+Alternatively, ange-ftp is also part of the Emacs-Lisp Archive
+@cindex Emacs-Lisp Archive
+on
+@code{archive.cis.ohio-state.edu}. The latest version should always be
+available on this site, but the Lisp-Code Directory entry is not always
+up to date; it currently reads:
+@example
+ange-ftp (3.112)  91-08-12
+ Andy Norman, <ange@@hplb.hpl.hp.com>
+ archive.cis.ohio-state.edu:
+   /pub/gnu/emacs/elisp-archive/as-is/ange-ftp.el.Z
+transparent FTP Support for GNU Emacs
+@end example
+
+Ange-ftp can also be found at:
+@example
+ugle.unit.no:/pub/gnu/emacs-lisp/ange-ftp.el.Z
+@end example
+
+Failing these, someone on the ange-ftp mailing list (@xref{Getting
+help}) or the author himself (@xref{What is ange-ftp?}) may be able to
+help you find the latest version.
+
+If you intend to do a lot of browsing though archive sites it is
+definitely worth your while installing Sebastian Kremer's Tree Dired
+@cindex Tree Dired, source
+along with ange-ftp (if you haven't done it already). Tree Dired will
+work with ange-ftp without any modifications: all you need to do is
+follow the installation instructions that come with the package. The
+Tree Dired package comes complete with the latest version of ange-ftp,
+and is available for anonymous FTP from the following sites:
+@example
+ftp.thp.Uni-Koeln.DE:/pub/gnu/emacs/diredall.tar.Z  (134.95.64.1)
+ftp.cs.buffalo.edu:pub/Emacs/diredall.tar.Z
+@end example
+@noindent
+Alternatively, you can get in touch with Sebastian himself
+using his e-mail address: @code{sk@@thp.Uni-Koeln.DE}.
+
+@node Installing source, Using a gateway, Obtaining source code, Installing ange-ftp
+@comment  node-name,  next,  previous,  up
+@section Installing the source
+
+Installation is simply a matter of copying the file @file{ange-ftp.el} 
+to a directory in your load-path. If you don't already have a load-path,
+this is probably a good time to make one. Just create a directory (say,
+@file{~/elisp}) in which you plan to keep your Emacs-Lisp files. Then
+place the following line in your @file{.emacs}:
+@example
+(setq load-path (cons (expand-file-name "~/elisp") load-path))
+@end example
+@cindex load path
+@noindent
+The @code{expand-file-name} is @emph{important} --- omitting it is a
+common reason why load-paths do not work.
+
+Once you've copied @file{ange-ftp.el} to the appropriate directory, it is
+recommended to byte-compile it, with @kbd{M-x byte-compile-file}. Then
+place the line
+@example
+(require 'ange-ftp)
+@end example
+@noindent
+in your @file{.emacs} (@emph{after} the line which modifies your
+load-path, of course!) It's that simple.
+
+The above instructions should allow you to access all hosts that your
+local machine can access. If your local host has limited access,
+however, you may wish to have ange-ftp working through a gateway
+machine. If so, read on. Otherwise, @xref{Using ange-ftp} to get started
+using ange-ftp.
+
+@node Using a gateway, Other options, Installing source, Installing ange-ftp
+@comment  node-name,  next,  previous,  up
+@section Using a gateway
+
+Suppose you are running Emacs (and ange-ftp, of course) on a machine X
+(let's call it the `local host') and you want to access a file on a
+machine Z (which we will call the `remote host'). Unfortunately, X does
+not have FTP access to Z: when you try a manual FTP something like
+the following happens:
+@example
+X$ ftp Z.foo.bar.com
+ftp: connect: Host is unreachable
+@end example
+@noindent
+However, X @emph{does} have access to a machine Y (the `gateway
+machine') which @emph{can} access Z. Fortunately, you have an account on
+the gateway machine, and so the solution is to login to Y, ftp to Z,
+download the file you want from Z to Y, and then copy it from Y to the
+local host, X. This can get a bit tedious, to say the least, but
+fortunately ange-ftp can do all the hard work for you.
+
+Firstly, you need to set the variable @code{ange-ftp-gateway-host} to
+the name of the gateway machine. The name should be the one that the
+local host recognises, that is, the name you use with @code{login} so
+that it works.
+@example
+(setq ange-ftp-gateway-host "Y.local.lan.edu")
+@end example
+@vindex ange-ftp-gateway-host
+@noindent
+Since you only need to go through these convolutions for remote hosts
+that the local host can't access directly, you can set the variable
+@code{ange-ftp-local-host-regexp} to a regular expression which matches
+those hostnames that X can access, but does not match those hosts that
+only the gateway can access. In other words, if the host you are trying
+to access matches @code{ange-ftp-local-host-regexp}, the FTP process
+will be run on the local machine, otherwise it will be run on the
+gateway machine. For example
+@example
+(setq ange-ftp-local-host-regexp "\\.hp\\.com$\\|^[^.]*$")
+@end example
+@vindex ange-ftp-local-host-regexp
+@noindent
+will match all hosts that are in the @samp{.hp.com} domain, or don't have an
+explicit domain in their name, but will fail to match hosts with
+explicit domains or that are specified by their IP address.
+
+The next step is to determine whether you have a smart gateway, that is,
+@cindex smart gateways
+if the FTP process on the gateway will accept commands of the form 
+@code{USER user@@host}. You can test this by trying a manual FTP:
+@example
+X$ ftp -n Y.local.lan.edu
+Connected to Y.local.lan.edu
+220 Y.local.lan.edu FTP server (Version ?.??? some-date) ready.
+ftp> user myname@@Z.foo.bar.com
+@end example
+@noindent
+If you then got a message like:
+@example
+331 Password required for myname@@Z.foo.bar.com
+Password: 
+530 Login incorrect.
+Login failed.
+@end example
+@noindent
+then you @emph{don't} have a smart gateway. If you do, then something
+else happens -- but since it doesn't work for me I can't say what!
+Anyway, if you do have a smart gateway, put the line
+@example
+(setq ange-ftp-smart-gateway t)
+@end example
+@vindex ange-ftp-smart-gateway
+@noindent
+in your @file{.emacs}. You may also wish to set the variable
+@code{ange-ftp-smart-gateway-port}
+@vindex ange-ftp-smart-gateway-port
+to the port of the gateway machine to
+use when smart gateway is in operation, but the default of 21 will
+probably be fine. In any case, your installation has finished, so
+@xref{Using ange-ftp} now -- the rest of this section is of no use to
+you. If on the other hand you don't have a smart gateway, put the line
+@example
+(setq ange-ftp-smart-gateway nil) ; this is the default
+@end example
+@noindent
+in your @file{.emacs} and read on.
+
+Since to get files from Z to X we need to copy from Z to Y, and then
+from Y to X, we need a place to store files on Y which is also
+accessible by X. Since we are assuming that the local host and the
+gateway machine are on the same local network, it's fairly likely that
+this is the case thanks to NFS.
+@cindex NFS
+Unfortunately, ange-ftp requires that
+this temporary directory
+@cindex temporary files
+has the @emph{same} name on both the local and
+gateway machines, so you might need to do some twiddling with symbolic
+links, or ask your sysadmin to set something up with NFS. Once you have
+found such a directory, set the variable
+@code{ange-ftp-gateway-tmp-name-template}
+to the name of this directory plus an identifying filename prefix. For example:
+@example
+(setq ange-ftp-gateway-tmp-name-template "/nfs/hplose/ange/ange-ftp")
+@end example
+@vindex ange-ftp-gateway-tmp-name-template
+@noindent
+where @file{/nfs/hplose/ange} is a directory that is shared between the gateway
+machine Y and the local machine X.
+
+The next step is to find a means of getting an FTP process running on
+the gateway machine. The simplest method is to spawn a remote shell
+@cindex remote shell
+using @code{remsh} or @code{rsh} or their equivalent. Unfortunately, this
+doesn't always work --- try the following:
+@example
+X$ rsh Y.local.lan.edu ftp
+@end example
+@noindent
+On my system, this command simply hangs. On others, it might be
+disallowed for security reasons. If it doesn't work for you, then skip
+the rest of this paragraph. If it does, then you should set then
+variable @code{ange-ftp-gateway-program} to the name of the program
+used to spawn a remote shell. The default is @code{"remsh"}
+on HP-UX machines, and @code{"rsh"} otherwise. You should also set
+@code{ange-ftp-gateway-program-interactive} to @code{nil}:
+@example
+(setq ange-ftp-gateway-program "rsh")
+(setq ange-ftp-gateway-program-interactive nil)
+@end example
+@vindex ange-ftp-gateway-program
+@vindex ange-ftp-gateway-program-interactive
+@noindent
+and now your installation is complete.
+
+Since spawning a remote shell didn't work, ange-ftp needs to actually
+login to the gateway machine to run ftp, the same as you would do if you
+were running ftp manually. So you need to set the variable
+@code{ange-ftp-gateway-program} to the name of the program that lets you
+log onto the gateway machine --- probably @code{"rlogin"} or @code{"telnet"}:
+@example
+(setq ange-ftp-gateway-program "rlogin")
+@end example
+@noindent
+Now set the variable @code{ange-ftp-gateway-prompt-pattern} to a regular
+expression that matches the prompt you get when you login to the gateway
+machine.  Be very specific here; this regexp must not match
+@emph{anything} in your login banner except this prompt.
+@code{shell-prompt-pattern}
+@vindex shell-prompt-pattern
+is far too general as it appears to match
+some login banners from Sun machines. For example:
+@example
+(setq ange-ftp-gateway-prompt-pattern "^[^$]*\\$ *")
+@end example
+@vindex ange-ftp-gateway-prompt-pattern
+@noindent
+You also need to set the variable
+@code{ange-ftp-gateway-program-interactive}
+to @code{t} to let ange-ftp know that it has to "hand-hold" the login to
+the gateway machine:
+@example
+(setq ange-ftp-gateway-program-interactive t)
+@end example
+@noindent
+Now comes a slightly tricky bit. You need to set the variable
+@code{ange-ftp-gateway-setup-term-command} to a UNIX command that will
+put the pty connected to the gateway machine into a no-echoing mode, and
+will strip off carriage-returns from output from the gateway machine.
+The default is @code{"stty -onlcr -echo"} for HP-UX machines, and
+@cindex HP-UX
+@code{"stty -echo nl"} otherwise. So
+@example
+(setq ange-ftp-gateway-setup-term-command "stty -echo nl")
+@end example
+@vindex ange-ftp-gateway-setup-term-command
+@noindent
+will probably work. If it does, then you're done.  There's a bit of a
+problem for @code{tcsh}
+@cindex tcsh
+users, though: in some versions of @code{tcsh}, the "tty
+sanity checking" feature prevents the above commands from working. In
+this case, an easy fix is to invoke @code{csh} first, and then run the
+@code{stty}:
+@example 
+(setq ange-ftp-gateway-setup-term-command  "exec csh\nstty -echo nl\n")
+@end example
+@noindent
+which may well do the trick. Another problem is with synchronisation: if
+your gateway machine is slow in responding, when ange-ftp is ready for
+(and indeed has already sent) FTP commands, your machine may still be
+setting up. This can cause ange-ftp to think that the FTP has had an
+error, and abort. One solution is to set @code{ange-ftp-skip-msgs}
+@vindex ange-ftp-skip-msgs
+(a regular expression matching messages from the ftp process that can be
+ignored) so that any line ending in @code{^M} (carriage-returns) will be
+ignored (since the @code{stty} hasn't come into effect yet) and also to
+ignore any lines beginning with your prompt (since this means the
+terminal setup is still in progress):
+@example
+(setq ange-ftp-skip-msgs
+  (concat "\\|^.*\C-M$\\|" ange-ftp-gateway-prompt-pattern
+                                              ange-ftp-skip-msgs))
+@end example
+@noindent
+Unfortunately, this can also mean that sometimes ange-ftp won't
+recognise a @emph{real} error, and simply hang -- but if that ever
+happens @kbd{C-g} might get you out of it.
+
+@node Other options, , Using a gateway, Installing ange-ftp
+@comment  node-name,  next,  previous,  up
+@section Other user options
+
+Here are the other user options available in ange-ftp:
+
+@code{ange-ftp-netrc-filename}: The name of a file in @code{netrc(5)}
+format that ange-ftp will use to match hostnames, users and their
+respective passwords.  Hostnames specified here are also used for hostname
+completion.
+The default is @code{"~/.netrc"}.
+@vindex ange-ftp-netrc-filename
+
+@code{ange-ftp-default-user}: If this is a string, it is the username to
+use when none is specified in a filename. If @code{nil}, then the
+name under which the user is logged in is used. If non-@code{nil} but
+not a string, the user is prompted for the name. The default is @code{nil}.
+@vindex ange-ftp-default-user
+
+@code{ange-ftp-default-password}: The password to use when the user is the
+same as @code{ange-ftp-default-user}. The default is @code{nil}.
+@vindex ange-ftp-default-password
+
+@code{ange-ftp-default-account}: Account password to use when the user
+is the same as @code{ange-ftp-default-user}. The default is @code{nil}.
+@vindex ange-ftp-default-account
+
+@code{ange-ftp-generate-anonymous-password}: If this is @code{t}, then
+ange-ftp will generate a password of the form @code{your_username@@local_host}
+when you specify a username of @code{anonymous} in the filename (or if
+you are automatically logged in as @code{anonymous}). If this is a
+string, then that string is used instead. If it is @code{nil}, then the
+user is prompted for a password. The default is @code{nil}.
+@vindex ange-ftp-generate-anonymous-password
+
+@code{ange-ftp-dumb-unix-host-regexp}: The FTP servers on some machines have
+problems if the @code{ls} command is used. The usual indication that
+something is wrong is when ange-ftp erroneously thinks that a directory
+is just a plain file. The routine @code{ange-ftp-add-dumb-unix-host} can can
+be called to tell ange-ftp to limit itself to the @code{DIR} command and
+not @code{ls} for a given host (but this change will take effect for the
+current GNU Emacs session only). If a large number of machines with
+similar hostnames have this problem then it is easier to change the
+value of this variable to a regexp which matches hostnames which have
+this problem, particularly since ange-ftp cannot automatically detect
+such hosts. The default is @code{nil}.
+@vindex ange-ftp-dumb-unix-host-regexp
+@pindex ange-ftp-add-dumb-unix-host
+
+@code{ange-ftp-binary-file-name-regexp}: By default ange-ftp will
+transfer files in ASCII mode. If a file being transferred matches the
+value of this regexp then the FTP process will be toggled into BINARY
+mode before the transfer and back to ASCII mode after the transfer. The
+default is:
+@example
+(concat "\\.Z$\\|\\.lzh$\\|\\.arc$\\|\\.zip$\\|\\.zoo$\\|\\.tar$\\|"
+        "\\.dvi$\\|\\.ps$\\|\\.elc$\\|TAGS$\\|"
+	"\\.gif$\\|\\.EXE\\(;[0-9]+\\)?$")
+@end example
+@vindex ange-ftp-binary-file-name-regexp
+
+@code{ange-ftp-hash-mark-size}: Ange-ftp by default requests that the
+FTP process sends hash marks (just @code{#} characters) during transfers
+to keep track of how much data has been sent or received. This variable,
+if non-@code{nil}, should be the number of kilobytes represented by the
+FTP client's hash mark. The default value of 1 doesn't work for me --- I
+use 2 instead.
+@vindex ange-ftp-hash-mark-size
+
+@code{ange-ftp-process-verbose}: If this is @code{t} then ange-ftp will
+be chatty about interaction with the FTP process. The default is @code{t}. 
+@vindex ange-ftp-process-verbose
+
+@code{ange-ftp-ftp-program-name}: This should be the name of the FTP
+program to run on the local host. The default value of @code{"ftp"}
+should be fine for most systems.
+@vindex ange-ftp-ftp-program-name
+
+@code{ange-ftp-gateway-ftp-program-name}: Same as above, but this time
+it's the name of the program to be used if a gateway is in use. The
+default is again @code{"ftp"}, but some AT&T folks claim to use
+something called @code{"pftp"} here.
+@vindex ange-ftp-gateway-ftp-program-name
+
+@code{ange-ftp-make-backup-files}: A list of operating systems for which
+ange-ftp will make Emacs backup files on the remote host. For example,
+@code{'(unix)} makes sense, but @code{'(unix vms)} or @code{'(vms)}
+would be silly, since VMS makes its own backups.  The host type is
+determined by the function @code{ange-ftp-host-type}.  Possible host
+types are: @code{dumb-unix}; @code{vos}; @code{vms}; @code{mts}; and
+@code{unix}. The default of @code{nil} means make no backups on remote
+hosts.
+@vindex ange-ftp-make-backup-files
+@cindex backup files
+
+@code{ange-ftp-path-format}: This variable dictates the the format of a
+fully expanded remote pathname. This is a cons @code{(REGEXP . (HOST
+USER PATH))}, where @code{REGEXP} is a regular expression matching the
+full remote pathname, and @code{HOST}, @code{USER}, and @code{PATH} are
+the numbers of parenthesised expressions in @code{REGEXP} for the components
+(in that order). The syntax can be customised with this variable to a
+certain extent, but there are limitations. The default is @*
+@code{'("^/\\(\\([^@@/:]*\\)@@\\)?\\([^@@/:]*\\):\\(.*\\)" . (3 2 4))}.
+@vindex ange-ftp-path-format
+
+@code{ange-ftp-multi-msgs}: A regular expression matching messages from
+the ftp process that start a multiline reply. The default is @*
+@code{"^220-\\|^230-\\|^226\\|^25.-\\|^221-\\|^200-\\|^530-\\|^4[25]1-"}
+@vindex ange-ftp-multi-msgs
+
+@code{ange-ftp-good-msgs}: A regular expression matching messages from
+the ftp process that indicate that the action that was initiated has
+completed successfully. The default is
+@code{"^220 \\|^230 \\|^226\\|^25. \\|^221 \\|^200 \\|^[Hh]ash mark"}.
+@vindex ange-ftp-good-msgs
+
+@code{ange-ftp-skip-msgs}: A regular expression matching messages from
+the ftp process that can be ignored. The default is
+@example
+(concat "^200 \\(PORT\\|Port\\) \\|^331 \\|^150 \\|^350 \\|^[0-9]+ bytes \\|"
+        "^Connected \\|^$\\|^Remote system\\|^Using\\|^ \\|Password:\\|"
+        "^local:\\|^Trying\\|^125 \\|^550-")
+@end example
+@noindent
+but you might need to tweak it if ange-ftp is giving up when it
+shouldn't.
+@vindex ange-ftp-skip-msgs
+
+@code{ange-ftp-fatal-msgs}: A regular expression matching messages from
+the FTP process that indicate something has gone drastically wrong
+attempting the action that was initiated and that the FTP process should
+(or already has) been killed. The default is
+@example
+(concat "^ftp: \\|^Not connected\\|^530 \\|^4[25]1 \\|rcmd: \\|"
+        "^No control connection\\|unknown host\\|^lost connection")
+@end example
+@vindex ange-ftp-fatal-msgs
+
+@code{ange-ftp-gateway-fatal-msgs}: Regular expression matching messages
+from the rlogin / telnet process that indicates that logging in to the
+gateway machine has gone wrong. The default is 
+@example
+"No route to host\\|Connection closed\\|No such host\\|Login incorrect"
+@end example
+@vindex ange-ftp-gateway-fatal-msgs
+
+@code{ange-ftp-tmp-name-template}: This should be a directory and a
+filename prefix indicating where ange-ftp should make temporary files.
+The default of @code{"/tmp/ange-ftp"} should be fine for most systems.
+@vindex ange-ftp-tmp-name-template
+@cindex temporary files
+
+@code{ange-ftp-retry-time}: Number of seconds to wait before retrying if
+a file or listing doesn't arrive. For slow connections, you might get a
+``listing unreadable'' error messages
+@cindex listing unreadable error
+or an empty buffer for a file that you know has something in it.  The
+solution is to increase the value of @code{ange-ftp-retry-time}.  Its default
+value is 5 which is plenty for reasonable connections.  However, for
+some transatlantic connections 20 might be a better value.
+@vindex ange-ftp-retry-time
+
+@node Using ange-ftp, Getting help, Installing ange-ftp, Top
+@comment  node-name,  next,  previous,  up
+@chapter Using ange-ftp
+
+Once you have ange-ftp installed, you never need worry about using FTP
+again. The interface is completely transparent, and you may now use
+Emacs commands such as @kbd{C-x C-f} (@code{find-file})
+@pindex find-file
+on @emph{any}
+file that your local host (or, if you are using one) your gateway can
+access. That file may be a regular file (for editing, viewing etc.), a
+directory (for invoking Dired) or even a symbolic link
+@cindex symbolic links
+(pointing to a
+directory or a regular file). All it takes is an extended filename
+syntax. For example, if you give the filename
+@example
+/ange@@anorman:/tmp/notes
+@end example
+@noindent
+to @code{find-file}, then ange-ftp will spawn an FTP process, connect to
+the host @code{anorman} as user @code{ange}, get the file
+@file{/tmp/notes} and pop up a buffer containing the contents of that
+file as if it were on the local filesystem.  If ange-ftp needed a
+password to connect then it would prompt the user in the minibuffer.
+From then on you can edit that file as if it were any other file: saving
+is with @kbd{C-x C-s} as usual --- in fact, everything is as usual.
+
+Ange-ftp is also extremely useful for regular "file-transfer" FTP jobs.
+Since Dired also works on remote directories when using ange-ftp, you
+will be able to browse the filesystem on your favourite archive site
+with consummate ease.
+
+@menu
+* Remote filenames::		The ange-ftp extended filename syntax.
+* Using Dired::			Browsing directories.
+* Using a .netrc::		Preventing password pestering.
+* Ange-ftp commands::		Interactive commands supplied by ange-ftp.
+* DL support::			For hosts using descriptive directory listings.
+* Non-Unix Hosts::		Some hosts have funny filenames.
+* Completion::			On filenames and hostnames.
+* Accessing the FTP process::   For when manual tinkering is needed.
+@end menu
+
+@node Remote filenames, Using Dired, , Using ange-ftp
+@comment  node-name,  next,  previous,  up
+@section Remote filename syntax
+
+The general form of the extended filename syntax is
+@example
+/user@@host:path
+@end example
+@noindent
+which refers to the file pointed to by @code{path} on machine
+@code{host} when logging in as user @code{user}. When @code{path} is
+supplied as a relative file-name (that is, without a leading @samp{/})
+it is relative to @code{user}'s home directory (although such relative
+filenames are ultimately converted to absolute ange-ftp pathnames). You
+may even refer to home directories
+@cindex home directories of other users
+@cindex other users' home directories
+of users on remote Unix sites using the
+standard tilde @samp{~} notation.
+@code{host} needs to be
+the fully qualified pathname if the local or gateway machine requires it
+to be (however hostname completion is available if it is included in
+your @file{.netrc} -- @xref{Using a .netrc}), or it may be an IP
+@cindex IP numbers
+number if your nameserver can't find the site. The @code{user@@} part
+may be omitted, in which case the username is chosen on the basis of the
+variable @code{ange-ftp-default-user}
+@vindex ange-ftp-default-user
+(@xref{Other options}) and your
+@file{.netrc}. If a password is requested by the FTP process, ange-ftp
+will either prompt you for it, or generate one on the basis of the
+variables @code{ange-ftp-default-password},
+@vindex ange-ftp-default-password
+and your @file{.netrc}.
+
+@node Using Dired, Using a .netrc, Remote filenames, Using ange-ftp
+@comment  node-name,  next,  previous,  up
+@section Using Dired
+
+This feature of ange-ftp is particularly useful when file-transfers, as
+opposed to file-editing, are the order of the day. Simply run
+@code{find-file} on a directory to
+get a listing of the files in that directory. For example, you might
+run @code{find-file} on
+@example
+/anonymous@@archive.site.com:pub
+@end example
+@noindent
+to see what's in the @file{pub} directory of your favourite archive
+@cindex archive sites
+site. This brings up a Dired buffer of all the files in that directory.
+The @kbd{f} command is useful for looking at @file{README} files --- if
+you then decide to save it @kbd{C-x C-w} is useful. You can also use
+this method to copy files, but the @kbd{c} command is easier. The
+@kbd{f} command can also be used to descend the directory tree by
+applying it to directories.
+
+You can also use Dired to refresh ange-ftp's internal cache. If you
+(or anybody else) has changed a remote directory since you first accessed it
+with ange-ftp, completion is not provided on any new files that ange-ftp
+does not know about. If you have
+(or create) a Dired buffer which contains the modified directory,
+executing @code{revert-buffer}
+@pindex revert-buffer
+with a prefix argument (@kbd{C-u g} in the Dired buffer) 
+will force a refresh of both the the buffer @emph{and also ange-ftp's
+internal cache}. If you find that filename completion isn't working on a
+@cindex filename completion
+file that you @emph{know} is there, this is how to fix the problem.
+
+The version of Dired supplied with Emacs version 18.58 (and earlier
+versions) does not include a capability for multiple file transfers. The
+@cindex multiple file transfers
+@cindex wildcards
+Tree Dired package (@xref{Obtaining source code}), however, is ideal
+for this application. Tree Dired provides facilities for maintaining an
+entire directory tree in a Dired buffer, for marking files which match a
+certain regexp (or you can select files interactively) and then copying
+all those files to your local host (or even a different remote host).
+Another useful feature is Virtual Dired, which allows you to save Dired
+@cindex virtual dired
+buffers of remote hosts, allowing you to browse them at a later date
+without actually needing to connect to the host. See the documentation
+for Tree Dired for more details.
+
+Since ange-ftp is mostly transparent, modifying Dired or Tree Dired by
+means of hooks or keybindings should still work.
+
+@node Using a .netrc, Ange-ftp commands, Using Dired, Using ange-ftp    
+@comment  node-name,  next,  previous,  up
+@section Using a .netrc file
+
+Being prompted for passwords all the time can get rather annoying, but
+there is a way to fix the problem --- a @file{.netrc} (but @xref{Other
+options} and @code{ange-ftp-netrc-filename}
+@vindex ange-ftp-netrc-filename
+if you want another
+filename) file in your home directory. Basically, this is a file (in the
+format of Unix @code{netrc(5)}) which
+contains the names of all the machines you regularly login to, as well
+as the username and password you use for that machine. You can also
+supply an account password, if required.
+
+Your @file{.netrc} file consists of lines of the form
+@example
+machine <machine-name> login <user-name> password <password>
+@end example
+@noindent
+It doesn't all have to be on the one line, though: any @code{login} or
+@code{password} commands in the file refer to the previous
+@code{machine} command. You can also have @code{account
+<account-passwd>} commands if you need special account passwords.
+
+For example, you might have the following line in your @file{.netrc}:
+@example
+machine Y.local.lan.edu login myname password secret
+@end example
+@noindent
+Then if you run @code{find-file} on the file @file{/Y.local.lan.edu:somefile}
+you will automatically be logged in as user @code{myname} with password
+@code{secret}. You can still login under another name and password, if
+you so desire: just include the @code{user@@} part of the filename.
+
+You may also include a default option, as follows:
+@example
+default login <user-name> password <password>
+@end example
+@noindent
+which applies to any other machines not mentioned elsewhere in your
+@file{.netrc}. A particularly useful application of this is with
+anonymous logins:
+@cindex anonymous FTP
+@example
+default login myname password myname@@myhost.edu
+@end example
+@noindent
+so that accessing @file{/anyhost:anyfile} will automatically log you in
+anonymously, provided the host is not mentioned in the @file{.netrc}.
+Note also that if the value of @code{ange-ftp-default-user} is
+@vindex ange-ftp-default-user
+non-@code{nil}, its value will have precedence over the username
+supplied in the default option of the @file{.netrc}.
+
+The @file{.netrc} file is also useful in another regard: machines
+included in it are provided with hostname completion. That is, for any
+@cindex hostname completion
+machine in the @file{.netrc}, you need only type a slash and the first
+few characters of its name and then press @key{TAB} to be logged in
+automatically with a username and password from the @file{.netrc} file.
+So it's a good idea to put hosts you use regularly in your @file{.netrc}
+as well:
+@example
+machine archive.site.com login anonymous password myname@@X.local.lan.edu
+@end example
+
+
+@node Ange-ftp commands, DL support, Using a .netrc, Using ange-ftp    
+@comment  node-name,  next,  previous,  up
+@section Ange-ftp commands
+
+Ange-ftp supplies a few interactive commands to make connecting with
+hosts a little easier.
+
+@noindent
+Command @code{ange-ftp-set-user}: Prompts for a hostname and a username.
+Next time access to the host is attempted, ange-ftp will attempt to log
+in again with the new username.
+@pindex ange-ftp-set-user
+
+@noindent
+Command @code{ange-ftp-set-passwd}: Prompts for a hostname, user and
+password. Future logins to that host as that user will use the given
+password.
+@pindex ange-ftp-set-passwd
+
+@noindent
+Command @code{ange-ftp-set-account}: Prompts for a hostname, user and
+account. Future logins to that host as that user will use the given
+account.
+@pindex ange-ftp-set-account
+
+Note that the effects of the above three commands only last the duration
+of the current Emacs session. To make their effects permanent, you may
+include them as lisp code in your @file{.emacs}:
+@example
+(ange-ftp-set-user HOST USER)
+(ange-ftp-set-password HOST USER PASSWORD)
+(ange-ftp-set-account HOST USER ACCOUNT)
+@end example
+@noindent
+This is an alternative to using a @file{.netrc}; @xref{Using a .netrc}.
+
+@noindent
+Command @code{ange-ftp-kill-ftp-process}: kill the FTP process
+associated with a given buffer's filename (by default the current
+buffer). This is an easy way to achieve a resynch: any future accesses
+to the remote host will cause the FTP process to be recreated.
+@pindex ange-ftp-kill-ftp-process
+
+@node DL support, Non-Unix Hosts, Ange-ftp commands, Using ange-ftp    
+@comment  node-name,  next,  previous,  up
+@section Descriptive directory listings
+
+Some hosts (such as @code{cs.uwp.edu}) now use descriptive directory
+listings
+@cindex descriptive directory listings
+@cindex extended directory listings
+(which in fact contain @emph{less} information than the
+standard listing!) when issued the @code{ls} command, and ange-ftp has
+been modified to cope with this. Ange-ftp can detect such listings, but
+if you regularly use a remote host which uses this extended listing
+format you should set the variable @code{ange-ftp-dl-dir-regexp} to a
+@vindex ange-ftp-dl-dir-regexp
+regular expression which matches directories using the extended listing
+format. You shouldn't anchor the regexp with @samp{$} -- that way the
+regexp will match subdirectories as well.  Alternatively, you can use
+the interactive command @code{ange-ftp-add-dl-dir} to temporarily add a
+@pindex ange-ftp-add-dl-dir
+remote directory for this Emacs session only.
+
+Tree Dired has been modified to work with such descriptive listings.
+
+@node Non-Unix Hosts, Completion, DL support, Using ange-ftp    
+@comment  node-name,  next,  previous,  up
+@section Using ange-ftp with non-Unix hosts
+
+Ange-ftp also works with some non-Unix hosts, although not necessarily
+with all the features available with Unix hosts. VMS, CMS, and MTS
+systems will all now work with ange-ftp and Tree Dired (although
+Classical Dired may well be broken on such systems.) Filename completion
+also now works on these hosts. 
+
+Ange-ftp should be able to automatically detect which type of host you
+are using (VMS, CMS or MTS), but if it is unable to do so you can fix
+the problem by setting the appropriate
+@code{ange-ftp-TYPE-host-regexp} variable (where @code{TYPE} is one of
+@samp{vms}, @samp{cms} or @samp{mts}) -- see below. If ange-ftp is unable
+to automatically detect any VMS, CMS or MTS host, please report this as
+a bug: @xref{Bugs}.
+
+In all cases the file-name conventions of the remote host are converted
+to a UNIX-ish format, and this is the format you should use to find
+files on such hosts.
+
+@menu
+* VMS support::		Using ange-ftp with VMS systems
+* CMS support::		Using ange-ftp with CMS systems
+* MTS support::		Using ange-ftp with MTS systems
+@end menu
+
+@node VMS support, CMS support, , Non-Unix Hosts
+@comment  node-name,  next,  previous,  up
+@subsection VMS support
+@cindex VMS filenames
+VMS filenames are of the form @code{FILE.TYPE;##}, where both
+@code{FILE} and @code{TYPE} can be up to 39 characters long, and
+@code{##} is an integer version number between 1 and 32,767. Valid
+characters in filenames are @samp{A}-@samp{Z}, @samp{0}-@samp{9},
+@samp{_}, @samp{-} and @samp{$}, however @samp{$} cannot begin a
+filename and @samp{-} cannot be used as the first or last character.
+
+Directories in VMS are converted to the standard UNIX @samp{/} notation.
+For example, the VMS filename
+@example
+PUB$:[ANONYMOUS.SDSCPUB.NEXT]README.TXT;1
+@end example
+would be entered as
+@noindent
+@example
+/PUB$$:/ANONYMOUS/SDSCPUB/NEXT/README.TXT;1
+@end example
+@noindent
+(The double @samp{$} is required to prevent Emacs from attempting to
+expand an environment variable.)  Similarly, to anonymously FTP the file
+@file{[.CSV.POLICY]RULES.MEM;1} from @code{ymir.claremont.edu} you would
+type @kbd{C-x C-f
+/anonymous@@ymir.claremont.edu:CSV/POLICY/RULES.MEM;1}. You can always
+drop off the @samp{;##} part at the end of the filename to get the
+latest version.
+
+Sandy Rutherford provides some tips for using VMS hosts:
+@itemize @bullet
+@item
+Although VMS is not case sensitive, EMACS running under UNIX is.
+Therefore, to access a VMS file, you must enter the filename with upper
+case letters.
+
+@item
+To access the latest version of file under VMS, you use the filename
+without the @samp{;} and version number. You should always edit the
+latest version of a file. If you want to edit an earlier version, copy
+it to a new file first. This has nothing to do with ange-ftp, but is
+simply good VMS operating practice. Therefore, to edit @file{FILE.TXT;3}
+(say 3 is latest version), do @kbd{C-x C-f
+/ymir.claremont.edu:FILE.TXT}. If you inadvertently do
+@example
+@kbd{C-x C-f /ymir.claremont.edu:FILE.TXT;3}
+@end example
+@noindent
+you will find that VMS will not allow
+you to save the file because it will refuse to overwrite
+@file{FILE.TXT;3}, but instead will want to create @file{FILE.TXT;4},
+and attach the buffer to this file. To get out of this situation,
+@kbd{M-x write-file /ymir.claremont.edu:FILE.TXT} will attach the buffer
+to latest version of the file. For this reason, in Tree Dired @kbd{f}
+(@code{dired-find-file}),
+@pindex dired-find-file
+always loads the file sans version, whereas @kbd{v},
+(@code{dired-view-file}),
+@pindex dired-view-file
+always loads the explicit version number. The
+reasoning being that it reasonable to view old versions of a file, but
+not to edit them.
+
+@item
+VMS filenames often contain @samp{$} characters: make sure you always
+quote these as @samp{$$} and watch out for the Emacs bug which fails to
+quote @samp{$}'s when defaults are presented in the minibuffer: see
+@xref{Bugs}.
+@end itemize
+
+Ange-ftp should automatically detect that you are using a VMS host. If
+it fails to do so (which should be reported as a bug) you can use the
+command @code{ange-ftp-add-vms-host}
+@pindex ange-ftp-add-vms-host
+to inform ange-ftp manually. For a more permanent effect, or
+if you use a VMS host regularly, it's a good idea to set
+@code{ange-ftp-vms-host-regexp} to a regular expression matching that
+@vindex ange-ftp-vms-host-regexp
+host's name. For instance, if use use @code{ymir.claremont.edu} a lot,
+place the following in your .emacs:
+@example
+(setq ange-ftp-vms-host-regexp "^ymir.claremont.edu$")
+@end example
+
+@node CMS support, MTS support, VMS support, Non-Unix Hosts    
+@comment  node-name,  next,  previous,  up
+@subsection CMS support
+Ange-ftp has full support, including Tree Dired support, for hosts
+running CMS.
+
+@cindex CMS filenames
+CMS filenames are entered in a UNIX-y way. Minidisks are
+treated as UNIX directories; for example to access the file @file{READ.ME} in
+minidisk @file{*.311} on @file{cuvmb.cc.columbia.edu}, you would enter
+@example
+/anonymous@@cuvmb.cc.columbia.edu:/*.311/READ.ME
+@end example
+If @file{*.301} is the default minidisk for this account, you could access
+@file{FOO.BAR} on this minidisk as
+@example
+/anonymous@@cuvmb.cc.columbia.edu:FOO.BAR
+@end example
+CMS filenames are of the form @file{FILE.TYPE}, where both @file{FILE}
+and @file{TYPE} can be up to 8 characters. Again, beware that CMS
+filenames are always upper case, and hence must be entered as such.
+
+Sandy Rutherford provides some tips on using CMS hosts:
+@itemize @bullet
+@item
+CMS machines, with the exception of anonymous accounts, nearly always
+need an account password. To have ange-ftp send an account password,
+you can either include it in your @file{.netrc} (@xref{Using a .netrc}), or use
+@code{ange-ftp-set-account}.
+@pindex ange-ftp-set-account
+
+@item
+Ange-ftp cannot send ``write passwords'' for a minidisk. Hopefully, we
+can fix this.
+@end itemize
+
+Ange-ftp should automatically detect that you are using a CMS host. If
+it fails to do so (which should be reported as a bug) you can use the
+command @code{ange-ftp-add-cms-host}
+@pindex ange-ftp-add-cms-host
+to inform ange-ftp manually. For a more permanent effect, or
+if you use a CMS host regularly, it's a good idea to set
+@code{ange-ftp-cms-host-regexp} to a regular expression matching that
+@vindex ange-ftp-cms-host-regexp
+host's name.
+
+@node MTS support, , CMS support, Non-Unix Hosts    
+@comment  node-name,  next,  previous,  up
+@subsection MTS support
+Ange-ftp has full support, including Tree Dired support, for hosts
+running the Michigan terminal system, and should be able to
+automatically recognise any MTS machine. 
+
+@cindex MTS filenames
+MTS filenames are entered in a UNIX-y way. For example, if your account
+was @file{YYYY}, the file @file{FILE} in the account @file{XXXX:} on
+@file{mtsg.ubc.ca} would be entered as
+@example
+/YYYY@@mtsg.ubc.ca:/XXXX:/FILE
+@end example
+In other words, MTS accounts are treated as UNIX directories. Of course,
+to access a file in another account, you must have access permission for
+it.  If @file{FILE} were in your own account, then you could enter it in a
+relative path fashion as
+@example
+/YYYY@@mtsg.ubc.ca:FILE
+@end example
+MTS filenames can be up to 12 characters. Like UNIX, the structure of the
+filename does not contain a type (i.e. it can have as many @samp{.}'s as you
+like.) MTS filenames are always in upper case, and hence be sure to enter
+them as such! MTS is not case sensitive, but an EMACS running under UNIX
+is.
+
+Ange-ftp should automatically detect that you are using an MTS host. If
+it fails to do so (which should be reported as a bug) you can use the
+command @code{ange-ftp-add-mts-host}
+@pindex ange-ftp-add-mts-host
+to inform ange-ftp manually. For a more permanent effect, or
+if you use an MTS host regularly, it's a good idea to set
+@code{ange-ftp-mts-host-regexp} to a regular expression matching that
+@vindex ange-ftp-mts-host-regexp
+host's name.
+
+@node Completion, Accessing the FTP process, Non-Unix Hosts, Using ange-ftp    
+@comment  node-name,  next,  previous,  up
+@section File- and host-name completion
+
+Full filename completion is supported on all remote UNIX hosts and some
+non-Unix hosts.  Hostnames also have completion if they are mentioned in
+the @file{.netrc} and no username is specified. However using the
+filename completion feature can be a bit of a two edged sword.
+
+To understand why, we need to discuss how ange-ftp works. Whenever
+ange-ftp is asked to find a remote file (or directory) an @code{ls}
+command is sent to the FTP process to list all the files in the
+directory. This list is maintained in an internal cache, to provide
+filename completion for later requests on that directory. Ange-ftp keeps
+this cache up-to-date by monitoring Emacs commands which affect files
+and directories, but if a process outside Emacs (such as another user)
+changes a directory (e.g. a new file is added)
+completion won't work on
+that file since ange-ftp doesn't know about it yet. The solution if to
+force ange-ftp to reread the directory and update it's cache, and the
+easiest way to do that is with Dired --- @xref{Using Dired} to see how.
+
+Another problem is that the @code{ls} command can take a long time,
+especially when dealing with distant hosts over slow links. So if you're
+after a file in the @file{pub/images} directory but nothing else, it's a
+better idea to type @kbd{pub/images/file @key{TAB}} than @kbd{pub/im @key{TAB}}
+which will force a read of the @file{pub} directory (since
+ange-ftp needs to know how to complete @code{im}). A little extra typing
+can often save a lot of waiting. Don't be afraid to use the @key{TAB}
+key once the directory is cached, though.
+
+@node Accessing the FTP process, , Completion, Using ange-ftp    
+@comment  node-name,  next,  previous,  up
+@section Accessing the FTP process buffer
+
+The FTP process used to access the remote files is available for access
+if you wish. It will be in a buffer
+@cindex process buffers
+@cindex buffers
+called @samp{"*ftp @var{remote-file-name}*"},
+i.e. if you found the file
+@example
+/anonymous@@archive.site.com:pub/README
+@end example
+@noindent
+there will be a buffer 
+@example
+*ftp anonymous@@archive.site.com*
+@end example
+@noindent
+where all the transfers are taking place. You can have a look at the buffer
+using @kbd{C-x b} as usual, and even type in commands to the FTP process
+under an interface very much like @samp{shell-mode}. There are two
+instances when doing this can be very useful: one is accessing non-UNIX
+hosts, where Dired and filename completion may not work (if ange-ftp
+even works at all). The other is multiple (i.e. wildcard) file transfers
+@cindex multiple file transfers
+@cindex wildcards
+which the standard version of Dired does not handle (but Tree Dired
+@emph{does}, and is worth installing for this feature alone.)  If you
+are going to use @code{mget} or @code{mput}, make sure you type
+@code{glob} first: ange-ftp turns globbing off by default. Don't be
+afraid of changing directories, either --- ange-ftp always uses absolute
+pathnames when communicating with the FTP process.
+
+You can kill the FTP process at any time simply by killing this buffer.
+@cindex FTP processes
+@cindex processes
+This won't cause ange-ftp any grief whatsoever --- if you later make
+another request to that host, ange-ftp will simply fire up another
+process and create a new buffer to hold it.
+
+@node Getting help, Bugs, Using ange-ftp, Top    
+@comment  node-name,  next,  previous,  up
+@chapter Getting help
+
+Ange-ftp has its own mailing list modestly called ange-ftp-lovers where
+ange-ftp users discuss new features, problems, bug fixes etc. There is
+also another list called ange-ftp-lovers-announce which is reserved
+exclusively for the announcement of new versions. All
+users of ange-ftp are welcome to subscribe (see below) to either of
+these lists.  New versions of ange-ftp are posted periodically to
+these lists.
+
+To [un]subscribe to ange-ftp-lovers or ange-ftp-lovers-announce, or to
+report mailer problems with the list, please mail one of the following
+addresses:
+@example
+ange-ftp-lovers-request@@anorman.hpl.hp.com
+ange-ftp-lovers-request%anorman.hpl.hp.com@@hplb.hpl.hp.com
+hplb.hpl.hp.com!anorman.hpl.hp.com!ange-ftp-lovers-request
+hplabs.hpl.hp.com!anorman.hpl.hp.com!ange-ftp-lovers-request
+@end example
+@noindent
+Please don't forget the @samp{-request} part, and please make it clear
+in the request which mailing list you wish to join.
+
+For mail to be posted directly to ange-ftp-lovers, send to one of the
+following addresses:
+@example
+ange-ftp-lovers@@anorman.hpl.hp.com
+ange-ftp-lovers%anorman.hpl.hp.com@@hplb.hpl.hp.com
+hplb.hpl.hp.com!anorman.hpl.hp.com!ange-ftp-lovers
+hplabs.hpl.hp.com!anorman.hpl.hp.com!ange-ftp-lovers
+@end example
+@noindent
+The ange-ftp-lovers mailing list is archived on 
+@example
+ftp.reed.edu:pub/mailing-lists/ange-ftp/
+@end example
+
+The newsgroup @code{gnu.emacs.help} also occasionally discusses ange-ftp.
+
+@node Bugs, Concept Index, Getting help, Top
+@comment  node-name,  next,  previous,  up
+@chapter Bugs and Wish List
+
+Here is a list of the known bugs in ange-ftp:
+
+@itemize @bullet
+@item
+Be warned that files created by using ange-ftp will take account of the
+umask
+@cindex umask
+of the ftp daemon process rather than the umask of the creating
+user.  This is particulary important when logging in as the root user.
+The way that I tighten up the ftp daemon's umask under HP-UX is to make
+sure that the umask is changed to 027 before I spawn @file{/etc/inetd}.  I
+suspect that there is something similar on other systems.
+
+@item
+Some combinations of FTP clients and servers break and get out of sync
+when asked to list a non-existent directory.  Some of the
+@code{ai.mit.edu} machines cause this problem for some FTP clients.
+
+@item
+Ange-ftp does not check to make sure that when creating a new file,
+you provide a valid filename for the remote operating system.
+If you do not, then the remote FTP server will most likely
+translate your filename in some way. This may cause ange-ftp to
+get confused about what exactly is the name of the file. The
+most common causes of this are using lower case filenames on systems
+which support only upper case, and using filenames which are too
+long.
+
+@item
+Null (blank) passwords confuse both ange-ftp and some FTP daemons.
+
+@item
+ange-ftp likes to use pty's
+@cindex pty
+to talk to its FTP processes. If GNU Emacs
+creates a FTP process that only talks via pipes (for example, if 
+@code{process-connection-type} is @code{nil})
+@vindex process-connection-type
+then ange-ftp won't be getting the information it requires at the time that 
+it wants it since pipes flush at different times to pty's. One        
+disgusting way around this problem is to talk to the FTP process via   
+rlogin which does the `right' things with pty's.                       
+
+@item
+You need to quote @samp{$} characters in filenames by using @samp{$$}
+instead. This isn't actually a bug, but rather an Emacs convention
+(which allows environment variables in filenames.) What @emph{is} an bug
+is that when filenames containing @samp{$}'s are inserted in the
+minibuffer as defaults, the @samp{$} is not converted into the @samp{$$}
+quoted form --- hopefully this will be fixed in version 19. It doesn't
+usually bother Unix users, but VMS filenames often contain @samp{$}.
+Incidentally, Sebastian Kremer's @code{gmhist} package
+@pindex gmhist
+(which comes with the Tree Dired distribution: @xref{Obtaining source code})
+fixes this bug.
+
+@item
+@cindex symbolic links
+Some hosts (notably ULTRIX)
+@cindex ULTRIX
+mark symbolic links with a @samp{@@} character in an @code{ls -F}
+listing. The variable @code{dired-ls-F-marks-symlinks}
+@vindex dired-ls-F-marks-symlinks
+when set to @code{t} (the default) alerts Dired to this behaviour and
+everything is OK. Enabling this behaviour by default is not generally a
+problem on hosts which does @emph{not} mark symlinks in this way, but if
+you have @code{dired-ls-F-marks-symlinks} set to @code{t} while
+accessing a such a host, then Dired will think that a symbolic link whose name
+ends in @samp{@@} (a strange thing indeed!) is a regular file. The fix
+(other than setting @code{dired-ls-F-marks-symlinks to} @code{nil}, a bad idea
+if you regularly access hosts who mark symbolic links) is to remove
+@samp{F} from the @code{ls} listing switches (use @kbd{C-u s} in the
+Dired buffer.)
+
+Another problem with symbolic links arises with hosts who do not show
+the linked file with @samp{->} in the listing, meaning that Dired will
+not recognize the symlink. The solution here is to get a decent
+@code{ls} program on that machine. 
+
+@item
+No classic dired support for non-UNIX systems. Tree dired was enough.
+
+@item
+If a directory listing is attempted for an empty directory on (at least some)
+VMS hosts, an ftp error is given. This is really an ftp bug, and I don't
+know how to get ange-ftp work to around it.
+
+@item
+Bombs on filenames that start with a space. Deals well with filenames
+containing spaces, but beware that the remote ftpd may not like them much.
+
+@item
+@cindex auto-saving
+Doesn't autosave. Maybe someone could implement auto-saving on the local
+host ...
+
+@item
+@cindex compressing files
+The code to do compression of files over ftp is not as careful as it
+should be. It deletes the old remote version of the file, before
+actually checking if the local to remote transfer of the compressed file
+succeeds. Of course to delete the original version of the file after
+transferring the compressed version back is also dangerous, because some
+OS's have severe restrictions on the length of filenames, and when the
+compressed version is copied back the @file{-Z} or @file{.Z} may be
+truncated. Then, ange-ftp would delete the only remaining version of the
+file. Maybe ange-ftp should make backups when it compresses files?
+
+@item
+@cindex copying
+Remote to remote copying of files on non-Unix machines can be risky. Depending
+on the variable @code{ange-ftp-binary-file-name-regexp}, ange-ftp will use binary
+mode for the copy. Between systems of different architecture, this still
+may not be enough to guarantee the integrity of binary files. Binary file
+transfers from VMS machines are particularly problematical. 
+
+@item
+@cindex CMS minidisks
+Some CMS machines do not assign a default minidisk when you ftp them as
+anonymous. It is then necessary to guess a valid minidisk name, and
+@code{cd} to it.  This is (understandably) beyond ange-ftp; however
+Sebastian Kremer says:
+@quotation
+It is beyond ange-ftp, but if the @code{init} ftp macro were supported, one
+could write the appropriate @code{cd} command into that.  I used to do that
+on a CMS machine I had an account on because I never could remember
+the name of the minidisk.  I think I even had to give an @code{account}
+command, too. Supporting @code{init} would be a very handy thing.
+
+Hmm, why start @code{ftp(1)} with the @code{-n} flag at all?
+@end quotation
+
+@item
+For CMS support, we send too many @code{cd}'s. Since @code{cd}'s are
+cheap, I haven't worried about this too much. Eventually, we should have
+some caching of the current minidisk.
+@end itemize
+
+If you find any bugs or problems with this package, @strong{please}
+e-mail the author. Ideas and constructive comments are especially
+welcome. So are any enhancements to ange-ftp, preferably debugged and
+documented. Also welcome are any typo fixes, corrections or additions to
+this manual. And just so you don't forget, here's Ange's address again:
+@example
+ange@@hplb.hpl.hp.com
+@end example
+@noindent
+Enjoy!
+
+@node Concept Index, Variable and command index, Bugs, Top
+@comment  node-name,  next,  previous,  up
+@unnumbered Concept Index
+
+@printindex cp
+
+@node Variable and command index, , Concept Index, Top
+@unnumbered Variable and command index
+
+@printindex vr
+
+@contents
+
+@bye
+

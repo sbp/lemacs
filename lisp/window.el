@@ -41,25 +41,40 @@ even if it is active."
 				(enlarge-window (- size (window-height)))))
 		    'nomini))))
 
-(defun split-window-vertically (&optional arg)
+(defun split-window-vertically (&optional arg hack-display)
   "Split current window into two windows, one above the other.
-This window becomes the uppermost of the two, and gets
-ARG lines.  No arg means split equally."
-  (interactive "P")
+The top window gets ARG lines.  No arg means split equally.
+
+The two windows will be displaying the same text as before: both windows will
+be displaying the current buffer, but the second window will be scrolled such
+that little redisplay will happen - the lines that were on the screen before
+the split will still be on the screen, in the same places.  
+
+An effort is made to keep the cursor in the same place relative to the text on
+the screen as well.  If the cursor is below the split-point before the split,
+then the bottom window will be selected; otherwise the top window will be
+selected."
+  (interactive (list current-prefix-arg t))
   (let ((old-w (selected-window))
-	new-w bottom)
+	new-w)
     (setq new-w (split-window nil (and arg (prefix-numeric-value arg))))
-    (save-excursion
-      (set-buffer (window-buffer))
-      (goto-char (window-start))
-      (vertical-motion (window-height))
-      (set-window-start new-w (point))
-      (if (> (point) (window-point new-w))
-	  (set-window-point new-w (point)))
-      (vertical-motion -1)
-      (setq bottom (point)))
-    (if (<= bottom (point))
-	(set-window-point old-w (1- bottom)))
+    (if hack-display
+	(let (bottom)
+	  (save-excursion
+	    (set-buffer (window-buffer))
+	    (goto-char (window-start))
+	    (vertical-motion (window-height))
+	    (set-window-start new-w (point))
+	    (if (>= (point) (window-point new-w))
+		(set-window-point new-w (point)))
+	    (vertical-motion -1)
+	    (if (pos-visible-in-window-p (point) new-w)
+		(set-window-start new-w (point)))
+	    (setq bottom (point)))
+	  (if (<= bottom (point))
+	      (progn
+		(set-window-point old-w (1- bottom))
+		(select-window new-w)))))
     new-w))
 
 (defun split-window-horizontally (&optional arg)

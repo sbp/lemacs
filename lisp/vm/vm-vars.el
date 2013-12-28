@@ -86,6 +86,17 @@ current messages.  A nil value disables this behavior.")
   "*Non-nil value causes VM to honor pages delimiters (as specified by the
 page-delimiter variable) when scrolling through a message.")
 
+(defvar vm-window-configuration-file nil
+  "*Non-nil value should be a string that tells VM where to load
+and store its window configuration information.  The window
+configuration information is loaded automatically the first time
+you run VM in an Emacs session, and tells VM how to set up
+windows depending on what you are doing inside VM.
+
+The command vm-save-window-configuration (normally bound to `WS')
+lets you update this information; see its documentation for more
+information.")
+
 (defvar vm-confirm-quit 0
   "*Value of t causes VM to always ask for confirmation before quitting
 a VM visit of a folder.  A nil value means VM will ask only when messages
@@ -262,6 +273,13 @@ to keep such buffers.  A value of t cuases VM never to kill such buffers.
 
 Note that these buffers will vanish once you exit Emacs.  To keep a permanent
 record of your outgoing mail, use the mail-archive-file-name variable.")
+
+(defvar vm-mail-header-from nil
+  "*Non-nil value should be a string that will be appear as the body
+of the From header in outbound mail messages.  A nil value means don't
+insert a From header.  This variable also controls the inclusion and
+format of the Resent-From header, when resending a message with
+vm-resend-message.")
 
 (defvar vm-reply-subject-prefix nil
   "*Non-nil value should be a string that VM should add to the beginning
@@ -586,6 +604,12 @@ distributed with Emacs.")
     (define-key map "MU" 'vm-unmark-message)
     (define-key map "Mm" 'vm-mark-all-messages)
     (define-key map "Mu" 'vm-clear-all-marks)
+    (define-key map "M?" 'vm-mark-help)
+    (define-key map "W" (make-sparse-keymap))
+    (define-key map "WW" 'vm-apply-window-configuration)
+    (define-key map "WS" 'vm-save-window-configuration)
+    (define-key map "WD" 'vm-delete-window-configuration)
+    (define-key map "W?" 'vm-window-help)
     (define-key map "\C-x\C-s" 'vm-save-buffer)
     (define-key map "\C-x\C-w" 'vm-write-file)
     (define-key map "\M-C" 'vm-show-copying-restrictions)
@@ -687,6 +711,8 @@ specified by vm-edit-message-mode.")
 (defvar vm-inhibit-write-file-hook nil)
 (defvar vm-session-beginning t)
 (defvar vm-rc-loaded nil)
+(defvar vm-window-configurations nil)
+(defvar vm-window-configuration nil)
 (defconst vm-spool-directory
   (or (and (boundp 'rmail-spool-directory) rmail-spool-directory)
       "/usr/spool/mail/"))
@@ -709,6 +735,12 @@ specified by vm-edit-message-mode.")
 (defconst vm-header-regexp-format "^%s:[ \t]*\\(.*\\(\n[ \t]+.*\\)*\\)")
 (defconst vm-supported-groupings-alist
   '(("physical-order") ("subject") ("author") ("date-sent") ("recipient")))
+(defconst vm-supported-window-configurations
+  '(("composing-message") ("editing-message")
+    ("showing-message") ("paging-message") ("auto-next-message")
+    ("searching-folder")
+    ("end-of-message")
+    ("startup") ("summarize")))
 (defconst vm-attributes-vector-length 9)
 (defconst vm-cache-vector-length 16)
 (defconst vm-softdata-vector-length 4)

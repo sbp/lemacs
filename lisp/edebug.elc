@@ -1,0 +1,466 @@
+;;; compiled by devin@watergate on Sat May 16 14:11:51 1992
+;;; from file /wg1/emacs-base/lisp/edebug.el
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 23-apr-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar edebug-all-defuns nil "\
+*If non-nil, all defuns and defmacros evaluated will use edebug.
+eval-defun without prefix arg and eval-region will use edebug-defun.
+
+If nil, eval-region evaluates normally, but eval-defun with prefix arg
+uses edebug-defun.  eval-region is called by eval-defun, eval-last-sexp,
+and eval-print-last-sexp.
+
+You may wish to make this variable local to each elisp buffer by calling
+(make-local-variable 'edebug-all-defuns) in your emacs-lisp-mode-hook.
+You can use the function edebug-all-defuns to toggle its value.")
+(defvar edebug-eval-macro-args nil "\
+*If non-nil, edebug will assume that all macro call arguments for
+macros that have no edebug-form-spec may be evaluated, otherwise it
+assumes they will not be evaluated.  To specify exceptions for macros
+that have some arguments evaluated and some not, you should specify an
+edebug-form-spec")
+(defvar edebug-stop-before-symbols nil "\
+*Non-nil causes edebug to stop before symbols as well as after.
+In any case, it is possible to stop before a symbol with a breakpoint or
+interrupt.")
+(defvar edebug-save-windows t "\
+*If non-nil, save and restore window configuration on edebug calls.
+It takes some time to save and restore, so if your program does not care
+what happens to the window configurations, it is better to set this
+variable to nil.")
+(defvar edebug-save-displayed-buffer-points nil "\
+*If non-nil, save and restore the points of all displayed buffers.
+
+Saving and restoring buffer points is necessary if you are debugging
+code that changes the point of a buffer which is displayed in a
+non-selected window.  If edebug or the user then selects the
+window, the buffer's point will be changed to the window's point.
+
+Saving and restoring is an expensive operation since it visits each
+window and each displayed buffer twice for each edebug call, so it is
+best to avoid it if you can.")
+(defvar edebug-initial-mode 'step "\
+*Global initial mode for edebug, if non-nil.
+This is used when edebug is first entered for each recursive-edit level.
+Possible values are nil (meaning keep using edebug-mode), step, go,
+Go-nonstop, trace, Trace-fast, continue, and Continue-fast.")
+(defvar edebug-trace nil "\
+*Non-nil if edebug should show a trace of function entry and exit.
+Tracing output is displayed in a buffer named *edebug-trace*, one
+function entry or exit per line, indented by the recursion level.  You
+can customize by replacing functions edebug-print-trace-entry and
+edebug-print-trace-exit.")
+(fset 'edebug-which-function #[nil "ŠÀ ˆÁ ˆÂÃ!ˆÄp!Å>¬„ÆÇ!ˆÄp!)‡" [end-of-defun beginning-of-defun down-list 1 read (defun defmacro) error "Not in defun or defmacro."] 2 "\
+Return the symbol of the function we are in."])
+(fset 'edebug-last-sexp #[nil "ÀŠÁÂ!ˆ`)`{!@‡" [read-from-string forward-sexp -1] 3 "\
+Return the last sexp before point in current buffer.
+Assumes elisp syntax is active."])
+(fset 'edebug-window-list #[nil "À ‰CÃ	!‰	=¬‹\nBÃ!‰ªq\nŸ+‡" [selected-window first-window window-list next-window next] 3 "\
+Return a list of windows, in order of next-window."])
+(fset 'edebug-get-emacs-displayed-buffer-points #[nil "ŠÀ Â	!ÄÄ	=¬–Ç!‰qˆ`BBÂ!‰ªf-‡" [selected-window first-window next-window next nil buffer-point-list buffer window-buffer] 3 "\
+Return a list of buffer point pairs, for all displayed buffers."])
+(fset 'edebug-set-buffer-points #[(buffer-points) "pÁÂ\"ˆq)‡" [current-buffer mapcar #[(buf-point) "À	@!­‡	@qˆ	Ab‡" [buffer-name buf-point] 2] buffer-points] 3 "\
+Restore the buffer-points created by edebug-get-displayed-buffer-points."])
+(fset 'edebug-two-window-p #[nil "À ?­‰Á Â‰Á !!=‡" [one-window-p selected-window next-window] 4 "\
+Return t if there are two windows."])
+(fset 'edebug-macrop #[(object) "9«‹Á!«†K‰ªr<­@Â=­‡ÃA!­‡" [object fboundp macro edebug-functionp] 3 "\
+Return the macro named by OBJECT, or nil if it is not a macro."])
+(fset 'edebug-functionp #[(object) "9«‹Á!«†K‰ªrÂ!¬<­@Ã=­‡A@<­‡" [object fboundp subrp lambda] 3 "\
+Returns the function named by OBJECT, or nil if it is not a function."])
+(fset 'edebug-sort-alist #[(alist function) "À	Â\"‡" [sort alist #[(e1 e2) "	@\n@\"‡" [function e1 e2] 3]] 3 "\
+Return the ALIST sorted with comparison function FUNCTION.
+This uses 'sort so the sorting is destructive."])
+(put 'edebug-save-restriction 'edebug-form-spec t)
+(fset 'edebug-save-restriction '(macro . #[(&rest body) "ÀÁÂÃÄ\"ÆEE‡" [let ((edebug:s-r-beg (point-min-marker)) (edebug:s-r-end (point-max-marker))) unwind-protect append (progn) body (save-excursion (set-buffer (marker-buffer edebug:s-r-beg)) (narrow-to-region edebug:s-r-beg edebug:s-r-end))] 6 "\
+Evaluate BODY while saving the current buffers restriction.
+BODY may change buffer outside of current restriction, unlike
+save-restriction.  BODY may change the current buffer,
+and the restriction will be restored to the original buffer,
+and the current buffer remains current.
+Return the result of the last expression in BODY."]))
+(defvar epoch::version nil "\
+This will be predefined as non-nil in epoch.")
+(fset 'def-edebug-func '(macro . #[(edebug-func epoch-func emacs-func) "ÀÁ\nDÃÄÅÁDDÅÁDDFE‡" [fset quote edebug-func if epoch::version symbol-function epoch-func emacs-func] 8 "\
+Define a function as either the epoch version or the emacs version."]))
+(fset 'edebug-get-epoch-displayed-buffer-points #[nil "ÀÂÃÄÅ!\"ˆ	)‡" [nil buffer-point-list mapcar #[(screen) "À	!ˆŠÂ Ä!‰=¬‘Æ!`BBÄ!‰ªk+‡" [select-screen screen selected-window first-window next-window next window-buffer buffer-point-list] 3] epoch::screen-list unmapped] 4 "\
+Return a list of buffer point pairs, for all displayed buffers."])
+(byte-code "À	«„ÂKª‚ÃKM‡" [edebug-get-displayed-buffer-points epoch::version edebug-get-epoch-displayed-buffer-points edebug-get-emacs-displayed-buffer-points] 2)
+(fset 'edebug-pop-to-buffer #[(buffer) "À	!‰«†Ã\n!ˆª§«ŒÅÆÇ	\"@®‚È !ˆÉ «ƒÊ ˆÃË !ˆÌÍ 	\"ˆÎÍ Ï\"ˆ)	q‡" [edebug-get-buffer-window buffer edebug-window select-window epoch::version select-screen symbol-buffer-value allowed-screens epoch::current-screen one-window-p split-window next-window set-window-buffer selected-window set-window-hscroll 0] 5 "\
+Like pop-to-buffer, but select a window that buffer was shown in.
+If running epoch, use the same screen too."])
+(fset 'edebug-current-screen-configuration #[nil "ÀÁ!Â pÆ\"BÇÈ\"É!ˆqˆ+‡" [epoch::screen-list unmapped epoch::get-screen current-buffer current-screen screen-list delq mapcar #[(screen) "Á!ˆÂ B‡" [screen epoch::select-screen current-window-configuration] 3] epoch::select-screen] 4 "\
+Return an object recording the current configuration of Epoch screen-list.  
+The object is a list of pairs of the form (SCREEN .  CONFIGURATION)
+where SCREEN has window-configuration CONFIGURATION.  The current
+screen is the head of the list."])
+(byte-code "À	«„ÂKª‚ÃKM‡" [edebug-current-window-configuration epoch::version edebug-current-screen-configuration current-window-configuration] 2)
+(fset 'edebug-set-screen-configuration #[(sc) "ÀÁ\n\"ˆÃ\n@@!­…Ä\n@@!‡" [mapcar #[(screen-conf) "À	@!­‰Â	@!ˆÃ	A!‡" [epoch::screen-p screen-conf epoch::select-screen set-window-configuration] 2] sc epoch::screen-p epoch::select-screen] 3 "\
+Set the window-configuration for all the screens in SC.
+Set the current screen to be the head of SC."])
+(byte-code "À	«„ÂKª‚ÃKMˆÄ	«„ÅKª‚ÆKMˆÇÈMˆÉ	«„ÇKª‚ÊKMˆËÌMˆÍ	«„ËKª‚ÎKM‡" [edebug-set-window-configuration epoch::version edebug-set-screen-configuration set-window-configuration edebug-get-buffer-window epoch::get-buffer-window get-buffer-window edebug-epoch-sit-for #[(arg) "À ˆÁ\n!‡" [epoch::dispatch-events sit-for arg] 2] edebug-sit-for sit-for edebug-epoch-input-pending-p #[nil "À ˆÁ ‡" [epoch::dispatch-events input-pending-p] 1] edebug-input-pending-p input-pending-p] 2)
+(fset 'edebug-install-custom-print-funcs #[nil "ÀÁ!ˆÂÃMˆÄÁMˆÅÆMˆÇÈM‡" [require custom-print edebug-prin1 custom-prin1 edebug-print edebug-prin1-to-string custom-prin1-to-string edebug-format custom-format] 2 "\
+Replace edebug print functions with custom versions.
+Updating the custom print functions, or changing print-length,
+print-level, print-circle, custom-print-list or custom-print-vector
+have immediate effect." nil])
+(fset 'edebug-reset-print-funcs #[nil "ÀÁ!ˆÂÃKMˆÄÅKMˆÆÇKMˆÈÉKM‡" [require custom-print edebug-prin1 CP::internal-prin1 edebug-print CP::internal-print edebug-prin1-to-string CP::internal-prin1-to-string edebug-format CP::internal-format] 2 "\
+Replace edebug custom print functions with internal versions." nil])
+(byte-code "ÀÁKMˆÂÃKMˆÄÅKMˆÆÇKM‡" [edebug-prin1 prin1 edebug-print print edebug-prin1-to-string prin1-to-string edebug-format format] 2)
+(fset 'edebug-all-defuns #[nil "?ÁÂ«ƒÃªÄ\"‡" [edebug-all-defuns message "Edebugging is %s." "on" "off"] 3 "\
+Toggle edebugging of all defuns and defmacros,
+not including those evaluated in the minibuffer, or during load." nil])
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp edebug-emacs-eval-defun eval-defun] 2)
+(fset 'eval-defun #[(edebug-debug-it) "?	?=?ÂÃ!)‡" [edebug-debug-it edebug-all-defuns edebug-emacs-eval-defun nil] 2 "\
+Edebug replacement for eval-defun.  Print value in the minibuffer.
+Evaluate the top-level form that point is in or before.  Note:
+eval-defun normally evaluates any top-level form, not just defuns.  
+
+Here are the differences from the standard eval-defun:  If the prefix
+argument is the same as edebug-all-defuns (nil or non-nil), evaluate
+normally; otherwise edebug-defun is called to wrap edebug calls around
+evaluatable expressions in the defun or defmacro body.  Also, the
+value printed by edebug-defun is not just the function name." "P"])
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp edebug-emacs-eval-region eval-region] 2)
+(fset 'eval-region #[(edebug-e-r-start edebug-e-r-end &optional edebug-e-r-output) "®Á`ppÂ Ä“Ä	\nbˆÌ ˆ`W«õ«šÎ Ï=«”ŠĞuˆÑ Ò>)«‰Ó ˆÔĞ!ˆªÊÎ Ï=«“ŠĞuˆÑ Õ>)«ˆÖ× ØÙ #ˆÑ ŠqˆÚ!p)«B\nÜ=«†İ!ˆªŒŞß!ˆİ!ˆŞß!ˆ`]Ì ˆ`^bˆª¬ˆqˆ	bˆ.Ä‡" [edebug-e-r-output symbolp make-marker edebug-e-r-end nil edebug-e-r-val edebug-e-r-end-marker edebug-e-r-inside-buf edebug-e-r-buf edebug-e-r-pnt standard-output edebug-e-r-start edebug-skip-whitespace edebug-all-defuns edebug-next-token-class lparen 1 edebug-read-sexp (defun defmacro) edebug-defun forward-sexp (defun defmacro) put edebug-which-function edebug point-marker eval values t prin1 princ "\n"] 7 "\
+Edebug replacement for eval-region.
+Like eval-region, but call edebug-defun for defuns or defmacros.
+Also, this eval-region does not narrow to the region and
+if an error occurs, point is left at the error." "r"])
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp edebug-emacs-eval-current-buffer eval-current-buffer] 2)
+(fset 'eval-current-buffer #[(&optional edebug-e-c-b-output) "Àed	#‡" [eval-region edebug-e-c-b-output] 4 "\
+Call eval-region on the whole buffer." nil])
+(fset 'edebug-defun #[nil "`ÀÃ ˆÄ ˆÅÆÇ*‡" [nil def-name starting-point end-of-defun beginning-of-defun err (byte-code "À‰ÃÄ!ˆÅ Æ\nÇ>¬†ÈÉ\n\"ª„\nÊ B!ËÌ	\"ˆbˆ	*‡" [nil def-name def-kind down-list 1 edebug-read-sexp eval (defun defmacro) edebug-syntax-error "%s is not a defun or defmacro." edebug-func-form message "edebug: %s" starting-point] 4) ((invalid-read-syntax (byte-code "ŠbˆÁÂ!ˆ)ÃÄA\"‡" [starting-point set-mark-command nil message "Syntax error: %s" err] 3)))] 3 "\
+Evaluate defun or defmacro, like eval-defun, but with edebug calls.
+Print its name in the minibuffer and leave point where it is,
+or if an error occurs, leave point after it with mark at the original point." nil])
+(fset 'edebug-func-form #[nil "À‰‰‰‰ÁÀ‰‰‰Â	\nÎ Ï ‰9¬†ĞÑ\"ˆÏ ‰<¬†ĞÒ\"ˆ`Ó Ô=«†Ï `Ó Õ=«”ÖuˆÏ ×=«‹×Ø B\nÖuˆ`bˆÉ 	ÙÚÛGÜ\"Şß\"ˆ)#ˆÙàÛGÁ\"#ˆÙáÀâŸ!E#ˆ\nãäDåæçèçéê!\"\"\"ëåì	\"DF¯.‡" [nil 0 t parse-sexp-ignore-comments tmp-point edebug-func-mark edebug-before-to-after-alist edebug-offset-list edebug-offset-index edebug-forms defun-interactive def-docstring def-args def-name point-marker edebug-read-sexp edebug-syntax-error "Bad name: %s" "Bad arg list: %s" edebug-next-token-class string lparen 1 interactive edebug-interactive-form put edebug-after-index make-vector -1 after-vector mapcar #[(pair) "	@	AI‡" [after-vector pair] 3] edebug-freq-count edebug vconcat edebug-enter quote append (list) delq rest &optional copy-sequence function (lambda nil)] 15 "\
+Process the defun form starting before defun or defmacro."])
+(fset 'edebug-forms #[nil "ÀÁ!‡" [edebug-sexp-list t] 2 "\
+Process a list of forms."])
+(fset 'edebug-sexps #[nil "ÀÁ!‡" [edebug-sexp-list nil] 2 "\
+Process a list of sexps, unevaluated."])
+(fset 'edebug-sexp-list #[(debuggable) "ÀÂ Ã=¬«„Å ª‚Æ 	Bªl	Ÿ)‡" [nil sexp-list edebug-next-token-class rparen debuggable edebug-form edebug-read-sexp] 2 "\
+Return an edebug form built from the sexp list following point in the
+current buffer. If DEBUGGABLE then wrap edebug calls around each sexp.
+The sexp list does not start with a left paren; we are already in the list.
+Leave point at (before) the trailing right paren."])
+(fset 'edebug-increment-offset #[nil "T`	Z\nB‰‡" [edebug-offset-index edebug-func-mark edebug-offset-list] 2])
+(fset 'edebug-make-edebug-form #[(index form) "À	9«ƒ\n«…ÃDª	EBBÇ ˆ‡" [edebug-after form edebug-stop-before-symbols edebug-before index edebug-offset-index edebug-before-to-after-alist edebug-increment-offset] 3 "\
+Return the edebug form for the current function at offset INDEX given FORM.
+Looks like: (edebug-after (edebug-before INDEX) FORM).
+Also increment the offset index."])
+(fset 'edebug-form #[nil "ÂÂÅ ˆÆ ˆÇ ‰È=«‡É	Ê \"ªœË=«•Ì ‰Í>¬Š§¬†É	\"ª…ª‚Ì +‡" [edebug-offset-index index nil form class edebug-skip-whitespace edebug-increment-offset edebug-next-token-class lparen edebug-make-edebug-form edebug-list-form symbol edebug-read-sexp (nil t)] 4 "\
+Return the debug form for the following form.  Add the point offset
+to the edebug-offset-list for the function and move point to
+immediately after the form."])
+(fset 'edebug-list-form #[nil "À‰ÃuˆÄ ‰Å=«…Æ ª—\nÇ=«…È ª\nÉ=«„Àª„ÊË!ˆ	­°	‰9«¨	ÌN‰«9«… ª“Î!ªÏ	!«†Ğ!ª‚Ò )ª‚Ò BÄ É=«…Ãuˆª„ÊÓ!ˆ*‡" [nil head class 1 edebug-next-token-class symbol edebug-read-sexp lparen edebug-anonymous-form rparen edebug-syntax-error "Head of list must be a symbol or lambda expression." edebug-form-spec form edebug-interpret-form-spec edebug-macrop edebug-sexp-list edebug-eval-macro-args edebug-forms "Too many arguments."] 4 "\
+Return an edebug form built from the list form that follows point.
+Insert debug calls as appropriate to the form.  Start with point before
+the left paren; leave point after the right paren."])
+(fset 'edebug-interpret-form-spec #[(specs) "ÀÂÃ‰«„Å!ˆ	*‡" [nil edebug-form no-match (byte-code "À	Â\"Â‡" [edebug-interpret-form-spec1 specs nil edebug-form] 3) error edebug-syntax-error] 3 "\
+Parse the macro arguments that follow based on SPECS.  
+SPECS describes the types of the arguments of a list form.  Each of the SPECS
+is processed left to right, in the same order as the arguments of the
+list form.  See the edebug documentation for more details.  The SPECS
+may be one of the following:
+
+ sexp - An unevaluated sexp (it may be an atom or list).
+ form - An evaluated sexp.
+ function - A function argument may be a quoted symbol or lambda
+	expression (using quote or function) or a form (that evaluates
+	to a function or lambda expression).
+
+ foo -  Any other symbol should be the name of a function; this
+	function is called on the argument as a predicate and an error
+	is signaled if the predicate fails.  Standard predicates
+ 	include symbolp, integerp, stringp, vectorp, and atom.
+ 	An atom is an unevaluated number, string, symbol, or vector.
+
+ &optional - All following specs in the list may or may not appear. 
+ &rest - All following specs are repeated zero or more times.
+	This is an extension of the normal meaning of &rest.
+ &or -  Each of the following specs are alternatives, processed left to
+	right until one succeeds.
+
+ (...) - A sublist of the same format as the top level, processed recursively.
+	Special case: if the car of the list is quote, the argument must match
+	the quoted sexp (see example below of 'for macro).
+
+ [...] - A sublist of the same format as the top level, processed recursively.
+	It is processed like (...) except the matched arguments are inserted
+	in-line into the arguments matched by the containing list.  This may be
+	used for grouping to get one list element of the higher level list.
+"])
+(fset 'edebug-interpret-form-spec1 #[(specs in-line) "Á‰‰‰‰‰‰‰	\n\n«üË ‰Ì=¬ó\n@	\nA\n\n­‚\n	Í>«¼	Ä=«‘\n¬ƒ«‹ÎÏ\n«ƒÂªÃ\"ˆ	Ã=«‡\n«„ÎĞ!ˆ	\nLˆ\n@	\nA\n\n­‚\nª>`ÑÒ«’\n¬‹¬ˆÔÑ\"ˆª„bˆ*ª \n«’¬¬Œ\n@Õ>¬…ÔÑÖ\"ˆ¬£Ë ‰Ì=¬•\n«¬Š¬‡ÔÑØ\"ˆª…ÔÑÙ\"ˆŸ.	‡" [specs nil &or &rest &optional was-in-line class form-list form spec speclist edebug-next-token-class rparen (&optional &rest &or) error "&optional doesn't make sense after %s" "&rest doesn't make sense after &or" no-match (byte-code "Á=«†Â ‚½ Ã=«†Ä ‚½ Å=«‹ÆÇÈ\"É\n‚½ <«Õ@Ë=«œA@Í=«ˆÄ ‰=¬ûÎÏĞÑ\"\"ˆªñÒ=«ÓuˆÆÔ\"ÓuˆªŞË=«“@Õš«ÓuˆÅÆAÉ\"BªÅÎÏÖ\"ˆª¾9«£×!«„Kª„ØÙ\"‰Ä ‰!¬‰ÎÏĞÛ	#\"ˆ)ª—Ü!«ÆİÔ\"É\"É\nª…ØŞ\"ˆ\n«Œİ	\"Ô\nª†	B «†Ô!Ô \"«ˆ!¬„\"!Ô‡" [spec form edebug-form sexp edebug-read-sexp function edebug-interpret-form-spec1 (&or ('function &or symbolp ('lambda (&rest symbolp) &rest form)) ('quote &or symbolp ('lambda (&rest symbolp) &rest form)) form) in-line t was-in-line quote class symbol throw no-match format "\"%s\" expected." lparen 1 nil 'quote "List expected." fboundp error "%s is not a function." pred "Predicate %s failed on %s." vectorp append "Bad item in edebug-form-spec: %s" form-list &or speclist &rest] 7) pnt throw (&optional &rest) "Not enough arguments." in-line "Unrecognized argument." "Too many arguments."] 9 "\
+Helper for edebug-interpret-form-spec.
+If in-line is non-nil, don't reverse the resulting edebug form,
+and don't complain about extra arguments."])
+(fset 'def-edebug-form-spec '(macro . #[(symbol form) "ÀÁ\nDÃÅ=«ƒÆª‰Ç=«ƒÈªF‡" [put quote symbol 'edebug-form-spec form t 'edebug-forms 0 'edebug-sexps] 5 "\
+Set the edebug-form-spec property of SYMBOL according to FORM.  If
+FORM is t, set it to edebug-forms.  If 0, set it to edebug-sexps.
+Otherwise just use the evaluated FORM.  FORM can evaluate to a symbol,
+which should be the name of a function, or a spec list for
+edebug-interpret-form-spec."]))
+(byte-code "ÀÁÂÃ#ˆÀÄÂÅ#ˆÀÆÂÇ#ˆÀÈÂÉ#ˆÀÊÂË#ˆÀÌÂÍ#ˆÀÎÂÏ#ˆÀĞÂÑ#ˆÀÒÂÓ#ˆÀÔÂÕ#ˆÀÖÂ×#ˆÀØÂÙ#ˆÀÚÂÛ#ˆÀÚÂÜ#ˆÀİÂÜ#ˆÀŞÂß#‡" [put testit edebug-form-spec edebug-forms mapcar (function form) mapconcat (function form form) mapatoms (function &optional form) apply (function &rest form) funcall (function &rest form) for (symbolp 'from form 'to form 'do &rest form) case (form &rest (sexp form)) do ((&rest &or symbolp (symbolp &optional form form)) (form &rest form) &rest body) quote edebug-read-sexp defvar (symbolp &optional form stringp) defconst (symbolp &optional form stringp) defun (symbolp (&rest symbolp) &optional stringp ('interactive &optional &or stringp form) &rest form) edebug-func-form defmacro function (&or symbolp ([&optional 'macro] 'lambda (&rest symbolp) &rest form))] 4)
+(fset 'edebug-anonymous-form #[nil "ÀuˆÁ ‰Ã=«„Ä ª˜\nÅ=«Á Ã=¬„ÆÇ!ˆÅÄ BªƒÆÈ!)Àuˆ‡" [1 edebug-read-sexp head lambda edebug-lambda-form macro edebug-syntax-error "lambda expected." "Anonymous lambda or macro expected."] 3 "\
+Return the edebug form for an anonymous lambda or macro.
+Point starts before the left paren and ends after it."])
+(fset 'edebug-lambda-form #[nil "ÀÁÂ DÃ \"‡" [append lambda edebug-read-sexp edebug-forms] 3 "\
+Return the edebug form for the lambda form that follows.
+Point starts after the lambda symbol and is moved to before the right paren."])
+(byte-code "ÀÁÂÃ#ˆÀÄÂÅ#ˆÀÁÂÆ#ˆÀÄÂÆ#‡" [put let edebug-form-spec ((&rest &or symbolp (symbolp &optional form)) &rest form) let* ((&rest &or symbolp (symbolp &optional form)) &rest form) edebug-let-form] 4)
+(fset 'edebug-let-form #[nil "À‰‰Ä Å=¬Æ ‰«…ÇÈ!ªµ\nª²ÉuˆÄ ‰Ê=¬¢	Å=¬„Æ ª”ÉuˆË Ä Ê=¬†ÇÌ!ˆªƒÉuˆBªVÉuˆŸÍ +B‡" [nil class token var-value-list edebug-next-token-class lparen edebug-read-sexp edebug-syntax-error "Bad var list in let." 1 rparen edebug-var-value "Right paren expected in let." edebug-forms] 3 "\
+Return the edebug form of the let or let* form.
+Leave point before the right paren."])
+(fset 'edebug-var-value #[nil "À Á Â=?­‚Ã D‡" [edebug-read-sexp edebug-next-token-class rparen edebug-form] 3 "\
+Return the edebug form of the var and optional value that follow point.  
+Leave point after the value, if there is one."])
+(byte-code "ÀÁÂÃ#ˆÀÄÂÅ#ˆÀÁÂÆ#ˆÀÄÂÆ#‡" [put setq edebug-form-spec (&rest symbolp form) setq-default (&rest symbolp form) edebug-setq-form] 4)
+(fset 'edebug-setq-form #[nil "ÀÂ Ã=¬ˆÄ	Å \"ªr	)‡" [nil var-value-list edebug-next-token-class rparen append edebug-var-value] 3 "\
+Return the edebug form of the setq or setq-default var-value list."])
+(byte-code "ÀÁÂÃ#ˆÀÁÂÄ#‡" [put interactive edebug-form-spec (&optional &or stringp form) edebug-interactive-form] 4)
+(fset 'edebug-interactive-form #[nil "À Á=?­¢À Â=«„Ã ª˜ÄÅDÇÈÉÊË EDFÀ Á=¬„ÌÍ!ˆC‡" [edebug-next-token-class rparen string edebug-read-sexp edebug-enter quote def-name 'nil function lambda nil edebug-form edebug-syntax-error "Only first expression used in interactive form."] 7 "\
+Return the edebug form of the interactive form."])
+(byte-code "ÀÁÂÃ#ˆÀÁÂÄ#‡" [put cond edebug-form-spec (&rest (form &rest form)) edebug-cond-form] 4)
+(fset 'edebug-cond-form #[nil "À‰Ã ‰Ä=¬³	Å=¬Æ ‰­ƒÈÉ!)ªœÊuˆË Ã Ä=?­‚Ì BÃ Ä=¬„ÈÍ!ˆÊuˆ\nBªE\nŸ*‡" [nil class value-value-list edebug-next-token-class rparen lparen edebug-read-sexp thing edebug-syntax-error "Condition expected in cond" 1 edebug-form edebug-forms "Right paren expected in cond"] 4 "\
+Return the edebug form of the cond form."])
+(byte-code "ÀÁÂÃ#ˆÀÁÂÄ#‡" [put condition-case edebug-form-spec (symbolp form &rest (symbolp &optional form)) edebug-condition-case-form] 4)
+(fset 'edebug-condition-case-form #[nil "ÀÂ ‰9¬…ÃÄ	\"ˆ	)Å À‰È ‰É=¬¤Ê=¬…ÃË!ª’ÌuˆÂ È É=?­‚Í BÌuˆBªSŸ*BB‡" [nil token edebug-read-sexp edebug-syntax-error "Variable or nil required for condition-case; found: %s" edebug-form class symb-sexp-list edebug-next-token-class rparen lparen "Bad handler in condition-case." 1 edebug-forms] 6 "\
+Return the edebug form of the condition-case form."])
+(defconst edebug-syntax-table (byte-code "ÀÁÂ\"ÃÆW«‹ÇIˆT‰ªqÈÉIˆÊËIˆÌÍIˆÎÏIˆĞÑIˆÒÓIˆÔÕIˆÖ×Iˆ*‡" [make-vector 256 symbol 0 i table 33 space 40 lparen 41 rparen 39 quote 34 string 63 char 91 vector 93 vector-end 46 dot] 4) "\
+Lookup table for significant characters indicating the class of the
+token that follows.  This is not a \"real\" syntax table.")
+(fset 'edebug-next-token-class #[nil "À ˆ	gH‡" [edebug-skip-whitespace edebug-syntax-table] 2 "\
+Move to the next token and return its class.  We only care about
+lparen, rparen, dot, quote, string, char, vector, or symbol."])
+(fset 'edebug-syntax-error #[(msg &rest args) "ÀÁÂÃ#\"‡" [signal invalid-read-syntax apply format msg args] 6 "\
+Signal an invalid-read-syntax with MSG and ARGS.  
+   This is caught by edebug-defun."])
+(fset 'edebug-skip-whitespace #[nil "ÀÁwˆgÂU­ŠÃÁwˆÀÁwˆªq‡" [" 	\n" nil 59 "^\n"] 2 "\
+Leave point before the next token, skipping white space and comments."])
+(fset 'edebug-read-sexp #[nil "À ‰Â=«Ãp!hHÂ=¬¨Åuˆª£	Æ=«Ãp!hÇU¬–Åuˆª‘	È=«‰ÉuˆÈÊ DªƒÃp!)‡" [edebug-next-token-class class symbol read edebug-syntax-table -1 string 34 quote 1 edebug-read-sexp] 4 "\
+Read one sexp from the current buffer starting at point.
+Leave point immediately after it.  A sexp can be a list or atom.
+An atom is a symbol (or number), character, string, or vector."])
+(defvar edebug-active nil "\
+Non-nil when edebug is active")
+(byte-code "À	¬†ÀÂD	BÀ‡" [edebug-active minor-mode-alist " *Debugging*"] 2)
+(defvar edebug-stack nil "\
+Stack of active functions evaluated via edebug.
+Should be nil at the top level.")
+(defvar edebug-stack-depth -1 "\
+Index of last edebug-stack item.")
+(defvar edebug-offset-indices nil "\
+Stack of offset indices of visited edebug sexps.
+Should be nil at the top level.")
+(defvar edebug-entered nil "\
+Non-nil if edebug has already been entered at this recursive edit level.
+This should stay nil at the top level.")
+(defvar edebug-mode 'step "\
+Current edebug mode set by user.")
+(fset 'edebug-enter #[(edebug-function edebug-args edebug-body) "¬…	«‚	ÃÅNÇN@	ÊN\nË	!BĞ\\Ò\\ÕÖ«˜TÕÛ ˆ İ ˆ*ªƒ .‡" [edebug-entered edebug-initial-mode edebug-mode t edebug-function edebug edebug-data edebug-after-index edebug-after-index-vector edebug-func-mark edebug-freq-count marker-buffer edebug-buffer edebug-stack edebug-offset-indices max-lisp-eval-depth 5 max-specpdl-size 15 executing-macro edebug-outside-executing-macro nil edebug-debug debugger edebug-trace edebug-stack-depth edebug-result edebug-print-trace-entry edebug-body edebug-print-trace-exit] 2 "\
+Entering FUNC.  The arguments are ARGS, and the body is BODY.
+Setup edebug variables and evaluate BODY.  This function is called
+when a function evaluated with edebug-defun is entered.  Return the
+result of BODY."])
+(byte-code "ÀÁMˆÂÃM‡" [edebug-print-trace-entry #[nil "ÀÁÂÃÅ\"%‡" [edebug-trace-display "*edebug-trace*" "%s> %s args: %s\n" make-string edebug-stack-depth 45 edebug-function edebug-args] 6] edebug-print-trace-exit #[nil "ÀÁÂÃÅ\"%‡" [edebug-trace-display "*edebug-trace*" "%s< %s result: %s\n" make-string edebug-stack-depth 45 edebug-function edebug-result] 6]] 2)
+(fset 'edebug-display-freq-count #[nil "À ‰ÂN	ÃN	ÅN‰@AA@‰G‰	\nËËŠ\nS‰\nÎY«ˆ\nHÏU¬n\nH\\bˆ)Îyˆ`\nS‰\nÎY«¸Î\nHW«n\n\nH\nH\\bˆÎyˆ`U¬ŠbˆÑÒ\"cˆ)`)ª>bˆÑÒ\"c.\n‡" [edebug-which-function edebug-function edebug-freq-count edebug-after-index edebug-after-index-vector edebug edebug-data edebug-func-mark edebug-points len i nil last-point last-count 0 -1 count format "%3d:"] 4 "\
+Display the frequency count in front of each line of the current function." nil])
+(fset 'edebug-before #[(edebug-before-index) "	B\n\nHTIˆÄ=«„Å «†ÆÇÈ#ˆ	H‡" [edebug-before-index edebug-offset-indices edebug-freq-count edebug-mode Go-nonstop edebug-input-pending-p edebug-debugger enter nil edebug-after-index-vector] 4 "\
+Debug current function given BEFORE position.
+edebug-before is called from functions compiled with edebug-defun.  
+Return the after index corresponding to this before index."])
+(fset 'edebug-after #[(edebug-after-index edebug-value) "A	Â=«†Ã ¬‚‡ÅÇ#‡" [edebug-offset-indices edebug-mode Go-nonstop edebug-input-pending-p edebug-value edebug-debugger edebug-after-index exit] 4 "\
+Debug current function given AFTER position and VALUE.
+edebug is called from functions compiled with edebug-defun.
+Return VALUE."])
+(fset 'edebug-debugger #[(edebug-offset-index edebug-arg-mode edebug-exp) "Á\\\nÃ\\A@‰­A@‰?®„É!)‰\n«“AA@«ŒË\"AAB¡ˆÍ>«ˆÎ ¬„\n«ƒÏ ˆ-‡" [max-lisp-eval-depth 1 max-specpdl-size 10 edebug-data edebug-breakpoints edebug-offset-index edebug-break-data edebug-break-condition eval edebug-break delq edebug-mode (go continue Continue-fast) edebug-input-pending-p edebug-display edebug-exp] 5 "\
+Check breakpoints and pending input.
+If edebug display should be updated, call edebug-display.
+Return edebug-exp."])
+(defvar edebug-window-start nil "\
+Remember where each buffers' window starts between edebug calls.
+This is to avoid spurious recentering.")
+(byte-code "ÀÁÂ\"ˆÃÁ!‡" [set-default edebug-window-start nil make-variable-buffer-local] 3)
+(defvar edebug-eval-list nil "\
+List of expressions to evaluate.")
+(defvar edebug-previous-result nil "\
+Last result returned from an expression.")
+(fset 'edebug-display #[nil "ÀÁ\nAA@H\\ÁÅ p`ÁÇ )Á‰‰­‚É \nÁ‰‰\n	Û!¬ŠÁŞß \"ˆ)!«„â #«„ä å!ˆÅ æ	!ˆç!ˆbˆè)!)ê «‰ë,ÀÙ ˆí ˆ.ï=«‰01ñ ˆª³.Ş=«Ÿò ˆ0@ó=«†ôõ!ˆªôö0@÷N0A@#ˆª8«†ôù!ˆª„ôú!ˆ8«,û>¬…Àª¬,ü=«†ış!ˆª ıÿ!ˆªš,@ =«†ış!ˆªŒ,A =«„ıÿ!ˆB ¬Œ,ë=¬†.Ş=­Šë,í ˆC  .‡" [t nil edebug-func-mark edebug-data edebug-offset-index selected-window zmacs-regions mark edebug-eval-list edebug-eval-result-list overlay-arrow-position overlay-arrow-string cursor-in-echo-area edebug-outside-c-i-e-a edebug-outside-o-a-s edebug-outside-o-a-p edebug-eval-buffer edebug-buffer-points edebug-outside-windows edebug-outside-mark edebug-outside-point edebug-outside-buffer edebug-outside-window edebug-window edebug-point edebug-stop edebug-active buffer-name edebug-buffer debug-on-error error "Buffer defining %s not found." edebug-function edebug-save-windows edebug-current-window-configuration edebug-save-displayed-buffer-points edebug-get-displayed-buffer-points edebug-pop-to-buffer edebug-eval-display select-window edebug-adjust-window edebug-window-start edebug-input-pending-p step edebug-mode edebug-overlay-arrow edebug-arg-mode exit edebug-exp edebug-previous-result beep quit message "Quit" "%s: %s" error-message edebug-break "Break" "" (continue Continue-fast) continue edebug-sit-for 1 0 trace Trace-fast ((byte-code "À	!‰«‡	qˆÃ\n!«™Æ!ˆÀ	!‰«˜Š	qˆÈ\nÉ#ˆ)ª‹Ê!«…Ì!ˆ«…Î!ˆqˆbˆÒÔÕ !«‡Õ Ò“ˆ)Ò‡" [edebug-get-buffer-window edebug-buffer edebug-window window-start edebug-window-start edebug-save-windows edebug-set-window-configuration edebug-outside-windows set-window-start no-force window-point edebug-outside-window select-window edebug-save-displayed-buffer-points edebug-set-buffer-points edebug-buffer-points edebug-outside-buffer edebug-outside-point nil zmacs-regions marker-buffer mark-marker edebug-outside-mark] 5)) edebug-recursive-edit] 18 "\
+Setup windows for edebug, determine mode, maybe enter recursive-edit."])
+(defvar edebug-depth 0 "\
+Number of recursive edits started by edebug.
+Should be 0 at the top level.")
+(defvar edebug-recursion-depth 0 "\
+Value of recursion-depth when edebug was called.")
+(fset 'edebug-recursive-edit #[nil "Š	qˆÂ )TÄ Å‰‰Æ 	\nÍÎ!­‚ÍÏ!­‚ÍĞ!­‚ÍÑ!­‚	\nÒÅ‰‰\n	 !\"#$åæ!«ƒæ ˆ'è=«Š)ê>¬„ëì!ˆç ˆÍí!«„-îïğ .‡" [buffer-read-only edebug-outside-buffer match-data edebug-depth recursion-depth nil current-local-map standard-output standard-input last-command-char last-command this-command last-input-char boundp unread-command-char last-input-event last-command-event unread-command-event -1 debug-on-error edebug-outside-unread-command-event edebug-outside-last-command-event edebug-outside-last-input-event edebug-outside-unread-command-char edebug-outside-last-input-char edebug-outside-this-command edebug-outside-last-command edebug-outside-last-command-char edebug-outside-standard-input edebug-outside-standard-output edebug-outside-map edebug-inside-windows edebug-backtrace-buffer edebug-entered edebug-recursion-depth edebug-outside-match-data edebug-buffer-read-only fboundp zmacs-deactivate-region edebug-mode go edebug-arg-mode (exit error) message "Break" edebug-outside-debug-on-error t ((byte-code "«„Á!ˆ\n«„Á\n!ˆÃ!ˆÅ!«˜qˆÈ>«ƒÉ ˆ\nÌ!ˆª„ÎÏ!ˆÁ‡" [edebug-backtrace-buffer kill-buffer edebug-eval-buffer store-match-data edebug-outside-match-data buffer-name edebug-buffer edebug-mode (go Go-nonstop) edebug-overlay-arrow edebug-buffer-read-only buffer-read-only use-local-map edebug-outside-map get-buffer-create " bogus edebug buffer"] 2)) recursive-edit] 27 "\
+Start up a recursive edit inside of edebug."])
+(fset 'edebug-adjust-window #[(old-start) "«†ÁÂ \"ˆÃ ¬›ÁÂ Š`Ä W«ƒÅª…Æ Ç¥[yˆÈyˆ`)\"ˆÄ ‡" [old-start set-window-start selected-window pos-visible-in-window-p window-start -1 window-height 2 0] 4 "\
+If pos is not visible, adjust current window to fit following context."])
+(defconst edebug-arrow-alist '((Continue-fast . ">") (Trace-fast . ">") (continue . ">") (trace . "->") (step . "=>") (go . "<>") (Go-nonstop . "..")) "\
+Association list of arrows for each edebug mode.
+If you come up with arrows that make more sense, let me know.")
+(fset 'edebug-overlay-arrow #[nil "ÀŠÂyˆ`)AÆ ‰	p“)‡" [nil pos 0 edebug-mode edebug-arrow-alist overlay-arrow-string make-marker overlay-arrow-position] 4 "\
+Set up the overlay arrow at beginning-of-line in current buffer.
+The arrow string is derived from edebug-arrow-alist and edebug-mode."])
+(fset 'edebug-toggle-save-windows #[nil "?‰«…Á ‰ÄÅ«ƒÆªÇ\"‡" [edebug-save-windows edebug-current-window-configuration edebug-outside-windows edebug-inside-windows message "Window saving is %s." "on" "off"] 3 "\
+Toggle the edebug-save-windows variable.
+Each time you toggle it, the inside and outside window configurations
+become the same as the current configuration." nil])
+(fset 'edebug-where #[nil "¬„ÁÂ!ˆÃ!ˆb‡" [edebug-active error "edebug is not active." edebug-pop-to-buffer edebug-buffer edebug-point] 2 "\
+Show the debug windows and where we stopped in the program." nil])
+(fset 'edebug-view-outside #[nil "¬„ÁÂ!ˆÃ Å!ˆbˆÈÉÊË!\"‡" [edebug-active error "edebug is not active." edebug-current-window-configuration edebug-inside-windows edebug-set-window-configuration edebug-outside-windows edebug-outside-point message "Window configuration outside of edebug.  Return with %s" substitute-command-keys "\\<global-map>\\[edebug-where]"] 4 "\
+Change to the outside window configuration." nil])
+(fset 'edebug-bounce-point #[nil "¬„ÁÂ!ˆŠÃ‹)‡" [edebug-active error "edebug is not active." ((byte-code "À	!ˆ\nbˆÃÅÆ !«ŠÇÈp`Æ $ˆª†ÇÉp`#ˆ)ÊË!ˆÀ!‡" [edebug-pop-to-buffer edebug-outside-buffer edebug-outside-point nil zmacs-regions marker-buffer mark-marker message "Current buffer: %s Point: %s Mark: %s" "Current buffer: %s point: %s" edebug-sit-for 1 edebug-buffer] 5))] 2 "\
+Bounce the point in the outside current buffer." nil])
+(fset 'edebug-find-stop-point #[nil "À ‰ÂN®„ÃÄ	\"‰@A@AA@ŠÉÊ!«„ËÌxˆ`)ZÌÌGĞĞW«’HV«ˆT‰ªiW«HX«†	Bª„ÑÒ	\".‡" [edebug-which-function def-name edebug error "%s must first be evaluated with edebug-defun." edebug-data edebug-func-mark edebug-breakpoints offset-vector looking-at "[ 	]" " 	" nil offset len i 0 message "Point is not on an expression in %s."] 4 "\
+Return (function . index) of the nearest edebug stop point."])
+(fset 'edebug-next-breakpoint #[nil "À ‰­ø	@	A\nÄN‰@A@AA@É\n¬…ËÌ!ªÑ‰«@@X«ˆA‰¬p«…@ªƒ@\n\n@H\\bˆË\nAA@«ƒÎªÏ\nA@«‹ĞÑÒ\nA@!\"ªÏP!).)‡" [edebug-find-stop-point edebug-stop-point def-name index edebug edebug-data edebug-func-mark edebug-breakpoints offset-vector nil breakpoint message "No breakpoints in this function." breaks "Temporary " "" format "Condition: %s" edebug-prin1-to-string] 7 "\
+Move point to the next breakpoint, or first if none past point." nil])
+(fset 'edebug-modify-breakpoint #[(flag &optional condition temporary) "À ‰­å	@	A\nÄN‰@A@AA@É\n\nË\n\"«•ÍEBĞ\"ÑÒ\n\"ˆª\n«‡ÑÓ\n\"ˆª„ÑÔ!ˆAAB¡ˆH\\b.)‡" [edebug-find-stop-point edebug-stop-point def-name index edebug edebug-data edebug-func-mark edebug-breakpoints offset-vector nil present delq flag edebug-sort-alist condition temporary < message "Breakpoint set in %s." "Breakpoint unset in %s." "No breakpoint here."] 5 "\
+Modify the breakpoint for the form at point or after it according
+to FLAG: set if t, clear if nil.  Then move to that point.
+If CONDITION or TEMPORARY are non-nil, add those attributes to
+the breakpoint.  "])
+(fset 'edebug-set-breakpoint #[(arg) "ÀÁÂ#‡" [edebug-modify-breakpoint t nil arg] 4 "\
+Set the breakpoint of nearest sexp.
+With prefix argument, make it a temporary breakpoint." "P"])
+(fset 'edebug-unset-breakpoint #[nil "ÀÁ!‡" [edebug-modify-breakpoint nil] 2 "\
+Clear the breakpoint of nearest sexp." nil])
+(fset 'edebug-set-conditional-breakpoint #[(arg condition) "ÀÁ\n#‡" [edebug-modify-breakpoint t condition arg] 4 "\
+Set a conditional breakpoint at nearest sexp.
+The condition is evaluated in the outside context.
+With prefix argument, make it a temporary breakpoint." "P\nxCondition: "])
+(fset 'edebug-set-mode #[(mode shortmsg msg) "ÂW«p=­ŒÅ!ˆÇ ‡Å!‡" [mode edebug-mode 0 edebug-depth edebug-buffer message shortmsg exit-recursive-edit msg] 2 "\
+Set the edebug mode to MODE.
+Display SHORTMSG, or MSG if not within edebug." nil])
+(fset 'edebug-step-through-mode #[nil "ÀÁÂÃ#‡" [edebug-set-mode step "" "edebug will stop before next eval."] 4 "\
+Proceed to next debug step." nil])
+(fset 'edebug-go-mode #[(arg) "«„ÁÂ!ˆÃÄÅÆ#‡" [arg edebug-set-breakpoint t edebug-set-mode go "Go..." "edebug will go until break."] 4 "\
+Go, evaluating until break.
+With ARG set temporary break at stop point and go." "P"])
+(fset 'edebug-Go-nonstop-mode #[nil "ÀÁÂÃ#‡" [edebug-set-mode Go-nonstop "Go-Nonstop..." "edebug will not stop at breaks."] 4 "\
+Go, evaluating without debugging." nil])
+(fset 'edebug-trace-mode #[nil "ÀÁÂÃ#‡" [edebug-set-mode trace "Tracing..." "edebug will trace with pause."] 4 "\
+Begin trace mode." nil])
+(fset 'edebug-Trace-fast-mode #[nil "ÀÁÂÃ#‡" [edebug-set-mode Trace-fast "Trace fast..." "edebug will trace without pause."] 4 "\
+Trace with no wait at each step." nil])
+(fset 'edebug-continue-mode #[nil "ÀÁÂÃ#‡" [edebug-set-mode continue "Continue..." "edebug will pause at breakpoints."] 4 "\
+Begin continue mode." nil])
+(fset 'edebug-Continue-fast-mode #[nil "ÀÁÂÃ#‡" [edebug-set-mode Continue-fast "Continue fast..." "edebug will stop and go at breakpoints."] 4 "\
+Trace with no wait at each step." nil])
+(fset 'edebug-goto-here #[nil "ÀÁ!‡" [edebug-go-mode t] 2 "\
+Proceed to this stop point." nil])
+(fset 'edebug-stop #[nil "ÀÁ!‡" [message "Stop"] 2 "\
+Stop execution and do not continue.
+Useful for exiting from trace loop." nil])
+(fset 'edebug-forward-sexp #[(arg) "ÀÁÂ‡" [err (byte-code "ÀÂ!ˆÄÀ!)‡" [t parse-sexp-ignore-comments forward-sexp arg edebug-go-mode] 2) ((error (edebug-step-out)))] 3 "\
+Proceed from the current point to the end of the ARGth sexp ahead.
+If there are not ARG sexps ahead, then do edebug-step-out." "p"])
+(fset 'edebug-step-out #[nil "ÀÁÂ‡" [err (byte-code "ÀÂÃ!ˆŠÂÃ!ˆ)ÄÀ!)‡" [t parse-sexp-ignore-comments up-list 1 edebug-go-mode] 2) ((error (byte-code "`ÁÂ!ˆ`U«„Ã ªƒÄÅ!)‡" [start-point down-list -1 edebug-step-through-mode edebug-go-mode t] 2)))] 3 "\
+Proceed from the current point to the end of the containing sexp.
+If there is no containing sexp that is not the top level defun,
+go to the end of the last sexp, or if that is the same point, then step." nil])
+(fset 'edebug-step-in #[nil "Á=¬„ÂÃ!ˆÄ‰ŠÇ ˆÈuˆÉp!)ÊNË!«ŠÌ!qˆbˆÍ ˆ)ªŠ<¬†ÂÎ\"ˆ*Ï ‡" [edebug-arg-mode enter error "You must be in front of a function or macro call." nil func-marker func edebug-where 1 read edebug markerp marker-buffer edebug-defun "First please eval the def of %s so edebug knows where it is." exit-recursive-edit] 3 "\
+Step into the function about to be called.
+Do this before the arguments are evaluated since otherwise it will be
+too late.  One side effect of using edebug-step-in is that the next
+time the function is called, edebug will be called there as well." nil])
+(put 'edebug-outside-excursion 'edebug-form-spec 'edebug-forms)
+(fset 'edebug-outside-excursion '(macro . #[(&rest body) "ÀÁÂÃÄÅÆÇÈ	\"ÊEE¯‡" [save-excursion (if edebug-save-windows (progn (setq edebug-inside-windows (edebug-current-window-configuration)) (edebug-set-window-configuration edebug-outside-windows))) (set-buffer edebug-buffer) (store-match-data edebug-outside-match-data) let ((edebug-inside-map (current-local-map)) (last-command-char edebug-outside-last-command-char) (last-command-event edebug-outside-last-command-event) (last-command edebug-outside-last-command) (this-command edebug-outside-this-command) (unread-command-char edebug-outside-unread-command-char) (unread-command-event edebug-outside-unread-command-event) (last-input-char edebug-outside-last-input-char) (last-input-event edebug-outside-last-input-event) (overlay-arrow-position edebug-outside-o-a-p) (overlay-arrow-string edebug-outside-o-a-s) (cursor-in-echo-area edebug-outside-c-i-e-a) (standard-output edebug-outside-standard-output) (standard-input edebug-outside-standard-input) (executing-macro edebug-outside-executing-macro)) unwind-protect append (save-excursion (set-buffer edebug-outside-buffer) (goto-char edebug-outside-point) (let ((zmacs-regions nil)) (if (marker-buffer (mark-marker)) (set-marker (mark-marker) edebug-outside-mark)))) body (if edebug-save-windows (edebug-set-window-configuration edebug-inside-windows))] 10 "\
+Evaluate an expression list in the outside context.
+Return the result of the last expression."]))
+(fset 'edebug-previous-result #[nil "ÀÁÄÅÆ!\"*‡" [t 50 print-length print-escape-newlines message "Result: %s" edebug-prin1-to-string edebug-previous-result] 4 "\
+Return the previous result." nil])
+(fset 'edebug-eval #[(expr) "¬„ÁÂ!ˆŠ«ˆÄ Æ!ˆqˆÉ\n!ˆË  !\"#$%&'(éŠ*qˆ+bˆì-îï !«‡ï 0ì“ˆ)ñ2!.‡" [edebug-active error "edebug is not active." edebug-save-windows edebug-current-window-configuration edebug-inside-windows edebug-set-window-configuration edebug-outside-windows edebug-buffer store-match-data edebug-outside-match-data current-local-map edebug-outside-last-command-char edebug-outside-last-command-event edebug-outside-last-command edebug-outside-this-command edebug-outside-unread-command-char edebug-outside-unread-command-event edebug-outside-last-input-char edebug-outside-last-input-event edebug-outside-o-a-p edebug-outside-o-a-s edebug-outside-c-i-e-a edebug-outside-standard-output edebug-outside-standard-input edebug-outside-executing-macro executing-macro standard-input standard-output cursor-in-echo-area overlay-arrow-string overlay-arrow-position last-input-event last-input-char unread-command-event unread-command-char this-command last-command last-command-event last-command-char edebug-inside-map ((byte-code "«„Á\n!ˆÁ‡" [edebug-save-windows edebug-set-window-configuration edebug-inside-windows] 2)) edebug-outside-buffer edebug-outside-point nil zmacs-regions marker-buffer mark-marker edebug-outside-mark eval expr] 15 "\
+Evaluate EXPR in the outside environment."])
+(fset 'edebug-eval-expression #[(expr) "ÀÁ\n!!‡" [edebug-prin1 edebug-eval expr] 3 "\
+Prompt and evaluate an expression in the outside environment.  
+Print result in minibuffer." "xEval: "])
+(fset 'edebug-eval-last-sexp #[nil "ÀÁÂ !!‡" [edebug-prin1 edebug-eval edebug-last-sexp] 3 "\
+Evaluate sexp before point in the outside environment;
+print value in minibuffer." nil])
+(fset 'edebug-eval-print-last-sexp #[nil "pÁÂÃÄ!)‡" [standard-output edebug-print err (byte-code "ÀÁ !‡" [edebug-eval edebug-last-sexp] 2) ((error (byte-code "ÀÁ\n@ÃN\nA@#‡" [edebug-format "%s: %s" err error-message] 4)))] 4 "\
+Evaluate sexp before point in the outside environment; 
+print value into current buffer." nil])
+(byte-code "ÀÁ!¬‚Â	„½ Ã!Å	ÆÇ#ˆÅ	ÈÉ#ˆÅ	ÊË#ˆÅ	ÌÍ#ˆÅ	ÎÏ#ˆÅ	ĞÑ#ˆÅ	ÒÓ#ˆÅ	ÔÕ#ˆÅ	Ö×#ˆÅ	ØÙ#ˆÅ	ÚÛ#ˆÅ	Üİ#ˆÅ	Şß#ˆÅ	àá#ˆÅ	âã#ˆÅ	äå#ˆÅ	æç#ˆÅ	èé#ˆÅ	êë#ˆÅ	ìí#ˆÅ	îï#ˆÅ	ğñ#ˆÅ	òó#ˆÅ	ôõ#ˆÅ	ö÷#ˆÅ	øù#ˆÅ	úû#ˆÅ	üı#ˆÅ	şÿ#ˆÂ‡" [boundp edebug-mode-map nil copy-keymap emacs-lisp-mode-map define-key " " edebug-step-through-mode "g" edebug-go-mode "G" edebug-Go-nonstop-mode "t" edebug-trace-mode "T" edebug-Trace-fast-mode "c" edebug-continue-mode "C" edebug-Continue-fast-mode "f" edebug-forward-sexp "h" edebug-goto-here "r" edebug-previous-result "i" edebug-step-in "o" edebug-step-out "q" top-level "a" abort-recursive-edit "S" edebug-stop "b" edebug-set-breakpoint "u" edebug-unset-breakpoint "B" edebug-next-breakpoint "x" edebug-set-conditional-breakpoint "e" edebug-eval-expression "" edebug-eval-last-sexp "E" edebug-visit-eval-list "w" edebug-where "v" edebug-view-outside "p" edebug-bounce-point "W" edebug-toggle-save-windows "?" edebug-help "d" edebug-backtrace "-" negative-argument] 4)
+(defvar global-edebug-prefix "X" "\
+Prefix key for global edebug commands, available from any buffer.")
+(defvar global-edebug-map nil "\
+Global map of edebug commands, available from any buffer.")
+(byte-code "¬ÔÁ Â!ˆÄ\"ˆÅÆÇ#ˆÅÈÉ#ˆÅÊË#ˆÅÌÍ#ˆÅÎÏ#ˆÅĞÑ#ˆÅÒÓ#ˆÅÔÕ#ˆÅÖ×#ˆÅØÙ#ˆÅÚÛ#ˆÅÜİ#ˆŞßM‡" [global-edebug-map make-sparse-keymap global-unset-key global-edebug-prefix global-set-key define-key " " edebug-step-through-mode "g" edebug-go-mode "G" edebug-Go-nonstop-mode "t" edebug-trace-mode "T" edebug-Trace-fast-mode "c" edebug-continue-mode "C" edebug-Continue-fast-mode "b" edebug-set-breakpoint "x" edebug-set-conditional-breakpoint "u" edebug-unset-breakpoint "w" edebug-where "q" top-level edebug-help #[nil "ÀÁ!‡" [describe-function edebug-mode] 2 nil nil]] 4)
+(fset 'edebug-mode #[nil "À	!‡" [use-local-map edebug-mode-map] 2 "\
+Mode for Emacs Lisp buffers while in edebug.
+
+There are both buffer local and global key bindings to several
+functions.  E.g. edebug-step-through is bound to
+\\[edebug-step-through] in the debug buffer and \\<global-map>\\[edebug-step-through] in any buffer.
+
+Also see bindings for the eval list buffer, *edebug*.
+
+The edebug buffer commands:
+\\{edebug-mode-map}
+
+Global commands prefixed by global-edbug-prefix:
+\\{global-edebug-map}
+
+Options:
+edebug-all-defuns
+edebug-eval-macro-args
+edebug-stop-before-symbols
+edebug-save-windows
+edebug-save-displayed-buffer-points
+edebug-initial-mode
+edebug-trace
+"])
+(fset 'edebug-eval-result-list #[nil "ÀÁ\n\"‡" [mapcar #[(expr) "ÀÁÂ‡" [err (eval expr) ((error (byte-code "ÀÁ\n@ÃN\nA@#‡" [edebug-format "%s: %s" err error-message] 4)))] 3] edebug-eval-list] 3 "\
+Return a list of evaluations of edebug-eval-list"])
+(byte-code "ÀÁMˆÂÃM‡" [edebug-eval-display-list #[(edebug-eval-result-list) "	ÂÃÄÅ ÆZÇ\"\"	\nË	!ˆÌ ˆ\n­£Í\n@!ˆÎ ˆÏ@!ˆÎ ˆÑ!ˆ\nA\nAªY+‡" [edebug-eval-list edebug-eval-buffer format ";%s\n" make-string window-width 2 45 edebug-display-line standard-output edebug-eval-list-temp edebug-pop-to-buffer erase-buffer prin1 terpri edebug-prin1 edebug-eval-result-list princ] 7] edebug-create-eval-buffer #[nil "­ƒÁ!?­‰ÂÃ!‰qˆÄ ‡" [edebug-eval-buffer buffer-name get-buffer-create "*edebug*" edebug-eval-mode] 2]] 2)
+(fset 'edebug-eval-display #[(edebug-eval-result-list) "­ŠÁ ˆÂ!ˆÄ!‡" [edebug-eval-result-list edebug-create-eval-buffer edebug-pop-to-buffer edebug-eval-buffer edebug-eval-display-list] 2 "\
+Display expressions and evaluations in EVAL-LIST.
+It modifies the context by popping up the eval display."])
+(fset 'edebug-eval-redisplay #[nil "À ˆÁ\n!ˆŠ«ˆÄ Æ!ˆqˆÉ\n!ˆË  !\"#$%&'(éŠ*qˆ+bˆì-îï !«‡ï 0ì“ˆ)ñò !.‡" [edebug-create-eval-buffer edebug-pop-to-buffer edebug-eval-buffer edebug-save-windows edebug-current-window-configuration edebug-inside-windows edebug-set-window-configuration edebug-outside-windows edebug-buffer store-match-data edebug-outside-match-data current-local-map edebug-outside-last-command-char edebug-outside-last-command-event edebug-outside-last-command edebug-outside-this-command edebug-outside-unread-command-char edebug-outside-unread-command-event edebug-outside-last-input-char edebug-outside-last-input-event edebug-outside-o-a-p edebug-outside-o-a-s edebug-outside-c-i-e-a edebug-outside-standard-output edebug-outside-standard-input edebug-outside-executing-macro executing-macro standard-input standard-output cursor-in-echo-area overlay-arrow-string overlay-arrow-position last-input-event last-input-char unread-command-event unread-command-char this-command last-command last-command-event last-command-char edebug-inside-map ((byte-code "«„Á\n!ˆÁ‡" [edebug-save-windows edebug-set-window-configuration edebug-inside-windows] 2)) edebug-outside-buffer edebug-outside-point nil zmacs-regions marker-buffer mark-marker edebug-outside-mark edebug-eval-display-list edebug-eval-result-list] 15 "\
+Redisplay eval list in outside environment.
+May only be called from within edebug-recursive-edit."])
+(fset 'edebug-visit-eval-list #[nil "À ˆÁ\n!‡" [edebug-eval-redisplay edebug-pop-to-buffer edebug-eval-buffer] 2 nil nil])
+(fset 'edebug-update-eval-list #[nil "`ÀebˆÃ ˆm¬‰ÄÅ!ˆÆ 	BÇÈÀÉ#«šÅyˆÊÀwˆgËU¬mm¬jÄÅ!ˆÆ 	Bª_	ŸÍ ˆ\nb*‡" [nil new-list starting-point edebug-skip-whitespace forward-sexp 1 edebug-last-sexp re-search-forward "^;" t " 	\n" 59 edebug-eval-list edebug-eval-redisplay] 4 "\
+Replace the evaluation list with the sexps now in the eval buffer." nil])
+(fset 'edebug-delete-eval-item #[nil "ÀÁÂÃ#«ƒÄyˆ`ÅÁÂÃ#ˆÆyˆ`|ˆÇ ‡" [re-search-backward "^;" nil nofail 1 re-search-forward 0 edebug-update-eval-list] 5 "\
+Delete the item under point and redisplay." nil])
+(defvar edebug-eval-mode-map nil "\
+Keymap for edebug-eval-mode.  Superset of lisp-interaction-mode.")
+(byte-code "¬¢Á\n!ÃÄÅ#ˆÃÆÇ#ˆÃÈÉ#ˆÃÊË#ˆÃÌÍ#ˆÁ‡" [edebug-eval-mode-map copy-keymap lisp-interaction-mode-map define-key "" edebug-where "" edebug-delete-eval-item "" edebug-update-eval-list "" edebug-eval-last-sexp "\n" edebug-eval-print-last-sexp] 4)
+(fset 'edebug-eval-mode #[nil "À ˆÁÃÅ!‡" [lisp-interaction-mode edebug-eval-mode major-mode "Edebug-Eval" mode-name use-local-map edebug-eval-mode-map] 2 "\
+Mode for data display buffer while in edebug.  Under construction.
+... ignore the following...
+There are both buffer local and global key bindings to several
+functions.  E.g. edebug-step-through is bound to
+\\[edebug-step-through] in the debug buffer and
+\\<global-map>\\[edebug-step-through] in any buffer.
+
+Eval list buffer commands:
+\\{edebug-eval-mode-map}
+
+Global commands prefixed by global-edbug-prefix:
+\\{global-edebug-map}
+"])
+(fset 'edebug-debug #[(&rest debugger-args) "«¥Á \n=«Ÿ@@A@Å‰Å	\nÍ .‡ÎÏ\"‡" [edebug-entered recursion-depth edebug-recursion-depth edebug-offset-indices debugger-args nil debug-on-error edebug-outside-debug-on-eror edebug-break edebug-break-data edebug-exp edebug-arg-mode edebug-offset-index edebug-display apply debug] 7 "\
+Replacement for debug.  
+If an error or quit occurred and we are running an edebugged function,
+show where we last were.  Otherwise call debug normally."])
+(fset 'edebug-backtrace #[nil "p	¬‡ÂÄÅ!)Æ	!ˆÇ ˆpÈÉÊÈĞ ˆebˆ`ÑÒ!ˆÓyˆ`|ˆÓyˆ`ÑÒÊÈ#«¡ÔÕ!«ŒŠbˆÖyˆ`)Óyˆ`|ˆÓyˆ`ªX,Æ!)‡" [old-buf edebug-backtrace-buffer fundamental-mode default-major-mode generate-new-buffer "*Backtrace*" edebug-pop-to-buffer erase-buffer t 50 nil last-ok-point print-length print-escape-newlines standard-output truncate-lines backtrace re-search-forward "^  edebug" 1 looking-at "-enter" -1] 4 "\
+Display a non-working backtrace.  Better than nothing..." nil])
+(fset 'edebug-trace-display #[(buf-name fmt &rest args) "À Á\n!ÄÆ!ˆŠÀ qˆdbˆÇÈ	\n#cˆË`\"ˆÌÍ!ZyˆÎ`\"ˆÏ!ˆ)Ğ!ˆ+\n‡" [selected-window get-buffer-create buf-name buffer nil buf-window edebug-pop-to-buffer apply edebug-format fmt args set-window-point 1 window-height set-window-start bury-buffer select-window] 4 "\
+In buffer BUF-NAME, display FMT and ARGS at the end and make it visible.
+The buffer is created if it does not exist.
+You must include newlines in FMT to break lines."])
+(fset 'edebug-trace #[(fmt &rest args) "ÀÁÂ$‡" [apply edebug-trace-display "*edebug-trace*" fmt args] 5 "\
+Convenience call to edebug-trace-display for buffer *edebug-trace*"])

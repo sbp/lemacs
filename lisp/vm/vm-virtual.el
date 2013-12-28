@@ -15,8 +15,6 @@
 ;;; along with this program; if not, write to the Free Software
 ;;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-(require 'vm)
-
 (defun vm-visit-virtual-folder (folder-name &optional read-only)
   (interactive
    (progn
@@ -123,15 +121,7 @@
 	  vm-real-buffers buffers-used)))
 
 (defun vm-delete-directories (list)
-  (let ((p list) prev)
-    (while p
-      (if (file-directory-p (car p))
-	  (if (null prev)
-	      (setq list (cdr list) p list)
-	    (setcdr prev (cdr p))
-	    (setq p (cdr p)))
-	(setq prev p p (cdr p))))
-    list ))
+  (vm-delete 'file-directory-p list))
 
 (defun vm-vs-any (m) t)
 

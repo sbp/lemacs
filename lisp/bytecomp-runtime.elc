@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Aug 14 22:01:23 1991
-;;; from file /wg1/emacs-base/lisp/bytecomp-runtime.el
-;;; emacs version 19.60.
-;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; compiled by jwz@thalidomide on Mon May 11 03:05:27 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/bytecomp-runtime.el
+;;; emacs version 19.0.12 Lucid.
+;;; bytecomp version 2.06; 23-apr-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -24,7 +24,8 @@ Make the byte-compiler warn that FUNCTION is obsolete and NEW should be
 used instead.  If NEW is a string, that is the `use instead' message." "aMake function obsolete: \nxObsoletion replacement: "])
 (put 'dont-compile 'lisp-indent-hook 0)
 (fset 'dont-compile '(macro . #[(&rest body) "ÀÁ\nA«…Ã\nBª‚\n@DD‡" [eval quote body progn] 4 "\
-Like progn, but the body will always run interpreted (not compiled)."]))
+Like progn, but the body will always run interpreted (not compiled).
+If you think you need this, you're probably making a mistake somewhere."]))
 (put 'eval-when-compile 'lisp-indent-hook 0)
 (fset 'eval-when-compile '(macro . #[(&rest body) "À	B‡" [progn body] 2 "\
 Like progn, but evaluates the body at compile-time.  The result of the

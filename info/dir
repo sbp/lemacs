@@ -8,6 +8,10 @@ File: dir	Node: Top	This is the top of the INFO tree
   Typing "d" returns here, "q" exits, "?" lists all INFO commands, "h" 
   gives a primer for first-timers, "mTexinfo<Return>" visits Texinfo topic,
   etc.
+
+  Clicking middle on a highlighted word follows that crossreference.
+  Clicking right anywhere brings up a menu of commands and references ot
+  follow.
   --- PLEASE ADD DOCUMENTATION TO THIS TREE. (See INFO topic first.) ---
 
 * Menu: The list of major topics begins on the next line.
@@ -15,8 +19,11 @@ File: dir	Node: Top	This is the top of the INFO tree
 * Info: (info).		Documentation browsing system.
 
 * Emacs: (emacs).	The extensible self-documenting text editor.
+			This manual is for Lucid GNU Emacs 19.0.
 
 * Dired: (dired).	Manual for Tree Dired.
+
+* Ange-FTP: (ange-ftp).	Making the entire network accessible as a filesystem.
 
 * GDB: (gdb).		The source-level C and C++ debugger.
 
@@ -27,6 +34,8 @@ File: dir	Node: Top	This is the top of the INFO tree
 * GNUS: (gnus).		A NNTP-based newsreader for GNU Emacs.
 
 * View Mail: (vm).	A replacement for RMAIL.
+
+* ILISP: (ilisp).	Multi-dialect inferior LISP interface.
 
 * Calendar: (calendar).	A calendar/diary utility for GNU Emacs.
 

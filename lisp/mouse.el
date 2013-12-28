@@ -193,7 +193,7 @@ Display cursor at that position for a second."
   (let ((event (allocate-event))
 	(down t))
     (while down
-      (sit-for 300 t)
+      (sit-for 0.3)
       (cond ((input-pending-p)
 	     (next-event event)
 	     (if (or (button-press-event-p event)
@@ -357,13 +357,12 @@ Display cursor at that position for a second."
 	((eq type 'word) 'line)
 	((eq type 'line) 'char)))
 
-(defun mouse-track-select (event adjust attribute)
+(defun mouse-track-select (event adjust face)
   (or (button-press-event-p event)
       (error "%s must be invoked by a mouse-press" this-command))
   (let* ((window (event-window event))
-	 (extent (set-extent-attribute
-		  (make-extent 1 1 (window-buffer window))
-		  attribute))
+	 (extent (set-extent-face (make-extent 1 1 (window-buffer window))
+				  face))
 	 (mouse-down t)
 	 min-anchor max-anchor result previous-point)
     ;;
@@ -476,7 +475,7 @@ See also the `mouse-track-adjust' command, on \\[mouse-track-adjust]."
   (if (eq window-system 'x)
       (x-focus-screen (window-screen (event-window event))))
   (mouse-track-maybe-own-selection
-   (mouse-track-select event nil primary-selection-attribute)
+   (mouse-track-select event nil 'primary-selection)
    'PRIMARY))
 
 (defun mouse-track-adjust (event)
@@ -488,7 +487,7 @@ click is one of its endpoints.  This is only really meaningful after the
   (if (eq window-system 'x)
       (x-focus-screen (window-screen (event-window event))))
   (mouse-track-maybe-own-selection
-   (mouse-track-select event t primary-selection-attribute)
+   (mouse-track-select event t 'primary-selection)
    'PRIMARY))
   
 (defun mouse-track-insert (event &optional delete)
@@ -499,8 +498,7 @@ after being selected\; and the selection is immediately disowned afterwards."
   (interactive "*e")
   (let ((s (save-excursion
 	     (save-window-excursion
-	       (let ((pair (mouse-track-select
-			    event nil primary-selection-attribute)))
+	       (let ((pair (mouse-track-select event nil 'primary-selection)))
 		 (prog1
 		     (buffer-substring (car pair) (cdr pair))
 		   (if delete

@@ -23,19 +23,18 @@
 
 (insert-file-contents "../lisp/version.el")
 
-(re-search-forward "emacs-version \"[^\"]*[0-9]+\"")
-(forward-char -1)
-(save-excursion
-  (save-restriction
-    (narrow-to-region (point)
-		      (progn (skip-chars-backward "0-9") (point)))
-    (goto-char (point-min))
-    (let ((version (read (current-buffer))))
-      (delete-region (point-min) (point-max))
-      (if (= version 75)
-	  (insert (format "%s (Disco Inferno)" (1+ version)))
-	(prin1 (1+ version) (current-buffer)))
-      )))
+(re-search-forward 
+  "emacs-version \"[^\"0-9]*[0-9]+\\.[0-9]+\\(\\.\\([0-9]+\\)\\|\\)\"")
+(let ((version (if (= (match-beginning 1) (match-end 1))
+		   nil
+		 (goto-char (match-beginning 2))
+		 (read (current-buffer)))))
+  (widen)
+  (if (null version)
+      (insert ".1")
+    (delete-region (match-beginning 2) (match-end 2))
+    (prin1 (1+ version) (current-buffer))
+    (if (= version 75) (insert " (Disco Inferno)"))))
 (skip-chars-backward "^\"")
 (message "New Emacs version will be %s"
 	 (buffer-substring (point)

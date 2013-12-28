@@ -124,6 +124,7 @@ functions that invoke them.")
    "-----"
    ("print"		energize-debugger-print)
    "-----"
+   ("cleardebuggerlog"	energize-clear-debugger-log)
    ("closeprogram"	energize-debugger-kill-program)
    ("quitdebugger"	energize-quit-debugger)
    )
@@ -200,7 +201,7 @@ at the current cursor position."
     (let ((fn (aref item 1)))
       (if (not (and (symbolp fn) (get fn 'energize-name)))
 	  nil
-	;; Referencing special binding of `active-items' from a-c-m-i-hook.
+	;; Referencing special binding of `active-items' from a-e-m-i-hook.
 	;; If the function which this item invokes is an Energize function
 	;; (determined by the presence of an 'energize-name property) then
 	;; make it be active iff it's on the active-items list.
@@ -224,14 +225,11 @@ at the current cursor position."
       change-p)))
 
 
-(defun activate-energize-menu-items-hook ()
+(defun activate-energize-menu-items-hook (menubar)
   ;; This is O^2 because of the `rassq', but it looks like the elisp part
   ;; of it only takes .03 seconds.  Calling `energize-list-menu' takes
   ;; almost .1 second, but that's still pretty negligible.
-;;  (let ((i 100))
-;;    (while (> i 0)
-  (let* ((menubar (screen-menubar))
-	 (items menubar)
+  (let* ((items menubar)
 	 (change-p nil)
 	 (active-items
 	  ;; convert a list of Energize names into a list of the functions
@@ -250,28 +248,14 @@ at the current cursor position."
 				    (if (consp item) (cdr item) item)))
 			 change-p)
 	    items (cdr items)))
-    (setq change-p (or (energize-sensitize-sheet-button (selected-screen) t)
-		       change-p))
     (if change-p
-	(set-screen-menubar menubar)))
-;;  (setq i (1- i))))
-  )
+	;; return the modified menubar...
+	menubar
+      ;; otherwise return t, meaning no change.
+      t)))
 
 
 (fset 'energize-announce 'play-sound)
-(defun energize-sensitize-sheet-button (screen &optional no-update)
-  (let* ((menubar (screen-menubar screen))
-	 (sheet-button (car (find-menu-item menubar '("sheet"))))
-	 (sheet-active-p (or (energize-psheets-visible-p)
-			     (energize-buffer-has-psheets-p))))
-    (if (and sheet-button
-	     (not (eq (not (aref sheet-button 2)) (not sheet-active-p))))
-	(progn
-	  (aset sheet-button 2 (not (not sheet-active-p)))
-	  (or no-update (set-screen-menubar menubar screen))
-	  t)
-      nil)))
-
 
 (defvar energize-popup-menu)
 
@@ -331,9 +315,9 @@ at the current cursor position."
     (setq zmacs-region-stays t)))
 
 
-(or (memq 'activate-energize-menu-items-hook menu-popup-hook)
-    (setq menu-popup-hook (nconc menu-popup-hook
-				 '(activate-energize-menu-items-hook))))
+(or (memq 'activate-energize-menu-items-hook activate-menubar-hook)
+    (setq activate-menubar-hook
+	  (nconc activate-menubar-hook '(activate-energize-menu-items-hook))))
 
 
 (defun install-energize-menu (screen)
@@ -347,13 +331,13 @@ at the current cursor position."
 (defun setup-sparc-function-keys ()
   (if (not (eq window-system 'x))
       nil
-    (define-key global-map 'f20 'kill-primary-selection)   ; kp_cut
-    (define-key global-map 'f16 'copy-primary-selection)   ; kp_copy
-    (define-key global-map 'f18 'yank-clipboard-selection) ; kp_paste
-    (define-key global-map 'f29 'scroll-down)		   ; kp_pgup
-    (define-key global-map 'f35 'scroll-up)		   ; kp_pgdn
-    (define-key global-map 'f27 'beginning-of-buffer)	   ; kp_home
-    (define-key global-map 'r13 'end-of-buffer)		   ; kp_end
+    (define-key global-map 'f20 'x-kill-primary-selection)   ; kp_cut
+    (define-key global-map 'f16 'x-copy-primary-selection)   ; kp_copy
+    (define-key global-map 'f18 'x-yank-clipboard-selection) ; kp_paste
+    (define-key global-map 'f29 'scroll-down)		     ; kp_pgup
+    (define-key global-map 'f35 'scroll-up)		     ; kp_pgdn
+    (define-key global-map 'f27 'beginning-of-buffer)	     ; kp_home
+    (define-key global-map 'r13 'end-of-buffer)		     ; kp_end
     ))
 
 (or (memq 'setup-sparc-function-keys window-setup-hook)

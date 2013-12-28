@@ -39,23 +39,32 @@
 
 ;;;%Requirements
 (if (and (boundp 'epoch::version) epoch::version)
-    (require 'epoch-pop)
-    (require 'popper))
+    (autoload 'popper-scroll-output "epoch-pop" "" t)
+    (autoload 'popper-scroll-output "popper" "" t))
+
 
 ;;;%Parameters
+(defvar comint-log nil
+  "If T, then record all process input and output in a buffer called
+process name.")
+
 (defvar comint-send-newline t 
   "If T then add a newline to string in comint-default-send.")
 
+(defvar comint-always-scroll nil
+  "If T then process output will always be visible in first window on buffer.")
+
 (defvar comint-fix-error nil
-  "String to send to send to the command interpreter to fix errors
-including newline if required.")
+  "String to send to send to the command interpreter to fix errors.")
 
 (defvar comint-continue nil
-  "String to send to continue an interrupted job including newline if
-required.")
+  "String to send to continue an interrupted job.")
 
 (defvar comint-interrupt-regexp nil
   "Regular expression for the start of an interrupt in process output.")
+
+(defvar comint-error-regexp nil
+  "Regular expression for setting comint-errorp if found in process output.")
 
 (defvar comint-output-buffer " *Output*"
   "Name of the output buffer.")
@@ -144,6 +153,9 @@ is put in the send stream.")
 
 (defvar comint-last-send nil "Last send that was put in queue.")
 
+(defvar comint-aborting nil
+  "Set to T if we are aborting commands.")
+
 ;;;%Utils
 ;;; Hook stuff--this should really be a part of emacs-lisp anyway
 (defun add-hook (hook function)
@@ -172,10 +184,49 @@ FUNCTION is not added if it's already on the list."
 	(substring string start end))))
 
 ;;;
+(defun comint-log (process string &optional output)
+  "Log to PROCESS, STRING marking as optional OUTPUT."
+  (if comint-log
+      (save-excursion
+	(set-buffer (get-buffer-create (process-name process)))
+	(goto-char (point-max))
+	(if output
+	    (progn
+	      (insert "{") (insert string) (insert "}"))
+	    (insert string)))))
+
+;;;
+(defun comint-send-string (proc str)
+  "Send PROCESS the contents of STRING as input.
+This is equivalent to process-send-string, except that long input strings
+are broken up into chunks of size comint-input-chunk-size. Processes
+are given a chance to output between chunks. This can help prevent processes
+from hanging when you send them long inputs on some OS's."
+  (comint-log proc str)
+  (let* ((len (length str))
+	 (i (min len comint-input-chunk-size)))
+    (process-send-string proc (substring str 0 i))
+    (while (< i len)
+      (let ((next-i (+ i comint-input-chunk-size)))
+	(accept-process-output)
+	(process-send-string proc (substring str i (min len next-i)))
+	(setq i next-i)))))
+
+;;;
 (defun comint-sender (process string)
   "Send to PROCESS STRING with newline if comint-send-newline."
   (comint-send-string process string)
-  (if comint-send-newline (process-send-string process "\n")))
+  (if comint-send-newline
+      (progn
+	(comint-log process "\n")
+	(process-send-string process "\n"))))
+
+;;;
+(defun comint-interrupt-subjob ()
+  "Interrupt the current subjob."
+  (interactive)
+  (comint-log (get-buffer-process (current-buffer)) "")
+  (interrupt-process nil comint-ptyp))
 
 ;;;
 (defun comint-send-variables (send)
@@ -258,16 +309,18 @@ error.  OLD will be nil for the first prompt."
       (let* ((buffer (current-buffer))
 	     (process (get-buffer-process buffer))
 	     (mark (process-mark process))
-	     (window (get-buffer-window buffer))
-	     (at-end (and (eq window (selected-window))
-			  (= (point) mark))))
+	     (window (selected-window))
+	     (at-end nil))
+	(if (eq (window-buffer window) buffer)
+	    (setq at-end (= (point) mark))
+	    (setq window (get-buffer-window buffer)))
 	(save-excursion
 	  (goto-char mark)
 	  (insert output)
 	  (set-marker mark (point)))
 	(if window 
 	    (progn
-	      (if at-end (goto-char mark))
+	      (if (or at-end comint-always-scroll) (goto-char mark))
 	      (if (not (pos-visible-in-window-p (point) window))
 		  (let ((original (selected-window)))
 		    (save-excursion
@@ -285,21 +338,22 @@ returned."
   (save-excursion
     (setq delay (or delay 1))
     (beep t)
-    (comint-display-error (concat message "\n" output))
+    (comint-display-error output)
     (set-buffer comint-original-buffer)
     (while (not (sit-for delay nil))
       (execute-kbd-macro (read-key-sequence nil)))
     (if (not (get-buffer-window (get-buffer comint-error-buffer)))
 	(comint-display-error output))
     (let ((cursor-in-echo-area t)
-	  (echo-keystrokes 0))
+	  (echo-keystrokes 0)
+	  char)
       (while (progn (message prompt)
-		    (not (memq (setq char (read-char)) keys)))
+		    (not (memq (setq char (downcase (read-char))) keys)))
 	(if (= char ? ) 
 	    (popper-scroll-output)
 	    (setq quit-flag nil)
-	    (beep))))
-    char))
+	    (beep)))
+      char)))
 
 ;;;
 (defun comint-error-popup (error wait-p message output prompt)
@@ -345,6 +399,7 @@ a regexp.
 Output to the process should only be done through the functions
 comint-send or comint-default-send, or results will be mixed up."
   (let* ((inhibit-quit t)
+	 (window (selected-window))
 	 (comint-original-buffer (prog1 (current-buffer)
 				   (set-buffer (process-buffer process))))
 	 (match-data (match-data))
@@ -362,10 +417,11 @@ comint-send or comint-default-send, or results will be mixed up."
 	 (message (car messagep))
 	 (wait-p (car wait-p))
 	 (sync (stringp wait-p)))
+    (comint-log process output t)
     ;; Remove leading whitespace
-    (if (and (or (null old-result) (string= "" old-result))
+    (if (and (null old-result)
 	     (save-excursion (goto-char (process-mark process)) (bolp))
-	     (string-match "^[ \t\n]*" output))
+	     (eq (string-match "[ \t]*\n" output) 0))
 	(setq output (substring output (match-end 0))))
     (rplaca result (concat old-result output))
     (while (string-match "\n" (car result) (car line))
@@ -400,13 +456,18 @@ comint-send or comint-default-send, or results will be mixed up."
 		(setq old-result (car result))
 		(rplaca result output)
 		(rplacd result (if error (list last) last))
+		(setq comint-output (car result)
+		      comint-errorp 
+		      (or error
+			  (and comint-error-regexp
+			       comint-output
+			       (string-match comint-error-regexp
+					     comint-output))))
 		(unwind-protect
 		     (if handler
 			 (setq handler
-			       (funcall handler error wait-p
+			       (funcall handler comint-errorp wait-p
 					message output last)))
-		  (setq comint-output (car result)
-			comint-errorp error)
 		  (if (and error handler no-insert comint-fix-error)
 		      (setq comint-send-queue 
 			    (cons (list comint-fix-error t nil 'fix
@@ -424,17 +485,23 @@ comint-send or comint-default-send, or results will be mixed up."
 			       "Done")
 			      (if (not no-insert)
 				  (comint-insert 
-				   (substring old-result 0 match)))
+				   (concat 
+				    (substring old-result 0 match)
+				    (substring old-result (match-end 0)))))
 			      (rplaca result (substring old-result
 							match (car line)))
 			      (rplaca messagep "Done")
+			      (rplaca running nil)
 			      (comint-dispatch-send process))))
 		      ;; Not waiting
 		      (rplaca messagep "Done")
+		      (rplaca running nil)
 		      (comint-dispatch-send process))))
 	      (rplacd result nil))))
     (store-match-data match-data)
-    (set-buffer comint-original-buffer)))
+    (if (or (get-buffer-window comint-original-buffer)
+	    (eq (window-buffer (minibuffer-window)) comint-original-buffer))
+	(set-buffer comint-original-buffer))))
 
 ;;;
 (defun comint-dispatch-send (process)
@@ -470,8 +537,7 @@ current send if done."
 	    (setq comint-send-queue (cdr comint-send-queue)
 		  send (car comint-send-queue))
 	    ;; Set prompt to top-level prompt
-	    (setq prompt (cdr (comint-send-results
-			       (car comint-end-queue)))))
+	    (setq prompt (cdr (comint-send-results (car comint-end-queue)))))
 	(let* ((top-level (eq comint-send-queue comint-end-queue))
 	       (string (car send))
 	       (no-insert (cdr send))
@@ -493,9 +559,11 @@ current send if done."
 			   message comment-end "\n")))
 	  (if (and string (not (stringp string)))
 	      ;; Elisp code
-	      (progn (funcall string)
-		     (setq comint-send-queue (cdr comint-send-queue))
-		     (comint-dispatch-send process))
+	      (progn 
+		(rplacd (comint-send-results (car comint-send-queue))
+			(if (consp prompt) (car prompt) prompt))
+		(funcall string)
+		(comint-dispatch-send process))
 	      (if (stringp (car running))
 		  ;; Continue interrupted send
 		  (let ((output (car running)))
@@ -504,6 +572,7 @@ current send if done."
 			;; Continue old command
 			(progn
 			  (rplaca running t)
+			  (funcall comint-update-status status)
 			  (comint-sender process comint-continue)
 			  (comint-process-filter process output)
 			  ;; Send queued default sends
@@ -526,8 +595,10 @@ current send if done."
 		      ;; New send, set old prompt to the prompt of previous
 		      (rplaca (cdr (comint-send-variables send)) 
 			      (if (consp prompt) (car prompt) prompt)))
-		  (rplaca running t)
-		  (if string (comint-sender process string))))))))
+		  (if string
+		      (progn
+			(rplaca running t)
+			(comint-sender process string)))))))))
 
 ;;;
 (defun comint-interrupt (process send)
@@ -540,7 +611,7 @@ send."
 	      ;; string no-insert wait-p status message handler
 	      (list nil t nil 'interrupt "Interrupt" nil
 		    ;; running old-prompt line (output . prompt)
-		    current nil nil (cons nil nil))))
+		    current nil 0 (cons nil nil))))
 	(setq comint-send-queue (cons interrupt (cons send comint-send-queue)))
 	(funcall comint-update-status 'interrupt)
 	(comint-interrupt-subjob))
@@ -551,12 +622,16 @@ send."
 	  (rplacd comint-send-queue (cons send (cdr comint-send-queue))))))
 
 ;;;%Interface
-(defun comint-setup-ipc ()
-  "Setup for IPC in the current buffer."
+(defun comint-setup-ipc (&optional force)
+  "Setup for IPC in the current buffer.  If called interactively,
+force comint-send-queue to be initialized."
+  (interactive "p")
   (make-local-variable 'comint-send-newline)
+  (make-local-variable 'comint-always-scroll)
   (make-local-variable 'comint-fix-error)
   (make-local-variable 'comint-continue)
   (make-local-variable 'comint-interrupt-regexp)
+  (make-local-variable 'comint-error-regexp)
   (make-local-variable 'comint-output-filter)
   (make-local-variable 'comint-interrupt-start)
   (make-local-variable 'comint-handler)
@@ -568,7 +643,8 @@ send."
   (make-local-variable 'comint-output)
   (make-local-variable 'comint-errorp)
   (make-local-variable 'comint-status)
-  (if (not comint-send-queue)
+  (make-local-variable 'comint-aborting)
+  (if (or force (not comint-send-queue))
       (setq comint-send-queue 
 	    (list (list nil nil nil 'run "Top Level"
 			nil t nil 0 (cons nil nil)))
@@ -593,22 +669,24 @@ this is just like process-send-string.  If STRING is not a string,
 then it is assumed to be an elisp function and will be called when
 encountered in the send queue.  The send will be the next one if WAIT,
 after the last send if AFTER, otherwise it will be put at the end of
-the queue. If WAIT is T or on the first send to a busy inferior, the
-inferior will be interrupted if possible, see comint-send-interrupt
-for more information.  Once the send is sent, the process status will
-be STATUS or 'run.  Output of the send will be inserted into the
-process buffer unless NO-INSERT.  This function returns a list of
-\(result .  prompt).  If WAIT is a string, output will be inserted
-until one matches the string as a regexp.  If WAIT is T, then PROMPT
-will have the prompt when finished and RESULT will have the output.
-If PROMPT is a list, then there was an error.  If WAIT is not T, then
-the list returned will change when the send has been sent and is
-finished.  If HANDLER is nil it will be set to comint-handler.  If it
-is T, errors will be ignored.  When a send is finished, it calls
-handler with \(error-p WAIT MESSAGE output prompt) which decides what
-to do with the output.
+the queue. If WAIT is non-NIL or on the first send to a busy inferior,
+the inferior will be interrupted if possible, see comint-interrupt for
+more information.  Once the send is sent, the process status will be
+STATUS or 'run.  Output of the send will be inserted into the process
+buffer unless NO-INSERT.  This function returns a list of \(result .
+prompt).  If WAIT is a string, output will be inserted until one
+matches the string as a regexp.  If WAIT is T, then PROMPT will have
+the prompt when finished and RESULT will have the output.  If PROMPT
+is a list, then there was an error.  If WAIT is not T, then the list
+returned will change when the send has been sent and is finished.  If
+HANDLER is nil it will be set to comint-handler.  If it is T, errors
+will be ignored.  When a send is finished, it calls handler with
+\(error-p WAIT MESSAGE output prompt) which decides what to do with
+the output.
 
 VARIABLES:
+
+comint-always-scroll will cause all process output to be visible.
 
 comint-fix-error is the string used to fix errors.
 
@@ -616,6 +694,8 @@ comint-continue is the string used to continue after an interrupt.
 
 comint-interrupt-regexp is the default regexp to use in finding the
 start of the interrupt text.  
+
+comint-error-regexp will set comint-errorp if found in the process output.  
 
 FUNCTIONS:  Each of the functions in these variables is called with
 the buffer set to the appropriate process buffer and
@@ -654,6 +734,7 @@ of the interrupt text in output using comint-interrupt-regexp to find it."
 	   (current (car comint-send-queue))
 	   (prompt (cdr (comint-send-results current)))
 	   (ok nil))
+      (setq comint-aborting nil)
       (if (and top-level (or (stringp wait) prompt))
 	  (progn
 	    (setq comint-send-queue (cons send comint-send-queue))
@@ -679,7 +760,8 @@ of the interrupt text in output using comint-interrupt-regexp to find it."
 	   (let ((inhibit-quit nil))
 	     (if (eq wait t)
 		 (while (not (cdr pointer))
-		   (accept-process-output)))
+		   (accept-process-output)
+		   (sit-for 0)))
 	     (setq ok pointer))
 	(if (not ok)
 	    (if (eq send (car comint-send-queue))
@@ -696,7 +778,8 @@ of the interrupt text in output using comint-interrupt-regexp to find it."
 
 ;;;
 (defun comint-send-code (process code)
-  "Execute after the previous send in PROCESS queue CODE."
+  "Execute after the previous send in PROCESS queue CODE. You do not
+want to execute synchronous sends in the code or it will lock up. " 
   (comint-send process code nil nil nil nil nil t))
 
 ;;;
@@ -709,6 +792,7 @@ of the interrupt text in output using comint-interrupt-regexp to find it."
       (rplaca (cdr (cdr (cdr (cdr (car comint-end-queue))))) string)
       (if (eq comint-send-queue comint-end-queue)
 	  (progn (funcall comint-update-status 'run)
+		 (rplaca (comint-send-variables (car comint-send-queue)) t)
 		 (rplacd (comint-send-results (car comint-send-queue)) nil)
 		 (comint-sender process string))
 	  (rplaca top
@@ -746,6 +830,7 @@ messages in *Aborted Commands*."
   (save-excursion
     (setq process (or process (get-buffer-process (current-buffer))))
     (set-buffer (process-buffer process))
+    (setq comint-aborting t)
     (if (not (eq comint-send-queue comint-end-queue))
 	(let* ((inhibit-quit t)
 	       (send (car comint-send-queue))
@@ -818,13 +903,19 @@ messages in *Aborted Commands*."
 	       "Unknown"))))
 
 ;;;%%Output
-(if (listp popper-pop-buffers)
-    (setq popper-pop-buffers 
-	  (cons comint-error-buffer
-		(cons comint-output-buffer popper-pop-buffers))))
-(setq popper-buffers-to-skip 
-      (cons comint-error-buffer
-	    (cons comint-output-buffer popper-buffers-to-skip)))
+(setq popper-load-hook
+      '(lambda ()
+	 (if (listp popper-pop-buffers)
+	     (setq popper-pop-buffers 
+		   (cons comint-error-buffer
+			 (cons comint-output-buffer popper-pop-buffers))))
+	 (if (listp popper-buffers-to-skip)
+	     (setq popper-buffers-to-skip 
+		   (cons comint-error-buffer
+			 (cons comint-output-buffer 
+			       popper-buffers-to-skip))))))
+(if (boundp 'popper-pop-buffers)
+    (progn (run-hooks 'popper-load-hook) (setq popper-load-hook nil)))
 
 ;;;
 (defun comint-display-output (text &optional buffer)

@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Dec 31 21:39:59 1991
-;;; from file /u/jwz/emacs19/lisp/help.el
-;;; emacs version 19.39.
-;;; bytecomp version 2.03; 29-oct-91.
+;;; compiled by jwz@thalidomide on Wed May 27 18:01:13 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/help.el
+;;; emacs version 19.0.21 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -12,7 +12,7 @@
 
 (defvar help-map (make-sparse-keymap) "\
 Keymap for characters following the Help key.")
-(byte-code "À	ÂÃ#ˆÃMˆÀÂÅ#ˆÀÆÅ#ˆÀÇÈ#ˆÀÉÊ#ˆÀËÌ#ˆÀÍÎ#ˆÀÏĞ#ˆÀÑÒ#ˆÀÓÔ#ˆÀÕÖ#ˆÀ×Ö#ˆÀØÙ#ˆÀÚÛ#ˆÀÜİ#ˆÀŞß#ˆÀàß#ˆÀáâ#ˆÀãä#ˆÀåæ#ˆÀçè#‡" [define-key global-map "" help-command help-map help-for-help "?" "" describe-copying "" describe-distribution "" describe-no-warranty "a" command-apropos "b" describe-bindings "c" describe-key-briefly "k" describe-key "d" describe-function "f" "i" info "l" view-lossage "m" describe-mode "" view-emacs-news "n" "s" describe-syntax "t" help-with-tutorial "w" where-is "v" describe-variable] 4)
+(byte-code "À	ÂÃ#ˆÃMˆÀÂÅ#ˆÀÆÅ#ˆÀÇÈ#ˆÀÉÊ#ˆÀËÌ#ˆÀÍÎ#ˆÀÏĞ#ˆÀÑÒ#ˆÀÓÔ#ˆÀÕÖ#ˆÀ×Ö#ˆÀØÙ#ˆÀÚÛ#ˆÀÜİ#ˆÀŞß#ˆÀàß#ˆÀáâ#ˆÀãä#ˆÀåæ#ˆÀçè#ˆéêMˆÀ	ëé#‡" [define-key global-map "" help-command help-map help-for-help "?" "" describe-copying "" describe-distribution "" describe-no-warranty "a" command-apropos "b" describe-bindings "c" describe-key-briefly "k" describe-key "d" describe-function "f" "i" info "l" view-lossage "m" describe-mode "" view-emacs-news "n" "s" describe-syntax "t" help-with-tutorial "w" where-is "v" describe-variable deprecated-help-command #[nil "ÀÁ!Â=«‰ÃÄÅ \"‰‡Ç ‡" [key-binding "" help-command character-to-event 8 allocate-event unread-command-event help-for-help] 3 nil nil] backspace] 4)
 (fset 'help-with-tutorial #[nil "ÀÁ!Ã ˆÄ\n!«‡ÅÄ\n!!ª¾ÅÆ\n!!ˆ\nÀÈ!	ÊÌÀÍ\"!ˆebˆÏĞ!ˆÑyˆ`Êˆ`|ˆÒÓÔ !Õe`\"ZÖZ!ˆebˆ×Ê!)‡" [expand-file-name "~/TUTORIAL" file delete-other-windows get-file-buffer switch-to-buffer create-file-buffer buffer-file-name "~/" default-directory nil auto-save-file-name insert-file-contents "TUTORIAL" exec-directory search-forward "\n<<" 0 newline window-height selected-window count-lines 6 set-buffer-modified-p] 5 "\
 Select the Emacs learn-by-doing tutorial." nil])
 (fset 'describe-key-briefly #[(key) "À	!‰«„\n¨«ˆÃÄÅ	!\"ªÃÆÅ	!\n9«ƒ\nªƒÇ\n!#)‡" [key-binding key defn message "%s is undefined" key-description "%s runs the command %s" prin1-to-string] 6 "\
@@ -40,7 +40,7 @@ Display info on all the kinds of warranty Emacs does NOT have." nil])
 Display info on recent changes to Emacs." nil])
 (fset 'view-lossage #[nil "ÀÁÂÃ !!ˆŠqˆebˆÅÆ!ˆm¬‹ÇÈÉÊ#ˆËcˆªn)Ì ‘‡" ["*Help*" princ key-description recent-keys standard-output move-to-column 50 search-forward " " nil t "\n" print-help-return-message] 5 "\
 Display last 100 input keystrokes." nil])
-(fset 'help-for-help #[nil "ÀÁ!ˆÂ ‰ÄU¬…ÅU«ƒÆ‹ˆÇÉ!\"‰\n«†Ë\n!ª‚Ì *‡" [message "A B C F I K L M N S T V W C-c C-d C-n C-w.  Type C-h again for more help: " read-char char 8 63 ((byte-code "ÀÁ!ˆÂ ˆÃÄ!cˆebˆÆ>«¦Ç>«ƒÈ ˆÉ>«ƒÊ ˆËÌÍd!«ƒÎªÏ\"ˆĞÒ )ªUÀ‡" [switch-to-buffer "*Help*" erase-buffer documentation help-for-help char (8 63 22 32 127 246) (22 32) scroll-up (127 246) scroll-down message "A B C F I K L M N S T V W C-c C-d C-n C-w%s: " pos-visible-in-window-p "" " or Space to scroll" t cursor-in-echo-area read-char] 4)) lookup-key help-map char-to-string defn call-interactively ding] 5 "\
+(fset 'help-for-help #[nil "À	!Â‰ÆÇÈ!\"ˆÉÊ !Ë!®‰š¬ŠÌš¬…Íš«ƒÎ‹ˆÏÑ!«…Ò!ª„Ó—!\"‰«†Õ!ª‚Ö ,‡" [copy-event last-command-event nil char event help-key message "A B C F I K L M N S T V W C-c C-d C-n C-w.  Type %s again for more help: " single-key-description next-command-event allocate-event event-to-character 8 63 ((byte-code "ÀÁ!ˆÂ ˆÃÄ!cˆebˆš¬…Ç>«²È>«ƒÉ ˆÊ>«ƒË ˆÌÍÎd!«ƒÏªĞ\"ˆÑÓ!Õ!®‚)ªCÀ‡" [switch-to-buffer "*Help*" erase-buffer documentation help-for-help char help-key (8 63 22 32 127 246) (22 32) scroll-up (127 246) scroll-down message "A B C F I K L M N S T V W C-c C-d C-n C-w%s: " pos-visible-in-window-p "" " or Space to scroll" t cursor-in-echo-area next-command-event event event-to-character] 4)) lookup-key help-map eventp vector char-to-string defn call-interactively ding] 5 "\
 You have typed C-h, the help character.  Type a Help option:
 
 A  command-apropos.   Give a substring, and see a list of commands
@@ -70,8 +70,8 @@ C-w print information on absence of warranty for GNU Emacs." nil])
 (fset 'function-called-at-point #[nil "ÀÁÂ‡" [nil (byte-code "ŠŒe`ÀZ]d}ˆÁÂ!ˆÂuˆÃÅp!‰9­†Æ!­+‡" [1000 backward-up-list 1 nil obj read fboundp] 4) ((error))] 3])
 (defvar describe-function-show-arglist t "\
 *If true, then describe-function will show its arglist if the function is
-not a subr and not an autoload.")
-(fset 'describe-function #[(function) "ÀÁ\n!ˆÃÄ!ˆ«À\nÆ‰9«ˆK‰ªuÉ!«ƒÊª”¢Ë=«ƒËªŠÌ!­„ÍH‰«‡Á!ˆª„ÃÎ!ˆ*ÃÏ!ˆĞ\n!«ˆÃĞ\n!!ˆª„ÃÑ!ˆÒ ‘‡" ["*Help*" prin1 function princ ": " describe-function-show-arglist nil arglist def subrp subr autoload compiled-function-p 0 "()" "\n" documentation "not documented" print-help-return-message] 5 "\
+not an autoload.")
+(fset 'describe-function #[(function) "ÀÁ\n!ˆÃÄ!ˆÅ«½\n‰9«ˆK‰ªuÉ!«ƒÊª”¢Ë=«ƒËªŠÌ!­„ÍH‰«‡Á!ˆª„ÃÎ!ˆ)ÃÏ!ˆĞ\n!«ˆÃĞ\n!!ˆª„ÃÑ!ˆÊ=«³ŠÀqˆdbˆÒyˆÓÔ!«£`Í•bˆ`d{d|ˆebˆÅˆÖ×!ˆØcˆcˆ)))Ù ‘‡" ["*Help*" prin1 function princ ": " nil arglist describe-function-show-arglist def subrp subr autoload compiled-function-p 0 "()" "\n" documentation "not documented" -1 looking-at "arguments:" p delete-backward-char 5 " " print-help-return-message] 5 "\
 Display the full documentation of FUNCTION (a symbol)." (byte-code "À ÁÂÆ«†ÇÈ\"ªÉ\nËÁ$‰Ìš«ƒªƒÍ!+C‡" [function-called-at-point t nil val enable-recursive-minibuffers fn completing-read format "Describe function (default %s): " "Describe function: " obarray fboundp "" intern] 6)])
 (fset 'variable-at-point #[nil "ÀÁÂ‡" [nil (byte-code "ŠÀÁ!ˆÂÃwˆÄp!‰9­†Æ!­*‡" [forward-sexp -1 "'" nil read obj boundp] 3) ((error))] 3])
 (fset 'describe-variable #[(variable) "ÀÁ\n!ˆÃÄ!ˆÅ\n!¬†ÃÆ!ˆª…Á\nJ!ˆÇ ˆÇ ˆÃÈ!ˆÇ ˆÉ\nÊ\"‰«‰ÃÌ!!ˆª„ÃÍ!ˆ)Î ‘‡" ["*Help*" prin1 variable princ "'s value is " boundp "void." terpri "Documentation:" documentation-property variable-documentation doc substitute-command-keys "not documented as a variable." print-help-return-message] 5 "\
@@ -81,9 +81,9 @@ Like apropos but lists only symbols that are names of commands
 (interactively callable functions).  Argument REGEXP is a regular expression
 that is matched against command symbol names.  Returns list of symbols and
 documentation found." "sCommand apropos (regexp): "])
-(fset 'locate-library #[(library &optional nosuffix) "ÀÁ‡" [answer (byte-code "ÀÁ\n\"ˆÃÄ\"ˆÆ‡" [mapcar #[(dir) "ÀÁ\n«ƒÃªÄ\"‡" [mapcar #[(suf) "À	\nP\"Å!­Æ!?­‰ÇÈ\"ˆÉÊ\")‡" [expand-file-name library suf dir try file-readable-p file-directory-p message "Library is file %s" throw answer] 3] nosuffix ("") (".elc" ".el" "")] 3] load-path message "No library %s in search path" library nil] 3)] 2 "\
+(fset 'locate-library #[(library &optional nosuffix) "À	\n?­Ä#‰«‡ÆÇ\"ˆª…ÆÈ	\"ˆ)‡" [locate-file library load-path nosuffix ".elc:.el:" file message "Library is file %s" "No library %s in search path"] 5 "\
 Show the full path name of Emacs library LIBRARY.
 This command searches the directories in `load-path' like  M-x load-library
 to find the file that  M-x load-library RET LIBRARY RET  would load.
-Optional 2nd arg NOSUFFIX non-nil means don't add suffixes `.elc' or `.el'
-to the specified name LIBRARY (a la calling `load' instead of `load-library')." "sLocate library: "])
+Optional prefix arg NOSUFFIX non-nil means don't add suffixes `.elc' or `.el'
+to the specified name LIBRARY - a la calling (load LIBRARY nil nil t)." "sLocate library: \nP"])

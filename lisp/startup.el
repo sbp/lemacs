@@ -262,31 +262,15 @@ directory name of the directory where the `.emacs' file was looked for.")
 			   "
 Copyright (C) 1990 Free Software Foundation, Inc.\n\
 Copyright (C) 1992 Lucid, Inc.\n")
-		   ;; If keys have their default meanings,
-		   ;; use precomputed string to save lots of time.
-		   (if (and (eq (key-binding "\C-h") 'help-command)
-			    (eq (key-binding "\C-xu") 'advertised-undo)
-			    (eq (key-binding "\C-x\C-c") 'save-buffers-kill-emacs)
-			    (eq (key-binding "\C-h\C-c") 'describe-copying)
-			    (eq (key-binding "\C-h\C-d") 'describe-distribution)
-			    (eq (key-binding "\C-h\C-w") 'describe-no-warranty)
-			    (eq (key-binding "\C-ht") 'help-with-tutorial))
-		       (insert 
-       "Type C-h for help; C-x u to undo changes.  (`C-' means use CTRL key.)
-To kill the Emacs job, type C-x C-c.
-Type C-h t for a tutorial on using Emacs.
-
-GNU Emacs comes with ABSOLUTELY NO WARRANTY; type C-h C-w for full details.
-You may give out copies of Emacs; type C-h C-c to see the conditions.
-Type C-h C-d for information on getting the latest version.")
-		     (insert (substitute-command-keys
+		   ;; with the new Fwhere_is_internal(), this takes 0.02 secs.
+		   (insert (substitute-command-keys
        "Type \\[help-command] for help; \\[advertised-undo] to undo changes.  (`C-' means use CTRL key.)
 To kill the Emacs job, type \\[save-buffers-kill-emacs].
 Type \\[help-with-tutorial] for a tutorial on using Emacs.
 
 GNU Emacs comes with ABSOLUTELY NO WARRANTY; type \\[describe-no-warranty] for full details.
 You may give out copies of Emacs; type \\[describe-copying] to see the conditions.
-Type \\[describe-distribution] for information on getting the latest version.")))
+Type \\[describe-distribution] for information on getting the latest version."))
 		   (fontify-copyleft)
 		   (set-buffer-modified-p nil)
 		   (sit-for 120))
@@ -314,25 +298,26 @@ Type \\[describe-distribution] for information on getting the latest version."))
 		 (funcall tem))
 
                 ;; #ifdef ENERGIZE
-		((or (string-equal argi "-context")
-		     (string-equal argi "-energize")
-		     (string-equal argi "-beam-me-up"))
-		 (let ((cad-arg (car command-line-args-left))
-		       (cad-host (getenv "ENERGIZE"))) ; maybe nil
-		   (if (and cad-arg
+		((and (featurep 'energize)
+		      (or (string-equal argi "-context")
+			  (string-equal argi "-energize")
+			  (string-equal argi "-beam-me-up")))
+		 (let ((e-arg (car command-line-args-left))
+		       (e-host (getenv "ENERGIZE"))) ; maybe nil
+		   (if (and e-arg
 			    (string-match "\\`[0-9a-fA-F]+[,][0-9a-fA-F]+\\'"
-					  cad-arg))
+					  e-arg))
                        (setq command-line-args-left
 			     (cdr command-line-args-left))
-		     (setq cad-arg nil))
+		     (setq e-arg nil))
 		   (message "Connecting to Energize...") 
                    (sit-for 0)
                    (condition-case ()
-                       (connect-to-energize cad-host cad-arg)
+                       (connect-to-energize e-host e-arg)
                      (error
 		      (beep)
 		      (message "Failed to connect to Energize at %s."
-			       cad-host)
+			       e-host)
 		      (sit-for 1)))))
                 ;; #endif /* ENERGIZE */
 
@@ -562,23 +547,21 @@ Type \\[describe-distribution] for information on getting the latest version."))
 
 
 (defun fontify-copyleft ()
-  (and window-system (fboundp 'set-extent-attribute)
+  (and window-system (fboundp 'set-extent-face)
        (save-excursion
 	 (let ((case-fold-search nil))
 	   (goto-char (point-min))
 	   (while (re-search-forward
 		   "\\b\\(C-[xh]\\( \\([CM]-\\)?.\\)?\\|M-x [-a-z]+\\)\\b"
 		   nil t)
-	     (set-extent-attribute
-	      (make-extent (match-beginning 0) (match-end 0))
-	      1))
+	     (set-extent-face (make-extent (match-beginning 0) (match-end 0))
+			      'bold))
 	   (goto-char (point-min))
 	   (while (re-search-forward "^Copyright[^\n]+$" nil t)
-	     (set-extent-attribute
-	      (make-extent (match-beginning 0) (match-end 0))
-	      3))
+	     (set-extent-face (make-extent (match-beginning 0) (match-end 0))
+			      'bold-italic))
 	   (goto-char (point-min))
 	   (and (search-forward "ABSOLUTELY NO WARRANTY" nil t)
-		(set-extent-attribute
+		(set-extent-face
 		 (make-extent (match-beginning 0) (match-end 0))
-		 2))))))
+		 'italic))))))

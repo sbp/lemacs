@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Sat Mar  7 03:23:21 1992
-;;; from file /u/jwz/emacs19/lisp/vm/vm-mark.el
-;;; emacs version 19.71 Lucid.
-;;; bytecomp version 2.04; 5-feb-92.
+;;; compiled by jwz@thalidomide on Tue Apr 21 16:44:33 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/vm/vm-mark.el
+;;; emacs version 19.0.2 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,7 +10,6 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(require 'vm)
 (fset 'vm-clear-all-marks #[nil "«ˆÁ!«ƒqˆÂ!«‡Á!¬‚ÄÅ ˆ‰«—@ÈHÈÄIˆÉ@!ˆA‰¬i)Ê ‡" [vm-mail-buffer buffer-name bufferp vm-summary-buffer nil vm-error-if-folder-empty vm-message-list mp 1 vm-mark-for-display-update vm-update-summary-and-mode-line] 4 "\
 Removes all message marks in the current folder." nil])
 (fset 'vm-mark-all-messages #[nil "«ˆÁ!«ƒqˆÂ!«‡Á!¬‚ÄÅ ˆ‰«—@ÈHÈÉIˆÊ@!ˆA‰¬i)Ë ‡" [vm-mail-buffer buffer-name bufferp vm-summary-buffer nil vm-error-if-folder-empty vm-message-list mp 1 t vm-mark-for-display-update vm-update-summary-and-mode-line] 4 "\
@@ -28,4 +27,4 @@ previous N-1 messages." "p"])
 (fset 'vm-next-command-uses-marks #[nil "ÀÁ!ˆÂÃ!«‡ÃÄ !‰‡Æ ‰‡" [message "Next command uses marks..." fboundp next-command-event allocate-event unread-command-event read-char unread-command-char] 2 "\
 Does nothing except insure that the next VM command will operate only
 on the marked messages in the current folder." nil])
-(fset 'vm-marked-messages #[nil "À	\n«“\n@ÄHÄH«…\n@B\nA‰¬mŸ*‡" [nil vm-message-list mp list 1] 3])
+(byte-code "ÀÁMˆÂÃM‡" [vm-marked-messages #[nil "À	\n«“\n@ÄHÄH«…\n@B\nA‰¬mŸ*‡" [nil vm-message-list mp list 1] 3] vm-mark-help #[nil "ÀÁ!‡" [message "MM = mark, MU = unmark, Mm = mark all, Mu = unmark all, MN - use marks"] 2 nil nil]] 2)

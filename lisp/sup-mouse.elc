@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Tue Jul 30 20:21:18 1991
-;;; from file /u/jwz/emacs19/lisp/sup-mouse.el
-;;; emacs version 19.56.
-;;; bytecomp version 2.0 beta; 28-jul-91.
+;;; compiled by devin@watergate on Sat May 16 14:12:43 1992
+;;; from file /wg1/emacs-base/lisp/sup-mouse.el
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 23-apr-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 

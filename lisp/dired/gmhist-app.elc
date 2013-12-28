@@ -1,0 +1,27 @@
+;;; compiled by jwz@thalidomide on Tue May 19 23:00:37 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/dired/gmhist-app.el
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(byte-code "ÀÁ!ˆÂÃ«ƒÅªÆ\"ˆ«ŒÇÈÉ\"ˆÇÊË\"ˆª…ÌÊÍ\"ˆ«ŒÇÎÏ\"ˆÇĞÑ\"ˆªŠÌÎÒ\"ˆÌĞÒ\"ˆÌÓ!ˆÇÔÕ\"ˆÖ×ØÙ#ˆÖ×ÚÙ#ˆÖ×ÛC#ˆÖ×İÙ#‡" [require gmhist mapcar #[(x) "À	Â\"‡" [gmhist-make-magic x regexp-history] 3] gmhist-emacs-19-p (keep-lines flush-lines how-many) (keep-lines flush-lines how-many occur) gmhist-replace-spec occur (gmhist-interactive "sList lines matching regexp: \nP" 'regexp-history) grep (list (read-with-history-in 'grep-history (concat "Run " (substring grep-command 0 (string-match "[	 ]+" grep-command)) " (with args): "))) gmhist-make-magic grep-history shell-command (gmhist-interactive "sShell command: \nP" 'shell-history) shell-command-on-region (gmhist-interactive "r\nsShell command on region: \nP\np" 'shell-history) shell-history eval-expression compile (list (read-with-history-in 'compile-history "Compile command: ")) put compile-history backup t no-default initial-hist compile-command cursor-end] 4)
+(defvar tags-history nil "\
+History of tags.")
+(byte-code "ÀÂÃM‡" [(lambda nil (fset 'find-tag-tag 'gmhist-find-tag-tag)) tags-load-hook gmhist-find-tag-tag #[(string) "À ‰«‹ÂÃ	\"«…	ÄÅOÆÇÈ	#ˆ	BÉÇ\n\")C‡" [find-tag-default defalt string-match "[:']$" 0 -1 put tags-history default read-with-history-in string] 5]] 2)
+(defvar gmhist-execute-extended-command-map (copy-keymap gmhist-completion-map) "\
+Keymap used inside `gmhist-execute-extended-command'.")
+(byte-code "À	ÂÃ#ˆÀ	ÄÅ#‡" [define-key gmhist-execute-extended-command-map "" gmhist-execute-extended-command-exit " " gmhist-execute-extended-command-space] 4)
+(fset 'gmhist-execute-extended-command-exit #[nil "Áš«†ÂÄ\" ‡Å ‡" [minibuffer-history-position 0 lookup-key minibuffer-local-must-match-map "" exit-minibuffer] 3 "\
+Maybe complete the minibuffer contents, and exit.
+Completes commands before exiting, but leaves command history items alone." nil])
+(fset 'gmhist-execute-extended-command-space #[nil "Áš«†ÂÄ\" ‡Äc‡" [minibuffer-history-position 0 lookup-key minibuffer-local-must-match-map " "] 3 nil nil])
+(fset 'gmhist-execute-extended-command #[nil "À	«¥	Â‰«˜@‰¢À=«‰Â ˆÂ‰ªlA‰¬hÅÂ	\"*ÂÂÇ	ÊÁËÇ#ˆÊÁÌÍ#ˆÊÁÎÇ#ˆÊÁÏ#ˆÊÁÑ#ˆÊÁÓÔ#ˆÊÁÕÂ#ˆÖÁ«‡ØÙ\"ªÚÂÇ$*Ô!«İÇ\")ª‰Ş!	B)‡" [gmhist-execute-extended-command command-history nil elt list delq cmd t minibuffer-history-read-only minibuffer-completion-confirm put cursor-end hist-ignore ".*" no-default completion-table obarray hist-map gmhist-execute-extended-command-map completion-predicate commandp backup read-with-history-in current-prefix-arg format "%s M-x " "M-x " prefix-arg this-command command-execute eval] 6 "\
+Read function name, then read its arguments and call it.
+You can use all gmhist commands (see variable gmhist-completion-map),
+especially \\<gmhist-completion-map>\\[gmhist-previous] to backup in command-history." nil])

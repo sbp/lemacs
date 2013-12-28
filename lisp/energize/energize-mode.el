@@ -407,13 +407,6 @@ dialog box and edits its definition.  Otherwise, invokes `find-tag'."
   "Hook called when any source buffer is placed in the Energize minor-mode.")
 
 
-;;; Unfortunately this has to go in the global map, for the case where the
-;;; selected buffer is not a energize buffer but the user tries to bring up
-;;; a menu on a region in a energize buffer in another window.  This will be
-;;; fixed when extents can have keymaps associated with them.
-;;;
-(define-key global-map 'button3 'energize-popup-menu)
-
 (if energize-map
     nil
   (setq energize-map (make-sparse-keymap))
@@ -427,6 +420,7 @@ dialog box and edits its definition.  Otherwise, invokes `find-tag'."
   (define-key energize-map "\M-C" 'energize-build) ; M-Sh-C
   (define-key energize-map "\M-B" 'energize-build-and-debug) ; M-Sh-B
   (define-key energize-map "\M-E" 'energize-check-for-errors) ; M-Sh-E
+  (define-key energize-map 'button3 'energize-popup-menu)
   )
 
 (if energize-top-level-map

@@ -1,0 +1,35 @@
+;;; compiled by jwz@thalidomide on Tue May 19 23:06:01 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/dired/dired-num.el
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defconst dired-num-version (substring "$Revision: 1.2 $" 11 -2) "\
+$Id: dired-num.el,v 1.2 1992/05/20 05:27:10 jwz Exp $")
+(byte-code "ÀÁ!ˆÂÃMˆÄÅM‡" [require dired dired-number-of-marked-files #[(&optional arg) "ŠÀ‰‰‰«™¨«‘ÆÇ\"ˆÈW«„	ŸªÔ	ªÑÀCªÍÉ À\nŠebˆÌÀÍ#­‚Î ‰\n??\n«¤\nbˆÀ	B\nbˆÏyˆ\nÀ‰“ˆÌÀÍ#­‚Î ‰\n¬\\)\n«ƒ	ª‚ÀC*,Ð ˆ)G‡" [nil results found case-fold-search buffer-read-only arg dired-repeat-over-lines #[nil "À	B‰‡" [nil results] 2] 0 dired-marker-regexp next-position regexp re-search-forward t point-marker 1 dired-move-to-filename] 5] dired-do-create-files-numeric #[(file-creator operation arg format start &optional arg) "SÂÄ$)‡" [start i dired-create-files-non-directory file-creator #[(x) "À	T‰\"‡" [format i] 4] operation arg] 5]] 2)
+(fset 'dired-do-rename-numeric #[(format start &optional arg) "ÀÁÂ%‡" [dired-do-create-files-numeric dired-rename-file "Rename-numeric" arg format start] 6 "\
+Rename all marked (or next ARG) files using numbers.
+You are prompted for a format string, e.g \"part_%d_of_8\", and a starting
+number, e.g. 1.  If there are 8 marked files, this example will rename them to
+
+    part_1_of_8
+    part_2_of_8
+    ...
+    part_8_of_8" (byte-code "ÀÁÂÃ!\"!ÅÆÇ\"E‡" [read-string format "Rename numeric [%d files] (format string using %%d): " dired-number-of-marked-files current-prefix-arg read-minibuffer "Numbers start at: " "1"] 5)])
+(fset 'dired-do-create-files-list #[(file-creator operation arg format list &optional arg) "ÂÄ$)‡" [list rest dired-create-files-non-directory file-creator #[(x) "À	@	A\"‡" [format rest] 4] operation arg] 5])
+(fset 'dired-do-rename-list #[(format list &optional arg) "À	!\nGU¬„ÃÄ!ˆÅÆÇ	\n%‡" [dired-number-of-marked-files arg list error "Must have as many elements as there are files to rename" dired-do-create-files-list dired-rename-file "Rename-list" format] 6 "\
+Rename all marked (or next ARG) files using elements from LIST.
+You are prompted for a format string, e.g \"x_%s\", and the list,
+e.g. '(foo bar zod).  This example will rename the marked files to
+
+    x_foo
+    x_bar
+    x_zod
+
+It is an error if LIST has not as many elements as there are files." "sRename list (format using %%s): \nxList: \nP"])

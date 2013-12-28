@@ -243,7 +243,9 @@ Marker points nowhere if file has no tag table.")
 				  (setq active-expression
 					(read (current-buffer))))))
 			 (point-max)))
-     (if Info-enable-active-nodes (eval active-expression)))))
+     (if Info-enable-active-nodes (eval active-expression))
+     (Info-fontify-node)
+     )))
 
 (defun Info-set-mode-line ()
   (setq mode-line-buffer-identification
@@ -431,7 +433,7 @@ NAME may be an abbreviation of the reference name."
 				    (concat "Follow reference named: ("
 					    default ") ")
 				  "Follow reference named: ")
-				completions default t))
+				completions nil t))
        (error "No cross-references in this node"))))
   (let (target beg i (str (concat "\\*note " footnotename)))
     (while (setq i (string-match " " str i))
@@ -462,11 +464,6 @@ NAME may be an abbreviation of the reference name."
     (while (setq i (string-match "\n" str i))
       (aset str i ?\ ))
     str))
-
-(defun Info-menu-item-sequence (list)
-  (while list
-    (Info-menu-item (car list))
-    (setq list (cdr list))))
 
 (defun Info-menu (menu-item)
   "Go to node for menu item named (or abbreviated) NAME.
@@ -688,9 +685,12 @@ At end of the node's text, moves to the next node."
   (define-key Info-mode-map "u" 'Info-up)
   (define-key Info-mode-map "\177" 'scroll-down)
 
-  (define-key Info-mode-map 'button1 'mouse-scroll-up-full)
-  (define-key Info-mode-map 'button2 'Info-follow-nearest-node)
-  (define-key Info-mode-map 'button3 'mouse-scroll-down-full)
+  ;;(define-key Info-mode-map 'button1 'mouse-scroll-up-full)
+  ;;(define-key Info-mode-map 'button2 'Info-follow-nearest-node)
+  ;;(define-key Info-mode-map 'button3 'mouse-scroll-down-full)
+
+  (define-key Info-mode-map 'button2 'Info-follow-indicated-node)
+  (define-key Info-mode-map 'button3 'Info-select-node-menu)
   )
 
 ;; Info mode is suitable only for specially formatted data.
@@ -719,9 +719,9 @@ Space	scroll forward a full screen.     DEL  scroll backward.
 b	Go to beginning of node.
 
 Mouse commands:
-Middle Button	Go to node mentioned in the text near where you click.
-Left Button	Scroll forward a full screen.
-Right Button	Scroll backward.
+Left Button	Set point
+Middle Button	Click on a highlighted node reference to go to it
+Right Button	Pop up a menu of applicable Info commands
 
 Advanced commands:
 q	Quit Info: reselect previously selected buffer.
@@ -798,3 +798,152 @@ Allowed only if variable Info-enable-edit is non-nil."
   (and (marker-position Info-tag-table-marker)
        (buffer-modified-p)
        (message "Tags may have changed.  Use Info-tagify if necessary")))
+
+
+;;; fontification and mousability
+
+(defvar Info-fontify t)
+
+(or (find-face 'info-node) (make-face 'info-node))
+(or (find-face 'info-xref) (make-face 'info-xref))
+
+(if purify-flag  ; being preloaded
+    nil
+  (or (face-differs-from-default-p 'info-node (selected-screen))
+      (copy-face 'bold-italic 'info-node (selected-screen)))
+  (or (face-differs-from-default-p 'info-xref (selected-screen))
+      (copy-face 'bold 'info-xref (selected-screen))))
+
+
+(defun Info-fontify-node ()
+  (if Info-fontify
+      (save-excursion
+	(map-extents (function (lambda (x y) (delete-extent x)))
+		     (current-buffer) (point-min) (point-max) nil)
+	(let ((case-fold-search t)
+	      extent)
+	  (goto-char (point-min))
+	  (if (looking-at "^File: [^,: \t]+,?[ \t]+")
+	      (progn
+		(goto-char (match-end 0))
+		(while
+		    (looking-at "[ \t]*[^:, \t\n]+:[ \t]+\\([^:,\t\n]+\\),?")
+		  (goto-char (match-end 0))
+		  (setq extent (make-extent (match-beginning 1) (match-end 1)))
+		  (set-extent-face extent 'info-xref)
+		  (set-extent-attribute extent 'highlight))))
+	  (goto-char (point-min))
+	  (while (re-search-forward "\\*note[ \n\t]*\\([^:]*\\):" nil t)
+	    (if (= (char-after (1- (match-beginning 0))) ?\") ; hack
+		nil
+	      (setq extent (make-extent (match-beginning 0) (match-end 1)))
+	      (set-extent-face extent 'info-xref)
+	      (set-extent-attribute extent 'highlight)))
+	  (goto-char (point-min))
+	  (if (search-forward "\n* menu:" nil t)
+	      (while (re-search-forward "^\\* \\([^:\t\n]*\\):" nil t)
+		(setq extent (make-extent (match-beginning 0) (match-end 1)))
+		(set-extent-face extent 'info-node)
+		(set-extent-attribute extent 'highlight)))))))
+
+(defun Info-indicated-node (event)
+  (save-window-excursion
+    (save-excursion
+      (mouse-set-point event)
+      (let* ((buffer (window-buffer (event-window event)))
+	     (p (event-point event))
+	     (extent (and p (extent-at p buffer 'highlight)))
+	     (text (and extent
+			(save-excursion
+			  (set-buffer buffer)
+			  (buffer-substring
+			   (extent-start-position extent)
+			   (extent-end-position extent)))))
+	     (case-fold-search t)
+	     i)
+	(cond ((null extent)
+	       nil)
+	      ((string-match "\\`\\*note[ \n\t]*\\([^:]*\\):?\\'" text)
+	       ;; it's a cross-reference
+	       (setq text (substring text (match-beginning 1) (match-end 1)))
+	       (while (setq i (string-match "[ \n\t]+" text i))
+		 (setq text (concat (substring text 0 i) " "
+				    (substring text (match-end 0))))
+		 (setq i (1+ i)))
+	       (list 'Info-follow-reference text))
+	      ((and (save-excursion (goto-char (extent-start-position extent))
+				    (= ?\n (preceding-char)))
+		    (string-match "\\`\\* \\([^:\t\n]+\\):?\\'" text))
+	       ;; it's a menu entry
+	       (setq text (substring text (match-beginning 1) (match-end 1)))
+	       (list 'Info-menu text))
+	      (t
+	       ;; otherwise, it must be a node-name in the first line
+	       (list 'Info-goto-node text)))))))
+
+
+(defun Info-follow-indicated-node (event)
+  "Follow the crossreference or menu item at the click-location."
+  (interactive "e")
+  (mouse-set-point event)
+  (eval (or (Info-indicated-node event)
+	    (error "click on a cross-reference to follow"))))
+
+
+(defun Info-select-node-menu (event)
+  "Pops up a menu of applicable Info commands."
+  (interactive "e")
+  (select-window (event-window event))
+  (let ((case-fold-search t)
+	up-p prev-p next-p menu
+	i text xrefs subnodes in)
+    (save-excursion
+      (goto-char (point-min))
+      (if (looking-at ".*\\bNext:") (setq next-p t))
+      (if (looking-at ".*\\bPrev:") (setq prev-p t))
+      (if (looking-at ".*Up:") (setq up-p t))
+      (setq menu (nconc (list nil "Info Commands:" "----")
+			(if (setq in (Info-indicated-node event))
+			    (list (vector (car (cdr in)) in t)))
+			(list
+			 ["Goto Info Top-level" Info-directory t]
+			 (vector "Next Node" 'Info-next next-p)
+			 (vector "Previous Node" 'Info-prev prev-p)
+			 (vector "Parent Node (Up)" 'Info-up up-p)
+			 ["Goto Node..." Info-goto-node t]
+			 ["Goto Last Visited Node" Info-last t])))
+      (while (re-search-forward "\\*note[ \n\t]*\\([^:]*\\):" nil t)
+	(setq text (buffer-substring (match-beginning 1) (match-end 1)))
+	(while (setq i (string-match "[ \n\t]+" text i))
+	  (setq text (concat (substring text 0 i) " "
+			     (substring text (match-end 0))))
+	  (setq i (1+ i)))
+	(setq xrefs (cons text xrefs)))
+      (setq xrefs (nreverse xrefs))
+      (if (> (length xrefs) 21) (setcdr (nthcdr 20 xrefs) '(more)))
+      (goto-char (point-min))
+      (if (search-forward "\n* menu:" nil t)
+	  (while (re-search-forward "^\\* \\([^:\t\n]*\\):" nil t)
+	    (setq text (buffer-substring (match-beginning 1) (match-end 1)))
+	    (setq subnodes (cons text subnodes))))
+      (setq subnodes (nreverse subnodes))
+      (if (> (length subnodes) 21) (setcdr (nthcdr 20 subnodes) '(more)))
+      )
+    (if xrefs
+	(nconc menu (list "----" "Cross-References:" "----")
+	       (mapcar (function (lambda (xref)
+				   (if (eq xref 'more)
+				       "...more..."
+				     (vector xref
+					     (list 'Info-follow-reference xref)
+					     t))))
+		       xrefs)))
+    (if subnodes
+	(nconc menu (list "----" "Sub-Nodes:" "----")
+	       (mapcar (function (lambda (node)
+				   (if (eq node 'more)
+				       "...more..."
+				     (vector node (list 'Info-menu node)
+					     t))))
+		       subnodes)))
+    (popup-menu menu)))

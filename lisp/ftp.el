@@ -1,3 +1,5 @@
+;; hint: use ange-ftp.el instead of this!
+
 ;; File input and output over Internet using FTP
 ;; Copyright (C) 1987 Free Software Foundation, Inc.
 ;; Author mly@prep.ai.mit.edu.

@@ -1,0 +1,273 @@
+;;; compiled by jwz@thalidomide on Tue May 19 23:00:50 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/dired/gmhist.el
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defconst gmhist-version (substring "$Revision: 4.27 $" 11 -2) "\
+$Id: gmhist.el,v 4.27 1992/05/20 05:25:08 jwz Exp $
+Report bugs to Sebastian Kremer <sk@thp.uni-koeln.de>.")
+(byte-code "ÀÁ!ˆÂÃ!¬‡ÅÆOÇšÀ‡" [provide gmhist boundp gmhist-emacs-19-p emacs-version 0 2 "19"] 3)
+(defvar gmhist-default-format "[%s] " "\
+Format used by gmhist to indicate the presence of a default value.
+Set this to \"(default %s) \" to get the standard format.")
+(defvar gmhist-search-history nil "\
+History of history searches.")
+(fset 'read-with-history-in #[(GMHIST-SYMBOL rwhi-prompt &optional GMHIST-INITIAL GMHIST-READ) "ÀÁ!ˆ\nÃNÄ!«Š\n$ª¼È\n!¬†\n‰ÉNLˆ\nJ\n\nËN‰Í=«‡ÎÏ\n\"ª‚)\nÑN\nÔ\nÕN®‚$,)‡" [run-hooks gmhist-hook GMHIST-SYMBOL hist-function fboundp rwhi-prompt GMHIST-INITIAL GMHIST-READ boundp initial-hist history completion-table table t mapcar list minibuffer-completion-table completion-predicate minibuffer-completion-predicate minibuffer-history-symbol gmhist-new-read-from-minibuffer hist-map gmhist-map] 6 "\
+Read a string, maintaining minibuffer history across calls in GMHIST-SYMBOL,
+  prompting with PROMPT, with optional GMHIST-INITIAL as initial contents.
+If optional fourth arg GMHIST-READ is non-nil, then interpret the
+  result as a lisp object and return that object.
+See variable gmhist-map for history commands available during edit.
+Example:
+    (defun foo-command (cmd)
+      (interactive (list (read-with-history-in 'foo-history \"Foo: \" )))
+      (message \"Fooing %s...\" cmd))
+
+See function gmhist-make-magic on how to give an existing function
+history.
+
+These properties (see function put) of GMHIST-SYMBOL are supported:
+
+cursor-end    Put cursor at end of a newly retrieved history line.
+cursor-pos    A regexp to put the cursor on.
+keep-dups     If t, duplicate commands are remembered, too.
+initial-hist  Initial value of the history list.
+hist-ignore   Regexp of commands that are not to be added to the history.
+backup	      If t, backup in the history list (as if user had typed
+	      M-p as first thing).  Can also be an integer to backup
+	      more than one history item.
+default       An empty string as input will default to the last
+	      command (whether the last command was added to the
+	      history or not).  The default is stored in this
+	      property, thus its initial value is the first default.
+dangerous     Commands matching this regexp will never be the default.
+no-default    If you don't want defaults at all, set this to t.
+
+Use the following only if you know what you are doing:
+
+hist-function Name of a function to call instead of doing normal
+              history processing.  read-with-history-in becomes
+              effectively an alias for this function.
+
+These will be flushed soon (use let-binding minibuffer-completion-table
+etc. instead):
+
+hist-map      Minibuffer key map to use instead of gmhist-map.
+completion-table
+completion-predicate
+	      Used in completion on history strings, when the hist-map
+	      property has gmhist-completion-map as value.
+	      The special value `t' for the table means to use the
+	      current history list.
+	      Thus, to get completion on history items just do:
+		(put 'foo-history 'hist-map gmhist-completion-map)
+		(put 'foo-history 'completion-table t)
+
+Hooks:
+  gmhist-after-insert-hook is run after a history item is
+    inserted into the minibuffer.
+  gmhist-load-hook is run after this package is loaded.
+  gmhist-hook is run as first thing inside read-with-history-in.
+  gmhist-before-move-hook is run before history motion takes place.
+    Function gmhist-remember-zero is a candidate for that hook.
+"])
+(fset 'completing-read-with-history-in #[(crwhi-hist-sym &rest args) "ÂÃ\")‡" [crwhi-hist-sym minibuffer-history-symbol apply gmhist-completing-read args] 3 "\
+Like completing-read, but with additional first arg HISTORY-SYMBOL."])
+(fset 'gmhist-completing-read #[(crwhi-prompt table &optional predicate mustmatch initial) "Á=?­Á\nÇ	Ê«„ª‚!#+‡" [mustmatch t table predicate minibuffer-completion-predicate minibuffer-completion-table minibuffer-completion-confirm gmhist-new-read-from-minibuffer crwhi-prompt initial gmhist-lookup-keymap gmhist-must-match-map gmhist-completion-map] 5 "\
+Like completing-read, but see minibuffer-history-symbol."])
+(fset 'read-file-name-with-history-in #[(crwhi-hist-sym &rest args) "ÂÃ\")‡" [crwhi-hist-sym file-history-symbol apply gmhist-read-file-name args] 3 "\
+Like read-file-name, but with additional first arg HISTORY-SYMBOL."])
+(defvar file-history-symbol 'file-history "\
+*If non-nil, it is the name (a symbol) of a variable on which to cons
+filenames entered in the minibuffer.
+You may let-bind this to another symbol around calls to read-file-name.")
+(fset 'gmhist-read-file-name #[(grfn-prompt &optional dir default mustmatch initial) "®	\n®«ŒÅÆÇ#ˆÅÈÇ#ˆ	«ŠÊË	!!	ª‹«‡ÊË!!	Ç=?­ÇÏÓ	Õ«„ª‚!#	;«‡	˜¬‹	¬ŠGÙU«ƒ\n®„Ú!-‡" [dir default-directory default buffer-file-name file-history-symbol put cursor-end t no-default initial gmhist-quote-dollars gmhist-unexpand-home insert-default-directory mustmatch minibuffer-completion-confirm read-file-name-internal minibuffer-completion-table minibuffer-completion-predicate minibuffer-history-symbol gmhist-new-read-from-minibuffer grfn-prompt gmhist-lookup-keymap gmhist-filename-must-match-map gmhist-filename-completion-map val 0 substitute-in-file-name] 5 "\
+Args: PROMPT &optional DIR DEFAULT MUSTMATCH INITIAL.
+Read file name, maintaining history in file-history-symbol, prompting
+  with PROMPT, with optional INITIAL input and completing in directory DIR. 
+Value is not expanded!  You must call expand-file-name yourself.
+Default name to arg DEFAULT if user enters a null string (or, if
+  INITIAL was given, leaves it unchanged).
+MUSTMATCH non-nil means require existing file's name.
+ Non-nil and non-t means also require confirmation after completion.
+DIR defaults to current buffer's default-directory.
+
+This function differs from read-file-name in providing a history of
+filenames bound to file-history-symbol and (for pre-Emacs 19) in
+providing an argument INITIAL not present in Emacs 18's read-file-name."])
+(fset 'gmhist-unexpand-home #[(file) "ÀÁ!‰GG\n«¡;«Y«˜\nÆO˜«SHÇ=«ˆÁÈOPª+‡" [expand-file-name "~/" home home-len file file-len 0 47 nil] 5])
+(fset 'gmhist-quote-dollars #[(file) "ÀÂÃ	#‰«‘À	OÅ	ÆOQ	Ç\\ªf)‡" [0 pos string-match "\\$" file "$" nil 2] 5 "\
+Quote `$' as `$$' in FILE to get it past function `substitute-in-file-name.'"])
+(fset 'read-buffer-with-history-in #[(rbwhi-hist-sym &rest args) "ÂÃ\")‡" [rbwhi-hist-sym buffer-history-symbol apply gmhist-read-buffer args] 3 "\
+Like read-buffer, but with additional first arg HISTORY-SYMBOL."])
+(defvar buffer-history-symbol 'buffer-history "\
+*If non-nil, it is the name (a symbol) of a variable on which to cons
+buffer names entered in the minibuffer.")
+(fset 'gmhist-read-buffer #[(grb-prompt &optional default existing) "À	!«„Â	!«†ÄÁ	#ˆÆÈÉÊ \"Ë$‰Îš«ƒ	ª‚*‡" [bufferp default buffer-name buffer-history-symbol put minibuffer-history-symbol gmhist-completing-read grb-prompt mapcar #[(arg) "À	!	B‡" [buffer-name arg] 2] buffer-list #[(elt) "À	@!‡" [get-buffer elt] 2] existing name ""] 6 "\
+Read a buffer name, maintaining history in buffer-history-symbol and return as string.
+Args PROMPT &optional DEFAULT EXISTING.
+Optional arg EXISTING means an existing buffer must be entered."])
+(defvar minibuffer-history-symbol 'minibuffer-history "\
+*If non-nil, it is the name (a symbol) of a variable on which to cons
+the string entered in the minibuffer.
+Input is stored as string, even for e.g. `read-buffer'.")
+(defvar minibuffer-history nil "\
+List of strings entered using the minibuffer, most recent first.")
+(put 'minibuffer-history 'no-default t)
+(defvar minibuffer-history-read-only nil "\
+If non-nil, nothing will be stored on `minibuffer-history-symbol'.
+History motions commands are still available in the minibuffer.")
+(defvar minibuffer-history-position nil "\
+If currently reading the minibuffer, the history position.")
+(defvar minibuffer-initial-contents nil "\
+If currently reading the minibuffer, the initial contents.")
+(byte-code "ÀÁ!¬…ÁÂKMˆÀ‡" [fboundp gmhist-old-read-from-minibuffer read-from-minibuffer] 2)
+(fset 'gmhist-new-read-from-minibuffer #[(gnrfm-prompt &optional initial-contents keymap read position) "¬•	«ŠÂ%‡Â$‡È%‡" [minibuffer-history-symbol gmhist-emacs-19-p gmhist-old-read-from-minibuffer gnrfm-prompt initial-contents keymap read position gmhist-read-from-minibuffer] 6 "\
+Read a string from the minibuffer, prompting with string PROMPT.
+If optional second arg INITIAL-CONTENTS is non-nil, it is a string
+  to be inserted into the minibuffer before reading input.
+Third arg KEYMAP is a keymap to use whilst reading;
+  if omitted or nil, the default is `minibuffer-local-map'.
+If fourth arg READ is non-nil, then interpret the result as a lisp object
+  and return that object:
+  in other words, do `(car (read-from-string INPUT-STRING))'
+Fifth arg POSITION, if non-nil, is where to put point
+  in the minibuffer after inserting INITIAL-CONTENTS.
+
+The ambient value of `minibuffer-history-symbol' (q.v.) is used and set.
+
+*** This is the gmhist version.***"])
+(byte-code "ÀÁMˆÂÃM‡" [gmhist-read-from-minibuffer #[(grfm-prompt &optional initial-contents keymap read position) "¬‚	\n¬‹Ã!¬†‰ÅNLˆÆ	J\n®ƒÌN‰?­ƒÍNÎN?­ƒÏN‰«‹Ñ\"Pª‚	¬„¬„	ª°Æ¨«„®Ô]\nG^‰‰ÆU?­•S\n8«†Ö!ª‚)Ø«‹Û$ª‡Û#¬ŠÜ#\n¬±Ø\n«¡ŞN¬ˆ\n@š¬œßN‰;«‹àá\n@!\"¬ˆ\nBLˆ)«‡â!@ª‚.\n‡" [keymap minibuffer-local-map minibuffer-history-read-only boundp minibuffer-history-symbol initial-hist 0 minibuffer-history-position initial-contents minibuffer-initial-contents history read no-default dangerous backup default grfm-prompt format gmhist-default-format the-prompt 1 backup-input prin1-to-string the-initial nil command position gmhist-old-read-from-minibuffer gmhist-handle-default ignore keep-dups hist-ignore string-match gmhist-stringify read-from-string] 6] gmhist-handle-default #[(command default dangerous) "Á˜«…\n«‚\n;«ˆÄÅ!\"¬‡ÆÂ#ˆ‡" [command "" default dangerous string-match gmhist-stringify put minibuffer-history-symbol] 4]] 2)
+(defvar gmhist-define-keys-hook nil "\
+Hook run inside function `gmhist-define-keys' (q.v.), after the
+standard gmhist bindings.")
+(byte-code "ÀÁ!¬„ÁÂMˆÃÄM‡" [fboundp gmhist-define-keys #[(map) "À	ÂÃ#ˆÀ	ÄÅ#ˆÀ	ÆÇ#ˆÀ	ÈÉ#ˆÀ	ÊË#ˆÀ	ÌÍ#ˆÀ	ÎÏ#ˆĞÑ!‡" [define-key map "ğ" gmhist-previous "î" gmhist-next "ò" gmhist-search-backward "ó" gmhist-search-forward "ç" gmhist-toggle "Ç" gmhist-switch-history "¿" gmhist-show run-hooks gmhist-define-keys-hook] 4 "Bind the standard history commands in MAP, a key map.\n\nWhen gmhist is loaded, this function is only defined if you have not\nalready defined it, so that you can customize it without worrying\nabout load order.\nYou can also use `gmhist-define-keys-hook' if you just want to add to\nexisting bindings."] gmhist-lookup-keymap #[(map) "À	!«‚	‡Â	J!‡" [keymapp map gmhist-lookup-keymap] 2]] 2)
+(defvar gmhist-map nil "\
+Key map for generic minibuffer history.
+\\<gmhist-map>\\[gmhist-previous], \\[gmhist-next], \\[gmhist-beginning], \\[gmhist-end] move through, \\[gmhist-search-backward] and \\[gmhist-search-forward] search,
+\\[gmhist-show] displays the history:
+\\{gmhist-map}")
+(byte-code "¬ˆÁ\n!Ã!ˆÁ‡" [gmhist-map copy-keymap minibuffer-local-map gmhist-define-keys] 2)
+(defvar gmhist-completion-map nil "\
+Key map for generic minibuffer history with completion, see gmhist-map.")
+(byte-code "¬ˆÁ\n!Ã!ˆÁ‡" [gmhist-completion-map copy-keymap minibuffer-local-completion-map gmhist-define-keys] 2)
+(defvar gmhist-must-match-map nil "\
+Key map for generic minibuffer history with completion that must match,
+see gmhist-map.")
+(byte-code "¬ˆÁ\n!Ã!ˆÁ‡" [gmhist-must-match-map copy-keymap minibuffer-local-must-match-map gmhist-define-keys] 2)
+(defvar gmhist-filename-completion-map 'gmhist-completion-map "\
+A keymap (or a symbol pointing to one) to use in filename
+completion that need not match.  Defaults to 'gmhist-completion-map.")
+(defvar gmhist-filename-must-match-map 'gmhist-must-match-map "\
+A keymap (or a symbol pointing to one) to use in filename
+completion that must match.  Defaults to 'gmhist-must-match-map.")
+(fset 'gmhist-goto #[(n) "ÀÁ!ˆÂ ˆÅW?­ÂÆÅU«‡®‰Èª†S	J8!cˆÀÊ!ˆ	ËN«ƒdªebˆ	ÌN‰;­‘m«ˆÎÏĞ#ª†ÑÏĞ#)‡" [run-hooks gmhist-before-move-hook erase-buffer n minibuffer-history-position 0 gmhist-stringify minibuffer-initial-contents "" minibuffer-history-symbol gmhist-after-insert-hook cursor-end cursor-pos pos re-search-backward nil t re-search-forward] 5])
+(fset 'gmhist-beginning #[nil "À	JG!‡" [gmhist-goto minibuffer-history-symbol] 2 "\
+Go to the oldest command in the history." nil])
+(fset 'gmhist-end #[nil "ÀÁ!‡" [gmhist-goto 0] 2 "\
+Position before the most recent command in the history." nil])
+(fset 'gmhist-toggle #[(&optional n) "«†ÁÂ!!‡ÄU«ƒÅ ‡Æ ‡" [n gmhist-goto prefix-numeric-value minibuffer-history-position 0 gmhist-beginning gmhist-end] 3 "\
+If at end of history, move to beginning, else move to end.
+Prefix arg is history position to go to." "P"])
+(fset 'gmhist-switch-history #[(new-history) "Â‰‡" [new-history minibuffer-history-symbol 0 minibuffer-history-position] 2 "\
+Switch to a different history." (byte-code "ÀÂÃÄ‰À$)C‡" [t enable-recursive-minibuffers read-from-minibuffer "Switch to history: " nil] 5)])
+(fset 'gmhist-next #[(n) "À	\nZ]JG^	U«ÅÆ	ÀU«ƒÇªÈ#ªƒÉ!)‡" [0 minibuffer-history-position n minibuffer-history-symbol narg error "No %s item in %s" "following" "preceding" gmhist-goto] 4 "\
+Go to next history position." "p"])
+(fset 'gmhist-previous #[(n) "À	[!‡" [gmhist-next n] 2 "\
+Go to previous history position." "p"])
+(fset 'gmhist-search-backward #[(regexp &optional forward) "À\n«ƒÃªÄ\\J‰	G\n\n«†ËVª…\nX«˜ÌÎS	8!\"‰¬ˆ\\ªX	¬ˆÏĞ#ˆÑ!-‡" [nil found forward -1 1 direction minibuffer-history-position pos minibuffer-history-symbol history len 0 string-match regexp gmhist-stringify error "%s not found in %s" gmhist-goto] 6 "\
+Search backward in the history list for REGEXP.
+With prefix argument, search for line that contains match for current line." (byte-code "«†ÁÂ !C‡ÃÅÆÇ\")C‡" [current-prefix-arg regexp-quote buffer-string t enable-recursive-minibuffers read-with-history-in gmhist-search-history "History search (regexp): "] 3)])
+(fset 'gmhist-search-forward #[(regexp &optional backward) "À	\n?\"‡" [gmhist-search-backward regexp backward] 3 "\
+Search forward in the history list for REGEXP.
+With prefix argument, search for line that matches current line
+instead of prompting for REGEXP." (byte-code "«†ÁÂ !C‡ÃÅÆÇ\")C‡" [current-prefix-arg regexp-quote buffer-string t enable-recursive-minibuffers read-with-history-in gmhist-search-history "History search forward (regexp): "] 3)])
+(fset 'gmhist-stringify #[(elt) ";«‚‡Á!‡" [elt prin1-to-string] 2])
+(fset 'gmhist-show #[nil "ÀÂÃ!ÂQÅÆJ\"‘)‡" [0 count "*" symbol-name minibuffer-history-symbol mapcar #[(x) "ÀÁÂT‰=«ƒÅªÆ$!‡" [princ format "%2s%2d: %s\n" count minibuffer-history-position "> " "  " x] 6]] 4 "\
+Show the history list in another buffer.
+Use \\[scroll-other-window] to scroll, with negative arg to scroll back." nil])
+(fset 'gmhist-remember-zero #[nil "ÁU­„Â ‰‡" [minibuffer-history-position 0 buffer-string minibuffer-initial-contents] 2 "\
+Put this function on gmhist-before-move-hook to make gmhist
+remember the initial value even after you edited it:
+
+    (setq gmhist-before-move-hook 'gmhist-remember-zero)"])
+(fset 'gmhist-copy-function #[(fun) "À	!‰:«¢Ã‰\n«–\n@\nAÆ!«…Ç!ªBªgŸ*ª”È\nÃ\"É›Ç\nÉH! ˆÊË\"))‡" [gmhist-symbol-function fun old nil elt new sequencep copy-sequence append 5 apply make-byte-code] 5])
+(fset 'gmhist-check-autoload #[(fun) "K‰<­‹	@Â=­…Ã	A@!)‡" [fun lis autoload load] 3 "\
+If FUN is an autoload, load its definition."])
+(fset 'gmhist-replace-spec #[(fun new-spec &optional copy-first) "À	!ˆ\n«†	Ã	!MˆÄ	!‰:­Æ8¢Ç=«…Æ8ª‘È8¢Ç=«…È8ª„ÉÊ	\"‰«†A@ªƒÌ	!	ÎN¬‡Ï	Î#ˆ\n«¢:«ˆC¡ªšÑÒ\"Ó› ˆÔÕ\"	Mª„Ö×Ø+‡" [gmhist-check-autoload fun copy-first gmhist-copy-function gmhist-symbol-function flambda 2 interactive 3 error "%s is not interactive" fint gmhist-spec old-spec gmhist-old-interactive-spec put new-spec append nil 5 apply make-byte-code err (byte-code "	C¡‡" [fint new-spec] 2) ((error (gmhist-replace-spec fun new-spec t)))] 5 "\
+Replace the interactive specification of FUN with NEW-SPEC.
+FUN must be a symbol with a function definition.
+Autoload functions are taken care of by loading the appropriate file first.
+If FUN is a pure storage function (one dumped into Emacs) it is first
+  copied onto itself, because pure storage cannot be modified.
+  Optional non-nil third arg COPY-FIRST is used internally for this.
+The old spec is put on FUN's gmhist-old-interactive-spec property.  
+  That property is never overwritten by this function.  It is used by
+  function gmhist-remove-magic."])
+(fset 'gmhist-spec #[(fun) "À	!Â‰:«“ÅAA‰¬…ÆÇ	\"ˆA@ªƒÈH*‡" [gmhist-symbol-function fun nil fint flambda interactive error "Cannot get spec of a non-interactive command: %s!" 5] 4 "\
+Get the current interactive specification for FUN (a symbol).
+Signal an error if FUN is not interactive."])
+(fset 'gmhist-symbol-function #[(fun) "K‰9«…Â	!ª	)‡" [fun flambda gmhist-symbol-function] 3])
+(fset 'gmhist-split #[(pat str &optional limit) "À	\n\"\nÄOCÆ­‚Ä•‰«¬	¨«‡	W« À	\n#«˜Ä”T\nOBÄ•‰ªT	¨«‡	W«Œ«ˆ\nÊOBŸ,‡" [string-match pat str start 0 result 1 count end limit nil] 5 "\
+Splitting on regexp PAT, turn string STR into a list of substrings.
+Optional third arg LIMIT (>= 1) is a limit to the length of the
+resulting list.
+Thus, if SEP is a regexp that only matches itself,
+
+   (mapconcat 'identity (gmhist-split SEP STRING) SEP)
+
+is always equal to STRING."])
+(fset 'gmhist-interactive #[(spec hist) ";¬…ÁÂ\"ˆGÃV«ÃHÄ=«ˆÅ ˆÆÇOÈ	!«	J9«Š	J«…	J	ÊËÌÍ\"\"Ç‰‰‰‰‰‰ÖÇ\"ƒa@AÇ@A×ØÙ!#Ú=«“ÛÜ	ŞßÇ&!‚Rà=«á	â ß$‚Rã=«á	â Ç$‚Rä=«Œå!ˆæ ‚Rç=«“ÛÜ	èßÇ&!‚Ré=«†`‚Rê=«ë	Ç,í%‚Rî=«ë	Ç‰í%‚Rï=«‹ë	\"‚Rğ=«ñòš?­‚!‚Ró=«Œô ®ƒÁõ!‚Rö=«7«‰ø7!‚Rù	Çß$‰¨«r‚Rú=«‘ù	Çß$‰¨«r‚Rû=«‰ø7!‚Rü=«‡7‚Rı=«¯Ç‰>?ô ®ƒÁõ!`^?ô ®ƒÁõ!`]>@ >?D\"ß*ªìA =«Šù	\"ªÚB =«Œù	Çß$ªÆC =«’Ü	D ßÇ&ª¬E >«œù	Çß$F =«’G !ªˆÁH \"ˆ„Y B‚Y Ù!.‡" [spec error "gmhist-interactive: not a string %s" 0 42 barf-if-buffer-read-only 1 nil boundp hist mapcar #[(x) "Áš?­ˆÂHÃÄOB‡" [x "" 0 1 nil] 4] gmhist-split "\n" xprompt prompt char elt special args-so-far cur-arg spec-list delq apply format reverse 97 intern completing-read-with-history-in obarray fboundp t 98 read-buffer-with-history-in other-buffer 66 99 message read-char 67 commandp 100 68 read-file-name-with-history-in default-directory confirm 102 70 107 read-key-sequence "" 109 mark "The mark is not set now" 78 current-prefix-arg prefix-numeric-value read-with-history-in 110 112 80 114 region-max region-min append 115 83 118 user-variable-p (120 88) 88 eval "Invalid control letter `%c' in gmhist-interactive"] 8 "\
+Interpret SPEC, an interactive string, like call-interactively
+would, only with minibuffer history in HIST (a symbol).
+
+If the value of HIST is another symbol (which can never happen if
+history lists are already stored on it), this symbol is taken instead
+to facilitate dynamic indirections.
+
+Currently recognized key letters are:
+
+    a b B c C d D k m N n s S x X f F r p P v
+
+and initial `*'.
+
+Use it inside interactive like this
+
+    (interactive (gmhist-interactive \"sPrompt: \\nP\" 'foo-history))
+
+or even like this:
+
+    (interactive
+     (gmhist-interactive \"sReplace: \\nsReplace %s with: \" 'replace-history))
+"])
+(fset 'gmhist-new-spec #[(fun &optional hist no-error) "¬ˆÁÂ!ÄP!Å!ˆÆ!‰;«‰ÈÉDEª‹\n?­†ËÌ#)‡" [hist intern symbol-name fun "-history" gmhist-check-autoload gmhist-spec spec gmhist-interactive quote no-error error "Can't gmhistify %s's spec: %s"] 5 "\
+Return a new interactive specification for FUN, suitable for use
+with setcdr in function gmhist-replace-spec.
+Use symbol HIST to store the history.  HIST defaults to `FUN-history'.
+The returned spec does the same as the old one, only with history in HIST.
+ 
+If FUN is an autoload object, its file is loaded first.
+
+See function gmhist-interactive for a list of recognized interactive
+keys letters.
+
+Unless optional third arg NO-ERROR is given, signals an error if FUN's
+interactive string contains unknown key letters or has no interactive string.
+With NO-ERROR, it returns nil."])
+(fset 'gmhist-make-magic #[(fun &optional hist) "À	\nÃ#‰«†Å	\"ª 	ÆN¬†ÇÈ	\"ª•ÉÊ	\"ˆË	!ˆÅ	À	\n\"\"ˆÉÌ	\")‡" [gmhist-new-spec fun hist t new-spec gmhist-replace-spec gmhist-old-interactive-spec error "Too complicated for gmhist: %s" message "Another attempt to put magic on %s..." gmhist-remove-magic "Another attempt to put magic on %s...done."] 6 "\
+Make FUN magically maintain minibuffer history in symbol HIST.
+HIST defaults to `FUN-history'.
+This works by modifying the interactive specification, which must be a
+string.  For more complicated cases, see gmhist-replace-spec.
+The magic goes away when you call gmhist-remove-magic on FUN." "CPut gmhist magic on command: "])
+(fset 'gmhist-remove-magic #[(fun) "À	‰ÂN®„ÃÄ	\"\"‡" [gmhist-replace-spec fun gmhist-old-interactive-spec error "Can't find %s's old interactive spec!"] 5 "\
+Remove the magic that gmhist-make-magic put on FUN,
+restoring the old interactive spec." "CRemove gmhist magic from command: "])
+(byte-code "À‰Á\"ˆÀÂÁ\"ˆÃÄ!‡" [gmhist-make-magic gmhist-make-magic-history gmhist-remove-magic run-hooks gmhist-load-hook] 3)

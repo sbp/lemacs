@@ -65,6 +65,7 @@ In addition to the normal cursor-motion commands, the following keys are bound:
 \\{energize-debugger-map}"
   (interactive)
   (energize-user-input-mode)
+  (set-syntax-table c-mode-syntax-table)
   (setq major-mode 'energize-debugger-mode
 	mode-name "Energize-Debugger")
   (use-local-map energize-debugger-map)

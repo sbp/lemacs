@@ -141,6 +141,7 @@ C-x SPACE sets break point at current line."
   (interactive)
   (comint-mode)
   (use-local-map gdb-mode-map)
+  (set-syntax-table c-mode-syntax-table)
   (mapcar 'make-local-variable
 	  '(gdb-last-frame-displayed-p  gdb-last-frame
 	    gdb-delete-prompt-marker    gdb-filter-accumulator))

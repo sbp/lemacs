@@ -152,7 +152,13 @@ write_c_args (out, buf, minargs, maxargs)
   while (*p)
     {
       c = *p++;
-      if (c == ',')
+      if (c == '(' && minargs == 0 && maxargs > 0)
+	{
+	  fprintf (out, "(&optional ");
+	  space = 1;
+	  continue;
+	}
+      else if (c == ',')
 	{
 	  minargs--;
 	  maxargs--;
@@ -300,7 +306,7 @@ scan_c_file (filename)
 	  putc (037, outfile);
 	  putc (defvarflag ? 'V' : 'F', outfile);
 	  fprintf (outfile, "%s\n", buf);
-	  read_c_string (infile, 1);
+	  c = read_c_string (infile, 1);
 	  if (defunflag)
 	    {
 	      char argbuf[1024], *p = argbuf;

@@ -2,7 +2,7 @@
 
 ;; Runtime support for the new optimizing byte compiler.  
 ;; By Jamie Zawinski <jwz@lucid.com>.
-;; Last Modified: 27-jul-91.
+;; Last Modified: 11-may-92.
 ;;
 ;; The code in this file should always be loaded, because it defines things 
 ;; like "defsubst" which should work interpreted as well.  The code in 
@@ -120,7 +120,8 @@ used instead.  If NEW is a string, that is the `use instead' message."
 
 (put 'dont-compile 'lisp-indent-hook 0)
 (defmacro dont-compile (&rest body)
-  "Like progn, but the body will always run interpreted (not compiled)."
+  "Like progn, but the body will always run interpreted (not compiled).
+If you think you need this, you're probably making a mistake somewhere."
   (list 'eval (list 'quote (if (cdr body) (cons 'progn body) (car body)))))
 
 

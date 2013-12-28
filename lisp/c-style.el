@@ -3,8 +3,8 @@
 ;; 
 ;; Author          : Daniel LaLiberte (liberte@a.cs.uiuc.edu)
 ;; Created On      : Wed Aug 12 08:00:20 1987
-;; Last Modified By: Daniel LaLiberte
-;; Last Modified On: Wed Nov 16 22:37:43 1988
+;; Last Modified By: jwz
+;; Last Modified On: Wed May 20 12:32:07 1992
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -81,11 +81,11 @@ all local to the current buffer."
 	  (completing-read
 	   (format "Set c-mode indentation style to (default %s): "
 		   default-c-style)
-	   c-style-alist
-	   t)))
-     (if (string= "" style-string)
-	 default-c-style
-       (intern style-string))))
+	   (mapcar '(lambda (x) (list (symbol-name (car x)))) c-style-alist)
+	   nil t)))
+     (list (if (string= "" style-string)
+	       default-c-style
+	     (intern style-string)))))
 
   ;; if style is nil, use default-c-style.
   (setq style (or style default-c-style))

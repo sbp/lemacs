@@ -55,15 +55,6 @@ Return a modified address list."
 	   (set-buffer (get-buffer-create " *temp*"))
 	   (erase-buffer)
 	   (insert address)
-	   (if (not lisp-mode-syntax-table)
-	       (progn (setq lisp-mode-syntax-table
-			    (copy-syntax-table emacs-lisp-mode-syntax-table))
-		      (modify-syntax-entry ?\| "\"   "
-					   lisp-mode-syntax-table)
-		      (modify-syntax-entry ?\[ "_   "
-					   lisp-mode-syntax-table)
-		      (modify-syntax-entry ?\] "_   "
-					   lisp-mode-syntax-table)))
 	   (set-syntax-table lisp-mode-syntax-table)
 	   (goto-char 1)
 	   (while (search-forward "(" nil t)

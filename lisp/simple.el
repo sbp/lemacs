@@ -262,6 +262,33 @@ Don't use this in Lisp programs!
     (cond (arg (forward-line 1))
 	  (scroll-to-end (recenter -3)))))
 
+(defun mark-bob (&optional arg)
+  "Push a mark at the beginning of the buffer; leave point where it is.
+With arg N, push mark N/10 of the way from the true beginning."
+  (interactive "P")
+  (push-mark (if arg
+		 (if (> (buffer-size) 10000)
+		     ;; Avoid overflow for large buffer sizes!
+		     (* (prefix-numeric-value arg)
+			(/ (buffer-size) 10))
+		   (/ (+ 10 (* (buffer-size) (prefix-numeric-value arg))) 10))
+	       (point-min)))
+  (zmacs-activate-region))
+
+(defun mark-eob (&optional arg)
+  "Push a mark at the end of the buffer; leave point where it is.
+With arg N, push mark N/10 of the way from the true end."
+  (interactive "P")
+  (push-mark (if arg
+		 (- (1+ (buffer-size))
+		    (if (> (buffer-size) 10000)
+			;; Avoid overflow for large buffer sizes!
+			(* (prefix-numeric-value arg)
+			   (/ (buffer-size) 10))
+		      (/ (* (buffer-size) (prefix-numeric-value arg)) 10)))
+	       (point-max)))
+  (zmacs-activate-region))
+
 (defun mark-whole-buffer ()
   "Put point at beginning and mark at end of buffer."
   (interactive)
@@ -517,63 +544,11 @@ This cannot be done asynchronously."
       (unwind-protect
 	  (if (string-match "[ \t]*&[ \t]*$" command)
 	      ;; Command ending with ampersand means asynchronous.
-	      (let ((buffer (get-buffer-create "*shell-command*")) 
-		    (directory default-directory)
-		    proc)
-		;; Remove the ampersand.
-		(setq command (substring command 0 (match-beginning 0)))
-		;; If will kill a process, query first.
-		(setq proc (get-buffer-process buffer))
-		(if proc
-		    (if (yes-or-no-p "A command is running.  Kill it? ")
-			(kill-process proc)
-		      (error "Shell command in progress")))
-		(save-excursion
-		  (set-buffer buffer)
-		  (erase-buffer)
-		  (display-buffer buffer)
-		  (setq default-directory directory)
-		  (setq proc (start-process "Shell" buffer 
-					    shell-file-name "-c" command))
-		  (setq mode-line-process '(": %s"))
-		  (set-process-sentinel proc 'shell-command-sentinel)
-		  (set-process-filter proc 'shell-command-filter)
-		  ))
+	      (progn
+ 		(require 'background) ; whizzy comint background code
+ 		(background (substring command 0 (match-beginning 0))))
 	    (shell-command-on-region (point) (point) command nil))
 	(store-match-data data)))))
-
-;; We have a sentinel to prevent insertion of a termination message
-;; in the buffer itself.
-(defun shell-command-sentinel (process signal)
-  (if (memq (process-status process) '(exit signal))
-      (progn
-	(message "%s: %s." 
-		 (car (cdr (cdr (process-command process))))
-		 (substring signal 0 -1))
-	(save-excursion
-	  (set-buffer (process-buffer process))
-	  (setq mode-line-process nil))
-	(delete-process process))))
-
-(defun shell-command-filter (proc string)
-  ;; Do save-excursion by hand so that we can leave point numerically unchanged
-  ;; despite an insertion immediately after it.
-  (let* ((obuf (current-buffer))
-	 (buffer (process-buffer proc))
-	 opoint
-	 (window (get-buffer-window buffer))
-	 (pos (window-start window)))
-    (unwind-protect
-	(progn
-	  (set-buffer buffer)
-	  (setq opoint (point))
-	  (goto-char (point-max))
-	  (insert-before-markers string))
-      ;; insert-before-markers moved this marker: set it back.
-      (set-window-start window pos)
-      ;; Finish our save-excursion.
-      (goto-char opoint)
-      (set-buffer obuf))))
 
 (defun shell-command-on-region (start end command &optional flag interactive)
   "Execute string COMMAND in inferior shell with region as input.
@@ -729,7 +704,7 @@ a number counts as a prefix arg."
   "Kill between point and mark.
 The text is deleted but saved in the kill ring.
 The command \\[yank] can retrieve it from there.
-\(If you want to kill and then yank immediately, use \\[copy-region-as-kill].)
+\(If you want to kill and then yank immediately, use \\[kill-ring-save].)
 
 This is the primitive for programs to kill text (as opposed to deleting it).
 Supply two arguments, character numbers indicating the stretch of text

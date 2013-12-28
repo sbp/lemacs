@@ -36,7 +36,8 @@ in the file it applies to.")
 
 (if outline-mode-map
     nil
-  (setq outline-mode-map (nconc (make-sparse-keymap) text-mode-map))
+  (setq outline-mode-map (make-sparse-keymap))
+  (set-keymap-parent outline-mode-map text-mode-map)
   (define-key outline-mode-map "\C-c\C-n" 'outline-next-visible-heading)
   (define-key outline-mode-map "\C-c\C-p" 'outline-previous-visible-heading)
   (define-key outline-mode-map "\C-c\C-i" 'show-children)

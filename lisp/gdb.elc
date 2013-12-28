@@ -1,7 +1,7 @@
-;;; compiled by eb@watergate on Mon Jan  6 09:41:36 1992
-;;; from file /wg1/emacs-base/lisp/gdb.el
-;;; emacs version 19.40 Lucid.
-;;; bytecomp version 2.03; 29-oct-91.
+;;; compiled by jwz@thalidomide on Wed Apr 22 16:50:11 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/gdb.el
+;;; emacs version 19.0.2 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -35,7 +35,7 @@ Go up N stack frames (numeric arg) with display" "p"])
 (fset 'gdb-down #[(arg) "À	ÂU¬‡ÃÄÅ	#ªÅ!‡" [gdb-call arg 1 format "%s %s" "down"] 5 "\
 Go down N stack frames (numeric arg) with display" "p"])
 (define-key gdb-mode-map ">" 'gdb-down)
-(fset 'gdb-mode #[nil "À ˆÁ\n!ˆÃÄÅ\"ˆÆÆÆ	ÊÌÐÄÒ!ˆÐÓÕÖ!‡" [comint-mode use-local-map gdb-mode-map mapcar make-local-variable (gdb-last-frame-displayed-p gdb-last-frame gdb-delete-prompt-marker gdb-filter-accumulator) nil gdb-last-frame gdb-delete-prompt-marker gdb-filter-accumulator gdb-mode major-mode "Inferior GDB" mode-name gdb-prompt-pattern comint-prompt-regexp t gdb-last-frame-displayed-p shell-dirtrackp shell-directory-tracker comint-input-sentinel run-hooks gdb-mode-hook] 3 "\
+(fset 'gdb-mode #[nil "À ˆÁ\n!ˆÃ!ˆÅÆÇ\"ˆÈ	È\nÈÌÎÒÆÔ!ˆÒÕ×Ø!‡" [comint-mode use-local-map gdb-mode-map set-syntax-table c-mode-syntax-table mapcar make-local-variable (gdb-last-frame-displayed-p gdb-last-frame gdb-delete-prompt-marker gdb-filter-accumulator) nil gdb-last-frame gdb-delete-prompt-marker gdb-filter-accumulator gdb-mode major-mode "Inferior GDB" mode-name gdb-prompt-pattern comint-prompt-regexp t gdb-last-frame-displayed-p shell-dirtrackp shell-directory-tracker comint-input-sentinel run-hooks gdb-mode-hook] 3 "\
 Major mode for interacting with an inferior Gdb process.
 The following commands are available:
 

@@ -18,6 +18,15 @@
 ;; the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 (provide 'screen)
+(require 'menubar)
+
+;; these are called from select_screen()
+
+(defvar select-screen-hook nil
+  "Function or functions to run just after a new screen is selected.")
+
+(defvar deselect-screen-hook nil
+  "Function or functions to run just before selecting another screen.")
 
 
 ;; Creation of the first screen.  Two styles are provided for, although a
@@ -103,7 +112,10 @@ For values specific to the first emacs screen, you must use X Resources.")
 ;; Setup for minibuffer/screen style
 
 (defun multi-minibuffer-startup (window-system-switches)
-  (select-screen (funcall screen-creation-func window-system-switches)))
+  (select-screen
+   (funcall screen-creation-func
+	    (cons (cons 'menubar default-menubar)
+		  window-system-switches))))
 
 ;; This is called from the window-system specific function which is attached
 ;; to window-setup-hook.
@@ -180,120 +192,82 @@ For values specific to the first emacs screen, you must use X Resources.")
 ;;  			      (> (minibuffer-depth) 0)
 ;;  			      t)))
 
-;; Deal with iconification issues.  If we're using the separate minibuffer
-;; screen, then iconification of that screen means iconifying all of emacs.
-;; Otherwise, individual screens may be iconified.
-
-;; If emacs is iconified, remember which screens are visible, and only
-;; map those upon deiconification.
-
-
-;; Set to the screen which is iconified
-(defvar icon-screen nil)
-
-;; Visible screen list.
-(defvar visible-screens nil)
-
-;; Hook called when window manager iconifies one of our screens.
-;; Simply check if its the global minibuffer--if so, unmap everything.
-
-(defun iconify-hook (screen)
-  (if (and global-minibuffer-screen (eq screen global-minibuffer-screen))
-      (let ((screens (screen-list)))
-	(setq unmap-screen-hook nil)
-	(setq visible-screens nil)
-	(while screens
-	  (setq xx (cons (cons (car screens) 
-			       (screen-visible-p (car screens)))
-			 xx))
-	  (if (screen-visible-p (car screens))
-	      (progn
-		(setq visible-screens (append visible-screens
-					      (list (car screens))))
-		(make-screen-invisible (car screens))))
-	  (setq screens (cdr screens)))
-	(setq visible-screens (cons screen visible-screens))
-	(modify-screen-parameters screen (list (cons 'icon-name icon-name)))
-	(setq unmap-screen-hook 'iconify-hook))))
-
-;;  (defun iconify-hook ()
-;;    (let ((leader (if (screenp global-minibuffer-screen)
-;;  		    global-minibuffer-screen
-;;  		  (selected-screen)))
-;;  	(screens (delq global-minibuffer-screen (screen-list))))
-;;      (if (screen-visible-p leader)
-;;  	nil
-;;        (progn
-;;  	(setq icon-screen leader
-;;  	      unmap-screen-hook nil)
-;;  	(while screens
-;;  	  (if (screen-visible-p (car screens))
-;;  	      (progn
-;;  		(setq visible-screens (append visible-screens
-;;  					      (list (car screens))))
-;;  		(make-screen-invisible (car screens))))
-;;  	  (setq screens (cdr screens)))
-;;  	(setq unmap-screen-hook 'iconify-hook)))))
-
-
-;; Unmap all visible windows and iconify ICON-SCREEN
-
-(defun iconify-function (icon-screen)
-  (setq unmap-screen-hook nil)
-  (let ((screens (delq icon-screen (screen-list))))
-    (while screens
-      (if (screen-visible-p (car screens))
-	  (progn
-		(setq visible-screens (append visible-screens
-					      (list (car screens))))
-		(make-screen-invisible (car screens))))
-      (setq screens (cdr screens)))
-    (iconify-screen icon-screen))
-  (setq unmap-screen-hook 'iconify-hook))
-
-;; Place holder for name of screen which is now icon.
-(defvar selected-screen-name nil)
+;;; Iconifying emacs.
+;;;
+;;; The function iconify-emacs replaces every non-iconified emacs window
+;;; with a *single* icon.  Iconified emacs windows are left alone.  When
+;;; emacs is in this globally-iconified state, de-iconifying any emacs icon
+;;; will uniconify all screens that were visible, and iconify all screens
+;;; that were not.  This is done by temporarily changing the value of
+;;; `map-screen-hook' to `deiconify-emacs' (which should never be called 
+;;; except from the map-screen-hook while emacs is iconified.)
+;;;
+;;; The title of the icon representing all emacs screens is controlled by
+;;; the variable `icon-name'.  This is done by temporarily changing the
+;;; value of `screen-icon-title-format'.  Unfortunately, this changes the
+;;; titles of all emacs icons, not just the "big" icon.
+;;;
+;;; It would be nice if existing icons were removed and restored by
+;;; iconifying the emacs process, but I couldn't make that work yet.
 
 (defvar icon-name (concat "emacs @ " system-name))
 
+(defvar iconification-data nil)
+
 (defun iconify-emacs ()
-  "Iconify emacs, unmapping all screens in use and mapping the icon window."
   (interactive)
-  (if (screenp global-minibuffer-screen)
-      (iconify-function (setq icon-screen global-minibuffer-screen))
-    (let ((s (selected-screen)))
-      (setq selected-screen-name
-	    (cdr (assoc 'name (screen-parameters s))))
-      (modify-screen-parameters s (list (cons 'name icon-name)))
-      (iconify-function (setq icon-screen s)))))
+  (if iconification-data (error "already iconified?"))
+  (let* ((screens (screen-list))
+	 (rest screens)
+	 (me (selected-screen))
+	 screen)
+    (while rest
+      (setq screen (car rest))
+      (setcar rest (cons screen (screen-visible-p screen)))
+;      (if (memq (cdr (car rest)) '(icon nil))
+;	  (progn
+;	    (make-screen-visible screen) ; deiconify, and process the X event
+;	    (sleep-for 500 t) ; process X events; I really want to XSync() here
+;	    ))
+      (or (eq screen me) (make-screen-invisible screen))
+      (setq rest (cdr rest)))
+    (or (boundp 'map-screen-hook) (setq map-screen-hook nil))
+    (setq iconification-data
+	    (list screen-icon-title-format map-screen-hook screens)
+	  screen-icon-title-format icon-name
+	  map-screen-hook 'deiconify-emacs)
+    (iconify-screen me)))
 
-;; Called when window manager maps a window in normal state
+(defun deiconify-emacs (&optional ignore)
+  (or iconification-data (error "not iconified?"))
+  (setq screen-icon-title-format (car iconification-data)
+	map-screen-hook (car (cdr iconification-data))
+	iconification-data (car (cdr (cdr iconification-data))))
+  (while iconification-data
+    (let ((visibility (cdr (car iconification-data))))
+      (cond ((eq visibility 't)
+	     (make-screen-visible (car (car iconification-data))))
+;	    (t ;; (eq visibility 'icon)
+;	     (make-screen-visible (car (car iconification-data)))
+;	     (sleep-for 500 t) ; process X events; I really want to XSync() here
+;	     (iconify-screen (car (car iconification-data))))
+	    ;; (t nil)
+	    ))
+    (setq iconification-data (cdr iconification-data))))
 
-(defun deiconify-hook (screen)
-  (if (or (screenp icon-screen) visible-screens)
-      (progn
-	(setq map-screen-hook nil)
-	(while visible-screens
-	  (make-screen-visible (car visible-screens))
-	  (setq visible-screens (cdr visible-screens)))
-	(if icon-screen
-	    (progn
-	      (if (stringp selected-screen-name)
-		  (modify-screen-parameters
-		    icon-screen (list (cons 'name selected-screen-name))))
-	      (select-screen icon-screen)))
-	(setq map-screen-hook 'deiconify-hook
-	      icon-screen nil
-	      selected-screen-name nil))))
-
-(setq map-screen-hook 'deiconify-hook
-      unmap-screen-hook 'iconify-hook)
 
 ;;
 ;; Screen-Window functions
 ;;
 
-(defun other-window-this-screen (n)
+(defun other-window-any-screen (n)
+  "Select the ARG'th different window on any screen.
+All windows on current screen are arranged in a cyclic order.
+This command selects the window ARG steps away in that order.
+A negative ARG moves in the opposite order.  However, unlike
+`other-window', this command will select a window on the next
+\(or previous) screen instead of wrapping around to the top
+\(or bottom) of this screen, when there are no more windows."
   (interactive "p")
   (other-window n t))
 
@@ -313,20 +287,9 @@ Also delete all windows but the selected one on SCREEN."
       (setq this (next-screen s)))
     (delete-other-windows (screen-selected-window s))))
 
-(defun delete-this-window-or-screen (&optional screen)
-  "Delete the selected window.  If it's the only window,
-delete the screen.  If optional argument SCREEN is nil, use the
-selected screen."
-  (interactive)
-  (let ((s (or screen (selected-screen))))
-    (if (single-window-screen s)
-	(delete-screen s)
-      (delete-window (screen-selected-window s)))))
-
-(define-key ctl-x-map "0" 'delete-this-window-or-screen)
 ;; (define-key ctl-x-map "1" 'one-screen)
 
-(define-key esc-map "o" 'other-window-this-screen)
+(define-key esc-map "o" 'other-window-any-screen)
 (define-key global-map "\^Z" 'iconify-emacs)
 ;;(define-function-key global-function-map 'xk-f2 'buffer-in-other-screen)
 
@@ -398,6 +361,35 @@ selected screen."
 ;	 (bar (cdr (assoc 'horizontal-scroll-bar (screen-parameters screen)))))
 ;    (modify-screen-parameters screen
 ;			      (list (cons 'horizontal-scroll-bar (not bar))))))
+
+
+;;; auto-raise and auto-lower
+
+(defvar auto-raise-screen nil
+  "*If true, screens will be raised to the top when selected.
+Under X, most ICCCM-compliant window managers will have an option to do this 
+for you, but this variable is provided in case you're using a broken WM.")
+
+(defvar auto-lower-screen nil
+  "*If true, screens will be lowered to the bottom when no longer selected.
+Under X, most ICCCM-compliant window managers will have an option to do this 
+for you, but this variable is provided in case you're using a broken WM.")
+
+(defun default-select-screen-hook ()
+  "Implements the `auto-raise-screen' variable.
+For use as the value of `select-screen-hook'."
+  (if auto-raise-screen (raise-screen (selected-screen))))
+
+(defun default-deselect-screen-hook ()
+  "Implements the `auto-lower-screen' variable.
+For use as the value of `deselect-screen-hook'."
+  (if auto-lower-screen (lower-screen (selected-screen))))
+
+(or select-screen-hook
+    (add-hook 'select-screen-hook 'default-select-screen-hook))
+
+(or deselect-screen-hook
+    (add-hook 'deselect-screen-hook 'default-deselect-screen-hook))
 
 
 ;;; Application-specific screen-management

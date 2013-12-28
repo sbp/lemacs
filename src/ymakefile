@@ -1,0 +1,744 @@
+/* Makefile for GNU Emacs.
+   Copyright (C) 1985, 1987, 1988, 1990, 1992 Free Software Foundation, Inc.
+
+This file is part of GNU Emacs.
+
+GNU Emacs is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY.  No author or distributor
+accepts responsibility to anyone for the consequences of using it
+or for whether it serves any particular purpose or works at all,
+unless he says so in writing.  Refer to the GNU Emacs General Public
+License for full details.
+
+Everyone is granted permission to copy, modify and redistribute
+GNU Emacs, but only under the conditions described in the
+GNU Emacs General Public License.   A copy of this license is
+supposed to have been given to you along with GNU Emacs so you
+can know your rights and responsibilities.  It should be in a
+file named COPYING.  Among other things, the copyright notice
+and this notice must be preserved on all copies.  */
+
+COMPILE.c=$(CC) $(CFLAGS) $(CPPFLAGS) -c
+
+dot = .
+/* on Xenix, replace double-dot below with $(dot)$(dot) */
+lispdir = ../lisp/
+etcdir = ../etc/
+shortnamesdir = ../shortnames/
+cppdir = ../cpp/
+
+#define NO_SHORTNAMES
+#define THIS_IS_YMAKEFILE
+#include "config.h"
+
+#ifdef USE_GCC
+CC=gcc
+#else
+#ifdef USE_LCC
+CC=cadlcc -Xe $(EMACS_ENERGIZE_CONNECT)
+#endif
+#endif
+
+/* On some machines #define register is done in config;
+   don't let it interfere with this file.  */
+#undef register
+
+#ifndef LIB_GCC
+#define LIB_GCC
+#endif
+
+/* Some machines don't find the standard C libraries in the usual place.  */
+#ifndef LIB_STANDARD
+#define LIB_STANDARD -lc
+#endif
+
+/* Unless inhibited or changed, use -lg to link for debugging.  */
+#ifndef LIBS_DEBUG
+#define LIBS_DEBUG -lg
+#endif
+
+/* Some s- files define this to request special libraries.  */
+#ifndef LIBS_SYSTEM
+#define LIBS_SYSTEM
+#endif
+
+/* Some m- files define this to request special libraries.  */
+#ifndef LIBS_MACHINE
+#define LIBS_MACHINE
+#endif
+
+#ifndef LIB_MATH
+# ifdef LISP_FLOAT_TYPE
+#  define LIB_MATH -lm
+# else 
+#  define LIB_MATH
+# endif
+#endif
+
+/* Some s- files define this to request special switches in ld.  */
+#ifndef LD_SWITCH_SYSTEM
+#if defined(COFF_ENCAPSULATE) || (defined (BSD) && !defined (COFF))
+#define LD_SWITCH_SYSTEM -X
+#else
+#define LD_SWITCH_SYSTEM
+#endif /* COFF, or not BSD */
+#endif
+
+/* Some m- files define this to request special switches in ld.  */
+#ifndef LD_SWITCH_MACHINE
+#define LD_SWITCH_MACHINE
+#endif
+
+/* Some m- files define this to request special switches in cc.  */
+#ifndef C_SWITCH_MACHINE
+#define C_SWITCH_MACHINE
+#endif
+
+/* Some s- files define this to request special switches in cc.  */
+#ifndef C_SWITCH_SYSTEM
+#define C_SWITCH_SYSTEM
+#endif
+
+/* These can be passed in from config.h to define special load and
+   compile switches needed by individual sites */
+#ifndef LD_SWITCH_SITE
+#define LD_SWITCH_SITE
+#endif
+
+#ifndef C_SWITCH_SITE
+#define C_SWITCH_SITE
+#endif
+
+#ifndef START_FILES
+#ifdef NO_REMAP
+#ifdef COFF_ENCAPSULATE
+#define START_FILES pre-crt0.o /usr/local/lib/gcc-crt0.o
+#else
+#define START_FILES pre-crt0.o /lib/crt0.o
+#endif
+#else /* not NO_REMAP */
+#define START_FILES crt0.o
+#endif /* not NO_REMAP */
+#endif /* have START_FILES */
+STARTFILES = START_FILES
+
+/* Unless inhibited or changed, use -g to compile for debugging.  */
+#ifndef C_DEBUG_SWITCH
+#define C_DEBUG_SWITCH -g
+#endif
+
+/* If user wants to optimize, this is how.  */
+#ifndef C_OPTIMIZE_SWITCH
+#define C_OPTIMIZE_SWITCH -O
+#endif
+
+/* cc switches needed to make `asm' keyword work.
+   Nothing special needed on most machines.  */
+#ifndef C_SWITCH_ASM
+#define C_SWITCH_ASM
+#endif
+
+/* Specify address for ld to start loading at,
+   if requested by configuration.  */
+
+#ifdef LD_TEXT_START_ADDR
+STARTFLAGS = -T LD_TEXT_START_ADDR -e __start
+#endif
+
+#ifdef COFF_ENCAPSULATE
+LD=$(CC) -nostdlib
+#else
+#ifdef LD_CMD
+LD=LD_CMD
+#else
+LD=ld
+#endif
+#endif
+
+ILD=/cadillac1/utilities/cadild
+
+/* Figure out whether the system cpp can handle long names.
+   Do it by testing it right now.
+   If it loses, arrange to use the GNU cpp.  */
+
+#define LONGNAMEBBBFOOX
+#ifdef LONGNAMEBBBARFOOX
+/* Installed cpp fails to distinguish those names!  */
+/* Arrange to compile the GNU cpp later on */
+#define NEED_CPP
+/* Cause cc to invoke the cpp that comes with Emacs,
+   which will be in a file named localcpp.  */
+MYCPPFLAG= -Blocal 
+/* LOCALCPP is the local one or nothing.
+   CPP is the local one or the standardone.  */
+LOCALCPP= localcpp
+#endif /* NEED_CPP */
+
+#ifdef SHORTNAMES
+SHORT= shortnames
+#endif /* SHORTNAMES */
+
+/* DO NOT use -R.  There is a special hack described in lastfile.c
+   which is used instead.  Some initialized data areas are modified
+   at initial startup, then labeled as part of the text area when
+   Emacs is dumped for the first time, and never changed again. */
+
+/* You may replace C_DEBUG_SWITCH with C_OPTIMIZE_SWITCH
+   if you don't believe in debugging. */
+
+/* -Demacs is needed to make some files produce the
+   correct version for use in Emacs.  */
+
+#ifdef USE_SPARC_SOUND
+# define SOUND_LIBS -L/usr/demo/SOUND -laudio
+# define SOUND_CFLAGS -I/usr/demo/SOUND
+# define SOUND_OBJS play.o libsst.o
+#else
+# define SOUND_LIBS
+# define SOUND_CFLAGS
+# define SOUND_OBJS
+#endif
+
+#ifdef ENERGIZE
+
+ENERGIZE_CDIR=/cadillac-code/isam-cadlcc-sun4
+
+#define ENERGIZE_INCLUDES -I. -I${ENERGIZE_CDIR}/uilib \
+        -I${ENERGIZE_CDIR}/connection -I${ENERGIZE_CDIR}/image \
+        -I${ENERGIZE_CDIR}/Xinclude
+
+#define ENERGIZE_LDFLAGS -L${ENERGIZE_CDIR}/connection \
+        -L${ENERGIZE_CDIR}/image -L${ENERGIZE_CDIR}/uilib \
+        -L${ENERGIZE_CDIR}/xduilib
+
+/* NOTE: -lw has to come *before* -lui */
+#define ENERGIZE_LIBS ${ENERGIZE_CDIR}/base/hash.o -lconn -limage \
+        -L/net/shark2-arch/arch/rel/src-rel/beta2.3/pacclib/lib.sun4 \
+        -lcplus -llw -lui ${ENERGIZE_CDIR}/uilib/em-menu-table.o -lxdui
+
+#else /* ! ENERGIZE */
+
+ENERGIZE_CDIR=/cadillac-code/isam-cadlcc-sun4
+
+#define ENERGIZE_INCLUDES
+
+#define ENERGIZE_LDFLAGS
+
+#define ENERGIZE_LIBS
+
+#endif /* ! ENERGIZE */
+
+
+CFLAGS= C_DEBUG_SWITCH C_SWITCH_MACHINE C_SWITCH_SYSTEM C_SWITCH_SITE \
+	-Demacs $(MYCPPFLAG) $(LIBX11_INCLUDES) ENERGIZE_INCLUDES
+
+LDFLAGS= LD_SWITCH_SYSTEM LD_SWITCH_MACHINE LD_SWITCH_SITE \
+	-L. $(LIBX11_LDFLAGS) ENERGIZE_LDFLAGS 
+
+#ifndef LIBX11_MACHINE
+#define LIBX11_MACHINE
+#endif
+
+#ifndef LIBX11_SYSTEM
+#define LIBX11_SYSTEM
+#endif
+
+#ifdef HAVE_X_WINDOWS
+XOBJ= xterm.o xfns.o xselect.o xutils.o event-Xt.o menubar.o
+
+LWLIBDIR = ./lwlib
+
+LIBX11_LDFLAGS = -L$(LWLIBDIR)
+
+LIBX11_INCLUDES = -I$(LWLIBDIR)
+
+#ifdef LWLIB_USES_MOTIF
+TOOLKIT_LIBS = -lXm /* -lMrm */
+#else /* ! LWLIB_USES_MOTIF */
+#ifdef LWLIB_USES_OLIT
+TOOLKIT_LIBS = -lXol
+#else /* ! LWLIB_USES_OLIT */
+TOOLKIT_LIBS = 
+#endif /* ! LWLIB_USES_OLIT */
+#endif /* ! LWLIB_USES_MOTIF */
+
+LIBX11_LIBS = -llw $(TOOLKIT_LIBS) -lXaw -lXext -lXt
+
+LIBX=  $(LIBX11_LIBS) -lXmu -lX11 LIBX11_MACHINE LIBX11_SYSTEM
+
+#endif /* HAVE_X_WINDOWS */
+
+#ifdef MAINTAIN_ENVIRONMENT
+environobj = environ.o
+#endif /* MAINTAIN_ENVIRONMENT */
+
+/* Allow config.h to specify a replacement file for unexec.c.  */
+#ifndef UNEXEC
+#define UNEXEC unexec.o
+#endif
+
+#ifdef ENERGIZE
+#define ENERGIZE_OBJS elhash.o hash.o editorside.o
+#else
+#define ENERGIZE_OBJS elhash.o hash.o
+#endif
+
+#ifdef EMACS_BTL
+#define BTLOBJS cadillac-btl-emacs.o
+#else
+#define BTLOBJS
+#endif
+
+#ifdef FREE_CHECKING
+#define FREECHECKOBJS free-hook.o
+#else
+#define FREECHECKOBJS
+#endif
+
+/* lastfile must follow all files
+   whose initialized data areas should be dumped as pure by dump-emacs. */
+obj=    dispnew.o screen.o scroll.o xdisp.o window.o \
+	events.o event-alloc.o event-stream.o \
+	term.o cm.o $(XOBJ) SOUND_OBJS \
+	emacs.o keyboard.o macros.o keymap.o sysdep.o \
+	buffer.o filelock.o insdel.o marker.o \
+	minibuf.o fileio.o dired.o filemode.o \
+	cmds.o casetab.o casefiddle.o indent.o search.o regex.o undo.o \
+	alloc.o data.o doc.o editfns.o callint.o \
+	eval.o floatfns.o fns.o print.o lread.o \
+	abbrev.o syntax.o UNEXEC mocklisp.o bytecode.o \
+	process.o callproc.o $(environobj) \
+	doprnt.o extents.o faces.o ENERGIZE_OBJS BTLOBJS FREECHECKOBJS
+
+#ifdef TERMINFO
+/* Used to be -ltermcap here.  If your machine needs that,
+   define LIBS_TERMCAP in the m- file.  */
+#ifndef LIBS_TERMCAP
+#define LIBS_TERMCAP -lcurses
+#endif
+termcapobj = terminfo.o
+#else
+#ifndef LIBS_TERMCAP
+#define LIBS_TERMCAP
+termcapobj = termcap.o tparam.o
+#else
+termcapobj = tparam.o
+#endif
+#endif
+
+#ifndef SYSTEM_MALLOC
+
+#ifdef GNU_MALLOC  /* New GNU malloc */
+#ifdef REL_ALLOC
+mallocobj = gmalloc.o ralloc.o
+#else /* !REL_ALLOC */
+mallocobj = gmalloc.o vm-limit.o
+#endif /* !REL_ALLOC */
+#else  /* Old GNU malloc */
+mallocobj = malloc.o
+#endif /* Old GNU malloc */
+
+#endif /* not SYSTEM_MALLOC */
+
+#ifndef HAVE_ALLOCA
+foo = $(mallocobj)
+mallocobj = $(foo) alloca.o
+#endif /* No ALLOCA */
+
+#ifdef HAVE_X_WINDOWS
+#define LIBX11_OBJ ScreenWidget.o ColumnWidget.o EmacsShell.o
+#define LWLIB_DEPS $(LWLIBDIR)/liblw.a
+#else /* !X */
+#define LIBX11_OBJ
+#define LWLIB_DEPS
+#endif
+
+/* define otherobj as list of object files that make-docfile
+   should not be told about.  */
+otherobj= $(termcapobj) lastfile.o $(mallocobj) LIBX11_OBJ
+  
+#ifdef LISP_FLOAT_TYPE
+#define FLOATSUP ${lispdir}float-sup.elc
+#else
+#define FLOATSUP
+#endif
+
+/* List of Lisp files loaded into the dumped Emacs.
+   Every file that is loaded from loadup.el must be enumerated
+   here, or the functions won't have have docstrings.
+ */
+lisp=	${lispdir}simple.elc ${lispdir}help.elc \
+	${lispdir}files.elc ${lispdir}window.elc \
+	${lispdir}indent.elc ${lispdir}loaddefs.el ${lispdir}paths.el \
+	${lispdir}startup.elc ${lispdir}lisp.elc \
+	${lispdir}page.elc ${lispdir}register.elc \
+	${lispdir}paragraphs.elc ${lispdir}lisp-mode.elc \
+	${lispdir}text-mode.elc ${lispdir}fill.elc \
+	${lispdir}c-mode.elc ${lispdir}isearch.elc \
+	${lispdir}replace.elc ${lispdir}abbrev.elc \
+	FLOATSUP \
+	${lispdir}faces.elc ${lispdir}buff-menu.elc ${lispdir}subr.elc \
+	${lispdir}bytecomp-runtime.elc ${lispdir}lpr.elc \
+	${lispdir}compare-w.elc ${lispdir}novice.elc
+
+/* just to be sure the sh is used */
+SHELL=/bin/sh
+
+/* Construct full set of libraries to be linked.  */
+#ifdef EMACS_BTL
+#define EMACS_BTL_LIBS -lbtl
+#else /* ! BTL */
+#define EMACS_BTL_LIBS
+#endif /* BTL */
+
+LIBES = SOUND_LIBS ENERGIZE_LIBS EMACS_BTL_LIBS \
+        $(LIBX) LIBS_SYSTEM LIBS_MACHINE LIBS_TERMCAP \
+	LIBS_DEBUG LIB_GCC LIB_MATH LIB_STANDARD
+
+/* Enable recompilation of certain other files depending on system type.  */
+
+#ifndef OTHER_FILES
+#define OTHER_FILES
+#endif
+
+/* Enable inclusion of object files in temacs depending on system type.  */
+#ifndef OBJECTS_SYSTEM
+#define OBJECTS_SYSTEM
+#endif
+
+#ifndef OBJECTS_MACHINE
+#define OBJECTS_MACHINE
+#endif
+
+/* First entry is temacs, since when debugging we don't want to
+   build an xemacs */
+
+all: temacs
+
+xemacs: temacs ${lisp} ${etcdir}DOC OTHER_FILES
+	./temacs -batch -l loadup.el dump
+
+release: temacs ${lisp} ${etcdir}DOC OTHER_FILES
+	./temacs -batch -l inc-vers
+	./temacs -batch -l loadup.el dump
+
+
+${etcdir}DOC: ${etcdir}make-docfile ${obj} ${lisp}
+	rm -f ${etcdir}DOC
+	${etcdir}make-docfile ${obj} ${lisp} ${lispdir}version.el > \
+	  ${etcdir}DOC
+
+${etcdir}make-docfile:
+	cd ${etcdir}; make ${MFLAGS} make-docfile
+
+/* Some systems define this to cause parallel Make-ing.  */
+#ifndef MAKE_PARALLEL
+#define MAKE_PARALLEL
+#endif
+
+#define TEMACS_DEPS       MAKE_PARALLEL $(LOCALCPP) $(SHORT) $(STARTFILES) \
+			  ${obj} ${otherobj} OBJECTS_SYSTEM OBJECTS_MACHINE \
+			  LWLIB_DEPS
+
+#define TEMACS_LINK_ARGS  ${STARTFLAGS} ${LDFLAGS} -o $@ \
+			  ${STARTFILES} ${obj} ${otherobj} OBJECTS_SYSTEM \
+			  OBJECTS_MACHINE ${LIBES}
+
+temacs: TEMACS_DEPS
+	$(LD)  TEMACS_LINK_ARGS
+
+cemacs: TEMACS_DEPS
+	$(ILD) TEMACS_LINK_ARGS -Xez
+
+temacs_ild: TEMACS_DEPS
+	$(ILD) TEMACS_LINK_ARGS -ild -target $@ $?
+
+#ifdef HAVE_X_WINDOWS
+$(LWLIBDIR)/Makefile: $(LWLIBDIR)/Imakefile
+	cd $(LWLIBDIR); if [ -f Makefile ]; then make Makefile; else xmkmf;fi
+
+$(LWLIBDIR)/liblw.a: $(LWLIBDIR)/Makefile
+	cd $(LWLIBDIR) ; make ${MFLAGS} liblw.a
+#endif
+
+/* These are needed for C compilation, on the systems that need them */
+#ifdef NEED_CPP
+CPP = ./localcpp
+localcpp:
+	cd ${cppdir}; make ${MFLAGS} EMACS=-DEMACS
+	ln ${cppdir}cpp localcpp  /* Name where CFLAGS will refer to it */
+/* cc appears to be cretinous and require all of these to exist
+   if -B is specified -- we can't use one local pass and let the
+   others be the standard ones.  What a loser.
+   We can't even use ln, since they are probably
+   on different disks.  */
+	cp /lib/ccom localccom
+	-cp /lib/optim localoptim
+	-cp /lib/c2 localc2
+	cp /bin/as localas
+#else /* not NEED_CPP */
+CPP = $(CC) -E
+#endif /* need NEED_CPP */
+
+#ifdef SHORTNAMES
+shortnames:
+	cd ${shortnamesdir}; make ${MFLAGS}
+#endif /* SHORTNAMES */
+
+paths.h: paths.h-dist
+	@sh -c "if test -r $@; then echo $? is newer than $@; exit 1;\
+	  else exit 0; fi"
+	cp $? $@
+
+config.h: config.h-dist
+	@sh -c "if test -r $@; then echo $? is newer than $@; exit 1;\
+	  else exit 0; fi"
+	cp $? $@
+
+/* Some machines have alloca built-in.
+   They should define HAVE_ALLOCA, or may just let alloca.s
+   be used but generate no code.
+   Some have it written in assembler in alloca.s.
+   Some use the C version in alloca.c (these define C_ALLOCA in config.h).
+   */
+
+#ifdef C_ALLOCA
+alloca.o : alloca.c
+#else
+#ifndef HAVE_ALLOCA
+alloca.o : alloca.s config.h
+/* $(CPP) is cc -E, which may get confused by filenames
+   that do not end in .c.  So copy file to a safe name.  */
+	cp alloca.s allocatem.c
+/* remove any ^L, blank lines, and preprocessor comments,
+   since some assemblers barf on them */
+	$(CPP) allocatem.c | \
+	sed -e 's///' -e 's/^#.*//' | \
+	sed -n -e '/^..*$$/p' > allocatem.s
+	-rm -f alloca.o
+/* Xenix, in particular, needs to run assembler via cc.  */
+	cc -c allocatem.s
+	mv allocatem.o alloca.o
+	rm allocatem.s allocatem.c
+#endif /* HAVE_ALLOCA */
+#endif /* not C_ALLOCA */
+
+#ifdef USE_LCC  /* lcc doesn't do asm() yet */
+crt0.o:
+	cc -c $(CFLAGS)  crt0.c
+
+free-hook.o:
+	gcc -c $(CFLAGS)  free-hook.c
+#endif
+
+MKDEP = /cadillac1/utilities/makedepend -/ -fDependencies
+
+mydepend:
+	${MKDEP} -- $(CFLAGS) $(CPPFLAGS) SOUND_CFLAGS -- -s"# Machine generated dependencies" *.c
+
+/* Nearly all the following files depend on lisp.h,
+   but it is not included as a dependency because
+   it is so often changed in ways that do not require any recompilation
+   and so rarely changed in ways that do require any.  */
+
+#ifdef HAVE_X_WINDOWS
+
+xfns.o : xfns.c buffer.h screen.h window.h config.h xterm.h \
+         ScreenWidget.h ColumnWidget.h EmacsShell.h EmacsShellP.h
+xutils.o : xutils.c xterm.h config.h
+xterm.o : xterm.c xterm.h termhooks.h termopts.h termchar.h dispextern.h \
+          config.h sink.h sinkmask.h screen.h disptab.h bitmaps.h
+xselect.o : xselect.c lisp.h xterm.h screen.h config.h
+ScreenWidget.o : ScreenWidget.c ScreenWidget.h ScreenWidgetP.h
+ColumnWidget.o : ColumnWidget.c ColumnWidget.h ColumnWidgetP.h
+EmacsShell.o : EmacsShell.c EmacsShell.h EmacsShellP.h
+
+#endif /* HAVE_X_WINDOWS */
+
+#ifdef USE_SPARC_SOUND
+play.o : libsst.h
+	$(CC) -c $(CFLAGS) SOUND_CFLAGS play.c
+libsst.o : libsst.h
+	$(CC) -c $(CFLAGS) SOUND_CFLAGS libsst.c
+#endif
+
+/* System-specific programs to be made.
+   OTHER_FILES, OBJECTS_SYSTEM and OBJECTS_MACHINE
+   select which of these should be compiled.  */
+
+${etcdir}emacstool: ${etcdir}emacstool.c
+	cd ${etcdir}; make ${MFLAGS} emacstool
+
+/* Machine generated dependencies on .h files */
+
+#undef sparc
+#undef alloca
+
+ColumnWidget.o: ColumnWidgetP.h ColumnWidget.h
+EmacsShell.o: EmacsShellP.h EmacsShell.h
+LineInfoWidget.o: LineInfoWidgetP.h LineInfoWidget.h config.h s/s-sunos4.h
+LineInfoWidget.o: s/s-bsd4-2.h m/m-sparc.h  buffer.h bufslots.h
+LineInfoWidget.o: screen.h dispextern.h window.h
+ScreenWidget.o: ScreenWidgetP.h ScreenWidget.h config.h s/s-sunos4.h
+ScreenWidget.o: s/s-bsd4-2.h m/m-sparc.h  xterm.h blockio.h
+ScreenWidget.o: dispextern.h screen.h
+abbrev.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  commands.h
+abbrev.o: buffer.h bufslots.h window.h
+alloc.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+alloc.o: bufslots.h extents.h dispextern.h window.h events.h keymap.h xterm.h
+alloc.o: blockio.h screen.h backtrace.h
+alloca.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h
+buffer.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  window.h
+buffer.o: commands.h buffer.h bufslots.h screen.h dispextern.h syntax.h
+bytecode.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+bytecode.o: bufslots.h syntax.h
+cadillac-btl-emacs.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h 
+cadillac-btl-emacs.o: cadillac-btl-extern.h
+cadillac-btl-process.o: cadillac-btl.h cadillac-btl-extern.h
+cadillac-btl.o: cadillac-btl.h cadillac-btl-extern.h
+callint.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+callint.o: bufslots.h commands.h window.h
+callproc.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  commands.h
+callproc.o: buffer.h bufslots.h paths.h process.h
+casefiddle.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+casefiddle.o: bufslots.h commands.h syntax.h
+casetab.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+casetab.o: bufslots.h
+cm.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h cm.h  termhooks.h
+cmds.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  commands.h
+cmds.o: buffer.h bufslots.h syntax.h
+crt0.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h
+data.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+data.o: bufslots.h
+dired.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+dired.o: bufslots.h commands.h regex.h
+dispnew.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h indent.h termchar.h
+dispnew.o: termopts.h cm.h  buffer.h bufslots.h screen.h dispextern.h
+dispnew.o: window.h commands.h disptab.h xterm.h blockio.h
+doc.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+doc.o: bufslots.h
+duplicates.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+duplicates.o: bufslots.h process.h editorside.h hash.h extents-data.h
+duplicates.o: extents.h dispextern.h
+editfns.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h pwd.h 
+editfns.o: buffer.h bufslots.h window.h
+editorside.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+editorside.o: bufslots.h extents.h dispextern.h process.h xterm.h blockio.h
+editorside.o: screen.h window.h editorside.h hash.h extents-data.h
+editorside.o: cadillac-btl-extern.h
+elhash.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  hash.h
+emacs.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  commands.h
+environ.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h 
+eval.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  blockio.h
+eval.o: commands.h backtrace.h btl-get.h
+event-Xt.o:  ScreenWidgetP.h ScreenWidget.h config.h
+event-Xt.o: s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  process.h events.h
+event-Xt.o: blockio.h dispextern.h screen.h xterm.h
+event-alloc.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+event-alloc.o: bufslots.h window.h screen.h dispextern.h process.h events.h
+event-alloc.o: xterm.h blockio.h
+event-stream.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h 
+event-stream.o: buffer.h bufslots.h window.h process.h events.h
+events.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+events.o: bufslots.h process.h events.h
+extents.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+extents.o: bufslots.h process.h xterm.h blockio.h screen.h dispextern.h
+extents.o: window.h editorside.h hash.h extents-data.h extents.h faces.h
+fileio.o: pwd.h config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h 
+fileio.o: buffer.h bufslots.h window.h
+filelock.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h pwd.h 
+filelock.o: paths.h buffer.h bufslots.h
+floatfns.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h 
+fns.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  commands.h
+fns.o: buffer.h bufslots.h extents.h dispextern.h screen.h events.h
+free-hook.o: cadillac-btl.h cadillac-btl-extern.h config.h s/s-sunos4.h
+free-hook.o: s/s-bsd4-2.h m/m-sparc.h  hash.h blockio.h
+faces.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  xterm.h
+faces.o: blockio.h buffer.h bufslots.h extents.h dispextern.h screen.h
+faces.o: window.h indent.h editorside.h hash.h extents-data.h faces.h
+gmalloc.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h
+hash.o: hash.h config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h 
+iclasses.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+iclasses.o: bufslots.h
+indent.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+indent.o: bufslots.h extents.h dispextern.h indent.h screen.h window.h
+indent.o: termchar.h termopts.h disptab.h xterm.h blockio.h
+insdel.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+insdel.o: bufslots.h extents.h dispextern.h window.h
+keyboard.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h termchar.h
+keyboard.o: termopts.h  termhooks.h macros.h buffer.h bufslots.h
+keyboard.o: screen.h dispextern.h window.h commands.h disptab.h events.h
+keyboard.o: backtrace.h
+keymap.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  keymap.h
+keymap.o: commands.h buffer.h bufslots.h events.h
+libsst.o: libsst.h
+lread.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+lread.o: bufslots.h paths.h commands.h
+macros.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  events.h
+macros.o: macros.h commands.h buffer.h bufslots.h window.h
+malloc.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h getpagesize.h
+marker.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+marker.o: bufslots.h
+menubar.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  dispextern.h
+menubar.o: screen.h xterm.h blockio.h events.h window.h buffer.h bufslots.h
+menubar.o: ./lwlib/lwlib.h
+menuitems.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h menuitems.h
+menuitems.o: connmemory.h  editorside.h hash.h
+minibuf.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  commands.h
+minibuf.o: buffer.h bufslots.h screen.h dispextern.h window.h syntax.h
+mocklisp.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+mocklisp.o: bufslots.h
+play.o: libsst.h
+print.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+print.o: bufslots.h extents.h dispextern.h screen.h window.h process.h
+print.o: events.h
+process.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  window.h
+process.o: buffer.h bufslots.h process.h termhooks.h termopts.h commands.h
+process.o: events.h
+ralloc.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  mem_limits.h
+regex.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+regex.o: bufslots.h syntax.h regex.h
+screen.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  dispextern.h
+screen.o: screen.h window.h xterm.h blockio.h
+scroll.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h termchar.h 
+scroll.o: dispextern.h screen.h
+search.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  syntax.h
+search.o: buffer.h bufslots.h commands.h regex.h
+sunfns.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  window.h
+sunfns.o: buffer.h bufslots.h termhooks.h
+syntax.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  commands.h
+syntax.o: buffer.h bufslots.h syntax.h
+sysdep.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  dispextern.h
+sysdep.o: screen.h window.h termhooks.h termchar.h termopts.h process.h
+term.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  termhooks.h
+term.o: termchar.h termopts.h cm.h dispextern.h screen.h disptab.h
+termcap.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h
+tparam.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h
+undo.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+undo.o: bufslots.h
+unexconvex.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h getpagesize.h
+unexec.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h getpagesize.h
+unexenix.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h
+unexmips.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h filehdr.h
+unexmips.o: aouthdr.h scnhdr.h sym.h
+unexsunos4.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h
+vm-limit.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h mem_limits.h
+vm-limit.o: 
+vmsproc.o: ssdef.h iodef.h dvidef.h clidef.h vmsproc.h
+window.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  buffer.h
+window.o: bufslots.h screen.h dispextern.h window.h commands.h indent.h
+window.o: termchar.h disptab.h
+xdisp.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  window.h
+xdisp.o: termchar.h buffer.h bufslots.h extents.h dispextern.h screen.h
+xdisp.o: indent.h commands.h macros.h disptab.h xterm.h blockio.h
+xfns.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h ScreenWidgetP.h
+xfns.o: ScreenWidget.h EmacsShell.h EmacsShellP.h  xterm.h blockio.h
+xfns.o: window.h buffer.h bufslots.h extents.h dispextern.h screen.h events.h
+xselect.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  xterm.h
+xselect.o: blockio.h dispextern.h screen.h
+xterm.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h EmacsShellP.h
+xterm.o: EmacsShell.h  xterm.h blockio.h termhooks.h termopts.h
+xterm.o: termchar.h buffer.h bufslots.h screen.h dispextern.h disptab.h
+xterm.o: window.h bitmaps.h events.h
+xutils.o: config.h s/s-sunos4.h s/s-bsd4-2.h m/m-sparc.h  xterm.h
+xutils.o: blockio.h dispextern.h screen.h

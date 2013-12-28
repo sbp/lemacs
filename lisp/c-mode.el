@@ -85,7 +85,7 @@ This is in addition to c-continued-statement-offset.")
   "*Non-nil means automatically newline before and after braces,
 and after colons and semicolons, inserted in C code.
 If you do not want a leading newline before braces then use:
-  (define-key c-mode-map "{" 'electric-c-semi)")
+  (define-key c-mode-map \"{\" 'electric-c-semi)")
 
 (defconst c-tab-always-indent t
   "*Non-nil means TAB in C mode should always reindent the current line,

@@ -117,6 +117,9 @@
 ;
 ; HISTORY
 ;
+; 1 may 92	Jamie Zawinski <jwz@lucid.com>
+;	Converted to work with Kyle Jones' timer.el package.
+;
 ; 3 may 91	Jamie Zawinski <jwz@lucid.com>
 ;	Made the display-time-sentinel make a fuss when the process dies.
 ;
@@ -179,6 +182,9 @@
 ;	Added facility for reporting incoming mail (modeled after gosmacs
 ;	reportmail.ml package written by Benjamin Pierce).
 
+
+(if (string-match "Lucid" emacs-version)
+    (require 'timer))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;                       User Variables                          ;;;
@@ -382,21 +388,28 @@ mode line of each buffer (if corresponding user variables are set)."
 		(append global-mode-string '(display-time-string))))
       (setq display-time-string "time and load")
       
-      (setq display-time-loadst-process
-	    (if (string-match "18\\.5[0-5]" (emacs-version))
-		(start-process "display-time-loadst" nil
-			       "loadst" 
-			       "-n" (int-to-string display-time-interval))
+      (if (featurep 'timer)
+	  (let ((old (get-timer "display-time")))
+	    (if old (delete-timer old))
+	    (start-timer "display-time" 'display-time-timer-function
+			 display-time-interval display-time-interval)
+	    (display-time-timer-function))
+	;; if we don't have timers, then use one of the process mechanisms.
+	(setq display-time-loadst-process
+	      (if (string-match "18\\.5[0-5]" (emacs-version))
+		  (start-process "display-time-loadst" nil
+				 "loadst" 
+				 "-n" (int-to-string display-time-interval))
 		(start-process "display-time-wakeup" nil
 			       (concat exec-directory "wakeup")
 			       (int-to-string display-time-interval))))
-      (process-kill-without-query display-time-loadst-process)
-      (set-process-sentinel display-time-loadst-process 
-			    'display-time-sentinel)
-      (set-process-filter display-time-loadst-process
-			  (if (string-match "18\\.5[0-5]" (emacs-version))
-			  'display-time-filter-18-55
-			  'display-time-filter-18-57))
+	(process-kill-without-query display-time-loadst-process)
+	(set-process-sentinel display-time-loadst-process 
+			      'display-time-sentinel)
+	(set-process-filter display-time-loadst-process
+			    (if (string-match "18\\.5[0-5]" (emacs-version))
+				'display-time-filter-18-55
+			      'display-time-filter-18-57)))
       
       (if display-time-use-xbiff
 	  (progn
@@ -471,10 +484,11 @@ mode line of each buffer (if corresponding user variables are set)."
     ;; Do redisplay right now, if no input pending.
     (sit-for 0)))
 
-(defun display-time-filter-18-57 (proc string) ; string is ignored
+(defun display-time-filter-18-57 (proc string) ; args are ignored
   (if display-time-flush-echo-area (display-time-message ""))
   (let ((mailp (and (file-exists-p display-time-incoming-mail-file)
-		    (not (eq 0 (nth 7 (file-attributes display-time-incoming-mail-file)))))))
+		    (not (eq 0 (nth 7 (file-attributes
+				       display-time-incoming-mail-file)))))))
     (if display-time-announce-mail
 	(if mailp
 	    (display-time-process-new-mail)
@@ -515,6 +529,8 @@ mode line of each buffer (if corresponding user variables are set)."
       ;; Do redisplay right now, if no input pending.
       (sit-for 0))))
 
+(defun display-time-timer-function ()
+  (display-time-filter-18-57 nil nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;                       Mail processing                         ;;;

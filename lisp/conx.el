@@ -4,7 +4,7 @@
 ;;; Original design by Skef Wholey <skef@cs.cmu.edu>;
 ;;; ported to Emacs-Lisp by Jamie Zawinski <jwz@lucid.com>, 5-mar-91.
 ;;;
-(defconst conx-version "1.3, 24-apr-91")
+(defconst conx-version "1.3, 10-may-92.")
 ;;;
 ;;; Run this compiled.  It will be an order of magnitude faster.
 ;;;
@@ -105,11 +105,7 @@
 (defmacro conx-push (thing list)
   (list 'conx-setf list (list 'cons thing list)))
 
-(defconst conx-most-positive-fixnum
-    (let ((i 0))
-      (while (< 0 (ash 1 i))
-	(setq i (1+ i)))
-      (1- (ash 1 i)))
+(defconst conx-most-positive-fixnum (lsh -1 -1)
   "The largest positive integer that can be represented in this emacs.")
 
 (defmacro conx-rand (n)

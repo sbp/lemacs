@@ -1,0 +1,62 @@
+typedef struct{
+ void*	key;
+ void*	contents;
+} hentry;
+
+struct _C_hashtable{
+ hentry*	harray;
+ int zero_set;
+ void *zero_entry;
+ unsigned int	size; /* size of the hasharray */
+ unsigned int	fullness; /* number of entries in the hashtable */
+ unsigned long (*hash_function)();
+ int (*test_function)();
+#ifdef emacs
+ void *elisp_table;
+#endif
+};
+
+typedef struct _C_hashtable *c_hashtable;
+
+/* size is the number of initial entries. The hashtable will be grown
+   automatically if the number of entries approaches the size */
+extern c_hashtable make_hashtable (unsigned int size);
+
+extern c_hashtable make_general_hashtable 
+  (unsigned int hsize, unsigned long (*hash_function)(), 
+      int (*test_function)());
+
+extern c_hashtable make_strings_hashtable ( /* unsigned int hsize */ );
+
+/* clears the hash table. A freshly created hashtable is already cleared up */
+extern void clrhash (c_hashtable hash);
+
+/* returns a hentry whose key is 0 if the entry does not exist in hashtable */
+extern void* gethash (void* key, c_hashtable hash, void** ret_value);
+
+/* key should be different from 0 */
+extern void puthash (void* key, void* cont, c_hashtable hash);
+
+/* delete the entry which key is key */
+extern void remhash (void* key, c_hashtable hash);
+
+typedef void (*maphash_function) 
+(void* key, void* contents, void* arg);
+
+typedef int (*remhash_predicate) 
+(void* key, void* contents, void* arg);
+
+typedef void (*generic_hashtable_op) 
+(c_hashtable table, void *arg1, void *arg2, void *arg3);
+
+/* calls mf with the following arguments:  key, contents, arg; for every 
+   entry in the hashtable */
+extern void 
+maphash (maphash_function fn, c_hashtable hash, void* arg);
+
+/* copies all the entries of src into dest -- dest is modified as needed
+   so it is as big as src. */ 
+extern void copy_hash (c_hashtable dest, c_hashtable src);
+
+
+

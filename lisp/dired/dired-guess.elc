@@ -1,0 +1,30 @@
+;;; compiled by jwz@thalidomide on Tue May 19 22:58:39 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/dired/dired-guess.el
+;;; emacs version 19.0.16 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
+;;; optimization is on.
+;;; this file uses opcodes which do not exist in Emacs18.
+
+(if (and (boundp 'emacs-version)
+	 (or (and (boundp 'epoch::version) epoch::version)
+	     (string-lessp emacs-version "19")))
+    (error "This file was compiled for Emacs19."))
+
+(defvar dired-guess-have-gnutar "gnutar" "\
+*If non-nil, name of GNU tar (e.g. \"tar\" or \"gnutar\").
+GNU tar's `z' switch is used for compressed tar files.
+If you don't have GNU tar, set this to nil: a pipe is then used.")
+(byte-code "ÀÁ!¬…\n®ÃÀ‡" [boundp dired-guess-tar dired-guess-have-gnutar "tar"] 2)
+(defvar dired-auto-shell-command-alist (byte-code "ÀÁÂÃÄÅÆÈPBÉ\n«†ËPª…ÌÍQBÎ\n«‡ÏĞQªÑB¯	‡" [(".Z" . "uncompress") (".Z.uu" . "uudecode * | uncompress") (".uu" . "uudecode") (".hqx" . "mcvert") (".sh" . "sh") (".shar" . "unshar") ".tar" dired-guess-tar " xvf" ".tar.Z" dired-guess-have-gnutar " xvfz" "zcat * | " " xvf -" ".tar.Z.uu" "uudecode * | " " xvfz -" "uudecode * | zcat | tar xvf -"] 12) "\
+*Alist of file extensions and their suggested commands.
+See also variable `dired-auto-shell-use-last-extension'.")
+(defvar dired-auto-shell-use-last-extension nil "\
+*If non-nil, uses only the last extension of the filename.
+  For example, foo.tar.Z would use the guess for the .Z extension.
+If nil, use all the extensions.  For example, foo.tar.Z would guess
+  for the .tar.Z extension.")
+(fset 'dired-read-shell-command #[(prompt arg files) "ÀÁÂÄÅÇ\"\"&‡" [dired-mark-pop-up nil shell files dired-guess-shell-command format prompt dired-mark-prompt arg] 10 "\
+Read a dired shell command using generic minibuffer history.
+This command tries to guess a command from the filename(s)
+from the variable `dired-auto-shell-command-alist' (which see)."])
+(fset 'dired-guess-shell-command #[(prompt files) "A?­˜Á@\n«‡ÃÄ@\"ª…ÃÅ@\"ÆO\"AÉÊ!¬‰Ë\"ˆª‹«‡ÍÎÏ#ˆĞÎ\")‡" [files assoc dired-auto-shell-use-last-extension string-match ".[^.]*$" "\\." nil dired-auto-shell-command-alist defalt featurep gmhist read-string prompt put dired-shell-command-history default read-with-history-in] 5])

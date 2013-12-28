@@ -22,8 +22,6 @@
 ;; Adapted for the VM mail reader, Kyle Jones, May 1989
 
 
-(require 'vm)
-
 ;; This function does all the work of incremental search.
 ;; The functions attached to ^R and ^S are trivial,
 ;; merely calling this one, but they are always loaded by default
@@ -391,9 +389,10 @@ literally."
   (vm-follow-summary-cursor)
   (vm-select-folder-buffer)
   (vm-check-for-killed-summary)
+  (vm-error-if-folder-empty)
+  (vm-set-window-configuration 'searching-folder)
   (if (null (get-buffer-window (current-buffer)))
       (vm-display-current-message-buffer))
-  (vm-error-if-folder-empty)
   (let ((clip-head (point-min))
 	(clip-tail (point-max))
 	(old-w (selected-window)))

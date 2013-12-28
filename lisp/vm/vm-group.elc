@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Sat Dec 28 16:57:28 1991
-;;; from file /wg1/emacs-base/lisp/vm/vm-group.el
-;;; emacs version 19.39.
-;;; bytecomp version 2.03; 29-oct-91.
+;;; compiled by jwz@thalidomide on Tue Apr 21 16:44:30 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/vm/vm-group.el
+;;; emacs version 19.0.2 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -10,7 +10,7 @@
 	     (string-lessp emacs-version "19")))
     (error "This file was compiled for Emacs19."))
 
-(byte-code "ÀÁ!ˆÂÃMˆÄ‰BÆÇMˆÈÉMˆÊËMˆÌÍMˆÎÏM‡" [require vm vm-group-by #[(compare-function) "À‰‰	\n«ˆÆÇˆªuÈÉÊË\"Ÿ\"ÌÎ ˆÌ=­ˆ?­ƒÑÌ!,‡" [nil vm-message-list mp cons bp buckets found (byte-code "«¤	\n@@@\"«•\n\nAÄ¡ˆ@¤ ˆÅÆÇ\"ˆA‰¬\\\n\nAÄ¡ˆBÄ‡" [bp compare-function mp cons nil throw found t buckets] 4) apply nconc mapcar nreverse t vm-message-order-changed vm-reverse-link-messages vm-retain-message-order vm-folder-read-only vm-set-buffer-modified-p] 5] t vm-group-by-subject-closure vm-group-by-subject #[(m1 m2) "À	!‰@=«…Aª§\n ˆÄÅ\n\"«†\nÆ•ÇOÄÈ\n\"«†\nÆ‰”OÉÊ\n!ËQ\n¡ˆÄ\nÀ!\")‡" [vm-su-subject m1 subject vm-group-by-subject-closure string-match "^\\(re: *\\)+" 0 nil " +$" "^\\(re: *\\)*" regexp-quote " *$" m2] 5] vm-group-by-author #[(m1 m2) "À	!À\n!˜‡" [vm-su-full-name m1 m2] 3] vm-group-by-recipient #[(m1 m2) "À	!À\n!š‡" [vm-su-to-names m1 m2] 3] vm-group-by-date-sent #[(m1 m2) "À	!À\n!˜­Ã	!Ã\n!˜­‡Ä	!Ä\n!˜‡" [vm-su-monthday m1 m2 vm-su-month vm-su-year] 3] vm-revert-to-physical-order #[nil "@	@ÄÄÅÇ\"	Ê ˆ	­Ì=­ˆ?­ƒÎÌ!*‡" [vm-message-pointer vm-last-message-pointer last curr nil sort vm-message-list #[(p q) "ÁHÁH\nÁHÁHW‡" [p 0 q] 3] vm-message-order-stuffed vm-message-order-changed vm-reverse-link-messages vm-retain-message-order t vm-folder-read-only vm-set-buffer-modified-p] 3]] 2)
+(byte-code "ÀÁMˆÂ‰BÄÅMˆÆÇMˆÈÉMˆÊËMˆÌÍM‡" [vm-group-by #[(compare-function) "À‰‰	\n«ˆÆÇˆªuÈÉÊË\"Ÿ\"ÌÎ ˆÌ=­ˆ?­ƒÑÌ!,‡" [nil vm-message-list mp cons bp buckets found (byte-code "«¤	\n@@@\"«•\n\nAÄ¡ˆ@¤ ˆÅÆÇ\"ˆA‰¬\\\n\nAÄ¡ˆBÄ‡" [bp compare-function mp cons nil throw found t buckets] 4) apply nconc mapcar nreverse t vm-message-order-changed vm-reverse-link-messages vm-retain-message-order vm-folder-read-only vm-set-buffer-modified-p] 5] t vm-group-by-subject-closure vm-group-by-subject #[(m1 m2) "À	!‰@=«…Aª§\n ˆÄÅ\n\"«†\nÆ•ÇOÄÈ\n\"«†\nÆ‰”OÉÊ\n!ËQ\n¡ˆÄ\nÀ!\")‡" [vm-su-subject m1 subject vm-group-by-subject-closure string-match "^\\(re: *\\)+" 0 nil " +$" "^\\(re: *\\)*" regexp-quote " *$" m2] 5] vm-group-by-author #[(m1 m2) "À	!À\n!˜‡" [vm-su-full-name m1 m2] 3] vm-group-by-recipient #[(m1 m2) "À	!À\n!š‡" [vm-su-to-names m1 m2] 3] vm-group-by-date-sent #[(m1 m2) "À	!À\n!˜­Ã	!Ã\n!˜­‡Ä	!Ä\n!˜‡" [vm-su-monthday m1 m2 vm-su-month vm-su-year] 3] vm-revert-to-physical-order #[nil "@	@ÄÄÅÇ\"	Ê ˆ	­Ì=­ˆ?­ƒÎÌ!*‡" [vm-message-pointer vm-last-message-pointer last curr nil sort vm-message-list #[(p q) "ÁHÁH\nÁHÁHW‡" [p 0 q] 3] vm-message-order-stuffed vm-message-order-changed vm-reverse-link-messages vm-retain-message-order t vm-folder-read-only vm-set-buffer-modified-p] 3]] 2)
 (fset 'vm-group-messages #[(grouping) "«ˆÁ!«ƒqˆÂ!«‡Á!¬‚ÄÆš«ƒ«‹;¬‡ÈÉ\"ˆª‡Êš«‚Ä«°ËÌP!Î!¬…ÈÉ\"ˆÏ ˆĞÑ\"ˆÇ!ˆĞÒ\"ˆÔÔ)ª“Ï ˆÔÔt«„Ğ×!ˆØ ‡" [vm-mail-buffer buffer-name bufferp vm-summary-buffer nil grouping "" vm-group-by error "Unsupported grouping: %s" "physical-order" intern "vm-group-by-" group-function fboundp vm-revert-to-physical-order message "Grouping messages by %s..." "Grouping messages by %s... done" vm-current-grouping t vm-numbering-redo-start-point vm-summary-redo-start-point "Reverted to folder's physical ordering" vm-update-summary-and-mode-line] 3 "\
 Group messages by the argument GROUPING.
 Interactively this argument is prompted for in the minibuffer,

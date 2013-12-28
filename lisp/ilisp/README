@@ -1,15 +1,29 @@
-Version 4.00 of the EMACS to LISP interface ILISP is now available.
+
+Note: this version of ILISP has been modified to work with Lucid GNU Emacs.
+
+Version 4.12 of the EMACS to LISP interface ILISP is now available.
 If you have gotten ILISP prior to today, you should get the new
-version.  The new version fixes a number of bugs and is much improved
-at finding source code and supporting CLOS.  The process code has also
-been rewritten to give better asynchronous behavior and a visual
-indication of process status.  Partial completion is now allowed on
-lisp symbols.
+version. 
+
+Major changes from 4.11:
+
+--More robust and featureful popper and completer.
+
+--Fixed bugs in lucid and CMU CL interfaces.
+
+--Includes the new version of completion.el.
+
+--Lots of little bugs were stomped on.  Including one that caused
+errors when interrupting the inferior LISP.
+
+INCOMPATIBILITIES:
+
+--None known.
 
 FEATURES:
 
-+Support for multiple LISP dialects including Lucid, Allegro and CMU
-on multiple machines even at the same time.
++Support for multiple LISP dialects including Lucid, Allegro, KCL,
+AKCL, IBCL and CMU on multiple machines even at the same time.
 
 +Dynamically sized pop-up windows that can be buried and scrolled from
 any window.
@@ -18,11 +32,13 @@ any window.
 exported and internal symbols.
 
 +Synchronous, asynchronous or batch eval and compile of files,
-regions, definitions and sexps.
+regions, definitions and sexps with optional switching and automatic
+calling.
 
 +Arglist, documentation, describe, and macroexpand.
 
-+Completion of filenames and LISP symbols including partial matches.
++Completion of filename components and LISP symbols including partial
+matches.
 
 +Find source both with and without help from the inferior LISP.
 Including CLOS methods, multiple definitions and multiple files.  Also
@@ -47,8 +63,12 @@ inferior LISP.
 
 +Result histories are maintained in the inferior LISP.
 
-+Does not create spurious symbols.
++Does not create spurious symbols and handles case issues.
 
++Raw keyboard mode allows interaction with interactive programs
+through Emacs.
+
++Online manuals for ILISP.
 
 HOW TO GET IT
 
@@ -56,37 +76,45 @@ If you do start using the package, please send mail to ccm@cs.cmu.edu
 so that I can keep a mailing list of users.  Any comments or code are
 also welcome.
 
+FTP directions
+==============
+
 You can anonymously ftp the source files from CMU:
-- Ftp to a.gp.cs.cmu.edu (128.2.242.7) or any other SCS machine.
-- cd /afs/cs.cmu.edu/user/ccm/src/gnu/ilisp/
-  Don't try to cd to or ls any of the intermediate directories;
-  go straight to the subdirectory. The CMU security mechanisms
-  will block you from accessing any of the other directories while you
-  are doing anonymous accesses.
-- get ilisp.tar.Z or
-  mget README HISTORY completer.el symlink.el popper.el epoch-pop.el 
-       comint.el comint-ipc.el ilisp*.el *.lisp
 
-Of course, anyone with AFS access at CMU, Dartmouth, Michigan, MIT, Mt. Xinu
-or Transarc can just cd to the directory and copy what they want.
- 
+   * Ftp to katmandu.mt.cs.cmu.edu (128.2.250.68)
 
-ONCE YOU HAVE IT: 
+   * login as anonymous, with user@host as password
 
-1) uncompress ilisp.tar.Z; tar xf ilisp.tar
+   * `cd pub/ilisp'
 
-2) Read the start of ilisp/ilisp.el for the site and .emacs information.
+Get the files you need:
+
+   * `get ilisp.tar.Z' or
+
+   * `mget README HISTORY *.el *.lisp *.texi *.info *.dvi *.ps'
+
+Unpack and install:
+
+  1. `uncompress ilisp.tar.Z; tar xf ilisp.tar'
+
+  2. Site information is found in ilisp/ilisp.el
 
 
 ILISP FILES:
+
+ilisp.emacs     Sample .emacs file.
 
 symlink.el	Package for expanding symbolic links.
 
 completer.el 	Partial completion mechanism for the minibuffer.
 
+completion.el   Completion package from TMC.
+
 popper.el	Standalone module for a shrink-wrapped pop-up window.
 
 epoch-pop.el	Standalone module for pop-up window in epoch.
+
+bridge.el    	Standalone module for process to process communication.
 
 comint.el	COMmand INTerpreter module used by cmushell and ilisp.
 
@@ -100,5 +128,13 @@ ilisp-bat.el    Ilisp batch code module.
 
 ilisp.el	Actual code for the Emacs to LISP interface.
 
+ilisp.info      Info node for ILISP.
+
+ilisp.texi      Texinfo file for ILISP manuals.  
+
+ilisp.ps/dvi    Postscript and dvi versions of the manual.
+
 *.lisp		Interface files for specific LISPs.
+
+*.lcd           Package descriptors for the Lisp Code Directory.
 

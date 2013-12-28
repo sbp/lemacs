@@ -1,7 +1,7 @@
-;;; compiled by jwz@thalidomide on Wed Aug 14 22:16:43 1991
-;;; from file /wg1/emacs-base/lisp/fill.el
-;;; emacs version 19.60.
-;;; bytecomp version 2.01 beta; 13-aug-91.
+;;; compiled by jwz@thalidomide on Wed Apr 15 19:54:21 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/fill.el
+;;; emacs version 19.0 Lucid.
+;;; bytecomp version 2.05; 9-mar-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -25,7 +25,7 @@ Prefix arg means justify as well." "P"])
 Fill each of the paragraphs in the region.
 Prefix arg (non-nil third arg, if called from program)
 means justify as well." "r\nP"])
-(fset 'justify-current-line #[nil "ŠŒÀ‰ÃyˆGuˆÅÀwˆ`Àˆ	`}ˆ	bˆÆÇÀÈ#«˜Ã”ŠÉÀxˆhÊ>)«ƒËªÌ\\Ã•|ˆªa	bˆÆÍÎÀÈ$«ˆÏuˆĞcˆªpdbˆiZÒÓÀÈ#­¹\nÃV­´ÔÕ!Õ\\‰ÃV«šÒÓÀÈ#¬‡dbˆÒÓ!ˆÓÀxˆS‰ªb)ÓcˆÓÀxˆ\nS‰ªH,‡" [nil beg ncols 0 fill-prefix " 	" re-search-forward "   *" t " ])\"'" (46 63 33) 2 1 "[.?!][])" "']*\n" -1 32 fill-column search-backward " " random 3 nmove] 6 "\
+(fset 'justify-current-line #[nil "ŠŒÀ‰ÃyˆGuˆÅÀwˆ`Àˆ	`}ˆ	bˆÆÇÀÈ#«˜Ã”ŠÉÀxˆhÊ>)«ƒËªÌ\\Ã•|ˆªa	bˆÆÍÀÈ#«ˆÎuˆÏcˆªqdbˆiZGZÑÒÀÈ#­¹\nÃV­´ÓÔ!Ô\\‰ÃV«šÑÒÀÈ#¬‡dbˆÑÒ!ˆÒÀxˆS‰ªb)ÒcˆÒÀxˆ\nS‰ªH,‡" [nil beg ncols 0 fill-prefix " 	" re-search-forward "   *" t " ])\"'" (46 63 33) 2 1 "[.?!][])\"']*\n" -1 32 fill-column search-backward " " random 3 nmove] 5 "\
 Add spaces to line point is in, so it ends at fill-column." nil])
 (fset 'fill-individual-paragraphs #[(min max &optional justifyp mailp) "ÀŒŠ\n}ˆebˆÄÀwˆm?­¸`Åyˆ`{ŠÆ ˆ`)`	«ÊËÌ#«…Íyˆªs`U«ŒÎ`#ˆbˆ*ª@+‡" [nil fill-prefix min max " 	\n" 0 forward-paragraph start fin mailp re-search-forward "^[ 	]*[^ 	\n]*:" t 1 fill-region-as-paragraph justifyp] 4 "\
 Fill each paragraph in region according to its individual fill prefix.
