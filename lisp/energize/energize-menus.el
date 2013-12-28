@@ -83,6 +83,7 @@ functions that invoke them.")
    ("findproject"	energize-find-project)
    ("project"		energize-pop-to-project-buffer)
    ("energize"		energize-pop-to-energize-buffer)
+   ["Shell"		shell				t]
    )
  
  (energize-def-menu "Browse"

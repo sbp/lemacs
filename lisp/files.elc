@@ -1,6 +1,6 @@
-;;; compiled by jwz@thalidomide on Mon May 18 17:38:27 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/files.el
-;;; emacs version 19.0.16 Lucid.
+;;; compiled by jwz@thalidomide on Wed Jun  3 00:31:38 1992
+;;; from file /u/jwz/emacs19/lisp/files.el
+;;; emacs version 19.0.21 Lucid.
 ;;; bytecomp version 2.06; 17-may-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
@@ -190,7 +190,7 @@ variable spec in the last page.  For that, use `hack-local-variables'."])
 Parse, and bind or evaluate as appropriate, any local variables
 for current buffer."])
 (byte-code "ÀÁMˆÂÃM‡" [hack-local-variables-last-page #[(&optional force) "ŠdbˆÀÁdÂZe]Ã#ˆÄÆÇÈÄ#­	®Œ\nÄ=®†\n­‚Ë‹)…+ÄÈ‰‰‰ÑÈwˆl¬ˆ`Èˆ`{Ò”bˆn¬ˆ`Òyˆ`{«‹GÓ!«†Ó!…*«†ÕÖ!ˆªƒ×yˆ«Ø!«†uˆª„ÙÚ!ˆÑÈwˆ`ÛÈwˆl«„ÙÜ!ˆÑÈxˆ`{Ş!È —á˜«…ÈªŞâÈwˆ×uˆŞp! ãÈxˆÑÈwˆ«†Ø!ªl¬„Ùä!ˆå=«æç !—èP! ˆª¦é=«•ê ë˜«†ìí!ˆª”Šé !ˆ)ª‹î!ˆ Lˆ+‚q -)‡" [search-backward "\n" 3000 move t case-fold-search search-forward "Local Variables:" nil force enable-local-variables ((byte-code "Àp!ˆÁÂÃÄ!\"!‡" [switch-to-buffer y-or-n-p format "Set local variables as specified at end of %s? " file-name-nondirectory buffer-file-name] 5)) beg suffix prefixlen prefix continue " 	" 0 regexp-quote selective-display re-search-forward "[\n]" 1 looking-at error "Local variables entry is missing the prefix" "^:\n" "Missing colon in local variables entry" str read var val "end" "^:" "\n" "Local variables entry is terminated incorrectly" mode intern symbol-name "-mode" eval user-login-name "root" message "Ignoring `eval:' in file's local variables" make-local-variable] 5] hack-local-variables-prop-line #[(&optional force) "ŠebˆÀÁwˆÁŠÁˆ`)ÁÅÆÇ#«×ÈÉ!«ÊËÌ”Í”{!BCªÅŠÅÆÇ#«†`ÎZª„ÏĞ!ˆ)`W«ªÈÑ!¬„ÏÒ!ˆÓ•bˆËÌ”Ì•{—!Ôp!‰BB×Áwˆ*ªQŸÁ\nÊ‰\n«–ÇØ\n\"ËÙ\nA!—ÚP! ˆªb)«±¬Ç=¬ˆ«£İ‹«Ÿ«œ@@@AŞ!ˆLˆ*A‰¬d\n,‡" [" 	\n" nil mode-p end result search-forward "-*-" t looking-at "[ 	]*\\([^ 	\n:;]\\)+\\([ 	]*-\\*-\\)" mode intern 1 2 3 error "-*- not terminated before end-of-line" "[ 	]*\\([^ 	\n:]+\\)[ 	]*:[ 	]*" "malformed -*- line" 0 read val key " 	;" delq symbol-name "-mode" force enable-local-variables ((byte-code "Àp!ˆÁÂÃÄ!\"!‡" [switch-to-buffer y-or-n-p format "Set local variables as specified in -*- line of %s? " file-name-nondirectory buffer-file-name] 5)) make-local-variable] 5]] 2)
-(fset 'set-visited-file-name #[(filename) "«ŠÁ˜?­ƒÂ!š¬Š«‡Ä!ˆÅ ˆ«²Æ!É=«…—Ê!Ì!«‘Í!Ï!Ğ!ˆ)Ñ!ˆ)Ò ˆÓÕ ˆÖ×!ˆÖØ!ˆÖÙ!ˆ¬ˆÛ­‚!ˆ­ƒİŞ!‡" [filename "" expand-file-name buffer-file-name lock-buffer unlock-buffer file-name-nondirectory new-name system-type vax-vms file-name-directory default-directory get-buffer create-file-buffer buf buffer-name kill-buffer rename-buffer compute-buffer-file-truename nil buffer-backed-up clear-visited-file-modtime kill-local-variable write-file-hooks after-write-file-hooks revert-buffer-function buffer-auto-save-file-name auto-save-mode auto-save-default set-buffer-modified-p t] 2 "\
+(fset 'set-visited-file-name #[(filename) "«ŠÁ˜?­ƒÂ!š¬Š«‡Ä!ˆÅ ˆ«ÆÆ!É=«…—Ê!Ì!p‰=¬¡«˜Ï!Ñ!Ò!ˆ)Ó!ˆª…Ó!ˆ+Ô ˆÕ× ˆØÙ!ˆØÚ!ˆØÛ!ˆ¬ˆİ­‚!ˆ­ƒßà!‡" [filename "" expand-file-name buffer-file-name lock-buffer unlock-buffer file-name-nondirectory new-name system-type vax-vms file-name-directory default-directory get-buffer current-buffer new-buffer create-file-buffer buf buffer-name kill-buffer rename-buffer compute-buffer-file-truename nil buffer-backed-up clear-visited-file-modtime kill-local-variable write-file-hooks after-write-file-hooks revert-buffer-function buffer-auto-save-file-name auto-save-mode auto-save-default set-buffer-modified-p t] 3 "\
 Change name of file visited in current buffer to FILENAME.
 The next time the buffer is saved it will go in the newly specified file.
 nil or empty string as argument means make buffer not be visiting any file.
@@ -289,17 +289,16 @@ Function to use to revert this buffer, or nil to do the default.")
 Function to use to insert contents when reverting this buffer.
 Gets two args, first the nominal file name to use,
 and second, t if reading the auto-save file.")
-(fset 'revert-buffer #[(&optional arg noconfirm) "«…	\n\"‡`	?­Ä ­‹­ˆÆ!­ƒÇÈ!‰	«ƒª‚\n‰¬…ÌÍ!ªÊ\n¬‰ÎÏĞ\"!­¾Ñ«Š	\"ˆª¢Ô!¬†ÌÕ\"ˆÑ\n	¬ƒÖ ˆ× ˆ)Ø	?\"ˆ)d^bˆÙÑ!ˆÚ+‡" [revert-buffer-function arg noconfirm opoint recent-auto-save-p buffer-auto-save-file-name file-readable-p y-or-n-p "Buffer has been auto-saved recently.  Revert from auto-save file? " auto-save-p buffer-file-name file-name error "Buffer does not seem to be associated with any file" yes-or-no-p format "Revert buffer from file %s? " nil buffer-read-only revert-buffer-insert-file-contents-function file-exists-p "File %s no longer exists!" unlock-buffer erase-buffer insert-file-contents after-find-file t] 5 "\
+(fset 'revert-buffer #[(&optional check-auto noconfirm) "«†	?\n\"‡`	­Ä ­‹­ˆÆ!­ƒÇÈ!‰	«ƒª‚\n‰¬…ÌÍ!ªâ\n¬‰ÎÏĞ\"!­Ö	¬ˆÑp!¬ƒÒÕ=¬ƒÒÒÕ«Š	\"ˆª¢Ø!¬†ÌÙ\"ˆÒ\n	¬ƒÚ ˆÛ ˆ)Ü	?\"ˆ*d^bˆİÒ!ˆÕ+‡" [revert-buffer-function check-auto noconfirm opoint recent-auto-save-p buffer-auto-save-file-name file-readable-p y-or-n-p "Buffer has been auto-saved recently.  Revert from auto-save file? " auto-save-p buffer-file-name file-name error "Buffer does not seem to be associated with any file" yes-or-no-p format "Revert buffer from file %s? " verify-visited-file-modtime nil buffer-backed-up buffer-undo-list t buffer-read-only revert-buffer-insert-file-contents-function file-exists-p "File %s no longer exists!" unlock-buffer erase-buffer insert-file-contents after-find-file] 5 "\
 Replace the buffer text with the text of the visited file on disk.
 This undoes all changes since the file was visited or saved.
-If latest auto-save file is more recent than the visited file,
-asks user whether to use that instead.
-First argument (optional) non-nil means don't offer to use auto-save file.
- This is the prefix arg when called interactively.
+With a prefix argument, offer to revert from latest auto-save file, if
+that is more recent than the visited file.
+When called from lisp, this is the first argument, CHECK-AUTO; it is optional.
+Optional second argument NOCONFIRM means don't ask for confirmation at all.
 
-Second argument (optional) non-nil means don't ask for confirmation at all.
-
-If revert-buffer-function's value is non-nil, it is called to do the work." "P"])
+If the value of `revert-buffer-function' is non-nil, it is called to
+do the work." "P"])
 (fset 'recover-file #[(file) "À	!Â	!«…ÃÄ	\"ˆ	Æ )È	\"¬‡ÃÉ\"ª Ê‹«™ËÌ	Í\"!ˆÎĞ ˆÑÎ\"ˆ)ÒÎ!ªƒÃÓ!)‡" [expand-file-name file auto-save-file-name-p error "%s is an auto-save file" buffer-file-name make-auto-save-file-name file-name file-newer-than-file-p "Auto-save file %s not current" ((byte-code "Á=¬”ÂÃ!ˆÅÆÇÇÈ	\n&‘ˆËÌÍ\n\"!‡" [system-type vax-vms "*Directory*" buffer-disable-undo standard-output call-process "ls" nil "-l" file file-name yes-or-no-p format "Recover auto save file %s? "] 9)) switch-to-buffer find-file-noselect t nil buffer-read-only erase-buffer insert-file-contents after-find-file "Recover-file cancelled."] 4 "\
 Visit file FILE, but get contents from its last auto-save file." (byte-code "Á‰‰«ˆÅ!Æ!ÇÈ\nÁ‰%+C‡" [buffer-file-name nil file-dir file-name prompt-file file-name-nondirectory file-name-directory read-file-name "Recover file: "] 7)])
 (fset 'kill-some-buffers #[nil "À ‰­°	@Ã\n!‰Å˜¬œÆHÇU¬•ÈÉÊË\n!«ƒÌªÍ#!«„Î\n!ˆ*	A‰¬QÏ)‡" [buffer-list list buffer buffer-name name "" 0 32 yes-or-no-p format "Buffer %s %s.  Kill? " buffer-modified-p "HAS BEEN EDITED" "is unmodified" kill-buffer nil] 7 "\

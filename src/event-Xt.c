@@ -553,19 +553,31 @@ emacs_Xt_handle_magic_event (emacs_event)
   switch (event->type) {
 
   case SelectionRequest:
-    x_handle_selection_request (event);
+    if (x_window_to_screen (event->xselection.requestor))
+      x_handle_selection_request (event);
+    else
+      goto OTHER;
     break;
 
   case SelectionClear:
-    x_handle_selection_clear (event);
+    if (x_window_to_screen (event->xselection.requestor))
+      x_handle_selection_clear (event);
+    else
+      goto OTHER;
     break;
 
   case SelectionNotify:
-    x_handle_selection_notify (event);
+    if (x_window_to_screen (event->xselection.requestor))
+      x_handle_selection_notify (event);
+    else
+      goto OTHER;
     break;
 
   case PropertyNotify:
-    x_handle_property_notify (event);
+    if (x_window_to_screen (event->xproperty.window))
+      x_handle_property_notify (event);
+    else
+      goto OTHER;
     break;
     
   case Expose:

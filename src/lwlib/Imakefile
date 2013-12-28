@@ -25,7 +25,7 @@
 /* #define USE_MOTIF */
 /* #define USE_OLIT */
 
-#define INCLUDE_EXTENSIONS
+/* #define INCLUDE_EXTENSIONS */
 
 
 #ifdef INCLUDE_EXTENSIONS	/* this is where it is at our site */

@@ -1,11 +1,11 @@
 /* Lisp functions pertaining to editing.
-   Copyright (C) 1985, 1986, 1987, 1989 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1986, 1987, 1989, 1992 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
 GNU Emacs is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 1, or (at your option)
+the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
 GNU Emacs is distributed in the hope that it will be useful,
@@ -240,7 +240,8 @@ Lisp_Object Vzmacs_deactivate_region_hook, Qzmacs_deactivate_region_hook;
 DEFUN ("zmacs-activate-region", Fzmacs_activate_region,
        Szmacs_activate_region, 0, 0, 0,
  "Make the region between `point' and `mark' be in the active (hilighted)\n\
-state, if `zmacs-regions' is true.")
+state, if `zmacs-regions' is true.  Only a very small number of commands\n\
+should ever do this.")
     ()
 {
   if (! zmacs_regions) return Qnil;
@@ -1245,8 +1246,32 @@ syms_of_editfns ()
 This means that commands which operate on the region (the area between the\n\
 point and the mark) will only work while the region is in the ``active''\n\
 state, which is indicated by hilighting.  Executing most commands causes\n\
-the region to not be in the active state, so (for example) \\[kill-region]\n\
-will only work immediately after activating the region.");
+the region to not be in the active state, so (for example) \\[kill-region] will only\n\
+work immediately after activating the region.\n\
+\n\
+More specifically:\n\
+\n\
+ - Commands which operate on the region only work if the region is active.\n\
+ - Only a very small set of commands cause the region to become active:\n\
+   Those commands whose semantics are to mark an area, like mark-defun.\n\
+ - The region is deactivated after each command that is executed, except that:\n\
+ - \"Motion\" commands do not change whether the region is active or not.\n\
+\n\
+set-mark-command (C-SPC) pushes a mark and activates the region.  Moving the\n\
+cursor with normal motion commands (C-n, C-p, etc) will cause the region\n\
+between point and the recently-pushed mark to be highlighted.  It will\n\
+remain highlighted until some non-motion comand is executed.\n\
+\n\
+exchange-point-and-mark (\\[exchange-point-and-mark]) activates the region.  So if you mark a\n\
+region and execute a command that operates on it, you can reactivate the\n\
+same region with \\[exchange-point-and-mark] (or perhaps \\[exchange-point-and-mark] \\[exchange-point-and-mark]) to operate on it\n\
+again.\n\
+\n\
+Generally, commands which push marks as a means of navigation (like\n\
+beginning-of-buffer and end-of-buffer (M-< and M->)) do not activate the\n\
+region.  But commands which push marks as a means of marking an area of\n\
+text (like mark-defun (\\[mark-defun]), mark-word (\\[mark-word]) or mark-whole-buffer (\\[mark-whole-buffer]))\n\
+do activate the region.");
   /* Zmacs style active regions are now ON by default */
   zmacs_regions = 1;
   zmacs_region_active_p = 0;

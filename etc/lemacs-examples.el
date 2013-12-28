@@ -12,9 +12,6 @@
        (setq-default mode-line-buffer-identification '("Emacs19: %17b"))
        (setq mode-line-buffer-identification '("Emacs19: %17b"))
 
-       ;; use boldface
-       (or (x-color-display-p) (setq isearch-extent-attribute 1))
-
        (cond ((eq window-system 'x)
 	      (global-set-key "\C-x\C-c" nil)
 	      ;; I often kill big chunks of text (hundreds of k) and it's way

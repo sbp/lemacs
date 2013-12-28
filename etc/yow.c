@@ -29,10 +29,20 @@ main (argc, argv)
   if (argc > 2 && !strcmp (argv[1], "-f"))
     strcpy (file, argv[2]);
   else
+#ifdef PATH_EXEC
 #ifdef vms
     sprintf (file, "%s%s", PATH_EXEC, YOW_FILE);
 #else
     sprintf (file, "%s/%s", PATH_EXEC, YOW_FILE);
+#endif /* VMS */
+#else /* !PATH_EXEC */
+  {
+    fprintf (stderr,
+     "%s: the location of the \"%s\" file was not supplied at compile-time.\n\
+	You must supply it with the -f command-line option.\n",
+	     argv[0], YOW_FILE);
+    exit (1);
+  }
 #endif
 
   if ((fp = fopen(file, "r")) == NULL) {

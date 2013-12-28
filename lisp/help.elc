@@ -1,5 +1,5 @@
-;;; compiled by jwz@thalidomide on Wed May 27 18:01:13 1992
-;;; from file /cadillac-th/jwz/emacs19/lisp/help.el
+;;; compiled by jwz@thalidomide on Tue Jun  2 20:03:29 1992
+;;; from file /u/jwz/emacs19/lisp/help.el
 ;;; emacs version 19.0.21 Lucid.
 ;;; bytecomp version 2.06; 17-may-92.
 ;;; optimization is on.
@@ -12,7 +12,7 @@
 
 (defvar help-map (make-sparse-keymap) "\
 Keymap for characters following the Help key.")
-(byte-code "À	ÂÃ#ˆÃMˆÀÂÅ#ˆÀÆÅ#ˆÀÇÈ#ˆÀÉÊ#ˆÀËÌ#ˆÀÍÎ#ˆÀÏĞ#ˆÀÑÒ#ˆÀÓÔ#ˆÀÕÖ#ˆÀ×Ö#ˆÀØÙ#ˆÀÚÛ#ˆÀÜİ#ˆÀŞß#ˆÀàß#ˆÀáâ#ˆÀãä#ˆÀåæ#ˆÀçè#ˆéêMˆÀ	ëé#‡" [define-key global-map "" help-command help-map help-for-help "?" "" describe-copying "" describe-distribution "" describe-no-warranty "a" command-apropos "b" describe-bindings "c" describe-key-briefly "k" describe-key "d" describe-function "f" "i" info "l" view-lossage "m" describe-mode "" view-emacs-news "n" "s" describe-syntax "t" help-with-tutorial "w" where-is "v" describe-variable deprecated-help-command #[nil "ÀÁ!Â=«‰ÃÄÅ \"‰‡Ç ‡" [key-binding "" help-command character-to-event 8 allocate-event unread-command-event help-for-help] 3 nil nil] backspace] 4)
+(byte-code "À	ÂÃ#ˆÃMˆÀÂÅ#ˆÀÆÅ#ˆÀÇÈ#ˆÀÉÊ#ˆÀËÌ#ˆÀÍÎ#ˆÀÏĞ#ˆÀÑÒ#ˆÀÓÔ#ˆÀÕÖ#ˆÀ×Ø#ˆÀÙØ#ˆÀÚÛ#ˆÀÜİ#ˆÀŞß#ˆÀàá#ˆÀâá#ˆÀãä#ˆÀåæ#ˆÀçè#ˆÀéê#ˆëìMˆÀ	íë#‡" [define-key global-map "" help-command help-map help-for-help "?" "" describe-copying "" describe-distribution "" describe-no-warranty "a" command-apropos "b" describe-bindings "p" describe-pointer "c" describe-key-briefly "k" describe-key "d" describe-function "f" "i" info "l" view-lossage "m" describe-mode "" view-emacs-news "n" "s" describe-syntax "t" help-with-tutorial "w" where-is "v" describe-variable deprecated-help-command #[nil "ÀÁ!Â=«‰ÃÄÅ \"‰‡Ç ‡" [key-binding "" help-command character-to-event 8 allocate-event unread-command-event help-for-help] 3 nil nil] backspace] 4)
 (fset 'help-with-tutorial #[nil "ÀÁ!Ã ˆÄ\n!«‡ÅÄ\n!!ª¾ÅÆ\n!!ˆ\nÀÈ!	ÊÌÀÍ\"!ˆebˆÏĞ!ˆÑyˆ`Êˆ`|ˆÒÓÔ !Õe`\"ZÖZ!ˆebˆ×Ê!)‡" [expand-file-name "~/TUTORIAL" file delete-other-windows get-file-buffer switch-to-buffer create-file-buffer buffer-file-name "~/" default-directory nil auto-save-file-name insert-file-contents "TUTORIAL" exec-directory search-forward "\n<<" 0 newline window-height selected-window count-lines 6 set-buffer-modified-p] 5 "\
 Select the Emacs learn-by-doing tutorial." nil])
 (fset 'describe-key-briefly #[(key) "À	!‰«„\n¨«ˆÃÄÅ	!\"ªÃÆÅ	!\n9«ƒ\nªƒÇ\n!#)‡" [key-binding key defn message "%s is undefined" key-description "%s runs the command %s" prin1-to-string] 6 "\
@@ -34,13 +34,16 @@ Display documentation of current major mode." nil])
 Display info on how to obtain the latest version of GNU Emacs." nil])
 (fset 'describe-copying #[nil "ÀÁÂ\"!ˆeb‡" [find-file-read-only expand-file-name "COPYING" exec-directory] 4 "\
 Display info on how you may redistribute copies of GNU Emacs." nil])
+(fset 'describe-pointer #[nil "ÀÁ!‡" [describe-bindings t] 2 "\
+Show a list of all defined mouse buttons, and their definitions.
+This is the same as \\[universal-argument] \\[describe-bindings]." nil])
 (fset 'describe-no-warranty #[nil "À ˆÁÃÄ!ˆÅÆ!)‡" [describe-copying nil case-fold-search search-forward "NO WARRANTY" recenter 0] 2 "\
 Display info on all the kinds of warranty Emacs does NOT have." nil])
 (fset 'view-emacs-news #[nil "ÀÁÂ\"!‡" [find-file-read-only expand-file-name "NEWS" exec-directory] 4 "\
 Display info on recent changes to Emacs." nil])
 (fset 'view-lossage #[nil "ÀÁÂÃ !!ˆŠqˆebˆÅÆ!ˆm¬‹ÇÈÉÊ#ˆËcˆªn)Ì ‘‡" ["*Help*" princ key-description recent-keys standard-output move-to-column 50 search-forward " " nil t "\n" print-help-return-message] 5 "\
 Display last 100 input keystrokes." nil])
-(fset 'help-for-help #[nil "À	!Â‰ÆÇÈ!\"ˆÉÊ !Ë!®‰š¬ŠÌš¬…Íš«ƒÎ‹ˆÏÑ!«…Ò!ª„Ó—!\"‰«†Õ!ª‚Ö ,‡" [copy-event last-command-event nil char event help-key message "A B C F I K L M N S T V W C-c C-d C-n C-w.  Type %s again for more help: " single-key-description next-command-event allocate-event event-to-character 8 63 ((byte-code "ÀÁ!ˆÂ ˆÃÄ!cˆebˆš¬…Ç>«²È>«ƒÉ ˆÊ>«ƒË ˆÌÍÎd!«ƒÏªĞ\"ˆÑÓ!Õ!®‚)ªCÀ‡" [switch-to-buffer "*Help*" erase-buffer documentation help-for-help char help-key (8 63 22 32 127 246) (22 32) scroll-up (127 246) scroll-down message "A B C F I K L M N S T V W C-c C-d C-n C-w%s: " pos-visible-in-window-p "" " or Space to scroll" t cursor-in-echo-area next-command-event event event-to-character] 4)) lookup-key help-map eventp vector char-to-string defn call-interactively ding] 5 "\
+(fset 'help-for-help #[nil "À	!Â‰ÆÇÈ!\"ˆÉÊ !Ë!®‰š¬ŠÌš¬…Íš«ƒÎ‹ˆÏÑ!«…Ò!ª„Ó—!\"‰«†Õ!ª‚Ö ,‡" [copy-event last-command-event nil char event help-key message "A B C F I K L M N P S T V W C-c C-d C-n C-w.  Type %s again for more help: " single-key-description next-command-event allocate-event event-to-character 8 63 ((byte-code "ÀÁ!ˆÂ ˆÃÄ!cˆebˆš¬…Ç>«²È>«ƒÉ ˆÊ>«ƒË ˆÌÍÎd!«ƒÏªĞ\"ˆÑÓ!Õ!®‚)ªCÀ‡" [switch-to-buffer "*Help*" erase-buffer documentation help-for-help char help-key (8 63 22 32 127 246) (22 32) scroll-up (127 246) scroll-down message "A B C F I K L M N P S T V W C-c C-d C-n C-w%s: " pos-visible-in-window-p "" " or Space to scroll" t cursor-in-echo-area next-command-event event event-to-character] 4)) lookup-key help-map eventp vector char-to-string defn call-interactively ding] 5 "\
 You have typed C-h, the help character.  Type a Help option:
 
 A  command-apropos.   Give a substring, and see a list of commands
@@ -57,6 +60,7 @@ L  view-lossage.  Shows last 100 characters you typed.
 M  describe-mode.  Print documentation of current major mode,
 	      which describes the commands peculiar to it.
 N  view-emacs-news.  Shows emacs news file.
+P  describe-pointer.  Display table of all mouse-button bindings.
 S  describe-syntax.  Display contents of syntax table, plus explanations
 T  help-with-tutorial.  Select the Emacs learn-by-doing tutorial.
 V  describe-variable.  Type name of a variable;

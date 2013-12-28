@@ -1,11 +1,11 @@
 ;; Faster apropos commands.
-;; Copyright (C) 1989 Free Software Foundation, Inc.
+;; Copyright (C) 1989, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -46,16 +46,6 @@
   "*Whether `apropos' and `super-apropos' should do everything that they can.
 Makes them run 2 or 3 times slower.  Set this non-nil if you have a fast
 machine.")
-
-;; If there isn't already a lisp variable named internal-doc-file-name, create
-;; it and document it.  This is so the code will work right after RMS adds
-;; internal-doc-file-name.
-;(or (boundp 'internal-doc-file-name)
-;    (setq internal-doc-file-name (concat exec-directory "DOC")))
-;(or (documentation-property 'internal-doc-file-name 'variable-documentation)
-;    (put 'internal-doc-file-name 'variable-documentation
-;	 "The complete pathname of the documentation file that contains all
-;documentation for functions and variables defined before Emacs is dumped."))
 
 (defun apropos (regexp &optional do-all pred)
   "Show all symbols whose names contain matches for REGEXP.
@@ -115,9 +105,9 @@ file.  Returns list of symbols and documentation found."
 ;; Returns an alist of form ((symbol fn-doc var-doc) ...).
 
 (defun super-apropos-check-doc-file (regexp)
-  (let ((doc-buffer (find-file-noselect internal-doc-file-name t))
-	;;	(doc-buffer (or (get-file-buffer internal-doc-file-name)
-	;;			(find-file-noselect internal-doc-file-name)))
+  (let ((doc-buffer (find-file-noselect
+		     (expand-file-name internal-doc-file-name exec-directory)
+		     t))
 	type symbol doc sym-list)
     (save-excursion
       (set-buffer doc-buffer)

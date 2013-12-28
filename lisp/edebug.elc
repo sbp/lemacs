@@ -1,7 +1,7 @@
-;;; compiled by devin@watergate on Sat May 16 14:11:51 1992
-;;; from file /wg1/emacs-base/lisp/edebug.el
-;;; emacs version 19.0.16 Lucid.
-;;; bytecomp version 2.06; 23-apr-92.
+;;; compiled by jwz@thalidomide on Wed Jun  3 13:30:50 1992
+;;; from file /cadillac-th/jwz/emacs19/lisp/edebug.el
+;;; emacs version 19.0.21 Lucid.
+;;; bytecomp version 2.06; 17-may-92.
 ;;; optimization is on.
 ;;; this file uses opcodes which do not exist in Emacs18.
 
@@ -141,7 +141,7 @@ Call eval-region on the whole buffer." nil])
 Evaluate defun or defmacro, like eval-defun, but with edebug calls.
 Print its name in the minibuffer and leave point where it is,
 or if an error occurs, leave point after it with mark at the original point." nil])
-(fset 'edebug-func-form #[nil "À‰‰‰‰ÁÀ‰‰‰Â	\nÎ Ï ‰9¬†ÐÑ\"ˆÏ ‰<¬†ÐÒ\"ˆ`Ó Ô=«†Ï `Ó Õ=«”ÖuˆÏ ×=«‹×Ø B\nÖuˆ`bˆÉ 	ÙÚÛGÜ\"Þß\"ˆ)#ˆÙàÛGÁ\"#ˆÙáÀâŸ!E#ˆ\nãäDåæçèçéê!\"\"\"ëåì	\"DF¯.‡" [nil 0 t parse-sexp-ignore-comments tmp-point edebug-func-mark edebug-before-to-after-alist edebug-offset-list edebug-offset-index edebug-forms defun-interactive def-docstring def-args def-name point-marker edebug-read-sexp edebug-syntax-error "Bad name: %s" "Bad arg list: %s" edebug-next-token-class string lparen 1 interactive edebug-interactive-form put edebug-after-index make-vector -1 after-vector mapcar #[(pair) "	@	AI‡" [after-vector pair] 3] edebug-freq-count edebug vconcat edebug-enter quote append (list) delq rest &optional copy-sequence function (lambda nil)] 15 "\
+(fset 'edebug-func-form #[nil "À‰‰‰‰ÁÀ‰‰‰Â	\nÎ Ï ‰9¬†ÐÑ\"ˆÏ ‰<¬†ÐÒ\"ˆ`Ó Ô=«†Ï `Ó Õ=«”ÖuˆÏ ×=«‹×Ø B\nÖuˆ`bˆÉ 	ÙÚÛGÜ\"Þß\"ˆ)#ˆÙàÛGÁ\"#ˆÙáÀâŸ!E#ˆ\nãäDåæçèçéê!\"\"\"ëåì	\"DF¯.‡" [nil 0 t parse-sexp-ignore-comments tmp-point edebug-func-mark edebug-before-to-after-alist edebug-offset-list edebug-offset-index edebug-forms defun-interactive def-docstring def-args def-name point-marker edebug-read-sexp edebug-syntax-error "Bad name: %s" "Bad arg list: %s" edebug-next-token-class string lparen 1 interactive edebug-interactive-form put edebug-after-index make-vector -1 after-vector mapcar #[(pair) "	@	AI‡" [after-vector pair] 3] edebug-freq-count edebug vconcat edebug-enter quote append (list) delq &rest &optional copy-sequence function (lambda nil)] 15 "\
 Process the defun form starting before defun or defmacro."])
 (fset 'edebug-forms #[nil "ÀÁ!‡" [edebug-sexp-list t] 2 "\
 Process a list of forms."])

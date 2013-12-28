@@ -87,17 +87,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* #define AMPERSAND_FULL_NAME */
 
-/* # bytes of pure Lisp code to leave space for.
-   Note that s-vms.h, m-sun2.h and m-sparc.h may override this default.  */
-
-#ifndef PURESIZE
-#ifdef HAVE_X_WINDOWS
-#define PURESIZE 400000
-#else
-#define PURESIZE 118000
-#endif
-#endif
-
 /* Define HIGHPRI as a negative number if you want Emacs to run at a higher
    than normal priority.  For this to take effect, you must install it as
    setuid root. */

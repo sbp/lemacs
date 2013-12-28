@@ -31,7 +31,7 @@ Our original hope was that our changes to Emacs would be incorporated into
 the "official" v19.  However, scheduling conflicts arose, and we found that,
 given the amount of work still remaining to be done, we didn't have time to
 merge with the FSF's code.  Consequently, we are releasing our work as a
-forked branch of emacs, instead of delaying any longer.
+forked branch of Emacs, instead of delaying any longer.
 
 What's Different?
 =================
@@ -39,27 +39,27 @@ What's Different?
 Lucid GNU Emacs *currently* requires X Windows to run, though it will not be
 much work to make it run on dumb ttys again.  We plan to do this soon.
 
-It's likely that our version of emacs doesn't work on anything but SunOS,
-because we haven't (yet) tried to compile it under anything but SunOS 4.1 on
-SparcStations.
+We have not yet tried to compile this version of Emacs under anything but
+SunOS 4.1 on SparcStations.  We are very eager to get feedback about
+portability problems from those who compile it on other systems.
 
 We have reimplemented the basic input model in a more general way; instead of
-X input being a special-case of the normal ASCII input stream, emacs has a
+X input being a special-case of the normal ASCII input stream, Emacs has a
 concept of "input events", and ASCII characters are a subset of that.  The
-events that emacs knows about are not X events, but are a generalization of
-them, so that emacs can eventually be ported to different window systems.
+events that Emacs knows about are not X events, but are a generalization of
+them, so that Emacs can eventually be ported to different window systems.
 
 We have reimplemented keymaps so that sequences of events can be stored into
 them instead of just ASCII codes.
 
-You can have multiple X Windows ("screens" in emacs terminology).
+You can have multiple X Windows ("screens" in Emacs terminology).
 
-Our emacs has objects called "extents" and "faces", which are roughly
-analogous to Epoch's "buttons."  An extent is a region of text (a start
-position and an end position) and a face is a collection of textual 
-attributes like fonts and colors.  Every extent is displayed in some "face",
-so changing the properties of a face immediately updates the display of
-all associated extents.  Faces can be screen-local: you can have a region
+Our Emacs has objects called "extents" and "faces", which are roughly
+analogous to Epoch's "buttons," "zones," and "styles."  An extent is a region
+of text (a start position and an end position) and a face is a collection of
+textual attributes like fonts and colors.  Every extent is displayed in some
+"face", so changing the properties of a face immediately updates the display 
+of all associated extents.  Faces can be screen-local: you can have a region
 of text which displays with completely different attributes when its buffer
 is viewed from a different X window.
 
@@ -73,31 +73,31 @@ will not be displayed sensibly.  We hope to improve this soon.
 Emacs use the MIT "Xt" toolkit instead of raw Xlib calls, which makes it be
 a more well-behaved X citizen (and also improves portability).  A result of
 this is that it is possible to include other Xt "Widgets" in the Emacs
-window.  Also, emacs understands the standard Xt command-line arguments.
+window.  Also, Emacs understands the standard Xt command-line arguments.
 
 Emacs understands the X11 "Selection" mechanism; it's possible to define
 and customize selection converter functions and new selection types from 
-elisp, without having to recompile emacs.
+elisp, without having to recompile Emacs.
 
 Emacs now supports the Zmacs/Lispm style of region highlighting, where the
-region between the point and mark is highlighted when it its "active" state.
+region between the point and mark is highlighted when in its "active" state.
 
 Emacs has a menubar, whose contents are customizable from emacs-lisp.
 This menubar looks Motif-ish, but does not require Motif.  If you already
-own Motif, however, you can configure emacs to use a *real* Motif menubar
-instead.
+own Motif, however, you can configure Emacs to use a *real* Motif menubar
+instead.  If you have OpenWindows, you can use a real OpenWindows menubar.
 
 The initial load-path is computed at run-time, instead of at compile-time.
-This means that if you move the emacs executable and associated directories
+This means that if you move the Emacs executable and associated directories
 to somewhere else, you don't have to recompile anything.
 
-You can specify what the title of the emacs windows and icons should be
+You can specify what the title of the Emacs windows and icons should be
 with the variables `screen-title-format' and `screen-icon-title-format',
 which have the same syntax as `mode-line-format'.
 
 Emacs now supports floating-point numbers.
 
-Emacs now knows about timers directly, instead of them being simulated by 
+Emacs now knows about timers directly, instead of them being simulated by
 a subprocess.
 
 Emacs understands truenames, and can be configured to notice when you are
@@ -105,7 +105,7 @@ visiting two names of the same file.  See the variables find-file-use-truenames
 and find-file-compare-truenames.
 
 If you're running on a sun SparcStation, you can specify sound files for
-emacs to play instead of the default X beep.  See the documentation of the
+Emacs to play instead of the default X beep.  See the documentation of the
 function load-sound-file and the variable sound-alist.
 
 Random changes to the emacs-lisp library: (some of this was not written by
@@ -176,7 +176,7 @@ well to a number of window systems.
     function		An elisp function to call with this event object.
     object		Anything.
 			This kind of event is used internally; sometimes the
-			window system interface would like to inform emacs of
+			window system interface would like to inform Emacs of
 			some user action (such as focusing on another screen)
 			but needs that to happen synchronously with the other
 			user input, like keypresses.
@@ -195,7 +195,7 @@ well to a number of window systems.
  magic_event
 			No user-serviceable parts within.  This is for things
 			like KeymapNotify and ExposeRegion events and so on
-			that emacs itself doesn't care about, but which it
+			that Emacs itself doesn't care about, but which it
 			must do something with for proper interaction with
 			the window system.
 
@@ -272,7 +272,7 @@ and Control-Shift-a; we also want it to be possible for the keys Control-h
 and Backspace (and Control-M and Return, and Control-I and Tab, etc) to
 be distinct.
 
-One of the most common complaints that new emacs users have is that backspace
+One of the most common complaints that new Emacs users have is that backspace
 is help.  The answer is to play around with the keyboard-translate-table, or
 be lucky enough to have a system administrator who has done this for you
 already; but if it were possible to bind backspace and C-h to different
@@ -295,7 +295,7 @@ or (shift f1).  The order of the modifier-names is not significant, so
 (meta control x) and (control meta x) are the same.
 
 Define-key knows how to take any of the above representations and store them
-into a keymap.  When emacs wants to return a key sequence (this-command-keys,
+into a keymap.  When Emacs wants to return a key sequence (this-command-keys,
 recent-keys, keyboard-macros, and read-key-sequence, for example) it returns
 a vector of event objects.  Keyboard macros can also be represented as ASCII
 strings or as vectors of key description lists.  
@@ -321,23 +321,23 @@ The heart of the event loop is implemented in terms of the XtNextEvent,
 and uses Xt's concept of timeouts and file-descriptor callbacks,
 eliminating a large amount of system-dependent code (Xt does it for you.)
 
-If emacs is compiled with support for X, we plan to have it use the Xt
-event loop even when emacs is not running on an X display (the Xt event
-loop supports this.)  This will make it possible to run emacs on a dumb
+If Emacs is compiled with support for X, we plan to have it use the Xt
+event loop even when Emacs is not running on an X display (the Xt event
+loop supports this.)  This will make it possible to run Emacs on a dumb
 tty, and later connect it to one or more X servers.  We hope also to make
-it possible to later connect an existing emacs process to additional ttys.
-(Our intent at this point is not to have an emacs that is being used by
+it possible to later connect an existing Emacs process to additional ttys.
+(Our intent at this point is not to have an Emacs that is being used by
 multiple people at the same time: it is to make it possible for someone to
-go home, log in on a dialup line, and connect to the same emacs process
+go home, log in on a dialup line, and connect to the same Emacs process
 that is running under X in their office without having to recreate their
 buffer state and so on.)
 
-If emacs is not compiled with support for X, then it will instead use
+If Emacs is not compiled with support for X, then it will instead use
 more general code, something like what v18 does; but this way of doing
 things is a lot more modular.
 
-(Linking emacs with Xt seems to only add about 300k to the executable size,
-compared with an emacs linked with Xlib only.)
+(Linking Emacs with Xt seems to only add about 300k to the executable size,
+compared with an Emacs linked with Xlib only.)
 
 
 X Selections
@@ -345,7 +345,7 @@ X Selections
 
 We have reimplemented X Selection handling to be more general than before.
 Almost all of it is implemented in emacs-lisp now, so it's possible to 
-define new selection data types without having to recompile emacs.
+define new selection data types without having to recompile Emacs.
 
 variable selection-converter-alist:
 An alist associating selection-types (such as STRING and TIMESTAMP) with
@@ -360,12 +360,12 @@ is no meaningful return value.
 
 variable x-lost-selection-hooks:
 A function or functions to be called after the X server has notified us
-that emacs has lost the selection.  The function(s) will be called with one
+that Emacs has lost the selection.  The function(s) will be called with one
 argument, a symbol naming the selection (typically PRIMARY, SECONDARY, or
 CLIPBOARD.)
 
 variable x-sent-selection-hooks:
-A function or functions to be called after emacs has responded to some
+A function or functions to be called after Emacs has responded to some
 other client's request for the value of a selection that we own.  The
 function(s) will be called with four arguments:
   - the name of the selection (typically PRIMARY, SECONDARY, or CLIPBOARD);
@@ -375,7 +375,7 @@ function(s) will be called with four arguments:
 We might have failed (and declined the request) for any number of reasons,
 including being asked for a selection that we no longer own, or being asked
 to convert into a type that we don't know about or that is inappropriate.
-This hook doesn't let you change the behavior of emacs's selection replies,
+This hook doesn't let you change the behavior of Emacs's selection replies,
 it merely informs you that they have happened.
 
 subr x-own-selection-internal:
@@ -555,7 +555,7 @@ The menubar, menu, and dialog-box code is implemented as a library, with
 an interface which hides the toolkit that implements it.  Currently, we
 are using a Motif-based library, but we are currently working on an
 Athena-based library, which will make it possible to use menubars and
-dialog boxes in emacs without relying on any non-free software.
+dialog boxes in Emacs without relying on any non-free software.
 
 
 Startup Code Changes
@@ -567,16 +567,16 @@ generated by their .emacs file, any windows created by the .emacs file
 don't show up, and the copyleft notice isn't shown.
 
 The default values for load-path, exec-path, lock-directory, and
-Info-directory-list are not (necessarily) built into emacs, but are
+Info-directory-list are not (necessarily) built into Emacs, but are
 computed at startup time.  
 
-First, emacs looks at the directory from which its executable file was run:
+First, Emacs looks at the directory from which its executable file was run:
 
   o  If it ends in /src/, and ../lisp/ exists, then we use that for the
      lisp library (likewise for /etc/ and /lock/).
-  o  Otherwise, if there is a subdirectory of the directory that the emacs
+  o  Otherwise, if there is a subdirectory of the directory that the Emacs
      program is in called lisp/ (or etc/ or lock/), then we use that.
-  o  Otherwise, if the emacs program that was run is itself a symbolic
+  o  Otherwise, if the Emacs program that was run is itself a symbolic
      link, then we chase the link and try again on the resultant directory.
   o  Otherwise, as a last resort, we look in /usr/local/lib/emacs/ and
      /usr/local/emacs/.
@@ -584,35 +584,35 @@ First, emacs looks at the directory from which its executable file was run:
 Finally, if the lisp directory contains subdirectories, they are added to
 the default load-path as well.
 
-These heuristics fail if the emacs binary was copied from the main emacs
+These heuristics fail if the Emacs binary was copied from the main Emacs
 tree to some other directory, and links for the lisp directory were not
 put in.  This isn't much of a restriction.
 
-If emacs can't find the requisite directories, it prints a message like
+If Emacs can't find the requisite directories, it prints a message like
 this (or some appropriate subset of it) to the terminal it was invoked
 from:
 
   WARNING:
   couldn't find an obvious default for load-path, exec-directory, and
   lock-directory, and there were no defaults specified in paths.h when
-  emacs was built.  Perhaps some directories don't exist, or the emacs
+  Emacs was built.  Perhaps some directories don't exist, or the Emacs
   executable, /cadillac-th/jwz/somewhere/xemacs is in a strange place?
 
   Without lock-directory set, file locking won't work.  Consider
   creating /cadillac-th/jwz/somewhere/lock/ as a directory or symbolic
   link for use as the lock directory.
 
-  Without both exec-directory and load-path, emacs will be very broken.
+  Without both exec-directory and load-path, Emacs will be very broken.
   Consider making a symbolic link from /cadillac-th/jwz/somewhere/etc/
-  to wherever the appropriate emacs etc directory is, and from
-  /cadillac-th/jwz/somewhere/lisp/ to wherever the appropriate emacs
+  to wherever the appropriate Emacs etc directory is, and from
+  /cadillac-th/jwz/somewhere/lisp/ to wherever the appropriate Emacs
   lisp library is.
 
 
 X Resources
 ===========
 
-The Emacs resources are generally per-screen.  Each emacs screen can have its
+The Emacs resources are generally per-screen.  Each Emacs screen can have its
 own name, or the same name as another, depending on the name passed to the
 x-create-screen function.  
 
@@ -708,7 +708,7 @@ These are the names of the predefined faces:
 	default			Everything inherits from this.
 
 	bold			If this is not specified in the resource
-				database, emacs tries to find a "bold" 
+				database, Emacs tries to find a "bold" 
 				version of the font of the "default" face.
 
 	italic			ditto.
@@ -726,6 +726,60 @@ These are the names of the predefined faces:
 
 	info-xref		This is the face of info cross-references.
 				If unspecified, it is copied from "bold".
+
+
+Known Problems / TODO List
+==========================
+
+Horizontally-split windows don't work.  Selective-display doesn't work.
+Display tables don't work.  Lucid GNU Emacs is not "8-bit clean."  We plan to
+do some extensive work on redisplay soon, which will likely fix all of this.
+
+Most of the `screen-parameters' don't work.  I'm not convinced that the
+screen-parameters/modify-screen-parameters functions are the best interface
+anyway.
+
+The Motif-like menubar that xlwmenu.c defines should use the same resources
+that real Motif menubars use (as much as possible, anyway.)
+
+We should include GNUS 3.14 instead of 3.13.
+
+`add-menu-item' should take a BEFORE arg, the menu before which this menu
+should be inserted.
+
+Faces should be able to have cursors associated with them.
+
+Someone should write an Epoch-compatibility package, so that simple Epoch
+code can run without modification in Lucid GNU Emacs.
+
+The current menubar should be specified by the value of a variable, which
+can be buffer-local, instead of simply being associated with a screen.  This
+means the menubar may need to change as a result of the user switching buffers
+or windows, so care must be taken to do this very efficiently.
+
+The `mouse-motion-hook' should be called whenever a buffer scrolls or the
+sizes of windows change, so that it can correctly frob the mouse-cursor based
+on the text that the mouse is now over.
+
+Everybody wants scrollbars.  They should be implemented in lwlib.a, so that
+they are toolkit-independent (that is, when the user has Motif, emacs should
+use Motif scrollbars; likewise for OpenWindows.)  There should be one scrollbar
+per emacs window, *not* one scrollbar per emacs screen.  The easiest way to
+do this would be to make emacs windows be X windows which are inferiors of the
+X window coresponding to the emacs screen.  There would then be an intermediate
+horizontally-stacking RowColumn widget between the screen and the emacs window
+which was used to group the scrollbar and the emacs window together.
+
+We need to implement a non-Xt event_stream, based on select() and/or timer
+signals, so that emacs can be *compiled* without support for X.  (Note that
+this is different than emacs *running* without X.)
+
+It should be possible to have a process-filter-function that doesn't get 
+called with a string; rather, the output is simply put in a buffer.  This
+is like a process having both a buffer and a filter-function.  This would
+be a good thing because it would mean that a string need not be consed every
+time a process generated output, and yet you could be signalled that output
+had arrived.
 
 
 Miscellaneous Changes
@@ -778,7 +832,7 @@ case some fractional part of a second will be used.  Caveat: the usable
 timeout granularity will vary from system to system.
 
 Adding a timeout causes a timeout event to be returned by next-event, and
-the function will be invoked by dispatch-event, so if emacs is in a tight
+the function will be invoked by dispatch-event, so if Emacs is in a tight
 loop, the function will not be invoked until the next call to sit-for or
 until the return to top-level (the same is true of process filters.)
 
@@ -923,7 +977,7 @@ Return the case table of the current buffer.
 current-time-seconds ()
 
 Returns the current time as the number of seconds since Jan. 1, 1970, 00:00,
-Greenwich Mean Time.  Since emacs cant represent integers that large, this
+Greenwich Mean Time.  Since Emacs cant represent integers that large, this
 is returned as a cons of two 16-bit numbers.  You can pass this value as an
 argument to current-time-string to get that time as a string.
 
@@ -1105,7 +1159,7 @@ event-window (event)
 
 Given a mouse motion, button press, or button release event, compute
 and return the window on which that event occurred.  This may be nil if
-the event did not occur in an emacs window (in the border or modeline.)
+the event did not occur in an Emacs window (in the border or modeline.)
 
 ------------------------------
 event-x (event)
@@ -1326,7 +1380,7 @@ Return list of 1 minute, 5 minute and 15 minute load averages.
 Each of the three load averages is multiplied by 100,
 then converted to integer.
 
-This won't work unless the emacs executable is setgid kmem
+This won't work unless the Emacs executable is setgid kmem
 (assuming that /dev/kmem is in the group kmem.)
 
 ------------------------------
@@ -2196,7 +2250,7 @@ to the cut buffer
 
 ------------------------------
 x-new-screen ()
-Creates a new emacs screen (that is, a new X window.)
+Creates a new Emacs screen (that is, a new X window.)
 
 ------------------------------
 x-own-clipboard (string)
@@ -2228,7 +2282,7 @@ nil is the same as PRIMARY, and t is the same as SECONDARY.)
 ------------------------------
 x-selection-owner-p (&optional selection)
 
-Whether the current emacs process owns the given X Selection.
+Whether the current Emacs process owns the given X Selection.
 The arg should be the name of the selection in question, typically one of
 the symbols PRIMARY, SECONDARY, or CLIPBOARD.  (For convenience, the symbol
 nil is the same as PRIMARY, and t is the same as SECONDARY.)
@@ -2281,7 +2335,8 @@ If someone owns a Clipboard selection, insert it at point.
 zmacs-activate-region ()
 
 Make the region between point and mark be in the active (hilighted)
-state, if zmacs-regions is true.
+state, if zmacs-regions is true.  Only a very small number of commands
+should ever do this.
 
 ------------------------------
 zmacs-deactivate-region ()
@@ -2465,7 +2520,7 @@ Note: this variable has replaced `inhibit-local-variables'.
 ------------------------------
 execution-path
 
-Normalized pathname for executable emacs program now running.
+Normalized pathname for executable Emacs program now running.
 This is essentially the same as (real-path-name invocation-name).
 
 ------------------------------
@@ -2538,7 +2593,7 @@ Name of file containing documentation strings of built-in symbols.
 ------------------------------
 interrupt-char
 
-Character which interrupts emacs.
+Character which interrupts Emacs.
 Do not setq this variable: use the function set-interrupt-character instead.
 Depending on the system you are on, this may need to do magic like changing
 interrupt handlers.
@@ -2549,7 +2604,7 @@ invocation-name
 Name of file used to invoke editing session.
 This is the string that was passed in argv[0], after being passed to the
 function `file-name-nondirectory'.  To know the "truename" of the
-currently-running emacs process, look at `execution-path'.
+currently-running Emacs process, look at `execution-path'.
 
 ------------------------------
 keymap-tick
@@ -2684,7 +2739,7 @@ screen-default-alist
 Alist of default values for screen creation, other than the first one.
 These may be set in your init file, like this:
   (setq screen-default-alist ((width . 80) (height . 55)))
-For values specific to the first emacs screen, you must use X Resources.
+For values specific to the first Emacs screen, you must use X Resources.
 
 ------------------------------
 screen-icon-title-format
@@ -2744,7 +2799,7 @@ not running on the console of a Sun4.
 You should probably add things to this list by calling the function
 load-sound-file.
 
-The following beep-types are used by the emacs itself:
+The following beep-types are used by Emacs itself:
 
     auto-save-error	when an auto-save does not succeed
     command-error	when the emacs command loop catches an error
@@ -2755,7 +2810,7 @@ The following beep-types are used by the emacs itself:
     yes-or-no-p  	when you type something other than yes or no
 
 Other lisp packages may use other beep types, but these are the ones that
-the C kernel of emacs uses.
+the C kernel of Emacs uses.
 
 ------------------------------
 tag-table-alist
@@ -2835,7 +2890,7 @@ The users name, base upon the real uid.
 x-allow-sendevents
 
 *Non-nil means to allow synthetic events.  Nil means they are ignored.
-Beware: allowing emacs to process SendEvents opens a big security hole.
+Beware: allowing Emacs to process SendEvents opens a big security hole.
 
 ------------------------------
 x-backing-store
@@ -2947,7 +3002,7 @@ function(s) will be called with four arguments:
 We might have failed (and declined the request) for any number of reasons,
 including being asked for a selection that we no longer own, or being asked
 to convert into a type that we dont know about or that is inappropriate.
-This hook doesnt let you change the behavior of emacss selection replies,
+This hook doesn't let you change the behavior of Emacs's selection replies,
 it merely informs you that they have happened.
 
 ------------------------------
@@ -2974,10 +3029,34 @@ zmacs-regions
 
 *Whether LISPM-style active regions should be used.
 This means that commands which operate on the region (the area between the
-point and the mark) will only work while the region is in the active
+point and the mark) will only work while the region is in the ``active''
 state, which is indicated by hilighting.  Executing most commands causes
-the region to not be in the active state, so (for example) C-w
-will only work immediately after activating the region.
+the region to not be in the active state, so (for example) C-w will only
+work immediately after activating the region.
+
+More specifically:
+
+ - Commands which operate on the region only work if the region is active.
+ - Only a very small set of commands cause the region to become active:
+   Those commands whose semantics are to mark an area, like mark-defun.
+ - The region is deactivated after each command that is executed, except that:
+ - "Motion" commands do not change whether the region is active or not.
+
+set-mark-command (C-SPC) pushes a mark and activates the region.  Moving the
+cursor with normal motion commands (C-n, C-p, etc) will cause the region
+between point and the recently-pushed mark to be highlighted.  It will
+remain highlighted until some non-motion comand is executed.
+
+exchange-point-and-mark (C-x C-x) activates the region.  So if you mark a
+region and execute a command that operates on it, you can reactivate the
+same region with C-x C-x (or perhaps C-x C-x C-x C-x) to operate on it
+again.
+
+Generally, commands which push marks as a means of navigation (like
+beginning-of-buffer and end-of-buffer (M-< and M->)) do not activate the
+region.  But commands which push marks as a means of marking an area of
+text (like mark-defun (M-C-h), mark-word (M-@) or mark-whole-buffer (C-x h))
+do activate the region.
 
 ------------------------------
 zmacs-deactivate-region-hook
@@ -3125,7 +3204,7 @@ it is possible to redefine only one of those sequences like so:
 	(define-key global-map [(control x) tab] 'command-3)
 
 Of course, all of this applies only when running under a window system.  If
-you're talking to emacs through an ASCII-only channel, you don't get any of
+you're talking to Emacs through an ASCII-only channel, you don't get any of
 these features.
 
 ------------------------------
@@ -3465,7 +3544,7 @@ String used as translate table for keyboard input, or nil.
 Each character is looked up in this string and the contents used instead.
 If string is of length N, character codes N and up are untranslated.
 This is the right thing to use only if you are on a dumb tty, as it cannot
-handle input which cannot be represented as ASCII.  If you are running emacs
+handle input which cannot be represented as ASCII.  If you are running Emacs
 under X, you should do the translations with the xmodmap program instead.
 
 ------------------------------
@@ -3507,9 +3586,9 @@ call expand-file-name on them before adding them to this list.
 
 Initialized based on EMACSLOADPATH environment variable, if any,
 otherwise to default specified in by file paths.h when Emacs was built.
-If there were no paths specified in paths.h, then emacs chooses a default
+If there were no paths specified in paths.h, then Emacs chooses a default
 value for this variable by looking around in the file-system near the
-directory in which the emacs executable resides.
+directory in which the Emacs executable resides.
 
 ------------------------------
 mail-aliases

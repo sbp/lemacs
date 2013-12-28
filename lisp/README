@@ -1,0 +1,20 @@
+This directory contains source code for the Emacs facilities written
+in Emacs Lisp.  *.el files are Elisp source, and *.elc files are
+byte-compiled versions of the corresponding *.el files.  Byte-compiled
+files are architecture-independent.  
+
+The term subdirectory contains files of elisp that customize Emacs for
+certain terminal types.  When Emacs starts, it checks the TERM
+environment variable to see what type of terminal the user is running
+on, checks for an elisp file named "term/${TERM}.el", and if one
+exists, loads it.
+
+When emacs starts up, it adds subdirectories of this directory to the
+load-path.  The distributed directories are:
+
+	calendar	an calendar and appointment manager
+	dired		the directory editor
+	gnus		an NNTP-based newsreader; version 3.13
+	ilisp		inferior lisp interaction package
+	term		the terminal-specific customization files
+	vm		View Mail, an alternative to RMAIL

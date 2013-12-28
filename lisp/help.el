@@ -33,6 +33,7 @@
 (define-key help-map "a" 'command-apropos)
 
 (define-key help-map "b" 'describe-bindings)
+(define-key help-map "p" 'describe-pointer)
 
 (define-key help-map "c" 'describe-key-briefly)
 (define-key help-map "k" 'describe-key)
@@ -180,6 +181,12 @@ Argument is a command definition, usually a symbol with a function definition."
    (expand-file-name "COPYING" exec-directory))
   (goto-char (point-min)))
 
+(defun describe-pointer ()
+  "Show a list of all defined mouse buttons, and their definitions.
+This is the same as \\[universal-argument] \\[describe-bindings]."
+  (interactive)
+  (describe-bindings t))
+
 (defun describe-no-warranty ()
   "Display info on all the kinds of warranty Emacs does NOT have."
   (interactive)
@@ -223,6 +230,7 @@ L  view-lossage.  Shows last 100 characters you typed.
 M  describe-mode.  Print documentation of current major mode,
 	      which describes the commands peculiar to it.
 N  view-emacs-news.  Shows emacs news file.
+P  describe-pointer.  Display table of all mouse-button bindings.
 S  describe-syntax.  Display contents of syntax table, plus explanations
 T  help-with-tutorial.  Select the Emacs learn-by-doing tutorial.
 V  describe-variable.  Type name of a variable;
@@ -237,7 +245,7 @@ C-w print information on absence of warranty for GNU Emacs."
   (let ((help-key (copy-event last-command-event))
 	event char)
     (message
-    "A B C F I K L M N S T V W C-c C-d C-n C-w.  Type %s again for more help: "
+  "A B C F I K L M N P S T V W C-c C-d C-n C-w.  Type %s again for more help: "
      (single-key-description help-key))
     (setq event (next-command-event (allocate-event))
 	  char (or (event-to-character event) event))
@@ -253,7 +261,7 @@ C-w print information on absence of warranty for GNU Emacs."
 		(scroll-up))
 	    (if (memq char '(?\177 ?\M-v))
 		(scroll-down))
-	    (message "A B C F I K L M N S T V W C-c C-d C-n C-w%s: "
+	    (message "A B C F I K L M N P S T V W C-c C-d C-n C-w%s: "
 		     (if (pos-visible-in-window-p (point-max))
 			 "" " or Space to scroll"))
 	    (let ((cursor-in-echo-area t))

@@ -166,10 +166,12 @@ Lisp_Object Qkeymapp, Qkeymap;
 
 void describe_map_tree ();
 static Lisp_Object describe_buffer_bindings ();
+static Lisp_Object describe_buffer_mouse_bindings ();
 static void describe_command ();
 static void describe_map ();
 static void describe_alist ();
 static int bucky_sym_to_bucky_bit ();
+static int describe_vector ();
 
 Lisp_Object Qcontrol, Qctrl, Qmeta, Qsuper, Qhyper, Qsymbol, Qshift;
 Lisp_Object Qbutton0, Qbutton1, Qbutton2, Qbutton3, Qbutton4, Qbutton5,
@@ -2211,25 +2213,33 @@ where_is_recursive (definition, map, shadow, firstonly,
 }
 
 
-DEFUN ("describe-bindings", Fdescribe_bindings, Sdescribe_bindings, 0, 0, "",
+DEFUN ("describe-bindings", Fdescribe_bindings, Sdescribe_bindings, 0, 1, "P",
   "Show a list of all defined keys, and their definitions.\n\
-The list is put in a buffer, which is displayed.")
-  ()
+The list is put in a buffer, which is displayed.\n\
+If the argument is non-null, then only the mouse bindings are displayed.")
+  (mice_only_p)
+  Lisp_Object mice_only_p;
 {
   register Lisp_Object thisbuf;
   XSET (thisbuf, Lisp_Buffer, current_buffer);
-  internal_with_output_to_temp_buffer ("*Help*", describe_buffer_bindings,
+  internal_with_output_to_temp_buffer ("*Help*",
+				       NILP (mice_only_p)
+				       ? describe_buffer_bindings
+				       : describe_buffer_mouse_bindings,
 				       thisbuf, Qnil);
   return Qnil;
 }
 
 
 static Lisp_Object
-describe_buffer_bindings (descbuf)
+describe_buffer_bindings_1 (descbuf, mice_only_p)
      Lisp_Object descbuf;
+     int mice_only_p;
 {
   register Lisp_Object start1, start2;
-  char *heading = "key             binding\n---             -------\n";
+  char *heading = (mice_only_p
+		   ? "button          binding\n------          -------\n"
+		   : "key             binding\n---             -------\n");
   Fset_buffer (Vstandard_output);
 
   start1 = XBUFFER (descbuf)->keymap;
@@ -2237,7 +2247,7 @@ describe_buffer_bindings (descbuf)
     {
       insert_string ("Local Bindings:\n");
       insert_string (heading);
-      describe_map_tree (start1, 0, Qnil, Qnil);
+      describe_map_tree (start1, 0, Qnil, Qnil, mice_only_p);
       insert_string ("\n");
     }
 
@@ -2245,10 +2255,24 @@ describe_buffer_bindings (descbuf)
   insert_string (heading);
 
   XSET (start1, Lisp_Keymap, current_global_map);
-  describe_map_tree (start1, 0, XBUFFER (descbuf)->keymap, Qnil);
+  describe_map_tree (start1, 0, XBUFFER (descbuf)->keymap, Qnil, mice_only_p);
 
   Fset_buffer (descbuf);
   return Qnil;
+}
+
+static Lisp_Object
+describe_buffer_bindings (descbuf)
+     Lisp_Object descbuf;
+{
+  return describe_buffer_bindings_1 (descbuf, 0);
+}
+
+static Lisp_Object
+describe_buffer_mouse_bindings (descbuf)
+     Lisp_Object descbuf;
+{
+  return describe_buffer_bindings_1 (descbuf, 1);
 }
 
 
@@ -2260,10 +2284,11 @@ describe_buffer_bindings (descbuf)
     don't mention keys which would be shadowed by it */
 
 void
-describe_map_tree (startmap, partial, shadow, chartab)
+describe_map_tree (startmap, partial, shadow, chartab, mice_only_p)
      Lisp_Object startmap, shadow;
      int partial;
      Lisp_Object chartab;
+     int mice_only_p;
 {
   Lisp_Object maps, elt, sh;
   struct gcpro gcpro1;
@@ -2290,7 +2315,7 @@ describe_map_tree (startmap, partial, shadow, chartab)
       if (NILP (sh) || !NILP (Fkeymapp (sh)))
 	describe_map (Fcdr (elt), Fcar (elt), partial,
 		      (NILP (sh) ? Qnil : get_keymap (sh)),
-		      chartab);
+		      chartab, mice_only_p);
     }
   UNGCPRO;
 }
@@ -2337,11 +2362,12 @@ describe_command (definition)
    PARTIAL, SHADOW and CHARTAB are as in `describe_map_tree' above.  */
 
 static void
-describe_map (map, keys, partial, shadow, chartab)
+describe_map (map, keys, partial, shadow, chartab, mice_only_p)
      Lisp_Object map, keys;
      int partial;
      Lisp_Object shadow;
      Lisp_Object chartab;
+     int mice_only_p;
 {
   Lisp_Object keysdesc = 0;
   struct gcpro gcpro1;
@@ -2353,7 +2379,7 @@ describe_map (map, keys, partial, shadow, chartab)
   else
     keysdesc = Qnil;
   describe_vector (map, keysdesc, describe_command,
-		   partial, shadow, chartab);
+		   partial, shadow, chartab, mice_only_p);
   UNGCPRO;
 }
 
@@ -2371,6 +2397,7 @@ struct describe_vector_closure {
   Lisp_Object self;	 /* this map */
   Lisp_Object self_root; /* this map, or some map that has this map as
 			    a parent.  this is the base of the tree */
+  int mice_only_p;	 /* whether we are to display only button bindings */
 };
 
 static void
@@ -2389,6 +2416,14 @@ describe_vector_mapper (key, bits, binding, junk)
       !NILP (Fget (binding, closure->partial)))
     return;
 	      
+  /* If we're only supposed to display mouse bindings and this isn't one,
+     then bug out. */
+  if (closure->mice_only_p &&
+      (! (EQ (key, Qbutton0) || EQ (key, Qbutton1) || EQ (key, Qbutton2) ||
+	  EQ (key, Qbutton3) || EQ (key, Qbutton4) || EQ (key, Qbutton5) ||
+	  EQ (key, Qbutton6) || EQ (key, Qbutton7))))
+    return;
+
   /* If this command in this map is shadowed by some other map, ignore it. */
   if (!NILP (closure->shadow))
     {
@@ -2436,14 +2471,16 @@ describe_vector_sort_predicate (obj1, obj2, pred)
     return map_keymap_sort_predicate (obj1, obj2, pred);
 }
 
-int
-describe_vector (keymap, elt_prefix, elt_describer, partial, shadow, chartab)
+static int
+describe_vector (keymap, elt_prefix, elt_describer, partial, shadow, chartab,
+		 mice_only_p)
      Lisp_Object keymap;
      Lisp_Object elt_prefix;
      int (*elt_describer) ();
      int partial;
      Lisp_Object shadow;
      Lisp_Object chartab;
+     int mice_only_p;
 {
   struct describe_vector_closure closure;
   Lisp_Object list = Qnil;
@@ -2452,6 +2489,7 @@ describe_vector (keymap, elt_prefix, elt_describer, partial, shadow, chartab)
   closure.shadow = shadow;
   closure.list = &list;
   closure.self_root = keymap;
+  closure.mice_only_p = mice_only_p;
 
   if (!NILP (chartab))
     CHECK_VECTOR (chartab, 0);

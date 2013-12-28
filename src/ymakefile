@@ -410,11 +410,6 @@ LIBES = SOUND_LIBS ENERGIZE_LIBS EMACS_BTL_LIBS \
 #define OBJECTS_MACHINE
 #endif
 
-/* First entry is temacs, since when debugging we don't want to
-   build an xemacs */
-
-all: temacs
-
 xemacs: temacs ${lisp} ${etcdir}DOC OTHER_FILES
 	./temacs -batch -l loadup.el dump
 

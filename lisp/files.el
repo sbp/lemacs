@@ -1,11 +1,11 @@
 ;; File input and output commands for Emacs
-;; Copyright (C) 1985, 1986, 1987 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1986, 1987, 1992 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
 ;; GNU Emacs is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 1, or (at your option)
+;; the Free Software Foundation; either version 2, or (at your option)
 ;; any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -624,11 +624,20 @@ if you wish to pass an empty string as the argument."
 	(if (eq system-type 'vax-vms)
 	    (setq new-name (downcase new-name)))
 	(setq default-directory (file-name-directory buffer-file-name))
-	(if (get-buffer new-name)
-	    (let* ((buf (create-file-buffer buffer-file-name)))
-	      (setq new-name (buffer-name buf))
-	      (kill-buffer buf)))
-	(rename-buffer new-name)))
+	(let ((new-buffer (get-buffer new-name))
+	      (current-buffer (current-buffer)))
+	  (cond ((eq new-buffer current-buffer)
+                 ;; continue using current buffer name
+                )
+		((not (null new-buffer))
+                 ;; the buffer name that we want to use is taken
+		 (let* ((buf (create-file-buffer buffer-file-name)))
+		   (setq new-name (buffer-name buf))
+		   (kill-buffer buf))
+		 (rename-buffer new-name))
+		(t
+                 ;; Just rename the buffer to the new name
+		 (rename-buffer new-name))))))
   (compute-buffer-file-truename) ; insert-file-contents does this too.
   (setq buffer-backed-up nil)
   (clear-visited-file-modtime)
@@ -1085,22 +1094,21 @@ or multiple mail buffers, etc."
 Gets two args, first the nominal file name to use,
 and second, t if reading the auto-save file.")
 
-(defun revert-buffer (&optional arg noconfirm)
+(defun revert-buffer (&optional check-auto noconfirm)
   "Replace the buffer text with the text of the visited file on disk.
 This undoes all changes since the file was visited or saved.
-If latest auto-save file is more recent than the visited file,
-asks user whether to use that instead.
-First argument (optional) non-nil means don't offer to use auto-save file.
- This is the prefix arg when called interactively.
+With a prefix argument, offer to revert from latest auto-save file, if
+that is more recent than the visited file.
+When called from lisp, this is the first argument, CHECK-AUTO; it is optional.
+Optional second argument NOCONFIRM means don't ask for confirmation at all.
 
-Second argument (optional) non-nil means don't ask for confirmation at all.
-
-If revert-buffer-function's value is non-nil, it is called to do the work."
+If the value of `revert-buffer-function' is non-nil, it is called to
+do the work."
   (interactive "P")
   (if revert-buffer-function
-      (funcall revert-buffer-function arg noconfirm)
+      (funcall revert-buffer-function (not check-auto) noconfirm)
     (let* ((opoint (point))
-	   (auto-save-p (and (null arg) (recent-auto-save-p)
+	   (auto-save-p (and check-auto (recent-auto-save-p)
 			     buffer-auto-save-file-name
 			     (file-readable-p buffer-auto-save-file-name)
 			     (y-or-n-p
@@ -1113,7 +1121,17 @@ If revert-buffer-function's value is non-nil, it is called to do the work."
 	    ((or noconfirm
 		 (yes-or-no-p (format "Revert buffer from file %s? "
 				      file-name)))
-	     (let ((buffer-read-only nil))
+	     ;; If file was backed up but has changed since,
+	     ;; we shd make another backup.
+	     (and (not auto-save-p)
+		  (not (verify-visited-file-modtime (current-buffer)))
+		  (setq buffer-backed-up nil))
+	     ;; Get rid of all undo records for this buffer.
+	     (or (eq buffer-undo-list t)
+		 (setq buffer-undo-list nil))
+	     (let ((buffer-read-only nil)
+		   ;; Don't make undo records for the reversion.
+		   (buffer-undo-list t))
 	       (if revert-buffer-insert-file-contents-function
 		   (funcall revert-buffer-insert-file-contents-function
 			    file-name auto-save-p)

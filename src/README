@@ -10,6 +10,8 @@ LWLIB_USES_OLIT in src/config.h must correspond to the choices you made
 in src/lwlib/Imakefile.  Imake comes with X.  If you don't have Imake, 
 you'll have to hack up a Makefile for lwlib by hand.  
 
+Lucid GNU Emacs requires an ANSI C compiler, like GCC.
+
 Now all you should have to do is
 
 cd src
@@ -40,3 +42,6 @@ Notice that the lisp directory has subdirectories now.
 If you install emacs in such a way that an emacs18 lisp directory is searched
 before the lisp directory shipped with this emacs, or if you do this with
 your .emacs file, nothing will work.
+
+
+If you're still having problems, read the file ../PROBLEMS.

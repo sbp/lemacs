@@ -34,6 +34,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif	/* HAVE_X_WINDOWS */
 #endif
 
+#include "puresize.h"
+
 #include "backtrace.h"
 
 #define max(A,B) ((A) > (B) ? (A) : (B))

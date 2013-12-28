@@ -2,7 +2,7 @@
 ;;; The optimization passes of the emacs-lisp byte compiler.
 
 ;; By Jamie Zawinski <jwz@lucid.com> and Hallvard Furuseth <hbf@ulrik.uio.no>.
-;; last modified 29-oct-91.
+;; last modified  2-jun-92.
 
 ;; This file is part of GNU Emacs.
 
@@ -900,7 +900,8 @@ assumes that the function is nonassociative, like - or /."
 		(eq (car-safe last) 'quote))
 	    (if (listp (nth 1 last))
 		(let ((butlast (nreverse (cdr (reverse (cdr (cdr form)))))))
-		  (nconc (list 'funcall fn) butlast (nth 1 last)))
+		  (nconc (list 'funcall fn) butlast
+			 (mapcar '(lambda (x) (list 'quote x)) (nth 1 last))))
 	      (byte-compile-warn
 	       "last arg to apply can't be a literal atom: %s"
 	       (prin1-to-string last))

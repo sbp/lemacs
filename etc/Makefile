@@ -11,7 +11,7 @@ CFLAGS= -g -Bstatic -I/cadillacgnu/gcc-include
 
 EXECUTABLES = test-distrib etags ctags wakeup make-docfile \
    digest-doc sorted-doc movemail cvtmail fakemail yow env \
-   emacsserver emacsclient b2m hexl timer
+   emacsserver emacsclient b2m hexl
 
 #Executables to install in BINDIR.
 #(The others can be left in the emacs/etc subdir; Emacs can find them there.)
@@ -124,9 +124,6 @@ emacsclient: emacsclient.c ../src/config.h
 
 hexl: hexl.c
 	$(CC) -o hexl ${CFLAGS} hexl.c $(LOADLIBES)
-
-timer: getdate.o timer.o
-	$(CC) -o timer $(CFLAGS) getdate.o timer.o
 
 # This one is NOT included in EXECUTABLES.
 # See ../src/ymakefile.
